@@ -1,0 +1,23 @@
+[build-system]
+requires = ['setuptools>=68']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'forge-code'
+version = '0.1.0'
+description = 'A terminal-based Agent Harness for reliable software engineering tasks.'
+readme = 'README.md'
+requires-python = '>=3.12'
+dependencies = [
+    'anthropic>=0.116,<0.117',
+    'typer>=0.9,<1.0',
+]
+
+[project.scripts]
+forge = 'forge.cli:app'
+
+[tool.setuptools.packages.find]
+include = ['forge*']
+
+[tool.pytest.ini_options]
+testpaths = ['tests']
