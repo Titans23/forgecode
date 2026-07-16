@@ -54,7 +54,7 @@ def show_config() -> None:
         typer.echo('Model configuration is incomplete.', err=True)
         typer.echo(str(error), err=True)
         typer.echo(
-            'Set ANTHROPIC_API_KEY before starting ForgeCode.',
+            'Set ANTHROPIC_API_KEY and MODEL_ID before starting ForgeCode.',
             err=True,
         )
         typer.echo(
@@ -64,6 +64,7 @@ def show_config() -> None:
         raise typer.Exit(code=1) from error
 
     typer.echo('Anthropic configuration is ready.')
+    typer.echo(f'Model ID: {config.model_id}')
     typer.echo(f'Base URL: {config.base_url}')
     typer.echo('API key: configured')
 

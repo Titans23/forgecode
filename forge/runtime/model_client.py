@@ -34,6 +34,22 @@ class AnthropicModelClient:
 
     provider = DEFAULT_MODEL_PROVIDER
 
+    @classmethod
+    def from_config(
+        cls,
+        config: ForgeConfig | None = None,
+        max_tokens: int = 4096,
+        client: AsyncAnthropic | None = None,
+    ) -> AnthropicModelClient:
+        '''Create a model client from .env or an explicit ForgeConfig.'''
+        resolved_config = config if config is not None else ForgeConfig.from_env()
+        return cls(
+            model=resolved_config.model_id,
+            max_tokens=max_tokens,
+            config=resolved_config,
+            client=client,
+        )
+
     def __init__(
         self,
         model: str,

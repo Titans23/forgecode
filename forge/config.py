@@ -23,14 +23,18 @@ class ForgeConfig:
     '''Validated configuration used to create the first model client.'''
 
     api_key: str
+    model_id: str
     base_url: str = DEFAULT_ANTHROPIC_BASE_URL
 
     def __post_init__(self) -> None:
         api_key = self.api_key.strip()
+        model_id = self.model_id.strip()
         base_url = self.base_url.strip().rstrip('/')
 
         if not api_key:
             raise ConfigurationError('ANTHROPIC_API_KEY is not set.')
+        if not model_id:
+            raise ConfigurationError('MODEL_ID is not set.')
 
         parsed_url = urlsplit(base_url)
         if parsed_url.scheme not in {'http', 'https'} or not parsed_url.netloc:
@@ -39,6 +43,7 @@ class ForgeConfig:
             )
 
         object.__setattr__(self, 'api_key', api_key)
+        object.__setattr__(self, 'model_id', model_id)
         object.__setattr__(self, 'base_url', base_url)
 
     @classmethod
@@ -55,6 +60,7 @@ class ForgeConfig:
 
         return cls(
             api_key=source.get('ANTHROPIC_API_KEY', ''),
+            model_id=source.get('MODEL_ID', ''),
             base_url=source.get(
                 'ANTHROPIC_BASE_URL',
                 DEFAULT_ANTHROPIC_BASE_URL,

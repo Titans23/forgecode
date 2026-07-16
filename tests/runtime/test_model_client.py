@@ -46,6 +46,7 @@ def test_client_passes_explicit_config_to_anthropic_sdk(
         model='claude-test',
         config=ForgeConfig(
             api_key='test-api-key',
+            model_id='claude-test',
             base_url='https://gateway.example.com/anthropic',
         ),
     )
@@ -56,6 +57,20 @@ def test_client_passes_explicit_config_to_anthropic_sdk(
             'base_url': 'https://gateway.example.com/anthropic',
         }
     ]
+
+
+def test_client_can_use_model_id_from_config() -> None:
+    sdk = FakeAnthropic()
+
+    client = AnthropicModelClient.from_config(
+        config=ForgeConfig(
+            api_key='test-api-key',
+            model_id='configured-model',
+        ),
+        client=sdk,
+    )
+
+    assert client.model == 'configured-model'
 
 
 def test_generate_delegates_to_anthropic_sdk() -> None:
