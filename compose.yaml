@@ -1,0 +1,30 @@
+name: forgecode-m0
+
+services:
+  forge-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    network_mode: none
+
+  python-calculator:
+    build:
+      context: fixtures/python-calculator
+      dockerfile: Dockerfile
+      target: public-test
+    network_mode: none
+
+  typescript-todo:
+    build:
+      context: fixtures/typescript-todo
+      dockerfile: Dockerfile
+      target: public-test
+    network_mode: none
+
+  java-order-service:
+    build:
+      context: fixtures/java-order-service
+      dockerfile: Dockerfile
+      target: public-test
+    network_mode: none
