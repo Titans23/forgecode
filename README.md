@@ -126,6 +126,9 @@ M7  Benchmark、消融实验与 v1.0
   - [ ] 完成 Docker 等其余技术基线配置；
 - [x] 建立 `forge`、`evals` 和 `tests` 基础目录；
 - [ ] 准备 `python-calculator`、`typescript-todo` 和 `java-order-service` 三个 Fixture 仓库；
+  - [x] `python-calculator`：Bug、公开/隐藏测试、任务说明和固定 Commit 已完成；
+  - [ ] `typescript-todo`；
+  - [ ] `java-order-service`；
 - [ ] 为每个 Fixture 固定基础 Commit，设置一个明确 Bug；
 - [ ] 提供公开测试、正确修复后的隐藏测试和自然语言任务描述；
 - [ ] 声明构建/测试命令，以及允许修改和禁止修改的路径。

@@ -1,0 +1,18 @@
+id: python-calculator-001
+repo: fixtures/python-calculator
+base_commit_repository: .
+base_commit: fd6862db9ebe18bc490e23458182803979af843e
+task: 修复除数为零时返回错误结果的问题，使其抛出 ZeroDivisionError，并补充或调整公开测试。
+setup_command: uv sync --frozen
+test_command: uv run --frozen pytest
+hidden_test_command: uv run --frozen pytest tests/hidden
+timeout_seconds: 300
+allowed_paths:
+  - src/calculator/**
+  - tests/public/**
+forbidden_paths:
+  - tests/hidden/**
+success_criteria:
+  public_tests_passed: true
+  hidden_tests_passed: true
+  git_diff_nonempty: true
