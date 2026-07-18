@@ -24,6 +24,7 @@ def test_config_uses_official_base_url_by_default() -> None:
     assert config.model_id == 'claude-test'
     assert config.base_url == DEFAULT_ANTHROPIC_BASE_URL
     assert config.max_tokens == DEFAULT_MODEL_MAX_TOKENS
+    assert config.context_window is None
 
 
 def test_config_accepts_anthropic_compatible_base_url() -> None:
@@ -113,6 +114,19 @@ def test_config_reads_and_validates_model_max_tokens() -> None:
     assert config.max_tokens == 16_384
 
 
+def test_config_reads_model_context_window() -> None:
+    config = ForgeConfig.from_env(
+        {
+            'ANTHROPIC_API_KEY': 'test-key',
+            'MODEL_ID': 'test-model',
+            'MODEL_MAX_TOKENS': '8192',
+            'MODEL_CONTEXT_WINDOW': '128000',
+        }
+    )
+
+    assert config.context_window == 128_000
+
+
 @pytest.mark.parametrize('value', ['invalid', '1000', '40000'])
 def test_config_rejects_invalid_model_max_tokens(value: str) -> None:
     with pytest.raises(ConfigurationError, match='MODEL_MAX_TOKENS'):
@@ -121,5 +135,18 @@ def test_config_rejects_invalid_model_max_tokens(value: str) -> None:
                 'ANTHROPIC_API_KEY': 'test-key',
                 'MODEL_ID': 'test-model',
                 'MODEL_MAX_TOKENS': value,
+            }
+        )
+
+
+@pytest.mark.parametrize('value', ['invalid', '4000', '3000000', '8192'])
+def test_config_rejects_invalid_context_window(value: str) -> None:
+    with pytest.raises(ConfigurationError, match='MODEL_CONTEXT_WINDOW'):
+        ForgeConfig.from_env(
+            {
+                'ANTHROPIC_API_KEY': 'test-key',
+                'MODEL_ID': 'test-model',
+                'MODEL_MAX_TOKENS': '8192',
+                'MODEL_CONTEXT_WINDOW': value,
             }
         )

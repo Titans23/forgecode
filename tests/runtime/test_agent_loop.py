@@ -566,3 +566,31 @@ def test_conversation_rejects_empty_prompt() -> None:
 
     with pytest.raises(ValueError, match='prompt must not be empty'):
         collect_turn(conversation, '   ')
+
+
+def test_conversation_context_stats_include_request_layers() -> None:
+    client = FakeModelClient()
+    client.max_tokens = 100
+    client.context_window = 1_000
+    tools = [
+        {
+            'name': 'read_file',
+            'description': 'Read a file.',
+            'input_schema': {'type': 'object'},
+        }
+    ]
+    conversation = Conversation(
+        client=client,
+        system_prompt='system rules',
+        tools=tools,
+    )
+    conversation.messages.append({'role': 'user', 'content': 'history'})
+
+    stats = conversation.context_stats
+
+    assert stats.message_count == 1
+    assert stats.system_characters == len('system rules')
+    assert stats.tool_schema_characters > 0
+    assert stats.context_window_tokens == 1_000
+    assert stats.reserved_output_tokens == 100
+    assert stats.remaining_tokens is not None

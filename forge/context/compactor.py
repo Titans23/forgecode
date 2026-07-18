@@ -19,7 +19,7 @@ from forge.runtime.state import (
 
 @dataclass(frozen=True, slots=True)
 class CompactionConfig:
-    '''Limits for cheap compaction before a model request.'''
+    '''Limits for cheap and full-history context compaction.'''
 
     tool_result_total_budget: int = 200_000
     tool_result_inline_limit: int = 30_000
@@ -29,6 +29,7 @@ class CompactionConfig:
     keep_first_messages: int = 3
     keep_recent_messages: int = 47
     auto_compact_characters: int = 120_000
+    auto_compact_ratio: float = 0.8
     summary_keep_recent_messages: int = 6
     max_summary_failures: int = 3
 

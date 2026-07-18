@@ -27,6 +27,7 @@ class ForgeConfig:
     model_id: str
     base_url: str = DEFAULT_ANTHROPIC_BASE_URL
     max_tokens: int = DEFAULT_MODEL_MAX_TOKENS
+    context_window: int | None = None
 
     def __post_init__(self) -> None:
         api_key = self.api_key.strip()
@@ -41,6 +42,16 @@ class ForgeConfig:
             raise ConfigurationError(
                 'MODEL_MAX_TOKENS must be between 1024 and 32768.'
             )
+        if self.context_window is not None:
+            if not 4_096 <= self.context_window <= 2_000_000:
+                raise ConfigurationError(
+                    'MODEL_CONTEXT_WINDOW must be between 4096 and 2000000.'
+                )
+            if self.context_window <= self.max_tokens:
+                raise ConfigurationError(
+                    'MODEL_CONTEXT_WINDOW must be greater than '
+                    'MODEL_MAX_TOKENS.'
+                )
 
         parsed_url = urlsplit(base_url)
         if parsed_url.scheme not in {'http', 'https'} or not parsed_url.netloc:
@@ -74,6 +85,15 @@ class ForgeConfig:
             raise ConfigurationError(
                 'MODEL_MAX_TOKENS must be an integer.'
             ) from error
+        raw_context_window = source.get('MODEL_CONTEXT_WINDOW', '').strip()
+        try:
+            context_window = (
+                int(raw_context_window) if raw_context_window else None
+            )
+        except ValueError as error:
+            raise ConfigurationError(
+                'MODEL_CONTEXT_WINDOW must be an integer.'
+            ) from error
 
         return cls(
             api_key=source.get('ANTHROPIC_API_KEY', ''),
@@ -83,4 +103,5 @@ class ForgeConfig:
                 DEFAULT_ANTHROPIC_BASE_URL,
             ),
             max_tokens=max_tokens,
+            context_window=context_window,
         )

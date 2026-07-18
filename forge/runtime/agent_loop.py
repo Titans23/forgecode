@@ -121,11 +121,22 @@ class Conversation:
         )
         self.max_completion_blocks = max_completion_blocks
         self.max_protocol_recoveries = max_protocol_recoveries
+        self._last_repository_context = self.context.repository.system_suffix('')
 
     @property
     def context_stats(self) -> ContextStats:
         '''Return current committed conversation context statistics.'''
-        return self.context.stats
+        return self.context.stats_for_request(
+            system_prompt=self.system_prompt,
+            repository_context=self._last_repository_context,
+            tools=self.tools,
+            context_window_tokens=getattr(
+                self.client,
+                'context_window',
+                None,
+            ),
+            reserved_output_tokens=getattr(self.client, 'max_tokens', 0),
+        )
 
     async def stream(self, prompt: str) -> AsyncIterator[ConversationEvent]:
         '''Run model-tool cycles until the model returns a final text answer.'''
@@ -142,9 +153,28 @@ class Conversation:
         if self.workspace_tracker is not None:
             await self.workspace_tracker.begin_turn()
 
+        self._last_repository_context = (
+            self.context.repository.system_suffix(prompt)
+        )
+        request_system_prompt = self.system_prompt
+        if self._last_repository_context:
+            request_system_prompt += '\n\n' + self._last_repository_context
         await self.context.compact_history(
             request_messages,
             self.client,
+            system_prompt=self.system_prompt,
+            repository_context=self._last_repository_context,
+            tools=self.tools,
+            context_window_tokens=getattr(
+                self.client,
+                'context_window',
+                None,
+            ),
+            reserved_output_tokens=getattr(
+                self.client,
+                'max_tokens',
+                0,
+            ),
         )
         reactive_compaction_attempted = False
         protocol_recoveries = 0
@@ -159,10 +189,7 @@ class Conversation:
                 async for event in self.client.stream(
                     messages=self.context.prepare(request_messages),
                     tools=self.tools,
-                    system=self.context.build_system_prompt(
-                        self.system_prompt,
-                        prompt,
-                    ),
+                    system=request_system_prompt,
                 ):
                     if isinstance(event, ModelTextDelta):
                         text_parts.append(event.text)

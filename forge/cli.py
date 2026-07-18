@@ -244,6 +244,14 @@ def show_config() -> None:
     typer.echo(f'Model ID: {config.model_id}')
     typer.echo(f'Base URL: {config.base_url}')
     typer.echo(f'Max output tokens: {config.max_tokens:,}')
+    typer.echo(
+        'Context window: '
+        + (
+            f'{config.context_window:,}'
+            if config.context_window is not None
+            else 'not configured'
+        )
+    )
     typer.echo('API key: configured')
 
 

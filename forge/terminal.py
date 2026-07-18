@@ -187,13 +187,49 @@ class TerminalUI:
         self.console.print('[dim]Session ended.[/]')
 
     def show_context(self, stats: ContextStats) -> None:
-        '''Render a compact, provider-neutral context snapshot.'''
+        '''Render estimated input categories and remaining context capacity.'''
+        table = Table.grid(padding=(0, 2))
+        table.add_column(style='dim', no_wrap=True)
+        table.add_column(style='bright_white', justify='right')
+        table.add_row('messages', f'{stats.message_count:,}')
+        table.add_row('system', f'~{stats.system_tokens:,} tokens')
+        table.add_row('repository', f'~{stats.repository_tokens:,} tokens')
+        table.add_row('tools', f'~{stats.tool_schema_tokens:,} tokens')
+        table.add_row(
+            'history',
+            f'~{stats.history_tokens:,} tokens '
+            f'({stats.estimated_characters:,} characters)',
+        )
+        table.add_row(
+            'tool results',
+            f'{stats.tool_result_characters:,} chars',
+        )
+        table.add_row('estimated input', f'~{stats.estimated_tokens:,} tokens')
+        table.add_row(
+            'reserved output',
+            f'{stats.reserved_output_tokens:,} tokens',
+        )
+        if stats.context_window_tokens is None:
+            table.add_row('context window', 'not configured')
+            table.add_row('remaining', 'unavailable')
+        else:
+            table.add_row(
+                'context window',
+                f'{stats.context_window_tokens:,} tokens',
+            )
+            table.add_row(
+                'remaining',
+                f'~{stats.remaining_tokens or 0:,} tokens',
+            )
+            table.add_row(
+                'input utilization',
+                f'{(stats.utilization or 0) * 100:.1f}%',
+            )
+        self.console.print('[bold bright_cyan]Context[/]')
+        self.console.print(table)
         self.console.print(
-            '[bold bright_cyan]Context[/]  '
-            f'messages {stats.message_count:,}  '
-            f'characters {stats.estimated_characters:,}  '
-            f'estimated tokens {stats.estimated_tokens:,}  '
-            f'tool results {stats.tool_result_characters:,} chars'
+            '[dim]Estimated from the latest request snapshot; the next user '
+            'prompt is not included.[/]'
         )
 
     def show_compaction(self, report: CompactionReport) -> None:

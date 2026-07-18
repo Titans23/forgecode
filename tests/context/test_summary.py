@@ -88,6 +88,50 @@ def test_auto_compaction_only_runs_above_threshold(tmp_path: Path) -> None:
     assert len(client.calls) == 1
 
 
+def test_configured_window_replaces_character_fallback(tmp_path: Path) -> None:
+    messages = [{'role': 'user', 'content': 'x' * 100}]
+    manager = ContextManager(
+        messages,
+        tmp_path,
+        CompactionConfig(auto_compact_characters=10),
+    )
+    client = SummaryClient(valid_summary())
+
+    report = asyncio.run(
+        manager.compact_history(
+            messages,
+            client,
+            context_window_tokens=1_000,
+            reserved_output_tokens=100,
+        )
+    )
+
+    assert report is None
+    assert client.calls == []
+
+
+def test_auto_compaction_counts_full_request_at_eighty_percent(
+    tmp_path: Path,
+) -> None:
+    messages = [{'role': 'user', 'content': 'h' * 400}]
+    manager = ContextManager(messages, tmp_path)
+    client = SummaryClient(valid_summary())
+
+    report = asyncio.run(
+        manager.compact_history(
+            messages,
+            client,
+            system_prompt='s' * 800,
+            repository_context='r' * 400,
+            context_window_tokens=1_000,
+            reserved_output_tokens=400,
+        )
+    )
+
+    assert report is not None and report.automatic
+    assert len(client.calls) == 1
+
+
 def test_summary_failures_open_fuse_after_three_attempts(
     tmp_path: Path,
 ) -> None:

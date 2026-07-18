@@ -62,7 +62,16 @@ class FakeConversation:
     ) -> None:
         self.responses = list(responses)
         self.prompts: list[str] = []
-        self.context_stats = ContextStats(2, 120, 40)
+        self.context_stats = ContextStats(
+            2,
+            120,
+            40,
+            system_characters=40,
+            repository_characters=20,
+            tool_schema_characters=20,
+            context_window_tokens=1_000,
+            reserved_output_tokens=100,
+        )
 
     async def stream(
         self,
@@ -240,9 +249,16 @@ def test_context_command_does_not_call_model(
     result = runner.invoke(app, input='/context\n')
 
     assert result.exit_code == 0
-    assert 'messages 2' in result.output
-    assert 'estimated tokens 30' in result.output
-    assert 'tool results 40 chars' in result.output
+    assert 'messages' in result.output
+    assert '2' in result.output
+    assert 'estimated input' in result.output
+    assert '~50 tokens' in result.output
+    assert 'tool results' in result.output
+    assert '40 chars' in result.output
+    assert 'remaining' in result.output
+    assert '~850 tokens' in result.output
+    assert 'input utilization' in result.output
+    assert '5.0%' in result.output
     assert conversation.prompts == []
 
 
@@ -345,6 +361,7 @@ def test_config_command_reports_ready_without_exposing_api_key() -> None:
             'ANTHROPIC_API_KEY': 'secret-test-key',
             'MODEL_ID': 'claude-test',
             'ANTHROPIC_BASE_URL': 'https://gateway.example.com/anthropic/',
+            'MODEL_CONTEXT_WINDOW': '',
         },
     )
 
@@ -354,6 +371,7 @@ def test_config_command_reports_ready_without_exposing_api_key() -> None:
     assert 'https://gateway.example.com/anthropic' in result.stdout
     assert 'API key: configured' in result.stdout
     assert 'Max output tokens: 8,192' in result.stdout
+    assert 'Context window: not configured' in result.stdout
     assert 'secret-test-key' not in result.stdout
 
 

@@ -139,6 +139,7 @@ def test_client_uses_configured_max_tokens() -> None:
             api_key='test-api-key',
             model_id='configured-model',
             max_tokens=16_384,
+            context_window=128_000,
         ),
         client=sdk,
     )
@@ -146,6 +147,7 @@ def test_client_uses_configured_max_tokens() -> None:
     collect_stream(client, messages=[{'role': 'user', 'content': 'Hello'}])
 
     assert sdk.messages.calls[0]['max_tokens'] == 16_384
+    assert client.context_window == 128_000
 
 
 def collect_stream(

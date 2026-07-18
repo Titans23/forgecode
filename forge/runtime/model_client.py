@@ -123,6 +123,7 @@ class AnthropicModelClient:
                 if max_tokens is None
                 else max_tokens
             ),
+            context_window=resolved_config.context_window,
             max_retries=max_retries,
             config=resolved_config,
             client=client,
@@ -133,6 +134,7 @@ class AnthropicModelClient:
         model: str,
         max_tokens: int = DEFAULT_MODEL_MAX_TOKENS,
         max_retries: int = 3,
+        context_window: int | None = None,
         config: ForgeConfig | None = None,
         client: AsyncAnthropic | None = None,
     ) -> None:
@@ -145,6 +147,7 @@ class AnthropicModelClient:
 
         self.model = model
         self.max_tokens = max_tokens
+        self.context_window = context_window
         self.max_retries = max_retries
         if client is not None:
             self._client = client

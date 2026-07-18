@@ -25,16 +25,65 @@ class ContextStats:
     message_count: int
     estimated_characters: int
     tool_result_characters: int
+    system_characters: int = 0
+    repository_characters: int = 0
+    tool_schema_characters: int = 0
+    context_window_tokens: int | None = None
+    reserved_output_tokens: int = 0
 
     @property
     def estimated_tokens(self) -> int:
-        '''Estimate tokens without coupling the runtime to one tokenizer.'''
-        if self.estimated_characters == 0:
-            return 0
-        return max(1, (self.estimated_characters + 3) // 4)
+        '''Estimate all model-visible input without one provider tokenizer.'''
+        return estimate_tokens(
+            self.estimated_characters
+            + self.system_characters
+            + self.repository_characters
+            + self.tool_schema_characters
+        )
+
+    @property
+    def history_tokens(self) -> int:
+        return estimate_tokens(self.estimated_characters)
+
+    @property
+    def system_tokens(self) -> int:
+        return estimate_tokens(self.system_characters)
+
+    @property
+    def repository_tokens(self) -> int:
+        return estimate_tokens(self.repository_characters)
+
+    @property
+    def tool_schema_tokens(self) -> int:
+        return estimate_tokens(self.tool_schema_characters)
+
+    @property
+    def remaining_tokens(self) -> int | None:
+        if self.context_window_tokens is None:
+            return None
+        return max(
+            0,
+            self.context_window_tokens
+            - self.estimated_tokens
+            - self.reserved_output_tokens,
+        )
+
+    @property
+    def utilization(self) -> float | None:
+        if not self.context_window_tokens:
+            return None
+        return self.estimated_tokens / self.context_window_tokens
 
 
-def context_stats(messages: list[dict[str, Any]]) -> ContextStats:
+def context_stats(
+    messages: list[dict[str, Any]],
+    *,
+    system_prompt: str = '',
+    repository_context: str = '',
+    tools: list[dict[str, Any]] | None = None,
+    context_window_tokens: int | None = None,
+    reserved_output_tokens: int = 0,
+) -> ContextStats:
     '''Measure serialized history and tool-result payloads deterministically.'''
     total = 0
     tool_results = 0
@@ -53,7 +102,22 @@ def context_stats(messages: list[dict[str, Any]]) -> ContextStats:
         message_count=len(messages),
         estimated_characters=total,
         tool_result_characters=tool_results,
+        system_characters=len(system_prompt),
+        repository_characters=len(repository_context),
+        tool_schema_characters=(
+            len(json.dumps(tools, ensure_ascii=False, default=str))
+            if tools
+            else 0
+        ),
+        context_window_tokens=context_window_tokens,
+        reserved_output_tokens=reserved_output_tokens,
     )
+
+
+def estimate_tokens(characters: int) -> int:
+    if characters <= 0:
+        return 0
+    return max(1, (characters + 3) // 4)
 
 
 class ContextManager:
@@ -76,6 +140,24 @@ class ContextManager:
     @property
     def stats(self) -> ContextStats:
         return context_stats(self._messages)
+
+    def stats_for_request(
+        self,
+        *,
+        system_prompt: str,
+        repository_context: str,
+        tools: list[dict[str, Any]] | None,
+        context_window_tokens: int | None,
+        reserved_output_tokens: int,
+    ) -> ContextStats:
+        return context_stats(
+            self._messages,
+            system_prompt=system_prompt,
+            repository_context=repository_context,
+            tools=tools,
+            context_window_tokens=context_window_tokens,
+            reserved_output_tokens=reserved_output_tokens,
+        )
 
     def prepare(
         self,
@@ -137,15 +219,36 @@ class ContextManager:
         client: Any,
         *,
         force: bool = False,
+        system_prompt: str = '',
+        repository_context: str = '',
+        tools: list[dict[str, Any]] | None = None,
+        context_window_tokens: int | None = None,
+        reserved_output_tokens: int = 0,
     ) -> CompactionReport | None:
         '''Replace long history with a structured summary when required.'''
         prepared = self.prepare(messages)
-        before_stats = context_stats(prepared)
-        should_compact = (
-            force
-            or before_stats.estimated_characters
-            > self.config.auto_compact_characters
+        before_stats = context_stats(
+            prepared,
+            system_prompt=system_prompt,
+            repository_context=repository_context,
+            tools=tools,
+            context_window_tokens=context_window_tokens,
+            reserved_output_tokens=reserved_output_tokens,
         )
+        if context_window_tokens is None:
+            threshold_reached = (
+                before_stats.estimated_characters
+                > self.config.auto_compact_characters
+            )
+        else:
+            projected_tokens = (
+                before_stats.estimated_tokens + reserved_output_tokens
+            )
+            threshold_reached = (
+                projected_tokens
+                >= context_window_tokens * self.config.auto_compact_ratio
+            )
+        should_compact = force or threshold_reached
         if not should_compact:
             return None
         if self.summary_failures >= self.config.max_summary_failures:
