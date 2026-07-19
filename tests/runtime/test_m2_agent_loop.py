@@ -129,6 +129,7 @@ def test_agent_loop_rejects_early_answer_then_accepts_verify_evidence(
     assert completed.result.verification.success is True
     feedback = client.calls[2]['messages'][-1]['content']
     assert 'has not been verified' in feedback
+    assert 'Goal:\nChange and verify sample.txt' in feedback
 
 
 def test_agent_loop_stops_after_three_completion_rejections(
@@ -163,3 +164,5 @@ def test_agent_loop_stops_after_three_completion_rejections(
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'blocked'
     assert completed.result.completion_reasons
+    assert conversation.task_manager.active is not None
+    assert conversation.task_manager.active.status == 'blocked'

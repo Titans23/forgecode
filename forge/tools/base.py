@@ -127,10 +127,25 @@ class Tool(ABC, Generic[InputT]):
         try:
             validated = self.input_model.model_validate(dict(arguments))
         except ValidationError as error:
+            schema = self.input_model.model_json_schema()
+            properties = schema.get('properties', {})
+            allowed = sorted(properties)
+            required = sorted(schema.get('required', []))
+            unknown = sorted(set(arguments) - set(properties))
+            separator = ', '
+            empty = 'none'
             return ToolResult.fail(
                 'invalid_arguments',
-                f'Invalid arguments for tool {self.name}.',
+                (
+                    f'Invalid arguments for tool {self.name}. '
+                    f'Allowed arguments: {separator.join(allowed) or empty}. '
+                    f'Required arguments: '
+                    f'{separator.join(required) or empty}.'
+                ),
                 details={
+                    'allowed_arguments': allowed,
+                    'required_arguments': required,
+                    'unknown_arguments': unknown,
                     'validation_errors': error.errors(
                         include_url=False,
                         include_input=False,

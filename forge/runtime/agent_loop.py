@@ -41,7 +41,9 @@ from forge.runtime.state import (
     WorkspaceChanged,
 )
 from forge.runtime.workspace import WorkspaceTracker
+from forge.tasks.manager import TaskManager
 from forge.tools.base import ToolRegistry, ToolResult
+from forge.tools.task import create_task_tools
 
 
 class ModelResponseError(RuntimeError):
@@ -78,6 +80,9 @@ class Conversation:
         context_root: Path | None = None,
         max_protocol_recoveries: int = 2,
         max_output_continuations: int = 2,
+        repeated_tool_limit: int = 2,
+        stagnation_warning: int = 8,
+        stagnation_limit: int = 16,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
@@ -89,6 +94,14 @@ class Conversation:
             raise ValueError('max_protocol_recoveries must not be negative')
         if max_output_continuations < 0:
             raise ValueError('max_output_continuations must not be negative')
+        if repeated_tool_limit < 1:
+            raise ValueError('repeated_tool_limit must be positive')
+        if stagnation_warning < 1:
+            raise ValueError('stagnation_warning must be positive')
+        if stagnation_limit <= stagnation_warning:
+            raise ValueError(
+                'stagnation_limit must be greater than stagnation_warning'
+            )
         self.client = (
             client if client is not None else AnthropicModelClient.from_config()
         )
@@ -99,7 +112,6 @@ class Conversation:
         )
         self.messages: list[dict[str, Any]] = []
         self.registry = registry
-        self.tools = registry.definitions if registry is not None else tools
         self.max_iterations = max_iterations
         tracker = (
             getattr(registry, 'workspace_tracker', None)
@@ -114,6 +126,14 @@ class Conversation:
             if tracker is not None
             else Path.cwd()
         )
+        self.task_manager = TaskManager(resolved_context_root)
+        if registry is not None:
+            for task_tool in create_task_tools(
+                resolved_context_root,
+                self.task_manager,
+            ):
+                registry.register(task_tool)
+        self.tools = registry.definitions if registry is not None else tools
         self.context = ContextManager(
             self.messages,
             resolved_context_root,
@@ -127,13 +147,17 @@ class Conversation:
         self.max_completion_blocks = max_completion_blocks
         self.max_protocol_recoveries = max_protocol_recoveries
         self.max_output_continuations = max_output_continuations
+        self.repeated_tool_limit = repeated_tool_limit
+        self.stagnation_warning = stagnation_warning
+        self.stagnation_limit = stagnation_limit
         self._last_repository_context = self.context.repository.system_suffix('')
+        self._last_task_context = ''
 
     @property
     def context_stats(self) -> ContextStats:
         '''Return current committed conversation context statistics.'''
         return self.context.stats_for_request(
-            system_prompt=self.system_prompt,
+            system_prompt=self._system_prompt_with_task(),
             repository_context=self._last_repository_context,
             tools=self.tools,
             context_window_tokens=getattr(
@@ -149,12 +173,16 @@ class Conversation:
         if not prompt.strip():
             raise ValueError('prompt must not be empty')
 
+        self.task_manager.begin_turn(prompt)
+        self._last_task_context = self.task_manager.system_suffix()
         user_message = {'role': 'user', 'content': prompt}
         request_messages = [*self.messages, user_message]
         completed_usage = TokenUsage(input_tokens=0, output_tokens=0)
         all_tool_calls: list[ToolCall] = []
         latest_verification: VerificationEvidence | None = None
         mutation_attempted = False
+        tool_attempts: dict[str, tuple[int, bool]] = {}
+        calls_without_progress = 0
         completion_blocks = 0
         if self.workspace_tracker is not None:
             await self.workspace_tracker.begin_turn()
@@ -162,13 +190,10 @@ class Conversation:
         self._last_repository_context = (
             self.context.repository.system_suffix(prompt)
         )
-        request_system_prompt = self.system_prompt
-        if self._last_repository_context:
-            request_system_prompt += '\n\n' + self._last_repository_context
         await self.context.compact_history(
             request_messages,
             self.client,
-            system_prompt=self.system_prompt,
+            system_prompt=self._system_prompt_with_task(),
             repository_context=self._last_repository_context,
             tools=self.tools,
             context_window_tokens=getattr(
@@ -199,6 +224,7 @@ class Conversation:
 
             yield ModelCallStarted(iteration=iteration)
             try:
+                request_system_prompt = self._request_system_prompt()
                 async for event in self.client.stream(
                     messages=self.context.prepare(request_messages),
                     tools=self.tools,
@@ -369,9 +395,15 @@ class Conversation:
                         )
                         if completion_blocks < self.max_completion_blocks:
                             request_messages.append(
-                                build_completion_feedback(decision.reasons)
+                                build_completion_feedback(
+                                    decision.reasons,
+                                    task_context=(
+                                        self.task_manager.system_suffix()
+                                    ),
+                                )
                             )
                             continue
+                        self.task_manager.block(decision.reasons)
                         self.messages[:] = request_messages
                         self.context.capture_explicit_memory(prompt)
                         yield TurnCompleted(
@@ -388,6 +420,7 @@ class Conversation:
                             )
                         )
                         return
+                self.task_manager.complete()
                 self.messages[:] = request_messages
                 self.context.capture_explicit_memory(prompt)
                 yield TurnCompleted(
@@ -412,15 +445,46 @@ class Conversation:
 
             all_tool_calls.extend(tool_calls)
             tool_results: list[tuple[ToolCall, ToolResult]] = []
+            revision_before_tools = (
+                self.workspace_tracker.revision
+                if self.workspace_tracker is not None
+                else 0
+            )
+            task_progressed = False
             for tool_call in tool_calls:
                 tool_effect = self.registry.effect(tool_call.name)
                 if tool_effect == 'workspace_write':
                     mutation_attempted = True
                 yield ToolExecutionStarted(tool_call=tool_call)
-                result = await self.registry.execute(
-                    tool_call.name,
-                    tool_call.arguments,
+                revision = (
+                    self.workspace_tracker.revision
+                    if self.workspace_tracker is not None
+                    else 0
                 )
+                signature = tool_call_signature(tool_call, revision)
+                previous_count, previous_success = tool_attempts.get(
+                    signature,
+                    (0, True),
+                )
+                should_block_repeat = (
+                    previous_count >= self.repeated_tool_limit
+                    or (previous_count >= 1 and not previous_success)
+                )
+                if should_block_repeat:
+                    result = repeated_tool_result(
+                        tool_call,
+                        previous_count,
+                        previous_success=previous_success,
+                    )
+                else:
+                    result = await self.registry.execute(
+                        tool_call.name,
+                        tool_call.arguments,
+                    )
+                    tool_attempts[signature] = (
+                        previous_count + 1,
+                        result.success,
+                    )
                 tool_results.append((tool_call, result))
                 yield ToolExecutionCompleted(
                     tool_call=tool_call,
@@ -441,13 +505,64 @@ class Conversation:
                         yield VerificationCompleted(
                             evidence=latest_verification
                         )
+                if tool_call.name == 'task_update' and result.success:
+                    task_progressed = True
             request_messages.append(build_tool_result_message(tool_results))
+
+            if self.workspace_tracker is not None and mutation_attempted:
+                workspace_progressed = (
+                    self.workspace_tracker.revision > revision_before_tools
+                )
+                if workspace_progressed or task_progressed:
+                    calls_without_progress = 0
+                else:
+                    calls_without_progress += 1
+                if calls_without_progress == self.stagnation_warning:
+                    request_messages.append(
+                        build_stagnation_feedback(
+                            calls_without_progress,
+                            self.task_manager.system_suffix(),
+                        )
+                    )
+                elif calls_without_progress >= self.stagnation_limit:
+                    reason = (
+                        'Stopped after '
+                        f'{calls_without_progress} model calls without '
+                        'workspace or task-plan progress.'
+                    )
+                    self.task_manager.block((reason,))
+                    self.messages[:] = request_messages
+                    yield TurnCompleted(
+                        result=TurnResult(
+                            text=reason,
+                            usage=completed_usage,
+                            tool_calls=tuple(all_tool_calls),
+                            status='blocked',
+                            changed_paths=self.workspace_tracker.changed_paths,
+                            verification=latest_verification,
+                            completion_reasons=(reason,),
+                        )
+                    )
+                    return
 
         if self.max_iterations is not None:
             raise AgentLoopLimitError(
                 f'Agent Loop exceeded {self.max_iterations} model calls.'
             )
         raise AssertionError('Unlimited Agent Loop stopped unexpectedly.')
+
+    def _system_prompt_with_task(self) -> str:
+        task_context = self.task_manager.system_suffix()
+        self._last_task_context = task_context
+        if not task_context:
+            return self.system_prompt
+        return f'{self.system_prompt}\n\n{task_context}'
+
+    def _request_system_prompt(self) -> str:
+        prompt = self._system_prompt_with_task()
+        if self._last_repository_context:
+            prompt += '\n\n' + self._last_repository_context
+        return prompt
 
     async def compact(self) -> CompactionReport:
         '''Manually summarize committed history for the /compact command.'''
@@ -502,6 +617,17 @@ class Conversation:
     def memory_consolidate(self) -> str:
         removed = self.context.repository.memory.consolidate()
         return f'Consolidated memory; removed {removed} duplicate(s).'
+
+    def task_show(self) -> str:
+        return self.task_manager.describe()
+
+    def task_history(self) -> str:
+        return self.task_manager.history()
+
+    def task_resume(self, task_id: str) -> str:
+        task = self.task_manager.resume(task_id)
+        self._last_task_context = self.task_manager.system_suffix()
+        return f'Resumed {task.id}: {task.goal}'
 
 
 def build_assistant_message(
@@ -586,16 +712,79 @@ def verification_from_result(
         return None
 
 
-def build_completion_feedback(reasons: tuple[str, ...]) -> dict[str, Any]:
+def build_completion_feedback(
+    reasons: tuple[str, ...],
+    *,
+    task_context: str = '',
+) -> dict[str, Any]:
     '''Tell the model exactly why its final answer was not accepted.'''
     details = '\n'.join(f'- {reason}' for reason in reasons)
     return {
         'role': 'user',
         'content': (
+            f'{task_context}\n\n'
             'ForgeCode completion check rejected the previous final answer.\n'
             f'{details}\n'
             'Continue using the available tools, then provide a new final '
             'answer after every condition is satisfied.'
+        ),
+    }
+
+
+def tool_call_signature(tool_call: ToolCall, revision: int) -> str:
+    '''Identify an exact tool request within one workspace revision.'''
+    arguments = json.dumps(
+        tool_call.arguments,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',', ':'),
+        default=str,
+    )
+    return f'{revision}:{tool_call.name}:{arguments}'
+
+
+def repeated_tool_result(
+    tool_call: ToolCall,
+    previous_count: int,
+    *,
+    previous_success: bool,
+) -> ToolResult:
+    '''Return actionable feedback without executing a known repeat.'''
+    cause = (
+        'the previous identical call failed'
+        if not previous_success
+        else f'it already ran {previous_count} times'
+    )
+    return ToolResult.fail(
+        'repeated_tool_call',
+        (
+            f'Skipped repeated {tool_call.name} call because {cause}. '
+            'Use the existing result, change the arguments, or choose a '
+            'different next action.'
+        ),
+        details={
+            'tool': tool_call.name,
+            'arguments': tool_call.arguments,
+            'previous_count': previous_count,
+            'previous_success': previous_success,
+        },
+    )
+
+
+def build_stagnation_feedback(
+    calls_without_progress: int,
+    task_context: str,
+) -> dict[str, Any]:
+    '''Remind the model to change strategy while preserving the active goal.'''
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n'
+            'ForgeCode progress check: '
+            f'{calls_without_progress} model calls have passed since the '
+            'last workspace or task-plan change. Reassess the evidence and '
+            'take a different concrete action. Do not repeat the same tool '
+            'call or switch to an unrelated task.'
         ),
     }
 

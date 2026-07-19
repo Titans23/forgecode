@@ -74,6 +74,9 @@ def test_slash_opens_command_completion_menu() -> None:
     assert '/context' in usages
     assert '/remember name | content' in usages
     assert '/memory consolidate' in usages
+    assert '/task' in usages
+    assert '/task history' in usages
+    assert '/task resume task-id' in usages
     assert '查看当前上下文统计' in descriptions
 
 
@@ -115,6 +118,7 @@ def test_terminal_renders_session_header_and_markdown_response() -> None:
     assert 'test-model' in rendered
     assert 'Ctrl+C to exit' in rendered
     assert 'Hello from ForgeCode' in rendered
+    assert rendered.count('Hello from ForgeCode') == 1
     assert 'input 1,200' in rendered
     assert 'output 34' in rendered
     assert 'total 1,234' in rendered

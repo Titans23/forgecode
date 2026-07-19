@@ -38,6 +38,13 @@ class SlashCommandSpec:
 SLASH_COMMANDS = (
     SlashCommandSpec('/context', '/context', '查看当前上下文统计'),
     SlashCommandSpec('/compact', '/compact', '立即压缩当前会话'),
+    SlashCommandSpec('/task', '/task', '查看当前任务与计划'),
+    SlashCommandSpec('/task history', '/task history', '列出已保存的复杂任务'),
+    SlashCommandSpec(
+        '/task resume ',
+        '/task resume task-id',
+        '恢复一个已保存的复杂任务',
+    ),
     SlashCommandSpec(
         '/remember ',
         '/remember name | content',
@@ -286,7 +293,7 @@ class StreamingResponseView:
             console=console,
             refresh_per_second=16,
             vertical_overflow='ellipsis',
-            transient=console.is_terminal,
+            transient=False,
         )
 
     def __enter__(self) -> StreamingResponseView:
@@ -302,8 +309,6 @@ class StreamingResponseView:
 
     def __exit__(self, *_: object) -> None:
         self.live.stop()
-        if self.completed and self.console.is_terminal:
-            self.console.print(self._render())
         self.console.print()
 
     def append_text(self, text: str) -> None:

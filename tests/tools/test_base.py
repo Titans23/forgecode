@@ -68,6 +68,16 @@ def test_tool_validation_failure_does_not_raise(tmp_path: Path) -> None:
     assert result.success is False
     assert result.error is not None
     assert result.error.code == 'invalid_arguments'
+    assert 'Allowed arguments: end_line, path, start_line' in (
+        result.error.message
+    )
+    assert result.error.details['allowed_arguments'] == [
+        'end_line',
+        'path',
+        'start_line',
+    ]
+    assert result.error.details['required_arguments'] == ['path']
+    assert result.error.details['unknown_arguments'] == ['unexpected']
     assert result.error.details['validation_errors'][0]['type'] == (
         'extra_forbidden'
     )

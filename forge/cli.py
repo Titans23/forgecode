@@ -126,6 +126,31 @@ def run_interactive_chat(
                 resolved_terminal.show_compaction(asyncio.run(compact()))
             continue
 
+        if prompt.strip() == '/task':
+            resolved_terminal.show_notice('Task', resolved_session.task_show())
+            continue
+
+        if prompt.strip() == '/task history':
+            resolved_terminal.show_notice(
+                'Task',
+                resolved_session.task_history(),
+            )
+            continue
+
+        if prompt.strip().startswith('/task resume '):
+            task_id = prompt.strip()[len('/task resume '):].strip()
+            if not task_id:
+                resolved_terminal.show_error(
+                    ValueError('Usage: /task resume task-id')
+                )
+            else:
+                try:
+                    notice = resolved_session.task_resume(task_id)
+                    resolved_terminal.show_notice('Task', notice)
+                except (OSError, ValueError) as error:
+                    resolved_terminal.show_error(error)
+            continue
+
         if prompt.startswith('/remember '):
             payload = prompt[len('/remember '):].strip()
             name, separator, content = payload.partition('|')

@@ -12,3 +12,4 @@ target/
 **/.forge/trajectories/
 **/.forge/evals/
 **/.forge/context/
+**/.forge/tasks/

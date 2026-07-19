@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from pydantic import Field
 
+from forge.context.compactor import CompactionConfig
 from forge.runtime.agent_loop import (
     AgentLoopLimitError,
     Conversation,
@@ -121,6 +122,25 @@ class RecordingReadFileTool(Tool[ReadFileInput]):
         return self.result
 
 
+class NoOpWriteTool(RecordingReadFileTool):
+    name = 'no_op_write'
+    description = 'Pretend to write without changing the workspace.'
+    effect = 'workspace_write'
+
+
+class NoChangeWorkspaceTracker:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.revision = 0
+        self.changed_paths: tuple[str, ...] = ()
+
+    async def begin_turn(self) -> None:
+        self.revision = 0
+
+    async def refresh(self):
+        return None
+
+
 def tool_response(
     *tool_calls: ToolCall,
     input_tokens: int = 15,
@@ -185,7 +205,8 @@ def test_conversation_forwards_stream_and_returns_final_result() -> None:
         {'role': 'user', 'content': 'Only reply READY'}
     ]
     assert client.calls[0]['tools'] is None
-    assert client.calls[0]['system'] == load_system_prompt()
+    assert client.calls[0]['system'].startswith(load_system_prompt())
+    assert 'Goal:\nOnly reply READY' in client.calls[0]['system']
 
 
 def test_system_prompt_defines_forgecode_identity() -> None:
@@ -209,7 +230,8 @@ def test_conversation_accepts_an_explicit_system_prompt() -> None:
 
     collect_turn(conversation, 'hello')
 
-    assert client.calls[0]['system'] == 'test system'
+    assert client.calls[0]['system'].startswith('test system')
+    assert 'Goal:\nhello' in client.calls[0]['system']
 
 
 def test_conversation_executes_tool_and_continues_until_final_text(
@@ -568,13 +590,116 @@ def test_conversation_sends_previous_turns_as_context() -> None:
         {'role': 'assistant', 'content': 'Hello'},
         {'role': 'user', 'content': 'What is my name?'},
     ]
-    assert client.calls[1]['system'] == load_system_prompt()
+    assert client.calls[1]['system'].startswith(load_system_prompt())
+    assert 'Goal:\nWhat is my name?' in client.calls[1]['system']
     assert conversation.messages == [
         {'role': 'user', 'content': 'Hello'},
         {'role': 'assistant', 'content': 'Hello'},
         {'role': 'user', 'content': 'What is my name?'},
         {'role': 'assistant', 'content': 'Your name is Ada'},
     ]
+
+
+def test_current_goal_survives_many_tool_calls_and_message_snipping(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / 'sample.txt').write_text('content\n', encoding='utf-8')
+    responses = [
+        tool_response(
+            ToolCall(
+                index=0,
+                id=f'toolu_{index}',
+                name='read_file',
+                arguments={'path': 'sample.txt'},
+            )
+        )
+        for index in range(30)
+    ]
+    client = FakeModelClient(
+        *responses,
+        streamed_response('Finished the original task.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry([RecordingReadFileTool(tmp_path)]),
+        context_config=CompactionConfig(
+            message_limit=10,
+            keep_first_messages=2,
+            keep_recent_messages=8,
+        ),
+    )
+
+    collect_turn(conversation, 'Keep this exact active goal')
+
+    assert len(client.calls) == 31
+    assert all(
+        'Goal:\nKeep this exact active goal' in call['system']
+        for call in client.calls
+    )
+
+
+def test_exact_tool_repeat_is_skipped_after_limit(tmp_path: Path) -> None:
+    call = lambda index: ToolCall(
+        index=0,
+        id=f'toolu_{index}',
+        name='read_file',
+        arguments={'path': 'sample.txt'},
+    )
+    tool = RecordingReadFileTool(tmp_path)
+    client = FakeModelClient(
+        tool_response(call(1)),
+        tool_response(call(2)),
+        tool_response(call(3)),
+        streamed_response('Used the existing result.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry([tool]),
+    )
+
+    events = collect_turn(conversation, 'Read the sample once')
+
+    assert tool.calls == ['sample.txt', 'sample.txt']
+    completed = [
+        event for event in events
+        if isinstance(event, ToolExecutionCompleted)
+    ]
+    assert completed[-1].result.error is not None
+    assert completed[-1].result.error.code == 'repeated_tool_call'
+
+
+def test_stagnation_stops_mutating_turn_without_total_call_limit(
+    tmp_path: Path,
+) -> None:
+    tool = NoOpWriteTool(tmp_path)
+    tracker = NoChangeWorkspaceTracker(tmp_path)
+    responses = [
+        tool_response(
+            ToolCall(
+                index=0,
+                id=f'toolu_{index}',
+                name='no_op_write',
+                arguments={'path': f'file-{index}.txt'},
+            )
+        )
+        for index in range(1, 4)
+    ]
+    conversation = Conversation(
+        client=FakeModelClient(*responses),
+        registry=ToolRegistry([tool], workspace_tracker=tracker),
+        stagnation_warning=2,
+        stagnation_limit=3,
+    )
+
+    events = collect_turn(conversation, 'Make a real code change')
+
+    result = next(
+        event.result for event in events if isinstance(event, TurnCompleted)
+    )
+    assert result.status == 'blocked'
+    assert '3 model calls without workspace' in result.text
+    assert conversation.task_manager.active is not None
+    assert conversation.task_manager.active.status == 'blocked'
 
 
 def test_conversation_does_not_commit_stream_without_text() -> None:

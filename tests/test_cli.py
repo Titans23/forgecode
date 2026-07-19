@@ -105,6 +105,15 @@ class FakeConversation:
     def memory_consolidate(self) -> str:
         return 'Consolidated memory; removed 0 duplicate(s).'
 
+    def task_show(self) -> str:
+        return 'id: task-current\nstatus: in_progress'
+
+    def task_history(self) -> str:
+        return '- task-saved [blocked]: Finish feature'
+
+    def task_resume(self, task_id: str) -> str:
+        return f'Resumed {task_id}: Finish feature'
+
 
 class FakeResponseView:
     '''Record live UI updates without rendering a terminal.'''
@@ -297,6 +306,28 @@ def test_memory_commands_do_not_call_model(
     assert 'Forgot testing.' in result.output
     assert 'Rebuilt memory index.' in result.output
     assert 'Consolidated memory' in result.output
+    assert conversation.prompts == []
+
+
+def test_task_commands_do_not_call_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    conversation = FakeConversation()
+    monkeypatch.setattr(
+        cli_module,
+        'Conversation',
+        lambda **_kwargs: conversation,
+    )
+
+    result = runner.invoke(
+        app,
+        input='/task\n/task history\n/task resume task-saved\n',
+    )
+
+    assert result.exit_code == 0
+    assert 'task-current' in result.output
+    assert 'task-saved [blocked]' in result.output
+    assert 'Resumed task-saved' in result.output
     assert conversation.prompts == []
 
 
