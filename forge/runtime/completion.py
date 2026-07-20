@@ -64,7 +64,10 @@ class CompletionGate:
             reasons.append(
                 'Git workspace tracking is unavailable for this task.'
             )
-        if (self.policy.require_changes or mutation_attempted) and not changed_paths:
+        if (
+            self.policy.require_changes
+            or mutation_attempted
+        ) and not changed_paths:
             reasons.append(
                 'The task requires a code change, but the final Diff is empty.'
             )
@@ -91,8 +94,43 @@ class CompletionGate:
                 )
 
         if changed_paths and tracker.available:
+            reasons.extend(
+                await self._diff_check_reasons(changed_paths)
+            )
+
+        return CompletionDecision(
+            allowed=not reasons,
+            reasons=tuple(dict.fromkeys(reasons)),
+        )
+
+    async def _diff_check_reasons(
+        self,
+        changed_paths: tuple[str, ...],
+    ) -> list[str]:
+        tracked: list[str] = []
+        untracked: list[str] = []
+        for path in changed_paths:
+            listed = await run_process(
+                ['git', 'ls-files', '--error-unmatch', '--', path],
+                cwd=self.root,
+                timeout_seconds=30,
+            )
+            if listed.exit_code == 0:
+                tracked.append(path)
+            elif (self.root / path).is_file():
+                untracked.append(path)
+
+        reasons: list[str] = []
+        if tracked:
             diff_check = await run_process(
-                ['git', 'diff', 'HEAD', '--check'],
+                [
+                    'git',
+                    'diff',
+                    'HEAD',
+                    '--check',
+                    '--',
+                    *tracked,
+                ],
                 cwd=self.root,
                 timeout_seconds=30,
             )
@@ -101,10 +139,29 @@ class CompletionGate:
                     'git diff --check found a deterministic Patch error.'
                 )
 
-        return CompletionDecision(
-            allowed=not reasons,
-            reasons=tuple(dict.fromkeys(reasons)),
-        )
+        for path in untracked:
+            diff_check = await run_process(
+                [
+                    'git',
+                    'diff',
+                    '--no-index',
+                    '--check',
+                    '--',
+                    '/dev/null',
+                    path,
+                ],
+                cwd=self.root,
+                timeout_seconds=30,
+            )
+            if (
+                diff_check.exit_code not in {0, 1}
+                or diff_check.stdout.strip()
+            ):
+                reasons.append(
+                    'Git whitespace checking found a deterministic Patch '
+                    f'error in untracked file: {path}.'
+                )
+        return reasons
 
     def _path_violations(self, paths: tuple[str, ...]) -> list[str]:
         reasons: list[str] = []
@@ -130,7 +187,6 @@ class CompletionGate:
                     + ', '.join(outside)
                 )
         return reasons
-
 
 def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
     candidate = path.replace('\\', '/')

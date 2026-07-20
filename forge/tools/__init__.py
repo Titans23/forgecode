@@ -9,6 +9,7 @@ from forge.tools.filesystem import (
     ReplaceTextTool,
     WriteFileTool,
 )
+from forge.tools.finish import FinishTaskTool
 from forge.tools.git import GitDiffTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
 from forge.tools.search import FindFilesTool, GrepTool
@@ -33,6 +34,7 @@ def create_default_registry(root: Path) -> ToolRegistry:
             VerifyTool(root, tracker),
             GitStatusTool(root),
             GitDiffTool(root),
+            FinishTaskTool(root),
         ],
         workspace_tracker=tracker,
     )
@@ -41,6 +43,7 @@ def create_default_registry(root: Path) -> ToolRegistry:
 __all__ = [
     'ApplyPatchTool',
     'FindFilesTool',
+    'FinishTaskTool',
     'GitDiffTool',
     'GitStatusTool',
     'GrepTool',

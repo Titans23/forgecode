@@ -7,6 +7,7 @@ import pytest
 from forge.config import (
     DEFAULT_ANTHROPIC_BASE_URL,
     DEFAULT_MODEL_MAX_TOKENS,
+    DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS,
     ConfigurationError,
     ForgeConfig,
 )
@@ -25,6 +26,10 @@ def test_config_uses_official_base_url_by_default() -> None:
     assert config.base_url == DEFAULT_ANTHROPIC_BASE_URL
     assert config.max_tokens == DEFAULT_MODEL_MAX_TOKENS
     assert config.context_window is None
+    assert (
+        config.request_timeout_seconds
+        == DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+    )
 
 
 def test_config_accepts_anthropic_compatible_base_url() -> None:
@@ -125,6 +130,33 @@ def test_config_reads_model_context_window() -> None:
     )
 
     assert config.context_window == 128_000
+
+
+def test_config_reads_model_request_timeout() -> None:
+    config = ForgeConfig.from_env(
+        {
+            'ANTHROPIC_API_KEY': 'test-key',
+            'MODEL_ID': 'test-model',
+            'MODEL_REQUEST_TIMEOUT_SECONDS': '45.5',
+        }
+    )
+
+    assert config.request_timeout_seconds == 45.5
+
+
+@pytest.mark.parametrize('value', ['invalid', '9', '601'])
+def test_config_rejects_invalid_model_request_timeout(value: str) -> None:
+    with pytest.raises(
+        ConfigurationError,
+        match='MODEL_REQUEST_TIMEOUT_SECONDS',
+    ):
+        ForgeConfig.from_env(
+            {
+                'ANTHROPIC_API_KEY': 'test-key',
+                'MODEL_ID': 'test-model',
+                'MODEL_REQUEST_TIMEOUT_SECONDS': value,
+            }
+        )
 
 
 @pytest.mark.parametrize('value', ['invalid', '1000', '40000'])

@@ -8,14 +8,17 @@ from typing import Any
 
 import pytest
 from pydantic import Field
+from unittest.mock import AsyncMock
 
 from forge.context.compactor import CompactionConfig
 from forge.runtime.agent_loop import (
     AgentLoopLimitError,
     Conversation,
     ModelResponseError,
+    is_tool_protocol_failure,
     load_system_prompt,
 )
+from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import (
     ModelOutputTruncatedError,
     ModelProtocolError,
@@ -38,6 +41,8 @@ from forge.runtime.state import (
     ToolCall,
 )
 from forge.tools.base import Tool, ToolInput, ToolRegistry, ToolResult
+from forge.tools.filesystem import ReadFileTool
+from forge.tools.search import GrepTool
 
 
 class FakeModelClient:
@@ -128,6 +133,19 @@ class NoOpWriteTool(RecordingReadFileTool):
     effect = 'workspace_write'
 
 
+class FailingWriteTool(NoOpWriteTool):
+    name = 'failing_write'
+    description = 'Reject a test write with an actionable diagnostic.'
+
+    async def execute(self, arguments: ReadFileInput) -> ToolResult:
+        self.calls.append(arguments.path)
+        return ToolResult.fail(
+            'patch_rejected',
+            'Patch validation failed.',
+            content='error: target context did not match',
+        )
+
+
 class NoChangeWorkspaceTracker:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -186,18 +204,24 @@ def test_conversation_forwards_stream_and_returns_final_result() -> None:
     assert events == [
         ModelCallStarted(iteration=1),
         ModelUsageUpdate(
-            usage=TokenUsage(input_tokens=10, output_tokens=0)
+            usage=TokenUsage(input_tokens=10, output_tokens=0),
+            request_usage=TokenUsage(input_tokens=10, output_tokens=0),
         ),
         ModelTextDelta(text='RE'),
         ModelTextDelta(text='ADY'),
         ModelUsageUpdate(
-            usage=TokenUsage(input_tokens=10, output_tokens=2)
+            usage=TokenUsage(input_tokens=10, output_tokens=2),
+            request_usage=TokenUsage(input_tokens=10, output_tokens=2),
         ),
         ModelCallCompleted(iteration=1),
         TurnCompleted(
             result=TurnResult(
                 text='READY',
                 usage=TokenUsage(input_tokens=10, output_tokens=2),
+                last_request_usage=TokenUsage(
+                    input_tokens=10,
+                    output_tokens=2,
+                ),
             )
         ),
     ]
@@ -214,11 +238,11 @@ def test_system_prompt_defines_forgecode_identity() -> None:
 
     assert 'Your product identity is ForgeCode.' in prompt
     assert 'Do not claim to be Anthropic' in prompt
-    assert 'The M2 runtime can use built-in file' in prompt
-    assert 'only when its schema is included' in prompt
-    assert 'call another tool instead of giving a premature' in prompt
+    assert 'tools included in the current model request are available' in prompt
+    assert '`finish_task` is\n   optional structured completion' in prompt
+    assert 'Tool\n   schema errors, repeated reads' in prompt
     assert 'Do not run destructive commands' in prompt
-    assert 'use the `verify` tool' in prompt
+    assert 'call `verify`' in prompt
 
 
 def test_conversation_accepts_an_explicit_system_prompt() -> None:
@@ -232,6 +256,15 @@ def test_conversation_accepts_an_explicit_system_prompt() -> None:
 
     assert client.calls[0]['system'].startswith('test system')
     assert 'Goal:\nhello' in client.calls[0]['system']
+
+
+def test_task_policy_requires_workspace_tracking(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='WorkspaceTracker'):
+        Conversation(
+            client=FakeModelClient(streamed_response('done')),
+            registry=ToolRegistry([RecordingReadFileTool(tmp_path)]),
+            task_policy=TaskPolicy(require_changes=True),
+        )
 
 
 def test_conversation_executes_tool_and_continues_until_final_text(
@@ -266,6 +299,11 @@ def test_conversation_executes_tool_and_continues_until_final_text(
         result=TurnResult(
             text='Finished',
             usage=TokenUsage(input_tokens=45, output_tokens=14),
+            last_request_usage=TokenUsage(
+                input_tokens=30,
+                output_tokens=4,
+            ),
+            model_calls=2,
             tool_calls=(tool_call,),
         )
     )
@@ -557,6 +595,26 @@ def test_protocol_recovery_stops_after_configured_limit() -> None:
     assert len(client.calls) == 2
 
 
+def test_empty_model_response_is_retried_as_protocol_recovery() -> None:
+    error = ModelProtocolError(
+        'Provider returned no text or tool calls (stop_reason=end_turn).',
+        reason='empty_model_response',
+    )
+    client = FakeModelClient(
+        [ModelUsageUpdate(usage=TokenUsage(0, 0)), error],
+        streamed_response('Recovered after the empty response.'),
+    )
+    conversation = Conversation(client=client)
+
+    events = collect_turn(conversation, 'Continue the task')
+
+    assert events[-1].result.status == 'completed'
+    assert events[-1].result.text == 'Recovered after the empty response.'
+    assert len(client.calls) == 2
+    feedback = str(client.calls[1]['messages'][-1]['content'])
+    assert 'stop_reason=end_turn' in feedback
+
+
 def test_second_protocol_recovery_requests_minimal_skeleton() -> None:
     error = ModelOutputTruncatedError(('apply_patch',))
     client = FakeModelClient(
@@ -631,7 +689,7 @@ def test_current_goal_survives_many_tool_calls_and_message_snipping(
 
     collect_turn(conversation, 'Keep this exact active goal')
 
-    assert len(client.calls) == 31
+    assert len(client.calls) <= 9
     assert all(
         'Goal:\nKeep this exact active goal' in call['system']
         for call in client.calls
@@ -659,13 +717,13 @@ def test_exact_tool_repeat_is_skipped_after_limit(tmp_path: Path) -> None:
 
     events = collect_turn(conversation, 'Read the sample once')
 
-    assert tool.calls == ['sample.txt', 'sample.txt']
+    assert tool.calls == ['sample.txt']
     completed = [
         event for event in events
         if isinstance(event, ToolExecutionCompleted)
     ]
-    assert completed[-1].result.error is not None
-    assert completed[-1].result.error.code == 'repeated_tool_call'
+    assert completed[-1].result.success is True
+    assert completed[-1].result.metadata['cache_hit'] is True
 
 
 def test_stagnation_stops_mutating_turn_without_total_call_limit(
@@ -696,10 +754,262 @@ def test_stagnation_stops_mutating_turn_without_total_call_limit(
     result = next(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
-    assert result.status == 'blocked'
-    assert '3 model calls without workspace' in result.text
+    assert result.status == 'stuck'
+    assert '3 model calls without new workspace' in result.text
     assert conversation.task_manager.active is not None
-    assert conversation.task_manager.active.status == 'blocked'
+    assert conversation.task_manager.active.status == 'stuck'
+
+
+def test_novel_reads_cannot_reset_failed_mutation_recovery(
+    tmp_path: Path,
+) -> None:
+    write = FailingWriteTool(tmp_path)
+    read = RecordingReadFileTool(tmp_path)
+    tracker = NoChangeWorkspaceTracker(tmp_path)
+    failed_write = tool_response(
+        ToolCall(
+            index=0,
+            id='failed-write',
+            name='failing_write',
+            arguments={'path': 'world.js'},
+        )
+    )
+    novel_reads = [
+        tool_response(
+            ToolCall(
+                index=0,
+                id=f'novel-read-{index}',
+                name='read_file',
+                arguments={'path': f'file-{index}.js'},
+            )
+        )
+        for index in range(1, 11)
+    ]
+    client = FakeModelClient(failed_write, *novel_reads)
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry(
+            [write, read],
+            workspace_tracker=tracker,
+        ),
+        stagnation_warning=20,
+        stagnation_limit=30,
+        mutation_recovery_warning=2,
+        mutation_recovery_limit=4,
+    )
+
+    events = collect_turn(conversation, 'Fix the rendering bug')
+
+    result = next(
+        event.result for event in events if isinstance(event, TurnCompleted)
+    )
+    assert result.status == 'stuck'
+    assert '1 workspace-write attempt(s)' in result.text
+    assert '4 model calls passed in edit recovery' in result.text
+    assert len(client.calls) == 4
+    assert len(client.responses) == 7
+    assert '[Failed Mutation Recovery]' in client.calls[1]['system']
+    assert 'patch_rejected' in client.calls[1]['system']
+    assert 'target context did not match' in client.calls[1]['system']
+    assert all(
+        {'failing_write', 'read_file'}
+        <= {tool['name'] for tool in call['tools']}
+        for call in client.calls
+    )
+
+
+def test_failed_mutation_without_tracker_rejects_text_completion(
+    tmp_path: Path,
+) -> None:
+    write = FailingWriteTool(tmp_path)
+    client = FakeModelClient(
+        tool_response(
+            ToolCall(
+                index=0,
+                id='failed-write-without-tracker',
+                name='failing_write',
+                arguments={'path': 'world.js'},
+            )
+        ),
+        streamed_response('Done despite the failed write.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry([write]),
+        mutation_recovery_warning=1,
+        mutation_recovery_limit=2,
+    )
+
+    events = collect_turn(conversation, 'Fix the rendering bug')
+
+    result = next(
+        event.result for event in events if isinstance(event, TurnCompleted)
+    )
+    assert conversation.workspace_tracker is None
+    assert result.status == 'stuck'
+    assert result.model_calls == 2
+    assert 'workspace-write attempt(s)' in result.text
+    assert 'Done despite the failed write.' not in result.text
+    assert '[Failed Mutation Recovery]' in client.calls[1]['system']
+
+
+def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:
+    calls = [
+        ToolCall(
+            index=0,
+            id=f'toolu_invalid_{index}',
+            name='read_file',
+            arguments={'path': 'sample.txt', 'unexpected': index},
+        )
+        for index in range(1, 4)
+    ]
+    conversation = Conversation(
+        client=FakeModelClient(*(tool_response(call) for call in calls)),
+        registry=ToolRegistry([RecordingReadFileTool(Path.cwd())]),
+    )
+
+    events = collect_turn(conversation, 'Read sample.txt')
+
+    result = next(
+        event.result for event in events if isinstance(event, TurnCompleted)
+    )
+    assert result.status == 'stuck'
+    assert 'schema-invalid tool requests' in result.text
+
+
+def test_unsupported_shell_syntax_is_a_protocol_recovery_failure() -> None:
+    result = ToolResult.fail(
+        'unsupported_shell_syntax',
+        'Use stdin instead of a POSIX heredoc on Windows.',
+    )
+
+    assert is_tool_protocol_failure(result) is True
+
+
+def test_semantic_read_repeats_force_evidence_based_synthesis(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / 'player.js').write_text(
+        '\n'.join(f'line {index}' for index in range(1, 252)),
+        encoding='utf-8',
+    )
+    calls = [
+        ToolCall(
+            index=0,
+            id=f'toolu_{index}',
+            name='read_file',
+            arguments={
+                'path': 'player.js',
+                'start_line': 1,
+                'end_line': end_line,
+            },
+        )
+        for index, end_line in enumerate((260, 280, 120), start=1)
+    ]
+    client = FakeModelClient(
+        *(tool_response(call) for call in calls),
+        streamed_response('I am ForgeCode.'),
+        streamed_response('player.js contains the player implementation.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry([ReadFileTool(tmp_path)]),
+        stagnation_warning=2,
+        stagnation_limit=4,
+    )
+
+    events = collect_turn(conversation, 'Understand the player project')
+
+    tool_events = [
+        event for event in events
+        if isinstance(event, ToolExecutionCompleted)
+    ]
+    assert tool_events[0].result.success is True
+    assert all(event.result.success for event in tool_events)
+    assert client.calls[3]['tools'] is not None
+    result = next(
+        event.result for event in events if isinstance(event, TurnCompleted)
+    )
+    assert result.status == 'completed'
+    assert 'player.js' in result.text
+
+
+def test_changing_grep_patterns_cannot_extend_a_completed_file_read(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / 'player.js').write_text(
+        'function update() {}\nfunction draw() {}\n',
+        encoding='utf-8',
+    )
+    calls = [
+        ToolCall(
+            index=0,
+            id='read',
+            name='read_file',
+            arguments={'path': 'player.js'},
+        ),
+        ToolCall(
+            index=0,
+            id='grep-update',
+            name='grep',
+            arguments={'path': 'player.js', 'pattern': 'update'},
+        ),
+        ToolCall(
+            index=0,
+            id='grep-draw',
+            name='grep',
+            arguments={'path': 'player.js', 'pattern': 'draw'},
+        ),
+    ]
+    client = FakeModelClient(
+        *(tool_response(call) for call in calls),
+        streamed_response('player.js defines update and draw functions.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry(
+            [ReadFileTool(tmp_path), GrepTool(tmp_path)]
+        ),
+        stagnation_warning=2,
+        stagnation_limit=4,
+    )
+
+    events = collect_turn(conversation, 'Explain player.js')
+
+    tool_events = [
+        event for event in events
+        if isinstance(event, ToolExecutionCompleted)
+    ]
+    assert tool_events[0].result.success is True
+    assert all(event.result.success for event in tool_events)
+    assert len(client.calls) == 4
+    assert client.calls[-1]['tools'] is not None
+
+
+def test_compaction_is_checked_before_every_model_call(
+    tmp_path: Path,
+) -> None:
+    client = FakeModelClient(
+        tool_response(
+            ToolCall(
+                index=0,
+                id='toolu_read',
+                name='read_file',
+                arguments={'path': 'sample.txt'},
+            )
+        ),
+        streamed_response('Finished.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry([RecordingReadFileTool(tmp_path)]),
+    )
+    compact = AsyncMock(return_value=None)
+    conversation.context.compact_history = compact
+
+    collect_turn(conversation, 'Read sample.txt')
+
+    assert compact.await_count == 2
 
 
 def test_conversation_does_not_commit_stream_without_text() -> None:
@@ -783,7 +1093,10 @@ def test_conversation_context_stats_include_request_layers() -> None:
     stats = conversation.context_stats
 
     assert stats.message_count == 1
-    assert stats.system_characters == len('system rules')
+    assert stats.system_characters > len('system rules')
+    assert 'Runtime Tool Availability' in (
+        conversation._system_prompt_with_task()
+    )
     assert stats.tool_schema_characters > 0
     assert stats.context_window_tokens == 1_000
     assert stats.reserved_output_tokens == 100

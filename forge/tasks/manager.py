@@ -18,10 +18,25 @@ class TaskManager:
         self.store = store or TaskStore(self.root)
         self.active: ActiveTask | None = None
         self._resume_next_turn = False
+        self._latest_directive = ''
 
     def begin_turn(self, goal: str) -> ActiveTask:
         if self._resume_next_turn and self.active is not None:
             self._resume_next_turn = False
+            self._latest_directive = goal.strip()
+            return self.active
+        if self.active is not None and self.active.status in {
+            'blocked',
+            'stuck',
+        }:
+            self._latest_directive = goal.strip()
+            self.active = replace(
+                self.active,
+                status='in_progress',
+                blocked_reasons=(),
+            )
+            if self.active.planned:
+                self.store.save(self.active)
             return self.active
         return self.start(goal)
 
@@ -34,6 +49,7 @@ class TaskManager:
             goal=clean_goal,
         )
         self._resume_next_turn = False
+        self._latest_directive = ''
         return self.active
 
     def plan(
@@ -175,6 +191,18 @@ class TaskManager:
             self.store.save(self.active)
         return self.active
 
+    def stuck(self, reasons: tuple[str, ...]) -> ActiveTask | None:
+        if self.active is None:
+            return None
+        self.active = replace(
+            self.active,
+            status='stuck',
+            blocked_reasons=tuple(dict.fromkeys(reasons)),
+        )
+        if self.active.planned:
+            self.store.save(self.active)
+        return self.active
+
     def resume(self, task_id: str) -> ActiveTask:
         task = self.store.load(task_id)
         self.active = replace(
@@ -216,6 +244,14 @@ class TaskManager:
         if task.scope_hints:
             lines.extend(
                 ['', 'Focus paths:', *[f'- {item}' for item in task.scope_hints]]
+            )
+        if self._latest_directive:
+            lines.extend(
+                [
+                    '',
+                    'Latest user directive:',
+                    bounded(self._latest_directive, 4_000),
+                ]
             )
         lines.extend(
             [

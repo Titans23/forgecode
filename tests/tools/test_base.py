@@ -26,6 +26,7 @@ def test_default_registry_exposes_all_tool_schemas(tmp_path: Path) -> None:
         'verify',
         'git_status',
         'git_diff',
+        'finish_task',
     )
     assert [definition['name'] for definition in registry.definitions] == list(
         registry.names
@@ -39,6 +40,7 @@ def test_default_registry_exposes_all_tool_schemas(tmp_path: Path) -> None:
     assert registry.effect('replace_text') == 'workspace_write'
     assert registry.effect('apply_patch') == 'workspace_write'
     assert registry.effect('run_command') == 'process'
+    assert registry.effect('finish_task') == 'read_only'
     assert registry.effect('missing') is None
 
 

@@ -238,12 +238,18 @@ def resolve_repository_path(
 
     resolved = (root / candidate).resolve(strict=False)
     try:
-        resolved.relative_to(root)
+        relative = resolved.relative_to(root)
     except ValueError as error:
         raise ToolExecutionError(
             'path_outside_repository',
             f'Path is outside the repository: {raw_path}',
         ) from error
+    if is_repository_path_protected(relative):
+        raise ToolExecutionError(
+            'protected_path',
+            f'Path is protected from repository tools: {raw_path}',
+            details={'path': raw_path},
+        )
     if must_exist and not resolved.exists():
         raise ToolExecutionError(
             'path_not_found',
@@ -258,8 +264,26 @@ def display_path(root: Path, path: Path) -> str:
     return relative.as_posix() or '.'
 
 
+CONTROL_PLANE_DIRECTORIES = frozenset({'.forge', '.git'})
+PUBLIC_ENV_FILES = frozenset({'.env.example'})
+
+
+def is_repository_path_protected(path: Path) -> bool:
+    '''Return whether a repository-relative path is control or secret state.'''
+    for part in path.parts:
+        name = part.casefold()
+        if name in CONTROL_PLANE_DIRECTORIES:
+            return True
+        if name == '.env':
+            return True
+        if name.startswith('.env.') and name not in PUBLIC_ENV_FILES:
+            return True
+    return False
+
+
 IGNORED_DIRECTORIES = frozenset(
     {
+        '.forge',
         '.git',
         '.idea',
         '.mypy_cache',

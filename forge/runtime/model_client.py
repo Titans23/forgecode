@@ -26,6 +26,7 @@ from forge.runtime.state import (
     ModelToolCallCompleted,
     ModelToolCallStarted,
     ModelRetryScheduled,
+    ModelResponseCompleted,
     ModelUsageUpdate,
     TokenUsage,
     ToolCall,
@@ -125,6 +126,9 @@ class AnthropicModelClient:
                 else max_tokens
             ),
             context_window=resolved_config.context_window,
+            request_timeout_seconds=(
+                resolved_config.request_timeout_seconds
+            ),
             max_retries=max_retries,
             config=resolved_config,
             client=client,
@@ -136,6 +140,7 @@ class AnthropicModelClient:
         max_tokens: int = DEFAULT_MODEL_MAX_TOKENS,
         max_retries: int = 3,
         context_window: int | None = None,
+        request_timeout_seconds: float = 120.0,
         config: ForgeConfig | None = None,
         client: AsyncAnthropic | None = None,
     ) -> None:
@@ -145,11 +150,14 @@ class AnthropicModelClient:
             raise ValueError('max_tokens must be positive')
         if max_retries < 0:
             raise ValueError('max_retries must not be negative')
+        if request_timeout_seconds <= 0:
+            raise ValueError('request_timeout_seconds must be positive')
 
         self.model = model
         self.max_tokens = max_tokens
         self.context_window = context_window
         self.max_retries = max_retries
+        self.request_timeout_seconds = request_timeout_seconds
         if client is not None:
             self._client = client
         else:
@@ -159,6 +167,8 @@ class AnthropicModelClient:
             self._client = AsyncAnthropic(
                 api_key=resolved_config.api_key,
                 base_url=resolved_config.base_url,
+                timeout=resolved_config.request_timeout_seconds,
+                max_retries=0,
             )
 
     async def stream(
@@ -228,6 +238,7 @@ class AnthropicModelClient:
     ) -> AsyncIterator[ModelStreamEvent]:
         '''Perform one provider request without retry policy.'''
         current_usage: TokenUsage | None = None
+        semantic_output = False
         pending_tool_calls: dict[int, _PendingToolCall] = {}
         protocol_error: ModelProtocolError | None = None
         allowed_tool_names = {
@@ -240,6 +251,8 @@ class AnthropicModelClient:
                     event.type == 'content_block_delta'
                     and event.delta.type == 'text_delta'
                 ):
+                    if event.delta.text:
+                        semantic_output = True
                     yield ModelTextDelta(
                         text=event.delta.text,
                         index=event.index,
@@ -299,6 +312,7 @@ class AnthropicModelClient:
                     except ModelProtocolError as error:
                         protocol_error = protocol_error or error
                     else:
+                        semantic_output = True
                         yield ModelToolCallCompleted(
                             tool_call=ToolCall(
                                 index=event.index,
@@ -322,10 +336,6 @@ class AnthropicModelClient:
 
             final_message = await stream.get_final_message()
 
-        final_usage = merge_usage(final_message.usage, current_usage)
-        if final_usage != current_usage:
-            yield ModelUsageUpdate(usage=final_usage)
-
         stop_reason = getattr(final_message, 'stop_reason', None)
         if stop_reason == 'max_tokens':
             names = tuple(
@@ -346,6 +356,69 @@ class AnthropicModelClient:
                 f'Tool calls did not finish at content blocks: {indexes}.',
                 reason='incomplete_tool_call',
             )
+
+        if not semantic_output:
+            async for fallback_event in final_content_events(
+                final_message,
+                allowed_tool_names,
+            ):
+                semantic_output = True
+                yield fallback_event
+
+        final_usage = merge_usage(final_message.usage, current_usage)
+        if final_usage != current_usage:
+            yield ModelUsageUpdate(usage=final_usage)
+
+        if not semantic_output:
+            raise ModelProtocolError(
+                'Provider returned no text or tool calls '
+                '(stop_reason=%s).' % (stop_reason or 'unknown'),
+                reason='empty_model_response',
+            )
+        yield ModelResponseCompleted(stop_reason=stop_reason)
+
+
+async def final_content_events(
+    final_message: Any,
+    allowed_tool_names: set[str],
+) -> AsyncIterator[ModelStreamEvent]:
+    '''Recover semantic blocks when a compatible provider omits deltas.'''
+    content = getattr(final_message, 'content', None)
+    if not isinstance(content, list):
+        return
+    for index, block in enumerate(content):
+        block_type = getattr(block, 'type', None)
+        if block_type == 'text':
+            text = str(getattr(block, 'text', ''))
+            if text:
+                yield ModelTextDelta(text=text, index=index)
+            continue
+        if block_type != 'tool_use':
+            continue
+        name = str(getattr(block, 'name', ''))
+        tool_id = str(getattr(block, 'id', ''))
+        arguments = getattr(block, 'input', None)
+        if name not in allowed_tool_names:
+            raise ModelProtocolError(
+                f'Model requested unavailable tool: {name}.',
+                reason='unavailable_tool',
+                tool_name=name,
+            )
+        if not tool_id or not isinstance(arguments, dict):
+            raise ModelProtocolError(
+                'Invalid final tool block for %s.' % (name or 'unknown'),
+                reason='invalid_tool_arguments',
+                tool_name=name or None,
+            )
+        yield ModelToolCallStarted(index=index, id=tool_id, name=name)
+        yield ModelToolCallCompleted(
+            tool_call=ToolCall(
+                index=index,
+                id=tool_id,
+                name=name,
+                arguments=dict(arguments),
+            )
+        )
 
 
 def classify_provider_error(error: Exception) -> tuple[str, bool]:

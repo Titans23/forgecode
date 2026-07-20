@@ -286,6 +286,8 @@ class StreamingResponseView:
         self.console = console
         self.timeline: list[_TimelineBlock] = []
         self.usage: TokenUsage | None = None
+        self.request_usage: TokenUsage | None = None
+        self.model_calls = 0
         self.completed = False
         self.result: TurnResult | None = None
         self.live = Live(
@@ -322,9 +324,17 @@ class StreamingResponseView:
             self.timeline.append(_TextTimelineBlock(text=text))
         self.live.update(self._render(), refresh=True)
 
-    def update_usage(self, usage: TokenUsage) -> None:
+    def update_usage(
+        self,
+        usage: TokenUsage,
+        *,
+        request_usage: TokenUsage | None = None,
+        model_calls: int = 1,
+    ) -> None:
         '''Refresh the exact usage snapshot reported by the provider.'''
         self.usage = usage
+        self.request_usage = request_usage
+        self.model_calls = model_calls
         self.live.update(self._render(), refresh=True)
 
     def start_tool(self, tool_call: ToolCall) -> None:
@@ -374,6 +384,8 @@ class StreamingResponseView:
         if result.text and not final_text_is_present:
             self.timeline.append(_TextTimelineBlock(text=result.text))
         self.usage = result.usage
+        self.request_usage = result.last_request_usage
+        self.model_calls = result.model_calls
         self.result = result
         self.completed = True
         self.live.update(self._render(), refresh=True)
@@ -398,7 +410,12 @@ class StreamingResponseView:
         ):
             renderables.append(completion_evidence_summary(self.result))
         renderables.append(
-            token_usage_summary(self.usage, streaming=not self.completed)
+            token_usage_summary(
+                self.usage,
+                streaming=not self.completed,
+                request_usage=self.request_usage,
+                model_calls=self.model_calls,
+            )
         )
         return Group(*renderables)
 
@@ -567,9 +584,18 @@ def token_usage_summary(
     usage: TokenUsage | None,
     *,
     streaming: bool,
+    request_usage: TokenUsage | None = None,
+    model_calls: int = 1,
 ) -> Text:
     '''Build the live or final token usage line.'''
-    prefix = '\u21b3 streaming' if streaming else '\u21b3 tokens'
+    if request_usage is not None:
+        prefix = (
+            '\u21b3 turn cumulative (streaming)'
+            if streaming
+            else '\u21b3 turn cumulative'
+        )
+    else:
+        prefix = '\u21b3 streaming' if streaming else '\u21b3 tokens'
     if usage is None:
         return Text.assemble(
             (prefix, 'dim'),
@@ -596,6 +622,29 @@ def token_usage_summary(
         summary.append(
             f'{usage.cache_creation_input_tokens:,}',
             style='bright_cyan',
+        )
+    if request_usage is not None:
+        if streaming and request_usage.total_tokens == 0:
+            summary.append(
+                '\n  last request  waiting for provider usage ...',
+                style='dim yellow',
+            )
+            summary.append(f'  {model_calls} model calls', style='dim')
+            return summary
+        summary.append('\n  last request  input ', style='dim')
+        summary.append(
+            f'{request_usage.total_input_tokens:,}',
+            style='bright_cyan',
+        )
+        summary.append('  output ', style='dim')
+        summary.append(
+            f'{request_usage.output_tokens:,}',
+            style='bright_cyan',
+        )
+        summary.append('  turn total above', style='dim')
+        summary.append(
+            f'  {model_calls} model calls',
+            style='dim',
         )
     return summary
 

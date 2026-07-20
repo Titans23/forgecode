@@ -13,3 +13,6 @@ target/
 **/.forge/evals/
 **/.forge/context/
 **/.forge/tasks/
+fixtures/
+game/
+play/

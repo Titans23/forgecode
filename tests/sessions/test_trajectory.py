@@ -8,6 +8,7 @@ from forge.runtime.state import (
     ModelCallCompleted,
     ModelCallStarted,
     ModelRetryScheduled,
+    ModelResponseCompleted,
     ModelToolCallCompleted,
     ModelUsageUpdate,
     TokenUsage,
@@ -45,10 +46,13 @@ def test_trajectory_records_lifecycle_without_large_tool_content(
     )
     recorder.record_event(
         ModelUsageUpdate(
-            usage=TokenUsage(input_tokens=10, output_tokens=2)
+            usage=TokenUsage(input_tokens=10, output_tokens=2),
+            request_usage=TokenUsage(input_tokens=6, output_tokens=2),
+            model_calls=2,
         )
     )
     recorder.record_event(ModelToolCallCompleted(tool_call=call))
+    recorder.record_event(ModelResponseCompleted(stop_reason='tool_use'))
     recorder.record_event(ToolExecutionStarted(tool_call=call))
     recorder.record_event(
         ToolExecutionCompleted(
@@ -78,6 +82,11 @@ def test_trajectory_records_lifecycle_without_large_tool_content(
             result=TurnResult(
                 text='Finished',
                 usage=TokenUsage(input_tokens=10, output_tokens=2),
+                last_request_usage=TokenUsage(
+                    input_tokens=6,
+                    output_tokens=2,
+                ),
+                model_calls=2,
                 tool_calls=(call,),
                 changed_paths=('a.py',),
                 verification=evidence,
@@ -96,6 +105,7 @@ def test_trajectory_records_lifecycle_without_large_tool_content(
         'model_call_started',
         'model_retry_scheduled',
         'tool_requested',
+        'model_response_completed',
         'tool_execution_started',
         'tool_execution_completed',
         'model_call_completed',
@@ -115,8 +125,18 @@ def test_trajectory_records_lifecycle_without_large_tool_content(
     )
     assert completed['turn_usage']['input_tokens'] == 10
     assert completed['turn_usage']['output_tokens'] == 2
+    assert completed['turn_usage']['last_request']['input_tokens'] == 6
+    assert completed['turn_usage']['model_calls'] == 2
     assert completed['duration_seconds'] is not None
+    response = next(
+        record
+        for record in records
+        if record['type'] == 'model_response_completed'
+    )
+    assert response['stop_reason'] == 'tool_use'
     turn = records[-1]
     assert turn['status'] == 'completed'
+    assert turn['last_request_usage']['input_tokens'] == 6
+    assert turn['model_calls'] == 2
     assert turn['changed_paths'] == ['a.py']
     assert turn['verification']['workspace_revision'] == 1

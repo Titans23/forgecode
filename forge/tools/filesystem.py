@@ -15,17 +15,23 @@ from forge.tools.base import (
     ToolInput,
     ToolResult,
     display_path,
+    is_repository_path_protected,
     resolve_repository_path,
 )
 
 
 class ListDirectoryInput(ToolInput):
     path: str = '.'
+    max_results: int = Field(default=1_000, ge=1, le=1_000)
 
 
 class ListDirectoryTool(Tool[ListDirectoryInput]):
     name = 'list_directory'
-    description = 'List the direct children of a repository directory.'
+    description = (
+        'List the direct children of one repository directory. Use it to '
+        'discover immediate structure, not file contents or recursive trees. '
+        'Do not repeat it unless that directory may have changed.'
+    )
     input_model = ListDirectoryInput
 
     async def execute(self, arguments: ListDirectoryInput) -> ToolResult:
@@ -40,9 +46,18 @@ class ListDirectoryTool(Tool[ListDirectoryInput]):
             )
 
         entries = sorted(
-            directory.iterdir(),
+            (
+                entry
+                for entry in directory.iterdir()
+                if not is_repository_path_protected(
+                    entry.relative_to(self.root)
+                )
+            ),
             key=lambda path: (not path.is_dir(), path.name.casefold()),
         )
+        total = len(entries)
+        entries = entries[: arguments.max_results]
+        truncated = len(entries) < total
         lines = [
             f'{entry.name}/' if entry.is_dir() else entry.name
             for entry in entries
@@ -51,7 +66,12 @@ class ListDirectoryTool(Tool[ListDirectoryInput]):
         return ToolResult.ok(
             f'Listed {len(entries)} entries in {shown_path}.',
             content='\n'.join(lines),
-            metadata={'path': shown_path, 'entry_count': len(entries)},
+            metadata={
+                'path': shown_path,
+                'entry_count': len(entries),
+                'total': total,
+                'truncated': truncated,
+            },
         )
 
 
@@ -70,8 +90,11 @@ class ReadFileInput(ToolInput):
 class ReadFileTool(Tool[ReadFileInput]):
     name = 'read_file'
     description = (
-        'Read a UTF-8 repository file with line numbers and an optional '
-        'inclusive line range.'
+        'Read a UTF-8 repository file with line numbers. Omit start_line and '
+        'end_line to read the whole file, or request one necessary inclusive '
+        'range. The runtime tracks covered lines; do not change ranges or use '
+        'shell commands to re-read content already provided. Re-read a file '
+        'only after that file changes or when an uncovered range is needed.'
     )
     input_model = ReadFileInput
 
@@ -132,7 +155,8 @@ class WriteFileTool(Tool[WriteFileInput]):
         'Create or fully replace one small UTF-8 repository text file '
         'atomically. Content is limited to 8000 characters. For larger files, '
         'write a minimal skeleton first, then use replace_text or apply_patch '
-        'in multiple focused calls.'
+        'in multiple focused calls. Do not use this for a small edit to an '
+        'existing large file.'
     )
     input_model = WriteFileInput
     effect = 'workspace_write'
@@ -181,7 +205,9 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
     description = (
         'Replace one exact, unique UTF-8 text fragment in an existing '
         'repository file. Both old_text and new_text are limited to 8000 '
-        'characters. Use multiple focused calls for large edits.'
+        'characters. Use this for a focused edit after reading the relevant '
+        'source. If the text is not unique, read a smaller exact region and '
+        'retry with more surrounding context. Do not use it to create files.'
     )
     input_model = ReplaceTextInput
     effect = 'workspace_write'
@@ -197,13 +223,16 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
                 f'Path is not a file: {arguments.path}',
             )
         try:
-            content = path.read_text(encoding='utf-8')
+            content = read_text_preserving_newlines(path)
         except UnicodeDecodeError as error:
             raise ToolExecutionError(
                 'not_utf8_text',
                 f'File is not valid UTF-8 text: {arguments.path}',
             ) from error
-        occurrences = content.count(arguments.old_text)
+        newline = dominant_newline(content)
+        old_text = convert_newlines(arguments.old_text, newline)
+        new_text = convert_newlines(arguments.new_text, newline)
+        occurrences = content.count(old_text)
         if occurrences != 1:
             raise ToolExecutionError(
                 'text_not_unique',
@@ -212,8 +241,8 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
                 details={'occurrences': occurrences},
             )
         updated = content.replace(
-            arguments.old_text,
-            arguments.new_text,
+            old_text,
+            new_text,
             1,
         )
         atomic_write_text(path, updated)
@@ -249,3 +278,28 @@ def atomic_write_text(path: Path, content: str) -> None:
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()
+
+
+def read_text_preserving_newlines(path: Path) -> str:
+    '''Read UTF-8 text without universal-newline conversion.'''
+    with path.open('r', encoding='utf-8', newline='') as source:
+        return source.read()
+
+
+def dominant_newline(content: str) -> str:
+    '''Return the most common newline sequence, defaulting to LF.'''
+    crlf_count = content.count('\r\n')
+    without_crlf = content.replace('\r\n', '')
+    candidates = (
+        ('\r\n', crlf_count),
+        ('\n', without_crlf.count('\n')),
+        ('\r', without_crlf.count('\r')),
+    )
+    newline, count = max(candidates, key=lambda item: item[1])
+    return newline if count else '\n'
+
+
+def convert_newlines(content: str, newline: str) -> str:
+    '''Convert caller-provided text to one target newline sequence.'''
+    normalized = content.replace('\r\n', '\n').replace('\r', '\n')
+    return normalized.replace('\n', newline)

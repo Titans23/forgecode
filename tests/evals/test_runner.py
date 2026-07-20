@@ -118,11 +118,19 @@ def tool_response(call: ToolCall) -> list[ModelStreamEvent]:
 
 
 def final_response() -> list[ModelStreamEvent]:
-    return [
-        ModelUsageUpdate(usage=TokenUsage(10, 0)),
-        ModelTextDelta(text='Implemented and verified.'),
-        ModelUsageUpdate(usage=TokenUsage(10, 2)),
-    ]
+    return tool_response(
+        ToolCall(
+            index=0,
+            id='toolu_finish',
+            name='finish_task',
+            arguments={
+                'task_kind': 'change',
+                'status': 'completed',
+                'summary': 'Implemented and verified.',
+                'blocked_reasons': [],
+            },
+        )
+    )
 
 
 def test_load_case_validates_real_yaml() -> None:

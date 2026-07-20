@@ -58,7 +58,7 @@ class VerificationEvidence:
         return not self.timed_out and self.exit_code == 0
 
 
-TaskStatus = Literal['completed', 'blocked', 'failed']
+TaskStatus = Literal['completed', 'blocked', 'stuck', 'failed']
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +67,8 @@ class TurnResult:
 
     text: str
     usage: TokenUsage
+    last_request_usage: TokenUsage | None = None
+    model_calls: int = 1
     tool_calls: tuple[ToolCall, ...] = ()
     status: TaskStatus = 'completed'
     changed_paths: tuple[str, ...] = ()
@@ -126,9 +128,18 @@ class ModelToolCallCompleted:
 
 @dataclass(frozen=True, slots=True)
 class ModelUsageUpdate:
-    '''Latest exact usage reported by the model provider.'''
+    '''Latest request usage plus cumulative usage for the current turn.'''
 
     usage: TokenUsage
+    request_usage: TokenUsage | None = None
+    model_calls: int = 1
+
+
+@dataclass(frozen=True, slots=True)
+class ModelResponseCompleted:
+    '''Provider-level completion metadata for one streamed response.'''
+
+    stop_reason: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,6 +225,7 @@ type ModelStreamEvent = (
     | ModelToolCallArgumentsDelta
     | ModelToolCallCompleted
     | ModelUsageUpdate
+    | ModelResponseCompleted
     | ModelRetryScheduled
 )
 type ConversationEvent = (

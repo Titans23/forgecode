@@ -32,8 +32,10 @@ class VerifyTool(Tool[VerifyInput]):
     name = 'verify'
     description = (
         'Run a test, build, lint, or type-check command as formal completion '
-        'evidence. A successful result applies only to the current workspace '
-        'revision.'
+        'evidence after workspace changes. Choose the most relevant project '
+        'command; use git diff --check only when no more specific validation '
+        'exists. A successful result applies only to the exact current '
+        'workspace revision, so verify again after later edits.'
     )
     input_model = VerifyInput
     effect = 'process'

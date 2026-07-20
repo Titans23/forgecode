@@ -148,6 +148,52 @@ def test_terminal_renders_cache_token_details() -> None:
     assert 'cache write 30' in rendered
 
 
+def test_terminal_separates_last_request_from_turn_cumulative_usage() -> None:
+    terminal, output = terminal_with_output()
+
+    terminal.console.print(
+        token_usage_summary(
+            TokenUsage(
+                input_tokens=313_367,
+                output_tokens=10_806,
+                cache_read_input_tokens=50_560,
+            ),
+            streaming=False,
+            request_usage=TokenUsage(
+                input_tokens=9_000,
+                output_tokens=300,
+                cache_read_input_tokens=2_000,
+            ),
+            model_calls=26,
+        )
+    )
+
+    rendered = output.getvalue()
+    assert 'turn cumulative' in rendered
+    assert 'input 363,927' in rendered
+    assert 'last request  input 11,000' in rendered
+    assert 'output 300' in rendered
+    assert '26 model calls' in rendered
+
+
+def test_terminal_labels_zero_stream_usage_as_waiting() -> None:
+    terminal, output = terminal_with_output()
+
+    terminal.console.print(
+        token_usage_summary(
+            TokenUsage(input_tokens=220_371, output_tokens=21_273),
+            streaming=True,
+            request_usage=TokenUsage(input_tokens=0, output_tokens=0),
+            model_calls=15,
+        )
+    )
+
+    rendered = output.getvalue()
+    assert 'waiting for provider usage' in rendered
+    assert 'last request  input 0' not in rendered
+    assert '15 model calls' in rendered
+
+
 def test_terminal_renders_tool_arguments_and_result_status() -> None:
     terminal, output = terminal_with_output()
     successful_call = ToolCall(

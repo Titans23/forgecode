@@ -124,7 +124,14 @@ class FakeResponseView:
     def append_text(self, text: str) -> None:
         self.actions.append(('text', text))
 
-    def update_usage(self, usage: TokenUsage) -> None:
+    def update_usage(
+        self,
+        usage: TokenUsage,
+        *,
+        request_usage: TokenUsage | None = None,
+        model_calls: int = 1,
+    ) -> None:
+        del request_usage, model_calls
         self.actions.append(('usage', usage))
 
     def start_tool(self, tool_call: ToolCall) -> None:

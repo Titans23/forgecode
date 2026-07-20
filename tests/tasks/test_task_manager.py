@@ -87,6 +87,23 @@ def test_completion_and_blocking_are_persisted_for_planned_tasks(
     assert manager.store.load(task.id).status == 'completed'
 
 
+def test_followup_after_stuck_keeps_root_goal_and_latest_directive(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    original = manager.start('Fix the rendering bug in play/js/world.js')
+    manager.stuck(('Repeated actions did not make progress.',))
+
+    continued = manager.begin_turn('你直接帮我修复')
+
+    assert continued.id == original.id
+    assert continued.goal == original.goal
+    assert continued.status == 'in_progress'
+    suffix = manager.system_suffix()
+    assert original.goal in suffix
+    assert '你直接帮我修复' in suffix
+
+
 def test_resume_rejects_invalid_task_id(tmp_path: Path) -> None:
     manager = TaskManager(tmp_path)
 

@@ -17,6 +17,7 @@ from forge.tools.base import (
     ToolInput,
     ToolResult,
     display_path,
+    is_repository_path_protected,
     resolve_repository_path,
 )
 
@@ -30,11 +31,15 @@ def iter_files(path: Path) -> list[Path]:
             name
             for name in directory_names
             if name not in IGNORED_DIRECTORIES
+            and not is_repository_path_protected(Path(name))
             and not (Path(directory) / name).is_symlink()
         )
         for file_name in sorted(file_names):
             candidate = Path(directory) / file_name
-            if not candidate.is_symlink():
+            if (
+                not candidate.is_symlink()
+                and not is_repository_path_protected(Path(file_name))
+            ):
                 files.append(candidate)
     return files
 
@@ -49,7 +54,8 @@ class FindFilesTool(Tool[FindFilesInput]):
     name = 'find_files'
     description = (
         'Find repository files by a glob pattern, excluding common generated '
-        'directories.'
+        'directories. Use a narrow path and pattern; avoid scanning **/* when '
+        'the target directory or extension is already known.'
     )
     input_model = FindFilesInput
 
@@ -104,7 +110,11 @@ class GrepTool(Tool[GrepInput]):
     name = 'grep'
     description = (
         'Search UTF-8 repository files and return path, line number, and '
-        'matching text. Supports regex, path, and file type filters.'
+        'matching text. Use it to locate symbols or unknown occurrences before '
+        'reading focused files. pattern is a regular expression by default; '
+        'set regex=false for literal text containing characters such as '
+        'parentheses or brackets. Do not grep a file already read in full, '
+        'and do not vary patterns merely to re-display known content.'
     )
     input_model = GrepInput
 

@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
 DEFAULT_MODEL_MAX_TOKENS = 8_192
+DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS = 120.0
 
 
 class ConfigurationError(ValueError):
@@ -28,6 +29,7 @@ class ForgeConfig:
     base_url: str = DEFAULT_ANTHROPIC_BASE_URL
     max_tokens: int = DEFAULT_MODEL_MAX_TOKENS
     context_window: int | None = None
+    request_timeout_seconds: float = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 
     def __post_init__(self) -> None:
         api_key = self.api_key.strip()
@@ -52,6 +54,10 @@ class ForgeConfig:
                     'MODEL_CONTEXT_WINDOW must be greater than '
                     'MODEL_MAX_TOKENS.'
                 )
+        if not 10 <= self.request_timeout_seconds <= 600:
+            raise ConfigurationError(
+                'MODEL_REQUEST_TIMEOUT_SECONDS must be between 10 and 600.'
+            )
 
         parsed_url = urlsplit(base_url)
         if parsed_url.scheme not in {'http', 'https'} or not parsed_url.netloc:
@@ -94,6 +100,16 @@ class ForgeConfig:
             raise ConfigurationError(
                 'MODEL_CONTEXT_WINDOW must be an integer.'
             ) from error
+        raw_request_timeout = source.get(
+            'MODEL_REQUEST_TIMEOUT_SECONDS',
+            str(DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS),
+        )
+        try:
+            request_timeout_seconds = float(raw_request_timeout)
+        except ValueError as error:
+            raise ConfigurationError(
+                'MODEL_REQUEST_TIMEOUT_SECONDS must be a number.'
+            ) from error
 
         return cls(
             api_key=source.get('ANTHROPIC_API_KEY', ''),
@@ -104,4 +120,5 @@ class ForgeConfig:
             ),
             max_tokens=max_tokens,
             context_window=context_window,
+            request_timeout_seconds=request_timeout_seconds,
         )

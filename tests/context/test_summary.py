@@ -88,6 +88,30 @@ def test_auto_compaction_only_runs_above_threshold(tmp_path: Path) -> None:
     assert len(client.calls) == 1
 
 
+def test_auto_compaction_counts_stored_history_after_cheap_crop(
+    tmp_path: Path,
+) -> None:
+    messages = [
+        {'role': 'user', 'content': f'message {index} ' + ('x' * 200)}
+        for index in range(20)
+    ]
+    manager = ContextManager(
+        messages,
+        tmp_path,
+        CompactionConfig(
+            message_limit=2,
+            keep_recent_messages=2,
+            auto_compact_characters=1_000,
+        ),
+    )
+    client = SummaryClient(valid_summary())
+
+    report = asyncio.run(manager.compact_history(messages, client))
+
+    assert report is not None and report.success
+    assert len(client.calls) == 1
+
+
 def test_configured_window_replaces_character_fallback(tmp_path: Path) -> None:
     messages = [{'role': 'user', 'content': 'x' * 100}]
     manager = ContextManager(

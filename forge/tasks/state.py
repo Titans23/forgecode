@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
 
-TaskStatus = Literal['in_progress', 'completed', 'blocked']
+TaskStatus = Literal['in_progress', 'completed', 'blocked', 'stuck']
 StepStatus = Literal['pending', 'in_progress', 'completed', 'blocked']
 
 

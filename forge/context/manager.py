@@ -282,6 +282,7 @@ class ContextManager:
         prepared = self.prepare(messages)
         before_stats = context_stats(
             prepared,
+            stored_messages=messages,
             system_prompt=system_prompt,
             repository_context=repository_context,
             tools=tools,
@@ -290,15 +291,25 @@ class ContextManager:
         )
         if context_window_tokens is None:
             threshold_reached = (
-                before_stats.estimated_characters
+                max(
+                    before_stats.estimated_characters,
+                    before_stats.stored_characters,
+                )
                 > self.config.auto_compact_characters
             )
         else:
-            projected_tokens = (
+            visible_projected_tokens = (
                 before_stats.estimated_tokens + reserved_output_tokens
             )
+            stored_projected_tokens = (
+                before_stats.stored_tokens
+                + before_stats.system_tokens
+                + before_stats.repository_tokens
+                + before_stats.tool_schema_tokens
+                + reserved_output_tokens
+            )
             threshold_reached = (
-                projected_tokens
+                max(visible_projected_tokens, stored_projected_tokens)
                 >= context_window_tokens * self.config.auto_compact_ratio
             )
         should_compact = force or threshold_reached

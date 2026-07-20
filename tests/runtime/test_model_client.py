@@ -22,6 +22,7 @@ from forge.runtime.state import (
     ModelToolCallCompleted,
     ModelToolCallStarted,
     ModelRetryScheduled,
+    ModelResponseCompleted,
     ModelUsageUpdate,
     TokenUsage,
     ToolCall,
@@ -73,7 +74,9 @@ class FakeMessages:
         self.events: list[Any] = []
         self.errors: list[Exception] = []
         self.final_message = SimpleNamespace(
-            usage=usage(input_tokens=0, output_tokens=0)
+            usage=usage(input_tokens=0, output_tokens=0),
+            stop_reason='end_turn',
+            content=[SimpleNamespace(type='text', text='ok')],
         )
 
     def stream(self, **kwargs: Any) -> FakeStream:
@@ -92,7 +95,7 @@ def test_client_passes_explicit_config_to_anthropic_sdk(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sdk = FakeAnthropic()
-    constructor_calls: list[dict[str, str]] = []
+    constructor_calls: list[dict[str, Any]] = []
 
     def create_sdk(**kwargs: str) -> FakeAnthropic:
         constructor_calls.append(kwargs)
@@ -113,6 +116,8 @@ def test_client_passes_explicit_config_to_anthropic_sdk(
         {
             'api_key': 'test-api-key',
             'base_url': 'https://gateway.example.com/anthropic',
+            'timeout': 120.0,
+            'max_retries': 0,
         }
     ]
 
@@ -130,6 +135,7 @@ def test_client_can_use_model_id_from_config() -> None:
 
     assert client.model == 'configured-model'
     assert client.max_tokens == 8_192
+    assert client.request_timeout_seconds == 120.0
 
 
 def test_client_uses_configured_max_tokens() -> None:
@@ -231,6 +237,7 @@ def test_stream_delegates_events_and_merges_usage() -> None:
         ModelUsageUpdate(
             usage=TokenUsage(input_tokens=100, output_tokens=2)
         ),
+        ModelResponseCompleted(stop_reason=None),
     ]
     assert sdk.messages.calls == [
         {
@@ -254,6 +261,79 @@ def test_stream_delegates_events_and_merges_usage() -> None:
         }
     ]
     assert isinstance(client, ModelClient)
+
+
+def test_stream_recovers_text_from_final_message_when_deltas_are_missing() -> None:
+    sdk = FakeAnthropic()
+    sdk.messages.events = [
+        SimpleNamespace(
+            type='message_start',
+            message=SimpleNamespace(
+                usage=usage(input_tokens=12, output_tokens=0)
+            ),
+        )
+    ]
+    sdk.messages.final_message = SimpleNamespace(
+        usage=usage(input_tokens=12, output_tokens=3),
+        stop_reason='end_turn',
+        content=[SimpleNamespace(type='text', text='Recovered text.')],
+    )
+    client = AnthropicModelClient(model='compatible-test', client=sdk)
+
+    events = collect_stream(
+        client,
+        messages=[{'role': 'user', 'content': 'Reply'}],
+    )
+
+    assert ModelTextDelta(text='Recovered text.') in events
+    assert events[-1] == ModelResponseCompleted(stop_reason='end_turn')
+
+
+def test_stream_rejects_empty_provider_response_with_stop_reason() -> None:
+    sdk = FakeAnthropic()
+    sdk.messages.events = [
+        SimpleNamespace(
+            type='message_start',
+            message=SimpleNamespace(
+                usage=usage(input_tokens=0, output_tokens=0)
+            ),
+        )
+    ]
+    sdk.messages.final_message = SimpleNamespace(
+        usage=usage(input_tokens=0, output_tokens=0),
+        stop_reason='end_turn',
+        content=[],
+    )
+    client = AnthropicModelClient(model='compatible-test', client=sdk)
+
+    with pytest.raises(ModelProtocolError) as captured:
+        collect_stream(
+            client,
+            messages=[{'role': 'user', 'content': 'Continue'}],
+        )
+
+    assert captured.value.reason == 'empty_model_response'
+    assert 'stop_reason=end_turn' in str(captured.value)
+
+
+def test_stream_rejects_empty_response_without_stop_reason() -> None:
+    sdk = FakeAnthropic()
+    sdk.messages.events = []
+    sdk.messages.final_message = SimpleNamespace(
+        usage=usage(input_tokens=0, output_tokens=0),
+        stop_reason=None,
+        content=[],
+    )
+    client = AnthropicModelClient(model='compatible-test', client=sdk)
+
+    with pytest.raises(ModelProtocolError) as captured:
+        collect_stream(
+            client,
+            messages=[{'role': 'user', 'content': 'Continue'}],
+        )
+
+    assert captured.value.reason == 'empty_model_response'
+    assert 'stop_reason=unknown' in str(captured.value)
 
 
 def test_adapter_passes_plain_message_dicts_to_sdk() -> None:
@@ -416,6 +496,7 @@ def test_stream_emits_multiple_completed_tool_calls() -> None:
         ModelUsageUpdate(
             usage=TokenUsage(input_tokens=80, output_tokens=24)
         ),
+        ModelResponseCompleted(stop_reason=None),
     ]
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import re
 from time import perf_counter
@@ -106,20 +107,56 @@ class RunCommandInput(ToolInput):
     command: str = Field(min_length=1)
     cwd: str = '.'
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+    stdin: str | None = Field(default=None, max_length=8_000)
 
 
 class RunCommandTool(Tool[RunCommandInput]):
     name = 'run_command'
     description = (
-        'Run a local shell command inside the repository for inspection, '
-        'tests, builds, or validation. Do not write repository files through '
-        'inline Node, Python, PowerShell, or shell redirection. Use write_file, '
-        'replace_text, or apply_patch for source changes.'
+        'Run an executable repository command for exploration, diagnostics, '
+        'or development. Do not use it to display source files or directory '
+        'trees; use read_file, grep, find_files, or list_directory. Do not '
+        'write files through scripts or redirection; use write_file, '
+        'replace_text, or apply_patch. Use verify instead when the command is '
+        'intended as formal completion evidence. For multiline scripts, pass '
+        'command="python -" or command="node" and put the script in stdin; '
+        'do not embed a POSIX heredoc in command. '
+        + (
+            'Commands run through Windows cmd.exe, which does not support '
+            'the POSIX << heredoc syntax.'
+            if os.name == 'nt'
+            else 'Commands run through the platform default shell.'
+        )
     )
     input_model = RunCommandInput
     effect = 'process'
 
     async def execute(self, arguments: RunCommandInput) -> ToolResult:
+        if os.name == 'nt' and has_unquoted_heredoc(arguments.command):
+            raise ToolExecutionError(
+                'unsupported_shell_syntax',
+                'Windows cmd.exe does not support POSIX << heredocs. Use '
+                'command="python -" or command="node" and pass the '
+                'multiline program in the stdin field.',
+                details={
+                    'shell': 'cmd.exe',
+                    'supported_fields': [
+                        'command',
+                        'cwd',
+                        'timeout_seconds',
+                        'stdin',
+                    ],
+                },
+            )
+        read_reason = shell_file_read_reason(arguments.command)
+        if read_reason is not None:
+            raise ToolExecutionError(
+                'shell_file_read_denied',
+                'run_command cannot be used as a substitute for repository '
+                'reading tools. Use read_file, list_directory, grep, or '
+                'find_files so ForgeCode can track the evidence.',
+                details={'detected': read_reason},
+            )
         denied_reason = shell_file_write_reason(arguments.command)
         if denied_reason is not None:
             raise ToolExecutionError(
@@ -128,6 +165,23 @@ class RunCommandTool(Tool[RunCommandInput]):
                 'Use write_file, replace_text, or apply_patch instead.',
                 details={'detected': denied_reason},
             )
+        if arguments.stdin is not None:
+            stdin_read_reason = shell_file_read_reason(arguments.stdin)
+            if stdin_read_reason is not None:
+                raise ToolExecutionError(
+                    'shell_file_read_denied',
+                    'run_command stdin cannot bypass repository reading '
+                    'tools. Use read_file, list_directory, grep, or find_files.',
+                    details={'detected': stdin_read_reason},
+                )
+            stdin_write_reason = shell_file_write_reason(arguments.stdin)
+            if stdin_write_reason is not None:
+                raise ToolExecutionError(
+                    'shell_file_write_denied',
+                    'run_command stdin cannot write repository files. Use '
+                    'write_file, replace_text, or apply_patch instead.',
+                    details={'detected': stdin_write_reason},
+                )
         cwd = resolve_repository_path(self.root, arguments.cwd)
         if not cwd.is_dir():
             raise ToolExecutionError(
@@ -138,12 +192,14 @@ class RunCommandTool(Tool[RunCommandInput]):
             arguments.command,
             cwd=cwd,
             timeout_seconds=arguments.timeout_seconds,
+            input_text=arguments.stdin,
             shell=True,
         )
         metadata = {
             **process_metadata(result),
             'command': arguments.command,
             'cwd': display_path(self.root, cwd),
+            'stdin_characters': len(arguments.stdin or ''),
         }
         content = render_process_output(result)
         if result.timed_out:
@@ -197,6 +253,22 @@ SCRIPT_WRITE_PATTERNS = (
 )
 
 
+SCRIPT_READ_PATTERNS = (
+    (re.compile(r'\bGet-Content\b', re.IGNORECASE), 'PowerShell Get-Content'),
+    (re.compile(r'\bGet-ChildItem\b', re.IGNORECASE), 'PowerShell Get-ChildItem'),
+    (re.compile(r'(^|[|;&]\s*)\b(?:cat|head|tail|nl)\b', re.IGNORECASE), 'shell file reader'),
+    (re.compile(r'(^|[|;&]\s*)\bsed\s+-n\b', re.IGNORECASE), 'sed line reader'),
+)
+
+
+def shell_file_read_reason(command: str) -> str | None:
+    '''Detect shell commands that bypass repository evidence tracking.'''
+    for pattern, reason in SCRIPT_READ_PATTERNS:
+        if pattern.search(command):
+            return reason
+    return None
+
+
 def shell_file_write_reason(command: str) -> str | None:
     '''Detect common direct file-writing shortcuts before shell execution.'''
     for pattern, reason in SCRIPT_WRITE_PATTERNS:
@@ -231,4 +303,32 @@ def has_unquoted_output_redirection(command: str) -> bool:
         if following == '&' or preceding == '=':
             continue
         return True
+    return False
+
+
+def has_unquoted_heredoc(command: str) -> bool:
+    '''Detect POSIX heredoc operators without matching quoted bit shifts.'''
+    single_quoted = False
+    double_quoted = False
+    escaped = False
+    for index, character in enumerate(command):
+        if escaped:
+            escaped = False
+            continue
+        if character == '\\':
+            escaped = True
+            continue
+        if character == chr(39) and not double_quoted:
+            single_quoted = not single_quoted
+            continue
+        if character == chr(34) and not single_quoted:
+            double_quoted = not double_quoted
+            continue
+        if (
+            character == '<'
+            and not single_quoted
+            and not double_quoted
+            and command[index + 1:index + 2] == '<'
+        ):
+            return True
     return False

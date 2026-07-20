@@ -18,6 +18,7 @@ from forge.runtime.state import (
     ModelCallFailed,
     ModelCallStarted,
     ModelRetryScheduled,
+    ModelResponseCompleted,
     ModelTextDelta,
     ModelToolCallArgumentsDelta,
     ModelToolCallCompleted,
@@ -52,7 +53,7 @@ class TrajectoryRecorder:
         self.path = path
         self._model_started_at: dict[int, float] = {}
         self._tool_started_at: dict[str, float] = {}
-        self._latest_usage: dict[str, int] | None = None
+        self._latest_usage: dict[str, Any] | None = None
 
     @classmethod
     def create(cls, root: Path) -> TrajectoryRecorder:
@@ -83,6 +84,11 @@ class TrajectoryRecorder:
             return
         if isinstance(event, ModelUsageUpdate):
             self._latest_usage = asdict(event.usage)
+            if event.request_usage is not None:
+                self._latest_usage['last_request'] = asdict(
+                    event.request_usage
+                )
+            self._latest_usage['model_calls'] = event.model_calls
             return
         if isinstance(event, ModelCallStarted):
             self._model_started_at[event.iteration] = time.perf_counter()
@@ -91,6 +97,9 @@ class TrajectoryRecorder:
             return
         if isinstance(event, ModelRetryScheduled):
             self._write('model_retry_scheduled', asdict(event))
+            return
+        if isinstance(event, ModelResponseCompleted):
+            self._write('model_response_completed', asdict(event))
             return
         if isinstance(event, ModelCallCompleted):
             started_at = self._model_started_at.pop(event.iteration, None)
@@ -166,6 +175,12 @@ class TrajectoryRecorder:
                 {
                     'text': redact_text(result.text),
                     'usage': asdict(result.usage),
+                    'last_request_usage': (
+                        asdict(result.last_request_usage)
+                        if result.last_request_usage is not None
+                        else None
+                    ),
+                    'model_calls': result.model_calls,
                     'tool_calls': len(result.tool_calls),
                     'status': result.status,
                     'changed_paths': result.changed_paths,

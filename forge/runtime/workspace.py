@@ -7,9 +7,6 @@ from hashlib import sha256
 import os
 from pathlib import Path, PurePosixPath
 
-from forge.tools.shell import run_process
-
-
 @dataclass(frozen=True, slots=True)
 class WorkspaceSnapshot:
     '''Content state for paths currently changed relative to Git HEAD.'''
@@ -64,6 +61,10 @@ class WorkspaceTracker:
         return changed_paths(self.baseline, self.current)
 
     async def _capture(self) -> WorkspaceSnapshot | None:
+        # Import lazily so WorkspaceTracker can be imported independently;
+        # forge.tools exports VerifyTool, which itself references this class.
+        from forge.tools.shell import run_process
+
         result = await run_process(
             [
                 'git',

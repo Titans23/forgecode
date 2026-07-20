@@ -25,9 +25,11 @@ class CompactionConfig:
     tool_result_inline_limit: int = 30_000
     keep_recent_tool_results: int = 3
     old_tool_result_limit: int = 120
-    message_limit: int = 50
-    keep_first_messages: int = 3
-    keep_recent_messages: int = 47
+    message_limit: int = 12
+    keep_first_messages: int = 0
+    keep_recent_messages: int = 12
+    keep_file_evidence_units: int = 4
+    file_evidence_character_budget: int = 100_000
     auto_compact_characters: int = 120_000
     auto_compact_ratio: float = 0.8
     summary_keep_recent_messages: int = 6
@@ -251,7 +253,16 @@ def snip_middle_messages(
     recent = take_units_from_end(units, config.keep_recent_messages)
     first_ids = {id(unit) for unit in first}
     recent = [unit for unit in recent if id(unit) not in first_ids]
-    kept_count = sum(len(unit) for unit in first + recent)
+    selected_ids = first_ids | {id(unit) for unit in recent}
+    evidence = select_file_evidence_units(
+        units,
+        excluded_ids=selected_ids,
+        maximum=config.keep_file_evidence_units,
+        character_budget=config.file_evidence_character_budget,
+    )
+    selected_ids.update(id(unit) for unit in evidence)
+    selected = [unit for unit in units if id(unit) in selected_ids]
+    kept_count = sum(len(unit) for unit in selected)
     removed = len(messages) - kept_count
     if removed <= 0:
         return messages
@@ -259,11 +270,81 @@ def snip_middle_messages(
         'role': 'user',
         'content': f'[ForgeCode omitted {removed} middle messages.]',
     }
+    prefix_ids = {id(unit) for unit in first}
+    suffix = [unit for unit in selected if id(unit) not in prefix_ids]
     return [
         *(message for unit in first for message in unit),
         marker,
-        *(message for unit in recent for message in unit),
+        *(message for unit in suffix for message in unit),
     ]
+
+
+def select_file_evidence_units(
+    units: list[list[dict[str, Any]]],
+    *,
+    excluded_ids: set[int],
+    maximum: int,
+    character_budget: int,
+) -> list[list[dict[str, Any]]]:
+    '''Keep recent distinct read_file evidence outside the message window.'''
+    if maximum <= 0 or character_budget <= 0:
+        return []
+    selected: list[list[dict[str, Any]]] = []
+    covered_paths: set[str] = set()
+    characters = 0
+    for unit in reversed(units):
+        if id(unit) in excluded_ids:
+            covered_paths.update(file_read_paths(unit))
+            continue
+        paths = file_read_paths(unit)
+        if not paths or not (paths - covered_paths):
+            continue
+        unit_characters = len(
+            json.dumps(unit, ensure_ascii=False, default=str)
+        )
+        if characters + unit_characters > character_budget:
+            continue
+        selected.append(unit)
+        covered_paths.update(paths)
+        characters += unit_characters
+        if len(selected) >= maximum:
+            break
+    selected.reverse()
+    return selected
+
+
+def file_read_paths(unit: list[dict[str, Any]]) -> set[str]:
+    calls: dict[str, str] = {}
+    successful_results: set[str] = set()
+    for message in unit:
+        content = message.get('content')
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if (
+                isinstance(block, dict)
+                and block.get('type') == 'tool_use'
+                and block.get('name') == 'read_file'
+            ):
+                arguments = block.get('input')
+                if isinstance(arguments, dict):
+                    path = str(arguments.get('path', '')).strip()
+                    if path:
+                        calls[str(block.get('id', ''))] = path.replace(
+                            '\\',
+                            '/',
+                        )
+            elif (
+                isinstance(block, dict)
+                and block.get('type') == 'tool_result'
+                and block.get('is_error') is not True
+            ):
+                successful_results.add(str(block.get('tool_use_id', '')))
+    return {
+        path
+        for call_id, path in calls.items()
+        if call_id and call_id in successful_results
+    }
 
 
 def shorten_old_tool_results(
@@ -278,6 +359,8 @@ def shorten_old_tool_results(
         content = str(block.get('content', ''))
         if len(content) <= config.old_tool_result_limit:
             continue
+        if is_structured_file_read_result(content):
+            continue
         if content.startswith('[ForgeCode stored a large tool result]'):
             continue
         block['content'] = (
@@ -286,6 +369,23 @@ def shorten_old_tool_results(
         )
         shortened += 1
     return shortened
+
+
+def is_structured_file_read_result(content: str) -> bool:
+    '''Recognize read_file results whose source text remains active evidence.'''
+    try:
+        payload = json.loads(content)
+    except (TypeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict) or payload.get('success') is not True:
+        return False
+    metadata = payload.get('metadata')
+    return isinstance(metadata, dict) and {
+        'path',
+        'start_line',
+        'end_line',
+        'total_lines',
+    }.issubset(metadata)
 
 
 def iter_tool_result_blocks(
@@ -333,6 +433,8 @@ def take_units_from_start(
     units: list[list[dict[str, Any]]],
     message_budget: int,
 ) -> list[list[dict[str, Any]]]:
+    if message_budget <= 0:
+        return []
     selected: list[list[dict[str, Any]]] = []
     count = 0
     for unit in units:
@@ -347,6 +449,8 @@ def take_units_from_end(
     units: list[list[dict[str, Any]]],
     message_budget: int,
 ) -> list[list[dict[str, Any]]]:
+    if message_budget <= 0:
+        return []
     selected: list[list[dict[str, Any]]] = []
     count = 0
     for unit in reversed(units):

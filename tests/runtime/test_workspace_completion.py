@@ -2,10 +2,15 @@
 
 import asyncio
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
-from forge.runtime.completion import CompletionGate, TaskPolicy, matches_any
+from forge.runtime.completion import (
+    CompletionGate,
+    TaskPolicy,
+    matches_any,
+)
 from forge.runtime.state import VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
 
@@ -30,6 +35,26 @@ def initialize_git_repository(root: Path) -> None:
         cwd=root,
         check=True,
     )
+
+
+def test_workspace_tracker_imports_in_fresh_process() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            '-c',
+            (
+                'from forge.runtime.workspace import WorkspaceTracker; '
+                'print(WorkspaceTracker.__name__)'
+            ),
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == 'WorkspaceTracker'
 
 
 def run(coroutine: object) -> Any:
@@ -109,6 +134,75 @@ def test_completion_gate_requires_current_successful_verification(
     assert accepted.allowed is True
     assert stale.allowed is False
     assert any('changed after verification' in item for item in stale.reasons)
+
+
+def test_completion_gate_ignores_unrelated_preexisting_whitespace_errors(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / 'user.txt').write_text(
+        'preexisting user edit with trailing spaces  \n',
+        encoding='utf-8',
+    )
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    (tmp_path / 'sample.txt').write_text('agent edit\n', encoding='utf-8')
+    run(tracker.refresh())
+    evidence = VerificationEvidence(
+        command='pytest',
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+
+    decision = run(
+        CompletionGate(tmp_path).evaluate(
+            tracker,
+            evidence,
+            mutation_attempted=True,
+        )
+    )
+
+    assert tracker.changed_paths == ('sample.txt',)
+    assert decision.allowed is True
+
+
+def test_completion_gate_checks_task_local_change_to_untracked_file(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    untracked = tmp_path / 'play' / 'world.js'
+    untracked.parent.mkdir()
+    untracked.write_text('const face = 1;\n', encoding='utf-8')
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    untracked.write_text('const face = 6;  \n', encoding='utf-8')
+    run(tracker.refresh())
+    evidence = VerificationEvidence(
+        command='git diff --check',
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+
+    decision = run(
+        CompletionGate(tmp_path).evaluate(
+            tracker,
+            evidence,
+            mutation_attempted=True,
+        )
+    )
+
+    assert tracker.changed_paths == ('play/world.js',)
+    assert decision.allowed is False
+    assert any(
+        'untracked file: play/world.js' in reason
+        for reason in decision.reasons
+    )
 
 
 def test_completion_gate_rejects_failed_verification_and_empty_diff(

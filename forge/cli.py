@@ -236,7 +236,11 @@ async def render_streamed_turn(
             if isinstance(event, ModelTextDelta):
                 response_view.append_text(event.text)
             elif isinstance(event, ModelUsageUpdate):
-                response_view.update_usage(event.usage)
+                response_view.update_usage(
+                    event.usage,
+                    request_usage=event.request_usage,
+                    model_calls=event.model_calls,
+                )
             elif isinstance(event, ToolExecutionStarted):
                 response_view.start_tool(event.tool_call)
             elif isinstance(event, ToolExecutionCompleted):
@@ -269,6 +273,9 @@ def show_config() -> None:
     typer.echo(f'Model ID: {config.model_id}')
     typer.echo(f'Base URL: {config.base_url}')
     typer.echo(f'Max output tokens: {config.max_tokens:,}')
+    typer.echo(
+        f'Model request timeout: {config.request_timeout_seconds:g} seconds'
+    )
     typer.echo(
         'Context window: '
         + (
