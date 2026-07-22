@@ -14,6 +14,8 @@ from forge.runtime.state import (
 )
 from forge.terminal import (
     SLASH_COMMAND_COMPLETER,
+    SessionOption,
+    SlashCommandCompleter,
     TerminalUI,
     streaming_preview,
     token_usage_summary,
@@ -77,6 +79,8 @@ def test_slash_opens_command_completion_menu() -> None:
     assert '/task' in usages
     assert '/task history' in usages
     assert '/task resume task-id' in usages
+    assert '/resume [session]' in usages
+    assert '/rewind [checkpoint] [mode]' in usages
     assert '查看当前上下文统计' in descriptions
 
 
@@ -91,6 +95,96 @@ def test_slash_completion_filters_and_replaces_current_input() -> None:
 
 def test_normal_prompt_does_not_offer_slash_commands() -> None:
     assert completions_for('fix this bug') == []
+
+
+def test_resume_completion_filters_dynamic_sessions() -> None:
+    completer = SlashCommandCompleter()
+    completer.set_session_options(
+        (
+            SessionOption(
+                identifier='session-123',
+                label='stable-auth',
+                description='stopped · session-123',
+            ),
+            SessionOption(
+                identifier='session-456',
+                label='other-task',
+                description='active · session-456',
+            ),
+        )
+    )
+
+    completions = list(
+        completer.get_completions(
+            Document(
+                text='/resume stab',
+                cursor_position=len('/resume stab'),
+            ),
+            CompleteEvent(completion_requested=True),
+        )
+    )
+
+    assert [item.text for item in completions] == ['session-123']
+    assert completions[0].display_text == 'stable-auth'
+    assert completions[0].start_position == -len('stab')
+
+
+def test_terminal_session_picker_returns_selected_session(
+    monkeypatch,
+) -> None:
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, width=100)
+    terminal = TerminalUI(
+        console=console,
+        prompt_session=FakePromptSession(''),
+    )
+
+    monkeypatch.setattr(
+        'forge.terminal.choice',
+        lambda **_kwargs: 'session-123',
+    )
+
+    selected = terminal.select_session(
+        (
+            SessionOption(
+                identifier='session-123',
+                label='stable-auth',
+                description='stopped · session-123',
+            ),
+        )
+    )
+
+    assert selected == 'session-123'
+    assert terminal.read_prompt() == ''
+
+
+def test_terminal_session_picker_ctrl_c_returns_to_prompt(
+    monkeypatch,
+) -> None:
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, width=100)
+    terminal = TerminalUI(
+        console=console,
+        prompt_session=FakePromptSession('next prompt'),
+    )
+
+    def interrupted(**_kwargs: object) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr('forge.terminal.choice', interrupted)
+
+    selected = terminal.select_session(
+        (
+            SessionOption(
+                identifier='session-123',
+                label='stable-auth',
+                description='已停止 · 刚刚 · session-123',
+            ),
+        )
+    )
+
+    assert selected is None
+    assert terminal.read_prompt() == 'next prompt'
 
 
 def test_terminal_renders_session_header_and_markdown_response() -> None:

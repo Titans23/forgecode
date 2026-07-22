@@ -1,11 +1,13 @@
 '''Multi-step model and tool execution for the M1 Agent Loop.'''
 
+from __future__ import annotations
+
 from collections.abc import AsyncIterator
 from functools import cache
 from itertools import count
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from forge.context.compactor import CompactionConfig
 from forge.context.manager import (
@@ -43,9 +45,14 @@ from forge.runtime.state import (
     WorkspaceChanged,
 )
 from forge.runtime.workspace import WorkspaceTracker
+from forge.sessions.checkpoint import CheckpointError, CheckpointStore
 from forge.tasks.manager import TaskManager
 from forge.tools.base import ToolRegistry, ToolResult
 from forge.tools.task import create_task_tools
+
+if TYPE_CHECKING:
+    from forge.sessions.store import SessionJournal, SessionStore
+    from forge.tasks.state import ActiveTask
 
 
 ACTION_RECOVERY_READ_TOOLS = frozenset(
@@ -96,6 +103,11 @@ class Conversation:
         pre_mutation_limit: int = 8,
         action_recovery_limit: int = 3,
         max_turn_input_tokens: int | None = 500_000,
+        initial_messages: list[dict[str, Any]] | None = None,
+        active_task: ActiveTask | None = None,
+        session_journal: SessionJournal | None = None,
+        checkpoint_store: CheckpointStore | None = None,
+        session_store: SessionStore | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
@@ -137,7 +149,12 @@ class Conversation:
             if system_prompt is not None
             else load_system_prompt()
         )
-        self.messages: list[dict[str, Any]] = []
+        self.messages: list[dict[str, Any]] = [
+            dict(message) for message in (initial_messages or [])
+        ]
+        self.session_journal = session_journal
+        self.checkpoint_store = checkpoint_store
+        self.session_store = session_store
         self.registry = registry
         self.max_iterations = max_iterations
         tracker = (
@@ -159,6 +176,7 @@ class Conversation:
             else Path.cwd()
         )
         self.task_manager = TaskManager(resolved_context_root)
+        self.task_manager.restore(active_task)
         self.working_state = WorkingState()
         if registry is not None:
             for task_tool in create_task_tools(
@@ -220,6 +238,20 @@ class Conversation:
         self._last_task_context = self.task_manager.system_suffix()
         user_message = {'role': 'user', 'content': prompt}
         request_messages = [*self.messages, user_message]
+        checkpoint_id: str | None = None
+        if self.checkpoint_store is not None:
+            checkpoint_id = self.checkpoint_store.begin()
+            if self.session_journal is not None:
+                self.session_journal.record_checkpoint_created(
+                    checkpoint_id,
+                    self.messages,
+                    self.task_manager.active,
+                )
+        if self.session_journal is not None:
+            self.session_journal.record_user_message(
+                user_message,
+                self.task_manager.active,
+            )
         completed_usage = TokenUsage(input_tokens=0, output_tokens=0)
         all_tool_calls: list[ToolCall] = []
         latest_verification: VerificationEvidence | None = None
@@ -335,7 +367,7 @@ class Conversation:
                 action_recovery_calls=action_recovery_calls,
                 action_read_used=action_read_used,
             )
-            await self.context.compact_history(
+            compaction = await self.context.compact_history(
                 request_messages,
                 self.client,
                 system_prompt=request_system_prompt,
@@ -352,6 +384,14 @@ class Conversation:
                     0,
                 ),
             )
+            if (
+                compaction is not None
+                and compaction.success
+                and self.session_journal is not None
+            ):
+                self.session_journal.record_context_compacted(
+                    request_messages
+                )
             yield ModelCallStarted(iteration=iteration)
             try:
                 async for event in self.client.stream(
@@ -432,6 +472,10 @@ class Conversation:
                         force=True,
                     )
                     if report is not None and report.success:
+                        if self.session_journal is not None:
+                            self.session_journal.record_context_compacted(
+                                request_messages
+                            )
                         continue
                 if (
                     isinstance(error, ModelProtocolError)
@@ -616,6 +660,10 @@ class Conversation:
             request_messages.append(
                 build_assistant_message(text, tool_calls)
             )
+            if self.session_journal is not None:
+                self.session_journal.record_assistant_message(
+                    request_messages[-1]
+                )
 
             if finalization_recovery and tool_calls:
                 all_tool_calls.extend(tool_calls)
@@ -991,10 +1039,35 @@ class Conversation:
                         previous_success=previous_success,
                     )
                 else:
-                    result = await self.registry.execute(
-                        tool_call.name,
-                        tool_call.arguments,
+                    checkpoint_paths = (
+                        mutation_target_paths(tool_call, maximum=None)
+                        if tool_effect == 'workspace_write'
+                        and checkpoint_id is not None
+                        and self.checkpoint_store is not None
+                        else ()
                     )
+                    try:
+                        if checkpoint_paths:
+                            self.checkpoint_store.capture_before(
+                                checkpoint_id,
+                                checkpoint_paths,
+                            )
+                        result = await self.registry.execute(
+                            tool_call.name,
+                            tool_call.arguments,
+                        )
+                        if checkpoint_paths:
+                            self.checkpoint_store.record_after(
+                                checkpoint_id,
+                                checkpoint_paths,
+                            )
+                    except CheckpointError as error:
+                        result = ToolResult.fail(
+                            'checkpoint_failed',
+                            'ForgeCode refused the workspace edit because '
+                            'its pre-edit checkpoint could not be created.',
+                            content=str(error),
+                        )
                     if tool_call.name != 'finish_task':
                         tool_attempts[signature] = (
                             previous_count + 1,
@@ -1107,6 +1180,11 @@ class Conversation:
                 if tool_call.name == 'task_update' and result.success:
                     task_progressed = True
             request_messages.append(build_tool_result_message(tool_results))
+            if self.session_journal is not None:
+                self.session_journal.record_tool_result_message(
+                    request_messages[-1],
+                    self.task_manager.active,
+                )
 
             if terminal_finish_reasons:
                 self.task_manager.stuck(terminal_finish_reasons)
@@ -1762,7 +1840,35 @@ class Conversation:
         )
         if report is None:
             raise AssertionError('Forced compaction did not return a report.')
+        if report.success and self.session_journal is not None:
+            self.session_journal.record_context_compacted(self.messages)
         return report
+
+    def record_session_event(self, event: ConversationEvent) -> None:
+        '''Persist runtime boundaries needed for safe session recovery.'''
+        journal = self.session_journal
+        if journal is None:
+            return
+        if isinstance(event, ToolExecutionStarted):
+            call = event.tool_call
+            journal.record_tool_started(call.id, call.name, call.arguments)
+        elif isinstance(event, ToolExecutionCompleted):
+            call = event.tool_call
+            journal.record_tool_completed(
+                call.id,
+                call.name,
+                event.result.success,
+            )
+        elif isinstance(event, TurnCompleted):
+            journal.record_turn_completed(
+                self.messages,
+                self.task_manager.active,
+                event.result,
+            )
+
+    def record_session_error(self, error: Exception) -> None:
+        if self.session_journal is not None:
+            self.session_journal.record_error(error)
 
     def remember(self, name: str, content: str) -> str:
         record = self.context.remember(name, content)
@@ -1808,6 +1914,203 @@ class Conversation:
         task = self.task_manager.resume(task_id)
         self._last_task_context = self.task_manager.system_suffix()
         return f'Resumed {task.id}: {task.goal}'
+
+    def checkpoint_history(self) -> str:
+        if self.checkpoint_store is None:
+            return 'File checkpoints are unavailable.'
+        checkpoints = self.checkpoint_store.list()
+        if not checkpoints:
+            return 'No file checkpoints.'
+        return '\n'.join(f'- {item}' for item in checkpoints)
+
+    def checkpoint_rewind(
+        self,
+        checkpoint_id: str | None = None,
+        *,
+        mode: str = 'both',
+    ) -> str:
+        if self.checkpoint_store is None:
+            raise ValueError('File checkpoints are unavailable.')
+        if mode not in {'code', 'conversation', 'both'}:
+            raise ValueError(
+                'Rewind mode must be code, conversation, or both.'
+            )
+        resolved_id = checkpoint_id
+        if not resolved_id:
+            checkpoints = self.checkpoint_store.list()
+            if not checkpoints:
+                raise ValueError('No file checkpoints.')
+            resolved_id = checkpoints[0]
+        restored: tuple[str, ...] = ()
+        restored_messages: list[dict[str, Any]] | None = None
+        restored_task: ActiveTask | None = None
+        if mode in {'conversation', 'both'}:
+            if self.session_store is None or self.session_journal is None:
+                raise ValueError('Conversation checkpoints are unavailable.')
+            restored_messages, restored_task = (
+                self.session_store.checkpoint_state(
+                    self.session_journal.session_id,
+                    resolved_id,
+                )
+            )
+        if mode in {'code', 'both'}:
+            restored = self.checkpoint_store.restore(resolved_id)
+            if self.workspace_tracker is not None:
+                self.workspace_tracker.watch_paths(restored)
+        if restored_messages is not None:
+            self.messages[:] = restored_messages
+            self.task_manager.restore(restored_task)
+            self._last_task_context = self.task_manager.system_suffix()
+            self.session_journal.append(
+                'conversation_rewound',
+                {
+                    'checkpoint_id': resolved_id,
+                    'messages': restored_messages,
+                    'task': (
+                        restored_task.as_dict()
+                        if restored_task is not None
+                        else None
+                    ),
+                },
+            )
+        return (
+            f'Rewound {mode} to {resolved_id}; '
+            f'restored {len(restored)} file(s).'
+        )
+
+    def session_status(self) -> str:
+        if self.session_journal is None:
+            return 'Session persistence is unavailable.'
+        task = self.task_manager.active
+        checkpoint_count = (
+            len(self.checkpoint_store.list())
+            if self.checkpoint_store is not None
+            else 0
+        )
+        task_id = task.id if task is not None else 'none'
+        task_status = task.status if task is not None else 'none'
+        return (
+            f'id: {self.session_journal.session_id}\n'
+            f'messages: {len(self.messages)}\n'
+            f'checkpoints: {checkpoint_count}\n'
+            f'task: {task_id}\n'
+            f'task status: {task_status}'
+        )
+
+    def session_history(self) -> str:
+        if self.session_store is None or self.session_journal is None:
+            return 'Session persistence is unavailable.'
+        events = self.session_store.history(
+            self.session_journal.session_id
+        )
+        return '\n'.join(
+            '- {}: {}{}'.format(
+                item['sequence'],
+                item['type'],
+                ' — {}'.format(item['summary'])
+                if item['summary']
+                else '',
+            )
+            for item in events
+        )
+
+    def session_candidates(self) -> str:
+        if self.session_store is None:
+            return 'Session persistence is unavailable.'
+        sessions = self.session_store.list()
+        if not sessions:
+            return 'No saved ForgeCode sessions for this project.'
+        return '\n'.join(
+            '- {}{} [{}]'.format(
+                item.session_id,
+                ' ({})'.format(item.name) if item.name else '',
+                item.status,
+            )
+            for item in sessions
+        )
+
+    def session_rename(self, name: str) -> str:
+        if self.session_journal is None:
+            raise ValueError('Session persistence is unavailable.')
+        cleaned = self.session_journal.rename(name)
+        return f'Renamed session to {cleaned}.'
+
+    def session_resume(self, identifier: str) -> str:
+        if self.session_store is None:
+            raise ValueError('Session persistence is unavailable.')
+        state, journal = self.session_store.open(identifier)
+        if (
+            self.session_journal is not None
+            and state.info.session_id == self.session_journal.session_id
+        ):
+            return f'Session {state.info.session_id} is already active.'
+        if self.session_journal is not None:
+            self.session_journal.record_stopped()
+        self.messages[:] = list(state.messages)
+        self.task_manager.restore(state.active_task)
+        self._last_task_context = self.task_manager.system_suffix()
+        if state.info.model and hasattr(self.client, 'model'):
+            self.client.model = state.info.model
+        self.session_journal = journal
+        self.checkpoint_store = CheckpointStore.for_session(
+            self.task_manager.root,
+            journal.path,
+            journal.session_id,
+        )
+        journal.record_resumed()
+        warning = (
+            f' Warning: {len(state.indeterminate_tools)} indeterminate '
+            'tool execution(s) were not replayed.'
+            if state.indeterminate_tools
+            else ''
+        )
+        return f'Resumed {state.info.session_id}.{warning}'
+
+    def session_branch(self, name: str | None = None) -> str:
+        if self.session_store is None or self.session_journal is None:
+            raise ValueError('Session persistence is unavailable.')
+        source = self.session_store.load(self.session_journal.session_id)
+        model = str(getattr(self.client, 'model', source.info.model))
+        journal = self.session_store.fork(
+            source,
+            messages=self.messages,
+            task=self.task_manager.active,
+            model=model,
+            name=name,
+        )
+        original_id = self.session_journal.session_id
+        self.session_journal = journal
+        self.checkpoint_store = CheckpointStore.for_session(
+            self.task_manager.root,
+            journal.path,
+            journal.session_id,
+        )
+        return (
+            f'Branched session {original_id} -> {journal.session_id}.'
+        )
+
+    def session_clear(self) -> str:
+        if self.session_store is None or self.session_journal is None:
+            self.messages.clear()
+            self.task_manager.restore(None)
+            return 'Cleared conversation history.'
+        previous_id = self.session_journal.session_id
+        self.session_journal.record_stopped()
+        model = str(getattr(self.client, 'model', ''))
+        journal = self.session_store.create(model=model)
+        self.session_journal = journal
+        self.checkpoint_store = CheckpointStore.for_session(
+            self.task_manager.root,
+            journal.path,
+            journal.session_id,
+        )
+        self.messages.clear()
+        self.task_manager.restore(None)
+        self._last_task_context = ''
+        return (
+            f'Cleared conversation. Previous session: {previous_id}; '
+            f'new session: {journal.session_id}.'
+        )
 
 
 def build_assistant_message(
@@ -2185,7 +2488,11 @@ def mutation_failure_record(
     }
 
 
-def mutation_target_paths(tool_call: ToolCall) -> tuple[str, ...]:
+def mutation_target_paths(
+    tool_call: ToolCall,
+    *,
+    maximum: int | None = 5,
+) -> tuple[str, ...]:
     '''Extract only path evidence, never the potentially large write body.'''
     paths: list[str] = []
     direct_path = tool_call.arguments.get('path')
@@ -2216,7 +2523,8 @@ def mutation_target_paths(tool_call: ToolCall) -> tuple[str, ...]:
             path = stripped[len(prefix):].strip().replace('\\', '/')
             if path and path != '/dev/null':
                 paths.append(path)
-    return tuple(dict.fromkeys(paths))[:5]
+    unique = tuple(dict.fromkeys(paths))
+    return unique if maximum is None else unique[:maximum]
 
 
 def render_mutation_recovery_context(

@@ -22,6 +22,7 @@ from forge.runtime.state import (
     TurnResult,
 )
 from forge.context.manager import ContextStats
+from forge.sessions.store import SessionStore
 from forge.tools.base import ToolResult
 
 
@@ -45,7 +46,11 @@ class FakeTrajectoryRecorder:
 
 
 @pytest.fixture(autouse=True)
-def avoid_real_trajectory_files(monkeypatch: pytest.MonkeyPatch) -> None:
+def avoid_real_runtime_files(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv('FORGE_DATA_DIR', str(tmp_path / 'forge-data'))
     monkeypatch.setattr(
         cli_module,
         'create_trajectory_recorder',
@@ -62,6 +67,7 @@ class FakeConversation:
     ) -> None:
         self.responses = list(responses)
         self.prompts: list[str] = []
+        self.session_actions: list[tuple[str, object]] = []
         self.context_stats = ContextStats(
             2,
             120,
@@ -113,6 +119,45 @@ class FakeConversation:
 
     def task_resume(self, task_id: str) -> str:
         return f'Resumed {task_id}: Finish feature'
+
+    def session_status(self) -> str:
+        return 'id: session-test\nmessages: 2'
+
+    def session_history(self) -> str:
+        return '- 1: session_started'
+
+    def session_rename(self, name: str) -> str:
+        self.session_actions.append(('rename', name))
+        return f'Renamed session to {name}.'
+
+    def session_resume(self, identifier: str) -> str:
+        self.session_actions.append(('resume', identifier))
+        return f'Resumed {identifier}.'
+
+    def session_candidates(self) -> str:
+        return '- session-old [stopped]'
+
+    def session_branch(self, name: str | None = None) -> str:
+        self.session_actions.append(('branch', name))
+        return 'Branched session.'
+
+    def session_clear(self) -> str:
+        self.session_actions.append(('clear', None))
+        return 'Cleared conversation.'
+
+    def checkpoint_history(self) -> str:
+        return '- checkpoint-test'
+
+    def checkpoint_rewind(
+        self,
+        checkpoint_id: str | None = None,
+        *,
+        mode: str = 'both',
+    ) -> str:
+        self.session_actions.append(
+            ('rewind', (checkpoint_id, mode))
+        )
+        return f'Rewound {mode}.'
 
 
 class FakeResponseView:
@@ -338,6 +383,90 @@ def test_task_commands_do_not_call_model(
     assert conversation.prompts == []
 
 
+def test_session_commands_do_not_call_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    conversation = FakeConversation()
+    monkeypatch.setattr(
+        cli_module,
+        'Conversation',
+        lambda **_kwargs: conversation,
+    )
+
+    result = runner.invoke(
+        app,
+        input=(
+            '/status\n'
+            '/history\n'
+            '/rename feature-work\n'
+            '/branch experiment\n'
+            '/checkpoints\n'
+            '/rewind checkpoint-test conversation\n'
+            '/clear\n'
+            '/resume\n'
+            '/resume session-old\n'
+        ),
+    )
+
+    assert result.exit_code == 0
+    assert 'session-test' in result.output
+    assert 'session_started' in result.output
+    assert 'checkpoint-test' in result.output
+    assert 'No other saved ForgeCode sessions' in result.output
+    assert conversation.session_actions == [
+        ('rename', 'feature-work'),
+        ('branch', 'experiment'),
+        ('rewind', ('checkpoint-test', 'conversation')),
+        ('clear', None),
+        ('resume', 'session-old'),
+    ]
+    assert conversation.prompts == []
+
+
+def test_resume_picker_switches_context_without_calling_model() -> None:
+    conversation = FakeConversation()
+
+    class PickerTerminal:
+        supports_session_picker = True
+
+        def __init__(self) -> None:
+            self.reads = 0
+            self.notices: list[tuple[str, str]] = []
+
+        def show_welcome(self, _model: str) -> None:
+            pass
+
+        def set_resume_options(self, _options: object) -> None:
+            pass
+
+        def read_prompt(self) -> str:
+            self.reads += 1
+            if self.reads == 1:
+                return '/resume'
+            raise EOFError
+
+        def select_session(self, _options: object) -> str:
+            return 'session-old'
+
+        def show_notice(self, title: str, content: str) -> None:
+            self.notices.append((title, content))
+
+        def show_goodbye(self) -> None:
+            pass
+
+    terminal = PickerTerminal()
+
+    cli_module.run_interactive_chat(
+        session=conversation,
+        terminal=terminal,  # type: ignore[arg-type]
+        recorder=FakeTrajectoryRecorder(),  # type: ignore[arg-type]
+    )
+
+    assert ('resume', 'session-old') in conversation.session_actions
+    assert ('Session', 'Resumed session-old.') in terminal.notices
+    assert conversation.prompts == []
+
+
 def test_interactive_conversation_continues_after_model_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -396,6 +525,57 @@ def test_cli_rejects_removed_prompt_option() -> None:
 
     assert result.exit_code == 2
     assert 'No such option' in result.output
+
+
+def test_cli_continue_and_resume_are_forwarded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[bool, str | None, bool]] = []
+
+    def fake_chat(
+        *,
+        continue_session: bool = False,
+        resume_identifier: str | None = None,
+        fork_session: bool = False,
+    ) -> None:
+        calls.append(
+            (continue_session, resume_identifier, fork_session)
+        )
+
+    monkeypatch.setattr(cli_module, 'run_interactive_chat', fake_chat)
+
+    continued = runner.invoke(app, ['--continue'])
+    resumed = runner.invoke(app, ['--resume', 'session-abc'])
+    forked = runner.invoke(app, ['--continue', '--fork-session'])
+
+    assert continued.exit_code == 0
+    assert resumed.exit_code == 0
+    assert forked.exit_code == 0
+    assert calls == [
+        (True, None, False),
+        (False, 'session-abc', False),
+        (True, None, True),
+    ]
+
+
+def test_cli_rejects_fork_without_resume() -> None:
+    result = runner.invoke(app, ['--fork-session'])
+
+    assert result.exit_code == 2
+    assert 'requires --continue or --resume' in result.output
+
+
+def test_sessions_command_lists_project_sessions() -> None:
+    journal = SessionStore(Path.cwd()).create(
+        model='test-model',
+        name='listed-session',
+    )
+
+    result = runner.invoke(app, ['sessions'])
+
+    assert result.exit_code == 0
+    assert journal.session_id in result.output
+    assert 'listed-session' in result.output
 
 
 def test_config_command_reports_ready_without_exposing_api_key() -> None:

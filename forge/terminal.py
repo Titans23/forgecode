@@ -10,6 +10,9 @@ from typing import Any, Protocol
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.shortcuts import choice
+from prompt_toolkit.styles import Style
 from rich.console import Console, Group
 from rich.live import Live
 from rich.markdown import Markdown
@@ -35,7 +38,28 @@ class SlashCommandSpec:
     description: str
 
 
+@dataclass(frozen=True, slots=True)
+class SessionOption:
+    '''One resumable session shown in completion and picker UIs.'''
+
+    identifier: str
+    label: str
+    description: str
+
+
 SLASH_COMMANDS = (
+    SlashCommandSpec('/resume ', '/resume [session]', '选择并切换会话上下文'),
+    SlashCommandSpec('/status', '/status', '查看当前会话状态'),
+    SlashCommandSpec('/history', '/history', '查看当前会话历史'),
+    SlashCommandSpec('/rename ', '/rename name', '重命名当前会话'),
+    SlashCommandSpec('/branch ', '/branch [name]', '从当前上下文创建会话分支'),
+    SlashCommandSpec('/clear', '/clear', '保存当前会话并开始空白会话'),
+    SlashCommandSpec('/checkpoints', '/checkpoints', '列出文件 Checkpoint'),
+    SlashCommandSpec(
+        '/rewind ',
+        '/rewind [checkpoint] [mode]',
+        '恢复代码、对话或两者',
+    ),
     SlashCommandSpec('/context', '/context', '查看当前上下文统计'),
     SlashCommandSpec('/compact', '/compact', '立即压缩当前会话'),
     SlashCommandSpec('/task', '/task', '查看当前任务与计划'),
@@ -77,6 +101,15 @@ SLASH_COMMANDS = (
 class SlashCommandCompleter(Completer):
     '''Offer local commands only while the input starts with a slash.'''
 
+    def __init__(self) -> None:
+        self.session_options: tuple[SessionOption, ...] = ()
+
+    def set_session_options(
+        self,
+        options: tuple[SessionOption, ...],
+    ) -> None:
+        self.session_options = options
+
     def get_completions(
         self,
         document: Document,
@@ -87,6 +120,28 @@ class SlashCommandCompleter(Completer):
         if not text.startswith('/'):
             return
         normalized = text.casefold()
+        resume_prefix = '/resume '
+        if normalized.startswith(resume_prefix):
+            query = text[len(resume_prefix):]
+            normalized_query = query.casefold()
+            for option in self.session_options:
+                searchable = (
+                    option.identifier,
+                    option.label,
+                    option.description,
+                )
+                if normalized_query and not any(
+                    normalized_query in value.casefold()
+                    for value in searchable
+                ):
+                    continue
+                yield Completion(
+                    option.identifier,
+                    start_position=-len(query),
+                    display=option.label,
+                    display_meta=option.description,
+                )
+            return
         for command in SLASH_COMMANDS:
             if not command.completion.casefold().startswith(normalized):
                 continue
@@ -135,12 +190,79 @@ class TerminalUI:
     ) -> None:
         self.console = console if console is not None else Console()
         self.prompt_session = prompt_session
+        self.slash_completer = SlashCommandCompleter()
         if self.prompt_session is None and self.console.is_terminal:
             self.prompt_session = PromptSession(
-                completer=SLASH_COMMAND_COMPLETER,
+                completer=self.slash_completer,
                 complete_while_typing=True,
                 reserve_space_for_menu=8,
             )
+
+    def set_resume_options(
+        self,
+        options: tuple[SessionOption, ...],
+    ) -> None:
+        '''Refresh dynamic session candidates used by Slash completion.'''
+        self.slash_completer.set_session_options(options)
+
+    @property
+    def supports_session_picker(self) -> bool:
+        return self.console.is_terminal and self.prompt_session is not None
+
+    def select_session(
+        self,
+        options: tuple[SessionOption, ...],
+    ) -> str | None:
+        '''Open a compact inline picker that always restores the prompt.'''
+        self.set_resume_options(options)
+        if not options or not self.supports_session_picker:
+            return None
+        values = [
+            (
+                option.identifier,
+                [
+                    ('class:session-name', option.label),
+                    ('class:session-meta', '  ' + option.description),
+                ],
+            )
+            for option in options
+        ]
+        bindings = KeyBindings()
+
+        @bindings.add('escape')
+        def cancel(event: Any) -> None:
+            event.app.exit(result=None)
+
+        style = Style.from_dict(
+            {
+                'input-selection': 'bg:default',
+                'option': '#d0d0d0',
+                'selected-option': '#5fd7ff bold',
+                'number': '#666666',
+                'session-name': '#f5f5f5 bold',
+                'session-meta': '#777777',
+                'picker-mark': '#5fd7ff bold',
+                'picker-title': '#f5f5f5 bold',
+                'bottom-toolbar': 'bg:default #666666',
+                'bottom-toolbar.text': 'bg:default #888888',
+            }
+        )
+        try:
+            return choice(
+                message=[
+                    ('class:picker-mark', '◇ '),
+                    ('class:picker-title', '切换会话'),
+                ],
+                options=values,
+                default=options[0].identifier,
+                symbol='●',
+                show_frame=False,
+                style=style,
+                key_bindings=bindings,
+                bottom_toolbar='↑/↓ 选择  Enter 确认  Esc 取消',
+            )
+        except KeyboardInterrupt:
+            return None
 
     def show_welcome(self, model: str) -> None:
         '''Show a compact session header inspired by modern coding agents.'''

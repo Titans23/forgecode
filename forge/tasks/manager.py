@@ -52,6 +52,12 @@ class TaskManager:
         self._latest_directive = ''
         return self.active
 
+    def restore(self, task: ActiveTask | None) -> None:
+        '''Restore session-owned task state without starting a new turn.'''
+        self.active = task
+        self._resume_next_turn = task is not None
+        self._latest_directive = ''
+
     def plan(
         self,
         steps: list[str],

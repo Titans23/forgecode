@@ -1,6 +1,8 @@
 '''Command-line entry point for ForgeCode.'''
 
 import asyncio
+from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -9,6 +11,7 @@ import typer
 from forge import __version__
 from forge.config import ConfigurationError, ForgeConfig
 from forge.runtime.agent_loop import Conversation
+from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.state import (
     CompletionBlocked,
     ModelTextDelta,
@@ -18,7 +21,18 @@ from forge.runtime.state import (
     TurnCompleted,
 )
 from forge.sessions.trajectory import TrajectoryRecorder
-from forge.terminal import StreamingResponseView, TerminalUI
+from forge.sessions.checkpoint import CheckpointError, CheckpointStore
+from forge.sessions.store import (
+    SessionError,
+    SessionJournal,
+    SessionState,
+    SessionStore,
+)
+from forge.terminal import (
+    SessionOption,
+    StreamingResponseView,
+    TerminalUI,
+)
 from forge.tools import create_default_registry
 
 
@@ -51,18 +65,57 @@ def main(
             help='Show the ForgeCode version and exit.',
         ),
     ] = False,
+    continue_session: Annotated[
+        bool,
+        typer.Option(
+            '--continue',
+            '-c',
+            help='Resume the most recent session for this project.',
+        ),
+    ] = False,
+    resume: Annotated[
+        str | None,
+        typer.Option(
+            '--resume',
+            '-r',
+            help='Resume a session by ID or name.',
+        ),
+    ] = None,
+    fork_session: Annotated[
+        bool,
+        typer.Option(
+            '--fork-session',
+            help='Fork the resumed session under a new session ID.',
+        ),
+    ] = False,
 ) -> None:
     '''Start the ForgeCode command-line interface.'''
     if ctx.invoked_subcommand is None:
+        if continue_session and resume is not None:
+            raise typer.BadParameter(
+                'Use --continue or --resume, not both.'
+            )
+        if fork_session and not (continue_session or resume is not None):
+            raise typer.BadParameter(
+                '--fork-session requires --continue or --resume.'
+            )
         try:
-            run_interactive_chat()
-        except ConfigurationError as error:
+            run_interactive_chat(
+                continue_session=continue_session,
+                resume_identifier=resume,
+                fork_session=fork_session,
+            )
+        except (ConfigurationError, SessionError) as error:
             print_configuration_error(error)
             raise typer.Exit(code=1) from error
 
 
-def print_configuration_error(error: ConfigurationError) -> None:
+def print_configuration_error(error: Exception) -> None:
     '''Print actionable model configuration guidance.'''
+    if isinstance(error, SessionError):
+        typer.echo('Session could not be resumed.', err=True)
+        typer.echo(str(error), err=True)
+        return
     typer.echo('Model configuration is incomplete.', err=True)
     typer.echo(str(error), err=True)
     typer.echo(
@@ -79,13 +132,30 @@ def run_interactive_chat(
     session: Conversation | None = None,
     terminal: TerminalUI | None = None,
     recorder: TrajectoryRecorder | None = None,
+    journal: SessionJournal | None = None,
+    *,
+    continue_session: bool = False,
+    resume_identifier: str | None = None,
+    fork_session: bool = False,
 ) -> None:
     '''Run a local chat session until the user interrupts it.'''
-    resolved_session = (
-        session
-        if session is not None
-        else Conversation(registry=create_default_registry(Path.cwd()))
-    )
+    resumed_state: SessionState | None = None
+    if session is None:
+        resolved_session, resolved_journal, resumed_state = (
+            create_session_runtime(
+                Path.cwd(),
+                continue_session=continue_session,
+                resume_identifier=resume_identifier,
+                fork_session=fork_session,
+            )
+        )
+    else:
+        resolved_session = session
+        resolved_journal = journal or getattr(
+            resolved_session,
+            'session_journal',
+            None,
+        )
     resolved_terminal = terminal if terminal is not None else TerminalUI()
     resolved_recorder = (
         recorder
@@ -95,11 +165,32 @@ def run_interactive_chat(
     client = getattr(resolved_session, 'client', None)
     model = getattr(client, 'model', 'configured model')
     resolved_terminal.show_welcome(model)
+    if resumed_state is not None:
+        notice = (
+            f'Resumed {resumed_state.info.session_id} with '
+            f'{len(resumed_state.messages)} committed message(s).'
+        )
+        if resumed_state.indeterminate_tools:
+            notice += (
+                '\nWarning: '
+                f'{len(resumed_state.indeterminate_tools)} tool execution(s) '
+                'had no durable completion record and will not be replayed.'
+            )
+        resolved_terminal.show_notice('Session', notice)
 
     while True:
+        resume_options = build_resume_options(resolved_session)
+        resolved_terminal.set_resume_options(resume_options)
         try:
             prompt = resolved_terminal.read_prompt()
         except (KeyboardInterrupt, EOFError, typer.Abort):
+            active_journal = getattr(
+                resolved_session,
+                'session_journal',
+                resolved_journal,
+            )
+            if active_journal is not None:
+                active_journal.record_stopped()
             resolved_terminal.show_goodbye()
             return
 
@@ -135,6 +226,110 @@ def run_interactive_chat(
                 'Task',
                 resolved_session.task_history(),
             )
+            continue
+
+        if prompt.strip() == '/status':
+            resolved_terminal.show_notice(
+                'Session',
+                resolved_session.session_status(),
+            )
+            continue
+
+        if prompt.strip() == '/history':
+            resolved_terminal.show_notice(
+                'History',
+                resolved_session.session_history(),
+            )
+            continue
+
+        if prompt.startswith('/rename '):
+            name = prompt[len('/rename '):].strip()
+            try:
+                notice = resolved_session.session_rename(name)
+                resolved_terminal.show_notice('Session', notice)
+            except ValueError as error:
+                resolved_terminal.show_error(error)
+            continue
+
+        if prompt.strip() == '/resume':
+            selected = resolved_terminal.select_session(resume_options)
+            if selected is not None:
+                try:
+                    notice = resolved_session.session_resume(selected)
+                    resolved_terminal.show_notice('Session', notice)
+                except (OSError, ValueError, SessionError) as error:
+                    resolved_terminal.show_error(error)
+            elif not resume_options:
+                resolved_terminal.show_notice(
+                    'Sessions',
+                    'No other saved ForgeCode sessions for this project.',
+                )
+            elif not resolved_terminal.supports_session_picker:
+                resolved_terminal.show_notice(
+                    'Sessions',
+                    resolved_session.session_candidates(),
+                )
+            continue
+
+        if prompt.startswith('/resume '):
+            identifier = prompt[len('/resume '):].strip()
+            try:
+                notice = resolved_session.session_resume(identifier)
+                resolved_terminal.show_notice('Session', notice)
+            except (OSError, ValueError, SessionError) as error:
+                resolved_terminal.show_error(error)
+            continue
+
+        if prompt.strip() == '/branch' or prompt.startswith('/branch '):
+            name = prompt[len('/branch'):].strip() or None
+            try:
+                notice = resolved_session.session_branch(name)
+                resolved_terminal.show_notice('Session', notice)
+            except (OSError, ValueError, SessionError) as error:
+                resolved_terminal.show_error(error)
+            continue
+
+        if prompt.strip() == '/clear':
+            try:
+                notice = resolved_session.session_clear()
+                resolved_terminal.show_notice('Session', notice)
+            except (OSError, ValueError, SessionError) as error:
+                resolved_terminal.show_error(error)
+            continue
+
+        if prompt.strip() == '/checkpoints':
+            resolved_terminal.show_notice(
+                'Checkpoints',
+                resolved_session.checkpoint_history(),
+            )
+            continue
+
+        if prompt.strip() == '/rewind' or prompt.startswith('/rewind '):
+            arguments = prompt[len('/rewind'):].strip().split()
+            mode = 'both'
+            if arguments and arguments[-1] in {
+                'code',
+                'conversation',
+                'both',
+            }:
+                mode = arguments.pop()
+            checkpoint_id = arguments[0] if arguments else None
+            if len(arguments) > 1:
+                resolved_terminal.show_error(
+                    ValueError(
+                        'Usage: /rewind [checkpoint-id] '
+                        '[code|conversation|both]'
+                    )
+                )
+                continue
+            try:
+                notice = resolved_session.checkpoint_rewind(
+                    checkpoint_id,
+                    mode=mode,
+                )
+                resolved_terminal.show_notice('Checkpoint', notice)
+            except (OSError, ValueError, SessionError, CheckpointError) as error:
+                resolved_terminal.show_error(error)
             continue
 
         if prompt.strip().startswith('/task resume '):
@@ -213,6 +408,13 @@ def run_interactive_chat(
                     )
                 )
         except (KeyboardInterrupt, typer.Abort):
+            active_journal = getattr(
+                resolved_session,
+                'session_journal',
+                resolved_journal,
+            )
+            if active_journal is not None:
+                active_journal.record_stopped()
             resolved_terminal.show_goodbye()
             return
         except Exception as error:
@@ -231,6 +433,13 @@ async def render_streamed_turn(
         recorder.record_user_message(prompt)
     try:
         async for event in session.stream(prompt):
+            record_session_event = getattr(
+                session,
+                'record_session_event',
+                None,
+            )
+            if record_session_event is not None:
+                record_session_event(event)
             if recorder is not None:
                 recorder.record_event(event)
             if isinstance(event, ModelTextDelta):
@@ -250,6 +459,13 @@ async def render_streamed_turn(
             elif isinstance(event, TurnCompleted):
                 response_view.complete(event.result)
     except Exception as error:
+        record_session_error = getattr(
+            session,
+            'record_session_error',
+            None,
+        )
+        if record_session_error is not None:
+            record_session_error(error)
         if recorder is not None:
             recorder.record_error(error)
         raise
@@ -258,6 +474,142 @@ async def render_streamed_turn(
 def create_trajectory_recorder(root: Path) -> TrajectoryRecorder:
     '''Create the default append-only recorder for one CLI session.'''
     return TrajectoryRecorder.create(root)
+
+
+def create_session_runtime(
+    root: Path,
+    *,
+    continue_session: bool = False,
+    resume_identifier: str | None = None,
+    fork_session: bool = False,
+) -> tuple[Conversation, SessionJournal, SessionState | None]:
+    '''Create a new conversation or hydrate one from durable history.'''
+    store = SessionStore(root)
+    registry = create_default_registry(root)
+    if continue_session or resume_identifier is not None:
+        state, journal = store.open(resume_identifier)
+        checkpoint_store = CheckpointStore.for_session(
+            root,
+            journal.path,
+            journal.session_id,
+        )
+        if fork_session:
+            source = state
+            journal = store.fork(
+                source,
+                messages=list(state.messages),
+                task=state.active_task,
+                model=state.info.model,
+            )
+            checkpoint_store = CheckpointStore.for_session(
+                root,
+                journal.path,
+                journal.session_id,
+            )
+            state = store.load(journal.session_id)
+        config = ForgeConfig.from_env()
+        resumed_config = (
+            replace(config, model_id=state.info.model)
+            if state.info.model
+            else config
+        )
+        conversation = Conversation(
+            client=AnthropicModelClient.from_config(resumed_config),
+            registry=registry,
+            initial_messages=list(state.messages),
+            active_task=state.active_task,
+            session_journal=journal,
+            checkpoint_store=checkpoint_store,
+            session_store=store,
+        )
+        if not fork_session:
+            journal.record_resumed()
+        return conversation, journal, state
+
+    conversation = Conversation(registry=registry)
+    client = getattr(conversation, 'client', None)
+    journal = store.create(model=str(getattr(client, 'model', '')))
+    conversation.session_journal = journal
+    conversation.session_store = store
+    conversation.checkpoint_store = CheckpointStore.for_session(
+        root,
+        journal.path,
+        journal.session_id,
+    )
+    return conversation, journal, None
+
+
+def build_resume_options(
+    conversation: Conversation,
+) -> tuple[SessionOption, ...]:
+    '''Build picker and completion rows for other project sessions.'''
+    store = getattr(conversation, 'session_store', None)
+    if store is None:
+        return ()
+    journal = getattr(conversation, 'session_journal', None)
+    current_id = getattr(journal, 'session_id', None)
+    options: list[SessionOption] = []
+    for info in store.list():
+        if info.session_id == current_id:
+            continue
+        label = info.title
+        description = '{} · {} · {}'.format(
+            session_status_label(info.status),
+            format_session_age(info.updated_at),
+            info.session_id[-12:],
+        )
+        options.append(
+            SessionOption(
+                identifier=info.session_id,
+                label=label,
+                description=description,
+            )
+        )
+    return tuple(options)
+
+
+def session_status_label(status: str) -> str:
+    return {
+        'active': '进行中',
+        'stopped': '已停止',
+        'completed': '已完成',
+        'blocked': '已阻塞',
+        'stuck': '已卡住',
+    }.get(status, status)
+
+
+def format_session_age(value: str) -> str:
+    try:
+        updated = datetime.fromisoformat(value)
+        now = datetime.now().astimezone()
+        seconds = max(0, int((now - updated).total_seconds()))
+    except (TypeError, ValueError):
+        return value
+    if seconds < 60:
+        return '刚刚'
+    minutes = seconds // 60
+    if minutes < 60:
+        return '{} 分钟前'.format(minutes)
+    hours = minutes // 60
+    if hours < 24:
+        return '{} 小时前'.format(hours)
+    days = hours // 24
+    return '{} 天前'.format(days)
+
+
+@app.command('sessions')
+def list_sessions() -> None:
+    '''List saved sessions for the current project.'''
+    sessions = SessionStore(Path.cwd()).list()
+    if not sessions:
+        typer.echo('No saved ForgeCode sessions for this project.')
+        return
+    for info in sessions:
+        label = f' ({info.name})' if info.name else ''
+        typer.echo(
+            f'{info.session_id}{label} [{info.status}] '
+            f'{info.updated_at}'
+        )
 
 
 @app.command('config')
