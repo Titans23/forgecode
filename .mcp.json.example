@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "forge-example": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "python", "examples/mcp_server.py"],
+      "env": {},
+      "connectTimeoutSeconds": 10,
+      "toolTimeoutSeconds": 60
+    }
+  }
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
@@ -55,6 +56,7 @@ SLASH_COMMANDS = (
     SlashCommandSpec('/rename ', '/rename name', '重命名当前会话'),
     SlashCommandSpec('/branch ', '/branch [name]', '从当前上下文创建会话分支'),
     SlashCommandSpec('/clear', '/clear', '保存当前会话并开始空白会话'),
+    SlashCommandSpec('/mcp', '/mcp', '查看 MCP Server 连接和工具状态'),
     SlashCommandSpec(
         '/permission ',
         '/permission [plan|supervised|auto]',
@@ -352,6 +354,13 @@ class TerminalUI:
                 [('ansibrightcyan bold', '\u276f ')]
             )
         return self.console.input('[bold bright_cyan]\u276f[/] ')
+
+    async def read_prompt_async(self) -> str:
+        '''Read input without blocking MCP background notification tasks.'''
+        prompt_async = getattr(self.prompt_session, 'prompt_async', None)
+        if prompt_async is not None:
+            return await prompt_async([('ansibrightcyan bold', '\u276f ')])
+        return await asyncio.to_thread(self.read_prompt)
 
     def stream_response(self) -> StreamingResponseView:
         '''Create a live view for one streaming model response.'''

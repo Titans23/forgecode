@@ -54,6 +54,7 @@ from forge.tools.base import ToolRegistry, ToolResult
 from forge.tools.task import create_task_tools
 
 if TYPE_CHECKING:
+    from forge.mcp.manager import MCPClientManager
     from forge.sessions.store import SessionJournal, SessionStore
     from forge.tasks.state import ActiveTask
 
@@ -113,6 +114,7 @@ class Conversation:
         session_store: SessionStore | None = None,
         hook_manager: HookManager | None = None,
         permission_manager: PermissionManager | None = None,
+        mcp_manager: MCPClientManager | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
@@ -189,6 +191,12 @@ class Conversation:
             resolved_context_root,
             journal=session_journal,
         )
+        self.mcp_manager = mcp_manager
+        if self.mcp_manager is not None:
+            self.mcp_manager.bind(
+                self.permission_manager,
+                session_journal,
+            )
         self.working_state = WorkingState()
         if registry is not None:
             for task_tool in create_task_tools(
@@ -225,13 +233,18 @@ class Conversation:
         self._last_repository_context = self.context.repository.system_suffix('')
         self._last_task_context = ''
 
+    def _tool_definitions(self) -> list[dict[str, Any]] | None:
+        if self.registry is not None:
+            return self.registry.definitions
+        return self.tools
+
     @property
     def context_stats(self) -> ContextStats:
         '''Return current committed conversation context statistics.'''
         return self.context.stats_for_request(
             system_prompt=self._system_prompt_with_task(),
             repository_context=self._last_repository_context,
-            tools=self.tools,
+            tools=self._tool_definitions(),
             context_window_tokens=getattr(
                 self.client,
                 'context_window',
@@ -246,6 +259,8 @@ class Conversation:
             raise ValueError('prompt must not be empty')
 
         await self.session_start(source='stream')
+        if self.mcp_manager is not None:
+            await self.mcp_manager.ensure_connected()
 
         self.task_manager.begin_turn(prompt)
         self.working_state = WorkingState()
@@ -366,7 +381,7 @@ class Conversation:
                     focused_edits_only=True,
                 )
             else:
-                request_tools = self.tools
+                request_tools = self._tool_definitions()
             request_tools = self._permission_filtered_tools(request_tools)
             request_tool_names = {
                 str(definition.get('name', ''))
@@ -1087,10 +1102,14 @@ class Conversation:
                         )
                 permission_rejection: ToolResult | None = None
                 if hook_rejection is None:
-                    permission_request = classify_tool_call(
-                        tool_call,
-                        tool_effect,
-                    )
+                    permission_request = (
+                        self.registry.permission_request(
+                            tool_call.name,
+                            tool_call.arguments,
+                        )
+                        if self.registry is not None
+                        else None
+                    ) or classify_tool_call(tool_call, tool_effect)
                     permission_decision = await self.permission_manager.authorize(
                         permission_request
                     )
@@ -1924,7 +1943,7 @@ class Conversation:
         working_context = self.working_state.system_suffix()
         if working_context:
             parts.append(working_context)
-        if self.tools and include_tool_availability:
+        if self._tool_definitions() and include_tool_availability:
             parts.append(
                 '[Runtime Tool Availability]\n'
                 'The tools included with this model request are currently '
@@ -1952,10 +1971,11 @@ class Conversation:
         include_finish: bool = True,
         focused_edits_only: bool = False,
     ) -> list[dict[str, Any]] | None:
-        if self.registry is None or self.tools is None:
-            return self.tools
+        definitions = self._tool_definitions()
+        if self.registry is None or definitions is None:
+            return definitions
         selected: list[dict[str, Any]] = []
-        for definition in self.tools:
+        for definition in definitions:
             name = str(definition.get('name', ''))
             if (
                 (read_available and name in ACTION_RECOVERY_READ_TOOLS)
@@ -2257,6 +2277,8 @@ class Conversation:
     async def session_resume_with_hooks(self, identifier: str) -> str:
         await self.session_end(reason='resume')
         notice = self.session_resume(identifier)
+        if self.mcp_manager is not None:
+            await self.mcp_manager.reset_session()
         await self.session_start(source='resume')
         return notice
 
@@ -2266,12 +2288,16 @@ class Conversation:
     ) -> str:
         await self.session_end(reason='branch')
         notice = self.session_branch(name)
+        if self.mcp_manager is not None:
+            await self.mcp_manager.reset_session()
         await self.session_start(source='branch')
         return notice
 
     async def session_clear_with_hooks(self) -> str:
         await self.session_end(reason='clear')
         notice = self.session_clear()
+        if self.mcp_manager is not None:
+            await self.mcp_manager.reset_session()
         await self.session_start(source='clear')
         return notice
 
@@ -2307,13 +2333,34 @@ class Conversation:
             return
         if isinstance(event, ToolExecutionStarted):
             call = event.tool_call
-            journal.record_tool_started(call.id, call.name, call.arguments)
+            journal.record_tool_started(
+                call.id,
+                call.name,
+                call.arguments,
+                provenance=(
+                    self.registry.provenance(call.name)
+                    if self.registry is not None
+                    else None
+                ),
+            )
         elif isinstance(event, ToolExecutionCompleted):
             call = event.tool_call
             journal.record_tool_completed(
                 call.id,
                 call.name,
                 event.result.success,
+                provenance=(
+                    {
+                        key: event.result.metadata[key]
+                        for key in ('source', 'server', 'remote_tool')
+                        if key in event.result.metadata
+                    }
+                    or (
+                        self.registry.provenance(call.name)
+                        if self.registry is not None
+                        else {}
+                    )
+                ),
             )
         elif isinstance(event, TurnCompleted):
             journal.record_turn_completed(
@@ -2377,6 +2424,16 @@ class Conversation:
     def permission_set_mode(self, mode: str) -> str:
         resolved = self.permission_manager.set_mode(mode)
         return f'Permission mode set to {resolved}.'
+
+    def mcp_status(self) -> str:
+        if self.mcp_manager is None:
+            return 'MCP Client Manager is unavailable.'
+        return self.mcp_manager.status()
+
+    async def runtime_close(self, *, reason: str = 'exit') -> None:
+        await self.session_end(reason=reason)
+        if self.mcp_manager is not None:
+            await self.mcp_manager.close()
 
     def checkpoint_undo(self) -> str:
         if self.checkpoint_store is None:
@@ -2524,6 +2581,8 @@ class Conversation:
             self.client.model = state.info.model
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
+        if self.mcp_manager is not None:
+            self.mcp_manager.bind(self.permission_manager, journal)
         self.checkpoint_store = CheckpointStore.for_session(
             self.task_manager.root,
             journal.path,
@@ -2553,6 +2612,8 @@ class Conversation:
         original_id = self.session_journal.session_id
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
+        if self.mcp_manager is not None:
+            self.mcp_manager.bind(self.permission_manager, journal)
         self.checkpoint_store = CheckpointStore.for_session(
             self.task_manager.root,
             journal.path,
@@ -2573,6 +2634,8 @@ class Conversation:
         journal = self.session_store.create(model=model)
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
+        if self.mcp_manager is not None:
+            self.mcp_manager.bind(self.permission_manager, journal)
         self.checkpoint_store = CheckpointStore.for_session(
             self.task_manager.root,
             journal.path,

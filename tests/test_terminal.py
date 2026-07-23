@@ -103,6 +103,7 @@ def test_permission_is_the_only_permission_mode_slash_command() -> None:
     ]
     assert completions_for('/mode') == []
     assert completions_for('/permissions') == []
+    assert [item.text for item in completions_for('/mcp')] == ['/mcp']
 
 
 def test_resume_completion_filters_dynamic_sessions() -> None:

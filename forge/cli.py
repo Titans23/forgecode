@@ -11,6 +11,7 @@ import typer
 from forge import __version__
 from forge.config import ConfigurationError, ForgeConfig
 from forge.hooks import HookConfigurationError, HookManager
+from forge.mcp import MCPClientManager, MCPConfigurationError, load_mcp_servers
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.state import (
@@ -109,6 +110,7 @@ def main(
         except (
             ConfigurationError,
             HookConfigurationError,
+            MCPConfigurationError,
             SessionError,
         ) as error:
             print_configuration_error(error)
@@ -125,6 +127,10 @@ def print_configuration_error(error: Exception) -> None:
         typer.echo('Hook configuration is invalid.', err=True)
         typer.echo(str(error), err=True)
         return
+    if isinstance(error, MCPConfigurationError):
+        typer.echo('MCP configuration is invalid.', err=True)
+        typer.echo(str(error), err=True)
+        return
     typer.echo('Model configuration is incomplete.', err=True)
     typer.echo(str(error), err=True)
     typer.echo(
@@ -138,6 +144,30 @@ def print_configuration_error(error: Exception) -> None:
 
 
 def run_interactive_chat(
+    session: Conversation | None = None,
+    terminal: TerminalUI | None = None,
+    recorder: TrajectoryRecorder | None = None,
+    journal: SessionJournal | None = None,
+    *,
+    continue_session: bool = False,
+    resume_identifier: str | None = None,
+    fork_session: bool = False,
+) -> None:
+    '''Run one interactive process inside one long-lived event loop.'''
+    asyncio.run(
+        _run_interactive_chat(
+            session=session,
+            terminal=terminal,
+            recorder=recorder,
+            journal=journal,
+            continue_session=continue_session,
+            resume_identifier=resume_identifier,
+            fork_session=fork_session,
+        )
+    )
+
+
+async def _run_interactive_chat(
     session: Conversation | None = None,
     terminal: TerminalUI | None = None,
     recorder: TrajectoryRecorder | None = None,
@@ -168,7 +198,10 @@ def run_interactive_chat(
     resolved_terminal = terminal if terminal is not None else TerminalUI()
 
     async def approve_permission(request: Any):
-        return resolved_terminal.select_permission(request)
+        return await asyncio.to_thread(
+            resolved_terminal.select_permission,
+            request,
+        )
 
     permission_manager = getattr(
         resolved_session,
@@ -186,7 +219,7 @@ def run_interactive_chat(
     client = getattr(resolved_session, 'client', None)
     model = getattr(client, 'model', 'configured model')
     resolved_terminal.show_welcome(model)
-    start_interactive_session(
+    await start_interactive_session_async(
         resolved_session,
         source='resume' if resumed_state is not None else 'new',
     )
@@ -207,9 +240,9 @@ def run_interactive_chat(
         resume_options = build_resume_options(resolved_session)
         resolved_terminal.set_resume_options(resume_options)
         try:
-            prompt = resolved_terminal.read_prompt()
+            prompt = await read_terminal_prompt(resolved_terminal)
         except (KeyboardInterrupt, EOFError, typer.Abort):
-            stop_interactive_session(
+            await stop_interactive_session_async(
                 resolved_session,
                 fallback_journal=resolved_journal,
                 reason='input_exit',
@@ -237,7 +270,7 @@ def run_interactive_chat(
                     RuntimeError('Context compaction is unavailable.')
                 )
             else:
-                resolved_terminal.show_compaction(asyncio.run(compact()))
+                resolved_terminal.show_compaction(await compact())
             continue
 
         if prompt.strip() == '/task':
@@ -278,7 +311,7 @@ def run_interactive_chat(
             selected = resolved_terminal.select_session(resume_options)
             if selected is not None:
                 try:
-                    notice = resume_interactive_session(
+                    notice = await resume_interactive_session_async(
                         resolved_session, selected
                     )
                     resolved_terminal.show_notice('Session', notice)
@@ -299,7 +332,7 @@ def run_interactive_chat(
         if prompt.startswith('/resume '):
             identifier = prompt[len('/resume '):].strip()
             try:
-                notice = resume_interactive_session(
+                notice = await resume_interactive_session_async(
                     resolved_session, identifier
                 )
                 resolved_terminal.show_notice('Session', notice)
@@ -316,7 +349,7 @@ def run_interactive_chat(
                     None,
                 )
                 notice = (
-                    asyncio.run(branch_with_hooks(name))
+                    await branch_with_hooks(name)
                     if branch_with_hooks is not None
                     else resolved_session.session_branch(name)
                 )
@@ -333,13 +366,20 @@ def run_interactive_chat(
                     None,
                 )
                 notice = (
-                    asyncio.run(clear_with_hooks())
+                    await clear_with_hooks()
                     if clear_with_hooks is not None
                     else resolved_session.session_clear()
                 )
                 resolved_terminal.show_notice('Session', notice)
             except (OSError, ValueError, SessionError) as error:
                 resolved_terminal.show_error(error)
+            continue
+
+        if prompt.strip() == '/mcp':
+            resolved_terminal.show_notice(
+                'MCP Servers',
+                resolved_session.mcp_status(),
+            )
             continue
 
         if prompt.strip() == '/permission':
@@ -469,16 +509,14 @@ def run_interactive_chat(
 
         try:
             with resolved_terminal.stream_response() as response_view:
-                asyncio.run(
-                    render_streamed_turn(
-                        resolved_session,
-                        prompt,
-                        response_view,
-                        resolved_recorder,
-                    )
+                await render_streamed_turn(
+                    resolved_session,
+                    prompt,
+                    response_view,
+                    resolved_recorder,
                 )
         except (KeyboardInterrupt, typer.Abort):
-            stop_interactive_session(
+            await stop_interactive_session_async(
                 resolved_session,
                 fallback_journal=resolved_journal,
                 reason='turn_interrupted',
@@ -555,6 +593,11 @@ def create_session_runtime(
     store = SessionStore(root)
     registry = create_default_registry(root)
     hook_manager = HookManager.from_root(root)
+    mcp_manager = MCPClientManager(
+        root,
+        registry,
+        load_mcp_servers(root),
+    )
     if continue_session or resume_identifier is not None:
         state, journal = store.open(resume_identifier)
         checkpoint_store = CheckpointStore.for_session(
@@ -591,12 +634,16 @@ def create_session_runtime(
             checkpoint_store=checkpoint_store,
             session_store=store,
             hook_manager=hook_manager,
+            mcp_manager=mcp_manager,
         )
         if not fork_session:
             journal.record_resumed()
         return conversation, journal, state
 
-    conversation = Conversation(registry=registry)
+    conversation = Conversation(
+        registry=registry,
+        mcp_manager=mcp_manager,
+    )
     client = getattr(conversation, 'client', None)
     journal = store.create(model=str(getattr(client, 'model', '')))
     conversation.session_journal = journal
@@ -607,7 +654,60 @@ def create_session_runtime(
         journal.session_id,
     )
     conversation.hook_manager = hook_manager
+    permission_manager = getattr(conversation, 'permission_manager', None)
+    if permission_manager is not None:
+        mcp_manager.bind(permission_manager, journal)
     return conversation, journal, None
+
+
+async def read_terminal_prompt(terminal: Any) -> str:
+    reader = getattr(terminal, 'read_prompt_async', None)
+    if reader is not None:
+        return await reader()
+    return await asyncio.to_thread(terminal.read_prompt)
+
+
+async def stop_interactive_session_async(
+    session: Conversation,
+    *,
+    fallback_journal: SessionJournal | None,
+    reason: str,
+) -> None:
+    '''Close Hooks and MCP before durably stopping the active session.'''
+    close_runtime = getattr(session, 'runtime_close', None)
+    if close_runtime is not None:
+        await close_runtime(reason=reason)
+    else:
+        end = getattr(session, 'session_end', None)
+        if end is not None:
+            await end(reason=reason)
+    active_journal = getattr(
+        session,
+        'session_journal',
+        fallback_journal,
+    )
+    if active_journal is not None:
+        active_journal.record_stopped()
+
+
+async def start_interactive_session_async(
+    session: Conversation,
+    *,
+    source: str,
+) -> None:
+    start = getattr(session, 'session_start', None)
+    if start is not None:
+        await start(source=source)
+
+
+async def resume_interactive_session_async(
+    session: Conversation,
+    identifier: str,
+) -> str:
+    resume_with_hooks = getattr(session, 'session_resume_with_hooks', None)
+    if resume_with_hooks is not None:
+        return await resume_with_hooks(identifier)
+    return session.session_resume(identifier)
 
 
 def stop_interactive_session(

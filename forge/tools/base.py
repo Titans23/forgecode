@@ -10,6 +10,8 @@ from typing import Any, ClassVar, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from forge.permissions.policy import PermissionRequest
+
 
 class ToolInput(BaseModel):
     '''Strict base model for model-provided tool arguments.'''
@@ -197,6 +199,10 @@ class Tool(ABC, Generic[InputT]):
         self.root = resolved_root
 
     @property
+    def provenance(self) -> dict[str, Any]:
+        return {'source': 'builtin'}
+
+    @property
     def definition(self) -> dict[str, Any]:
         '''Return a plain tool schema understood by the model adapter.'''
         return {
@@ -204,6 +210,14 @@ class Tool(ABC, Generic[InputT]):
             'description': self.description,
             'input_schema': self.input_model.model_json_schema(),
         }
+
+    def permission_request(
+        self,
+        arguments: Mapping[str, Any],
+    ) -> PermissionRequest | None:
+        '''Optionally provide a conservative tool-specific permission request.'''
+        del arguments
+        return None
 
     async def run(self, arguments: Mapping[str, Any]) -> ToolResult:
         '''Validate arguments and execute without leaking exceptions.'''
@@ -290,6 +304,10 @@ class ToolRegistry:
             raise ValueError(f'Duplicate tool name: {tool.name}')
         self._tools[tool.name] = tool
 
+    def unregister(self, name: str) -> None:
+        '''Remove a dynamically registered tool if it exists.'''
+        self._tools.pop(name, None)
+
     @property
     def definitions(self) -> list[dict[str, Any]]:
         return [tool.definition for tool in self._tools.values()]
@@ -301,6 +319,20 @@ class ToolRegistry:
     def effect(self, name: str) -> ToolEffect | None:
         tool = self._tools.get(name)
         return None if tool is None else tool.effect
+
+    def provenance(self, name: str) -> dict[str, Any]:
+        tool = self._tools.get(name)
+        return {} if tool is None else tool.provenance
+
+    def permission_request(
+        self,
+        name: str,
+        arguments: Mapping[str, Any],
+    ) -> PermissionRequest | None:
+        tool = self._tools.get(name)
+        if tool is None:
+            return None
+        return tool.permission_request(arguments)
 
     async def execute(
         self,

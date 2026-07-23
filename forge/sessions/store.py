@@ -121,6 +121,8 @@ class SessionJournal:
         tool_call_id: str,
         name: str,
         arguments: dict[str, Any],
+        *,
+        provenance: dict[str, Any] | None = None,
     ) -> None:
         self.append(
             'tool_started',
@@ -128,6 +130,7 @@ class SessionJournal:
                 'tool_call_id': tool_call_id,
                 'name': name,
                 'arguments': arguments,
+                **(provenance or {}),
             },
         )
 
@@ -136,6 +139,8 @@ class SessionJournal:
         tool_call_id: str,
         name: str,
         success: bool,
+        *,
+        provenance: dict[str, Any] | None = None,
     ) -> None:
         self.append(
             'tool_completed',
@@ -143,6 +148,7 @@ class SessionJournal:
                 'tool_call_id': tool_call_id,
                 'name': name,
                 'success': success,
+                **(provenance or {}),
             },
         )
 

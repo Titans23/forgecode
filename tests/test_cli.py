@@ -145,6 +145,9 @@ class FakeConversation:
         self.session_actions.append(('clear', None))
         return 'Cleared conversation.'
 
+    def mcp_status(self) -> str:
+        return 'example: ready · stdio · 2 tool(s)'
+
     def permission_status(self) -> str:
         return 'Mode: auto'
 
@@ -411,6 +414,7 @@ def test_session_commands_do_not_call_model(
             '/history\n'
             '/rename feature-work\n'
             '/branch experiment\n'
+            '/mcp\n'
             '/permission\n'
             '/permission supervised\n'
             '/undo\n'
@@ -426,6 +430,7 @@ def test_session_commands_do_not_call_model(
     assert 'session-test' in result.output
     assert 'session_started' in result.output
     assert 'checkpoint-test' in result.output
+    assert 'example: ready' in result.output
     assert 'No other saved ForgeCode sessions' in result.output
     assert conversation.session_actions == [
         ('rename', 'feature-work'),
