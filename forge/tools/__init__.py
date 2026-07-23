@@ -43,6 +43,7 @@ def create_default_registry(root: Path) -> ToolRegistry:
             FinishTaskTool(root),
         ],
         workspace_tracker=tracker,
+        hidden_tools={'write_file_chunk', 'replace_text'},
     )
 
 

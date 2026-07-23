@@ -10,9 +10,27 @@ from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
     matches_any,
+    verification_command_runs_full_suite,
 )
 from forge.runtime.state import VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
+
+
+def test_full_suite_command_rejects_focused_pytest_invocations() -> None:
+    assert verification_command_runs_full_suite('uv run pytest -q') is True
+    assert verification_command_runs_full_suite('pytest') is True
+    assert verification_command_runs_full_suite(
+        'python -m pytest -q'
+    ) is True
+    assert verification_command_runs_full_suite(
+        'uv run pytest -q tests/runtime/test_agent_loop.py'
+    ) is False
+    assert verification_command_runs_full_suite(
+        'uv run pytest -q -k permission'
+    ) is False
+    assert verification_command_runs_full_suite(
+        'python -m pytest --version'
+    ) is False
 
 
 def initialize_git_repository(root: Path) -> None:

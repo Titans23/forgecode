@@ -208,40 +208,60 @@ def test_read_file_allows_public_env_example_and_gitignore(
     assert '.env.local' in gitignore.content
 
 
-def test_write_file_creates_and_atomically_replaces_small_text(
+def test_read_file_truncates_large_ranges_with_continuation_metadata(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / 'large.py'
+    path.write_text(
+        ''.join(f'line {line}\n' for line in range(1, 502)),
+        encoding='utf-8',
+    )
+    tool = ReadFileTool(tmp_path)
+
+    whole = run(tool.run({'path': 'large.py'}))
+    focused = run(
+        tool.run({'path': 'large.py', 'start_line': 101, 'end_line': 500})
+    )
+
+    assert whole.success is True
+    assert whole.metadata['start_line'] == 1
+    assert whole.metadata['end_line'] == 400
+    assert whole.metadata['requested_end_line'] == 501
+    assert whole.metadata['truncated'] is True
+    assert whole.metadata['next_start_line'] == 401
+    assert 'continue with start_line=401' in whole.summary
+    assert focused.success is True
+    assert focused.metadata['start_line'] == 101
+    assert focused.metadata['end_line'] == 500
+    assert focused.metadata.get('truncated', False) is False
+    assert focused.metadata.get('next_start_line') is None
+
+
+def test_write_file_creates_new_text_and_never_overwrites(
     tmp_path: Path,
 ) -> None:
     tool = WriteFileTool(tmp_path)
 
     created = run(tool.run({'path': 'game.html', 'content': 'first'}))
-    replaced = run(
-        tool.run(
-            {
-                'path': 'game.html',
-                'content': 'second',
-                'expected_sha256': created.metadata['sha256'],
-            }
-        )
-    )
+    overwrite = run(tool.run({'path': 'game.html', 'content': 'second'}))
 
     assert created.success is True
     assert created.metadata['created'] is True
-    assert replaced.success is True
-    assert replaced.metadata['created'] is False
-    assert (tmp_path / 'game.html').read_text(encoding='utf-8') == 'second'
+    assert overwrite.success is False
+    assert overwrite.error is not None
+    assert overwrite.error.code == 'file_already_exists'
+    assert (tmp_path / 'game.html').read_text(encoding='utf-8') == 'first'
     assert not list(tmp_path.glob('*.forge-tmp'))
 
 
-def test_write_file_requires_current_hash_for_existing_file(
+def test_write_file_schema_does_not_expose_legacy_hash_argument(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / 'game.js'
     path.write_text('const value = 1;\n', encoding='utf-8')
-    tool = WriteFileTool(tmp_path)
 
-    missing = run(tool.run({'path': 'game.js', 'content': 'replacement\n'}))
-    stale = run(
-        tool.run(
+    result = run(
+        WriteFileTool(tmp_path).run(
             {
                 'path': 'game.js',
                 'content': 'replacement\n',
@@ -250,50 +270,11 @@ def test_write_file_requires_current_hash_for_existing_file(
         )
     )
 
-    assert missing.success is False
-    assert missing.error is not None
-    assert missing.error.code == 'write_requires_expected_sha256'
-    assert stale.success is False
-    assert stale.error is not None
-    assert stale.error.code == 'write_file_changed'
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'invalid_arguments'
+    assert result.error.details['allowed_arguments'] == ['content', 'path']
     assert path.read_text(encoding='utf-8') == 'const value = 1;\n'
-
-
-def test_write_file_rejects_placeholder_and_drastic_replacement(
-    tmp_path: Path,
-) -> None:
-    path = tmp_path / 'game.js'
-    original = 'const value = 1;\n' * 100
-    path.write_text(original, encoding='utf-8')
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    tool = WriteFileTool(tmp_path)
-
-    placeholder = run(
-        tool.run(
-            {
-                'path': 'game.js',
-                'content': '...',
-                'expected_sha256': digest,
-            }
-        )
-    )
-    drastic = run(
-        tool.run(
-            {
-                'path': 'game.js',
-                'content': 'small replacement\n',
-                'expected_sha256': digest,
-            }
-        )
-    )
-
-    assert placeholder.success is False
-    assert placeholder.error is not None
-    assert placeholder.error.code == 'suspicious_full_file_replacement'
-    assert drastic.success is False
-    assert drastic.error is not None
-    assert drastic.error.code == 'suspicious_full_file_replacement'
-    assert path.read_text(encoding='utf-8') == original
 
 
 def test_write_file_rejects_content_over_30000_characters(
@@ -442,6 +423,41 @@ def test_replace_text_reports_whitespace_only_near_miss(
     )
     assert 'copy exactly as the next old_text' in result.error.message
     assert '  const hp = 130 + wave * 18;' in result.error.message
+
+
+def test_replace_text_rejects_noop_before_workspace_recovery(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / 'game.js'
+    path.write_bytes(b'const hp = 10;\r\n')
+    tool = ReplaceTextTool(tmp_path)
+
+    identical = run(
+        tool.run(
+            {
+                'path': 'game.js',
+                'old_text': 'const hp = 10;\n',
+                'new_text': 'const hp = 10;\n',
+            }
+        )
+    )
+    normalized = run(
+        tool.run(
+            {
+                'path': 'game.js',
+                'old_text': 'const hp = 10;\n',
+                'new_text': 'const hp = 10;\r\n',
+            }
+        )
+    )
+
+    assert identical.success is False
+    assert identical.error is not None
+    assert identical.error.code == 'invalid_arguments'
+    assert normalized.success is False
+    assert normalized.error is not None
+    assert normalized.error.code == 'text_no_change'
+    assert path.read_bytes() == b'const hp = 10;\r\n'
 
 
 def test_replace_text_preserves_crlf_and_normalizes_replacement_lines(

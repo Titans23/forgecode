@@ -24,6 +24,7 @@ from forge.tools.base import (
 
 
 MAX_EDIT_CHARACTERS = 30_000
+MAX_READ_LINES = 400
 MAX_CHUNKED_FILE_CHARACTERS = 1_000_000
 
 
@@ -97,11 +98,12 @@ class ReadFileInput(ToolInput):
 class ReadFileTool(Tool[ReadFileInput]):
     name = 'read_file'
     description = (
-        'Read a UTF-8 repository file with line numbers. Omit start_line and '
-        'end_line to read the whole file, or request one necessary inclusive '
-        'range. The runtime tracks covered lines; do not change ranges or use '
-        'shell commands to re-read content already provided. Re-read a file '
-        'only after that file changes or when an uncovered range is needed.'
+        'Read at most 400 numbered lines from one UTF-8 repository file. '
+        'Requests covering more than 400 lines return the first 400 lines and '
+        'continuation metadata instead of failing. Prefer a focused inclusive '
+        'start_line/end_line range for large files. The '
+        'runtime replays covered ranges from its cache, so re-read only after '
+        'the file changes or when an uncovered range is needed.'
     )
     input_model = ReadFileInput
 
@@ -127,11 +129,16 @@ class ReadFileTool(Tool[ReadFileInput]):
         lines = content.splitlines()
         total_lines = len(lines_with_endings)
         start_index = min(arguments.start_line - 1, total_lines)
-        end_line = (
+        requested_end_line = (
             total_lines
             if arguments.end_line is None
             else min(arguments.end_line, total_lines)
         )
+        end_line = min(
+            requested_end_line,
+            arguments.start_line + MAX_READ_LINES - 1,
+        )
+        truncated = end_line < requested_end_line
         selected = lines[start_index:end_line]
         numbered = [
             f'{line_number:>6} | {line}'
@@ -141,14 +148,29 @@ class ReadFileTool(Tool[ReadFileInput]):
             )
         ]
         shown_path = display_path(self.root, path)
+        summary = f'Read {len(selected)} lines from {shown_path}.'
+        if truncated:
+            summary += (
+                f' Truncated requested range at line {end_line}; continue '
+                f'with start_line={end_line + 1}.'
+            )
         return ToolResult.ok(
-            f'Read {len(selected)} lines from {shown_path}.',
+            summary,
             content='\n'.join(numbered),
             metadata={
                 'path': shown_path,
                 'start_line': arguments.start_line,
                 'end_line': end_line,
                 'total_lines': total_lines,
+                **(
+                    {
+                        'requested_end_line': requested_end_line,
+                        'truncated': True,
+                        'next_start_line': end_line + 1,
+                    }
+                    if truncated
+                    else {}
+                ),
                 'sha256': hashlib.sha256(
                     content.encode('utf-8')
                 ).hexdigest(),
@@ -160,22 +182,16 @@ class ReadFileTool(Tool[ReadFileInput]):
 class WriteFileInput(ToolInput):
     path: str = Field(min_length=1)
     content: str = Field(max_length=MAX_EDIT_CHARACTERS)
-    expected_sha256: str | None = Field(
-        default=None,
-        pattern=r'^[0-9a-fA-F]{64}$',
-    )
 
 
 class WriteFileTool(Tool[WriteFileInput]):
     name = 'write_file'
     description = (
-        'Create or fully replace one small UTF-8 repository text file '
-        'atomically. Content is limited to 30000 characters. Replacing an '
-        'existing file requires expected_sha256 from its latest read_file '
-        'result; stale hashes and suspicious placeholder or drastic-shrink '
-        'replacements are rejected. For larger files, use write_file_chunk '
-        'with ordered offsets. Use replace_text or apply_patch for focused '
-        'changes to existing files.'
+        'Create one new UTF-8 repository text file atomically, with content '
+        'limited to 30000 characters. This tool never overwrites an existing '
+        'path; use apply_patch for every change to an existing file. For a '
+        'larger new file, create a focused skeleton and extend it with '
+        'apply_patch calls.'
     )
     input_model = WriteFileInput
     effect = 'workspace_write'
@@ -200,75 +216,24 @@ class WriteFileTool(Tool[WriteFileInput]):
                 f'Parent directory does not exist: {arguments.path}',
             )
 
-        existed = path.exists()
-        if existed:
-            try:
-                previous = read_text_preserving_newlines(path)
-            except UnicodeDecodeError as error:
-                raise ToolExecutionError(
-                    'not_utf8_text',
-                    f'Existing file is not valid UTF-8 text: {arguments.path}',
-                ) from error
-            previous_sha256 = hashlib.sha256(
-                previous.encode('utf-8')
-            ).hexdigest()
-            if arguments.expected_sha256 is None:
-                raise ToolExecutionError(
-                    'write_requires_expected_sha256',
-                    'Replacing an existing file requires expected_sha256 from '
-                    'the latest read_file result. Use replace_text or '
-                    'apply_patch for a focused edit.',
-                    details={'path': arguments.path},
-                )
-            if arguments.expected_sha256.casefold() != previous_sha256:
-                raise ToolExecutionError(
-                    'write_file_changed',
-                    'The existing file changed after it was read. Read it '
-                    'again and retry with the new sha256.',
-                    details={'path': arguments.path},
-                )
-            replacement = arguments.content.strip().casefold()
-            if replacement in {'...', '…', 'todo', 'test'}:
-                raise ToolExecutionError(
-                    'suspicious_full_file_replacement',
-                    'Refused to replace an existing file with placeholder '
-                    'content. Use replace_text or apply_patch for the intended '
-                    'focused edit.',
-                    details={
-                        'path': arguments.path,
-                        'previous_characters': len(previous),
-                        'replacement_characters': len(arguments.content),
-                    },
-                )
-            drastic_threshold = max(64, len(previous) // 10)
-            if (
-                len(previous) >= 1_000
-                and len(arguments.content) < drastic_threshold
-            ):
-                raise ToolExecutionError(
-                    'suspicious_full_file_replacement',
-                    'Refused a drastic full-file reduction. Use replace_text '
-                    'or apply_patch so the deletion is explicit and '
-                    'reviewable.',
-                    details={
-                        'path': arguments.path,
-                        'previous_characters': len(previous),
-                        'replacement_characters': len(arguments.content),
-                        'minimum_characters': drastic_threshold,
-                    },
-                )
+        if path.exists():
+            raise ToolExecutionError(
+                'file_already_exists',
+                f'write_file only creates new files: {arguments.path}. Use '
+                'apply_patch for a focused change to the existing file.',
+                details={'path': arguments.path},
+            )
         atomic_write_text(path, arguments.content)
         shown_path = display_path(self.root, path)
-        action = 'Replaced' if existed else 'Created'
         return ToolResult.ok(
-            f'{action} {shown_path} with {len(arguments.content)} characters.',
+            f'Created {shown_path} with {len(arguments.content)} characters.',
             metadata={
                 'path': shown_path,
                 'characters': len(arguments.content),
                 'sha256': hashlib.sha256(
                     arguments.content.encode('utf-8')
                 ).hexdigest(),
-                'created': not existed,
+                'created': True,
             },
         )
 
@@ -398,6 +363,12 @@ class ReplaceTextInput(ToolInput):
     old_text: str = Field(min_length=1, max_length=MAX_EDIT_CHARACTERS)
     new_text: str = Field(max_length=MAX_EDIT_CHARACTERS)
 
+    @model_validator(mode='after')
+    def validate_real_change(self) -> ReplaceTextInput:
+        if self.old_text == self.new_text:
+            raise ValueError('new_text must differ from old_text')
+        return self
+
 
 class ReplaceTextTool(Tool[ReplaceTextInput]):
     name = 'replace_text'
@@ -433,6 +404,11 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
         newline = dominant_newline(content)
         old_text = convert_newlines(arguments.old_text, newline)
         new_text = convert_newlines(arguments.new_text, newline)
+        if old_text == new_text:
+            raise ToolExecutionError(
+                'text_no_change',
+                'new_text must differ from old_text after newline normalization.',
+            )
         occurrences = content.count(old_text)
         if occurrences == 0:
             diagnostic = closest_text_diagnostic(content, old_text)

@@ -211,7 +211,7 @@ class RunCommandTool(Tool[RunCommandInput]):
         'or development. Do not use it to display source files or directory '
         'trees; use read_file, grep, find_files, or list_directory. Do not '
         'write files through scripts or redirection; use write_file, '
-        'replace_text, or apply_patch. Use verify instead when the command is '
+        'or apply_patch. Use verify instead when the command is '
         'intended as formal completion evidence. For multiline scripts, pass '
         'command="python -" or command="node" and put the script in stdin; '
         'do not embed a POSIX heredoc in command. '
@@ -265,7 +265,7 @@ class RunCommandTool(Tool[RunCommandInput]):
             raise ToolExecutionError(
                 'shell_file_write_denied',
                 'run_command cannot be used to write repository files. '
-                'Use write_file, replace_text, or apply_patch instead.',
+                'Use write_file or apply_patch instead.',
                 details={'detected': denied_reason},
             )
         if arguments.stdin is not None:
@@ -282,7 +282,7 @@ class RunCommandTool(Tool[RunCommandInput]):
                 raise ToolExecutionError(
                     'shell_file_write_denied',
                     'run_command stdin cannot write repository files. Use '
-                    'write_file, replace_text, or apply_patch instead.',
+                    'write_file or apply_patch instead.',
                     details={'detected': stdin_write_reason},
                 )
         cwd = resolve_repository_path(self.root, arguments.cwd)

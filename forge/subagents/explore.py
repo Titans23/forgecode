@@ -60,6 +60,9 @@ class SuggestedEditPoint(BaseModel):
     path: str = Field(min_length=1, max_length=500)
     location: str = Field(min_length=1, max_length=500)
     suggestion: str = Field(min_length=1, max_length=1_000)
+    start_line: int | None = Field(default=None, ge=1)
+    end_line: int | None = Field(default=None, ge=1)
+    current_excerpt: str | None = Field(default=None, max_length=2_500)
 
 
 class ExploreReport(BaseModel):
@@ -126,6 +129,15 @@ def _extract_report(text: str) -> ExploreReport:
     )
     candidate = fenced.group(1) if fenced else stripped
     payload = json.loads(candidate)
+    if isinstance(payload, dict):
+        edit_points = payload.get('suggested_edit_points')
+        if isinstance(edit_points, list):
+            for edit_point in edit_points:
+                if not isinstance(edit_point, dict):
+                    continue
+                excerpt = edit_point.get('current_excerpt')
+                if isinstance(excerpt, str) and len(excerpt) > 2_500:
+                    edit_point['current_excerpt'] = excerpt[:2_500]
     return ExploreReport.model_validate(payload)
 
 
@@ -167,10 +179,7 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
         arguments: ExploreRepositoryInput,
     ) -> ToolResult:
         # Local import avoids coupling module initialization to the main loop.
-        from forge.runtime.agent_loop import (
-            AgentLoopLimitError,
-            Conversation,
-        )
+        from forge.runtime.agent_loop import Conversation
 
         focus = (
             '\nFocus paths supplied by the parent:\n'
@@ -188,20 +197,15 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
             registry=create_explore_registry(self.root),
             max_iterations=self.config.max_iterations,
             max_turn_input_tokens=self.config.max_input_tokens,
+            stagnation_warning=4,
+            stagnation_limit=6,
             context_root=self.root,
             include_task_tools=False,
         )
         completed = None
-        try:
-            async for event in conversation.stream(prompt):
-                if isinstance(event, TurnCompleted):
-                    completed = event.result
-        except AgentLoopLimitError as error:
-            return ToolResult.fail(
-                'explore_round_limit',
-                str(error),
-                metadata=self._metadata(),
-            )
+        async for event in conversation.stream(prompt):
+            if isinstance(event, TurnCompleted):
+                completed = event.result
         if completed is None:
             return ToolResult.fail(
                 'explore_incomplete',

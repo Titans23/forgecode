@@ -107,6 +107,8 @@ class WorkingState:
     MAX_VISIBLE_DIRECTORIES = 20
     MAX_VISIBLE_SEARCH_HITS = 50
     MAX_VISIBLE_DISCOVERED_FILES = 50
+    MAX_REPLAY_LINES = 120
+    MAX_REPLAY_CHARACTERS = 12_000
     EXTERNAL_BLOCKER_CODES = frozenset(
         {
             'approval_required',
@@ -142,8 +144,16 @@ class WorkingState:
             cached = self.cached_results[signature]
             return ToolResult.ok(
                 f'Cache hit: {cached.summary}',
-                content=cached.content,
-                metadata={**cached.metadata, 'cache_hit': True},
+                content=(
+                    '[Identical cached tool result omitted. Reuse the existing '
+                    'working evidence or change the query to request a '
+                    'different fact.]'
+                ),
+                metadata={
+                    **cached.metadata,
+                    'cache_hit': True,
+                    'cache_content_omitted': True,
+                },
             )
         return None
 
@@ -379,24 +389,39 @@ class WorkingState:
             return None
         if start_line < 1 or end_line < start_line:
             return None
-        if evidence.replay(start_line, end_line) is None:
+        cached_content = evidence.replay(start_line, end_line)
+        if cached_content is None:
             return None
+        metadata = {
+            'path': path,
+            'start_line': start_line,
+            'end_line': end_line,
+            'total_lines': evidence.total_lines,
+            'cache_hit': True,
+            'evidence_replayed': True,
+        }
+        line_count = end_line - start_line + 1
+        if (
+            line_count > self.MAX_REPLAY_LINES
+            or len(cached_content) > self.MAX_REPLAY_CHARACTERS
+        ):
+            metadata['cache_content_omitted'] = True
+            return ToolResult.ok(
+                f'Skipped covered read for {path} lines '
+                f'{start_line}-{end_line}.',
+                content=(
+                    '[Cached source omitted to avoid reinjecting a large '
+                    'covered range. Request at most 120 exact lines around '
+                    'the required symbol; use grep first if its location is '
+                    'unknown.]'
+                ),
+                metadata=metadata,
+            )
         return ToolResult.ok(
-            f'Skipped covered read for {path} lines '
+            f'Replayed cached read for {path} lines '
             f'{start_line}-{end_line}.',
-            content=(
-                f'{path} lines {start_line}-{end_line} are already covered '
-                'by current working evidence. Reuse that evidence instead of '
-                'requesting the same or an overlapping range again.'
-            ),
-            metadata={
-                'path': path,
-                'start_line': start_line,
-                'end_line': end_line,
-                'total_lines': evidence.total_lines,
-                'cache_hit': True,
-                'evidence_replayed': True,
-            },
+            content=cached_content,
+            metadata=metadata,
         )
 
     def _observe_signature(self, signature: str) -> bool:

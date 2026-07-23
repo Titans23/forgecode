@@ -19,6 +19,7 @@ from forge.runtime.state import (
 from forge.subagents.explore import (
     ExploreAgentConfig,
     ExploreRepositoryTool,
+    _extract_report,
     create_explore_registry,
 )
 from forge.tools import create_default_registry
@@ -127,11 +128,23 @@ def valid_report() -> str:
                     'path': 'forge/handler.py',
                     'location': 'handle()',
                     'suggestion': 'Validate before dispatch.',
+                    'start_line': 10,
+                    'end_line': 12,
+                    'current_excerpt': 'def handle():\n    dispatch()',
                 }
             ],
             'unresolved_questions': [],
         }
     )
+
+
+def test_explore_report_truncates_oversized_edit_excerpt() -> None:
+    payload = json.loads(valid_report())
+    payload['suggested_edit_points'][0]['current_excerpt'] = 'x' * 3_000
+
+    report = _extract_report(json.dumps(payload))
+
+    assert report.suggested_edit_points[0].current_excerpt == 'x' * 2_500
 
 
 def test_explore_registry_has_only_required_read_tools(tmp_path: Path) -> None:
@@ -177,6 +190,10 @@ def test_explore_returns_only_structured_isolated_report(
     assert result.success
     report = json.loads(result.content)
     assert report['summary'] == 'The dispatcher calls the handler.'
+    assert report['suggested_edit_points'][0]['start_line'] == 10
+    assert report['suggested_edit_points'][0]['current_excerpt'].startswith(
+        'def handle()'
+    )
     assert result.metadata['isolated_context'] is True
     assert result.metadata['read_only'] is True
     assert result.metadata['input_tokens'] == 120

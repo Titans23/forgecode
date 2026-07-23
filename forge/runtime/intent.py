@@ -95,6 +95,42 @@ _CLAUSE_SPLIT_EN = re.compile(
     r'[\n!?,;]+|\b(?:then|and\s+then|however|but)\b',
     re.IGNORECASE,
 )
+_TEST_EXECUTION_EN = re.compile(
+    r'\b(?:run|execute)\b.{0,30}\b(?:tests?|pytest|test\s+suite)\b',
+    re.IGNORECASE,
+)
+_TEST_EXECUTION_ZH = re.compile(
+    r'(?:运行|执行|进行).{0,20}(?:测试|pytest)|'
+    r'(?:详细|全面|完整).{0,8}测试'
+)
+_FULL_TEST_SUITE_EN = re.compile(
+    r'\b(?:full|complete|entire|all)\b.{0,20}'
+    r'\b(?:tests?|test\s+suite)\b|'
+    r'\b(?:tests?|test\s+suite)\b.{0,20}'
+    r'\b(?:full|complete|entire|all)\b',
+    re.IGNORECASE,
+)
+_FULL_TEST_SUITE_ZH = re.compile(
+    r'(?:完整|全量|全部|全面).{0,8}测试|'
+    r'测试.{0,8}(?:完整|全量|全部|全面)'
+)
+_VERIFICATION_EN = re.compile(
+    r'\b(?:run|execute)\b.{0,30}\b(?:tests?|pytest|test\s+suite|checks?)\b|'
+    r'\b(?:verify|validate)\b.{0,30}\b(?:change|code|implementation|result)?',
+    re.IGNORECASE,
+)
+_NEGATED_VERIFICATION_EN = re.compile(
+    r'\b(?:do\s+not|don.t|skip|without)\b.{0,25}'
+    r'\b(?:tests?|pytest|verification|verify|validation)\b',
+    re.IGNORECASE,
+)
+_VERIFICATION_ZH = re.compile(
+    r'(?:运行|执行|进行).{0,20}(?:测试|pytest|检查)|'
+    r'(?:详细|全面|完整).{0,8}测试|验证.{0,20}(?:代码|修改|实现|结果)'
+)
+_NEGATED_VERIFICATION_ZH = re.compile(
+    r'(?:不要|不用|无需|跳过|先不).{0,20}(?:测试|检查|验证)'
+)
 
 
 def infer_change_required(prompt: str) -> bool:
@@ -104,7 +140,7 @@ def infer_change_required(prompt: str) -> bool:
     it decides whether an empty Diff may satisfy the turn, never what code the
     model should write.
     '''
-    text = prompt.strip()
+    text = prompt.strip().lstrip('\ufeff')
     if not text:
         return False
     clauses = [
@@ -114,10 +150,6 @@ def infer_change_required(prompt: str) -> bool:
         if clause.strip()
     ]
     for clause in clauses:
-        if _NEGATED_CHANGE_ZH.search(clause):
-            continue
-        if _NEGATED_CHANGE_EN.search(clause):
-            continue
         if (
             _COMBINED_CHANGE_ZH.search(clause)
             or _COMBINED_CHANGE_EN.search(clause)
@@ -126,15 +158,79 @@ def infer_change_required(prompt: str) -> bool:
             return True
         if _READ_ONLY_ZH.search(clause) or _READ_ONLY_EN.search(clause):
             continue
+        # A leading imperative defines the turn contract. Requirements often
+        # quote phrases such as "do not modify files" while asking ForgeCode to
+        # implement handling for them; a later quoted negation must not turn
+        # that implementation request into a read-only turn.
+        if _DIRECT_CHANGE_ZH.search(clause) or _DIRECT_CHANGE_EN.search(clause):
+            return True
+        if _NEGATED_CHANGE_ZH.search(clause):
+            continue
+        if _NEGATED_CHANGE_EN.search(clause):
+            continue
         if any(
             pattern.search(clause) is not None
             for pattern in (
                 _DIRECT_CHANGE_ZH,
                 _SCOPED_CHANGE_ZH,
                 _OBJECT_CHANGE_ZH,
-                _DIRECT_CHANGE_EN,
                 _REQUESTED_CHANGE_EN,
             )
         ):
             return True
     return False
+
+
+def infer_explore_delegation_required(prompt: str) -> bool:
+    '''Return true for large implementation tasks suited to Explore Agent.'''
+    text = prompt.strip().lstrip('\ufeff')
+    return bool(
+        len(text) >= 700
+        and infer_change_required(text)
+        and infer_test_execution_required(text)
+    )
+
+
+def infer_verification_required(prompt: str) -> bool:
+    '''Return true for explicit, non-negated requests to run verification.'''
+    text = prompt.strip().lstrip('\ufeff')
+    if not text:
+        return False
+    if _NEGATED_VERIFICATION_ZH.search(text):
+        text = _NEGATED_VERIFICATION_ZH.sub('', text)
+    if _NEGATED_VERIFICATION_EN.search(text):
+        text = _NEGATED_VERIFICATION_EN.sub('', text)
+    return bool(
+        _VERIFICATION_ZH.search(text)
+        or _VERIFICATION_EN.search(text)
+    )
+
+
+def infer_test_execution_required(prompt: str) -> bool:
+    '''Return true when the user explicitly requests running tests.'''
+    text = prompt.strip().lstrip('\ufeff')
+    if not text:
+        return False
+    if _NEGATED_VERIFICATION_ZH.search(text):
+        text = _NEGATED_VERIFICATION_ZH.sub('', text)
+    if _NEGATED_VERIFICATION_EN.search(text):
+        text = _NEGATED_VERIFICATION_EN.sub('', text)
+    return bool(
+        _TEST_EXECUTION_ZH.search(text)
+        or _TEST_EXECUTION_EN.search(text)
+    )
+
+
+def infer_full_test_suite_required(prompt: str) -> bool:
+    '''Return true when the user explicitly requires the complete test suite.'''
+    text = prompt.strip().lstrip('\ufeff')
+    if not text:
+        return False
+    if _NEGATED_VERIFICATION_ZH.search(text):
+        text = _NEGATED_VERIFICATION_ZH.sub('', text)
+    if _NEGATED_VERIFICATION_EN.search(text):
+        text = _NEGATED_VERIFICATION_EN.sub('', text)
+    return bool(
+        _FULL_TEST_SUITE_ZH.search(text)
+        or _FULL_TEST_SUITE_EN.search(text)
+    )

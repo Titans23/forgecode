@@ -11,7 +11,7 @@ def run(coroutine: object) -> ToolResult:
     return asyncio.run(coroutine)  # type: ignore[arg-type]
 
 
-def test_default_registry_exposes_all_tool_schemas(tmp_path: Path) -> None:
+def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> None:
     registry = create_default_registry(tmp_path)
 
     assert registry.names == (
@@ -30,9 +30,14 @@ def test_default_registry_exposes_all_tool_schemas(tmp_path: Path) -> None:
         'explore_repository',
         'finish_task',
     )
-    assert [definition['name'] for definition in registry.definitions] == list(
-        registry.names
-    )
+    exposed = [definition['name'] for definition in registry.definitions]
+    assert exposed == [
+        name
+        for name in registry.names
+        if name not in {'write_file_chunk', 'replace_text'}
+    ]
+    assert 'write_file_chunk' not in exposed
+    assert 'replace_text' not in exposed
     assert all(
         definition['input_schema']['type'] == 'object'
         for definition in registry.definitions
@@ -106,11 +111,9 @@ def test_tool_validation_failure_explains_oversized_content(
     assert '`content` has 30001 characters; maximum is 30000' in (
         result.error.message
     )
-    assert 'Use write_file_chunk' in (
-        result.error.message
-    )
+    assert 'smaller new-file skeleton' in result.error.message
     assert result.error.details['recovery_hint'].startswith(
-        'Use write_file_chunk'
+        'Create a smaller new-file skeleton'
     )
 
 

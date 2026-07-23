@@ -663,6 +663,25 @@ def test_apply_patch_codex_envelope_supports_add_and_delete(
     )
 
 
+def test_apply_patch_classifies_empty_update_hunk_as_protocol_failure(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    envelope = (
+        '*** Begin Patch\n'
+        '*** Update File: sample.txt\n'
+        '@@\n'
+        '*** End Patch\n'
+    )
+
+    result = run(ApplyPatchTool(tmp_path).run({'patch': envelope}))
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'patch_empty_hunk'
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'old\n'
+
+
 def test_apply_patch_validates_entire_codex_envelope_before_applying(
     tmp_path: Path,
 ) -> None:
@@ -784,9 +803,9 @@ def test_apply_patch_description_requires_small_focused_writes(
     description = ApplyPatchTool(tmp_path).definition['description']
 
     assert 'limited to 30000 characters' in description
-    assert 'split large HTML' in description
+    assert 'split large changes across focused calls' in description
     assert 'Codex envelope' in description
-    assert 'Use write_file only for small full-file content' in description
+    assert 'Use write_file only to create a new small file' in description
 
 
 def test_apply_patch_rejects_payload_over_30000_characters(

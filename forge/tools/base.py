@@ -168,9 +168,8 @@ def _validation_recovery_hint(
     if 'string_too_long' in error_types:
         if tool_name == 'write_file':
             return (
-                'Use write_file_chunk with content within the per-call limit. '
-                'Start with offset=0 and truncate=true, then use each '
-                'returned next_offset for the following chunk.'
+                'Create a smaller new-file skeleton with write_file, then '
+                'extend it through multiple focused apply_patch calls.'
             )
         if tool_name == 'apply_patch':
             return 'Split the change into multiple focused patches.'
@@ -293,8 +292,10 @@ class ToolRegistry:
         tools: Iterable[Tool[Any]] = (),
         *,
         workspace_tracker: Any | None = None,
+        hidden_tools: Iterable[str] = (),
     ) -> None:
         self._tools: dict[str, Tool[Any]] = {}
+        self._hidden_tools = frozenset(hidden_tools)
         self.workspace_tracker = workspace_tracker
         for tool in tools:
             self.register(tool)
@@ -310,11 +311,20 @@ class ToolRegistry:
 
     @property
     def definitions(self) -> list[dict[str, Any]]:
-        return [tool.definition for tool in self._tools.values()]
+        return [
+            tool.definition
+            for name, tool in self._tools.items()
+            if name not in self._hidden_tools
+        ]
 
     @property
     def names(self) -> tuple[str, ...]:
         return tuple(self._tools)
+
+    def definition(self, name: str) -> dict[str, Any] | None:
+        '''Return one registered schema, including a phase-hidden fallback.'''
+        tool = self._tools.get(name)
+        return None if tool is None else tool.definition
 
     def effect(self, name: str) -> ToolEffect | None:
         tool = self._tools.get(name)

@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from functools import cache
 from itertools import count
 import json
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,7 +20,13 @@ from forge.context.working import WorkingState
 from forge.hooks import HookEvent, HookManager, HookOutcome
 from forge.permissions.policy import PermissionManager, PermissionMode
 from forge.permissions.risk import classify_tool_call
-from forge.runtime.intent import infer_change_required
+from forge.runtime.intent import (
+    infer_change_required,
+    infer_explore_delegation_required,
+    infer_full_test_suite_required,
+    infer_test_execution_required,
+    infer_verification_required,
+)
 from forge.runtime.model_client import (
     AnthropicModelClient,
     ModelCallError,
@@ -27,7 +34,12 @@ from forge.runtime.model_client import (
     ModelOutputTruncatedError,
     ModelProtocolError,
 )
-from forge.runtime.completion import CompletionGate, TaskPolicy
+from forge.runtime.completion import (
+    CompletionGate,
+    TaskPolicy,
+    verification_command_runs_full_suite,
+    verification_command_runs_tests,
+)
 from forge.runtime.state import (
     CompletionBlocked,
     ConversationEvent,
@@ -59,17 +71,13 @@ if TYPE_CHECKING:
     from forge.tasks.state import ActiveTask
 
 
-ACTION_RECOVERY_READ_TOOLS = frozenset(
+EDIT_RECOVERY_READ_TOOLS = frozenset(
     {'read_file', 'grep'}
 )
 
 
 class ModelResponseError(RuntimeError):
     '''Raised when a model response cannot continue the Agent Loop.'''
-
-
-class AgentLoopLimitError(RuntimeError):
-    '''Raised when one user turn exceeds its model-call safety limit.'''
 
 
 @cache
@@ -91,21 +99,20 @@ class Conversation:
         system_prompt: str | None = None,
         tools: list[dict[str, Any]] | None = None,
         registry: ToolRegistry | None = None,
-        max_iterations: int | None = None,
+        max_iterations: int | None = 80,
         task_policy: TaskPolicy | None = None,
-        max_completion_blocks: int = 3,
         context_config: CompactionConfig | None = None,
         context_root: Path | None = None,
         max_protocol_recoveries: int = 2,
-        max_tool_protocol_recoveries: int = 3,
+        max_tool_protocol_recoveries: int = 6,
         max_output_continuations: int = 2,
         repeated_tool_limit: int = 2,
         stagnation_warning: int = 4,
         stagnation_limit: int = 8,
-        completion_decision_limit: int = 8,
-        mutation_recovery_limit: int = 5,
-        pre_mutation_limit: int = 8,
-        action_recovery_limit: int = 3,
+        change_exploration_limit: int = 12,
+        completion_decision_limit: int = 3,
+        mutation_recovery_limit: int = 4,
+        max_tool_calls: int | None = 120,
         max_turn_input_tokens: int | None = None,
         initial_messages: list[dict[str, Any]] | None = None,
         active_task: ActiveTask | None = None,
@@ -121,8 +128,6 @@ class Conversation:
             raise ValueError('Pass tools or registry, not both.')
         if max_iterations is not None and max_iterations < 1:
             raise ValueError('max_iterations must be positive')
-        if max_completion_blocks < 1:
-            raise ValueError('max_completion_blocks must be positive')
         if max_protocol_recoveries < 0:
             raise ValueError('max_protocol_recoveries must not be negative')
         if max_tool_protocol_recoveries < 1:
@@ -139,14 +144,14 @@ class Conversation:
             raise ValueError(
                 'stagnation_limit must be greater than stagnation_warning'
             )
+        if change_exploration_limit < 1:
+            raise ValueError('change_exploration_limit must be positive')
         if completion_decision_limit < 1:
             raise ValueError('completion_decision_limit must be positive')
         if mutation_recovery_limit < 1:
             raise ValueError('mutation_recovery_limit must be positive')
-        if pre_mutation_limit < 1:
-            raise ValueError('pre_mutation_limit must be positive')
-        if action_recovery_limit < 1:
-            raise ValueError('action_recovery_limit must be positive')
+        if max_tool_calls is not None and max_tool_calls < 1:
+            raise ValueError('max_tool_calls must be positive')
         if max_turn_input_tokens is not None and max_turn_input_tokens < 1:
             raise ValueError('max_turn_input_tokens must be positive')
         self.client = (
@@ -219,17 +224,16 @@ class Conversation:
             if tracker is not None
             else None
         )
-        self.max_completion_blocks = max_completion_blocks
         self.max_protocol_recoveries = max_protocol_recoveries
         self.max_tool_protocol_recoveries = max_tool_protocol_recoveries
         self.max_output_continuations = max_output_continuations
         self.repeated_tool_limit = repeated_tool_limit
         self.stagnation_warning = stagnation_warning
         self.stagnation_limit = stagnation_limit
+        self.change_exploration_limit = change_exploration_limit
         self.completion_decision_limit = completion_decision_limit
         self.mutation_recovery_limit = mutation_recovery_limit
-        self.pre_mutation_limit = pre_mutation_limit
-        self.action_recovery_limit = action_recovery_limit
+        self.max_tool_calls = max_tool_calls
         self.max_turn_input_tokens = max_turn_input_tokens
         self._last_repository_context = self.context.repository.system_suffix('')
         self._last_task_context = ''
@@ -296,22 +300,57 @@ class Conversation:
                 and infer_change_required(prompt)
             )
         )
+        verification_required = bool(
+            self.completion_gate is not None
+            and (
+                self.completion_gate.policy.require_verification
+                or infer_verification_required(prompt)
+            )
+        )
+        tests_required = bool(
+            self.completion_gate is not None
+            and infer_test_execution_required(prompt)
+        )
+        full_tests_required = bool(
+            tests_required and infer_full_test_suite_required(prompt)
+        )
+        exploration_delegation_pending = bool(
+            change_required
+            and tests_required
+            and infer_explore_delegation_required(prompt)
+            and self.registry is not None
+            and 'explore_repository' in self.registry.names
+        )
+        if exploration_delegation_pending:
+            request_messages.append(
+                {
+                    'role': 'user',
+                    'content': (
+                        'ForgeCode large-task routing: delegate the initial '
+                        'cross-file investigation with explore_repository now. '
+                        'Use its compact structured report before editing; do '
+                        'not manually scan the repository in the parent context.'
+                    ),
+                }
+            )
         tool_attempts: dict[str, tuple[int, bool]] = {}
         calls_without_progress = 0
-        pre_mutation_calls = 0
-        action_recovery = False
-        action_recovery_calls = 0
-        action_read_used = False
-        action_block_events = 0
         mutation_failure_count = 0
+        mutation_failure_total = 0
+        mutation_failure_targets: tuple[str, ...] = ()
         mutation_failures: list[dict[str, Any]] = []
         mutation_recovery_read_used = False
         mutation_recovery_context = ''
+        mutation_text_recoveries = 0
         force_synthesis = False
+        change_convergence_required = False
+        change_convergence_read_used = False
+        change_convergence_extra_reads = 0
+        post_mutation_convergence = False
+        verification_recovery = False
         tool_protocol_failures = 0
         synthesis_retries = 0
-        completion_blocks = 0
-        last_completion_reasons: tuple[str, ...] = ()
+        incomplete_declaration_recoveries = 0
         finalization_recovery = False
         completion_ready_revision: int | None = None
         completion_decision_calls = 0
@@ -369,18 +408,37 @@ class Conversation:
                 )
                 return
 
-            if finalization_recovery:
+            delegation_request_active = exploration_delegation_pending
+            if delegation_request_active:
+                request_tools = [
+                    definition
+                    for definition in self._tool_definitions() or ()
+                    if str(definition.get('name', ''))
+                    == 'explore_repository'
+                ]
+            elif finalization_recovery:
                 request_tools = None
-            elif action_recovery:
-                request_tools = self._action_recovery_tools(
-                    read_available=not action_read_used
-                )
             elif mutation_failures:
-                request_tools = self._action_recovery_tools(
+                request_tools = self._edit_recovery_tools(
                     read_available=not mutation_recovery_read_used,
-                    include_finish=False,
-                    focused_edits_only=True,
                 )
+            elif verification_recovery:
+                request_tools = self._verification_tools(
+                    require_tests=tests_required,
+                )
+            elif change_convergence_required:
+                read_available = (
+                    not change_convergence_read_used
+                    or change_convergence_extra_reads > 0
+                )
+                if post_mutation_convergence:
+                    request_tools = self._post_mutation_tools(
+                        read_available=read_available,
+                    )
+                else:
+                    request_tools = self._edit_recovery_tools(
+                        read_available=read_available,
+                    )
             else:
                 request_tools = self._tool_definitions()
             request_tools = self._permission_filtered_tools(request_tools)
@@ -395,9 +453,10 @@ class Conversation:
                 completion_ready_context=completion_ready_context,
                 change_required=change_required,
                 mutation_attempted=mutation_attempted,
-                action_recovery=action_recovery,
-                action_recovery_calls=action_recovery_calls,
-                action_read_used=action_read_used,
+                verification_required=verification_required,
+                tests_required=tests_required,
+                full_tests_required=full_tests_required,
+                verification_recovery=verification_recovery,
             )
             context_window_tokens = getattr(
                 self.client, 'context_window', None
@@ -651,55 +710,26 @@ class Conversation:
                         completed_usage,
                         request_usage,
                     )
-                    if action_recovery:
-                        action_recovery_calls += 1
-                    else:
-                        action_recovery = True
-                        action_recovery_calls = 0
-                        action_read_used = False
-                    action_block_events += 1
-                    change_reason = required_change_block_reason()
-                    yield CompletionBlocked(
-                        attempt=action_block_events,
-                        reasons=(change_reason,),
-                    )
-                    if (
-                        action_recovery_calls
-                        >= self.action_recovery_limit
-                    ):
-                        reason = action_recovery_stuck_reason(
-                            action_recovery_calls
-                        )
-                        self.task_manager.stuck((reason, change_reason))
-                        self.messages[:] = request_messages
-                        yield TurnCompleted(
-                            result=TurnResult(
-                                text=reason,
-                                usage=completed_usage,
-                                last_request_usage=request_usage,
-                                model_calls=iteration,
-                                tool_calls=tuple(all_tool_calls),
-                                status='stuck',
-                                changed_paths=(),
-                                verification=latest_verification,
-                                completion_reasons=(
-                                    reason,
-                                    change_reason,
-                                ),
-                            )
-                        )
-                        return
-                    request_messages.append(
-                        build_action_recovery_feedback(
-                            self.task_manager.system_suffix(),
-                            action_recovery_calls,
-                            self.action_recovery_limit,
-                            read_used=action_read_used,
+                    reason = required_change_block_reason()
+                    self.task_manager.stuck((reason,))
+                    self.messages[:] = request_messages
+                    yield CompletionBlocked(attempt=1, reasons=(reason,))
+                    yield TurnCompleted(
+                        result=TurnResult(
+                            text=reason,
+                            usage=completed_usage,
+                            last_request_usage=request_usage,
+                            model_calls=iteration,
+                            tool_calls=tuple(all_tool_calls),
+                            status='stuck',
+                            changed_paths=(),
+                            verification=latest_verification,
+                            completion_reasons=(reason,),
                         )
                     )
-                    continue
+                    return
                 if (
-                    (force_synthesis or completion_blocks > 0)
+                    force_synthesis
                     and request_usage is not None
                 ):
                     completed_usage = add_token_usage(
@@ -710,7 +740,7 @@ class Conversation:
                         'The model returned no usable answer after ForgeCode '
                         'requested a final synthesis or completion recovery.'
                     )
-                    reasons = (reason, *last_completion_reasons)
+                    reasons = (reason,)
                     self.task_manager.stuck(reasons)
                     self.messages[:] = request_messages
                     yield TurnCompleted(
@@ -811,6 +841,16 @@ class Conversation:
 
             if not tool_calls:
                 if mutation_failures:
+                    if mutation_text_recoveries < 1:
+                        mutation_text_recoveries += 1
+                        force_synthesis = True
+                        calls_without_progress = 0
+                        request_messages.append(
+                            build_mutation_text_retry_feedback(
+                                mutation_failures,
+                            )
+                        )
+                        continue
                     reason = (
                         f'Stopped after {mutation_failure_count} failed '
                         'workspace-write attempt(s) because the model '
@@ -837,54 +877,73 @@ class Conversation:
                         )
                     )
                     return
-                if self._pending_required_change(change_required):
-                    if action_recovery:
-                        action_recovery_calls += 1
-                    else:
-                        action_recovery = True
-                        action_recovery_calls = 0
-                        action_read_used = False
-                    action_block_events += 1
-                    change_reason = required_change_block_reason()
-                    yield CompletionBlocked(
-                        attempt=action_block_events,
-                        reasons=(change_reason,),
-                    )
-                    if (
-                        action_recovery_calls
-                        >= self.action_recovery_limit
-                    ):
-                        reason = action_recovery_stuck_reason(
-                            action_recovery_calls
+                incomplete_reasons = self_declared_incomplete_reasons(
+                    complete_text,
+                    require_tests=tests_required,
+                )
+                if change_required and incomplete_reasons:
+                    incomplete_declaration_recoveries += 1
+                    if incomplete_declaration_recoveries > 2:
+                        reason = (
+                            'The model repeatedly declared the requested '
+                            'implementation incomplete after producing a Diff.'
                         )
-                        self.task_manager.stuck((reason, change_reason))
+                        self.task_manager.stuck((reason, *incomplete_reasons))
                         self.messages[:] = request_messages
                         yield TurnCompleted(
                             result=TurnResult(
-                                text=reason,
+                                text=complete_text,
                                 usage=completed_usage,
                                 last_request_usage=request_usage,
                                 model_calls=iteration,
                                 tool_calls=tuple(all_tool_calls),
                                 status='stuck',
-                                changed_paths=(),
+                                changed_paths=(
+                                    self.workspace_tracker.changed_paths
+                                    if self.workspace_tracker is not None
+                                    else ()
+                                ),
                                 verification=latest_verification,
                                 completion_reasons=(
                                     reason,
-                                    change_reason,
+                                    *incomplete_reasons,
                                 ),
                             )
                         )
                         return
+                    finalization_recovery = False
+                    verification_recovery = False
+                    change_convergence_required = True
+                    change_convergence_read_used = False
+                    change_convergence_extra_reads = 0
+                    post_mutation_convergence = False
+                    force_synthesis = True
+                    calls_without_progress = 0
                     request_messages.append(
-                        build_action_recovery_feedback(
-                            self.task_manager.system_suffix(),
-                            action_recovery_calls,
-                            self.action_recovery_limit,
-                            read_used=action_read_used,
+                        build_incomplete_declaration_feedback(
+                            incomplete_reasons,
                         )
                     )
                     continue
+                if self._pending_required_change(change_required):
+                    reason = required_change_block_reason()
+                    self.task_manager.stuck((reason,))
+                    self.messages[:] = request_messages
+                    yield CompletionBlocked(attempt=1, reasons=(reason,))
+                    yield TurnCompleted(
+                        result=TurnResult(
+                            text=reason,
+                            usage=completed_usage,
+                            last_request_usage=request_usage,
+                            model_calls=iteration,
+                            tool_calls=tuple(all_tool_calls),
+                            status='stuck',
+                            changed_paths=(),
+                            verification=latest_verification,
+                            completion_reasons=(reason,),
+                        )
+                    )
+                    return
                 if (
                     force_synthesis
                     and self.working_state.evidence_paths
@@ -945,49 +1004,15 @@ class Conversation:
                         mutation_attempted=(
                             mutation_attempted or change_required
                         ),
+                        require_verification=verification_required,
+                        require_tests=tests_required,
+                        require_full_tests=full_tests_required,
                     )
                     if not decision.allowed:
-                        last_completion_reasons = decision.reasons
-                        completion_blocks += 1
                         yield CompletionBlocked(
-                            attempt=completion_blocks,
+                            attempt=1,
                             reasons=decision.reasons,
                         )
-                        if force_synthesis:
-                            reasons = (
-                                'The agent stopped making progress before '
-                                'the task satisfied its completion checks.',
-                                *decision.reasons,
-                            )
-                            self.task_manager.stuck(reasons)
-                            self.messages[:] = request_messages
-                            self.context.capture_explicit_memory(prompt)
-                            yield TurnCompleted(
-                                result=TurnResult(
-                                    text=complete_text,
-                                    usage=completed_usage,
-                                    last_request_usage=request_usage,
-                                    model_calls=iteration,
-                                    tool_calls=tuple(all_tool_calls),
-                                    status='stuck',
-                                    changed_paths=(
-                                        self.workspace_tracker.changed_paths
-                                    ),
-                                    verification=latest_verification,
-                                    completion_reasons=reasons,
-                                )
-                            )
-                            return
-                        if completion_blocks < self.max_completion_blocks:
-                            request_messages.append(
-                                build_completion_feedback(
-                                    decision.reasons,
-                                    task_context=(
-                                        self.task_manager.system_suffix()
-                                    ),
-                                )
-                            )
-                            continue
                         self.task_manager.stuck(decision.reasons)
                         self.messages[:] = request_messages
                         self.context.capture_explicit_memory(prompt)
@@ -1032,13 +1057,40 @@ class Conversation:
                     'Model requested tools, but no ToolRegistry is configured.'
                 )
 
+            if (
+                self.max_tool_calls is not None
+                and len(all_tool_calls) + len(tool_calls) > self.max_tool_calls
+            ):
+                reason = (
+                    'Stopped before executing more than '
+                    f'{self.max_tool_calls} tool calls in one turn.'
+                )
+                self.task_manager.stuck((reason,))
+                self.messages[:] = request_messages
+                yield TurnCompleted(
+                    result=TurnResult(
+                        text=reason,
+                        usage=completed_usage,
+                        last_request_usage=request_usage,
+                        model_calls=iteration,
+                        tool_calls=tuple(all_tool_calls),
+                        status='stuck',
+                        changed_paths=(
+                            self.workspace_tracker.changed_paths
+                            if self.workspace_tracker is not None
+                            else ()
+                        ),
+                        verification=latest_verification,
+                        completion_reasons=(reason,),
+                    )
+                )
+                return
+
             all_tool_calls.extend(tool_calls)
             tool_results: list[tuple[ToolCall, ToolResult]] = []
             last_workspace_change_position = -1
             last_workspace_write_change_position = -1
             task_progressed = False
-            evidence_progressed = False
-            required_change_rejected = False
             workspace_write_results: list[
                 tuple[int, ToolCall, ToolResult, bool]
             ] = []
@@ -1141,23 +1193,29 @@ class Conversation:
                     self.workspace_tracker.watch_paths(
                         mutation_target_paths(tool_call)
                     )
-                action_read_call = (
-                    action_recovery
-                    and tool_call.name in ACTION_RECOVERY_READ_TOOLS
+                convergence_read_call = (
+                    not mutation_failures
+                    and change_convergence_required
+                    and tool_call.name in EDIT_RECOVERY_READ_TOOLS
                 )
-                action_read_exhausted = (
-                    action_read_call and action_read_used
+                convergence_read_blocked = (
+                    convergence_read_call
+                    and change_convergence_read_used
+                    and change_convergence_extra_reads <= 0
                 )
-                if action_read_call and not action_read_used:
-                    action_read_used = True
+                if convergence_read_call and not convergence_read_blocked:
+                    if change_convergence_read_used:
+                        change_convergence_extra_reads -= 1
+                    else:
+                        change_convergence_read_used = True
                 mutation_read_call = (
                     bool(mutation_failures)
-                    and tool_call.name in ACTION_RECOVERY_READ_TOOLS
+                    and tool_call.name in EDIT_RECOVERY_READ_TOOLS
                 )
-                if (
-                    mutation_read_call
-                    and not mutation_recovery_read_used
-                ):
+                mutation_read_blocked = (
+                    mutation_read_call and mutation_recovery_read_used
+                )
+                if mutation_read_call and not mutation_read_blocked:
                     mutation_recovery_read_used = True
                 yield ToolExecutionStarted(tool_call=tool_call)
                 revision = (
@@ -1185,10 +1243,51 @@ class Conversation:
                     revision,
                     signature,
                 )
+                edit_phase_names = {
+                    str(definition.get('name', ''))
+                    for definition in (
+                        self._edit_recovery_tools(read_available=False) or ()
+                    )
+                }
+                phase_allowed_names = set(request_tool_names)
+                phase_tool_unavailable = False
+                if delegation_request_active:
+                    phase_allowed_names = {'explore_repository'}
+                    phase_tool_unavailable = (
+                        tool_call.name != 'explore_repository'
+                    )
+                elif verification_recovery:
+                    phase_allowed_names = {'verify'}
+                    phase_tool_unavailable = tool_call.name != 'verify'
+                elif mutation_failures:
+                    phase_allowed_names = set(edit_phase_names)
+                    if mutation_read_call and not mutation_read_blocked:
+                        phase_allowed_names.add(tool_call.name)
+                    phase_tool_unavailable = (
+                        tool_call.name not in phase_allowed_names
+                    )
+                elif change_convergence_required:
+                    phase_allowed_names = (
+                        set(request_tool_names)
+                        if post_mutation_convergence
+                        else set(edit_phase_names)
+                    )
+                    if convergence_read_call and not convergence_read_blocked:
+                        phase_allowed_names.add(tool_call.name)
+                    phase_tool_unavailable = (
+                        tool_call.name not in phase_allowed_names
+                    )
                 if hook_rejection is not None:
                     result = hook_rejection
                 elif permission_rejection is not None:
                     result = permission_rejection
+                elif convergence_read_blocked or mutation_read_blocked:
+                    result = ToolResult.fail(
+                        'recovery_read_already_used',
+                        'The targeted read/search allowance for this recovery '
+                        'phase is exhausted. Use the collected results and '
+                        'make a corrected workspace edit now.',
+                    )
                 elif finish_mixed:
                     result = ToolResult.fail(
                         'finish_must_be_alone',
@@ -1196,47 +1295,27 @@ class Conversation:
                         'response. Complete other actions first, then declare '
                         'the outcome in a separate response.',
                     )
-                elif (
-                    action_recovery
-                    and tool_call.name not in request_tool_names
-                ):
+                elif phase_tool_unavailable:
                     result = ToolResult.fail(
                         'tool_not_available_in_phase',
-                        f'{tool_call.name} is not available during Action '
-                        'Recovery. Use one of the tools included with this '
-                        'request.',
+                        f'{tool_call.name} is not available in the current '
+                        'recovery phase. Use one of the tools included with '
+                        'this request.',
                         details={
-                            'available_tools': sorted(request_tool_names),
+                            'available_tools': sorted(phase_allowed_names),
                         },
                     )
-                elif (
-                    mutation_failures
-                    and tool_call.name not in request_tool_names
-                ):
-                    result = ToolResult.fail(
-                        'tool_not_available_in_phase',
-                        f'{tool_call.name} is not available after the single '
-                        'Edit Recovery read has been used. Apply one corrected '
-                        'workspace edit using a tool included with this '
-                        'request.',
-                        details={
-                            'available_tools': sorted(request_tool_names),
-                        },
-                    )
-                elif action_read_exhausted:
-                    result = ToolResult.fail(
-                        'action_read_limit_reached',
-                        'Action Recovery permits only one targeted repository '
-                        'read or search. Use the existing evidence and make '
-                        'the workspace edit now.',
-                    )
-                elif semantic_repeat is not None:
-                    result = semantic_repeat
                 elif should_block_repeat:
                     result = repeated_tool_result(
                         tool_call,
                         previous_count,
                         previous_success=previous_success,
+                    )
+                elif semantic_repeat is not None:
+                    result = semantic_repeat
+                    tool_attempts[signature] = (
+                        previous_count + 1,
+                        result.success,
                     )
                 else:
                     checkpoint_paths = (
@@ -1300,6 +1379,9 @@ class Conversation:
                         mutation_attempted=mutation_attempted,
                         change_required=change_required,
                         verification=latest_verification,
+                        verification_required=verification_required,
+                        tests_required=tests_required,
+                        full_tests_required=full_tests_required,
                     )
                     if (
                         result.metadata.get('status') != 'blocked'
@@ -1316,29 +1398,13 @@ class Conversation:
                         )
                     if finish_reasons:
                         finish_rejection = finish_reasons
-                        last_completion_reasons = finish_reasons
-                        pending_required_change = (
-                            self._pending_required_change(change_required)
-                        )
-                        if pending_required_change:
-                            required_change_rejected = True
-                            action_block_events += 1
-                        else:
-                            completion_blocks += 1
-                        force_synthesis = False
-                        calls_without_progress = 0
                         result = ToolResult.fail(
                             'finish_rejected',
                             'The finish_task declaration did not match the '
                             'available execution evidence.',
                             details={'reasons': list(finish_reasons)},
                         )
-                        if (
-                            not pending_required_change
-                            and completion_blocks
-                            >= self.max_completion_blocks
-                        ):
-                            terminal_finish_reasons = finish_reasons
+                        terminal_finish_reasons = finish_reasons
                     else:
                         accepted_finish = result
                 post_tool = await self._emit_hook(
@@ -1363,14 +1429,11 @@ class Conversation:
                     )
                 )
                 self._queue_hook_context(post_tool)
-                evidence_progressed = (
-                    self.working_state.observe(
-                        tool_call,
-                        result,
-                        revision,
-                        signature,
-                    )
-                    or evidence_progressed
+                self.working_state.observe(
+                    tool_call,
+                    result,
+                    revision,
+                    signature,
                 )
                 tool_results.append((tool_call, result))
                 yield ToolExecutionCompleted(
@@ -1385,11 +1448,7 @@ class Conversation:
                     break
                 if finish_rejection:
                     yield CompletionBlocked(
-                        attempt=(
-                            action_block_events
-                            if required_change_rejected
-                            else completion_blocks
-                        ),
+                        attempt=1,
                         reasons=finish_rejection,
                     )
                 tool_changed_workspace = False
@@ -1425,6 +1484,55 @@ class Conversation:
                     )
                 if tool_call.name == 'verify':
                     latest_verification = verification_from_result(result)
+                    verification_command = str(
+                        tool_call.arguments.get('command', '')
+                    )
+                    command_runs_tests = verification_command_runs_tests(
+                        verification_command
+                    )
+                    verification_contract_satisfied = bool(
+                        latest_verification is not None
+                        and latest_verification.success
+                        and (
+                            not tests_required
+                            or verification_command_runs_tests(
+                                verification_command
+                            )
+                        )
+                        and (
+                            not full_tests_required
+                            or verification_command_runs_full_suite(
+                                verification_command
+                            )
+                        )
+                    )
+                    verification_recovery = bool(
+                        latest_verification is not None
+                        and latest_verification.success
+                        and tests_required
+                        and command_runs_tests
+                        and not verification_contract_satisfied
+                    )
+                    if (
+                        post_mutation_convergence
+                        and verification_contract_satisfied
+                    ):
+                        post_mutation_convergence = False
+                        change_convergence_required = False
+                        change_convergence_read_used = False
+                        change_convergence_extra_reads = 0
+                        force_synthesis = False
+                    if (
+                        latest_verification is not None
+                        and not latest_verification.success
+                        and self.workspace_tracker is not None
+                        and self.workspace_tracker.changed_paths
+                    ):
+                        change_convergence_required = True
+                        change_convergence_read_used = False
+                        change_convergence_extra_reads = 0
+                        post_mutation_convergence = False
+                        force_synthesis = True
                     if latest_verification is not None:
                         verification_hook = await self._emit_hook(
                             HookEvent(
@@ -1452,6 +1560,18 @@ class Conversation:
                         yield VerificationCompleted(
                             evidence=latest_verification
                         )
+                if tool_call.name == 'explore_repository':
+                    exploration_delegation_pending = False
+                    task_progressed = True
+                    if result.success and change_required:
+                        change_convergence_required = True
+                        change_convergence_read_used = False
+                        # Cross-file Explore reports identify targets but do not
+                        # carry complete editable source. Permit eight focused
+                        # parent reads before requiring the first mutation.
+                        change_convergence_extra_reads = 7
+                        post_mutation_convergence = False
+                        force_synthesis = True
                 if tool_call.name == 'task_update' and result.success:
                     task_progressed = True
             if terminal_permission_denial is not None:
@@ -1466,10 +1586,27 @@ class Conversation:
                         )
                     )
             request_messages.append(build_tool_result_message(tool_results))
+            if any(
+                tool_call.name == 'explore_repository' and result.success
+                for tool_call, result in tool_results
+            ):
+                request_messages.append(build_explore_handoff_feedback())
             if self.session_journal is not None:
                 self.session_journal.record_tool_result_message(
                     request_messages[-1],
                     self.task_manager.active,
+                )
+            failed_verification = next(
+                (
+                    result
+                    for tool_call, result in reversed(tool_results)
+                    if tool_call.name == 'verify' and not result.success
+                ),
+                None,
+            )
+            if failed_verification is not None:
+                request_messages.append(
+                    build_verification_failure_feedback(failed_verification)
                 )
 
             if terminal_permission_denial is not None:
@@ -1504,8 +1641,8 @@ class Conversation:
                 yield TurnCompleted(
                     result=TurnResult(
                         text=(
-                            'ForgeCode rejected the model completion '
-                            'declaration after repeated evidence failures.'
+                            'ForgeCode rejected the completion declaration '
+                            'because it did not match the current evidence.'
                         ),
                         usage=completed_usage,
                         last_request_usage=request_usage,
@@ -1578,19 +1715,22 @@ class Conversation:
                 workspace_write_progressed = False
             if workspace_write_progressed:
                 mutation_failure_count = 0
+                mutation_failure_total = 0
+                mutation_failure_targets = ()
                 mutation_failures.clear()
                 mutation_recovery_read_used = False
                 mutation_recovery_context = ''
-                pre_mutation_calls = 0
-                action_recovery = False
-                action_recovery_calls = 0
-                action_read_used = False
+                mutation_text_recoveries = 0
                 force_synthesis = False
                 synthesis_retries = 0
                 completion_ready_revision = None
                 completion_decision_calls = 0
                 completion_ready_context = ''
                 completion_reviewed_paths.clear()
+                # A successful write can be only one part of a larger change.
+                # Keep implementation tools available; the stagnation and
+                # completion paths enforce fresh verification before finish.
+                verification_recovery = False
             pending_write_results = [
                 (call, result)
                 for position, call, result, changed
@@ -1601,7 +1741,8 @@ class Conversation:
                     and not is_tool_protocol_failure(result)
                     and (
                         result.error is None
-                        or result.error.code != 'permission_denied'
+                        or result.error.code
+                        not in {'permission_denied', 'repeated_tool_call'}
                     )
                 )
             ]
@@ -1610,7 +1751,28 @@ class Conversation:
                 pending_write_results = [(last_call, last_result)]
             if pending_write_results:
                 mutation_recovery_read_used = False
+                mutation_text_recoveries = 0
+                current_failure_targets = tuple(
+                    sorted(
+                        {
+                            target
+                            for failed_call, _ in pending_write_results
+                            for target in (
+                                mutation_target_paths(
+                                    failed_call,
+                                    maximum=None,
+                                )
+                                or (f'@tool:{failed_call.name}',)
+                            )
+                        }
+                    )
+                )
+                if current_failure_targets != mutation_failure_targets:
+                    mutation_failure_count = 0
+                    mutation_failures.clear()
+                mutation_failure_targets = current_failure_targets
                 mutation_failure_count += len(pending_write_results)
+                mutation_failure_total += len(pending_write_results)
                 for failed_call, failed_result in pending_write_results:
                     mutation_failures.append(
                         mutation_failure_record(
@@ -1620,30 +1782,28 @@ class Conversation:
                     )
                 mutation_failures = mutation_failures[-3:]
             if mutation_failures:
-                action_recovery = False
-                action_recovery_calls = 0
-                action_read_used = False
                 mutation_recovery_context = (
                     render_mutation_recovery_context(
                         mutation_failures,
-                        mutation_failure_count,
+                        mutation_failure_total,
                     )
                 )
                 if workspace_write_results:
                     request_messages.append(
                         build_mutation_recovery_feedback(
                             mutation_failures,
-                            mutation_failure_count,
+                            mutation_failure_total,
                             self.task_manager.system_suffix(),
                         )
                     )
                 if (
-                    mutation_failure_count
-                    >= self.mutation_recovery_limit
+                    mutation_failure_count >= self.mutation_recovery_limit
+                    or mutation_failure_total
+                    >= self.mutation_recovery_limit * 2
                 ):
                     reason = mutation_recovery_stuck_reason(
                         mutation_failures,
-                        mutation_failure_count,
+                        mutation_failure_total,
                     )
                     self.task_manager.stuck((reason,))
                     self.messages[:] = request_messages
@@ -1673,81 +1833,15 @@ class Conversation:
                 tool_protocol_failures += 1
             elif any(result.success for _, result in tool_results):
                 tool_protocol_failures = 0
-            pending_required_change = self._pending_required_change(
-                change_required
-            )
-            if (
-                pending_required_change
-                and not mutation_failures
-                and not protocol_failure
-            ):
-                entered_action_recovery = False
-                if action_recovery:
-                    action_recovery_calls += 1
-                elif required_change_rejected:
-                    action_recovery = True
-                    action_recovery_calls = 0
-                    action_read_used = False
-                    entered_action_recovery = True
-                else:
-                    pre_mutation_calls += 1
-                    if pre_mutation_calls >= self.pre_mutation_limit:
-                        action_recovery = True
-                        action_recovery_calls = 0
-                        action_read_used = False
-                        entered_action_recovery = True
-                if action_recovery:
-                    force_synthesis = False
-                    synthesis_retries = 0
-                    calls_without_progress = 0
-                    if entered_action_recovery:
-                        action_block_events += 1
-                        yield CompletionBlocked(
-                            attempt=action_block_events,
-                            reasons=(required_change_block_reason(),),
-                        )
-                    if (
-                        action_recovery_calls
-                        >= self.action_recovery_limit
-                    ):
-                        reason = action_recovery_stuck_reason(
-                            action_recovery_calls
-                        )
-                        change_reason = required_change_block_reason()
-                        self.task_manager.stuck((reason, change_reason))
-                        self.messages[:] = request_messages
-                        yield TurnCompleted(
-                            result=TurnResult(
-                                text=reason,
-                                usage=completed_usage,
-                                last_request_usage=request_usage,
-                                model_calls=iteration,
-                                tool_calls=tuple(all_tool_calls),
-                                status='stuck',
-                                changed_paths=(),
-                                verification=latest_verification,
-                                completion_reasons=(
-                                    reason,
-                                    change_reason,
-                                ),
-                            )
-                        )
-                        return
-                    request_messages.append(
-                        build_action_recovery_feedback(
-                            self.task_manager.system_suffix(),
-                            action_recovery_calls,
-                            self.action_recovery_limit,
-                            read_used=action_read_used,
-                        )
-                    )
-                    continue
             completion_ready = (
                 not protocol_failure
                 and await self._can_finalize_after_stagnation(
                     mutation_attempted=mutation_attempted,
                     verification=latest_verification,
                     mutation_failures=mutation_failures,
+                    verification_required=verification_required,
+                    tests_required=tests_required,
+                    full_tests_required=full_tests_required,
                 )
             )
             if completion_ready:
@@ -1798,9 +1892,22 @@ class Conversation:
             completion_decision_calls = 0
             completion_ready_context = ''
             completion_reviewed_paths.clear()
-            if workspace_progressed or task_progressed or evidence_progressed:
+            if workspace_progressed or task_progressed:
                 calls_without_progress = 0
-                force_synthesis = False
+                if workspace_progressed and change_required:
+                    change_convergence_required = True
+                    change_convergence_read_used = False
+                    change_convergence_extra_reads = 3
+                    post_mutation_convergence = True
+                    force_synthesis = True
+                    request_messages.append(
+                        build_post_mutation_convergence_feedback()
+                    )
+                elif not change_convergence_required:
+                    force_synthesis = False
+                    post_mutation_convergence = False
+                    change_convergence_read_used = False
+                    change_convergence_extra_reads = 0
                 synthesis_retries = 0
             elif protocol_failure:
                 # Malformed tool arguments are a protocol-recovery problem,
@@ -1841,6 +1948,9 @@ class Conversation:
                         )
                     )
                     return
+                # Protocol recovery owns this iteration. Do not let a stale
+                # global stagnation count pre-empt the corrected retry.
+                continue
             elif mutation_failures:
                 # Edit Recovery exclusively owns progress limits while a
                 # workspace-write failure remains unresolved. Reads and
@@ -1860,33 +1970,113 @@ class Conversation:
                 )
             elif calls_without_progress >= self.stagnation_limit:
                 if (
-                    not mutation_failures
-                    and self._pending_required_change(change_required)
+                    not change_required
+                    and not mutation_attempted
+                    and not finalization_recovery
                 ):
-                    action_recovery = True
-                    action_recovery_calls = 0
-                    action_read_used = False
-                    force_synthesis = False
-                    synthesis_retries = 0
+                    finalization_recovery = True
+                    force_synthesis = True
                     calls_without_progress = 0
-                    action_block_events += 1
-                    yield CompletionBlocked(
-                        attempt=action_block_events,
-                        reasons=(required_change_block_reason(),),
-                    )
                     request_messages.append(
-                        build_action_recovery_feedback(
-                            self.task_manager.system_suffix(),
-                            action_recovery_calls,
-                            self.action_recovery_limit,
-                            read_used=action_read_used,
+                        {
+                            'role': 'user',
+                            'content': (
+                                'ForgeCode read-only synthesis checkpoint: '
+                                'enough repository evidence has been collected. '
+                                'Tools are now closed; answer the user directly '
+                                'from the existing evidence without more lookup.'
+                            ),
+                        }
+                    )
+                    continue
+                pending_required_change = self._pending_required_change(
+                    change_required
+                )
+                if (
+                    pending_required_change
+                    and not mutation_attempted
+                    and calls_without_progress
+                    < max(
+                        self.stagnation_limit,
+                        self.change_exploration_limit,
+                    )
+                ):
+                    if calls_without_progress == self.stagnation_limit:
+                        request_messages.append(
+                            build_stagnation_feedback(
+                                calls_without_progress,
+                                self.task_manager.system_suffix(),
+                                self.working_state.system_suffix(),
+                            )
                         )
+                    continue
+                if (
+                    pending_required_change
+                    and not mutation_attempted
+                    and not change_convergence_required
+                ):
+                    change_convergence_required = True
+                    change_convergence_read_used = False
+                    change_convergence_extra_reads = 0
+                    post_mutation_convergence = False
+                    force_synthesis = True
+                    calls_without_progress = 0
+                    request_messages.append(
+                        build_change_convergence_feedback(
+                            self.task_manager.system_suffix(),
+                            self.working_state.system_suffix(),
+                        )
+                    )
+                    continue
+                tracker = self.workspace_tracker
+                verification_current = bool(
+                    tracker is not None
+                    and latest_verification is not None
+                    and latest_verification.success
+                    and latest_verification.workspace_revision
+                    == tracker.revision
+                    and (
+                        not tests_required
+                        or verification_command_runs_tests(
+                            latest_verification.command
+                        )
+                    )
+                    and (
+                        not full_tests_required
+                        or verification_command_runs_full_suite(
+                            latest_verification.command
+                        )
+                    )
+                )
+                if (
+                    verification_required
+                    and tracker is not None
+                    and tracker.changed_paths
+                    and not verification_current
+                    and not verification_recovery
+                ):
+                    verification_recovery = True
+                    force_synthesis = False
+                    calls_without_progress = 0
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                'ForgeCode verification checkpoint: a real Diff '
+                                'exists, but the user-requested verification is '
+                                'missing or stale. Run the verify tool now on '
+                                'the current workspace revision.'
+                            ),
+                        }
                     )
                     continue
                 if await self._can_finalize_after_stagnation(
                     mutation_attempted=mutation_attempted,
                     verification=latest_verification,
                     mutation_failures=mutation_failures,
+                    verification_required=verification_required,
+                    tests_required=tests_required,
+                    full_tests_required=full_tests_required,
                 ):
                     finalization_recovery = True
                     force_synthesis = True
@@ -1901,8 +2091,8 @@ class Conversation:
                     continue
                 reason = (
                     'Stopped after '
-                    f'{calls_without_progress} model calls without new '
-                    'workspace, plan, or repository evidence.'
+                    f'{calls_without_progress} model calls without a workspace '
+                    'change or task-state transition.'
                 )
                 self.task_manager.stuck((reason,))
                 self.messages[:] = request_messages
@@ -1926,9 +2116,29 @@ class Conversation:
                 return
 
         if self.max_iterations is not None:
-            raise AgentLoopLimitError(
-                f'Agent Loop exceeded {self.max_iterations} model calls.'
+            reason = (
+                f'Stopped after reaching the per-turn limit of '
+                f'{self.max_iterations} model calls.'
             )
+            self.task_manager.stuck((reason,))
+            self.messages[:] = request_messages
+            yield TurnCompleted(
+                result=TurnResult(
+                    text=reason,
+                    usage=completed_usage,
+                    model_calls=self.max_iterations,
+                    tool_calls=tuple(all_tool_calls),
+                    status='stuck',
+                    changed_paths=(
+                        self.workspace_tracker.changed_paths
+                        if self.workspace_tracker is not None
+                        else ()
+                    ),
+                    verification=latest_verification,
+                    completion_reasons=(reason,),
+                )
+            )
+            return
         raise AssertionError('Unlimited Agent Loop stopped unexpectedly.')
 
     def _system_prompt_with_task(
@@ -1965,31 +2175,88 @@ class Conversation:
             and not tracker.changed_paths
         )
 
-    def _action_recovery_tools(
+    def _verification_tools(
+        self,
+        *,
+        require_tests: bool,
+    ) -> list[dict[str, Any]] | None:
+        definitions = self._tool_definitions()
+        if definitions is None:
+            return None
+        selected = [
+            dict(definition)
+            for definition in definitions
+            if str(definition.get('name', '')) == 'verify'
+        ]
+        if require_tests:
+            for definition in selected:
+                definition['description'] = (
+                    'Run the repository test suite now. For this ForgeCode '
+                    'Python repository, command MUST invoke pytest; use '
+                    '`uv run pytest -q` for the full suite or an explicit '
+                    '`uv run pytest -q <test paths>` focused command. Do not '
+                    'use git status, git diff, sed, grep, or Python file-reading '
+                    'scripts as verification.'
+                )
+        return selected
+
+    def _edit_recovery_tools(
         self,
         *,
         read_available: bool,
-        include_finish: bool = True,
-        focused_edits_only: bool = False,
     ) -> list[dict[str, Any]] | None:
         definitions = self._tool_definitions()
         if self.registry is None or definitions is None:
             return definitions
-        selected: list[dict[str, Any]] = []
+        definitions = list(definitions)
+        exact_replace = self.registry.definition('replace_text')
+        if (
+            exact_replace is not None
+            and not any(
+                str(item.get('name', '')) == 'replace_text'
+                for item in definitions
+            )
+        ):
+            definitions.append(exact_replace)
+        return [
+            definition
+            for definition in definitions
+            if (
+                read_available
+                and str(definition.get('name', ''))
+                in EDIT_RECOVERY_READ_TOOLS
+            )
+            or (
+                str(definition.get('name', '')) != 'write_file'
+                and self.registry.effect(
+                    str(definition.get('name', ''))
+                ) == 'workspace_write'
+            )
+        ]
+
+    def _post_mutation_tools(
+        self,
+        *,
+        read_available: bool,
+    ) -> list[dict[str, Any]] | None:
+        '''Expose only focused continuation edits plus deterministic verification.'''
+        selected = self._edit_recovery_tools(
+            read_available=read_available,
+        )
+        definitions = self._tool_definitions()
+        if selected is None or definitions is None:
+            return selected
+        selected_names = {
+            str(definition.get('name', '')) for definition in selected
+        }
         for definition in definitions:
             name = str(definition.get('name', ''))
             if (
-                (read_available and name in ACTION_RECOVERY_READ_TOOLS)
-                or (include_finish and name == 'finish_task')
-                or (
-                    self.registry.effect(name) == 'workspace_write'
-                    and (
-                        not focused_edits_only
-                        or name not in {'write_file', 'write_file_chunk'}
-                    )
-                )
+                name in {'verify', 'finish_task'}
+                and name not in selected_names
             ):
-                selected.append(definition)
+                selected.append(dict(definition))
+                selected_names.add(name)
         return selected
 
     async def _finish_rejection_reasons(
@@ -1999,6 +2266,9 @@ class Conversation:
         mutation_attempted: bool,
         change_required: bool,
         verification: VerificationEvidence | None,
+        verification_required: bool,
+        tests_required: bool,
+        full_tests_required: bool,
     ) -> tuple[str, ...]:
         metadata = result.metadata
         if metadata.get('status') == 'blocked':
@@ -2045,6 +2315,9 @@ class Conversation:
                     self.workspace_tracker,
                     verification,
                     mutation_attempted=True,
+                    require_verification=verification_required,
+                    require_tests=tests_required,
+                    require_full_tests=full_tests_required,
                 )
                 reasons.extend(decision.reasons)
         elif mutation_attempted and not changed_paths:
@@ -2063,9 +2336,10 @@ class Conversation:
         completion_ready_context: str = '',
         change_required: bool = False,
         mutation_attempted: bool = False,
-        action_recovery: bool = False,
-        action_recovery_calls: int = 0,
-        action_read_used: bool = False,
+        verification_required: bool = False,
+        tests_required: bool = False,
+        full_tests_required: bool = False,
+        verification_recovery: bool = False,
     ) -> str:
         prompt = self._system_prompt_with_task(
             include_tool_availability=not finalization_recovery,
@@ -2082,11 +2356,44 @@ class Conversation:
                 ),
                 mutation_attempted=mutation_attempted,
             )
+        if verification_required:
+            prompt += (
+                '\n\n[ForgeCode Verification Contract]\n'
+                'The user explicitly requested verification. Before declaring '
+                'completion, run the verify tool with the focused checks they '
+                'requested, then run the full test suite when requested. The '
+                'latest verification must succeed on the final workspace '
+                'revision; a summary without verification will be rejected.'
+            )
+        if tests_required:
+            prompt += (
+                '\nThe request explicitly requires tests. A VCS inspection '
+                'such as git status or git diff --check does not satisfy this '
+                'contract; invoke the repository test runner (for this Python '
+                'project, use pytest).'
+            )
+        if full_tests_required:
+            prompt += (
+                '\nThe user explicitly requires the full test suite. Focused '
+                'test paths, pytest -k/-m selections, and collect/version '
+                'commands do not satisfy completion; the latest verification '
+                'must be an unscoped full-suite command such as '
+                '`uv run pytest -q`.'
+            )
         if mutation_recovery_context:
             prompt += '\n\n' + mutation_recovery_context
         if completion_ready_context:
             prompt += '\n\n' + completion_ready_context
-        if finalization_recovery:
+        if verification_recovery:
+            prompt += (
+                '\n\n[ForgeCode Verification Recovery]\n'
+                'A real task-local Diff exists, but the user-requested checks '
+                'have not succeeded on the current revision. This request '
+                'exposes only the verify tool. Run the focused and full checks '
+                'requested by the user now; do not return a summary or request '
+                'another repository inspection.'
+            )
+        elif finalization_recovery:
             prompt += (
                 '\n\n[ForgeCode Finalization Recovery]\n'
                 'The current workspace revision already has a real Diff and '
@@ -2097,12 +2404,6 @@ class Conversation:
                 'verification performed. Be honest about anything that was '
                 'not semantically or visually verified. Do not request or '
                 'describe another tool call.'
-            )
-        elif action_recovery:
-            prompt += '\n\n' + render_action_recovery_context(
-                action_recovery_calls,
-                self.action_recovery_limit,
-                read_used=action_read_used,
             )
         elif force_synthesis:
             prompt += (
@@ -2182,6 +2483,9 @@ class Conversation:
         mutation_attempted: bool,
         verification: VerificationEvidence | None,
         mutation_failures: list[dict[str, Any]],
+        verification_required: bool,
+        tests_required: bool,
+        full_tests_required: bool,
     ) -> bool:
         '''Enter synthesis only for a mechanically complete current revision.'''
         tracker = self.workspace_tracker
@@ -2202,6 +2506,9 @@ class Conversation:
             tracker,
             verification,
             mutation_attempted=mutation_attempted,
+            require_verification=verification_required,
+            require_tests=tests_required,
+            require_full_tests=full_tests_required,
         )
         return decision.allowed
 
@@ -2733,28 +3040,6 @@ def verification_from_result(
         return None
 
 
-def build_completion_feedback(
-    reasons: tuple[str, ...],
-    *,
-    task_context: str = '',
-) -> dict[str, Any]:
-    '''Tell the model exactly why its final answer was not accepted.'''
-    details = '\n'.join(f'- {reason}' for reason in reasons)
-    return {
-        'role': 'user',
-        'content': (
-            f'{task_context}\n\n'
-            'ForgeCode completion check rejected the previous final answer.\n'
-            f'{details}\n'
-            'The tools are still available. Continue using them, then provide '
-            'a new final answer after every condition is satisfied. If '
-            'verification is missing, call verify with the relevant test or '
-            'build command; use git diff --check only when the project has no '
-            'more specific validation command.'
-        ),
-    }
-
-
 def tool_call_signature(tool_call: ToolCall, revision: int) -> str:
     '''Identify an exact tool request within one workspace revision.'''
     arguments = json.dumps(
@@ -2832,63 +3117,6 @@ def render_change_contract_context(
     )
 
 
-def render_action_recovery_context(
-    recovery_calls: int,
-    maximum: int,
-    *,
-    read_used: bool,
-) -> str:
-    next_action = (
-        'The one targeted repository read/search has already been used. '
-        'Use the existing evidence and call a workspace editing tool now.'
-        if read_used
-        else (
-            'If one exact code location is still missing, you may use one '
-            'targeted read_file or grep call. Otherwise edit immediately.'
-        )
-    )
-    return (
-        '[ForgeCode Action Recovery]\n'
-        'Investigation has consumed its bounded budget while the task-local '
-        'Diff is still empty. This is a focused action phase. Use an editing '
-        'tool now if the relevant code is understood. '
-        f'{next_action} Broad diagnostics, process commands, Git inspection, '
-        'verification, and task planning '
-        'are intentionally unavailable until a real workspace revision is '
-        'created. A preexisting Git Diff does not satisfy this turn. '
-        'finish_task is valid only for a genuine external blocker.\n'
-        f'Focused calls used: {recovery_calls}/{maximum}.'
-    )
-
-
-def build_action_recovery_feedback(
-    task_context: str,
-    recovery_calls: int,
-    maximum: int,
-    *,
-    read_used: bool,
-) -> dict[str, Any]:
-    return {
-        'role': 'user',
-        'content': (
-            f'{task_context}\n\n'
-            f'{render_action_recovery_context(
-                recovery_calls,
-                maximum,
-                read_used=read_used,
-            )}'
-        ),
-    }
-
-
-def action_recovery_stuck_reason(recovery_calls: int) -> str:
-    return (
-        f'Action Recovery stopped after {recovery_calls} focused model calls '
-        'without a task-local workspace revision, although this turn '
-        'requires a change.'
-    )
-
-
 def build_stagnation_feedback(
     calls_without_progress: int,
     task_context: str,
@@ -2900,15 +3128,89 @@ def build_stagnation_feedback(
         'content': (
             f'{task_context}\n\n{working_context}\n\n'
             'ForgeCode progress check: '
-            f'{calls_without_progress} model calls have passed since the '
-            'last new workspace, task-plan, or repository evidence. All '
-            'tools remain available. Reassess the root goal, use existing '
-            'evidence, and choose a materially different next action. Do not '
-            're-read paths already marked as fully covered. If the task needs '
-            'a code change and the Diff is empty, edit the relevant code after '
-            'you understand it; otherwise perform one targeted search for the '
-            'specific missing fact. Do not repeat an unchanged failing action '
-            'or claim tools are paused.'
+            f'{calls_without_progress} model calls have passed without a '
+            'workspace change or task-state transition. Reuse the evidence '
+            'already collected and stop broad exploration. Perform at most '
+            'one targeted lookup for a specific missing fact; otherwise edit, '
+            'verify, or return an honest blocked result. Do not repeat an '
+            'unchanged failing action.'
+        ),
+    }
+
+
+def build_explore_handoff_feedback() -> dict[str, Any]:
+    '''Tell the parent how to consume the isolated Explore report efficiently.'''
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode Explore handoff: treat suggested_edit_points as the '
+            'primary implementation map. When current_excerpt is present, '
+            'reuse its exact whitespace as replace_text old_text or patch '
+            'context. Spend focused reads only on unresolved questions or '
+            'missing edit anchors; do not rescan files already supported by '
+            'the report. Implement the requested behavior and tests, not '
+            'placeholder or recovery-marker changes.'
+        ),
+    }
+
+
+def build_change_convergence_feedback(
+    task_context: str,
+    working_context: str,
+) -> dict[str, Any]:
+    '''Move a researched change request from exploration to implementation.'''
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n{working_context}\n\n'
+            'ForgeCode implementation checkpoint: the requested change still '
+            'has no task-local Diff after the bounded exploration phase. The '
+            'next request exposes only focused read/grep and editing tools. '
+            'Reuse the evidence already collected; if one exact fact is still '
+            'missing, perform one targeted lookup, then make a task-relevant '
+            'edit now. For an existing file, prefer replace_text with an exact '
+            'unique fragment already visible in evidence; otherwise use a '
+            'small apply_patch. Do not create placeholder, temporary, test, noop, or '
+            'sentinel files merely to produce a Diff. If an edit fails, '
+            'ForgeCode will provide a bounded recovery read. Do not continue '
+            'repository exploration or return an implementation claim without '
+            'a real edit.'
+        ),
+    }
+
+
+def build_verification_failure_feedback(
+    result: ToolResult,
+) -> dict[str, Any]:
+    '''Keep failed verification focused on the smallest shared root cause.'''
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode verification repair checkpoint: the current Diff exists, '
+            'but verification failed. Treat the immediately preceding verification '
+            'output as the primary diagnostic. If many tests share one exception '
+            'or traceback, fix that production-code root cause first, then rerun '
+            'the smallest failing test set. Do not weaken, delete, or rewrite '
+            'existing tests merely to make them pass unless the user explicitly '
+            'requested a test-contract change. Use at most one focused read for '
+            'an exact missing definition or edit anchor; do not restart broad '
+            f'repository exploration. Verification status: {result.summary}'
+        ),
+    }
+
+
+def build_post_mutation_convergence_feedback() -> dict[str, Any]:
+    '''Keep a partial implementation moving toward verification, not discovery.'''
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode post-edit checkpoint: a real Diff now exists. Continue '
+            'only with task-relevant edits, up to four focused read/grep calls '
+            'for exact missing source context, or the verify tool. Broad '
+            'repository discovery tools are closed in this phase. Do not '
+            'finalize until every requested behavior and test is implemented; '
+            'when implementation is complete, run the requested verification '
+            'on the current revision.'
         ),
     }
 
@@ -3097,17 +3399,38 @@ def render_mutation_recovery_context(
         if diagnostic:
             lines.append(f'  diagnostic: {diagnostic}')
     lines.append(
-        'All normal tools remain available. Do not restart broad discovery. '
-        'If the latest diagnostic includes Closest current text, copy it '
-        'verbatim as the next old_text and do not re-read that region. Only '
-        'when no exact candidate is supplied, make one targeted read before '
-        'retrying a smaller corrected edit.'
+        'Edit Recovery permits one targeted read or grep, followed by one '
+        'corrected workspace edit. Do not restart broad discovery or repeat '
+        'the rejected payload.'
     )
     lines.append(
-        'apply_patch accepts unified diff and Begin Patch; use replace_text '
-        'for an exact change. Only a real workspace revision clears this.'
+        'For an existing file, prefer replace_text with one exact unique '
+        'fragment copied from the current evidence. Otherwise use a smaller '
+        'apply_patch based on exact current lines. Repeated failures on the '
+        'same target, or too many failures across targets, end this recovery.'
     )
     return '\n'.join(lines)
+
+
+def build_mutation_text_retry_feedback(
+    failures: list[dict[str, Any]],
+) -> dict[str, Any]:
+    '''Reject one premature prose response while a correctable edit remains.'''
+    latest = failures[-1] if failures else {}
+    tool = str(latest.get('tool', 'workspace edit'))
+    code = str(latest.get('code', 'no_workspace_change'))
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode Edit Recovery rejected the prose response because a '
+            f'correctable {tool} [{code}] failure remains. Editing tools are '
+            'available in this request. Use the exact current fragment or '
+            'diagnostic already collected to make one materially corrected '
+            'workspace edit now. Verification becomes available again after '
+            'the edit changes the workspace. Do not claim that tools are '
+            'unavailable and do not return another summary.'
+        ),
+    }
 
 
 def build_mutation_recovery_feedback(
@@ -3152,9 +3475,12 @@ def is_tool_protocol_failure(result: ToolResult) -> bool:
             'unsupported_shell_syntax',
             'invalid_pattern',
             'patch_contains_read_line_numbers',
+            'patch_empty_hunk',
+            'patch_missing_hunk',
+            'text_no_change',
             'git_diff_path_is_directory',
             'tool_not_available_in_phase',
-            'action_read_limit_reached',
+            'recovery_read_already_used',
         }
     )
 
@@ -3204,6 +3530,90 @@ def build_synthesis_retry_feedback(
             'reference collected repository evidence. All tools remain '
             'available. Answer the current goal using the working evidence, '
             'or gather genuinely missing evidence before answering.'
+        ),
+    }
+
+
+def self_declared_incomplete_reasons(
+    text: str,
+    *,
+    require_tests: bool,
+) -> tuple[str, ...]:
+    '''Detect explicit admissions that a change task is still unfinished.'''
+    normalized = ' '.join(text.split())
+    reasons: list[str] = []
+    implementation_patterns = (
+        (
+            r'\b(?:does not|did not|has not|have not|not yet|haven\'t|'
+            r'isn\'t|is not)\b.{0,100}\b'
+            r'(?:implement|complete|finish|address|satisfy|support)\w*'
+        ),
+        (
+            r'(?:尚未|还未|仍未|没有|并未|未)(?:真正)?'
+            r'(?:实现|完成|修复|满足|支持)'
+        ),
+    )
+    if any(
+        re.search(pattern, normalized, flags=re.IGNORECASE)
+        for pattern in implementation_patterns
+    ):
+        reasons.append(
+            'The response explicitly says the requested implementation is '
+            'not complete.'
+        )
+
+    if require_tests:
+        test_patterns = (
+            (
+                r'\b(?:did not|have not|has not|not yet|haven\'t)\b'
+                r'.{0,80}\b(?:run|execute|complete)\w*\b'
+                r'.{0,40}\b(?:full|complete|entire)?\s*'
+                r'(?:test|tests|test suite)\b'
+            ),
+            (
+                r'(?:尚未|还未|没有|未)(?:运行|执行|完成)'
+                r'.{0,30}(?:完整|全量|全部|全面)?测试'
+            ),
+            (
+                r'\b(?:cannot|can.t|unable\s+to)\b.{0,80}'
+                r'\b(?:complete|run|execute)\w*\b.{0,80}'
+                r'\b(?:verification|tests?|test\s+suite|checks?)\b'
+            ),
+            (
+                r'\bmissing\s+(?:required\s+)?'
+                r'(?:verification|tests?|test\s+suite)\b'
+            ),
+            (
+                r'\bfull\s+(?:test\s+)?suite\b.{0,60}'
+                r'\b(?:still\s+needs?|needs?\s+to\s+be|not)\b.{0,20}'
+                r'\b(?:run|executed?)\b'
+            ),
+        )
+        if any(
+            re.search(pattern, normalized, flags=re.IGNORECASE)
+            for pattern in test_patterns
+        ):
+            reasons.append(
+                'The response explicitly says the requested tests were not run.'
+            )
+    return tuple(reasons)
+
+
+def build_incomplete_declaration_feedback(
+    reasons: tuple[str, ...],
+) -> dict[str, Any]:
+    '''Resume bounded editing when the model admits the task is unfinished.'''
+    rendered = '\n'.join(f'- {reason}' for reason in reasons)
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode rejected completion because the response explicitly '
+            'declared required work incomplete:\n'
+            f'{rendered}\n'
+            'Continue from the existing Diff and repository evidence. Use the '
+            'single targeted read/search allowance only if needed, make the '
+            'missing task-relevant edit, and run the requested tests. Do not '
+            'return another incomplete summary.'
         ),
     }
 
@@ -3265,10 +3675,9 @@ def build_protocol_recovery_feedback(
                 f'{problem}\nError: {error}\n'
                 'No tool was executed and no file was changed by that '
                 f'response. Available tools: {available}. For a small complete '
-                f'file, use write_file with at most {retry_limit} characters. '
-                'For a '
-                'focused exact change, use replace_text. For structured edits, '
-                f'use apply_patch with at most {retry_limit} characters. '
+                f'new file, use write_file with at most {retry_limit} characters. '
+                'For every change to an existing file, use a focused '
+                f'apply_patch with at most {retry_limit} characters. '
                 f'{retry_strategy} Split large '
                 'HTML, CSS, or JavaScript across multiple calls and do not '
                 'repeat the same invalid arguments.\n'

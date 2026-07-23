@@ -14,7 +14,6 @@ from forge.context.compactor import CompactionConfig
 from forge.permissions.approval import StaticApprovalHandler
 from forge.permissions.policy import PermissionManager, PermissionRequest
 from forge.runtime.agent_loop import (
-    AgentLoopLimitError,
     Conversation,
     ModelResponseError,
     is_tool_protocol_failure,
@@ -583,16 +582,46 @@ def test_agent_loop_stops_at_model_call_limit(tmp_path: Path) -> None:
         max_iterations=2,
     )
 
-    with pytest.raises(AgentLoopLimitError, match='exceeded 2'):
-        collect_turn(conversation, 'Never finish')
+    events = collect_turn(conversation, 'Never finish')
 
     assert len(client.calls) == 2
+    assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'stuck'
+    assert 'limit of 2 model calls' in events[-1].result.text
 
 
-def test_agent_loop_has_no_call_or_input_token_limit_by_default() -> None:
+def test_agent_loop_stops_before_exceeding_tool_call_limit(
+    tmp_path: Path,
+) -> None:
+    tool = RecordingReadFileTool(tmp_path)
+    calls = tuple(
+        ToolCall(
+            index=index,
+            id=f'toolu_{index}',
+            name='read_file',
+            arguments={'path': f'{index}.py'},
+        )
+        for index in range(3)
+    )
+    conversation = Conversation(
+        client=FakeModelClient(tool_response(*calls)),
+        registry=ToolRegistry([tool]),
+        max_tool_calls=2,
+    )
+
+    events = collect_turn(conversation, 'Inspect many files')
+
+    assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'stuck'
+    assert 'more than 2 tool calls' in events[-1].result.text
+    assert tool.calls == []
+
+
+def test_agent_loop_has_bounded_calls_but_no_input_token_limit_by_default() -> None:
     conversation = Conversation(client=FakeModelClient())
 
-    assert conversation.max_iterations is None
+    assert conversation.max_iterations == 80
+    assert conversation.max_tool_calls == 120
     assert conversation.max_turn_input_tokens is None
 
 
@@ -862,8 +891,12 @@ def test_exact_tool_repeat_is_skipped_after_limit(tmp_path: Path) -> None:
         event for event in events
         if isinstance(event, ToolExecutionCompleted)
     ]
-    assert completed[-1].result.success is True
-    assert completed[-1].result.metadata['cache_hit'] is True
+    assert completed[1].result.success is True
+    assert completed[1].result.metadata['cache_hit'] is True
+    assert completed[1].result.content == 'file contents'
+    assert completed[2].result.success is False
+    assert completed[2].result.error is not None
+    assert completed[2].result.error.code == 'repeated_tool_call'
 
 
 def test_edit_recovery_stops_noop_writes_without_total_call_limit(
@@ -880,13 +913,14 @@ def test_edit_recovery_stops_noop_writes_without_total_call_limit(
                 arguments={'path': f'file-{index}.txt'},
             )
         )
-        for index in range(1, 6)
+        for index in range(1, 7)
     ]
     conversation = Conversation(
         client=FakeModelClient(*responses),
         registry=ToolRegistry([tool], workspace_tracker=tracker),
         stagnation_warning=2,
         stagnation_limit=3,
+        mutation_recovery_limit=3,
     )
 
     events = collect_turn(conversation, 'Make a real code change')
@@ -895,7 +929,9 @@ def test_edit_recovery_stops_noop_writes_without_total_call_limit(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
     assert result.status == 'stuck'
-    assert '5 workspace-write attempt(s)' in result.text
+    assert '6 workspace-write attempt(s)' in result.text
+    assert result.model_calls == 6
+    assert len(tool.calls) == 6
     assert 'model calls without new workspace' not in result.text
     assert conversation.task_manager.active is not None
     assert conversation.task_manager.active.status == 'stuck'
@@ -950,7 +986,7 @@ def test_recovery_reads_do_not_consume_failed_edit_limit(
         ),
         stagnation_warning=20,
         stagnation_limit=30,
-        mutation_recovery_limit=4,
+        mutation_recovery_limit=2,
     )
 
     events = collect_turn(conversation, 'Fix the rendering bug')
@@ -1011,6 +1047,7 @@ def test_edit_recovery_allows_one_read_then_blocks_repeated_reads(
         stagnation_warning=1,
         stagnation_limit=2,
         mutation_recovery_limit=5,
+        max_tool_protocol_recoveries=3,
     )
 
     events = collect_turn(conversation, 'Fix the rendering bug')
@@ -1112,6 +1149,7 @@ def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:
     conversation = Conversation(
         client=client,
         registry=ToolRegistry([RecordingReadFileTool(Path.cwd())]),
+        max_tool_protocol_recoveries=3,
     )
 
     events = collect_turn(conversation, 'Read sample.txt')
@@ -1152,6 +1190,7 @@ def test_invalid_write_arguments_do_not_enter_mutation_recovery(
             [TinyWriteTool(tmp_path)],
             workspace_tracker=tracker,
         ),
+        max_tool_protocol_recoveries=3,
     )
 
     events = collect_turn(conversation, 'Write a generated file')

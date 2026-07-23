@@ -64,12 +64,10 @@ class ApplyPatchTool(Tool[ApplyPatchInput]):
         'unified diff (--- a/path, +++ b/path, and numbered @@ hunks) or a '
         'Codex envelope (*** Begin Patch with *** Update File, *** Add File, '
         'or *** Delete File sections; Update sections may use bare @@ hunks). '
-        'The patch is limited to 30000 characters; split large HTML, CSS, '
-        'JavaScript, or source files across multiple calls. Use '
-        'repository-relative paths. On patch_rejected, inspect the error and '
-        'relevant current lines instead of retrying the same patch. Prefer '
-        'replace_text for one exact replacement. Use write_file only for '
-        'small full-file content.'
+        'The patch is limited to 30000 characters; split large changes across '
+        'focused calls. Use repository-relative paths. On patch_rejected, '
+        'inspect only the smallest relevant current range and retry once with '
+        'its exact content. Use write_file only to create a new small file.'
     )
     input_model = ApplyPatchInput
     effect = 'workspace_write'
@@ -442,7 +440,8 @@ def split_update_hunks(
             if current is not None:
                 if not current:
                     raise _EnvelopeError(
-                        f'Empty update hunk for {operation.path!r}.'
+                        f'Empty update hunk for {operation.path!r}.',
+                        code='patch_empty_hunk',
                     )
                 hunks.append(tuple(current))
             current = []
@@ -455,11 +454,15 @@ def split_update_hunks(
         current.append(line)
     if current is not None:
         if not current:
-            raise _EnvelopeError(f'Empty update hunk for {operation.path!r}.')
+            raise _EnvelopeError(
+                f'Empty update hunk for {operation.path!r}.',
+                code='patch_empty_hunk',
+            )
         hunks.append(tuple(current))
     if not hunks:
         raise _EnvelopeError(
-            f'Update File section for {operation.path!r} has no hunks.'
+            f'Update File section for {operation.path!r} has no hunks.',
+            code='patch_missing_hunk',
         )
     return tuple(hunks)
 

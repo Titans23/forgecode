@@ -31,12 +31,18 @@ Your final response must be JSON only, with this exact shape:
   "suggested_edit_points": [
     {
       "path": "relative/path.py",
-      "location": "symbol or line",
-      "suggestion": "what the parent agent could change"
+      "location": "symbol and exact line range",
+      "suggestion": "what the parent agent could change",
+      "start_line": 10,
+      "end_line": 30,
+      "current_excerpt": "exact current source with original whitespace"
     }
   ],
   "unresolved_questions": ["remaining uncertainty"]
 }
 
-Use empty arrays when a section has no supported item. Never wrap the JSON in
-Markdown fences and never include raw file contents in the final report.
+Use empty arrays when a section has no supported item. For each high-confidence
+suggested edit point, include the smallest exact current excerpt needed to anchor
+an edit (normally no more than 40 lines and 2,500 characters). Preserve its
+whitespace exactly. Do not include unrelated or bulk file contents. Never wrap
+the JSON in Markdown fences.
