@@ -115,6 +115,7 @@ class Conversation:
         hook_manager: HookManager | None = None,
         permission_manager: PermissionManager | None = None,
         mcp_manager: MCPClientManager | None = None,
+        include_task_tools: bool = True,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
@@ -198,7 +199,7 @@ class Conversation:
                 session_journal,
             )
         self.working_state = WorkingState()
-        if registry is not None:
+        if registry is not None and include_task_tools:
             for task_tool in create_task_tools(
                 resolved_context_root,
                 self.task_manager,

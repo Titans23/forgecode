@@ -1,4 +1,4 @@
-'''Read-only Git status and diff tools.'''
+'''Read-only Git repository tools.'''
 
 from __future__ import annotations
 
@@ -58,6 +58,61 @@ class GitStatusTool(Tool[GitStatusInput]):
         return ToolResult.ok(
             'Read Git working tree status.',
             content=content,
+            metadata=metadata,
+        )
+
+
+class GitLogInput(ToolInput):
+    max_count: int = Field(default=10, ge=1, le=50)
+    path: str | None = Field(default=None, min_length=1)
+
+
+class GitLogTool(Tool[GitLogInput]):
+    name = 'git_log'
+    description = (
+        'Show a concise recent commit history, optionally limited to one '
+        'repository file. Use this only when history is relevant to the '
+        'investigation.'
+    )
+    input_model = GitLogInput
+
+    async def execute(self, arguments: GitLogInput) -> ToolResult:
+        command = [
+            'git',
+            'log',
+            f'--max-count={arguments.max_count}',
+            '--date=short',
+            '--pretty=format:%h%x09%ad%x09%s',
+        ]
+        shown_path: str | None = None
+        if arguments.path is not None:
+            resolved = resolve_repository_path(
+                self.root,
+                arguments.path,
+                must_exist=False,
+            )
+            shown_path = display_path(self.root, resolved)
+            command.extend(['--', shown_path])
+        result = await run_process(
+            command,
+            cwd=self.root,
+            timeout_seconds=30,
+        )
+        metadata = {
+            **process_metadata(result),
+            'path': shown_path,
+            'max_count': arguments.max_count,
+        }
+        if result.exit_code != 0:
+            return ToolResult.fail(
+                'git_log_failed',
+                f'git log exited with code {result.exit_code}.',
+                content=render_process_output(result),
+                metadata=metadata,
+            )
+        return ToolResult.ok(
+            'Read recent Git history.',
+            content=result.stdout.rstrip() or 'No matching commits.',
             metadata=metadata,
         )
 

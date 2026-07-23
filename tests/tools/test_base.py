@@ -27,6 +27,7 @@ def test_default_registry_exposes_all_tool_schemas(tmp_path: Path) -> None:
         'verify',
         'git_status',
         'git_diff',
+        'explore_repository',
         'finish_task',
     )
     assert [definition['name'] for definition in registry.definitions] == list(

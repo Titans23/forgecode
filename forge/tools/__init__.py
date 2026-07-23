@@ -11,7 +11,7 @@ from forge.tools.filesystem import (
     WriteFileTool,
 )
 from forge.tools.finish import FinishTaskTool
-from forge.tools.git import GitDiffTool, GitStatusTool
+from forge.tools.git import GitDiffTool, GitLogTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
 from forge.tools.search import FindFilesTool, GrepTool
 from forge.tools.shell import RunCommandTool
@@ -21,6 +21,9 @@ from forge.runtime.workspace import WorkspaceTracker
 
 def create_default_registry(root: Path) -> ToolRegistry:
     '''Create built-in tools sharing one task-local workspace tracker.'''
+    # Delayed import prevents runtime.state -> forge.tools package cycles.
+    from forge.subagents.explore import ExploreRepositoryTool
+
     tracker = WorkspaceTracker(root)
     return ToolRegistry(
         [
@@ -36,6 +39,7 @@ def create_default_registry(root: Path) -> ToolRegistry:
             VerifyTool(root, tracker),
             GitStatusTool(root),
             GitDiffTool(root),
+            ExploreRepositoryTool(root),
             FinishTaskTool(root),
         ],
         workspace_tracker=tracker,
@@ -47,6 +51,7 @@ __all__ = [
     'FindFilesTool',
     'FinishTaskTool',
     'GitDiffTool',
+    'GitLogTool',
     'GitStatusTool',
     'GrepTool',
     'ListDirectoryTool',

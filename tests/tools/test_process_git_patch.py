@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from forge.tools.base import ToolResult
-from forge.tools.git import GitDiffTool, GitStatusTool
+from forge.tools.git import GitDiffTool, GitLogTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
 from forge.tools.shell import RunCommandTool, run_process
 from forge.tools.verify import VerifyTool
@@ -272,6 +272,21 @@ def test_verify_failure_is_structured(tmp_path: Path) -> None:
     assert result.error is not None
     assert result.error.code == 'verification_failed'
     assert result.metadata['exit_code'] == 3
+
+
+def test_git_log_returns_bounded_history_and_supports_path(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+
+    result = run(GitLogTool(tmp_path).run(
+        {'max_count': 1, 'path': 'sample.txt'}
+    ))
+
+    assert result.success is True
+    assert 'baseline' in result.content
+    assert result.metadata['max_count'] == 1
+    assert result.metadata['path'] == 'sample.txt'
 
 
 def test_git_status_and_diff_return_real_working_tree_state(
