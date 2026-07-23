@@ -23,6 +23,7 @@ from rich.table import Table
 from rich.text import Text
 
 from forge import __version__
+from forge.permissions.policy import ApprovalResponse, PermissionRequest
 from forge.runtime.state import TokenUsage, ToolCall, TurnResult
 from forge.context.manager import ContextStats
 from forge.context.manager import CompactionReport
@@ -54,6 +55,12 @@ SLASH_COMMANDS = (
     SlashCommandSpec('/rename ', '/rename name', '重命名当前会话'),
     SlashCommandSpec('/branch ', '/branch [name]', '从当前上下文创建会话分支'),
     SlashCommandSpec('/clear', '/clear', '保存当前会话并开始空白会话'),
+    SlashCommandSpec(
+        '/permission ',
+        '/permission [plan|supervised|auto]',
+        '查看或切换权限模式',
+    ),
+    SlashCommandSpec('/undo', '/undo', '撤销最近一次 Agent 代码修改'),
     SlashCommandSpec('/checkpoints', '/checkpoints', '列出文件 Checkpoint'),
     SlashCommandSpec(
         '/rewind ',
@@ -263,6 +270,53 @@ class TerminalUI:
             )
         except KeyboardInterrupt:
             return None
+
+    def select_permission(
+        self,
+        request: PermissionRequest,
+    ) -> ApprovalResponse:
+        '''Ask for one explicit, scoped permission decision.'''
+        if not self.supports_session_picker:
+            return ApprovalResponse(
+                'deny',
+                'Interactive approval is unavailable.',
+            )
+        target = ', '.join(request.targets) or 'repository'
+        self.console.print(
+            Panel.fit(
+                f'[bold]{escape(request.tool_name)}[/bold]\n'
+                f'capability: {escape(request.capability)}\n'
+                f'target: {escape(target)}\n'
+                f'risk: {escape(request.risk)}\n'
+                f'{escape(request.preview)}',
+                title='Permission required',
+                border_style='yellow',
+            )
+        )
+        values = [
+            ('allow_once', '允许一次'),
+            ('allow_session', '本会话允许'),
+            ('allow_project', '当前项目允许'),
+            ('deny', '拒绝'),
+        ]
+        bindings = KeyBindings()
+
+        @bindings.add('escape')
+        def cancel(event: Any) -> None:
+            event.app.exit(result='deny')
+
+        try:
+            selected = choice(
+                message='选择权限操作',
+                options=values,
+                default='deny',
+                show_frame=False,
+                key_bindings=bindings,
+                bottom_toolbar='↑/↓ 选择  Enter 确认  Esc 拒绝',
+            )
+        except KeyboardInterrupt:
+            selected = 'deny'
+        return ApprovalResponse(selected or 'deny')
 
     def show_welcome(self, model: str) -> None:
         '''Show a compact session header inspired by modern coding agents.'''

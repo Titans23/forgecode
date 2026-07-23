@@ -9,7 +9,7 @@ import sys
 from forge.tools.base import ToolResult
 from forge.tools.git import GitDiffTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
-from forge.tools.shell import RunCommandTool
+from forge.tools.shell import RunCommandTool, run_process
 from forge.tools.verify import VerifyTool
 from forge.runtime.workspace import WorkspaceTracker
 
@@ -146,6 +146,38 @@ def test_run_command_rejects_destructive_git_commands(
         assert result.success is False
         assert result.error is not None
         assert result.error.code == 'destructive_git_command_denied'
+
+
+def test_run_process_sanitizes_credentials_and_bounds_output(
+    tmp_path: Path,
+    monkeypatch: object,
+) -> None:
+    monkeypatch.setenv('FORGE_TEST_API_KEY', 'secret')  # type: ignore[attr-defined]
+    environment_command = [
+        sys.executable,
+        '-c',
+        "import os; print(os.getenv('FORGE_TEST_API_KEY', 'missing'))",
+    ]
+    environment = asyncio.run(
+        run_process(
+            environment_command,
+            cwd=tmp_path,
+            timeout_seconds=10,
+        )
+    )
+    output = asyncio.run(
+        run_process(
+            [sys.executable, '-c', "print('x' * 1000)"],
+            cwd=tmp_path,
+            timeout_seconds=10,
+            max_output_bytes=100,
+        )
+    )
+
+    assert environment.stdout.strip() == 'missing'
+    assert output.stdout_truncated is True
+    assert len(output.stdout.encode('utf-8')) == 100
+    assert output.stdout_bytes > 100
 
 
 def test_run_command_stdin_cannot_bypass_write_policy(

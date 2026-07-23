@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import json
-import os
 from pathlib import Path
 import time
 from typing import Any
 
 from forge.hooks.models import HookEvent, HookSpec
+from forge.tools.shell import sanitized_process_environment
 
 
 MAX_HOOK_OUTPUT_BYTES = 1_000_000
@@ -59,7 +59,7 @@ async def run_hook_command(
         ensure_ascii=False,
         default=str,
     ).encode('utf-8')
-    environment = os.environ.copy()
+    environment = sanitized_process_environment()
     environment.update(
         {
             'FORGE_HOOK_EVENT': event.name,

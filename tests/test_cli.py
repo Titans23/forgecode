@@ -145,6 +145,17 @@ class FakeConversation:
         self.session_actions.append(('clear', None))
         return 'Cleared conversation.'
 
+    def permission_status(self) -> str:
+        return 'Mode: auto'
+
+    def permission_set_mode(self, mode: str) -> str:
+        self.session_actions.append(('mode', mode))
+        return f'Permission mode set to {mode}.'
+
+    def checkpoint_undo(self) -> str:
+        self.session_actions.append(('undo', None))
+        return 'Rewound code.'
+
     def checkpoint_history(self) -> str:
         return '- checkpoint-test'
 
@@ -400,6 +411,9 @@ def test_session_commands_do_not_call_model(
             '/history\n'
             '/rename feature-work\n'
             '/branch experiment\n'
+            '/permission\n'
+            '/permission supervised\n'
+            '/undo\n'
             '/checkpoints\n'
             '/rewind checkpoint-test conversation\n'
             '/clear\n'
@@ -416,6 +430,8 @@ def test_session_commands_do_not_call_model(
     assert conversation.session_actions == [
         ('rename', 'feature-work'),
         ('branch', 'experiment'),
+        ('mode', 'supervised'),
+        ('undo', None),
         ('rewind', ('checkpoint-test', 'conversation')),
         ('clear', None),
         ('resume', 'session-old'),

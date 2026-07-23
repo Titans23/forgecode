@@ -97,6 +97,14 @@ def test_normal_prompt_does_not_offer_slash_commands() -> None:
     assert completions_for('fix this bug') == []
 
 
+def test_permission_is_the_only_permission_mode_slash_command() -> None:
+    assert [item.text for item in completions_for('/permission')] == [
+        '/permission '
+    ]
+    assert completions_for('/mode') == []
+    assert completions_for('/permissions') == []
+
+
 def test_resume_completion_filters_dynamic_sessions() -> None:
     completer = SlashCommandCompleter()
     completer.set_session_options(

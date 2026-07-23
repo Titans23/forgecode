@@ -28,6 +28,21 @@ class ProcessResult:
     stderr: str
     duration_seconds: float
     timed_out: bool = False
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
+    stdout_bytes: int = 0
+    stderr_bytes: int = 0
+
+
+MAX_PROCESS_OUTPUT_BYTES = 1_000_000
+SENSITIVE_ENV_MARKERS = (
+    'API_KEY',
+    'TOKEN',
+    'SECRET',
+    'PASSWORD',
+    'CREDENTIAL',
+    'PRIVATE_KEY',
+)
 
 
 async def run_process(
@@ -37,51 +52,116 @@ async def run_process(
     timeout_seconds: float,
     input_text: str | None = None,
     shell: bool = False,
+    max_output_bytes: int = MAX_PROCESS_OUTPUT_BYTES,
 ) -> ProcessResult:
-    '''Run one subprocess and capture deterministic result fields.'''
+    '''Run one sanitized subprocess with bounded output and tree termination.'''
     started = perf_counter()
     stdin = asyncio.subprocess.PIPE if input_text is not None else None
+    process_options: dict[str, object] = {
+        'cwd': cwd,
+        'stdin': stdin,
+        'stdout': asyncio.subprocess.PIPE,
+        'stderr': asyncio.subprocess.PIPE,
+        'env': sanitized_process_environment(),
+    }
+    if os.name == 'nt':
+        import subprocess
+
+        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        process_options['start_new_session'] = True
     if shell:
         if not isinstance(command, str):
             raise TypeError('Shell commands must be strings.')
-        process = await asyncio.create_subprocess_shell(
-            command,
-            cwd=cwd,
-            stdin=stdin,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        process = await asyncio.create_subprocess_shell(command, **process_options)
     else:
         if isinstance(command, str):
             raise TypeError('Executable commands must be argument lists.')
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=cwd,
-            stdin=stdin,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        process = await asyncio.create_subprocess_exec(*command, **process_options)
 
+    stdout_task = asyncio.create_task(
+        _read_bounded(process.stdout, max_output_bytes)
+    )
+    stderr_task = asyncio.create_task(
+        _read_bounded(process.stderr, max_output_bytes)
+    )
+    if input_text is not None and process.stdin is not None:
+        process.stdin.write(input_text.encode('utf-8'))
+        await process.stdin.drain()
+        process.stdin.close()
     try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            process.communicate(
-                input_text.encode('utf-8') if input_text is not None else None
-            ),
-            timeout=timeout_seconds,
-        )
+        await asyncio.wait_for(process.wait(), timeout=timeout_seconds)
         timed_out = False
     except TimeoutError:
-        process.kill()
-        stdout_bytes, stderr_bytes = await process.communicate()
+        await _terminate_process_tree(process)
+        await process.wait()
         timed_out = True
-
+    stdout_bytes, stdout_total, stdout_truncated = await stdout_task
+    stderr_bytes, stderr_total, stderr_truncated = await stderr_task
     return ProcessResult(
         exit_code=process.returncode if process.returncode is not None else -1,
         stdout=stdout_bytes.decode('utf-8', errors='replace'),
         stderr=stderr_bytes.decode('utf-8', errors='replace'),
         duration_seconds=perf_counter() - started,
         timed_out=timed_out,
+        stdout_truncated=stdout_truncated,
+        stderr_truncated=stderr_truncated,
+        stdout_bytes=stdout_total,
+        stderr_bytes=stderr_total,
     )
+
+
+async def _read_bounded(
+    stream: asyncio.StreamReader | None,
+    maximum: int,
+) -> tuple[bytes, int, bool]:
+    if stream is None:
+        return b'', 0, False
+    kept = bytearray()
+    total = 0
+    while True:
+        chunk = await stream.read(65_536)
+        if not chunk:
+            break
+        total += len(chunk)
+        remaining = maximum - len(kept)
+        if remaining > 0:
+            kept.extend(chunk[:remaining])
+    return bytes(kept), total, total > len(kept)
+
+
+async def _terminate_process_tree(process: asyncio.subprocess.Process) -> None:
+    if process.returncode is not None:
+        return
+    if os.name == 'nt':
+        killer = await asyncio.create_subprocess_exec(
+            'taskkill',
+            '/PID',
+            str(process.pid),
+            '/T',
+            '/F',
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await killer.wait()
+        if process.returncode is None:
+            process.kill()
+        return
+    import signal
+
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+def sanitized_process_environment() -> dict[str, str]:
+    '''Remove common credentials before launching repository processes.'''
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if not any(marker in key.upper() for marker in SENSITIVE_ENV_MARKERS)
+    }
 
 
 def process_metadata(result: ProcessResult) -> dict[str, object]:
@@ -91,15 +171,29 @@ def process_metadata(result: ProcessResult) -> dict[str, object]:
         'stderr': result.stderr,
         'duration_seconds': result.duration_seconds,
         'timed_out': result.timed_out,
+        'stdout_truncated': result.stdout_truncated,
+        'stderr_truncated': result.stderr_truncated,
+        'stdout_bytes': result.stdout_bytes,
+        'stderr_bytes': result.stderr_bytes,
     }
 
 
 def render_process_output(result: ProcessResult) -> str:
     sections: list[str] = []
     if result.stdout:
-        sections.append(f'stdout:\n{result.stdout.rstrip()}')
+        suffix = (
+            f'\n[stdout truncated; {result.stdout_bytes} bytes total]'
+            if result.stdout_truncated
+            else ''
+        )
+        sections.append(f'stdout:\n{result.stdout.rstrip()}{suffix}')
     if result.stderr:
-        sections.append(f'stderr:\n{result.stderr.rstrip()}')
+        suffix = (
+            f'\n[stderr truncated; {result.stderr_bytes} bytes total]'
+            if result.stderr_truncated
+            else ''
+        )
+        sections.append(f'stderr:\n{result.stderr.rstrip()}{suffix}')
     return '\n\n'.join(sections)
 
 

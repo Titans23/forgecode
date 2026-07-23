@@ -17,6 +17,8 @@ from forge.context.manager import (
 )
 from forge.context.working import WorkingState
 from forge.hooks import HookEvent, HookManager, HookOutcome
+from forge.permissions.policy import PermissionManager, PermissionMode
+from forge.permissions.risk import classify_tool_call
 from forge.runtime.intent import infer_change_required
 from forge.runtime.model_client import (
     AnthropicModelClient,
@@ -110,6 +112,7 @@ class Conversation:
         checkpoint_store: CheckpointStore | None = None,
         session_store: SessionStore | None = None,
         hook_manager: HookManager | None = None,
+        permission_manager: PermissionManager | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
@@ -182,6 +185,10 @@ class Conversation:
         )
         self.task_manager = TaskManager(resolved_context_root)
         self.task_manager.restore(active_task)
+        self.permission_manager = permission_manager or PermissionManager(
+            resolved_context_root,
+            journal=session_journal,
+        )
         self.working_state = WorkingState()
         if registry is not None:
             for task_tool in create_task_tools(
@@ -360,6 +367,7 @@ class Conversation:
                 )
             else:
                 request_tools = self.tools
+            request_tools = self._permission_filtered_tools(request_tools)
             request_tool_names = {
                 str(definition.get('name', ''))
                 for definition in request_tools or ()
@@ -1020,6 +1028,7 @@ class Conversation:
             ] = []
             accepted_finish: ToolResult | None = None
             terminal_finish_reasons: tuple[str, ...] = ()
+            terminal_permission_denial: ToolResult | None = None
             for tool_position, tool_call in enumerate(tool_calls):
                 finish_rejection: tuple[str, ...] = ()
                 pre_tool = await self._emit_hook(
@@ -1075,6 +1084,27 @@ class Conversation:
                     if not before_edit.allowed:
                         hook_rejection = hook_denied_result(
                             'BeforeFileEdit', before_edit.reason
+                        )
+                permission_rejection: ToolResult | None = None
+                if hook_rejection is None:
+                    permission_request = classify_tool_call(
+                        tool_call,
+                        tool_effect,
+                    )
+                    permission_decision = await self.permission_manager.authorize(
+                        permission_request
+                    )
+                    if permission_decision.action == 'deny':
+                        permission_rejection = ToolResult.fail(
+                            'permission_denied',
+                            permission_decision.reason,
+                            details={
+                                'tool': tool_call.name,
+                                'capability': permission_request.capability,
+                                'risk': permission_request.risk,
+                                'targets': list(permission_request.targets),
+                                'source': permission_decision.source,
+                            },
                         )
                 if tool_effect == 'workspace_write':
                     mutation_attempted = True
@@ -1137,6 +1167,8 @@ class Conversation:
                 )
                 if hook_rejection is not None:
                     result = hook_rejection
+                elif permission_rejection is not None:
+                    result = permission_rejection
                 elif finish_mixed:
                     result = ToolResult.fail(
                         'finish_must_be_alone',
@@ -1325,6 +1357,12 @@ class Conversation:
                     tool_call=tool_call,
                     result=result,
                 )
+                if (
+                    result.error is not None
+                    and result.error.code == 'permission_denied'
+                ):
+                    terminal_permission_denial = result
+                    break
                 if finish_rejection:
                     yield CompletionBlocked(
                         attempt=(
@@ -1396,12 +1434,49 @@ class Conversation:
                         )
                 if tool_call.name == 'task_update' and result.success:
                     task_progressed = True
+            if terminal_permission_denial is not None:
+                for skipped_call in tool_calls[len(tool_results):]:
+                    tool_results.append(
+                        (
+                            skipped_call,
+                            ToolResult.fail(
+                                'not_executed_after_permission_denial',
+                                'Not executed because an earlier tool call was denied.',
+                            ),
+                        )
+                    )
             request_messages.append(build_tool_result_message(tool_results))
             if self.session_journal is not None:
                 self.session_journal.record_tool_result_message(
                     request_messages[-1],
                     self.task_manager.active,
                 )
+
+            if terminal_permission_denial is not None:
+                reason = self._permission_denial_message(
+                    terminal_permission_denial
+                )
+                reasons = (reason,)
+                self.task_manager.block(reasons)
+                self.messages[:] = request_messages
+                yield TurnCompleted(
+                    result=TurnResult(
+                        text=reason,
+                        usage=completed_usage,
+                        last_request_usage=request_usage,
+                        model_calls=iteration,
+                        tool_calls=tuple(all_tool_calls),
+                        status='blocked',
+                        changed_paths=(
+                            self.workspace_tracker.changed_paths
+                            if self.workspace_tracker is not None
+                            else ()
+                        ),
+                        verification=latest_verification,
+                        completion_reasons=reasons,
+                    )
+                )
+                return
 
             if terminal_finish_reasons:
                 self.task_manager.stuck(terminal_finish_reasons)
@@ -1504,6 +1579,10 @@ class Conversation:
                     position > last_workspace_write_change_position
                     and not changed
                     and not is_tool_protocol_failure(result)
+                    and (
+                        result.error is None
+                        or result.error.code != 'permission_denied'
+                    )
                 )
             ]
             if batch_reverted_to_baseline and workspace_write_results:
@@ -1970,6 +2049,7 @@ class Conversation:
         prompt = self._system_prompt_with_task(
             include_tool_availability=not finalization_recovery,
         )
+        prompt += '\n\n' + self._permission_system_context()
         if self._last_repository_context:
             prompt += '\n\n' + self._last_repository_context
         if change_required:
@@ -2020,6 +2100,60 @@ class Conversation:
                 'paused repository tools.'
             )
         return prompt
+
+    def _permission_filtered_tools(
+        self,
+        tools: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]] | None:
+        '''Hide effectful tools from model requests while in Plan mode.'''
+        if (
+            tools is None
+            or self.permission_manager.mode != 'plan'
+            or self.registry is None
+        ):
+            return tools
+        return [
+            definition
+            for definition in tools
+            if self.registry.effect(str(definition.get('name', '')))
+            == 'read_only'
+        ]
+
+    def _permission_system_context(self) -> str:
+        mode = self.permission_manager.mode
+        if mode == 'plan':
+            return (
+                '[ForgeCode Permission Mode]\n'
+                'Current mode: plan. You may inspect and analyze the '
+                'repository, but you must not request file-writing, patching, '
+                'command-execution, verification, deletion, installation, or '
+                'other effectful tools. Those tools are intentionally absent. '
+                'When the user asks for a change, provide the plan or analysis '
+                'they requested and clearly tell them to switch with '
+                '`/permission supervised` or `/permission auto` before asking '
+                'you to implement it.'
+            )
+        return (
+            '[ForgeCode Permission Mode]\n'
+            f'Current mode: {mode}. Tool calls remain subject to the active '
+            'permission rules and approval policy.'
+        )
+
+    def _permission_denial_message(self, result: ToolResult) -> str:
+        details = result.error.details if result.error is not None else {}
+        source = str(details.get('source', 'permission'))
+        if source == 'plan' or self.permission_manager.mode == 'plan':
+            return (
+                '当前处于 Plan 模式，ForgeCode 已阻止写入或命令执行，并停止'
+                '本轮任务。请使用 `/permission supervised`（逐次审批）或 '
+                '`/permission auto`（自动执行低风险操作）切换权限后再继续。'
+            )
+        reason = (
+            result.error.message
+            if result.error is not None
+            else 'Permission denied.'
+        )
+        return f'操作未获授权，本轮已停止：{reason}'
 
     async def _can_finalize_after_stagnation(
         self,
@@ -2237,6 +2371,21 @@ class Conversation:
         self._last_task_context = self.task_manager.system_suffix()
         return f'Resumed {task.id}: {task.goal}'
 
+    def permission_status(self) -> str:
+        return self.permission_manager.describe()
+
+    def permission_set_mode(self, mode: str) -> str:
+        resolved = self.permission_manager.set_mode(mode)
+        return f'Permission mode set to {resolved}.'
+
+    def checkpoint_undo(self) -> str:
+        if self.checkpoint_store is None:
+            raise ValueError('File checkpoints are unavailable.')
+        checkpoint_id = self.checkpoint_store.latest_restorable()
+        if checkpoint_id is None:
+            raise ValueError('No restorable file checkpoints.')
+        return self.checkpoint_rewind(checkpoint_id, mode='code')
+
     def checkpoint_history(self) -> str:
         if self.checkpoint_store is None:
             return 'File checkpoints are unavailable.'
@@ -2374,6 +2523,7 @@ class Conversation:
         if state.info.model and hasattr(self.client, 'model'):
             self.client.model = state.info.model
         self.session_journal = journal
+        self.permission_manager.bind_session(journal)
         self.checkpoint_store = CheckpointStore.for_session(
             self.task_manager.root,
             journal.path,
@@ -2402,6 +2552,7 @@ class Conversation:
         )
         original_id = self.session_journal.session_id
         self.session_journal = journal
+        self.permission_manager.bind_session(journal)
         self.checkpoint_store = CheckpointStore.for_session(
             self.task_manager.root,
             journal.path,
@@ -2421,6 +2572,7 @@ class Conversation:
         model = str(getattr(self.client, 'model', ''))
         journal = self.session_store.create(model=model)
         self.session_journal = journal
+        self.permission_manager.bind_session(journal)
         self.checkpoint_store = CheckpointStore.for_session(
             self.task_manager.root,
             journal.path,

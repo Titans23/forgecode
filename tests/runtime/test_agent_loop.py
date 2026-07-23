@@ -11,6 +11,8 @@ from pydantic import Field
 from unittest.mock import AsyncMock
 
 from forge.context.compactor import CompactionConfig
+from forge.permissions.approval import StaticApprovalHandler
+from forge.permissions.policy import PermissionManager, PermissionRequest
 from forge.runtime.agent_loop import (
     AgentLoopLimitError,
     Conversation,
@@ -133,6 +135,12 @@ class NoOpWriteTool(RecordingReadFileTool):
     effect = 'workspace_write'
 
 
+class NoOpProcessTool(RecordingReadFileTool):
+    name = 'run_process'
+    description = 'Pretend to execute a process.'
+    effect = 'process'
+
+
 class TinyWriteInput(ToolInput):
     path: str = Field(min_length=1)
     content: str = Field(max_length=3)
@@ -211,6 +219,119 @@ def tool_response(
         )
     )
     return events
+
+
+def test_permission_modes_and_hard_denies(tmp_path: Path) -> None:
+    write = PermissionRequest(
+        'write_file',
+        'file.write',
+        'low',
+        ('app.py',),
+    )
+    read = PermissionRequest(
+        'read_file',
+        'file.read',
+        'low',
+        ('app.py',),
+    )
+    secret = PermissionRequest(
+        'read_file',
+        'file.read',
+        'critical',
+        ('.env',),
+        'Credential files are protected.',
+        hard_deny=True,
+    )
+    manager = PermissionManager(tmp_path, mode='plan')
+
+    assert asyncio.run(manager.authorize(read)).action == 'allow'
+    assert asyncio.run(manager.authorize(write)).action == 'deny'
+    assert asyncio.run(manager.authorize(secret)).source == 'hard_deny'
+
+
+def test_supervised_permission_can_be_allowed_for_session(
+    tmp_path: Path,
+) -> None:
+    manager = PermissionManager(
+        tmp_path,
+        mode='supervised',
+        approval_handler=StaticApprovalHandler('allow_session'),
+        user_path=tmp_path / 'user-permissions.json',
+    )
+    request = PermissionRequest(
+        'run_command',
+        'process.exec',
+        'low',
+        ('.',),
+    )
+
+    first = asyncio.run(manager.authorize(request))
+    manager.approval_handler = None
+    second = asyncio.run(manager.authorize(request))
+
+    assert first.action == 'allow'
+    assert second.action == 'allow'
+    assert second.source == 'session'
+
+
+def test_plan_mode_hides_effectful_tools_and_explains_mode(
+    tmp_path: Path,
+) -> None:
+    read_tool = RecordingReadFileTool(tmp_path)
+    write_tool = NoOpWriteTool(tmp_path)
+    process_tool = NoOpProcessTool(tmp_path)
+    registry = ToolRegistry([read_tool, write_tool, process_tool])
+    client = FakeModelClient(streamed_response('只读分析'))
+    conversation = Conversation(
+        client=client,
+        registry=registry,
+        permission_manager=PermissionManager(tmp_path, mode='plan'),
+    )
+
+    events = collect_turn(conversation, '帮我修改文件')
+
+    names = {item['name'] for item in client.calls[0]['tools']}
+    assert 'read_file' in names
+    assert 'no_op_write' not in names
+    assert 'run_process' not in names
+    assert 'Current mode: plan' in client.calls[0]['system']
+    assert '/permission supervised' in client.calls[0]['system']
+    assert isinstance(events[-1], TurnCompleted)
+
+
+def test_permission_denial_stops_turn_without_model_recovery(
+    tmp_path: Path,
+) -> None:
+    write_tool = NoOpWriteTool(tmp_path)
+    registry = ToolRegistry([write_tool])
+    denied_call = ToolCall(
+        index=0,
+        id='call-denied',
+        name='no_op_write',
+        arguments={'path': 'app.py'},
+    )
+    client = FakeModelClient(
+        tool_response(denied_call),
+        streamed_response('不应执行第二次模型调用'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=registry,
+        permission_manager=PermissionManager(tmp_path, mode='plan'),
+    )
+
+    events = collect_turn(conversation, '修改 app.py')
+
+    completed = [
+        event for event in events if isinstance(event, ToolExecutionCompleted)
+    ]
+    assert len(client.calls) == 1
+    assert write_tool.calls == []
+    assert completed[0].result.error is not None
+    assert completed[0].result.error.code == 'permission_denied'
+    assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'blocked'
+    assert '/permission supervised' in events[-1].result.text
 
 
 def test_conversation_forwards_stream_and_returns_final_result() -> None:

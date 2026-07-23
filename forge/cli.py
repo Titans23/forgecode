@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
@@ -166,6 +166,18 @@ def run_interactive_chat(
             None,
         )
     resolved_terminal = terminal if terminal is not None else TerminalUI()
+
+    async def approve_permission(request: Any):
+        return resolved_terminal.select_permission(request)
+
+    permission_manager = getattr(
+        resolved_session,
+        'permission_manager',
+        None,
+    )
+    if permission_manager is not None:
+        permission_manager.approval_handler = approve_permission
+        permission_manager.bind_session(resolved_journal)
     resolved_recorder = (
         recorder
         if recorder is not None
@@ -327,6 +339,31 @@ def run_interactive_chat(
                 )
                 resolved_terminal.show_notice('Session', notice)
             except (OSError, ValueError, SessionError) as error:
+                resolved_terminal.show_error(error)
+            continue
+
+        if prompt.strip() == '/permission':
+            resolved_terminal.show_notice(
+                'Permissions',
+                resolved_session.permission_status(),
+            )
+            continue
+
+        if prompt.startswith('/permission '):
+            try:
+                notice = resolved_session.permission_set_mode(
+                    prompt[len('/permission '):].strip()
+                )
+                resolved_terminal.show_notice('Permissions', notice)
+            except ValueError as error:
+                resolved_terminal.show_error(error)
+            continue
+
+        if prompt.strip() == '/undo':
+            try:
+                notice = resolved_session.checkpoint_undo()
+                resolved_terminal.show_notice('Checkpoint', notice)
+            except (OSError, ValueError, SessionError, CheckpointError) as error:
                 resolved_terminal.show_error(error)
             continue
 

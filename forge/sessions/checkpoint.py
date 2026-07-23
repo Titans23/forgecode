@@ -163,6 +163,20 @@ class CheckpointStore:
             )
         )
 
+    def latest_restorable(self) -> str | None:
+        '''Return the newest checkpoint containing at least one file snapshot.'''
+        for checkpoint_id in self.list():
+            try:
+                manifest = self._load_manifest(checkpoint_id)
+            except CheckpointError:
+                continue
+            if any(
+                isinstance(entry, dict) and not entry.get('skipped')
+                for entry in manifest['files'].values()
+            ):
+                return checkpoint_id
+        return None
+
     def prune(
         self,
         *,
