@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
-from forge.runtime.agent_loop import Conversation
+from forge.runtime.agent_loop import Conversation, completion_review_paths
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.state import (
     CompletionBlocked,
@@ -45,6 +45,37 @@ def initialize_git_repository(root: Path) -> None:
         cwd=root,
         check=True,
     )
+
+
+def test_completion_review_requires_final_diff_page() -> None:
+    call = ToolCall(0, 'paged-diff', 'git_diff', {'path': 'sample.txt'})
+    partial = ToolResult.ok(
+        'Read partial Git diff page for sample.txt.',
+        content='diff page',
+        metadata={
+            'path': 'sample.txt',
+            'paged_diff': True,
+            'diff_complete': False,
+        },
+    )
+    complete = ToolResult.ok(
+        'Read final Git diff page for sample.txt.',
+        content='final diff page',
+        metadata={
+            'path': 'sample.txt',
+            'paged_diff': True,
+            'diff_complete': True,
+        },
+    )
+
+    assert completion_review_paths(
+        [(call, partial)],
+        ('sample.txt',),
+    ) == set()
+    assert completion_review_paths(
+        [(call, complete)],
+        ('sample.txt',),
+    ) == {'sample.txt'}
 
 
 class FakeModelClient:
@@ -830,11 +861,80 @@ def test_action_recovery_failed_edit_transfers_to_mutation_recovery(
     )
     assert 'verify' not in mutation_tool_names
     assert 'run_command' not in mutation_tool_names
+    assert 'write_file' not in mutation_tool_names
+    assert 'write_file_chunk' not in mutation_tool_names
     assert 'finish_task' not in mutation_tool_names
     assert 'verify' in {
         str(definition['name'])
         for definition in client.calls[3]['tools'] or ()
     }
+
+
+def test_process_workspace_change_does_not_clear_failed_edit_recovery(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    registry = create_default_registry(tmp_path)
+    registry.register(ProcessModifyTool(tmp_path))
+    failed_edit = ToolCall(
+        0,
+        'process-after-failed-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'missing\n',
+            'new_text': 'new\n',
+        },
+    )
+    process_change = ToolCall(1, 'process-change', 'process_modify', {})
+    valid_edit = ToolCall(
+        0,
+        'focused-recovery-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'temporary\n',
+            'new_text': 'new\n',
+        },
+    )
+    verify = ToolCall(
+        0,
+        'process-recovery-verify',
+        'verify',
+        {'command': 'git diff --check'},
+    )
+    client = FakeModelClient(
+        response_with_tools(failed_edit, process_change),
+        response_with_tool(valid_edit),
+        response_with_tool(verify),
+        finish_response(
+            'process-recovery-finish',
+            task_kind='change',
+            summary='Recovered with a focused edit and verified it.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=registry,
+        task_policy=TaskPolicy(require_verification=True),
+    )
+
+    events = collect_turn(conversation, 'Fix and verify sample.txt')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert '[Failed Mutation Recovery]' in (
+        client.calls[1]['system'] or ''
+    )
+    recovery_names = {
+        str(definition['name'])
+        for definition in client.calls[1]['tools'] or ()
+    }
+    assert 'replace_text' in recovery_names
+    assert 'write_file' not in recovery_names
+    assert 'run_command' not in recovery_names
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
 
 def test_process_modify_then_revert_does_not_reset_pre_mutation_budget(

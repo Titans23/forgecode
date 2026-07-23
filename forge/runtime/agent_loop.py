@@ -16,6 +16,7 @@ from forge.context.manager import (
     ContextStats,
 )
 from forge.context.working import WorkingState
+from forge.hooks import HookEvent, HookManager, HookOutcome
 from forge.runtime.intent import infer_change_required
 from forge.runtime.model_client import (
     AnthropicModelClient,
@@ -102,12 +103,13 @@ class Conversation:
         mutation_recovery_limit: int = 5,
         pre_mutation_limit: int = 8,
         action_recovery_limit: int = 3,
-        max_turn_input_tokens: int | None = 500_000,
+        max_turn_input_tokens: int | None = None,
         initial_messages: list[dict[str, Any]] | None = None,
         active_task: ActiveTask | None = None,
         session_journal: SessionJournal | None = None,
         checkpoint_store: CheckpointStore | None = None,
         session_store: SessionStore | None = None,
+        hook_manager: HookManager | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
@@ -155,6 +157,9 @@ class Conversation:
         self.session_journal = session_journal
         self.checkpoint_store = checkpoint_store
         self.session_store = session_store
+        self.hook_manager = hook_manager
+        self._hooks_started = False
+        self._pending_hook_context: list[str] = []
         self.registry = registry
         self.max_iterations = max_iterations
         tracker = (
@@ -232,6 +237,8 @@ class Conversation:
         '''Run model-tool cycles until the model returns a final text answer.'''
         if not prompt.strip():
             raise ValueError('prompt must not be empty')
+
+        await self.session_start(source='stream')
 
         self.task_manager.begin_turn(prompt)
         self.working_state = WorkingState()
@@ -349,6 +356,7 @@ class Conversation:
                 request_tools = self._action_recovery_tools(
                     read_available=not mutation_recovery_read_used,
                     include_finish=False,
+                    focused_edits_only=True,
                 )
             else:
                 request_tools = self.tools
@@ -367,23 +375,93 @@ class Conversation:
                 action_recovery_calls=action_recovery_calls,
                 action_read_used=action_read_used,
             )
-            compaction = await self.context.compact_history(
+            context_window_tokens = getattr(
+                self.client, 'context_window', None
+            )
+            reserved_output_tokens = getattr(
+                self.client, 'max_tokens', 0
+            )
+            compaction_required = self.context.compaction_required(
                 request_messages,
-                self.client,
                 system_prompt=request_system_prompt,
                 repository_context=self._last_repository_context,
                 tools=request_tools,
-                context_window_tokens=getattr(
-                    self.client,
-                    'context_window',
-                    None,
-                ),
-                reserved_output_tokens=getattr(
-                    self.client,
-                    'max_tokens',
-                    0,
-                ),
+                context_window_tokens=context_window_tokens,
+                reserved_output_tokens=reserved_output_tokens,
             )
+            compaction_allowed = compaction_required
+            if compaction_required:
+                before_compact = await self._emit_hook(
+                    HookEvent(
+                        name='BeforeCompact',
+                        session_id=self._session_id(),
+                        payload={
+                            'automatic': True,
+                            'message_count': len(request_messages),
+                        },
+                    )
+                )
+                self._queue_hook_context(before_compact)
+                compaction_allowed = before_compact.allowed
+            pending_hook_context = tuple(self._pending_hook_context)
+            self._pending_hook_context.clear()
+            model_hook = await self._emit_hook(
+                HookEvent(
+                    name='BeforeModelCall',
+                    session_id=self._session_id(),
+                    payload={
+                        'iteration': iteration,
+                        'message_count': len(request_messages),
+                    },
+                )
+            )
+            if not model_hook.allowed:
+                reason = (
+                    'BeforeModelCall hook blocked the model request: '
+                    f'{model_hook.reason}'
+                )
+                self.task_manager.stuck((reason,))
+                self.messages[:] = request_messages
+                yield TurnCompleted(
+                    result=TurnResult(
+                        text=reason,
+                        usage=completed_usage,
+                        model_calls=iteration - 1,
+                        tool_calls=tuple(all_tool_calls),
+                        status='failed',
+                        changed_paths=(
+                            self.workspace_tracker.changed_paths
+                            if self.workspace_tracker is not None
+                            else ()
+                        ),
+                        verification=latest_verification,
+                        completion_reasons=(reason,),
+                    )
+                )
+                return
+            hook_context = (
+                *pending_hook_context,
+                *model_hook.additional_context,
+            )
+            if hook_context:
+                request_system_prompt = (
+                    '{}\n\n<forge_hook_context>\n{}'
+                    '\n</forge_hook_context>'
+                ).format(
+                    request_system_prompt,
+                    '\n\n'.join(hook_context),
+                )
+            compaction = None
+            if not compaction_required or compaction_allowed:
+                compaction = await self.context.compact_history(
+                    request_messages,
+                    self.client,
+                    system_prompt=request_system_prompt,
+                    repository_context=self._last_repository_context,
+                    tools=request_tools,
+                    context_window_tokens=context_window_tokens,
+                    reserved_output_tokens=reserved_output_tokens,
+                )
             if (
                 compaction is not None
                 and compaction.success
@@ -466,11 +544,25 @@ class Conversation:
                     and not reactive_compaction_attempted
                 ):
                     reactive_compaction_attempted = True
-                    report = await self.context.compact_history(
-                        request_messages,
-                        self.client,
-                        force=True,
+                    reactive_hook = await self._emit_hook(
+                        HookEvent(
+                            name='BeforeCompact',
+                            session_id=self._session_id(),
+                            payload={
+                                'automatic': True,
+                                'reactive': True,
+                                'message_count': len(request_messages),
+                            },
+                        )
                     )
+                    self._queue_hook_context(reactive_hook)
+                    report = None
+                    if reactive_hook.allowed:
+                        report = await self.context.compact_history(
+                            request_messages,
+                            self.client,
+                            force=True,
+                        )
                     if report is not None and report.success:
                         if self.session_journal is not None:
                             self.session_journal.record_context_compacted(
@@ -919,6 +1011,7 @@ class Conversation:
             all_tool_calls.extend(tool_calls)
             tool_results: list[tuple[ToolCall, ToolResult]] = []
             last_workspace_change_position = -1
+            last_workspace_write_change_position = -1
             task_progressed = False
             evidence_progressed = False
             required_change_rejected = False
@@ -929,7 +1022,60 @@ class Conversation:
             terminal_finish_reasons: tuple[str, ...] = ()
             for tool_position, tool_call in enumerate(tool_calls):
                 finish_rejection: tuple[str, ...] = ()
+                pre_tool = await self._emit_hook(
+                    HookEvent(
+                        name='PreToolUse',
+                        session_id=self._session_id(),
+                        tool_name=tool_call.name,
+                        tool_call_id=tool_call.id,
+                        arguments=tool_call.arguments,
+                        paths=mutation_target_paths(
+                            tool_call, maximum=None
+                        ),
+                    )
+                )
+                if pre_tool.arguments is not None:
+                    tool_call = ToolCall(
+                        index=tool_call.index,
+                        id=tool_call.id,
+                        name=tool_call.name,
+                        arguments=pre_tool.arguments,
+                    )
+                self._queue_hook_context(pre_tool)
                 tool_effect = self.registry.effect(tool_call.name)
+                hook_rejection: ToolResult | None = None
+                if not pre_tool.allowed:
+                    hook_rejection = hook_denied_result(
+                        'PreToolUse', pre_tool.reason
+                    )
+                if (
+                    tool_effect == 'workspace_write'
+                    and hook_rejection is None
+                ):
+                    before_edit = await self._emit_hook(
+                        HookEvent(
+                            name='BeforeFileEdit',
+                            session_id=self._session_id(),
+                            tool_name=tool_call.name,
+                            tool_call_id=tool_call.id,
+                            arguments=tool_call.arguments,
+                            paths=mutation_target_paths(
+                                tool_call, maximum=None
+                            ),
+                        )
+                    )
+                    if before_edit.arguments is not None:
+                        tool_call = ToolCall(
+                            index=tool_call.index,
+                            id=tool_call.id,
+                            name=tool_call.name,
+                            arguments=before_edit.arguments,
+                        )
+                    self._queue_hook_context(before_edit)
+                    if not before_edit.allowed:
+                        hook_rejection = hook_denied_result(
+                            'BeforeFileEdit', before_edit.reason
+                        )
                 if tool_effect == 'workspace_write':
                     mutation_attempted = True
                     change_required = True
@@ -989,7 +1135,9 @@ class Conversation:
                     revision,
                     signature,
                 )
-                if finish_mixed:
+                if hook_rejection is not None:
+                    result = hook_rejection
+                elif finish_mixed:
                     result = ToolResult.fail(
                         'finish_must_be_alone',
                         'finish_task must be the only tool call in its model '
@@ -1056,6 +1204,27 @@ class Conversation:
                             tool_call.name,
                             tool_call.arguments,
                         )
+                        if (
+                            tool_effect == 'workspace_write'
+                            and result.success
+                        ):
+                            after_edit = await self._emit_hook(
+                                HookEvent(
+                                    name='AfterFileEdit',
+                                    session_id=self._session_id(),
+                                    tool_name=tool_call.name,
+                                    tool_call_id=tool_call.id,
+                                    arguments=tool_call.arguments,
+                                    paths=mutation_target_paths(
+                                        tool_call, maximum=None
+                                    ),
+                                    payload={
+                                        'success': result.success,
+                                        'summary': result.summary,
+                                    },
+                                )
+                            )
+                            self._queue_hook_context(after_edit)
                         if checkpoint_paths:
                             self.checkpoint_store.record_after(
                                 checkpoint_id,
@@ -1120,6 +1289,28 @@ class Conversation:
                             terminal_finish_reasons = finish_reasons
                     else:
                         accepted_finish = result
+                post_tool = await self._emit_hook(
+                    HookEvent(
+                        name='PostToolUse',
+                        session_id=self._session_id(),
+                        tool_name=tool_call.name,
+                        tool_call_id=tool_call.id,
+                        arguments=tool_call.arguments,
+                        paths=mutation_target_paths(
+                            tool_call, maximum=None
+                        ),
+                        payload={
+                            'success': result.success,
+                            'summary': result.summary,
+                            'error_code': (
+                                result.error.code
+                                if result.error is not None
+                                else None
+                            ),
+                        },
+                    )
+                )
+                self._queue_hook_context(post_tool)
                 evidence_progressed = (
                     self.working_state.observe(
                         tool_call,
@@ -1149,6 +1340,8 @@ class Conversation:
                     if change is not None:
                         tool_changed_workspace = True
                         last_workspace_change_position = tool_position
+                        if tool_effect == 'workspace_write' and result.success:
+                            last_workspace_write_change_position = tool_position
                         self.working_state.advance_revision(
                             change.revision,
                             change.paths,
@@ -1162,6 +1355,7 @@ class Conversation:
                 elif tool_effect == 'workspace_write' and result.success:
                     tool_changed_workspace = True
                     last_workspace_change_position = tool_position
+                    last_workspace_write_change_position = tool_position
                 if tool_effect == 'workspace_write':
                     workspace_write_results.append(
                         (
@@ -1174,6 +1368,29 @@ class Conversation:
                 if tool_call.name == 'verify':
                     latest_verification = verification_from_result(result)
                     if latest_verification is not None:
+                        verification_hook = await self._emit_hook(
+                            HookEvent(
+                                name='AfterVerification',
+                                session_id=self._session_id(),
+                                tool_name=tool_call.name,
+                                tool_call_id=tool_call.id,
+                                arguments=tool_call.arguments,
+                                payload={
+                                    'success': latest_verification.success,
+                                    'command': latest_verification.command,
+                                    'exit_code': (
+                                        latest_verification.exit_code
+                                    ),
+                                    'timed_out': (
+                                        latest_verification.timed_out
+                                    ),
+                                    'workspace_revision': (
+                                        latest_verification.workspace_revision
+                                    ),
+                                },
+                            )
+                        )
+                        self._queue_hook_context(verification_hook)
                         yield VerificationCompleted(
                             evidence=latest_verification
                         )
@@ -1253,6 +1470,9 @@ class Conversation:
                 return
 
             workspace_progressed = last_workspace_change_position >= 0
+            workspace_write_progressed = (
+                last_workspace_write_change_position >= 0
+            )
             batch_reverted_to_baseline = (
                 workspace_progressed
                 and self.workspace_tracker is not None
@@ -1260,7 +1480,8 @@ class Conversation:
             )
             if batch_reverted_to_baseline:
                 workspace_progressed = False
-            if workspace_progressed:
+                workspace_write_progressed = False
+            if workspace_write_progressed:
                 mutation_failure_count = 0
                 mutation_failures.clear()
                 mutation_recovery_read_used = False
@@ -1280,7 +1501,7 @@ class Conversation:
                 for position, call, result, changed
                 in workspace_write_results
                 if (
-                    position > last_workspace_change_position
+                    position > last_workspace_write_change_position
                     and not changed
                     and not is_tool_protocol_failure(result)
                 )
@@ -1650,6 +1871,7 @@ class Conversation:
         *,
         read_available: bool,
         include_finish: bool = True,
+        focused_edits_only: bool = False,
     ) -> list[dict[str, Any]] | None:
         if self.registry is None or self.tools is None:
             return self.tools
@@ -1659,7 +1881,13 @@ class Conversation:
             if (
                 (read_available and name in ACTION_RECOVERY_READ_TOOLS)
                 or (include_finish and name == 'finish_task')
-                or self.registry.effect(name) == 'workspace_write'
+                or (
+                    self.registry.effect(name) == 'workspace_write'
+                    and (
+                        not focused_edits_only
+                        or name not in {'write_file', 'write_file_chunk'}
+                    )
+                )
             ):
                 selected.append(definition)
         return selected
@@ -1833,6 +2061,27 @@ class Conversation:
                 transcript_path=None,
                 reason='conversation history is empty',
             )
+        before_compact = await self._emit_hook(
+            HookEvent(
+                name='BeforeCompact',
+                session_id=self._session_id(),
+                payload={
+                    'automatic': False,
+                    'message_count': len(self.messages),
+                },
+            )
+        )
+        self._queue_hook_context(before_compact)
+        if not before_compact.allowed:
+            stats = self.context.stats
+            return CompactionReport(
+                success=False,
+                automatic=False,
+                before_characters=stats.estimated_characters,
+                after_characters=stats.estimated_characters,
+                transcript_path=None,
+                reason=before_compact.reason,
+            )
         report = await self.context.compact_history(
             self.messages,
             self.client,
@@ -1843,6 +2092,79 @@ class Conversation:
         if report.success and self.session_journal is not None:
             self.session_journal.record_context_compacted(self.messages)
         return report
+
+    async def session_start(self, *, source: str = 'new') -> None:
+        '''Emit SessionStart at most once for the active session.'''
+        if self._hooks_started:
+            return
+        self._hooks_started = True
+        outcome = await self._emit_hook(
+            HookEvent(
+                name='SessionStart',
+                session_id=self._session_id(),
+                payload={'source': source},
+            )
+        )
+        self._queue_hook_context(outcome)
+
+    async def session_end(self, *, reason: str = 'exit') -> None:
+        '''Emit SessionEnd once before the current session is closed.'''
+        if not self._hooks_started:
+            return
+        await self._emit_hook(
+            HookEvent(
+                name='SessionEnd',
+                session_id=self._session_id(),
+                payload={'reason': reason},
+            )
+        )
+        self._hooks_started = False
+
+    async def session_resume_with_hooks(self, identifier: str) -> str:
+        await self.session_end(reason='resume')
+        notice = self.session_resume(identifier)
+        await self.session_start(source='resume')
+        return notice
+
+    async def session_branch_with_hooks(
+        self,
+        name: str | None = None,
+    ) -> str:
+        await self.session_end(reason='branch')
+        notice = self.session_branch(name)
+        await self.session_start(source='branch')
+        return notice
+
+    async def session_clear_with_hooks(self) -> str:
+        await self.session_end(reason='clear')
+        notice = self.session_clear()
+        await self.session_start(source='clear')
+        return notice
+
+    async def _emit_hook(self, event: HookEvent) -> HookOutcome:
+        if self.hook_manager is None:
+            return HookOutcome(arguments=event.arguments)
+        outcome = await self.hook_manager.emit(event)
+        journal = self.session_journal
+        if journal is not None:
+            for execution in outcome.executions:
+                journal.record_hook_execution(
+                    execution.as_dict(),
+                    tool_name=event.tool_name,
+                    tool_call_id=event.tool_call_id,
+                    paths=event.paths,
+                )
+        return outcome
+
+    def _queue_hook_context(self, outcome: HookOutcome) -> None:
+        self._pending_hook_context.extend(outcome.additional_context)
+
+    def _session_id(self) -> str | None:
+        return (
+            self.session_journal.session_id
+            if self.session_journal is not None
+            else None
+        )
 
     def record_session_event(self, event: ConversationEvent) -> None:
         '''Persist runtime boundaries needed for safe session recovery.'''
@@ -2229,6 +2551,16 @@ def tool_call_signature(tool_call: ToolCall, revision: int) -> str:
     return f'{revision}:{tool_call.name}:{arguments}'
 
 
+def hook_denied_result(event: str, reason: str) -> ToolResult:
+    '''Expose a pre-operation hook denial to the model as a tool failure.'''
+    return ToolResult.fail(
+        'hook_denied',
+        f'{event} hook denied this operation.',
+        content=reason,
+        details={'event': event, 'reason': reason},
+    )
+
+
 def repeated_tool_result(
     tool_call: ToolCall,
     previous_count: int,
@@ -2380,6 +2712,7 @@ def completion_review_paths(
             tool_call.name != 'git_diff'
             or not result.success
             or not result.content.strip()
+            or result.metadata.get('diff_complete') is False
         ):
             continue
         path = result.metadata.get('path')
@@ -2419,8 +2752,10 @@ def render_completion_ready_context(
         'discovery is no longer useful. Decide whether the user goal is '
         'satisfied. If it is, return the final answer or call finish_task '
         'alone. If it is not, make one concrete workspace edit based on the '
-        'existing evidence, then verify the new revision. You may call one '
-        'scoped git_diff only for a changed path not already reviewed.'
+        'existing evidence, then verify the new revision. Use scoped git_diff '
+        'only for a changed path not already reviewed. If it returns '
+        'diff_complete=false, immediately continue with its next_offset and '
+        'diff_sha256 until the final page.'
     )
 
 

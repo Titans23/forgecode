@@ -148,6 +148,15 @@ class RunCommandTool(Tool[RunCommandInput]):
                     ],
                 },
             )
+        destructive_reason = destructive_git_command_reason(arguments.command)
+        if destructive_reason is not None:
+            raise ToolExecutionError(
+                'destructive_git_command_denied',
+                'run_command cannot discard repository changes. Use '
+                'ForgeCode checkpoints or ask the user before restoring '
+                'files.',
+                details={'detected': destructive_reason},
+            )
         read_reason = shell_file_read_reason(arguments.command)
         if read_reason is not None:
             raise ToolExecutionError(
@@ -222,6 +231,22 @@ class RunCommandTool(Tool[RunCommandInput]):
             content=content,
             metadata=metadata,
         )
+
+
+DESTRUCTIVE_GIT_PATTERN = re.compile(
+    r'(?:^|[|;&]+\s*)git(?:\.exe)?'
+    r'(?:\s+-[A-Za-z]\s+\S+)*'
+    r'\s+(checkout|restore|reset|clean)\b',
+    re.IGNORECASE,
+)
+
+
+def destructive_git_command_reason(command: str) -> str | None:
+    '''Reject Git operations that can discard uncommitted workspace state.'''
+    match = DESTRUCTIVE_GIT_PATTERN.search(command)
+    if match is None:
+        return None
+    return f'git {match.group(1).casefold()}'
 
 
 SCRIPT_WRITE_PATTERNS = (

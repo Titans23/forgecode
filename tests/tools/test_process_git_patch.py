@@ -129,6 +129,25 @@ def test_run_command_rejects_windows_posix_heredoc(
     assert 'stdin field' in result.error.message
 
 
+def test_run_command_rejects_destructive_git_commands(
+    tmp_path: Path,
+) -> None:
+    commands = (
+        'git checkout -- game/app.js',
+        'git restore game/app.js',
+        'git reset --hard',
+        'git clean -fd',
+        'git -C . restore game/app.js',
+    )
+
+    for command in commands:
+        result = run(RunCommandTool(tmp_path).run({'command': command}))
+
+        assert result.success is False
+        assert result.error is not None
+        assert result.error.code == 'destructive_git_command_denied'
+
+
 def test_run_command_stdin_cannot_bypass_write_policy(
     tmp_path: Path,
 ) -> None:
@@ -304,20 +323,89 @@ def test_git_diff_rejects_directory_path_instead_of_returning_empty_diff(
     assert 'concrete changed file' in result.error.message
 
 
-def test_git_diff_rejects_large_path_scoped_untracked_file(
+def test_git_diff_pages_large_path_scoped_untracked_file(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
     untracked = tmp_path / 'large.txt'
     untracked.write_text('large content\n' * 3_000, encoding='utf-8')
+    tool = GitDiffTool(tmp_path)
 
-    result = run(GitDiffTool(tmp_path).run({'path': 'large.txt'}))
+    first = run(tool.run({'path': 'large.txt'}))
+    second = run(
+        tool.run(
+            {
+                'path': 'large.txt',
+                'offset': first.metadata['next_offset'],
+                'expected_sha256': first.metadata['diff_sha256'],
+            }
+        )
+    )
+
+    assert first.success is True
+    assert first.metadata['paged_diff'] is True
+    assert first.metadata['diff_complete'] is False
+    assert first.metadata['page_start'] == 0
+    assert first.metadata['page_end'] == first.metadata['next_offset']
+    assert len(first.content) <= 30_000
+    assert second.success is True
+    assert second.metadata['diff_complete'] is True
+    assert second.metadata['page_start'] == first.metadata['next_offset']
+    assert second.metadata['next_offset'] is None
+    assert len(second.content) <= 30_000
+    assert first.content + second.content
+    assert len(first.content + second.content) == first.metadata['diff_characters']
+
+
+def test_git_diff_rejects_out_of_order_large_file_page(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / 'sample.txt').write_text(
+        'changed content\n' * 5_000,
+        encoding='utf-8',
+    )
+    tool = GitDiffTool(tmp_path)
+    first = run(tool.run({'path': 'sample.txt'}))
+
+    result = run(
+        tool.run(
+            {
+                'path': 'sample.txt',
+                'offset': first.metadata['next_offset'] + 1,
+                'expected_sha256': first.metadata['diff_sha256'],
+            }
+        )
+    )
 
     assert result.success is False
     assert result.error is not None
-    assert result.error.code == 'diff_too_large'
-    assert result.error.details['recommended_tool'] == 'read_file'
-    assert len(result.content) < 500
+    assert result.error.code == 'git_diff_page_out_of_order'
+
+
+def test_git_diff_rejects_continuation_after_diff_changes(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    sample = tmp_path / 'sample.txt'
+    sample.write_text('changed content\n' * 5_000, encoding='utf-8')
+    tool = GitDiffTool(tmp_path)
+    first = run(tool.run({'path': 'sample.txt'}))
+    sample.write_text('newer content\n' * 5_000, encoding='utf-8')
+
+    result = run(
+        tool.run(
+            {
+                'path': 'sample.txt',
+                'offset': first.metadata['next_offset'],
+                'expected_sha256': first.metadata['diff_sha256'],
+            }
+        )
+    )
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'git_diff_changed'
 
 
 def test_apply_patch_changes_the_file_and_reports_status(

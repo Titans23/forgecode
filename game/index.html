@@ -12,6 +12,17 @@
     <canvas id="gameCanvas" width="960" height="540"></canvas>
 
     <section class="panel">
+      <div class="panel-row compact">
+        <label for="difficulty">难度：</label>
+        <select id="difficulty">
+          <option value="easy">简单</option>
+          <option value="normal" selected>普通</option>
+          <option value="hard">困难</option>
+        </select>
+        <span id="weather" class="badge">天气：无</span>
+        <span id="combo" class="badge">连击：1x</span>
+      </div>
+
       <div class="panel-row">
         <button data-plant="sunflower">向日葵（50）</button>
         <button data-plant="peashooter">豌豆射手（100）</button>
@@ -19,6 +30,7 @@
         <button data-plant="cherry">樱桃炸弹（175）</button>
         <button data-plant="wallnut">坚果（50）</button>
       </div>
+
       <div class="panel-row">
         <button id="btnShovel">铲子</button>
         <button id="btnStart">开始</button>
@@ -26,7 +38,7 @@
         <button id="btnReset">重置</button>
       </div>
       <p id="hint">选择植物后点击草坪种植；点击阳光拾取，僵尸到达左边界游戏结束。</p>
-      <div id="status">阳光：<span id="sun">0</span> ｜ 生命：<span id="lives">0</span> ｜ 波数：<span id="wave">0</span> ｜ 记分：<span id="score">0</span></div>
+      <div id="status">阳光：<span id="sun">0</span> ｜ 生命：<span id="lives">0</span> ｜ 波数：<span id="wave">0</span> ｜ 记分：<span id="score">0</span> ｜ 最高：<span id="best">0</span></div>
     </section>
   </main>
 

@@ -468,10 +468,11 @@ def test_agent_loop_stops_at_model_call_limit(tmp_path: Path) -> None:
     assert len(client.calls) == 2
 
 
-def test_agent_loop_has_no_model_call_limit_by_default() -> None:
+def test_agent_loop_has_no_call_or_input_token_limit_by_default() -> None:
     conversation = Conversation(client=FakeModelClient())
 
     assert conversation.max_iterations is None
+    assert conversation.max_turn_input_tokens is None
 
 
 def test_invalid_tool_json_is_retried_without_executing_partial_calls(

@@ -173,10 +173,11 @@ def test_run_case_passes_with_fake_agent_and_independent_hidden_test(
     edit = ToolCall(
         index=0,
         id='toolu_edit',
-        name='write_file',
+        name='replace_text',
         arguments={
             'path': 'value.txt',
-            'content': 'new\n',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
         },
     )
     verify = ToolCall(

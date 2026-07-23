@@ -1,4 +1,5 @@
 (() => {
+  'use strict';
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
 
@@ -34,15 +35,17 @@
   };
 
   const DIFFS = {
-    easy: {label: '简单', sunMul: 1.25, hpMul: 0.85, speedMul: 0.9, waveScale: 0.78, rewardMul: 0.9, startSun: 180},
-    normal: {label: '普通', sunMul: 1.0, hpMul: 1.0, speedMul: 1.0, waveScale: 1.0, rewardMul: 1.0, startSun: 150},
-    hard: {label: '困难', sunMul: 0.85, hpMul: 1.15, speedMul: 1.15, waveScale: 1.18, rewardMul: 1.15, startSun: 120},
+    easy: {label: '简单', sunMul: 1.15, hpMul: 0.85, speedMul: 0.92, waveScale: 0.8, rewardMul: 0.9, startSun: 180, lives: 7},
+    normal: {label: '普通', sunMul: 1.0, hpMul: 1.08, speedMul: 1.0, waveScale: 1.0, rewardMul: 1.0, startSun: 150, lives: 5},
+    hard: {label: '困难', sunMul: 0.75, hpMul: 1.25, speedMul: 1.25, waveScale: 1.28, rewardMul: 1.2, startSun: 110, lives: 4},
   };
 
   const WEATHER_CATALOG = [
-    { key: 'sunBurst', label: '阳光暴雨', duration: 9, weather: { zombieSpeed: 1.0, sunDrop: 1.6, cooldown: 0.92 } },
-    { key: 'mist', label: '阴霾', duration: 9, weather: { zombieSpeed: 1.25, sunDrop: 0.75, cooldown: 1.15 } },
-    { key: 'freeze', label: '寒潮', duration: 9, weather: { zombieSpeed: 0.8, sunDrop: 1.0, cooldown: 1.1 } },
+    { key: 'sunBurst', label: '阳光暴雨', duration: 9, weather: { zombieSpeed: 1.0, sunDrop: 1.6, cooldown: 0.95 } },
+    { key: 'mist', label: '阴霾', duration: 9, weather: { zombieSpeed: 1.35, sunDrop: 0.7, cooldown: 1.24 } },
+    { key: 'freeze', label: '寒潮', duration: 9, weather: { zombieSpeed: 0.8, sunDrop: 1.05, cooldown: 1.2 } },
+    { key: 'storm', label: '风暴', duration: 10, weather: { zombieSpeed: 1.3, sunDrop: 0.55, cooldown: 1.24 } },
+    { key: 'night', label: '黑雾', duration: 10, weather: { zombieSpeed: 1.2, sunDrop: 0.75, cooldown: 1.35 } },
   ];
 
   const plantCfg = {
@@ -70,11 +73,15 @@
   };
 
   const zombieTypes = [
-    { key: 'walker', name: '普通僵尸', hp: 120, speed: 34, armor: 0, dmg: 1, reward: 6, spawn: 57, color: '#5bc27d' },
-    { key: 'fast', name: '匆忙僵尸', hp: 96, speed: 50, armor: 0, dmg: 1, reward: 5, spawn: 18, color: '#8dcf57' },
-    { key: 'cone', name: '路障僵尸', hp: 190, speed: 28, armor: 55, dmg: 1, reward: 9, spawn: 13, color: '#f8c35a' },
-    { key: 'bucket', name: '铁桶僵尸', hp: 235, speed: 24, armor: 110, dmg: 1, reward: 13, spawn: 8, color: '#d9b07e' },
-    { key: 'garg', name: '巨人僵尸', hp: 520, speed: 18, armor: 220, dmg: 2, reward: 28, isBoss: true, spawn: 4, color: '#8c6a5a' },
+    { key: 'walker', name: '普通僵尸', hp: 120, speed: 34, armor: 0, dmg: 1, reward: 6, spawn: 46, color: '#5bc27d' },
+    { key: 'fast', name: '匆忙僵尸', hp: 96, speed: 53, armor: 0, dmg: 1, reward: 5, spawn: 18, color: '#8dcf57' },
+    { key: 'cone', name: '路障僵尸', hp: 215, speed: 27, armor: 70, dmg: 1, reward: 10, spawn: 13, color: '#f8c35a' },
+    { key: 'bucket', name: '铁桶僵尸', hp: 250, speed: 22, armor: 130, dmg: 1, reward: 14, spawn: 8, color: '#d9b07e' },
+    { key: 'jumper', name: '跳跃僵尸', hp: 165, speed: 24, armor: 30, dmg: 2, reward: 12, spawn: 10, color: '#a67adf', special: 'jumper' },
+    { key: 'flying', name: '飞行僵尸', hp: 128, speed: 56, armor: 0, dmg: 1, reward: 11, spawn: 9, color: '#72b4ff', special: 'flying' },
+    { key: 'split', name: '分裂僵尸', hp: 280, speed: 24, armor: 90, dmg: 1, reward: 16, spawn: 6, color: '#b36c86', special: 'split' },
+    { key: 'garg', name: '巨人僵尸', hp: 520, speed: 16, armor: 230, dmg: 2, reward: 28, isBoss: true, spawn: 4, color: '#8c6a5a' },
+    { key: 'doom', name: '末日僵尸', hp: 700, speed: 14, armor: 280, dmg: 3, reward: 44, isBoss: true, spawn: 2, color: '#70507e', special: 'doom' },
   ];
 
   const CELL_CENTER_X = (c) => grid.x + c * grid.cw + grid.cw / 2;
@@ -121,6 +128,17 @@
     if (el) el.textContent = txt;
   };
 
+  const syncDifficultyControls = () => {
+    if (!ui.difficulty) return;
+
+    if (ui.difficulty.tagName === 'SELECT') {
+      ui.difficulty.value = currentDiff;
+      return;
+    }
+
+    ui.diffs.forEach((btn) => setActiveClass(btn, btn.dataset.diff === currentDiff));
+  };
+
   const setActiveClass = (el, active) => {
     if (el) el.classList.toggle('active', active);
   };
@@ -130,7 +148,7 @@
     setText(ui.lives, lives);
     setText(ui.wave, wave);
     setText(ui.score, score);
-    setText(ui.difficulty, DIFFS[currentDiff].label);
+    syncDifficultyControls();
     setText(ui.weather, weather.label);
     setText(ui.combo, combo > 1 ? combo : '1');
     setText(
@@ -146,7 +164,12 @@
       setActiveClass(btn, selected === btn.dataset.plant && !shovelMode)
     );
     setActiveClass(ui.shovel, shovelMode);
-    ui.diffs.forEach((btn) => setActiveClass(btn, btn.dataset.diff === currentDiff));
+  };
+
+  const changeDifficulty = (nextDiff) => {
+    if (!DIFFS[nextDiff]) return;
+    currentDiff = nextDiff;
+    reset();
   };
 
   const world = (e) => {
@@ -209,7 +232,7 @@
     selected = null;
     shovelMode = false;
     sun = DIFFS[currentDiff].startSun;
-    lives = 5;
+    lives = DIFFS[currentDiff].lives;
     wave = 0;
     score = 0;
     combo = 0;
@@ -1042,12 +1065,17 @@
 
     ui.reset.addEventListener('click', reset);
 
-    ui.diffs.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        currentDiff = btn.dataset.diff;
-        reset();
+    if (ui.difficulty && ui.difficulty.tagName === 'SELECT') {
+      ui.difficulty.addEventListener('change', (e) => {
+        changeDifficulty(e.target.value);
       });
-    });
+    } else {
+      ui.diffs.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          changeDifficulty(btn.dataset.diff);
+        });
+      });
+    }
 
     canvas.addEventListener('click', handleClick);
   };

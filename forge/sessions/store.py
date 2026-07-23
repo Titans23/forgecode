@@ -215,6 +215,25 @@ class SessionJournal:
     def record_stopped(self) -> None:
         self.append('session_stopped', {})
 
+    def record_hook_execution(
+        self,
+        execution: dict[str, Any],
+        *,
+        tool_name: str | None = None,
+        tool_call_id: str | None = None,
+        paths: tuple[str, ...] = (),
+    ) -> None:
+        '''Append one sanitized lifecycle hook audit event.'''
+        self.append(
+            'hook_execution',
+            {
+                'execution': execution,
+                'tool_name': tool_name,
+                'tool_call_id': tool_call_id,
+                'paths': paths,
+            },
+        )
+
     def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         event_uuid = str(uuid4())

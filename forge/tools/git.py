@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +65,11 @@ class GitStatusTool(Tool[GitStatusInput]):
 class GitDiffInput(ToolInput):
     staged: bool = False
     path: str | None = Field(default=None, min_length=1)
+    offset: int = Field(default=0, ge=0)
+    expected_sha256: str | None = Field(
+        default=None,
+        pattern=r'^[0-9a-fA-F]{64}$',
+    )
 
 
 class GitDiffTool(Tool[GitDiffInput]):
@@ -71,10 +77,11 @@ class GitDiffTool(Tool[GitDiffInput]):
     description = (
         'Show unstaged or staged Git changes, optionally limited to one '
         'repository file. Directory paths are rejected; select a concrete '
-        'file from git_status or repository evidence. Any response larger '
-        'than 30000 characters is rejected with diff_too_large. For an '
-        'unscoped result, retry with path set to the relevant file; for a '
-        'large single file, use focused read_file ranges. A path-limited '
+        'file from git_status or repository evidence. An unscoped response '
+        'larger than 30000 characters is rejected with diff_too_large; retry '
+        'with path set to one relevant file. A large '
+        'single-file Diff is returned in ordered pages; continue with the '
+        'returned next_offset and diff_sha256 as expected_sha256. A path-limited '
         'request also renders an untracked UTF-8 file as a reviewable '
         'new-file Diff. Prefer a path-limited Diff in a dirty '
         'repository. Use it to review actual changes, not to rediscover '
@@ -82,7 +89,19 @@ class GitDiffTool(Tool[GitDiffInput]):
     )
     input_model = GitDiffInput
 
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self._continuations: set[tuple[bool, str, str, int]] = set()
+
     async def execute(self, arguments: GitDiffInput) -> ToolResult:
+        if arguments.path is None and (
+            arguments.offset != 0 or arguments.expected_sha256 is not None
+        ):
+            return ToolResult.fail(
+                'git_diff_page_requires_path',
+                'Paged git_diff requests require path to identify one file. '
+                'Set path, or omit offset and expected_sha256.',
+            )
         command = ['git', 'diff', '--no-ext-diff']
         if arguments.staged:
             command.append('--cached')
@@ -155,35 +174,9 @@ class GitDiffTool(Tool[GitDiffInput]):
                     'maximum_characters': MAX_UNSCOPED_DIFF_CHARACTERS,
                 },
             )
-        if (
-            shown_path is not None
-            and len(raw_content) > MAX_SCOPED_DIFF_CHARACTERS
-        ):
-            message = (
-                f'Git diff for {shown_path} contains '
-                f'{len(raw_content)} characters, exceeding the '
-                f'{MAX_SCOPED_DIFF_CHARACTERS}-character per-file limit. '
-                'Use read_file with focused line ranges and review only the '
-                'relevant code.'
-            )
-            return ToolResult.fail(
-                'diff_too_large',
-                message,
-                content=message,
-                details={
-                    'path': shown_path,
-                    'characters': len(raw_content),
-                    'maximum_characters': MAX_SCOPED_DIFF_CHARACTERS,
-                    'recommended_tool': 'read_file',
-                },
-                metadata={
-                    **metadata,
-                    'diff_characters': len(raw_content),
-                    'maximum_characters': MAX_SCOPED_DIFF_CHARACTERS,
-                },
-            )
 
         content = raw_content.rstrip()
+        summary = 'Read Git diff.' if content else 'No matching Git diff.'
         if (
             not content
             and shown_path is not None
@@ -198,19 +191,142 @@ class GitDiffTool(Tool[GitDiffInput]):
                 return untracked
             if untracked is not None:
                 untracked_content, untracked_metadata = untracked
-                return ToolResult.ok(
-                    'Read untracked file as a new-file Git diff.',
-                    content=untracked_content,
-                    metadata={
-                        **metadata,
-                        **untracked_metadata,
-                    },
-                )
+                content = untracked_content
+                metadata = {
+                    **metadata,
+                    **untracked_metadata,
+                }
+                summary = 'Read untracked file as a new-file Git diff.'
+
+        if shown_path is not None and (
+            len(content) > MAX_SCOPED_DIFF_CHARACTERS
+            or arguments.offset != 0
+        ):
+            return self._paged_diff(
+                arguments,
+                shown_path=shown_path,
+                content=content,
+                metadata=metadata,
+            )
 
         return ToolResult.ok(
-            'Read Git diff.' if content else 'No matching Git diff.',
+            summary,
             content=content,
             metadata=metadata,
+        )
+
+    def _paged_diff(
+        self,
+        arguments: GitDiffInput,
+        *,
+        shown_path: str,
+        content: str,
+        metadata: dict[str, Any],
+    ) -> ToolResult:
+        '''Return one bounded, sequential page of a single-file Diff.'''
+        digest = hashlib.sha256(content.encode('utf-8')).hexdigest()
+        if arguments.offset == 0:
+            self._continuations = {
+                item
+                for item in self._continuations
+                if item[:2] != (arguments.staged, shown_path)
+            }
+        continuation = (
+            arguments.staged,
+            shown_path,
+            digest,
+            arguments.offset,
+        )
+        if arguments.offset:
+            if arguments.expected_sha256 != digest:
+                return ToolResult.fail(
+                    'git_diff_changed',
+                    f'Git diff for {shown_path} changed between pages. '
+                    'Restart from offset 0.',
+                    details={
+                        'path': shown_path,
+                        'restart_offset': 0,
+                        'actual_sha256': digest,
+                    },
+                    metadata={
+                        **metadata,
+                        'diff_sha256': digest,
+                        'diff_characters': len(content),
+                    },
+                )
+            if continuation not in self._continuations:
+                return ToolResult.fail(
+                    'git_diff_page_out_of_order',
+                    'The requested Git diff page was not the next page issued '
+                    f'for {shown_path}. Restart from offset 0.',
+                    details={
+                        'path': shown_path,
+                        'requested_offset': arguments.offset,
+                        'restart_offset': 0,
+                    },
+                    metadata={
+                        **metadata,
+                        'diff_sha256': digest,
+                        'diff_characters': len(content),
+                    },
+                )
+            self._continuations.discard(continuation)
+
+        start = arguments.offset
+        if start >= len(content):
+            return ToolResult.fail(
+                'git_diff_offset_out_of_range',
+                f'Git diff offset {start} is outside the '
+                f'{len(content)}-character Diff for {shown_path}. '
+                'Restart from offset 0.',
+                details={
+                    'path': shown_path,
+                    'requested_offset': start,
+                    'diff_characters': len(content),
+                    'restart_offset': 0,
+                },
+                metadata={
+                    **metadata,
+                    'diff_sha256': digest,
+                    'diff_characters': len(content),
+                },
+            )
+
+        end = min(start + MAX_SCOPED_DIFF_CHARACTERS, len(content))
+        if end < len(content):
+            line_end = content.rfind('\n', start, end)
+            if line_end >= start:
+                end = line_end + 1
+        page = content[start:end]
+        complete = end >= len(content)
+        next_offset = None if complete else end
+        if next_offset is not None:
+            self._continuations.add(
+                (
+                    arguments.staged,
+                    shown_path,
+                    digest,
+                    next_offset,
+                )
+            )
+        return ToolResult.ok(
+            (
+                f'Read final Git diff page for {shown_path}.'
+                if complete
+                else f'Read partial Git diff page for {shown_path}.'
+            ),
+            content=page,
+            metadata={
+                **metadata,
+                'paged_diff': True,
+                'diff_complete': complete,
+                'diff_sha256': digest,
+                'diff_characters': len(content),
+                'page_start': start,
+                'page_end': end,
+                'next_offset': next_offset,
+                'maximum_characters': MAX_SCOPED_DIFF_CHARACTERS,
+            },
         )
 
     async def _untracked_file_diff(
@@ -265,31 +381,6 @@ class GitDiffTool(Tool[GitDiffInput]):
                 },
             )
         content = render_untracked_diff(shown_path, text)
-        if len(content) > MAX_SCOPED_DIFF_CHARACTERS:
-            message = (
-                f'Git diff for {shown_path} contains {len(content)} '
-                f'characters, exceeding the '
-                f'{MAX_SCOPED_DIFF_CHARACTERS}-character per-file limit. '
-                'Use read_file with focused line ranges.'
-            )
-            return ToolResult.fail(
-                'diff_too_large',
-                message,
-                content=message,
-                details={
-                    'path': shown_path,
-                    'characters': len(content),
-                    'maximum_characters': MAX_SCOPED_DIFF_CHARACTERS,
-                    'recommended_tool': 'read_file',
-                },
-                metadata={
-                    'staged': False,
-                    'path': shown_path,
-                    'untracked': True,
-                    'diff_characters': len(content),
-                    'maximum_characters': MAX_SCOPED_DIFF_CHARACTERS,
-                },
-            )
         return content, {
             'untracked': True,
             'synthetic_diff': True,

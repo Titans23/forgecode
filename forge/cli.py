@@ -10,6 +10,7 @@ import typer
 
 from forge import __version__
 from forge.config import ConfigurationError, ForgeConfig
+from forge.hooks import HookConfigurationError, HookManager
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.state import (
@@ -105,7 +106,11 @@ def main(
                 resume_identifier=resume,
                 fork_session=fork_session,
             )
-        except (ConfigurationError, SessionError) as error:
+        except (
+            ConfigurationError,
+            HookConfigurationError,
+            SessionError,
+        ) as error:
             print_configuration_error(error)
             raise typer.Exit(code=1) from error
 
@@ -114,6 +119,10 @@ def print_configuration_error(error: Exception) -> None:
     '''Print actionable model configuration guidance.'''
     if isinstance(error, SessionError):
         typer.echo('Session could not be resumed.', err=True)
+        typer.echo(str(error), err=True)
+        return
+    if isinstance(error, HookConfigurationError):
+        typer.echo('Hook configuration is invalid.', err=True)
         typer.echo(str(error), err=True)
         return
     typer.echo('Model configuration is incomplete.', err=True)
@@ -165,6 +174,10 @@ def run_interactive_chat(
     client = getattr(resolved_session, 'client', None)
     model = getattr(client, 'model', 'configured model')
     resolved_terminal.show_welcome(model)
+    start_interactive_session(
+        resolved_session,
+        source='resume' if resumed_state is not None else 'new',
+    )
     if resumed_state is not None:
         notice = (
             f'Resumed {resumed_state.info.session_id} with '
@@ -184,13 +197,11 @@ def run_interactive_chat(
         try:
             prompt = resolved_terminal.read_prompt()
         except (KeyboardInterrupt, EOFError, typer.Abort):
-            active_journal = getattr(
+            stop_interactive_session(
                 resolved_session,
-                'session_journal',
-                resolved_journal,
+                fallback_journal=resolved_journal,
+                reason='input_exit',
             )
-            if active_journal is not None:
-                active_journal.record_stopped()
             resolved_terminal.show_goodbye()
             return
 
@@ -255,7 +266,9 @@ def run_interactive_chat(
             selected = resolved_terminal.select_session(resume_options)
             if selected is not None:
                 try:
-                    notice = resolved_session.session_resume(selected)
+                    notice = resume_interactive_session(
+                        resolved_session, selected
+                    )
                     resolved_terminal.show_notice('Session', notice)
                 except (OSError, ValueError, SessionError) as error:
                     resolved_terminal.show_error(error)
@@ -274,7 +287,9 @@ def run_interactive_chat(
         if prompt.startswith('/resume '):
             identifier = prompt[len('/resume '):].strip()
             try:
-                notice = resolved_session.session_resume(identifier)
+                notice = resume_interactive_session(
+                    resolved_session, identifier
+                )
                 resolved_terminal.show_notice('Session', notice)
             except (OSError, ValueError, SessionError) as error:
                 resolved_terminal.show_error(error)
@@ -283,7 +298,16 @@ def run_interactive_chat(
         if prompt.strip() == '/branch' or prompt.startswith('/branch '):
             name = prompt[len('/branch'):].strip() or None
             try:
-                notice = resolved_session.session_branch(name)
+                branch_with_hooks = getattr(
+                    resolved_session,
+                    'session_branch_with_hooks',
+                    None,
+                )
+                notice = (
+                    asyncio.run(branch_with_hooks(name))
+                    if branch_with_hooks is not None
+                    else resolved_session.session_branch(name)
+                )
                 resolved_terminal.show_notice('Session', notice)
             except (OSError, ValueError, SessionError) as error:
                 resolved_terminal.show_error(error)
@@ -291,7 +315,16 @@ def run_interactive_chat(
 
         if prompt.strip() == '/clear':
             try:
-                notice = resolved_session.session_clear()
+                clear_with_hooks = getattr(
+                    resolved_session,
+                    'session_clear_with_hooks',
+                    None,
+                )
+                notice = (
+                    asyncio.run(clear_with_hooks())
+                    if clear_with_hooks is not None
+                    else resolved_session.session_clear()
+                )
                 resolved_terminal.show_notice('Session', notice)
             except (OSError, ValueError, SessionError) as error:
                 resolved_terminal.show_error(error)
@@ -408,13 +441,11 @@ def run_interactive_chat(
                     )
                 )
         except (KeyboardInterrupt, typer.Abort):
-            active_journal = getattr(
+            stop_interactive_session(
                 resolved_session,
-                'session_journal',
-                resolved_journal,
+                fallback_journal=resolved_journal,
+                reason='turn_interrupted',
             )
-            if active_journal is not None:
-                active_journal.record_stopped()
             resolved_terminal.show_goodbye()
             return
         except Exception as error:
@@ -486,6 +517,7 @@ def create_session_runtime(
     '''Create a new conversation or hydrate one from durable history.'''
     store = SessionStore(root)
     registry = create_default_registry(root)
+    hook_manager = HookManager.from_root(root)
     if continue_session or resume_identifier is not None:
         state, journal = store.open(resume_identifier)
         checkpoint_store = CheckpointStore.for_session(
@@ -521,6 +553,7 @@ def create_session_runtime(
             session_journal=journal,
             checkpoint_store=checkpoint_store,
             session_store=store,
+            hook_manager=hook_manager,
         )
         if not fork_session:
             journal.record_resumed()
@@ -536,7 +569,49 @@ def create_session_runtime(
         journal.path,
         journal.session_id,
     )
+    conversation.hook_manager = hook_manager
     return conversation, journal, None
+
+
+def stop_interactive_session(
+    session: Conversation,
+    *,
+    fallback_journal: SessionJournal | None,
+    reason: str,
+) -> None:
+    '''Run SessionEnd before durably marking the active session stopped.'''
+    end = getattr(session, 'session_end', None)
+    if end is not None:
+        asyncio.run(end(reason=reason))
+    active_journal = getattr(
+        session,
+        'session_journal',
+        fallback_journal,
+    )
+    if active_journal is not None:
+        active_journal.record_stopped()
+
+
+def start_interactive_session(
+    session: Conversation,
+    *,
+    source: str,
+) -> None:
+    '''Start Hook-aware sessions while preserving embeddable test doubles.'''
+    start = getattr(session, 'session_start', None)
+    if start is not None:
+        asyncio.run(start(source=source))
+
+
+def resume_interactive_session(
+    session: Conversation,
+    identifier: str,
+) -> str:
+    '''Switch sessions through lifecycle hooks when the runtime supports it.'''
+    resume_with_hooks = getattr(session, 'session_resume_with_hooks', None)
+    if resume_with_hooks is not None:
+        return asyncio.run(resume_with_hooks(identifier))
+    return session.session_resume(identifier)
 
 
 def build_resume_options(

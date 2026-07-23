@@ -289,29 +289,11 @@ class ContextManager:
             context_window_tokens=context_window_tokens,
             reserved_output_tokens=reserved_output_tokens,
         )
-        if context_window_tokens is None:
-            threshold_reached = (
-                max(
-                    before_stats.estimated_characters,
-                    before_stats.stored_characters,
-                )
-                > self.config.auto_compact_characters
-            )
-        else:
-            visible_projected_tokens = (
-                before_stats.estimated_tokens + reserved_output_tokens
-            )
-            stored_projected_tokens = (
-                before_stats.stored_tokens
-                + before_stats.system_tokens
-                + before_stats.repository_tokens
-                + before_stats.tool_schema_tokens
-                + reserved_output_tokens
-            )
-            threshold_reached = (
-                max(visible_projected_tokens, stored_projected_tokens)
-                >= context_window_tokens * self.config.auto_compact_ratio
-            )
+        threshold_reached = self._threshold_reached(
+            before_stats,
+            context_window_tokens=context_window_tokens,
+            reserved_output_tokens=reserved_output_tokens,
+        )
         should_compact = force or threshold_reached
         if not should_compact:
             return None
@@ -352,6 +334,63 @@ class ContextManager:
             transcript_path=transcript_path,
         )
         return self.last_report
+
+    def compaction_required(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        system_prompt: str = '',
+        repository_context: str = '',
+        tools: list[dict[str, Any]] | None = None,
+        context_window_tokens: int | None = None,
+        reserved_output_tokens: int = 0,
+    ) -> bool:
+        '''Return whether automatic compaction would run for this request.'''
+        prepared = self.prepare(messages)
+        stats = context_stats(
+            prepared,
+            stored_messages=messages,
+            system_prompt=system_prompt,
+            repository_context=repository_context,
+            tools=tools,
+            context_window_tokens=context_window_tokens,
+            reserved_output_tokens=reserved_output_tokens,
+        )
+        return self._threshold_reached(
+            stats,
+            context_window_tokens=context_window_tokens,
+            reserved_output_tokens=reserved_output_tokens,
+        )
+
+    def _threshold_reached(
+        self,
+        stats: ContextStats,
+        *,
+        context_window_tokens: int | None,
+        reserved_output_tokens: int,
+    ) -> bool:
+        if context_window_tokens is None:
+            return (
+                max(
+                    stats.estimated_characters,
+                    stats.stored_characters,
+                )
+                > self.config.auto_compact_characters
+            )
+        visible_projected_tokens = (
+            stats.estimated_tokens + reserved_output_tokens
+        )
+        stored_projected_tokens = (
+            stats.stored_tokens
+            + stats.system_tokens
+            + stats.repository_tokens
+            + stats.tool_schema_tokens
+            + reserved_output_tokens
+        )
+        return (
+            max(visible_projected_tokens, stored_projected_tokens)
+            >= context_window_tokens * self.config.auto_compact_ratio
+        )
 
     def persist_transcript(
         self,

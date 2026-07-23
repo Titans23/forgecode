@@ -149,6 +149,10 @@ class ReadFileTool(Tool[ReadFileInput]):
                 'start_line': arguments.start_line,
                 'end_line': end_line,
                 'total_lines': total_lines,
+                'sha256': hashlib.sha256(
+                    content.encode('utf-8')
+                ).hexdigest(),
+                'characters': len(content),
             },
         )
 
@@ -156,15 +160,22 @@ class ReadFileTool(Tool[ReadFileInput]):
 class WriteFileInput(ToolInput):
     path: str = Field(min_length=1)
     content: str = Field(max_length=MAX_EDIT_CHARACTERS)
+    expected_sha256: str | None = Field(
+        default=None,
+        pattern=r'^[0-9a-fA-F]{64}$',
+    )
 
 
 class WriteFileTool(Tool[WriteFileInput]):
     name = 'write_file'
     description = (
         'Create or fully replace one small UTF-8 repository text file '
-        'atomically. Content is limited to 30000 characters. For larger '
-        'files, use write_file_chunk with ordered offsets. Do not use this '
-        'for a small edit to an existing large file.'
+        'atomically. Content is limited to 30000 characters. Replacing an '
+        'existing file requires expected_sha256 from its latest read_file '
+        'result; stale hashes and suspicious placeholder or drastic-shrink '
+        'replacements are rejected. For larger files, use write_file_chunk '
+        'with ordered offsets. Use replace_text or apply_patch for focused '
+        'changes to existing files.'
     )
     input_model = WriteFileInput
     effect = 'workspace_write'
@@ -190,6 +201,62 @@ class WriteFileTool(Tool[WriteFileInput]):
             )
 
         existed = path.exists()
+        if existed:
+            try:
+                previous = read_text_preserving_newlines(path)
+            except UnicodeDecodeError as error:
+                raise ToolExecutionError(
+                    'not_utf8_text',
+                    f'Existing file is not valid UTF-8 text: {arguments.path}',
+                ) from error
+            previous_sha256 = hashlib.sha256(
+                previous.encode('utf-8')
+            ).hexdigest()
+            if arguments.expected_sha256 is None:
+                raise ToolExecutionError(
+                    'write_requires_expected_sha256',
+                    'Replacing an existing file requires expected_sha256 from '
+                    'the latest read_file result. Use replace_text or '
+                    'apply_patch for a focused edit.',
+                    details={'path': arguments.path},
+                )
+            if arguments.expected_sha256.casefold() != previous_sha256:
+                raise ToolExecutionError(
+                    'write_file_changed',
+                    'The existing file changed after it was read. Read it '
+                    'again and retry with the new sha256.',
+                    details={'path': arguments.path},
+                )
+            replacement = arguments.content.strip().casefold()
+            if replacement in {'...', '…', 'todo', 'test'}:
+                raise ToolExecutionError(
+                    'suspicious_full_file_replacement',
+                    'Refused to replace an existing file with placeholder '
+                    'content. Use replace_text or apply_patch for the intended '
+                    'focused edit.',
+                    details={
+                        'path': arguments.path,
+                        'previous_characters': len(previous),
+                        'replacement_characters': len(arguments.content),
+                    },
+                )
+            drastic_threshold = max(64, len(previous) // 10)
+            if (
+                len(previous) >= 1_000
+                and len(arguments.content) < drastic_threshold
+            ):
+                raise ToolExecutionError(
+                    'suspicious_full_file_replacement',
+                    'Refused a drastic full-file reduction. Use replace_text '
+                    'or apply_patch so the deletion is explicit and '
+                    'reviewable.',
+                    details={
+                        'path': arguments.path,
+                        'previous_characters': len(previous),
+                        'replacement_characters': len(arguments.content),
+                        'minimum_characters': drastic_threshold,
+                    },
+                )
         atomic_write_text(path, arguments.content)
         shown_path = display_path(self.root, path)
         action = 'Replaced' if existed else 'Created'
@@ -198,6 +265,9 @@ class WriteFileTool(Tool[WriteFileInput]):
             metadata={
                 'path': shown_path,
                 'characters': len(arguments.content),
+                'sha256': hashlib.sha256(
+                    arguments.content.encode('utf-8')
+                ).hexdigest(),
                 'created': not existed,
             },
         )

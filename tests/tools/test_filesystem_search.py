@@ -148,11 +148,14 @@ def test_read_file_supports_inclusive_line_ranges(tmp_path: Path) -> None:
         '     2 | TODO: repair parser\n'
         '     3 | third'
     )
+    source = (tmp_path / 'src' / 'app.py').read_bytes()
     assert result.metadata == {
         'path': 'src/app.py',
         'start_line': 2,
         'end_line': 3,
         'total_lines': 3,
+        'sha256': hashlib.sha256(source).hexdigest(),
+        'characters': len(source.decode('utf-8')),
     }
 
 
@@ -211,7 +214,15 @@ def test_write_file_creates_and_atomically_replaces_small_text(
     tool = WriteFileTool(tmp_path)
 
     created = run(tool.run({'path': 'game.html', 'content': 'first'}))
-    replaced = run(tool.run({'path': 'game.html', 'content': 'second'}))
+    replaced = run(
+        tool.run(
+            {
+                'path': 'game.html',
+                'content': 'second',
+                'expected_sha256': created.metadata['sha256'],
+            }
+        )
+    )
 
     assert created.success is True
     assert created.metadata['created'] is True
@@ -219,6 +230,70 @@ def test_write_file_creates_and_atomically_replaces_small_text(
     assert replaced.metadata['created'] is False
     assert (tmp_path / 'game.html').read_text(encoding='utf-8') == 'second'
     assert not list(tmp_path.glob('*.forge-tmp'))
+
+
+def test_write_file_requires_current_hash_for_existing_file(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / 'game.js'
+    path.write_text('const value = 1;\n', encoding='utf-8')
+    tool = WriteFileTool(tmp_path)
+
+    missing = run(tool.run({'path': 'game.js', 'content': 'replacement\n'}))
+    stale = run(
+        tool.run(
+            {
+                'path': 'game.js',
+                'content': 'replacement\n',
+                'expected_sha256': '0' * 64,
+            }
+        )
+    )
+
+    assert missing.success is False
+    assert missing.error is not None
+    assert missing.error.code == 'write_requires_expected_sha256'
+    assert stale.success is False
+    assert stale.error is not None
+    assert stale.error.code == 'write_file_changed'
+    assert path.read_text(encoding='utf-8') == 'const value = 1;\n'
+
+
+def test_write_file_rejects_placeholder_and_drastic_replacement(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / 'game.js'
+    original = 'const value = 1;\n' * 100
+    path.write_text(original, encoding='utf-8')
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    tool = WriteFileTool(tmp_path)
+
+    placeholder = run(
+        tool.run(
+            {
+                'path': 'game.js',
+                'content': '...',
+                'expected_sha256': digest,
+            }
+        )
+    )
+    drastic = run(
+        tool.run(
+            {
+                'path': 'game.js',
+                'content': 'small replacement\n',
+                'expected_sha256': digest,
+            }
+        )
+    )
+
+    assert placeholder.success is False
+    assert placeholder.error is not None
+    assert placeholder.error.code == 'suspicious_full_file_replacement'
+    assert drastic.success is False
+    assert drastic.error is not None
+    assert drastic.error.code == 'suspicious_full_file_replacement'
+    assert path.read_text(encoding='utf-8') == original
 
 
 def test_write_file_rejects_content_over_30000_characters(
