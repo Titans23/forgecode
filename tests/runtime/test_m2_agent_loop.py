@@ -6,7 +6,12 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
-from forge.runtime.agent_loop import Conversation, completion_review_paths
+from forge.runtime.agent_loop import (
+    Conversation,
+    build_final_acceptance_audit_feedback,
+    completion_review_paths,
+    render_completion_ready_context,
+)
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.state import (
     CompletionBlocked,
@@ -66,6 +71,31 @@ def add_tracked_smoke_test(root: Path) -> None:
         cwd=root,
         check=True,
     )
+
+
+def test_final_acceptance_audit_is_high_priority_and_bounded() -> None:
+    feedback = build_final_acceptance_audit_feedback()
+
+    assert feedback['role'] == 'user'
+    assert 'every clause of my original request' in feedback['content']
+    assert 'credential-shaped URLs' in feedback['content']
+    assert 'without more repository exploration' in feedback['content']
+
+
+def test_completion_audit_persists_after_all_diff_paths_are_reviewed() -> None:
+    context = render_completion_ready_context(
+        ('forge/runtime/agent_loop.py',),
+        None,
+        4,
+        80,
+        {'forge/runtime/agent_loop.py'},
+        require_diff_review=True,
+    )
+
+    assert 'unreviewed changed path' not in context
+    assert 'Audit the final Diff against every clause' in context
+    assert 'reset boundary' in context
+    assert 'credential-shaped inputs' in context
 
 
 def test_completion_review_requires_final_diff_page() -> None:
@@ -272,6 +302,12 @@ def test_large_tested_change_delegates_initial_exploration(
         'verify',
         {'command': 'python -m pytest -q'},
     )
+    final_diff = ToolCall(
+        0,
+        'large-task-final-diff',
+        'git_diff',
+        {'path': 'sample.txt'},
+    )
     focused_reads = (
         ToolCall(
             0,
@@ -327,6 +363,7 @@ def test_large_tested_change_delegates_initial_exploration(
         response_with_tools(*focused_reads),
         response_with_tool(edit),
         response_with_tool(verify),
+        response_with_tool(final_diff),
         finish_response(
             'large-task-finish',
             task_kind='change',
@@ -427,6 +464,12 @@ def test_self_declared_incomplete_change_resumes_bounded_editing(
         'verify',
         {'command': 'python -m pytest -q'},
     )
+    final_diff = ToolCall(
+        0,
+        'incomplete-final-diff',
+        'git_diff',
+        {'path': 'sample.txt'},
+    )
     client = FakeModelClient(
         response_with_tool(partial_edit),
         response_with_tool(first_verify),
@@ -436,6 +479,7 @@ def test_self_declared_incomplete_change_resumes_bounded_editing(
         ),
         response_with_tool(corrected_edit),
         response_with_tool(final_verify),
+        response_with_tool(final_diff),
         finish_response(
             'incomplete-finish',
             task_kind='change',
@@ -471,6 +515,139 @@ def test_self_declared_incomplete_change_resumes_bounded_editing(
     assert 'ForgeCode rejected completion' in str(
         client.calls[3]['messages']
     )
+
+
+def test_explicit_test_change_request_requires_a_test_file_diff(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    add_tracked_smoke_test(tmp_path)
+    edit = ToolCall(
+        0,
+        'missing-test-change-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    verify = ToolCall(
+        0,
+        'missing-test-change-verify',
+        'verify',
+        {'command': 'python -m pytest -q'},
+    )
+    client = FakeModelClient(
+        response_with_tool(edit),
+        response_with_tool(verify),
+        finish_response(
+            'missing-test-change-finish',
+            task_kind='change',
+            summary='Changed sample.txt and ran existing tests.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+        ),
+    )
+
+    events = collect_turn(
+        conversation,
+        'Change sample.txt, add focused regression tests, and run tests.',
+    )
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'stuck'
+    assert any(
+        'task-local Diff contains no test file' in reason
+        for reason in completed.result.completion_reasons
+    )
+    assert 'Test Change Contract' in str(client.calls[0]['system'])
+
+
+def test_full_suite_completion_requires_final_diff_review(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    add_tracked_smoke_test(tmp_path)
+    edit = ToolCall(
+        0,
+        'unreviewed-full-suite-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    verify = ToolCall(
+        0,
+        'unreviewed-full-suite-verify',
+        'verify',
+        {'command': 'python -m pytest -q'},
+    )
+    final_diff = ToolCall(
+        0,
+        'recovered-full-suite-diff',
+        'git_diff',
+        {'path': 'sample.txt'},
+    )
+    client = FakeModelClient(
+        response_with_tool(edit),
+        response_with_tool(verify),
+        finish_response(
+            'unreviewed-full-suite-finish',
+            task_kind='change',
+            summary='Changed sample.txt and ran the full suite.',
+        ),
+        response_with_tool(final_diff),
+        finish_response(
+            'reviewed-full-suite-finish',
+            task_kind='change',
+            summary='Reviewed sample.txt and ran the full suite.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+        ),
+    )
+
+    events = collect_turn(
+        conversation,
+        'Change sample.txt and run the full test suite.',
+    )
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert all(
+        call.id != 'reviewed-full-suite-finish'
+        for call in completed.result.tool_calls
+    )
+    blocked = [event for event in events if isinstance(event, CompletionBlocked)]
+    assert any(
+        'inspect the final Diff' in reason
+        and 'sample.txt' in reason
+        for event in blocked
+        for reason in event.reasons
+    )
+    completion_prompt = str(client.calls[2]['system'])
+    assert 'Final Diff review is mandatory' in completion_prompt
+    assert 'against every clause of the original request' in completion_prompt
+    assert 'behavioral coverage for each acceptance criterion' in completion_prompt
+    assert 'next model request/history' in completion_prompt
+    assert 'add coverage instead of repurposing' in completion_prompt
+    assert 'sample.txt' in completion_prompt
 
 
 def test_completion_validation_rejects_unverified_change_once(

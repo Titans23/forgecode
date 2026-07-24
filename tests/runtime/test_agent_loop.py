@@ -16,8 +16,11 @@ from forge.permissions.policy import PermissionManager, PermissionRequest
 from forge.runtime.agent_loop import (
     Conversation,
     ModelResponseError,
+    build_verification_plateau_feedback,
     is_tool_protocol_failure,
     load_system_prompt,
+    verification_failure_family_matches,
+    verification_failure_fingerprint_from_result,
 )
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import (
@@ -893,7 +896,9 @@ def test_exact_tool_repeat_is_skipped_after_limit(tmp_path: Path) -> None:
     ]
     assert completed[1].result.success is True
     assert completed[1].result.metadata['cache_hit'] is True
-    assert completed[1].result.content == 'file contents'
+    assert completed[1].result.content.startswith(
+        '[Identical cached tool result omitted.'
+    )
     assert completed[2].result.success is False
     assert completed[2].result.error is not None
     assert completed[2].result.error.code == 'repeated_tool_call'
@@ -1115,6 +1120,7 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
             )
         ),
         streamed_response('Done despite the failed write.'),
+        streamed_response('Still done despite the failed write.'),
     )
     conversation = Conversation(
         client=client,
@@ -1129,7 +1135,7 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
     )
     assert conversation.workspace_tracker is None
     assert result.status == 'stuck'
-    assert result.model_calls == 2
+    assert result.model_calls == 3
     assert 'workspace-write attempt(s)' in result.text
     assert 'Done despite the failed write.' not in result.text
     assert '[Failed Mutation Recovery]' in client.calls[1]['system']
@@ -1223,6 +1229,56 @@ def test_copied_patch_line_numbers_are_a_protocol_recovery_failure() -> None:
     )
 
     assert is_tool_protocol_failure(result) is True
+
+
+def test_verification_failure_fingerprint_prefers_stable_pytest_node_id() -> None:
+    result = ToolResult.fail(
+        'verification_failed',
+        'Verification failed.',
+        content=(
+            '_____ test_hook_denial_blocks_alternative_edit_tools_and_change_task _____\n'
+            'FAILED tests/runtime/test_hooks.py::'
+            'test_hook_denial_blocks_alternative_edit_tools_and_change_task - assert 2 == 1\n'
+        ),
+    )
+
+    assert verification_failure_fingerprint_from_result(result) == (
+        'tests/runtime/test_hooks.py::'
+        'test_hook_denial_blocks_alternative_edit_tools_and_change_task'
+        ' | test_hook_denial_blocks_alternative_edit_tools_and_change_task'
+    )
+
+
+def test_verification_failure_family_matches_a_shrinking_failure_set() -> None:
+    previous = 'tests/test_a.py::test_a | tests/test_b.py::test_b'
+
+    assert verification_failure_family_matches(
+        previous,
+        'tests/test_b.py::test_b',
+    ) is True
+    assert verification_failure_family_matches(
+        previous,
+        'tests/test_c.py::test_c',
+    ) is False
+    assert verification_failure_family_matches(None, previous) is False
+
+
+def test_verification_plateau_feedback_requires_invariant_review() -> None:
+    result = ToolResult.fail(
+        'verification_failed',
+        'One test failed.',
+        summary='Verification failed with exit code 1.',
+    )
+
+    feedback = build_verification_plateau_feedback(
+        result,
+        'tests/runtime/test_hooks.py::test_denial',
+    )
+
+    assert feedback['role'] == 'user'
+    assert 'survived three workspace revisions' in feedback['content']
+    assert 'every entry or terminal branch' in feedback['content']
+    assert 'one coherent production-code edit' in feedback['content']
 
 
 def test_semantic_read_repeats_force_evidence_based_synthesis(

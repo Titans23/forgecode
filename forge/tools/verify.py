@@ -24,7 +24,13 @@ from forge.tools.shell import (
 
 class VerifyInput(ToolInput):
     command: str = Field(min_length=1)
-    cwd: str = '.'
+    cwd: str = Field(
+        default='.',
+        description=(
+            "Repository-relative directory; omit to verify the repository root. "
+            "Absolute paths and '..' are forbidden."
+        ),
+    )
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
 
 

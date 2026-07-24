@@ -55,7 +55,7 @@ _DIRECT_CHANGE_EN = re.compile(
     r'^\s*'
     r'(?:(?:please|kindly)\s+)?'
     r'(?:fix|implement|modify|update|add|remove|delete|create|write|'
-    r'refactor|optimize|change|resolve|rewrite|execute|apply|continue|'
+    r'refactor|optimize|improve|enhance|refine|change|resolve|rewrite|execute|apply|continue|'
     r'start)\b',
     re.IGNORECASE,
 )
@@ -66,7 +66,7 @@ _REQUESTED_CHANGE_EN = re.compile(
     r'i\s+need\s+you\s+to\s+'
     r')'
     r'(?:fix|implement|modify|update|add|remove|delete|create|write|'
-    r'refactor|optimize|change|resolve|rewrite|execute|apply|continue|'
+    r'refactor|optimize|improve|enhance|refine|change|resolve|rewrite|execute|apply|continue|'
     r'start)\b',
     re.IGNORECASE,
 )
@@ -102,6 +102,14 @@ _TEST_EXECUTION_EN = re.compile(
 _TEST_EXECUTION_ZH = re.compile(
     r'(?:运行|执行|进行).{0,20}(?:测试|pytest)|'
     r'(?:详细|全面|完整).{0,8}测试'
+)
+_TEST_CHANGES_EN = re.compile(
+    r'\b(?:add|write|create|include)\b.{0,40}'
+    r'\b(?:tests?|test\s+cases?|regression\s+coverage)\b',
+    re.IGNORECASE,
+)
+_TEST_CHANGES_ZH = re.compile(
+    r'(?:新增|添加|编写|补充|加入).{0,20}(?:测试|用例|回归覆盖)'
 )
 _FULL_TEST_SUITE_EN = re.compile(
     r'\b(?:full|complete|entire|all)\b.{0,20}'
@@ -219,6 +227,14 @@ def infer_test_execution_required(prompt: str) -> bool:
         _TEST_EXECUTION_ZH.search(text)
         or _TEST_EXECUTION_EN.search(text)
     )
+
+
+def infer_test_changes_required(prompt: str) -> bool:
+    '''Return true only when the user explicitly requests new test coverage.'''
+    text = prompt.strip().lstrip('\ufeff')
+    if not text:
+        return False
+    return bool(_TEST_CHANGES_EN.search(text) or _TEST_CHANGES_ZH.search(text))
 
 
 def infer_full_test_suite_required(prompt: str) -> bool:

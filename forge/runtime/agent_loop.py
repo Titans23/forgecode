@@ -24,6 +24,7 @@ from forge.runtime.intent import (
     infer_change_required,
     infer_explore_delegation_required,
     infer_full_test_suite_required,
+    infer_test_changes_required,
     infer_test_execution_required,
     infer_verification_required,
 )
@@ -314,6 +315,7 @@ class Conversation:
         full_tests_required = bool(
             tests_required and infer_full_test_suite_required(prompt)
         )
+        test_changes_required = infer_test_changes_required(prompt)
         exploration_delegation_pending = bool(
             change_required
             and tests_required
@@ -348,6 +350,8 @@ class Conversation:
         change_convergence_extra_reads = 0
         post_mutation_convergence = False
         verification_recovery = False
+        verification_failure_fingerprint: str | None = None
+        verification_failure_repeats = 0
         tool_protocol_failures = 0
         synthesis_retries = 0
         incomplete_declaration_recoveries = 0
@@ -356,6 +360,7 @@ class Conversation:
         completion_decision_calls = 0
         completion_ready_context = ''
         completion_reviewed_paths: set[str] = set()
+        deferred_diff_review_finish: ToolResult | None = None
         if self.workspace_tracker is not None:
             await self.workspace_tracker.begin_turn()
 
@@ -456,6 +461,7 @@ class Conversation:
                 verification_required=verification_required,
                 tests_required=tests_required,
                 full_tests_required=full_tests_required,
+                test_changes_required=test_changes_required,
                 verification_recovery=verification_recovery,
             )
             context_window_tokens = getattr(
@@ -1097,6 +1103,8 @@ class Conversation:
             accepted_finish: ToolResult | None = None
             terminal_finish_reasons: tuple[str, ...] = ()
             terminal_permission_denial: ToolResult | None = None
+            verification_plateau_triggered = False
+            verification_plateau_label = ''
             for tool_position, tool_call in enumerate(tool_calls):
                 finish_rejection: tuple[str, ...] = ()
                 pre_tool = await self._emit_hook(
@@ -1382,6 +1390,8 @@ class Conversation:
                         verification_required=verification_required,
                         tests_required=tests_required,
                         full_tests_required=full_tests_required,
+                        test_changes_required=test_changes_required,
+                        reviewed_paths=completion_reviewed_paths,
                     )
                     if (
                         result.metadata.get('status') != 'blocked'
@@ -1398,13 +1408,19 @@ class Conversation:
                         )
                     if finish_reasons:
                         finish_rejection = finish_reasons
+                        recoverable_diff_review = (
+                            is_diff_review_only_finish_rejection(finish_reasons)
+                        )
+                        if recoverable_diff_review:
+                            deferred_diff_review_finish = result
                         result = ToolResult.fail(
                             'finish_rejected',
                             'The finish_task declaration did not match the '
                             'available execution evidence.',
                             details={'reasons': list(finish_reasons)},
                         )
-                        terminal_finish_reasons = finish_reasons
+                        if not recoverable_diff_review:
+                            terminal_finish_reasons = finish_reasons
                     else:
                         accepted_finish = result
                 post_tool = await self._emit_hook(
@@ -1490,6 +1506,24 @@ class Conversation:
                     command_runs_tests = verification_command_runs_tests(
                         verification_command
                     )
+                    if latest_verification is not None and latest_verification.success:
+                        verification_failure_fingerprint = None
+                        verification_failure_repeats = 0
+                    elif latest_verification is not None:
+                        current_fingerprint = verification_failure_fingerprint_from_result(
+                            result
+                        )
+                        if verification_failure_family_matches(
+                            verification_failure_fingerprint,
+                            current_fingerprint,
+                        ):
+                            verification_failure_repeats += 1
+                        else:
+                            verification_failure_fingerprint = current_fingerprint
+                            verification_failure_repeats = 1
+                        if verification_failure_repeats == 3:
+                            verification_plateau_triggered = True
+                            verification_plateau_label = current_fingerprint
                     verification_contract_satisfied = bool(
                         latest_verification is not None
                         and latest_verification.success
@@ -1530,7 +1564,9 @@ class Conversation:
                     ):
                         change_convergence_required = True
                         change_convergence_read_used = False
-                        change_convergence_extra_reads = 0
+                        change_convergence_extra_reads = (
+                            3 if verification_plateau_triggered else 0
+                        )
                         post_mutation_convergence = False
                         force_synthesis = True
                     if latest_verification is not None:
@@ -1606,7 +1642,16 @@ class Conversation:
             )
             if failed_verification is not None:
                 request_messages.append(
-                    build_verification_failure_feedback(failed_verification)
+                    (
+                        build_verification_plateau_feedback(
+                            failed_verification,
+                            verification_plateau_label,
+                        )
+                        if verification_plateau_triggered
+                        else build_verification_failure_feedback(
+                            failed_verification
+                        )
+                    )
                 )
 
             if terminal_permission_denial is not None:
@@ -1727,6 +1772,7 @@ class Conversation:
                 completion_decision_calls = 0
                 completion_ready_context = ''
                 completion_reviewed_paths.clear()
+                deferred_diff_review_finish = None
                 # A successful write can be only one part of a larger change.
                 # Keep implementation tools available; the stagnation and
                 # completion paths enforce fresh verification before finish.
@@ -1833,6 +1879,51 @@ class Conversation:
                 tool_protocol_failures += 1
             elif any(result.success for _, result in tool_results):
                 tool_protocol_failures = 0
+            reviewed_now = completion_review_paths(
+                tool_results,
+                (
+                    self.workspace_tracker.changed_paths
+                    if self.workspace_tracker is not None
+                    else ()
+                ),
+            )
+            new_reviews = reviewed_now - completion_reviewed_paths
+            completion_reviewed_paths.update(reviewed_now)
+            if (
+                deferred_diff_review_finish is not None
+                and self.workspace_tracker is not None
+            ):
+                deferred_reasons = await self._finish_rejection_reasons(
+                    deferred_diff_review_finish,
+                    mutation_attempted=mutation_attempted,
+                    change_required=change_required,
+                    verification=latest_verification,
+                    verification_required=verification_required,
+                    tests_required=tests_required,
+                    full_tests_required=full_tests_required,
+                    test_changes_required=test_changes_required,
+                    reviewed_paths=completion_reviewed_paths,
+                )
+                if not deferred_reasons and not mutation_failures:
+                    summary = str(
+                        deferred_diff_review_finish.metadata['summary']
+                    )
+                    self.task_manager.complete()
+                    self.messages[:] = request_messages
+                    self.context.capture_explicit_memory(prompt)
+                    yield TurnCompleted(
+                        result=TurnResult(
+                            text=summary,
+                            usage=completed_usage,
+                            last_request_usage=request_usage,
+                            model_calls=iteration,
+                            tool_calls=tuple(all_tool_calls),
+                            status='completed',
+                            changed_paths=self.workspace_tracker.changed_paths,
+                            verification=latest_verification,
+                        )
+                    )
+                    return
             completion_ready = (
                 not protocol_failure
                 and await self._can_finalize_after_stagnation(
@@ -1854,15 +1945,8 @@ class Conversation:
                 if new_ready_revision:
                     completion_ready_revision = revision
                     completion_decision_calls = 0
-                    completion_reviewed_paths.clear()
                     force_synthesis = False
                     synthesis_retries = 0
-                reviewed_now = completion_review_paths(
-                    tool_results,
-                    self.workspace_tracker.changed_paths,
-                )
-                new_reviews = reviewed_now - completion_reviewed_paths
-                completion_reviewed_paths.update(reviewed_now)
                 if not new_ready_revision and not new_reviews:
                     completion_decision_calls += 1
                 completion_ready_context = render_completion_ready_context(
@@ -1871,7 +1955,20 @@ class Conversation:
                     completion_decision_calls,
                     self.completion_decision_limit,
                     completion_reviewed_paths,
+                    require_diff_review=full_tests_required,
                 )
+                changed_for_review = {
+                    path.replace('\\', '/')
+                    for path in self.workspace_tracker.changed_paths
+                }
+                if (
+                    full_tests_required
+                    and new_reviews
+                    and changed_for_review <= completion_reviewed_paths
+                ):
+                    request_messages.append(
+                        build_final_acceptance_audit_feedback()
+                    )
                 calls_without_progress = 0
                 if (
                     completion_decision_calls
@@ -2269,6 +2366,8 @@ class Conversation:
         verification_required: bool,
         tests_required: bool,
         full_tests_required: bool,
+        test_changes_required: bool,
+        reviewed_paths: set[str],
     ) -> tuple[str, ...]:
         metadata = result.metadata
         if metadata.get('status') == 'blocked':
@@ -2294,6 +2393,24 @@ class Conversation:
                 'Inspection or answer completion cannot satisfy it while '
                 'the task-local Diff is empty.'
             )
+        if task_kind == 'change' and test_changes_required and changed_paths:
+            if not any(is_test_file_path(path) for path in changed_paths):
+                reasons.append(
+                    'The user explicitly requested new test coverage, but the '
+                    'task-local Diff contains no test file. Add focused tests '
+                    'for the requested behavior before completion.'
+                )
+        if task_kind == 'change' and full_tests_required and changed_paths:
+            normalized_changes = {
+                path.replace('\\', '/') for path in changed_paths
+            }
+            unreviewed = sorted(normalized_changes - reviewed_paths)
+            if unreviewed:
+                reasons.append(
+                    'Before completing a full-suite change task, inspect the '
+                    'final Diff for every changed path with git_diff. Unreviewed '
+                    f'paths: {", ".join(unreviewed)}.'
+                )
         if task_kind == 'inspection' and not self.working_state.evidence_paths:
             reasons.append(
                 'An inspection task requires repository evidence from '
@@ -2339,6 +2456,7 @@ class Conversation:
         verification_required: bool = False,
         tests_required: bool = False,
         full_tests_required: bool = False,
+        test_changes_required: bool = False,
         verification_recovery: bool = False,
     ) -> str:
         prompt = self._system_prompt_with_task(
@@ -2379,6 +2497,14 @@ class Conversation:
                 'commands do not satisfy completion; the latest verification '
                 'must be an unscoped full-suite command such as '
                 '`uv run pytest -q`.'
+            )
+        if test_changes_required:
+            prompt += (
+                '\n\n[ForgeCode Test Change Contract]\n'
+                'The user explicitly requested adding test coverage. At least '
+                'one task-local test file must change, and it must exercise the '
+                'requested behavior; running only the existing suite cannot '
+                'complete this turn.'
             )
         if mutation_recovery_context:
             prompt += '\n\n' + mutation_recovery_context
@@ -3179,6 +3305,43 @@ def build_change_convergence_feedback(
     }
 
 
+def verification_failure_fingerprint_from_result(result: ToolResult) -> str:
+    '''Return a stable failing-test label across workspace revisions.'''
+    diagnostic = '\n'.join(
+        str(value)
+        for value in (
+            result.metadata.get('stdout', ''),
+            result.metadata.get('stderr', ''),
+            result.content,
+        )
+        if str(value).strip()
+    )
+    labels: list[str] = []
+    for pattern in (
+        r'(?m)^FAILED\s+([^\s]+)',
+        r'(?m)^_{2,}\s+(test_[^\r\n]+?)\s+_{2,}\s*$',
+        r'(?m)^_{2,}\s+ERROR collecting\s+([^\r\n]+)',
+    ):
+        labels.extend(match.strip() for match in re.findall(pattern, diagnostic))
+    unique = tuple(dict.fromkeys(label for label in labels if label))
+    if unique:
+        return ' | '.join(unique[:5])[:500]
+    code = result.error.code if result.error is not None else 'verification_failed'
+    return f'{code}:{result.summary}'[:500]
+
+
+def verification_failure_family_matches(
+    previous: str | None,
+    current: str,
+) -> bool:
+    '''Treat a shrinking set of the same failing tests as one repair plateau.'''
+    if previous is None:
+        return False
+    previous_labels = {label.strip() for label in previous.split(' | ') if label.strip()}
+    current_labels = {label.strip() for label in current.split(' | ') if label.strip()}
+    return bool(previous_labels & current_labels)
+
+
 def build_verification_failure_feedback(
     result: ToolResult,
 ) -> dict[str, Any]:
@@ -3199,6 +3362,28 @@ def build_verification_failure_feedback(
     }
 
 
+def build_verification_plateau_feedback(
+    result: ToolResult,
+    fingerprint: str,
+) -> dict[str, Any]:
+    '''Escalate repeated identical failures from local patching to invariant review.'''
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode verification plateau checkpoint: the same failing test '
+            'target survived three workspace revisions: '
+            f'{fingerprint}. Stop assertion-by-assertion patching. Use the expanded '
+            'focused-read allowance to inspect the complete failing test, the '
+            'production state it asserts, and every entry or terminal branch that '
+            'mutates that state. Derive one invariant that must hold across all '
+            'editing tools and branches, then make one coherent production-code '
+            'edit. Do not rewrite the test to fit the current implementation unless '
+            'the user contract changed. Rerun the smallest failing test after the '
+            f'edit. Verification status: {result.summary}'
+        ),
+    }
+
+
 def build_post_mutation_convergence_feedback() -> dict[str, Any]:
     '''Keep a partial implementation moving toward verification, not discovery.'''
     return {
@@ -3213,6 +3398,31 @@ def build_post_mutation_convergence_feedback() -> dict[str, Any]:
             'on the current revision.'
         ),
     }
+
+
+def is_diff_review_only_finish_rejection(reasons: tuple[str, ...]) -> bool:
+    '''Allow one bounded continuation when only final Diff review is missing.'''
+    return bool(reasons) and all(
+        reason.startswith(
+            'Before completing a full-suite change task, inspect the final Diff'
+        )
+        for reason in reasons
+    )
+
+
+def is_test_file_path(path: str) -> bool:
+    '''Recognize common repository test-file conventions without I/O.'''
+    normalized = path.replace('\\', '/').lower()
+    name = normalized.rsplit('/', 1)[-1]
+    return bool(
+        normalized.startswith('tests/')
+        or '/tests/' in normalized
+        or '/__tests__/' in normalized
+        or name.startswith('test_')
+        or '.test.' in name
+        or '.spec.' in name
+        or name.endswith('_test.py')
+    )
 
 
 def completion_review_paths(
@@ -3243,12 +3453,31 @@ def completion_review_paths(
     return reviewed
 
 
+def build_final_acceptance_audit_feedback() -> dict[str, Any]:
+    '''Require one high-priority semantic audit after the final Diff page.'''
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode final acceptance audit: all changed Diff pages are now '
+            'reviewed. Before completing, check the implementation and tests '
+            'against every clause of my original request. Pay particular '
+            'attention to state/reset boundaries and to diagnostics or errors '
+            'fed credential-shaped URLs, tokens, and exception text. If any '
+            'clause lacks behavioral coverage or could expose sensitive input, '
+            'make one focused correction and rerun verification; otherwise '
+            'complete now without more repository exploration.'
+        ),
+    }
+
+
 def render_completion_ready_context(
     changed_paths: tuple[str, ...],
     verification: VerificationEvidence | None,
     decision_calls: int,
     decision_limit: int,
     reviewed_paths: set[str],
+    *,
+    require_diff_review: bool = False,
 ) -> str:
     '''Persist the mechanically complete revision and decision budget.'''
     changed = ', '.join(changed_paths)
@@ -3259,6 +3488,36 @@ def render_completion_ready_context(
         else 'not required / not run'
     )
     remaining = max(decision_limit - decision_calls, 0)
+    unreviewed = sorted(
+        {path.replace('\\', '/') for path in changed_paths} - reviewed_paths
+    )
+    diff_instruction = (
+        'Final Diff review is mandatory for this full-suite task. Before '
+        'finish_task, call scoped git_diff for every unreviewed changed path: '
+        f'{", ".join(unreviewed)}. Review all pages and correct duplicate, '
+        'unrelated, or unsafe edits before completion. '
+        if require_diff_review and unreviewed
+        else ''
+    )
+    audit_instruction = (
+        'Audit the final Diff against every clause of the original request. '
+        'When the user requested focused tests, confirm the Diff contains '
+        'behavioral coverage for each acceptance criterion; a helper/classifier '
+        'unit test does not by itself cover the runtime flow that consumes it. '
+        'For turn-scoped behavior, verify both internal state and the next model '
+        'request/history so an injected constraint cannot leak into later turns. '
+        'Preserve existing regression scenarios: add coverage instead of '
+        'repurposing an unrelated test unless equivalent coverage remains. For '
+        'per-call or per-turn buffers, test a non-empty prior iteration and prove '
+        'the reset boundary prevents earlier partial output from contaminating '
+        'the next result. For diagnostics that promise secret safety, inspect '
+        'every rendered configuration and error field using credential-shaped '
+        'inputs; never print raw URLs containing userinfo or queries, keys, '
+        'tokens, or secret-bearing exception values. '
+        if require_diff_review
+        else ''
+    )
+    review_instruction = diff_instruction + audit_instruction
     return (
         '[ForgeCode Completion Ready]\n'
         f'changed paths: {changed}\n'
@@ -3266,14 +3525,15 @@ def render_completion_ready_context(
         f'reviewed Diff paths: {reviewed}\n'
         f'decision calls remaining: {remaining}\n'
         'Deterministic completion checks pass for the current revision. '
-        'All tools listed in this request remain available, but open-ended '
+        + review_instruction
+        + 'All tools listed in this request remain available, but open-ended '
         'discovery is no longer useful. Decide whether the user goal is '
-        'satisfied. If it is, return the final answer or call finish_task '
-        'alone. If it is not, make one concrete workspace edit based on the '
-        'existing evidence, then verify the new revision. Use scoped git_diff '
-        'only for a changed path not already reviewed. If it returns '
-        'diff_complete=false, immediately continue with its next_offset and '
-        'diff_sha256 until the final page.'
+        'satisfied. If it is and mandatory review is complete, return the final '
+        'answer or call finish_task alone. If it is not, make one concrete '
+        'workspace edit based on the existing evidence, then verify the new '
+        'revision. Use scoped git_diff only for a changed path not already '
+        'reviewed. If it returns diff_complete=false, immediately continue with '
+        'its next_offset and diff_sha256 until the final page.'
     )
 
 

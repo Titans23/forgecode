@@ -6,6 +6,7 @@ from forge.runtime.intent import (
     infer_change_required,
     infer_explore_delegation_required,
     infer_full_test_suite_required,
+    infer_test_changes_required,
     infer_test_execution_required,
     infer_verification_required,
 )
@@ -25,6 +26,9 @@ from forge.runtime.intent import (
         '把 world.js 改成六面渲染',
         '可以，开始吧',
         'Fix the rendering bug.',
+        'Improve Explore failure accounting.',
+        'Enhance the session recovery flow.',
+        'Refine deterministic denial behavior.',
         'Please resolve the rendering bug.',
         'Inspect and fix the rendering bug.',
         'Could you please update the CLI?',
@@ -106,6 +110,23 @@ def test_explicit_test_requests_require_a_test_runner(
 @pytest.mark.parametrize(
     ('prompt', 'expected'),
     [
+        ('Add deterministic tests for denied reads.', True),
+        ('Write regression test cases for the CLI.', True),
+        ('添加权限拒绝测试用例。', True),
+        ('Run focused tests and then the full test suite.', False),
+        ('Execute the existing tests.', False),
+    ],
+)
+def test_test_file_change_requirement_is_inferred_separately(
+    prompt: str,
+    expected: bool,
+) -> None:
+    assert infer_test_changes_required(prompt) is expected
+
+
+@pytest.mark.parametrize(
+    ('prompt', 'expected'),
+    [
         ('Run focused tests and then the full test suite.', True),
         ('运行聚焦测试和完整测试套件', True),
         ('执行全量测试', True),
@@ -159,6 +180,18 @@ def test_large_tested_change_routes_to_explore_agent() -> None:
         + 'Run focused tests and then the full test suite.'
     )
 
+    assert infer_explore_delegation_required(prompt) is True
+
+
+def test_improve_style_complex_change_routes_to_explore_agent() -> None:
+    prompt = (
+        'Improve Explore failure accounting and bounded recovery. '
+        + 'Cover exact usage, limit behavior, structured partial reports, '
+        'parent isolation, and backward compatibility. ' * 8
+        + 'Run focused tests and then the full test suite.'
+    )
+
+    assert infer_change_required(prompt) is True
     assert infer_explore_delegation_required(prompt) is True
 
 
