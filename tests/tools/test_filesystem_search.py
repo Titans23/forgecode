@@ -90,6 +90,31 @@ def test_create_directory_rejects_existing_marker(tmp_path: Path) -> None:
     assert result.error.code == 'directory_already_exists'
 
 
+def test_create_directory_does_not_mutate_existing_directory(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / 'play' / 'src'
+    directory.mkdir(parents=True)
+    existing = directory / 'main.js'
+    existing.write_text('export {};\n', encoding='utf-8')
+
+    result = run(CreateDirectoryTool(tmp_path).run({'path': 'play/src'}))
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'directory_already_exists'
+    assert result.error.details == {
+        'path': 'play/src',
+        'recommended_tool': 'write_file',
+        'recovery': (
+            'Create or edit a concrete file inside this directory; '
+            'do not call create_directory for it again.'
+        ),
+    }
+    assert not (directory / '.gitkeep').exists()
+    assert existing.read_text(encoding='utf-8') == 'export {};\n'
+
+
 def test_list_directory_sorts_directories_before_files(
     tmp_path: Path,
 ) -> None:

@@ -1,0 +1,105 @@
+:root {
+  --bg: #0d1b15;
+  --panel: #14281f;
+  --card: #254335;
+  --card-active: #f4d35e;
+  --text: #ecf5e9;
+  --danger: #ffb4a2;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+  background: radial-gradient(circle at top, #183025, #0a120f 60%);
+  color: var(--text);
+  display: grid;
+  justify-items: center;
+  padding: 16px;
+  min-height: 100vh;
+}
+h1 { margin: 0 0 8px 0; font-size: 20px; letter-spacing: .5px; }
+.layout {
+  width: min(1100px, 100%);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  justify-items: center;
+}
+.game-wrap {
+  display: grid;
+  grid-template-columns: minmax(720px, auto) 240px;
+  gap: 12px;
+  align-items: start;
+}
+canvas {
+  background: #1d4f2b;
+  border: 4px solid #6f8b55;
+  border-radius: 8px;
+  image-rendering: pixelated;
+  box-shadow: 0 10px 24px rgba(0,0,0,.45);
+  cursor: crosshair;
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.side {
+  border: 4px solid #6f8b55;
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel);
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.status {
+  background: #193024;
+  border: 2px solid #3f6346;
+  border-radius: 6px;
+  padding: 8px;
+  min-height: 90px;
+}
+.status p { margin: 4px 0; }
+.cards { display: grid; grid-template-columns: 1fr; gap: 8px; }
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--text);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  box-shadow: inset 0 0 0 2px #3f6949;
+  transition: 0.16s;
+}
+button:hover { filter: brightness(1.08); }
+button.active { background: var(--card-active); color: #1d1d1d; }
+button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+}
+.log {
+  white-space: pre-wrap;
+  background: #102117;
+  border: 2px solid #31583b;
+  border-radius: 6px;
+  min-height: 160px;
+  padding: 8px;
+  font-size: 12px;
+  color: #d5efd4;
+  overflow: auto;
+}
+.hint { font-size: 12px; color: #a9c9a5; }

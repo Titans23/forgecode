@@ -529,7 +529,7 @@ def render_unified_change(
 ) -> str:
     from_file = '/dev/null' if before is None else f'a/{path}'
     to_file = '/dev/null' if after is None else f'b/{path}'
-    return ''.join(
+    lines = list(
         difflib.unified_diff(
             [] if before is None else before.splitlines(keepends=True),
             [] if after is None else after.splitlines(keepends=True),
@@ -537,3 +537,13 @@ def render_unified_change(
             tofile=to_file,
         )
     )
+    rendered: list[str] = []
+    for line in lines:
+        rendered.append(line)
+        if (
+            line.startswith((' ', '+', '-'))
+            and not line.startswith(('+++ ', '--- '))
+            and not line.endswith(('\n', '\r'))
+        ):
+            rendered.append('\n\\ No newline at end of file\n')
+    return ''.join(rendered)

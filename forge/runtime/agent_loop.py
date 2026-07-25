@@ -110,7 +110,7 @@ class Conversation:
         repeated_tool_limit: int = 2,
         stagnation_warning: int = 4,
         stagnation_limit: int = 8,
-        change_exploration_limit: int = 12,
+        change_exploration_limit: int = 8,
         completion_decision_limit: int = 3,
         mutation_recovery_limit: int = 4,
         max_tool_calls: int | None = 120,
@@ -361,6 +361,7 @@ class Conversation:
         mutation_recovery_read_used = False
         mutation_recovery_context = ''
         mutation_text_recoveries = 0
+        required_change_text_recoveries = 0
         force_synthesis = False
         change_convergence_required = False
         change_convergence_read_used = False
@@ -444,6 +445,9 @@ class Conversation:
             elif mutation_failures:
                 request_tools = self._edit_recovery_tools(
                     read_available=not mutation_recovery_read_used,
+                    excluded_write_tools=repeated_failed_mutation_tools(
+                        mutation_failures
+                    ),
                 )
             elif verification_recovery:
                 request_tools = self._verification_tools(
@@ -972,7 +976,10 @@ class Conversation:
                     finalization_recovery = False
                     verification_recovery = False
                     change_convergence_required = True
-                    change_convergence_read_used = False
+                    # The implementation was already inspected and mutated.
+                    # Do not reopen another read slot every time the model
+                    # admits that the same revision is incomplete.
+                    change_convergence_read_used = True
                     change_convergence_extra_reads = 0
                     post_mutation_convergence = True
                     force_synthesis = True
@@ -984,6 +991,14 @@ class Conversation:
                     )
                     continue
                 if self._pending_required_change(change_required):
+                    if required_change_text_recoveries < 1:
+                        required_change_text_recoveries += 1
+                        force_synthesis = True
+                        calls_without_progress = 0
+                        request_messages.append(
+                            build_required_change_text_recovery_feedback()
+                        )
+                        continue
                     reason = required_change_block_reason()
                     self.task_manager.stuck((reason,))
                     self.messages[:] = request_messages
@@ -1342,7 +1357,7 @@ class Conversation:
                     phase_allowed_names = {'verify'}
                     phase_tool_unavailable = tool_call.name != 'verify'
                 elif mutation_failures:
-                    phase_allowed_names = set(edit_phase_names)
+                    phase_allowed_names = set(request_tool_names)
                     if mutation_read_call and not mutation_read_blocked:
                         phase_allowed_names.add(tool_call.name)
                     phase_tool_unavailable = (
@@ -2408,6 +2423,7 @@ class Conversation:
         self,
         *,
         read_available: bool,
+        excluded_write_tools: frozenset[str] = frozenset(),
     ) -> list[dict[str, Any]] | None:
         definitions = self._tool_definitions()
         if self.registry is None or definitions is None:
@@ -2430,9 +2446,13 @@ class Conversation:
                 and str(definition.get('name', ''))
                 in EDIT_RECOVERY_READ_TOOLS
             )
-            or self.registry.effect(
-                str(definition.get('name', ''))
-            ) == 'workspace_write'
+            or (
+                self.registry.effect(
+                    str(definition.get('name', ''))
+                ) == 'workspace_write'
+                and str(definition.get('name', ''))
+                not in excluded_write_tools
+            )
         ]
 
     def _post_mutation_tools(
@@ -3342,6 +3362,19 @@ def required_change_block_reason() -> str:
     )
 
 
+def build_required_change_text_recovery_feedback() -> dict[str, Any]:
+    '''Give one bounded retry when a requested edit received only prose.'''
+    return {
+        'role': 'user',
+        'content': (
+            'ForgeCode rejected the progress report because the user requested '
+            'an actual workspace implementation and this turn still has no '
+            'Diff. Do not ask for confirmation or return another plan. Use the '
+            'available workspace-write tools now, then verify the result.'
+        ),
+    }
+
+
 def render_change_contract_context(
     changed_paths: tuple[str, ...],
     *,
@@ -3763,6 +3796,28 @@ def mutation_target_paths(
     return unique if maximum is None else unique[:maximum]
 
 
+def repeated_failed_mutation_tools(
+    failures: list[dict[str, Any]],
+) -> frozenset[str]:
+    '''Disable deterministic mismatches immediately, other tools after two failures.'''
+    terminal_codes = {
+        'directory_already_exists',
+        'file_already_exists',
+        'not_a_directory',
+        'not_a_file',
+    }
+    counts: dict[str, int] = {}
+    disabled: set[str] = set()
+    for failure in failures:
+        tool = str(failure.get('tool', ''))
+        if tool:
+            counts[tool] = counts.get(tool, 0) + 1
+            if str(failure.get('code', '')) in terminal_codes:
+                disabled.add(tool)
+    disabled.update(tool for tool, count in counts.items() if count >= 2)
+    return frozenset(disabled)
+
+
 def render_mutation_recovery_context(
     failures: list[dict[str, Any]],
     failure_count: int,
@@ -3786,6 +3841,13 @@ def render_mutation_recovery_context(
         'corrected workspace edit. Do not restart broad discovery or repeat '
         'the rejected payload.'
     )
+    disabled = repeated_failed_mutation_tools(failures)
+    if disabled:
+        lines.append(
+            'Disabled repeated failing write tool(s) for this recovery: '
+            + ', '.join(sorted(disabled))
+            + '. Choose a different available editing tool.'
+        )
     lines.append(
         'For an existing file, prefer replace_text with one exact unique '
         'fragment copied from the current evidence. Otherwise use a smaller '

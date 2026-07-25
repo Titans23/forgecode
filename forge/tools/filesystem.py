@@ -107,18 +107,25 @@ class CreateDirectoryTool(Tool[CreateDirectoryInput]):
             arguments.path,
             must_exist=False,
         )
-        if directory.exists() and not directory.is_dir():
-            raise ToolExecutionError(
-                'not_a_directory',
-                f'Path is not a directory: {arguments.path}',
-            )
-        marker = directory / '.gitkeep'
-        if marker.exists():
+        if directory.exists():
+            if not directory.is_dir():
+                raise ToolExecutionError(
+                    'not_a_directory',
+                    f'Path is not a directory: {arguments.path}',
+                )
             raise ToolExecutionError(
                 'directory_already_exists',
                 f'Directory already exists: {arguments.path}',
-                details={'path': arguments.path},
+                details={
+                    'path': arguments.path,
+                    'recommended_tool': 'write_file',
+                    'recovery': (
+                        'Create or edit a concrete file inside this directory; '
+                        'do not call create_directory for it again.'
+                    ),
+                },
             )
+        marker = directory / '.gitkeep'
         directory.mkdir(parents=True, exist_ok=True)
         marker.touch(exist_ok=False)
         shown_path = display_path(self.root, directory)

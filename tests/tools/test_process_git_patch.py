@@ -593,6 +593,41 @@ def test_apply_patch_codex_envelope_preserves_crlf(
     )
 
 
+def test_apply_patch_codex_envelope_handles_missing_final_newline(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    page = tmp_path / 'index.html'
+    page.write_bytes(
+        b'<title>Old</title>\n'
+        b'<body>\n'
+        b'<script src="old.js"></script>\n'
+        b'</body>'
+    )
+    envelope = (
+        '*** Begin Patch\n'
+        '*** Update File: index.html\n'
+        '@@\n'
+        '-<title>Old</title>\n'
+        '+<title>New</title>\n'
+        '@@\n'
+        '-<script src="old.js"></script>\n'
+        '+<script src="new.js"></script>\n'
+        '*** End Patch'
+    )
+
+    result = run(ApplyPatchTool(tmp_path).run({'patch': envelope}))
+
+    assert result.success is True
+    assert page.read_text(encoding='utf-8') == (
+        '<title>New</title>\n'
+        '<body>\n'
+        '<script src="new.js"></script>\n'
+        '</body>'
+    )
+    assert not page.read_bytes().endswith((b'\n', b'\r'))
+
+
 def test_apply_patch_classifies_missing_codex_context(tmp_path: Path) -> None:
     initialize_git_repository(tmp_path)
     envelope = (
