@@ -62,7 +62,7 @@ from forge.runtime.state import (
 )
 from forge.runtime.workspace import WorkspaceTracker
 from forge.sessions.checkpoint import CheckpointError, CheckpointStore
-from forge.tasks.manager import TaskManager
+from forge.tasks.manager import TaskManager, is_continuation_directive
 from forge.tools.base import ToolRegistry, ToolResult
 from forge.tools.task import create_task_tools
 
@@ -73,7 +73,7 @@ if TYPE_CHECKING:
 
 
 EDIT_RECOVERY_READ_TOOLS = frozenset(
-    {'read_file', 'grep'}
+    {'read_file', 'list_directory', 'grep'}
 )
 
 
@@ -268,6 +268,23 @@ class Conversation:
         if self.mcp_manager is not None:
             await self.mcp_manager.ensure_connected()
 
+        if (
+            is_continuation_directive(prompt)
+            and self.task_manager.active is None
+            and not self.messages
+        ):
+            yield TurnCompleted(
+                result=TurnResult(
+                    text=(
+                        '当前会话没有可继续的历史任务。请使用 /resume 选择一个'
+                        '包含历史记录的会话，或直接描述一个新任务。'
+                    ),
+                    usage=TokenUsage(input_tokens=0, output_tokens=0),
+                    model_calls=0,
+                )
+            )
+            return
+
         self.task_manager.begin_turn(prompt)
         self.working_state = WorkingState()
         self._last_task_context = self.task_manager.system_suffix()
@@ -355,6 +372,7 @@ class Conversation:
         tool_protocol_failures = 0
         synthesis_retries = 0
         incomplete_declaration_recoveries = 0
+        incomplete_declaration_revision: int | None = None
         finalization_recovery = False
         completion_ready_revision: int | None = None
         completion_decision_calls = 0
@@ -470,6 +488,11 @@ class Conversation:
             reserved_output_tokens = getattr(
                 self.client, 'max_tokens', 0
             )
+            active_task = self.task_manager.active
+            active_scope_hints = (
+                active_task.scope_hints if active_task is not None else ()
+            )
+            active_task_goal = active_task.goal if active_task is not None else ''
             compaction_required = self.context.compaction_required(
                 request_messages,
                 system_prompt=request_system_prompt,
@@ -477,6 +500,7 @@ class Conversation:
                 tools=request_tools,
                 context_window_tokens=context_window_tokens,
                 reserved_output_tokens=reserved_output_tokens,
+                scope_hints=active_scope_hints,
             )
             compaction_allowed = compaction_required
             if compaction_required:
@@ -550,6 +574,8 @@ class Conversation:
                     tools=request_tools,
                     context_window_tokens=context_window_tokens,
                     reserved_output_tokens=reserved_output_tokens,
+                    scope_hints=active_scope_hints,
+                    task_goal=active_task_goal,
                 )
             if (
                 compaction is not None
@@ -562,7 +588,10 @@ class Conversation:
             yield ModelCallStarted(iteration=iteration)
             try:
                 async for event in self.client.stream(
-                    messages=self.context.prepare(request_messages),
+                    messages=self.context.prepare(
+                        request_messages,
+                        scope_hints=active_scope_hints,
+                    ),
                     tools=request_tools,
                     system=request_system_prompt,
                 ):
@@ -651,6 +680,8 @@ class Conversation:
                             request_messages,
                             self.client,
                             force=True,
+                            scope_hints=active_scope_hints,
+                            task_goal=active_task_goal,
                         )
                     if report is not None and report.success:
                         if self.session_journal is not None:
@@ -887,7 +918,28 @@ class Conversation:
                     complete_text,
                     require_tests=tests_required,
                 )
+                if placeholder_only_implementation(
+                    prompt,
+                    (
+                        self.workspace_tracker.changed_paths
+                        if self.workspace_tracker is not None
+                        else ()
+                    ),
+                ):
+                    incomplete_reasons = (
+                        *incomplete_reasons,
+                        'Only directory placeholder files changed; the requested '
+                        'implementation has not been created.',
+                    )
                 if change_required and incomplete_reasons:
+                    current_revision = (
+                        self.workspace_tracker.revision
+                        if self.workspace_tracker is not None
+                        else 0
+                    )
+                    if incomplete_declaration_revision != current_revision:
+                        incomplete_declaration_recoveries = 0
+                        incomplete_declaration_revision = current_revision
                     incomplete_declaration_recoveries += 1
                     if incomplete_declaration_recoveries > 2:
                         reason = (
@@ -922,7 +974,7 @@ class Conversation:
                     change_convergence_required = True
                     change_convergence_read_used = False
                     change_convergence_extra_reads = 0
-                    post_mutation_convergence = False
+                    post_mutation_convergence = True
                     force_synthesis = True
                     calls_without_progress = 0
                     request_messages.append(
@@ -1186,6 +1238,28 @@ class Conversation:
                                 'source': permission_decision.source,
                             },
                         )
+                scope_rejection: ToolResult | None = None
+                if (
+                    tool_effect == 'workspace_write'
+                    and hook_rejection is None
+                    and permission_rejection is None
+                ):
+                    targets = mutation_target_paths(tool_call, maximum=None)
+                    outside_scope = self.task_manager.outside_scope(targets)
+                    if outside_scope:
+                        scope_rejection = ToolResult.fail(
+                            'outside_task_scope',
+                            'Workspace write denied because its target is outside '
+                            'the active task scope.',
+                            details={
+                                'targets': list(outside_scope),
+                                'allowed': list(
+                                    self.task_manager.active.scope_hints
+                                    if self.task_manager.active is not None
+                                    else ()
+                                ),
+                            },
+                        )
                 if tool_effect == 'workspace_write':
                     mutation_attempted = True
                     change_required = True
@@ -1289,6 +1363,8 @@ class Conversation:
                     result = hook_rejection
                 elif permission_rejection is not None:
                     result = permission_rejection
+                elif scope_rejection is not None:
+                    result = scope_rejection
                 elif convergence_read_blocked or mutation_read_blocked:
                     result = ToolResult.fail(
                         'recovery_read_already_used',
@@ -1393,6 +1469,19 @@ class Conversation:
                         test_changes_required=test_changes_required,
                         reviewed_paths=completion_reviewed_paths,
                     )
+                    if placeholder_only_implementation(
+                        prompt,
+                        (
+                            self.workspace_tracker.changed_paths
+                            if self.workspace_tracker is not None
+                            else ()
+                        ),
+                    ):
+                        finish_reasons = (
+                            *finish_reasons,
+                            'Only directory placeholder files changed; the '
+                            'requested implementation has not been created.',
+                        )
                     if (
                         result.metadata.get('status') != 'blocked'
                         and mutation_failures
@@ -1475,6 +1564,7 @@ class Conversation:
                         last_workspace_change_position = tool_position
                         if tool_effect == 'workspace_write' and result.success:
                             last_workspace_write_change_position = tool_position
+                            self.task_manager.observe_mutation_paths(change.paths)
                         self.working_state.advance_revision(
                             change.revision,
                             change.paths,
@@ -1621,7 +1711,9 @@ class Conversation:
                             ),
                         )
                     )
-            request_messages.append(build_tool_result_message(tool_results))
+            tool_result_message = build_tool_result_message(tool_results)
+            self.context.persist_tool_result_message(tool_result_message)
+            request_messages.append(tool_result_message)
             if any(
                 tool_call.name == 'explore_repository' and result.success
                 for tool_call, result in tool_results
@@ -1889,6 +1981,21 @@ class Conversation:
             )
             new_reviews = reviewed_now - completion_reviewed_paths
             completion_reviewed_paths.update(reviewed_now)
+            if workspace_write_progressed and change_required:
+                # A new Diff is progress, not proof that a multi-file request is
+                # complete. Move directly into the bounded continuation phase
+                # before the generic completion-ready check can invite a broad
+                # repository rescan.
+                change_convergence_required = True
+                change_convergence_read_used = False
+                change_convergence_extra_reads = 3
+                post_mutation_convergence = True
+                force_synthesis = True
+                calls_without_progress = 0
+                request_messages.append(
+                    build_post_mutation_convergence_feedback()
+                )
+                continue
             if (
                 deferred_diff_review_finish is not None
                 and self.workspace_tracker is not None
@@ -2323,12 +2430,9 @@ class Conversation:
                 and str(definition.get('name', ''))
                 in EDIT_RECOVERY_READ_TOOLS
             )
-            or (
-                str(definition.get('name', '')) != 'write_file'
-                and self.registry.effect(
-                    str(definition.get('name', ''))
-                ) == 'workspace_write'
-            )
+            or self.registry.effect(
+                str(definition.get('name', ''))
+            ) == 'workspace_write'
         ]
 
     def _post_mutation_tools(
@@ -2349,7 +2453,7 @@ class Conversation:
         for definition in definitions:
             name = str(definition.get('name', ''))
             if (
-                name in {'verify', 'finish_task'}
+                name in {'git_diff', 'verify', 'finish_task'}
                 and name not in selected_names
             ):
                 selected.append(dict(definition))
@@ -2674,6 +2778,16 @@ class Conversation:
             self.messages,
             self.client,
             force=True,
+            scope_hints=(
+                self.task_manager.active.scope_hints
+                if self.task_manager.active is not None
+                else ()
+            ),
+            task_goal=(
+                self.task_manager.active.goal
+                if self.task_manager.active is not None
+                else ''
+            ),
         )
         if report is None:
             raise AssertionError('Forced compaction did not return a report.')
@@ -3006,6 +3120,11 @@ class Conversation:
             and state.info.session_id == self.session_journal.session_id
         ):
             return f'Session {state.info.session_id} is already active.'
+        if not state.messages and state.active_task is None:
+            raise ValueError(
+                f'Session {state.info.session_id} has no resumable '
+                'conversation history.'
+            )
         if self.session_journal is not None:
             self.session_journal.record_stopped()
         self.messages[:] = list(state.messages)
@@ -3390,8 +3509,9 @@ def build_post_mutation_convergence_feedback() -> dict[str, Any]:
         'role': 'user',
         'content': (
             'ForgeCode post-edit checkpoint: a real Diff now exists. Continue '
-            'only with task-relevant edits, up to four focused read/grep calls '
-            'for exact missing source context, or the verify tool. Broad '
+            'only with task-relevant edits, up to four focused file reads, '
+            'directory listings, or grep calls for exact missing source '
+            'context, or the verify tool. Broad '
             'repository discovery tools are closed in this phase. Do not '
             'finalize until every requested behavior and test is implemented; '
             'when implementation is complete, run the requested verification '
@@ -3610,7 +3730,10 @@ def mutation_target_paths(
     paths: list[str] = []
     direct_path = tool_call.arguments.get('path')
     if isinstance(direct_path, str) and direct_path.strip():
-        paths.append(direct_path.strip().replace('\\', '/'))
+        direct_path = direct_path.strip().replace('\\', '/')
+        if tool_call.name == 'create_directory':
+            direct_path = direct_path.rstrip('/') + '/.gitkeep'
+        paths.append(direct_path)
     patch = tool_call.arguments.get('patch')
     if isinstance(patch, str):
         prefixes = (
@@ -3794,6 +3917,30 @@ def build_synthesis_retry_feedback(
     }
 
 
+def placeholder_only_implementation(
+    prompt: str,
+    changed_paths: tuple[str, ...],
+) -> bool:
+    '''Reject placeholder-only Diffs for requests that require real content.'''
+    if not changed_paths or not all(
+        path.replace('\\', '/').endswith('/.gitkeep')
+        or path.replace('\\', '/') == '.gitkeep'
+        for path in changed_paths
+    ):
+        return False
+    text = prompt.strip().casefold()
+    implementation_request = bool(
+        re.search(
+            r'(?:实现|编写|写一个|开发|游戏|应用|网站|源码|逻辑|功能)'
+            r'|\b(?:implement|develop|write)\b'
+            r'|\bbuild\b.{0,40}\b(?:game|app|application|website|code)\b',
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
+    return implementation_request
+
+
 def self_declared_incomplete_reasons(
     text: str,
     *,
@@ -3811,6 +3958,11 @@ def self_declared_incomplete_reasons(
         (
             r'(?:尚未|还未|仍未|没有|并未|未)(?:真正)?'
             r'(?:实现|完成|修复|满足|支持)'
+        ),
+        (
+            r'(?:还需要|仍需要|需要继续).{0,80}'
+            r'(?:创建|实现|完成|补齐|写入|源码|逻辑|功能|工作)'
+            r'|(?:只完成了?|仅完成了?|不能继续|无法继续|才算真正完成)'
         ),
     )
     if any(
@@ -3871,9 +4023,12 @@ def build_incomplete_declaration_feedback(
             'declared required work incomplete:\n'
             f'{rendered}\n'
             'Continue from the existing Diff and repository evidence. Use the '
-            'single targeted read/search allowance only if needed, make the '
-            'missing task-relevant edit, and run the requested tests. Do not '
-            'return another incomplete summary.'
+            'single targeted read/search allowance only if needed: use '
+            'list_directory for a directory and read_file only for a file. '
+            'The provided write and verification tools are available now; no '
+            'additional user confirmation is required. Make the missing '
+            'task-relevant edit, verify the current revision, and do not '
+            'return another progress report or incomplete summary.'
         ),
     }
 

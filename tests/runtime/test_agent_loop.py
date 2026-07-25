@@ -336,6 +336,21 @@ def test_permission_denial_stops_turn_without_model_recovery(
     assert '/permission supervised' in events[-1].result.text
 
 
+def test_orphan_continuation_returns_guidance_without_calling_model() -> None:
+    client = FakeModelClient()
+    conversation = Conversation(client=client)
+
+    events = collect_turn(conversation, '继续')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.model_calls == 0
+    assert '没有可继续的历史任务' in completed.result.text
+    assert client.calls == []
+    assert conversation.task_manager.active is None
+
+
 def test_conversation_forwards_stream_and_returns_final_result() -> None:
     client = FakeModelClient(streamed_response('RE', 'ADY'))
     conversation = Conversation(client=client)
@@ -778,7 +793,7 @@ def test_empty_model_response_is_retried_as_protocol_recovery() -> None:
     )
     conversation = Conversation(client=client)
 
-    events = collect_turn(conversation, 'Continue the task')
+    events = collect_turn(conversation, 'Handle the task')
 
     assert events[-1].result.status == 'completed'
     assert events[-1].result.text == 'Recovered after the empty response.'

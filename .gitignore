@@ -15,4 +15,5 @@ target/
 **/.forge/tasks/
 fixtures/
 # game/
-play/
+# keep static demo in play/
+!play/

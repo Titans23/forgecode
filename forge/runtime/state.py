@@ -103,6 +103,14 @@ class ModelTextDelta:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelStreamCompleted:
+    '''A single model response completed with optional timing metadata.'''
+
+    duration_seconds: float | None = None
+    provider_usage: TokenUsage | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ModelToolCallStarted:
     '''A model started streaming one tool request.'''
 

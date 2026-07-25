@@ -1,7 +1,36 @@
 '''Tests for provider-neutral context accounting.'''
 
+from pathlib import Path
+
 from forge.context.compactor import CompactionConfig
 from forge.context.manager import ContextManager, ContextStats, context_stats
+
+
+def test_large_tool_result_is_bounded_before_history_storage(
+    tmp_path: Path,
+) -> None:
+    manager = ContextManager(
+        [],
+        tmp_path,
+        CompactionConfig(tool_result_inline_limit=20),
+    )
+    message = {
+        'role': 'user',
+        'content': [
+            {
+                'type': 'tool_result',
+                'tool_use_id': 'large-result',
+                'content': 'x' * 100,
+            }
+        ],
+    }
+
+    artifacts = manager.persist_tool_result_message(message)
+
+    assert artifacts
+    stored = message['content'][0]['content']
+    assert stored.startswith('[ForgeCode stored a large tool result]')
+    assert Path(artifacts[0]).read_text(encoding='utf-8') == 'x' * 100
 
 
 def test_context_stats_count_messages_and_tool_results() -> None:

@@ -45,6 +45,7 @@ class SessionInfo:
     title: str
     status: str
     sequence: int
+    message_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -518,6 +519,7 @@ class SessionStore:
                         ),
                         status=str(entry.get('status', 'active')),
                         sequence=int(entry['sequence']),
+                        message_count=int(entry['message_count']),
                     )
                 )
             return tuple(sessions)
@@ -539,6 +541,7 @@ class SessionStore:
                     'title': info.title,
                     'status': info.status,
                     'sequence': info.sequence,
+                    'message_count': info.message_count,
                     'mtime_ns': info.path.stat().st_mtime_ns,
                 }
                 for info in sessions
@@ -656,6 +659,7 @@ class SessionStore:
             title=name or first_prompt or str(first['session_id']),
             status=status,
             sequence=int(records[-1]['sequence']),
+            message_count=len(messages),
         )
         return SessionState(
             info=info,

@@ -210,8 +210,9 @@ class RunCommandTool(Tool[RunCommandInput]):
         'Run an executable repository command for exploration, diagnostics, '
         'or development. Do not use it to display source files or directory '
         'trees; use read_file, grep, find_files, or list_directory. Do not '
-        'write files through scripts or redirection; use write_file, '
-        'or apply_patch. Use verify instead when the command is '
+        'create directories or write files through scripts or redirection; '
+        'use create_directory, write_file, or apply_patch. Use verify instead '
+        'when the command is '
         'intended as formal completion evidence. For multiline scripts, pass '
         'command="python -" or command="node" and put the script in stdin; '
         'do not embed a POSIX heredoc in command. '
@@ -226,6 +227,15 @@ class RunCommandTool(Tool[RunCommandInput]):
     effect = 'process'
 
     async def execute(self, arguments: RunCommandInput) -> ToolResult:
+        directory_write = shell_directory_write_reason(arguments.command)
+        if directory_write is not None:
+            raise ToolExecutionError(
+                'shell_directory_write_denied',
+                'run_command cannot create repository directories. Use the '
+                'create_directory tool so the directory has a Git marker '
+                'and is visible to completion tracking.',
+                details={'detected': directory_write},
+            )
         if os.name == 'nt' and has_unquoted_heredoc(arguments.command):
             raise ToolExecutionError(
                 'unsupported_shell_syntax',
@@ -395,6 +405,24 @@ def shell_file_write_reason(command: str) -> str | None:
             return reason
     if has_unquoted_output_redirection(command):
         return 'shell output redirection'
+    return None
+
+
+def shell_directory_write_reason(command: str) -> str | None:
+    '''Detect direct directory creation that bypasses workspace tracking.'''
+    normalized = command.lstrip()
+    if re.search(r'(?i)(?:^|[;&|]\s*)mkdir\s+', normalized):
+        return 'mkdir command'
+    if os.name == 'nt' and re.search(
+        r'(?i)(?:^|[;&|]\s*)md\s+', normalized
+    ):
+        return 'md command'
+    if re.search(
+        r'(?i)(?:^|[;&|]\s*)New-Item\b[^\r\n]*'
+        r'(?:-ItemType\s+(?:Directory|Container)|-Type\s+(?:Directory|Container))',
+        normalized,
+    ):
+        return 'New-Item directory command'
     return None
 
 

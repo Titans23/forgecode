@@ -104,6 +104,59 @@ def test_followup_after_stuck_keeps_root_goal_and_latest_directive(
     assert '你直接帮我修复' in suffix
 
 
+def test_new_anaphoric_task_resolves_previous_directory_scope(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    visibility = manager.start('能看到play目录吗')
+    manager.complete()
+
+    game = manager.begin_turn('帮我在里面写一个高级版本的雷霆战机')
+
+    assert game.id != visibility.id
+    assert game.goal == (
+        '在 play 目录下：帮我在里面写一个高级版本的雷霆战机'
+    )
+    assert game.scope_hints == ('play/**',)
+
+
+def test_continuation_after_completed_keeps_goal_and_inferred_scope(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    original = manager.start('Build an advanced game inside play')
+    manager.observe_mutation_paths(('play/src/core/.gitkeep',))
+    manager.complete()
+
+    continued = manager.begin_turn('继续，允许你执行文件写入')
+
+    assert continued.id == original.id
+    assert continued.goal == original.goal
+    assert continued.status == 'in_progress'
+    assert continued.scope_hints == ('play/**',)
+    assert manager.outside_scope(('play/index.html',)) == ()
+    assert manager.outside_scope(('forge/runtime/state.py',)) == (
+        'forge/runtime/state.py',
+    )
+    suffix = manager.system_suffix()
+    assert original.goal in suffix
+    assert '继续，允许你执行文件写入' in suffix
+    assert 'play/**' in suffix
+
+
+def test_non_continuation_after_completed_starts_a_new_task(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    original = manager.start('Build a game')
+    manager.complete()
+
+    following = manager.begin_turn('更新 README')
+
+    assert following.id != original.id
+    assert following.goal == '更新 README'
+
+
 def test_resume_rejects_invalid_task_id(tmp_path: Path) -> None:
     manager = TaskManager(tmp_path)
 

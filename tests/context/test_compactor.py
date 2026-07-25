@@ -65,11 +65,13 @@ def test_old_tool_results_are_shortened_but_recent_results_stay() -> None:
     ]
 
     assert result.shortened_tool_results == 3
-    assert outputs[0].startswith('[Older tool result omitted')
+    assert outputs[0].startswith(
+        '[Old replayable tool result content cleared'
+    )
     assert outputs[-2:] == ['3' * 30, '4' * 30]
 
 
-def test_kept_read_file_result_is_not_shortened() -> None:
+def test_old_read_file_result_is_cleared_because_it_can_be_replayed() -> None:
     read_result = json.dumps(
         {
             'success': True,
@@ -94,7 +96,9 @@ def test_kept_read_file_result_is_not_shortened() -> None:
 
     result = cheap_compact(messages, Path('.unused'), config)
 
-    assert result.messages[1]['content'][0]['content'] == read_result
+    assert result.messages[1]['content'][0]['content'].startswith(
+        '[Old replayable tool result content cleared'
+    )
 
 
 def test_middle_snip_never_splits_tool_use_and_result_pair(
@@ -185,6 +189,41 @@ def test_default_compaction_does_not_preserve_earliest_chat_message(
     assert 'message-1' not in visible
     assert 'message-29' in visible
     assert any('omitted' in content for content in visible)
+
+
+def test_compaction_drops_file_evidence_outside_active_scope(
+    tmp_path: Path,
+) -> None:
+    play_pair = tool_pair('play-read', 'play source')
+    play_pair[0]['content'][0]['input']['path'] = 'play/src/game.js'
+    forge_pair = tool_pair('forge-read', 'forge runtime source')
+    forge_pair[0]['content'][0]['input']['path'] = 'forge/runtime/state.py'
+    messages: list[dict[str, object]] = [
+        {'role': 'user', 'content': 'Build the game in play'},
+        *play_pair,
+        *forge_pair,
+        *(
+            {'role': 'assistant', 'content': f'recent-{index}'}
+            for index in range(10)
+        ),
+    ]
+    config = CompactionConfig(
+        message_limit=6,
+        keep_recent_messages=4,
+        keep_file_evidence_units=4,
+    )
+
+    result = cheap_compact(
+        messages,
+        tmp_path,
+        config,
+        scope_hints=('play/**',),
+    )
+    serialized = json.dumps(result.messages, ensure_ascii=False)
+
+    assert 'play/src/game.js' in serialized
+    assert 'forge/runtime/state.py' not in serialized
+    assert 'forge runtime source' not in serialized
 
 
 def test_compaction_preserves_distinct_file_evidence_outside_recent_window(

@@ -444,6 +444,30 @@ def test_session_commands_do_not_call_model(
     assert conversation.prompts == []
 
 
+def test_resume_options_exclude_empty_sessions(tmp_path: Path) -> None:
+    root = tmp_path / 'project'
+    root.mkdir()
+    store = SessionStore(root, data_root=tmp_path / 'data')
+    current = store.create(model='test-model')
+    empty = store.create(model='test-model')
+    resumable = store.create(model='test-model')
+    resumable.record_user_message(
+        {'role': 'user', 'content': 'Implement feature'},
+        None,
+    )
+
+    class SessionOwner:
+        session_store = store
+        session_journal = current
+
+    options = cli_module.build_resume_options(SessionOwner())  # type: ignore[arg-type]
+
+    identifiers = {option.identifier for option in options}
+    assert resumable.session_id in identifiers
+    assert empty.session_id not in identifiers
+    assert current.session_id not in identifiers
+
+
 def test_resume_picker_switches_context_without_calling_model() -> None:
     conversation = FakeConversation()
 
@@ -453,6 +477,7 @@ def test_resume_picker_switches_context_without_calling_model() -> None:
         def __init__(self) -> None:
             self.reads = 0
             self.notices: list[tuple[str, str]] = []
+            self.picker_had_running_loop: bool | None = None
 
         def show_welcome(self, _model: str) -> None:
             pass
@@ -467,6 +492,12 @@ def test_resume_picker_switches_context_without_calling_model() -> None:
             raise EOFError
 
         def select_session(self, _options: object) -> str:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                self.picker_had_running_loop = False
+            else:
+                self.picker_had_running_loop = True
             return 'session-old'
 
         def show_notice(self, title: str, content: str) -> None:
@@ -485,6 +516,7 @@ def test_resume_picker_switches_context_without_calling_model() -> None:
 
     assert ('resume', 'session-old') in conversation.session_actions
     assert ('Session', 'Resumed session-old.') in terminal.notices
+    assert terminal.picker_had_running_loop is False
     assert conversation.prompts == []
 
 

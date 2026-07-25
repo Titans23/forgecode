@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from pathlib import Path
+from fnmatch import fnmatchcase
+from pathlib import Path, PurePosixPath
+import re
 from uuid import uuid4
 
 from forge.tasks.state import ActiveTask, StepStatus, TaskStep
@@ -25,6 +27,20 @@ class TaskManager:
             self._resume_next_turn = False
             self._latest_directive = goal.strip()
             return self.active
+        if (
+            self.active is not None
+            and self.active.status == 'completed'
+            and is_continuation_directive(goal)
+        ):
+            self._latest_directive = goal.strip()
+            self.active = replace(
+                self.active,
+                status='in_progress',
+                blocked_reasons=(),
+            )
+            if self.active.planned:
+                self.store.save(self.active)
+            return self.active
         if self.active is not None and self.active.status in {
             'blocked',
             'stuck',
@@ -38,7 +54,8 @@ class TaskManager:
             if self.active.planned:
                 self.store.save(self.active)
             return self.active
-        return self.start(goal)
+        previous_goal = self.active.goal if self.active is not None else ''
+        return self.start(resolve_anaphoric_goal(goal, previous_goal))
 
     def start(self, goal: str) -> ActiveTask:
         clean_goal = goal.strip()
@@ -47,6 +64,7 @@ class TaskManager:
         self.active = ActiveTask(
             id=f'task-{uuid4().hex[:12]}',
             goal=clean_goal,
+            scope_hints=infer_goal_scope(clean_goal),
         )
         self._resume_next_turn = False
         self._latest_directive = ''
@@ -165,6 +183,31 @@ class TaskManager:
         self.store.save(self.active)
         return self.active
 
+    def observe_mutation_paths(self, paths: tuple[str, ...]) -> None:
+        '''Restore declared scope for legacy task records that lack scope data.'''
+        del paths
+        if self.active is None or self.active.scope_hints:
+            return
+        declared = infer_goal_scope(self.active.goal)
+        if not declared:
+            return
+        self.active = replace(self.active, scope_hints=declared)
+        if self.active.planned:
+            self.store.save(self.active)
+
+    def outside_scope(self, paths: tuple[str, ...]) -> tuple[str, ...]:
+        '''Return mutation targets outside the active task's anchored scope.'''
+        if self.active is None or not self.active.scope_hints:
+            return ()
+        return tuple(
+            path
+            for path in paths
+            if not any(
+                task_path_matches(path, pattern)
+                for pattern in self.active.scope_hints
+            )
+        )
+
     def complete(self) -> ActiveTask | None:
         if self.active is None:
             return None
@@ -251,6 +294,10 @@ class TaskManager:
             lines.extend(
                 ['', 'Focus paths:', *[f'- {item}' for item in task.scope_hints]]
             )
+            lines.append(
+                'All workspace writes must remain inside these paths unless '
+                'the user explicitly changes the scope.'
+            )
         if self._latest_directive:
             lines.extend(
                 [
@@ -303,6 +350,64 @@ class TaskManager:
         if not task.planned:
             raise ValueError('The current task does not have a plan.')
         return task
+
+
+def infer_goal_scope(goal: str) -> tuple[str, ...]:
+    '''Extract only an explicitly named repository directory from the goal.'''
+    patterns = (
+        r'(?i)([a-z0-9_.-]+(?:[/\\][a-z0-9_.-]+)*)\s*'
+        r'(?:目录|文件夹)',
+        r'(?i)\b(?:inside|under|within)\s+(?:the\s+)?'
+        r'([a-z0-9_.-]+(?:[/\\][a-z0-9_.-]+)*)'
+        r'(?:\s+(?:directory|folder))?',
+    )
+    for pattern in patterns:
+        match = re.search(pattern, goal)
+        if match is None:
+            continue
+        path = normalize_task_path(match.group(1)).strip('/')
+        if path and path not in {'.', '..'}:
+            return (f'{path}/**',)
+    return ()
+
+
+def resolve_anaphoric_goal(goal: str, previous_goal: str) -> str:
+    '''Resolve “inside it” against the immediately preceding task goal.'''
+    if not re.search(
+        r'(?i)(?:里面|其中|该目录|这个目录|那里|\bthere\b|\bit\b)',
+        goal,
+    ):
+        return goal
+    previous_scope = infer_goal_scope(previous_goal)
+    if not previous_scope:
+        return goal
+    directory = previous_scope[0][:-3].rstrip('/')
+    return f'在 {directory} 目录下：{goal.strip()}'
+
+
+def is_continuation_directive(goal: str) -> bool:
+    '''Recognize short follow-ups whose meaning depends on the previous task.'''
+    text = goal.strip().lstrip('\ufeff')
+    return bool(
+        re.match(
+            r'(?i)^(?:继续|接着|接下来|然后|按(?:照)?(?:刚才|上面|之前)|'
+            r'continue\b|proceed\b|resume\b|keep\s+going\b)',
+            text,
+        )
+    )
+
+
+def normalize_task_path(path: str) -> str:
+    return PurePosixPath(path.strip().replace('\\', '/')).as_posix()
+
+
+def task_path_matches(path: str, pattern: str) -> bool:
+    candidate = normalize_task_path(path)
+    normalized_pattern = pattern.strip().replace('\\', '/')
+    if normalized_pattern.endswith('/**'):
+        prefix = normalized_pattern[:-3].rstrip('/')
+        return candidate == prefix or candidate.startswith(prefix + '/')
+    return fnmatchcase(candidate, normalized_pattern)
 
 
 def clean_strings(

@@ -5,6 +5,7 @@ import hashlib
 from pathlib import Path
 
 from forge.tools.filesystem import (
+    CreateDirectoryTool,
     ListDirectoryTool,
     ReadFileTool,
     ReplaceTextTool,
@@ -63,6 +64,30 @@ def create_protected_repository(root: Path) -> None:
         'VISIBLE_MARKER = True\n',
         encoding='utf-8',
     )
+
+
+def test_create_directory_adds_gitkeep_marker(tmp_path: Path) -> None:
+    result = run(CreateDirectoryTool(tmp_path).run({'path': 'nested/play'}))
+
+    assert result.success is True
+    assert (tmp_path / 'nested' / 'play').is_dir()
+    assert (tmp_path / 'nested' / 'play' / '.gitkeep').read_bytes() == b''
+    assert result.metadata == {
+        'path': 'nested/play',
+        'marker': 'nested/play/.gitkeep',
+    }
+
+
+def test_create_directory_rejects_existing_marker(tmp_path: Path) -> None:
+    directory = tmp_path / 'play'
+    directory.mkdir()
+    (directory / '.gitkeep').touch()
+
+    result = run(CreateDirectoryTool(tmp_path).run({'path': 'play'}))
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'directory_already_exists'
 
 
 def test_list_directory_sorts_directories_before_files(
@@ -132,6 +157,19 @@ def test_list_directory_hides_control_and_environment_paths(
         'app.py',
     ]
     assert result.metadata['entry_count'] == 3
+
+
+def test_read_file_directory_error_recommends_list_directory(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / 'src').mkdir()
+
+    result = run(ReadFileTool(tmp_path).run({'path': 'src'}))
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'not_a_file'
+    assert result.error.details['recommended_tool'] == 'list_directory'
 
 
 def test_read_file_supports_inclusive_line_ranges(tmp_path: Path) -> None:
@@ -254,6 +292,20 @@ def test_write_file_creates_new_text_and_never_overwrites(
     assert not list(tmp_path.glob('*.forge-tmp'))
 
 
+def test_write_file_creates_missing_repository_parents(tmp_path: Path) -> None:
+    result = run(
+        WriteFileTool(tmp_path).run(
+            {'path': 'play/assets/index.html', 'content': '<main>game</main>'}
+        )
+    )
+
+    assert result.success is True
+    assert result.metadata['path'] == 'play/assets/index.html'
+    assert (tmp_path / 'play/assets/index.html').read_text(
+        encoding='utf-8'
+    ) == '<main>game</main>'
+
+
 def test_write_file_schema_does_not_expose_legacy_hash_argument(
     tmp_path: Path,
 ) -> None:
@@ -330,6 +382,28 @@ def test_write_file_chunk_assembles_ordered_chunks_atomically(
     assert second.metadata['sha256'] == digest
     assert (tmp_path / 'large.js').read_text(encoding='utf-8') == complete
     assert not list(tmp_path.glob('*.forge-tmp'))
+
+
+def test_write_file_chunk_creates_missing_repository_parents(
+    tmp_path: Path,
+) -> None:
+    result = run(
+        WriteFileChunkTool(tmp_path).run(
+            {
+                'path': 'play/js/game.js',
+                'content': 'export const ready = true;\n',
+                'offset': 0,
+                'truncate': True,
+                'final': True,
+            }
+        )
+    )
+
+    assert result.success is True
+    assert result.metadata['created'] is True
+    assert (tmp_path / 'play/js/game.js').read_text(encoding='utf-8') == (
+        'export const ready = true;\n'
+    )
 
 
 def test_write_file_chunk_rejects_offset_and_hash_without_writing(

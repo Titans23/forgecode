@@ -148,6 +148,22 @@ def test_run_command_rejects_destructive_git_commands(
         assert result.error.code == 'destructive_git_command_denied'
 
 
+def test_run_command_rejects_directory_creation(tmp_path: Path) -> None:
+    commands = (
+        'mkdir -p play',
+        'md play',
+        'New-Item -ItemType Directory play',
+    )
+
+    for command in commands:
+        result = run(RunCommandTool(tmp_path).run({'command': command}))
+
+        assert result.success is False
+        assert result.error is not None
+        assert result.error.code == 'shell_directory_write_denied'
+    assert not (tmp_path / 'play').exists()
+
+
 def test_run_process_sanitizes_credentials_and_bounds_output(
     tmp_path: Path,
     monkeypatch: object,
@@ -660,6 +676,60 @@ def test_apply_patch_codex_envelope_supports_add_and_delete(
     assert not (tmp_path / 'sample.txt').exists()
     assert (tmp_path / 'added.txt').read_text(encoding='utf-8') == (
         'first\nsecond\n'
+    )
+
+
+def test_apply_patch_recreates_deleted_file_in_missing_ignored_directory(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / '.gitignore').write_text('play/\n', encoding='utf-8')
+    subprocess.run(['git', 'add', '.gitignore'], cwd=tmp_path, check=True)
+    subprocess.run(
+        ['git', 'commit', '--quiet', '-m', 'ignore play'],
+        cwd=tmp_path,
+        check=True,
+    )
+    play = tmp_path / 'play'
+    play.mkdir()
+    (play / 'index.html').write_text('old\n', encoding='utf-8')
+    tool = ApplyPatchTool(tmp_path)
+
+    deleted = run(
+        tool.run(
+            {
+                'patch': (
+                    '*** Begin Patch\n'
+                    '*** Delete File: play/index.html\n'
+                    '*** End Patch\n'
+                )
+            }
+        )
+    )
+    if play.exists():
+        play.rmdir()
+    recreated = run(
+        tool.run(
+            {
+                'patch': (
+                    '*** Begin Patch\n'
+                    '*** Add File: play/index.html\n'
+                    '+<main>game</main>\n'
+                    '*** End Patch\n'
+                )
+            }
+        )
+    )
+
+    assert deleted.success is True
+    assert deleted.summary == 'Applied patch to 1 target path(s).'
+    assert deleted.metadata['changed_files'] == ['play/index.html']
+    assert recreated.success is True
+    assert recreated.summary == 'Applied patch to 1 target path(s).'
+    assert recreated.metadata['changed_files'] == ['play/index.html']
+    assert 'targets may be ignored' in recreated.content
+    assert (play / 'index.html').read_text(encoding='utf-8') == (
+        '<main>game</main>\n'
     )
 
 

@@ -73,6 +73,35 @@ def test_forced_compaction_preserves_structured_state_and_transcript(
     assert client.calls[0]['tools'] is None
 
 
+def test_compaction_uses_authoritative_task_goal_and_scope(
+    tmp_path: Path,
+) -> None:
+    messages = [
+        {'role': 'user', 'content': '继续，允许你执行文件写入'},
+        {'role': 'assistant', 'content': 'working'},
+    ]
+    manager = ContextManager(messages, tmp_path)
+    client = SummaryClient(valid_summary())
+
+    report = asyncio.run(
+        manager.compact_history(
+            messages,
+            client,
+            force=True,
+            task_goal='在 play 目录实现高级雷霆战机',
+            scope_hints=('play/**',),
+        )
+    )
+
+    assert report is not None and report.success
+    summary = json.loads(str(messages[0]['content']).split('\n', 1)[1])
+    assert summary['goal'] == '在 play 目录实现高级雷霆战机'
+    assert 'Active write scope: play/**' in summary['constraints']
+    summary_prompt = str(client.calls[0]['messages'][0]['content'])
+    assert '在 play 目录实现高级雷霆战机' in summary_prompt
+    assert 'play/**' in summary_prompt
+
+
 def test_auto_compaction_only_runs_above_threshold(tmp_path: Path) -> None:
     messages = [{'role': 'user', 'content': 'x' * 100}]
     manager = ContextManager(

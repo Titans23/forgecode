@@ -83,6 +83,54 @@ class ListDirectoryTool(Tool[ListDirectoryInput]):
         )
 
 
+class CreateDirectoryInput(ToolInput):
+    path: str = Field(min_length=1)
+
+
+class CreateDirectoryTool(Tool[CreateDirectoryInput]):
+    name = 'create_directory'
+    description = (
+        'Create one repository directory, including missing parent directories. '
+        'The tool adds an empty .gitkeep marker so Git can represent and '
+        'ForgeCode can verify an otherwise empty directory. Do not '
+        'use run_command with mkdir or New-Item for this operation.'
+    )
+    input_model = CreateDirectoryInput
+    effect = 'workspace_write'
+
+    async def execute(self, arguments: CreateDirectoryInput) -> ToolResult:
+        return await asyncio.to_thread(self._execute_sync, arguments)
+
+    def _execute_sync(self, arguments: CreateDirectoryInput) -> ToolResult:
+        directory = resolve_repository_path(
+            self.root,
+            arguments.path,
+            must_exist=False,
+        )
+        if directory.exists() and not directory.is_dir():
+            raise ToolExecutionError(
+                'not_a_directory',
+                f'Path is not a directory: {arguments.path}',
+            )
+        marker = directory / '.gitkeep'
+        if marker.exists():
+            raise ToolExecutionError(
+                'directory_already_exists',
+                f'Directory already exists: {arguments.path}',
+                details={'path': arguments.path},
+            )
+        directory.mkdir(parents=True, exist_ok=True)
+        marker.touch(exist_ok=False)
+        shown_path = display_path(self.root, directory)
+        return ToolResult.ok(
+            f'Created directory {shown_path} with a .gitkeep marker.',
+            metadata={
+                'path': shown_path,
+                'marker': display_path(self.root, marker),
+            },
+        )
+
+
 class ReadFileInput(ToolInput):
     path: str = Field(min_length=1)
     start_line: int = Field(default=1, ge=1)
@@ -116,6 +164,14 @@ class ReadFileTool(Tool[ReadFileInput]):
             raise ToolExecutionError(
                 'not_a_file',
                 f'Path is not a file: {arguments.path}',
+                details={
+                    'path': arguments.path,
+                    'recommended_tool': 'list_directory',
+                    'recovery': (
+                        'Use list_directory for this path, then call read_file '
+                        'with one concrete file path from the result.'
+                    ),
+                },
             )
         try:
             content = read_text_preserving_newlines(path)
@@ -189,8 +245,9 @@ class WriteFileTool(Tool[WriteFileInput]):
     description = (
         'Create one new UTF-8 repository text file atomically, with content '
         'limited to 30000 characters. This tool never overwrites an existing '
-        'path; use apply_patch for every change to an existing file. For a '
-        'larger new file, create a focused skeleton and extend it with '
+        'path and safely creates missing repository-relative parent '
+        'directories; use apply_patch for every change to an existing file. '
+        'For a larger new file, create a focused skeleton and extend it with '
         'apply_patch calls.'
     )
     input_model = WriteFileInput
@@ -210,12 +267,6 @@ class WriteFileTool(Tool[WriteFileInput]):
                 'not_a_file',
                 f'Path is not a file: {arguments.path}',
             )
-        if not path.parent.is_dir():
-            raise ToolExecutionError(
-                'parent_not_found',
-                f'Parent directory does not exist: {arguments.path}',
-            )
-
         if path.exists():
             raise ToolExecutionError(
                 'file_already_exists',
@@ -223,6 +274,7 @@ class WriteFileTool(Tool[WriteFileInput]):
                 'apply_patch for a focused change to the existing file.',
                 details={'path': arguments.path},
             )
+        ensure_parent_directory(path, arguments.path)
         atomic_write_text(path, arguments.content)
         shown_path = display_path(self.root, path)
         return ToolResult.ok(
@@ -268,7 +320,8 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
         'applied atomically and an offset mismatch is rejected without '
         'writing. Set final=true on the last chunk and optionally provide '
         'expected_sha256 for whole-file integrity. Total file size is '
-        'limited to 1000000 characters.'
+        'limited to 1000000 characters. A new file safely creates missing '
+        'repository-relative parent directories.'
     )
     input_model = WriteFileChunkInput
     effect = 'workspace_write'
@@ -287,12 +340,6 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
                 'not_a_file',
                 f'Path is not a file: {arguments.path}',
             )
-        if not path.parent.is_dir():
-            raise ToolExecutionError(
-                'parent_not_found',
-                f'Parent directory does not exist: {arguments.path}',
-            )
-
         existed = path.exists()
         if arguments.truncate:
             existing = ''
@@ -340,6 +387,7 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
                 },
             )
 
+        ensure_parent_directory(path, arguments.path)
         atomic_write_text(path, updated)
         shown_path = display_path(self.root, path)
         return ToolResult.ok(
@@ -522,6 +570,24 @@ def closest_text_diagnostic(content: str, old_text: str) -> dict[str, object]:
         'similarity': round(best_ratio, 4),
         'closest_text': closest_text if len(closest_text) <= 2_000 else None,
     }
+
+
+def ensure_parent_directory(path: Path, raw_path: str) -> None:
+    '''Create validated repository-relative parent directories when needed.'''
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise ToolExecutionError(
+            'parent_create_failed',
+            f'Could not create parent directory for: {raw_path}',
+            details={'path': raw_path},
+        ) from error
+    if not path.parent.is_dir():
+        raise ToolExecutionError(
+            'parent_create_failed',
+            f'Parent path is not a directory: {raw_path}',
+            details={'path': raw_path},
+        )
 
 
 def atomic_write_text(path: Path, content: str) -> None:

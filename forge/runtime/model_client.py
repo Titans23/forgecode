@@ -20,6 +20,7 @@ from anthropic import (
 
 from forge.config import DEFAULT_MODEL_MAX_TOKENS, ForgeConfig
 from forge.runtime.state import (
+    ModelStreamCompleted,
     ModelStreamEvent,
     ModelTextDelta,
     ModelToolCallArgumentsDelta,

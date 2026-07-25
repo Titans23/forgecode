@@ -161,11 +161,13 @@ class ApplyPatchTool(Tool[ApplyPatchInput]):
             timeout_seconds=30,
         )
         status_text = status.stdout.rstrip()
-        changed_files = [
-            line[3:].strip()
-            for line in status.stdout.splitlines()
-            if len(line) >= 4
-        ]
+        changed_files = list(target_paths)
+        if not status_text:
+            status_text = (
+                'Changed paths: '
+                + ', '.join(target_paths)
+                + '. Git status has no entry; the targets may be ignored.'
+            )
         return ToolResult.ok(
             f'Applied patch to {len(changed_files)} target path(s).',
             content=status_text,
@@ -323,11 +325,6 @@ def build_unified_patch(
             if path.exists():
                 raise _EnvelopeError(
                     f'Cannot add {operation.path!r}: path already exists.'
-                )
-            if not path.parent.is_dir():
-                raise _EnvelopeError(
-                    f'Cannot add {operation.path!r}: parent directory does '
-                    'not exist.'
                 )
             after = parse_added_file(operation)
             changes.append((display_path(root, path), None, after))

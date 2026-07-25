@@ -6,14 +6,16 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from forge.runtime.agent_loop import mutation_target_paths
 from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
     matches_any,
     verification_command_runs_full_suite,
 )
-from forge.runtime.state import VerificationEvidence
+from forge.runtime.state import ToolCall, VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
+from forge.tools.filesystem import CreateDirectoryTool
 
 
 def test_full_suite_command_rejects_focused_pytest_invocations() -> None:
@@ -77,6 +79,37 @@ def test_workspace_tracker_imports_in_fresh_process() -> None:
 
 def run(coroutine: object) -> Any:
     return asyncio.run(coroutine)  # type: ignore[arg-type]
+
+
+def test_create_directory_is_visible_to_completion_gate(tmp_path: Path) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    call = ToolCall(
+        0,
+        'create-play',
+        'create_directory',
+        {'path': 'play'},
+    )
+
+    targets = mutation_target_paths(call, maximum=None)
+    tracker.watch_paths(targets)
+    result = run(CreateDirectoryTool(tmp_path).run(call.arguments))
+    change = run(tracker.refresh())
+    decision = run(
+        CompletionGate(tmp_path).evaluate(
+            tracker,
+            None,
+            mutation_attempted=True,
+        )
+    )
+
+    assert result.success is True
+    assert targets == ('play/.gitkeep',)
+    assert change is not None
+    assert change.paths == ('play/.gitkeep',)
+    assert tracker.changed_paths == ('play/.gitkeep',)
+    assert decision.allowed is True
 
 
 def test_workspace_tracker_preserves_preexisting_user_changes(

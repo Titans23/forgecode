@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 import hashlib
 import json
@@ -13,6 +14,8 @@ from forge.context.compactor import (
     CheapCompactionResult,
     CompactionConfig,
     cheap_compact,
+    persist_large_tool_results,
+    shorten_old_tool_results,
     summarize_history,
 )
 from forge.context.repository import MemoryRecord, RepositoryContext
@@ -215,6 +218,8 @@ class ContextManager:
     def prepare(
         self,
         messages: list[dict[str, Any]],
+        *,
+        scope_hints: tuple[str, ...] = (),
     ) -> list[dict[str, Any]]:
         '''Return a cheap-compacted request copy for the model.'''
         artifact_dir = self.root / '.forge' / 'context' / 'tool-results'
@@ -222,8 +227,23 @@ class ContextManager:
             messages,
             artifact_dir,
             self.config,
+            scope_hints=scope_hints,
         )
         return self.last_compaction.messages
+
+    def persist_tool_result_message(
+        self,
+        message: dict[str, Any],
+    ) -> tuple[str, ...]:
+        '''Bound large tool output before it enters durable conversation history.'''
+        artifact_dir = self.root / '.forge' / 'context' / 'tool-results'
+        return tuple(
+            persist_large_tool_results(
+                [message],
+                artifact_dir,
+                self.config,
+            )
+        )
 
     def build_system_prompt(self, base: str, query: str) -> str:
         '''Inject stable rules and only query-relevant durable memories.'''
@@ -277,9 +297,11 @@ class ContextManager:
         tools: list[dict[str, Any]] | None = None,
         context_window_tokens: int | None = None,
         reserved_output_tokens: int = 0,
+        scope_hints: tuple[str, ...] = (),
+        task_goal: str = '',
     ) -> CompactionReport | None:
         '''Replace long history with a structured summary when required.'''
-        prepared = self.prepare(messages)
+        prepared = self.prepare(messages, scope_hints=scope_hints)
         before_stats = context_stats(
             prepared,
             stored_messages=messages,
@@ -307,11 +329,26 @@ class ContextManager:
                 reason='summary failure fuse is open',
             )
         transcript_path = self.persist_transcript(messages)
+        restoration_messages = deepcopy(messages)
+        persist_large_tool_results(
+            restoration_messages,
+            self.root / '.forge' / 'context' / 'tool-results',
+            self.config,
+        )
+        summary_messages = deepcopy(restoration_messages)
+        shorten_old_tool_results(summary_messages, self.config)
         try:
             result = await summarize_history(
                 client,
-                prepared,
+                summary_messages,
                 keep_recent_messages=self.config.summary_keep_recent_messages,
+                scope_hints=scope_hints,
+                task_goal=task_goal,
+                restore_max_files=self.config.post_compact_max_files,
+                restore_character_budget=(
+                    self.config.post_compact_file_budget
+                ),
+                restoration_messages=restoration_messages,
             )
         except Exception as error:
             self.summary_failures += 1
@@ -344,9 +381,10 @@ class ContextManager:
         tools: list[dict[str, Any]] | None = None,
         context_window_tokens: int | None = None,
         reserved_output_tokens: int = 0,
+        scope_hints: tuple[str, ...] = (),
     ) -> bool:
         '''Return whether automatic compaction would run for this request.'''
-        prepared = self.prepare(messages)
+        prepared = self.prepare(messages, scope_hints=scope_hints)
         stats = context_stats(
             prepared,
             stored_messages=messages,

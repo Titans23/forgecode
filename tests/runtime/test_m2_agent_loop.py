@@ -10,6 +10,7 @@ from forge.runtime.agent_loop import (
     Conversation,
     build_final_acceptance_audit_feedback,
     completion_review_paths,
+    placeholder_only_implementation,
     render_completion_ready_context,
 )
 from forge.runtime.completion import TaskPolicy
@@ -71,6 +72,19 @@ def add_tracked_smoke_test(root: Path) -> None:
         cwd=root,
         check=True,
     )
+
+
+def test_placeholder_only_diff_cannot_complete_implementation_request() -> None:
+    changed = ('play/src/core/.gitkeep', 'play/src/config/.gitkeep')
+
+    assert placeholder_only_implementation(
+        '帮我在 play 目录实现一个高级版本的雷霆战机',
+        changed,
+    ) is True
+    assert placeholder_only_implementation(
+        '帮我创建一个 play 目录',
+        ('play/.gitkeep',),
+    ) is False
 
 
 def test_final_acceptance_audit_is_high_priority_and_bounded() -> None:
@@ -408,15 +422,19 @@ def test_large_tested_change_delegates_initial_exploration(
     assert {'read_file', 'grep', 'apply_patch', 'replace_text'} <= (
         post_explore_names
     )
-    assert 'list_directory' not in post_explore_names
+    assert 'list_directory' in post_explore_names
     assert 'find_files' not in post_explore_names
     post_mutation_names = {
         definition['name'] for definition in client.calls[3]['tools'] or ()
     }
-    assert {'read_file', 'grep', 'apply_patch', 'replace_text', 'verify'} <= (
-        post_mutation_names
-    )
-    assert 'list_directory' not in post_mutation_names
+    assert {
+        'read_file',
+        'list_directory',
+        'grep',
+        'apply_patch',
+        'replace_text',
+        'verify',
+    } <= post_mutation_names
     assert 'find_files' not in post_mutation_names
     assert 'run_command' not in post_mutation_names
     assert 'ForgeCode post-edit checkpoint' in str(
@@ -509,11 +527,100 @@ def test_self_declared_incomplete_change_resumes_bounded_editing(
     recovery_names = {
         definition['name'] for definition in client.calls[3]['tools'] or ()
     }
-    assert {'read_file', 'grep', 'apply_patch', 'replace_text'} <= recovery_names
-    assert 'list_directory' not in recovery_names
+    assert {
+        'read_file',
+        'list_directory',
+        'grep',
+        'apply_patch',
+        'replace_text',
+        'verify',
+    } <= recovery_names
     assert 'find_files' not in recovery_names
     assert 'ForgeCode rejected completion' in str(
         client.calls[3]['messages']
+    )
+
+
+def test_incomplete_recovery_budget_resets_after_workspace_progress(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    edits = [
+        ToolCall(
+            0,
+            f'incomplete-progress-edit-{index}',
+            'replace_text',
+            {
+                'path': 'sample.txt',
+                'old_text': f'revision-{index - 1}\n' if index > 1 else 'old\n',
+                'new_text': f'revision-{index}\n',
+            },
+        )
+        for index in range(1, 5)
+    ]
+    client = FakeModelClient(
+        response_with_tool(edits[0]),
+        text_response('尚未完成复杂版本。'),
+        response_with_tool(edits[1]),
+        text_response('尚未完成复杂版本。'),
+        response_with_tool(edits[2]),
+        text_response('尚未完成复杂版本。'),
+        response_with_tool(edits[3]),
+        finish_response(
+            'incomplete-progress-finish',
+            task_kind='change',
+            summary='Implemented the complete requested behavior.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+    )
+
+    events = collect_turn(conversation, 'Change sample.txt in four stages.')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed', (
+        completed.result.completion_reasons
+    )
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'revision-4\n'
+
+
+def test_repeated_incomplete_declarations_without_progress_still_stop(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    edit = ToolCall(
+        0,
+        'same-revision-incomplete-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'partial\n',
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(edit),
+        text_response('尚未完成复杂版本。'),
+        text_response('尚未完成复杂版本。'),
+        text_response('尚未完成复杂版本。'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+    )
+
+    events = collect_turn(conversation, 'Change sample.txt completely.')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'stuck'
+    assert 'repeatedly declared' in ' '.join(
+        completed.result.completion_reasons
     )
 
 
@@ -1276,7 +1383,7 @@ def test_required_change_convergence_allows_edit_after_stagnation(
     }
     assert 'apply_patch' in convergence_names
     assert 'replace_text' in convergence_names
-    assert 'write_file' not in convergence_names
+    assert 'write_file' in convergence_names
     assert 'read_file' in convergence_names
     assert 'grep' in convergence_names
     post_read_names = {
@@ -1459,7 +1566,7 @@ def test_failed_edit_gets_one_focused_correction_attempt(
         for definition in client.calls[2]['tools'] or ()
     }
     assert {'read_file', 'grep', 'apply_patch'} <= mutation_tool_names
-    assert 'write_file' not in mutation_tool_names
+    assert 'write_file' in mutation_tool_names
     assert 'replace_text' in mutation_tool_names
     assert 'write_file_chunk' not in mutation_tool_names
     assert 'verify' not in mutation_tool_names
@@ -1539,7 +1646,7 @@ def test_process_workspace_change_does_not_clear_failed_edit_recovery(
     }
     assert 'apply_patch' in recovery_names
     assert 'replace_text' in recovery_names
-    assert 'write_file' not in recovery_names
+    assert 'write_file' in recovery_names
     assert 'run_command' not in recovery_names
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
@@ -1737,7 +1844,7 @@ def test_required_change_moves_from_exploration_to_edit_only_convergence(
     }
     assert 'apply_patch' in convergence_names
     assert 'replace_text' in convergence_names
-    assert 'write_file' not in convergence_names
+    assert 'write_file' in convergence_names
     assert 'read_file' in convergence_names
     assert 'grep' in convergence_names
     assert 'verify' not in convergence_names
@@ -2364,6 +2471,71 @@ def test_unfinished_explicit_plan_does_not_enter_finalization_recovery(
         '[ForgeCode Finalization Recovery]' not in (call['system'] or '')
         for call in client.calls
     )
+
+
+def test_inferred_task_scope_blocks_unrelated_workspace_write(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    runtime = tmp_path / 'forge' / 'runtime'
+    runtime.mkdir(parents=True)
+    state_file = runtime / 'state.py'
+    state_file.write_text('safe\n', encoding='utf-8')
+    create_scope = ToolCall(
+        0,
+        'scope-create',
+        'create_directory',
+        {'path': 'play/src'},
+    )
+    wrong_edit = ToolCall(
+        0,
+        'scope-wrong-edit',
+        'replace_text',
+        {
+            'path': 'forge/runtime/state.py',
+            'old_text': 'safe\n',
+            'new_text': 'corrupted\n',
+        },
+    )
+    correct_edit = ToolCall(
+        0,
+        'scope-correct-edit',
+        'write_file',
+        {'path': 'play/index.html', 'content': '<main>game</main>\n'},
+    )
+    client = FakeModelClient(
+        response_with_tool(create_scope),
+        response_with_tool(wrong_edit),
+        response_with_tool(correct_edit),
+        finish_response(
+            'scope-finish',
+            task_kind='change',
+            summary='Created the game entry inside play.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    events = collect_turn(conversation, 'Build the game inside play')
+
+    wrong_result = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'scope-wrong-edit'
+    )
+    assert wrong_result.error is not None
+    assert wrong_result.error.code == 'outside_task_scope'
+    assert state_file.read_text(encoding='utf-8') == 'safe\n'
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert set(completed.result.changed_paths) == {
+        'play/index.html',
+        'play/src/.gitkeep',
+    }
 
 
 def test_runtime_tells_model_that_request_tools_are_available(

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Play - 复杂版植物大战僵尸</title>
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <div class="frame">
+    <h1>复杂版植物大战僵尸（Web）</h1>
+    <div class="hud">
+      <div id="status">状态</div>
+      <div id="money">阳光: 0</div>
+      <div id="wave">波数: 1</div>
+      <div id="lives">生命: 5</div>
+      <button id="restartBtn">重新开始</button>
+    </div>
+    <div class="game-wrap">
+      <canvas id="gameCanvas" width="1040" height="690"></canvas>
+      <aside class="side">
+        <h2>植物卡片</h2>
+        <div id="plantCards"></div>
+        <div class="tips">
+          <p>规则：</p>
+          <ul>
+            <li>点击植物卡片后，再点击格子放置。</li>
+            <li>收集掉落阳光以增加资源。</li>
+            <li>波数会递增，僵尸越来越强。</li>
+            <li>让僵尸到达最左边即失败。</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

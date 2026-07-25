@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from forge.runtime.agent_loop import Conversation
 from forge.cli import create_session_runtime
 from forge.runtime.state import (
@@ -106,6 +108,23 @@ def test_rename_branch_clear_and_resume_session(tmp_path: Path) -> None:
 
     resume_notice = conversation.session_resume(source_id)
     assert source_id in resume_notice
+    assert conversation.messages == list(store.load(source_id).messages)
+
+
+def test_resume_rejects_session_without_conversation_history(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'project'
+    root.mkdir()
+    store, source_id = completed_session(root, tmp_path / 'data')
+    empty = store.create(model='test-model')
+    conversation = conversation_for(store, source_id)
+
+    with pytest.raises(ValueError, match='no resumable conversation history'):
+        conversation.session_resume(empty.session_id)
+
+    assert conversation.session_journal is not None
+    assert conversation.session_journal.session_id == source_id
     assert conversation.messages == list(store.load(source_id).messages)
 
 

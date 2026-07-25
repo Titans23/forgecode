@@ -19,6 +19,7 @@ def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> 
         'find_files',
         'read_file',
         'grep',
+        'create_directory',
         'write_file',
         'write_file_chunk',
         'replace_text',
@@ -43,6 +44,7 @@ def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> 
         for definition in registry.definitions
     )
     assert registry.effect('read_file') == 'read_only'
+    assert registry.effect('create_directory') == 'workspace_write'
     assert registry.effect('write_file') == 'workspace_write'
     assert registry.effect('write_file_chunk') == 'workspace_write'
     assert registry.effect('replace_text') == 'workspace_write'

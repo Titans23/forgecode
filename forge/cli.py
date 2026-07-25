@@ -308,7 +308,10 @@ async def _run_interactive_chat(
             continue
 
         if prompt.strip() == '/resume':
-            selected = resolved_terminal.select_session(resume_options)
+            selected = await asyncio.to_thread(
+                resolved_terminal.select_session,
+                resume_options,
+            )
             if selected is not None:
                 try:
                     notice = await resume_interactive_session_async(
@@ -762,7 +765,7 @@ def build_resume_options(
     current_id = getattr(journal, 'session_id', None)
     options: list[SessionOption] = []
     for info in store.list():
-        if info.session_id == current_id:
+        if info.session_id == current_id or info.message_count == 0:
             continue
         label = info.title
         description = '{} · {} · {}'.format(
