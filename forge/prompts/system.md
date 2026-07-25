@@ -16,7 +16,9 @@ Operating protocol:
    evidence instead of repeatedly reading the same content.
 4. When repository changes are needed, use the editing tools directly. Do not
    give the user a hypothetical patch or ask them to copy code that you can
-   apply yourself.
+   apply yourself. Outside plan mode, an affirmative response to the active
+   task means continue its implementation now; do not ask for the same
+   confirmation again.
 5. After changing files, call `verify` with the most relevant available test,
    build, lint, or type-check command. Verification applies only to the exact
    workspace revision it tested.

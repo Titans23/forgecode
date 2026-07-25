@@ -32,6 +32,7 @@ class ActiveTask:
     id: str
     goal: str
     status: TaskStatus = 'in_progress'
+    requires_change: bool = False
     planned: bool = False
     current_step_id: str | None = None
     steps: tuple[TaskStep, ...] = ()
@@ -48,6 +49,7 @@ class ActiveTask:
             id=str(data['id']),
             goal=str(data['goal']),
             status=str(data.get('status', 'in_progress')),  # type: ignore[arg-type]
+            requires_change=bool(data.get('requires_change', False)),
             planned=bool(data.get('planned', False)),
             current_step_id=(
                 str(data['current_step_id'])

@@ -1238,6 +1238,102 @@ def test_required_change_prose_gets_one_bounded_edit_retry(
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
 
+def test_desired_state_prompt_cannot_claim_change_without_diff(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    client = FakeModelClient(
+        text_response('已把 play 下的游戏朝原版方向推进并验证通过。'),
+        text_response('已经完成修改。'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    events = collect_turn(
+        conversation,
+        '当前play下的植物大战僵尸还是太简单了，我想复刻原版',
+    )
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'stuck'
+    assert completed.result.changed_paths == ()
+    assert 'requires a real task-local workspace change' in completed.result.text
+    assert 'Do not ask for confirmation' in str(client.calls[1]['messages'])
+
+
+def test_followup_requirement_inherits_change_contract(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    first_edit = ToolCall(
+        0,
+        'initial-game-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'base-game\n',
+        },
+    )
+    followup_edit = ToolCall(
+        0,
+        'followup-animation-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'base-game\n',
+            'new_text': 'animated-game\n',
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(first_edit),
+        finish_response(
+            'initial-game-finish',
+            task_kind='change',
+            summary='Implemented the base game.',
+        ),
+        text_response('我会按动画、贴图、功能三部分继续推进。'),
+        response_with_tool(followup_edit),
+        finish_response(
+            'followup-game-finish',
+            task_kind='change',
+            summary='Implemented the requested animation requirement.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    first_events = collect_turn(
+        conversation,
+        '当前play下的植物大战僵尸还是太简单了，我想复刻原版',
+    )
+    followup_events = collect_turn(
+        conversation,
+        '要求动画、贴图还有功能都需要',
+    )
+
+    first_completed = first_events[-1]
+    followup_completed = followup_events[-1]
+    assert isinstance(first_completed, TurnCompleted)
+    assert isinstance(followup_completed, TurnCompleted)
+    assert first_completed.result.status == 'completed'
+    assert followup_completed.result.status == 'completed'
+    assert followup_completed.result.changed_paths == ('sample.txt',)
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == (
+        'animated-game\n'
+    )
+    followup_retry = client.calls[3]
+    assert '[ForgeCode Turn Change Contract]' in (
+        followup_retry['system'] or ''
+    )
+    assert 'Do not ask for confirmation' in str(followup_retry['messages'])
+
+
 def test_write_then_revert_to_baseline_enters_edit_recovery(
     tmp_path: Path,
 ) -> None:

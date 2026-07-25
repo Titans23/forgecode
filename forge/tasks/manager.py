@@ -22,48 +22,70 @@ class TaskManager:
         self._resume_next_turn = False
         self._latest_directive = ''
 
-    def begin_turn(self, goal: str) -> ActiveTask:
+    def begin_turn(
+        self,
+        goal: str,
+        *,
+        requires_change: bool = False,
+    ) -> ActiveTask:
         if self._resume_next_turn and self.active is not None:
             self._resume_next_turn = False
-            self._latest_directive = goal.strip()
-            return self.active
+            return self._continue_active(goal, requires_change=requires_change)
         if (
             self.active is not None
             and self.active.status == 'completed'
-            and is_continuation_directive(goal)
-        ):
-            self._latest_directive = goal.strip()
-            self.active = replace(
-                self.active,
-                status='in_progress',
-                blocked_reasons=(),
+            and (
+                is_continuation_directive(goal)
+                or (
+                    self.active.requires_change
+                    and is_change_followup_directive(goal)
+                )
             )
-            if self.active.planned:
-                self.store.save(self.active)
-            return self.active
+        ):
+            return self._continue_active(goal, requires_change=requires_change)
         if self.active is not None and self.active.status in {
             'blocked',
             'stuck',
         }:
-            self._latest_directive = goal.strip()
-            self.active = replace(
-                self.active,
-                status='in_progress',
-                blocked_reasons=(),
-            )
-            if self.active.planned:
-                self.store.save(self.active)
-            return self.active
+            return self._continue_active(goal, requires_change=requires_change)
         previous_goal = self.active.goal if self.active is not None else ''
-        return self.start(resolve_anaphoric_goal(goal, previous_goal))
+        return self.start(
+            resolve_anaphoric_goal(goal, previous_goal),
+            requires_change=requires_change,
+        )
 
-    def start(self, goal: str) -> ActiveTask:
+    def _continue_active(
+        self,
+        directive: str,
+        *,
+        requires_change: bool,
+    ) -> ActiveTask:
+        if self.active is None:
+            raise ValueError('No active task.')
+        self._latest_directive = directive.strip()
+        self.active = replace(
+            self.active,
+            status='in_progress',
+            requires_change=(self.active.requires_change or requires_change),
+            blocked_reasons=(),
+        )
+        if self.active.planned:
+            self.store.save(self.active)
+        return self.active
+
+    def start(
+        self,
+        goal: str,
+        *,
+        requires_change: bool = False,
+    ) -> ActiveTask:
         clean_goal = goal.strip()
         if not clean_goal:
             raise ValueError('Task goal must not be empty.')
         self.active = ActiveTask(
             id=f'task-{uuid4().hex[:12]}',
             goal=clean_goal,
+            requires_change=requires_change,
             scope_hints=infer_goal_scope(clean_goal),
         )
         self._resume_next_turn = False
@@ -75,6 +97,15 @@ class TaskManager:
         self.active = task
         self._resume_next_turn = task is not None
         self._latest_directive = ''
+
+    def require_workspace_change(self) -> ActiveTask | None:
+        '''Upgrade a restored legacy task to the persistent change contract.'''
+        if self.active is None or self.active.requires_change:
+            return self.active
+        self.active = replace(self.active, requires_change=True)
+        if self.active.planned:
+            self.store.save(self.active)
+        return self.active
 
     def plan(
         self,
@@ -274,6 +305,7 @@ class TaskManager:
             bounded(task.goal, 20_000),
             '',
             f'Status: {task.status}',
+            f'Requires workspace change: {str(task.requires_change).lower()}',
         ]
         if task.current_step is not None:
             lines.extend(
@@ -386,12 +418,25 @@ def resolve_anaphoric_goal(goal: str, previous_goal: str) -> str:
 
 
 def is_continuation_directive(goal: str) -> bool:
-    '''Recognize short follow-ups whose meaning depends on the previous task.'''
+    '''Recognize explicit follow-ups whose meaning depends on the previous task.'''
     text = goal.strip().lstrip('\ufeff')
     return bool(
         re.match(
             r'(?i)^(?:继续|接着|接下来|然后|按(?:照)?(?:刚才|上面|之前)|'
             r'continue\b|proceed\b|resume\b|keep\s+going\b)',
+            text,
+        )
+    )
+
+
+def is_change_followup_directive(goal: str) -> bool:
+    '''Recognize constraints and approvals that extend a completed change task.'''
+    text = goal.strip().lstrip('\ufeff')
+    return bool(
+        re.match(
+            r'^(?:要求|需要|还要|同时|另外|并且|按(?:照)?顺序|'
+            r'就按(?:这个|上述|上面|刚才|顺序)|'
+            r'可以(?:直接)?开始(?:工作)?(?:了|吧)?|开始(?:工作)?(?:吧)?)',
             text,
         )
     )

@@ -285,7 +285,17 @@ class Conversation:
             )
             return
 
-        self.task_manager.begin_turn(prompt)
+        prompt_change_required = infer_change_required(prompt)
+        previous_task = self.task_manager.active
+        if (
+            previous_task is not None
+            and infer_change_required(previous_task.goal)
+        ):
+            self.task_manager.require_workspace_change()
+        self.task_manager.begin_turn(
+            prompt,
+            requires_change=prompt_change_required,
+        )
         self.working_state = WorkingState()
         self._last_task_context = self.task_manager.system_suffix()
         user_message = {'role': 'user', 'content': prompt}
@@ -308,14 +318,28 @@ class Conversation:
         all_tool_calls: list[ToolCall] = []
         latest_verification: VerificationEvidence | None = None
         mutation_attempted = False
-        change_required = bool(
-            (
-                self.completion_gate is not None
-                and self.completion_gate.policy.require_changes
+        active_task = self.task_manager.active
+        inherited_change_required = bool(
+            active_task is not None
+            and (
+                active_task.requires_change
+                or infer_change_required(active_task.goal)
             )
-            or (
-                self.workspace_tracker is not None
-                and infer_change_required(prompt)
+        )
+        change_required = bool(
+            self.permission_manager.mode != 'plan'
+            and (
+                (
+                    self.completion_gate is not None
+                    and self.completion_gate.policy.require_changes
+                )
+                or (
+                    self.workspace_tracker is not None
+                    and (
+                        prompt_change_required
+                        or inherited_change_required
+                    )
+                )
             )
         )
         verification_required = bool(

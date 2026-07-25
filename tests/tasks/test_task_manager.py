@@ -21,7 +21,10 @@ def test_simple_task_stays_in_memory_without_creating_files(
 
 def test_complex_plan_persists_updates_and_resumes(tmp_path: Path) -> None:
     manager = TaskManager(tmp_path)
-    manager.start('Fix all six block faces and verify the game.')
+    manager.start(
+        'Fix all six block faces and verify the game.',
+        requires_change=True,
+    )
 
     planned = manager.plan(
         ['Inspect geometry', 'Fix UVs', 'Verify'],
@@ -43,6 +46,7 @@ def test_complex_plan_persists_updates_and_resumes(tmp_path: Path) -> None:
     resumed = restarted.resume(planned.id)
 
     assert resumed.goal == planned.goal
+    assert resumed.requires_change is True
     assert resumed.current_step_id == 'step-2'
     assert 'Fix UVs' in restarted.system_suffix()
 
@@ -142,6 +146,51 @@ def test_continuation_after_completed_keeps_goal_and_inferred_scope(
     assert original.goal in suffix
     assert '继续，允许你执行文件写入' in suffix
     assert 'play/**' in suffix
+
+
+def test_legacy_task_can_be_upgraded_to_change_contract(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    legacy = manager.start(
+        '当前play下的植物大战僵尸还是太简单了，我想复刻原版'
+    )
+
+    upgraded = manager.require_workspace_change()
+
+    assert legacy.requires_change is False
+    assert upgraded is not None
+    assert upgraded.id == legacy.id
+    assert upgraded.requires_change is True
+
+
+@pytest.mark.parametrize(
+    'directive',
+    [
+        '要求动画、贴图还有功能都需要',
+        '按顺序',
+        '可以开始工作吧',
+    ],
+)
+def test_change_followup_keeps_goal_and_change_contract(
+    tmp_path: Path,
+    directive: str,
+) -> None:
+    manager = TaskManager(tmp_path)
+    original = manager.start(
+        '当前play下的植物大战僵尸还是太简单了，我想复刻原版',
+        requires_change=True,
+    )
+    manager.complete()
+
+    continued = manager.begin_turn(directive)
+
+    assert continued.id == original.id
+    assert continued.goal == original.goal
+    assert continued.requires_change is True
+    assert continued.status == 'in_progress'
+    assert directive in manager.system_suffix()
+    assert 'Requires workspace change: true' in manager.system_suffix()
 
 
 def test_non_continuation_after_completed_starts_a_new_task(

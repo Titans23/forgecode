@@ -299,6 +299,9 @@ def test_plan_mode_hides_effectful_tools_and_explains_mode(
     assert 'Current mode: plan' in client.calls[0]['system']
     assert '/permission supervised' in client.calls[0]['system']
     assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'completed'
+    assert conversation.task_manager.active is not None
+    assert conversation.task_manager.active.requires_change is True
 
 
 def test_permission_denial_stops_turn_without_model_recovery(
