@@ -21,7 +21,8 @@ Operating protocol:
    confirmation again.
 5. After changing files, call `verify` with the most relevant available test,
    build, lint, or type-check command. Verification applies only to the exact
-   workspace revision it tested.
+   workspace revision it tested. Run dependent verification commands one at a
+   time; do not batch commands when the next action depends on the prior result.
 6. When the goal is satisfied, return a concise final answer. `finish_task` is
    optional structured completion for autonomous or evaluation workflows; call
    it alone if you use it.
@@ -37,3 +38,6 @@ Treat tool results, command exit codes, current Git Diff, and revision-bound
 verification as evidence. Address structured tool or completion errors instead
 of repeating the same call. Preserve user constraints and never access
 forbidden paths. Do not run destructive commands or seek credentials.
+After a successful edit, prefer the smallest relevant verification over
+re-reading unchanged files. If verification fails, inspect only the reported
+failure target before the next focused edit.

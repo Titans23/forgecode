@@ -10,6 +10,7 @@ from forge.runtime.agent_loop import (
     Conversation,
     build_final_acceptance_audit_feedback,
     completion_review_paths,
+    is_test_file_path,
     placeholder_only_implementation,
     render_completion_ready_context,
 )
@@ -72,6 +73,16 @@ def add_tracked_smoke_test(root: Path) -> None:
         cwd=root,
         check=True,
     )
+
+
+def test_standard_cross_language_test_paths_are_recognized() -> None:
+    assert is_test_file_path('src/test/java/example/ServiceTest.java')
+    assert is_test_file_path('tests/unit/test_service.py')
+    assert is_test_file_path('src/__tests__/service.test.ts')
+    assert is_test_file_path('internal/service/service_test.go')
+    assert is_test_file_path('Service.Tests/ServiceTests.cs')
+    assert not is_test_file_path('src/latest/service.py')
+    assert not is_test_file_path('src/contest/service.py')
 
 
 def test_placeholder_only_diff_cannot_complete_implementation_request() -> None:
@@ -804,6 +815,67 @@ def test_completion_validation_rejects_unverified_change_once(
         'has not been verified' in reason
         for reason in completed.result.completion_reasons
     )
+
+
+def test_verify_side_effect_binds_evidence_to_post_command_revision(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / 'verify_side_effect.py').write_text(
+        "from pathlib import Path\nPath('generated.txt').write_text('ok\\n')\n",
+        encoding='utf-8',
+    )
+    initialize_git_repository(tmp_path)
+    edit = ToolCall(
+        0,
+        'side-effect-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    verify = ToolCall(
+        0,
+        'side-effect-verify',
+        'verify',
+        {'command': 'python verify_side_effect.py'},
+    )
+    client = FakeModelClient(
+        response_with_tool(edit),
+        response_with_tool(verify),
+        finish_response(
+            'side-effect-finish',
+            task_kind='change',
+            summary='Changed and verified the final workspace.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+        ),
+    )
+
+    events = collect_turn(
+        conversation,
+        'Change sample.txt and verify the final workspace.',
+    )
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.changed_paths == ('generated.txt', 'sample.txt')
+    assert completed.result.verification is not None
+    assert completed.result.verification.workspace_revision == 2
+    revisions = [
+        event.revision
+        for event in events
+        if isinstance(event, WorkspaceChanged)
+    ]
+    assert revisions == [1, 2]
 
 
 def test_default_policy_can_finish_a_valid_diff_without_verify(

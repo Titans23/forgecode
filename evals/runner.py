@@ -198,7 +198,11 @@ def initialize_workspace_git(workspace: Path) -> None:
         subprocess.run(command, cwd=workspace, check=True, capture_output=True)
     exclude = workspace / '.git' / 'info' / 'exclude'
     exclude.write_text(
-        '\n.venv/\nnode_modules/\ntarget/\n.forge/\ntests/hidden/\n',
+        (
+            '\n.venv/\nnode_modules/\ntarget/\n'
+            '__pycache__/\n*.py[cod]\n'
+            '.forge/\ntests/hidden/\n'
+        ),
         encoding='utf-8',
     )
     subprocess.run(

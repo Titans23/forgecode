@@ -1674,7 +1674,14 @@ class Conversation:
                         )
                     )
                 if tool_call.name == 'verify':
-                    latest_verification = verification_from_result(result)
+                    latest_verification = verification_from_result(
+                        result,
+                        workspace_revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else None
+                        ),
+                    )
                     verification_command = str(
                         tool_call.arguments.get('command', '')
                     )
@@ -3384,8 +3391,10 @@ def serialize_tool_result(result: ToolResult) -> str:
 
 def verification_from_result(
     result: ToolResult,
+    *,
+    workspace_revision: int | None = None,
 ) -> VerificationEvidence | None:
-    '''Build stable evidence from one verify ToolResult metadata payload.'''
+    '''Build evidence bound to the workspace state after verification ends.'''
     metadata = result.metadata
     if metadata.get('verification') is not True:
         return None
@@ -3396,7 +3405,11 @@ def verification_from_result(
             exit_code=int(metadata['exit_code']),
             duration_seconds=float(metadata['duration_seconds']),
             timed_out=bool(metadata['timed_out']),
-            workspace_revision=int(metadata['workspace_revision']),
+            workspace_revision=(
+                workspace_revision
+                if workspace_revision is not None
+                else int(metadata['workspace_revision'])
+            ),
         )
     except (KeyError, TypeError, ValueError):
         return None
@@ -3664,14 +3677,17 @@ def is_test_file_path(path: str) -> bool:
     '''Recognize common repository test-file conventions without I/O.'''
     normalized = path.replace('\\', '/').lower()
     name = normalized.rsplit('/', 1)[-1]
+    directories = normalized.split('/')[:-1]
     return bool(
-        normalized.startswith('tests/')
-        or '/tests/' in normalized
-        or '/__tests__/' in normalized
+        any(
+            directory in {'test', 'tests', '__tests__'}
+            or directory.endswith('.tests')
+            for directory in directories
+        )
         or name.startswith('test_')
         or '.test.' in name
         or '.spec.' in name
-        or name.endswith('_test.py')
+        or '_test.' in name
     )
 
 

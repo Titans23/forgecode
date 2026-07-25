@@ -402,6 +402,8 @@ def test_system_prompt_defines_forgecode_identity() -> None:
     assert 'Tool\n   schema errors, repeated reads' in prompt
     assert 'Do not run destructive commands' in prompt
     assert 'call `verify`' in prompt
+    assert 'Run dependent verification commands one at a' in prompt
+    assert 'prefer the smallest relevant verification' in prompt
 
 
 def test_conversation_accepts_an_explicit_system_prompt() -> None:

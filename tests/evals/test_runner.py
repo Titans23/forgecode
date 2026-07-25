@@ -159,6 +159,11 @@ def test_prepared_fixture_uses_commit_and_hides_tests(tmp_path: Path) -> None:
             text=True,
         )
         assert status.stdout == ''
+        exclude = (workspace / '.git' / 'info' / 'exclude').read_text(
+            encoding='utf-8'
+        )
+        assert '__pycache__/' in exclude
+        assert '*.py[cod]' in exclude
 
         prepared.restore_hidden_tests()
         hidden = workspace / 'tests' / 'hidden' / 'test_secret.txt'
