@@ -168,8 +168,9 @@ def _validation_recovery_hint(
     if 'string_too_long' in error_types:
         if tool_name == 'write_file':
             return (
-                'Create a smaller new-file skeleton with write_file, then '
-                'extend it through multiple focused apply_patch calls.'
+                'Create a smaller new-file skeleton and extend it through '
+                'focused apply_patch calls, or use write_file_chunk to assemble '
+                'the large new file in ordered chunks.'
             )
         if tool_name == 'apply_patch':
             return 'Split the change into multiple focused patches.'

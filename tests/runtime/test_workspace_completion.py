@@ -129,6 +129,27 @@ def test_workspace_tracker_preserves_preexisting_user_changes(
     assert tracker.changed_paths == ('sample.txt',)
 
 
+def test_workspace_tracker_excludes_generated_runtime_state(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    tasks = tmp_path / '.forge' / 'tasks'
+    tasks.mkdir(parents=True)
+    (tasks / 'current.json').write_text('{}\n', encoding='utf-8')
+    (tmp_path / '.forge' / 'settings.json').write_text(
+        '{}\n',
+        encoding='utf-8',
+    )
+
+    change = run(tracker.refresh())
+
+    assert change is not None
+    assert change.paths == ('.forge/settings.json',)
+    assert tracker.changed_paths == ('.forge/settings.json',)
+
+
 def test_path_patterns_match_deep_source_files() -> None:
     assert matches_any('src/todo.ts', ('src/**',))
     assert matches_any('src/main/java/Order.java', ('src/main/**',))
@@ -268,6 +289,38 @@ def test_completion_gate_blocks_current_optional_verification_failure(
 
     assert decision.allowed is False
     assert 'latest verification failed' in decision.reasons[0]
+
+
+def test_completion_gate_blocks_stale_optional_verification_failure(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    (tmp_path / 'sample.txt').write_text('revision one\n', encoding='utf-8')
+    run(tracker.refresh())
+    failed = VerificationEvidence(
+        command='pytest',
+        cwd='.',
+        exit_code=1,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    (tmp_path / 'sample.txt').write_text('revision two\n', encoding='utf-8')
+    run(tracker.refresh())
+
+    decision = run(
+        CompletionGate(tmp_path).evaluate(
+            tracker,
+            failed,
+            mutation_attempted=False,
+        )
+    )
+
+    assert decision.allowed is False
+    assert any('latest verification failed' in item for item in decision.reasons)
+    assert any('run verify again' in item for item in decision.reasons)
 
 
 def test_completion_gate_ignores_unrelated_preexisting_whitespace_errors(

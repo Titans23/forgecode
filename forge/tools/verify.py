@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from pydantic import Field
 
@@ -58,6 +59,28 @@ class VerifyTool(Tool[VerifyInput]):
                 f'Verification cwd is not a directory: {arguments.cwd}',
             )
         revision = self.tracker.revision
+        missing_manifest = missing_verification_manifest(
+            arguments.command,
+            cwd,
+        )
+        if missing_manifest is not None:
+            return ToolResult.fail(
+                'verification_command_not_applicable',
+                f'Cannot run {arguments.command!r}: {missing_manifest.name} '
+                f'does not exist in {display_path(self.root, cwd)}.',
+                content=(
+                    'Choose a verification command supported by the current '
+                    'project. For a standalone JavaScript file, prefer '
+                    '`node --check <path>`.'
+                ),
+                metadata={
+                    'command': arguments.command,
+                    'cwd': display_path(self.root, cwd),
+                    'workspace_revision': revision,
+                    'verification': True,
+                    'required_manifest': missing_manifest.name,
+                },
+            )
         result = await run_process(
             arguments.command,
             cwd=cwd,
@@ -92,3 +115,13 @@ class VerifyTool(Tool[VerifyInput]):
             content=content,
             metadata=metadata,
         )
+
+
+def missing_verification_manifest(command: str, cwd: Path) -> Path | None:
+    '''Return a required project manifest missing for a known test command.'''
+    normalized = ' '.join(command.casefold().split())
+    if re.match(r'^(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test(?:\s|$)', normalized):
+        manifest = cwd / 'package.json'
+        if not manifest.is_file():
+            return manifest
+    return None

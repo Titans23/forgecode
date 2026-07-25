@@ -108,6 +108,7 @@ class WorkspaceTracker:
         files = {
             path: fingerprint_path(self.root, path)
             for path in parse_porcelain_paths(result.stdout)
+            if not is_runtime_state_path(path)
         }
         for path in self._watched_paths:
             files[path] = fingerprint_path(self.root, path)
@@ -146,6 +147,18 @@ def parse_porcelain_paths(output: str) -> tuple[str, ...]:
                 paths.append(normalize_path(records[index]))
                 index += 1
     return tuple(dict.fromkeys(paths))
+
+
+def is_runtime_state_path(path: str) -> bool:
+    '''Exclude ForgeCode-generated control-plane state from task progress.'''
+    normalized = normalize_path(path)
+    prefixes = (
+        '.forge/context/',
+        '.forge/memory/',
+        '.forge/tasks/',
+        '.forge/trajectories/',
+    )
+    return any(normalized.startswith(prefix) for prefix in prefixes)
 
 
 def normalize_path(path: str) -> str:

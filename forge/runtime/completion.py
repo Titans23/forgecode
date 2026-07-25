@@ -152,15 +152,16 @@ class CompletionGate:
                     'The user explicitly requested the full test suite, but '
                     'the latest verification command was focused or partial.'
                 )
-        elif (
-            verification is not None
-            and verification.workspace_revision == tracker.revision
-            and not verification.success
-        ):
+        elif verification is not None and not verification.success:
             reasons.append(
                 f'The latest verification failed with exit code '
                 f'{verification.exit_code}.'
             )
+            if verification.workspace_revision != tracker.revision:
+                reasons.append(
+                    'The code changed after the failed verification; run verify '
+                    f'again for workspace revision {tracker.revision}.'
+                )
 
         if changed_paths and tracker.available:
             reasons.extend(

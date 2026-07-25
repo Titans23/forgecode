@@ -290,6 +290,23 @@ def test_verify_failure_is_structured(tmp_path: Path) -> None:
     assert result.metadata['exit_code'] == 3
 
 
+def test_verify_rejects_npm_test_without_package_manifest(
+    tmp_path: Path,
+) -> None:
+    tracker = WorkspaceTracker(tmp_path)
+    asyncio.run(tracker.begin_turn())
+
+    result = run(
+        VerifyTool(tmp_path, tracker).run({'command': 'npm test --silent'})
+    )
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'verification_command_not_applicable'
+    assert result.metadata['required_manifest'] == 'package.json'
+    assert 'node --check' in result.content
+
+
 def test_git_log_returns_bounded_history_and_supports_path(
     tmp_path: Path,
 ) -> None:

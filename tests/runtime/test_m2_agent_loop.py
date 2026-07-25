@@ -3244,3 +3244,187 @@ def test_empty_response_after_completion_rejection_is_stuck(
     )
     assert len(client.calls) == 2
     assert len(client.responses) == 1
+
+
+def test_change_plan_upgrades_a_misclassified_turn_contract(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    plan = ToolCall(
+        0,
+        'upgrade-change-plan',
+        'task_plan',
+        {
+            'steps': [
+                '实现更复杂的游戏逻辑',
+                '验证修改后的游戏',
+            ],
+            'scope_hints': ['sample.txt'],
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(plan),
+        text_response('I only prepared the implementation plan.'),
+        text_response('I still did not modify sample.txt.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    events = collect_turn(conversation, '查看 sample.txt 并制定后续步骤')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert conversation.task_manager.active is not None
+    assert conversation.task_manager.active.requires_change is True
+    assert completed.result.changed_paths == ()
+    assert completed.result.status == 'stuck'
+    assert any(
+        'requires a real task-local workspace change' in reason
+        for reason in completed.result.completion_reasons
+    )
+
+
+def test_enhancement_task_cannot_delete_existing_target_before_rewrite(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    play = tmp_path / 'play'
+    play.mkdir()
+    game = play / 'game.js'
+    game.write_text('const level = 1;\n', encoding='utf-8')
+    subprocess.run(['git', 'add', 'play/game.js'], cwd=tmp_path, check=True)
+    subprocess.run(
+        ['git', 'commit', '--quiet', '-m', 'add game'],
+        cwd=tmp_path,
+        check=True,
+    )
+    delete = ToolCall(
+        0,
+        'unsafe-delete-game',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Delete File: play/game.js\n'
+                '*** End Patch'
+            ),
+        },
+    )
+    update = ToolCall(
+        0,
+        'safe-update-game',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Update File: play/game.js\n'
+                '@@\n'
+                '-const level = 1;\n'
+                '+const level = 2;\n'
+                '*** End Patch'
+            ),
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(delete),
+        response_with_tool(update),
+        text_response('Enhanced play/game.js without deleting the original.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    events = collect_turn(
+        conversation,
+        '帮我将 play/game.js 做得高级复杂一点',
+    )
+
+    delete_result = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'unsafe-delete-game'
+    )
+    completed = events[-1]
+    assert delete_result.success is False
+    assert delete_result.error is not None
+    assert delete_result.error.code == 'destructive_edit_not_requested'
+    assert game.read_text(encoding='utf-8') == 'const level = 2;\n'
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+
+
+def test_oversized_write_exposes_chunk_fallback_on_first_failure(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    oversized = ToolCall(
+        0,
+        'oversized-new-file',
+        'write_file',
+        {'path': 'large.js', 'content': 'x' * 30_001},
+    )
+    unrelated_read = ToolCall(
+        0,
+        'chunk-fallback-read',
+        'read_file',
+        {'path': 'sample.txt'},
+    )
+    chunk = ToolCall(
+        0,
+        'chunked-new-file',
+        'write_file_chunk',
+        {
+            'path': 'large.js',
+            'content': 'const ready = true;\n',
+            'offset': 0,
+            'truncate': True,
+            'final': True,
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(oversized),
+        response_with_tool(unrelated_read),
+        response_with_tool(chunk),
+        text_response('Created large.js with the chunk fallback.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    events = collect_turn(conversation, '帮我创建 large.js')
+
+    failed = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'oversized-new-file'
+    )
+    recovery_names = {
+        str(definition['name'])
+        for definition in client.calls[1]['tools'] or ()
+    }
+    rejected_read = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'chunk-fallback-read'
+    )
+    completed = events[-1]
+    assert failed.success is False
+    assert failed.error is not None
+    assert failed.error.code == 'invalid_arguments'
+    assert 'write_file_chunk' in recovery_names
+    assert 'read_file' not in recovery_names
+    assert rejected_read.success is False
+    assert rejected_read.error is not None
+    assert rejected_read.error.code == 'tool_not_available_in_phase'
+    assert (tmp_path / 'large.js').read_text(encoding='utf-8') == (
+        'const ready = true;\n'
+    )
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'

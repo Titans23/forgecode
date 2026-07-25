@@ -22,6 +22,7 @@ from forge.permissions.policy import PermissionManager, PermissionMode
 from forge.permissions.risk import classify_tool_call
 from forge.runtime.intent import (
     infer_change_required,
+    infer_deletion_required,
     infer_explore_delegation_required,
     infer_full_test_suite_required,
     infer_test_changes_required,
@@ -382,6 +383,7 @@ class Conversation:
         mutation_failure_total = 0
         mutation_failure_targets: tuple[str, ...] = ()
         mutation_failures: list[dict[str, Any]] = []
+        chunk_fallback_required = False
         mutation_recovery_read_used = False
         mutation_recovery_context = ''
         mutation_text_recoveries = 0
@@ -466,10 +468,19 @@ class Conversation:
                 ]
             elif finalization_recovery:
                 request_tools = None
+            elif chunk_fallback_required:
+                request_tools = self._edit_recovery_tools(
+                    read_available=False,
+                    excluded_write_tools=frozenset({'write_file'}),
+                    include_chunk_fallback=True,
+                )
             elif mutation_failures:
                 request_tools = self._edit_recovery_tools(
                     read_available=not mutation_recovery_read_used,
                     excluded_write_tools=repeated_failed_mutation_tools(
+                        mutation_failures
+                    ),
+                    include_chunk_fallback=mutation_needs_chunk_fallback(
                         mutation_failures
                     ),
                 )
@@ -1299,6 +1310,32 @@ class Conversation:
                                 ),
                             },
                         )
+                destructive_rejection: ToolResult | None = None
+                if (
+                    tool_effect == 'workspace_write'
+                    and hook_rejection is None
+                    and permission_rejection is None
+                    and scope_rejection is None
+                    and not infer_deletion_required(
+                        self.task_manager.active.goal
+                        if self.task_manager.active is not None
+                        else prompt
+                    )
+                ):
+                    deleted_paths = existing_deleted_paths(
+                        self.task_manager.root,
+                        tool_call,
+                    )
+                    if deleted_paths:
+                        destructive_rejection = ToolResult.fail(
+                            'destructive_edit_not_requested',
+                            'Refusing to delete an existing task file because '
+                            'the active goal requests a modification, not a '
+                            'deletion. Use an Update patch, or assemble and '
+                            'validate replacement content before changing the '
+                            'original file.',
+                            details={'paths': list(deleted_paths)},
+                        )
                 if tool_effect == 'workspace_write':
                     mutation_attempted = True
                     change_required = True
@@ -1380,6 +1417,11 @@ class Conversation:
                 elif verification_recovery:
                     phase_allowed_names = {'verify'}
                     phase_tool_unavailable = tool_call.name != 'verify'
+                elif chunk_fallback_required:
+                    phase_allowed_names = set(request_tool_names)
+                    phase_tool_unavailable = (
+                        tool_call.name not in phase_allowed_names
+                    )
                 elif mutation_failures:
                     phase_allowed_names = set(request_tool_names)
                     if mutation_read_call and not mutation_read_blocked:
@@ -1404,6 +1446,8 @@ class Conversation:
                     result = permission_rejection
                 elif scope_rejection is not None:
                     result = scope_rejection
+                elif destructive_rejection is not None:
+                    result = destructive_rejection
                 elif convergence_read_blocked or mutation_read_blocked:
                     result = ToolResult.fail(
                         'recovery_read_already_used',
@@ -1573,6 +1617,8 @@ class Conversation:
                     )
                 )
                 self._queue_hook_context(post_tool)
+                if oversized_write_file_result(tool_call, result):
+                    chunk_fallback_required = True
                 self.working_state.observe(
                     tool_call,
                     result,
@@ -1737,6 +1783,18 @@ class Conversation:
                         change_convergence_extra_reads = 7
                         post_mutation_convergence = False
                         force_synthesis = True
+                if tool_call.name == 'task_plan' and result.success:
+                    planned_text = ' '.join(
+                        str(item)
+                        for item in tool_call.arguments.get('steps', ())
+                    )
+                    if (
+                        self.permission_manager.mode != 'plan'
+                        and infer_change_required(planned_text)
+                    ):
+                        self.task_manager.require_workspace_change()
+                        change_required = True
+                    task_progressed = True
                 if tool_call.name == 'task_update' and result.success:
                     task_progressed = True
             if terminal_permission_denial is not None:
@@ -1890,6 +1948,7 @@ class Conversation:
                 workspace_progressed = False
                 workspace_write_progressed = False
             if workspace_write_progressed:
+                chunk_fallback_required = False
                 mutation_failure_count = 0
                 mutation_failure_total = 0
                 mutation_failure_targets = ()
@@ -2027,7 +2086,7 @@ class Conversation:
                 # repository rescan.
                 change_convergence_required = True
                 change_convergence_read_used = False
-                change_convergence_extra_reads = 3
+                change_convergence_extra_reads = 0
                 post_mutation_convergence = True
                 force_synthesis = True
                 calls_without_progress = 0
@@ -2140,7 +2199,7 @@ class Conversation:
                 if workspace_progressed and change_required:
                     change_convergence_required = True
                     change_convergence_read_used = False
-                    change_convergence_extra_reads = 3
+                    change_convergence_extra_reads = 0
                     post_mutation_convergence = True
                     force_synthesis = True
                     request_messages.append(
@@ -2448,6 +2507,7 @@ class Conversation:
         *,
         read_available: bool,
         excluded_write_tools: frozenset[str] = frozenset(),
+        include_chunk_fallback: bool = False,
     ) -> list[dict[str, Any]] | None:
         definitions = self._tool_definitions()
         if self.registry is None or definitions is None:
@@ -2462,6 +2522,19 @@ class Conversation:
             )
         ):
             definitions.append(exact_replace)
+        chunk_writer = (
+            self.registry.definition('write_file_chunk')
+            if include_chunk_fallback
+            else None
+        )
+        if (
+            chunk_writer is not None
+            and not any(
+                str(item.get('name', '')) == 'write_file_chunk'
+                for item in definitions
+            )
+        ):
+            definitions.append(chunk_writer)
         return [
             definition
             for definition in definitions
@@ -3818,6 +3891,81 @@ def mutation_target_paths(
                 paths.append(path)
     unique = tuple(dict.fromkeys(paths))
     return unique if maximum is None else unique[:maximum]
+
+
+def existing_deleted_paths(root: Path, tool_call: ToolCall) -> tuple[str, ...]:
+    '''Find existing files a write request would remove or truncate outright.'''
+    if tool_call.name == 'write_file_chunk':
+        raw_path = tool_call.arguments.get('path')
+        if (
+            tool_call.arguments.get('truncate') is True
+            and isinstance(raw_path, str)
+        ):
+            candidate = (root.resolve() / raw_path).resolve()
+            try:
+                candidate.relative_to(root.resolve())
+            except ValueError:
+                return ()
+            return (raw_path.replace('\\', '/'),) if candidate.is_file() else ()
+        return ()
+    if tool_call.name != 'apply_patch':
+        return ()
+    patch = tool_call.arguments.get('patch')
+    if not isinstance(patch, str):
+        return ()
+
+    deleted: list[str] = []
+    lines = patch.splitlines()
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('*** Delete File:'):
+            deleted.append(
+                stripped.removeprefix('*** Delete File:').strip()
+            )
+        elif (
+            stripped.startswith('--- a/')
+            and index + 1 < len(lines)
+            and lines[index + 1].strip() == '+++ /dev/null'
+        ):
+            deleted.append(stripped.removeprefix('--- a/').strip())
+
+    existing: list[str] = []
+    resolved_root = root.resolve()
+    for raw_path in dict.fromkeys(deleted):
+        normalized = raw_path.replace('\\', '/')
+        candidate = (resolved_root / normalized).resolve()
+        try:
+            candidate.relative_to(resolved_root)
+        except ValueError:
+            continue
+        if candidate.is_file():
+            existing.append(normalized)
+    return tuple(existing)
+
+
+def oversized_write_file_result(
+    tool_call: ToolCall,
+    result: ToolResult,
+) -> bool:
+    '''Identify a write_file request rejected only because its body is too large.'''
+    return bool(
+        tool_call.name == 'write_file'
+        and result.error is not None
+        and result.error.code == 'invalid_arguments'
+        and 'maximum is' in result.error.message
+    )
+
+
+def mutation_needs_chunk_fallback(
+    failures: list[dict[str, Any]],
+) -> bool:
+    '''Expose the hidden chunk writer after an oversized new-file request.'''
+    return any(
+        failure.get('tool') == 'write_file'
+        and failure.get('code') == 'invalid_arguments'
+        and 'maximum is' in str(failure.get('message', ''))
+        for failure in failures
+    )
 
 
 def repeated_failed_mutation_tools(

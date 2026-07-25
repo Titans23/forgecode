@@ -9,7 +9,8 @@ _CHANGE_VERBS_ZH = (
     '修复|修好|解决|修改|改|实现|实施|执行|落地|处理|新增|添加|'
     '删除|移除|创建|编写|写(?:一个|一份|代码|文件|程序|游戏|网站|应用|功能)|'
     '写入|重写|重构|优化|更新|调整|调高|'
-    '调低|改进|完成|替换|继续|开始|复刻|完善|增强|升级|做成|补齐|支持'
+    '调低|改进|完成|替换|继续|开始|复刻|完善|增强|升级|'
+    '做(?:成|得|到)?|变得|弄成|打造|补齐|支持'
 )
 _DIRECT_CHANGE_ZH = re.compile(
     rf'^\s*(?:(?:请你?|帮我|麻烦你?|你直接|直接|可以(?:直接)?)\s*)?'
@@ -189,6 +190,45 @@ def infer_change_required(prompt: str) -> bool:
         ):
             return True
     return False
+
+
+def infer_deletion_required(prompt: str) -> bool:
+    '''Return true only when removing repository content is explicitly requested.'''
+    text = prompt.strip().lstrip('\ufeff')
+    if not text:
+        return False
+    if re.search(
+        r'(?:不要|别|无需|不用|禁止)[^，。；！？\n]{0,20}'
+        r'(?:删除|移除|清空)',
+        text,
+    ):
+        return False
+    if re.search(
+        r"\b(?:do\s+not|don't|never|without)\b.{0,25}"
+        r'\b(?:delete|remove)\b',
+        text,
+        re.IGNORECASE,
+    ):
+        return False
+    return bool(
+        re.search(
+            r'^\s*(?:(?:请你?|帮我|麻烦你?|直接)\s*)?'
+            r'(?:删除|移除|清空)',
+            text,
+        )
+        or re.search(
+            r'(?:帮我|请你|麻烦你|把|将|需要你|我要|直接)'
+            r'[^，。；！？\n]{0,40}(?:删除|移除|清空)',
+            text,
+        )
+        or re.search(
+            r'^\s*(?:(?:please|kindly)\s+)?(?:delete|remove)\b|'
+            r'\b(?:(?:can|could|would)\s+you|help\s+me|'
+            r'i\s+need\s+you\s+to)\b.{0,25}\b(?:delete|remove)\b',
+            text,
+            re.IGNORECASE,
+        )
+    )
 
 
 def infer_explore_delegation_required(prompt: str) -> bool:

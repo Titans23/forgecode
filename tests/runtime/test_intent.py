@@ -4,6 +4,7 @@ import pytest
 
 from forge.runtime.intent import (
     infer_change_required,
+    infer_deletion_required,
     infer_explore_delegation_required,
     infer_full_test_suite_required,
     infer_test_changes_required,
@@ -29,6 +30,9 @@ from forge.runtime.intent import (
         '当前play下的植物大战僵尸还是太简单了，我想复刻原版',
         '我想完善当前的会话恢复功能',
         '我要把游戏升级成复杂版本',
+        '帮我将这个游戏做得高级复杂一点',
+        '把页面变得更现代一些',
+        '帮我把应用打造成复杂版本',
         '可以开始工作吧',
         'Fix the rendering bug.',
         'Improve Explore failure accounting.',
@@ -178,6 +182,26 @@ def test_negated_or_descriptive_verification_text_is_not_required(
     prompt: str,
 ) -> None:
     assert infer_verification_required(prompt) is False
+
+
+@pytest.mark.parametrize(
+    ('prompt', 'expected'),
+    [
+        ('删除 play/game.js', True),
+        ('帮我移除废弃文件', True),
+        ('Remove the obsolete module.', True),
+        ('Could you remove the obsolete module?', True),
+        ('优化 game.js，不要删除原文件', False),
+        ('Do not delete the original file.', False),
+        ('How do I delete this file?', False),
+        ('解释为什么文件被删除了', False),
+    ],
+)
+def test_explicit_deletion_intent_is_inferred_separately(
+    prompt: str,
+    expected: bool,
+) -> None:
+    assert infer_deletion_required(prompt) is expected
 
 
 def test_large_tested_change_routes_to_explore_agent() -> None:
