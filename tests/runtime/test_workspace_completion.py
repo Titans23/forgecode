@@ -129,6 +129,46 @@ def test_workspace_tracker_preserves_preexisting_user_changes(
     assert tracker.changed_paths == ('sample.txt',)
 
 
+def test_workspace_tracker_carries_persisted_task_change_across_turns(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / 'sample.txt').write_text(
+        'earlier task edit\n',
+        encoding='utf-8',
+    )
+    tracker = WorkspaceTracker(tmp_path)
+
+    run(tracker.begin_turn())
+    assert tracker.changed_paths == ()
+
+    tracker.carry_existing_changes(('sample.txt',))
+
+    assert tracker.changed_paths == ('sample.txt',)
+
+
+def test_workspace_tracker_only_carries_still_dirty_persisted_paths(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / 'sample.txt').write_text(
+        'earlier task edit\n',
+        encoding='utf-8',
+    )
+    tracker = WorkspaceTracker(tmp_path)
+
+    run(tracker.begin_turn())
+    tracker.carry_existing_changes(('user.txt', 'missing.txt'))
+    assert tracker.changed_paths == ()
+
+    (tmp_path / 'sample.txt').write_text('old\n', encoding='utf-8')
+    clean_tracker = WorkspaceTracker(tmp_path)
+    run(clean_tracker.begin_turn())
+    clean_tracker.carry_existing_changes(('sample.txt',))
+
+    assert clean_tracker.changed_paths == ()
+
+
 def test_workspace_tracker_excludes_generated_runtime_state(
     tmp_path: Path,
 ) -> None:

@@ -20,6 +20,9 @@ from forge.tools.shell import (
     process_metadata,
     render_process_output,
     run_process,
+    shell_directory_write_reason,
+    shell_file_read_reason,
+    shell_file_write_reason,
 )
 
 
@@ -59,6 +62,26 @@ class VerifyTool(Tool[VerifyInput]):
                 f'Verification cwd is not a directory: {arguments.cwd}',
             )
         revision = self.tracker.revision
+        disallowed_reason = verification_command_disallowed_reason(
+            arguments.command
+        )
+        if disallowed_reason is not None:
+            return ToolResult.fail(
+                'verification_command_not_allowed',
+                'Verification commands must run tests, builds, lint, type '
+                'checks, syntax checks, or Git diff validation; they cannot '
+                'read or modify repository files.',
+                content=(
+                    f'Detected {disallowed_reason}. Use the dedicated '
+                    'repository tools for file access.'
+                ),
+                metadata={
+                    'command': arguments.command,
+                    'cwd': display_path(self.root, cwd),
+                    'workspace_revision': revision,
+                    'verification': True,
+                },
+            )
         missing_manifest = missing_verification_manifest(
             arguments.command,
             cwd,
@@ -115,6 +138,16 @@ class VerifyTool(Tool[VerifyInput]):
             content=content,
             metadata=metadata,
         )
+
+
+
+def verification_command_disallowed_reason(command: str) -> str | None:
+    '''Prevent verify from bypassing tracked file and directory tools.'''
+    return (
+        shell_file_read_reason(command)
+        or shell_file_write_reason(command)
+        or shell_directory_write_reason(command)
+    )
 
 
 def missing_verification_manifest(command: str, cwd: Path) -> Path | None:

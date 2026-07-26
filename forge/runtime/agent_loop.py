@@ -290,6 +290,35 @@ class Conversation:
         previous_task = self.task_manager.active
         if (
             previous_task is not None
+            and previous_task.status == 'completed'
+            and is_bare_continuation_directive(prompt)
+        ):
+            text = (
+                '当前任务已经完成。“继续”没有提供新的修改目标，因此 '
+                'ForgeCode 未调用模型或工具。请直接描述下一项具体修改要求。'
+            )
+            user_message = {'role': 'user', 'content': prompt}
+            assistant_message = {'role': 'assistant', 'content': text}
+            self.messages.extend((user_message, assistant_message))
+            if self.session_journal is not None:
+                self.session_journal.record_user_message(
+                    user_message,
+                    previous_task,
+                )
+                self.session_journal.record_assistant_message(
+                    assistant_message
+                )
+            yield TurnCompleted(
+                result=TurnResult(
+                    text=text,
+                    usage=TokenUsage(input_tokens=0, output_tokens=0),
+                    model_calls=0,
+                    status='completed',
+                )
+            )
+            return
+        if (
+            previous_task is not None
             and infer_change_required(previous_task.goal)
         ):
             self.task_manager.require_workspace_change()
@@ -383,6 +412,7 @@ class Conversation:
         mutation_failure_total = 0
         mutation_failure_targets: tuple[str, ...] = ()
         mutation_failures: list[dict[str, Any]] = []
+        mutation_recovery_cycles = 0
         chunk_fallback_required = False
         mutation_recovery_read_used = False
         mutation_recovery_context = ''
@@ -404,10 +434,26 @@ class Conversation:
         completion_ready_revision: int | None = None
         completion_decision_calls = 0
         completion_ready_context = ''
+        completion_review_required = False
+        resumed_existing_change = False
         completion_reviewed_paths: set[str] = set()
         deferred_diff_review_finish: ToolResult | None = None
         if self.workspace_tracker is not None:
             await self.workspace_tracker.begin_turn()
+            active_task = self.task_manager.active
+            if (
+                active_task is not None
+                and active_task.workspace_paths
+                and previous_task is not None
+                and previous_task.status != 'completed'
+                and is_bare_continuation_directive(prompt)
+            ):
+                self.workspace_tracker.carry_existing_changes(
+                    active_task.workspace_paths
+                )
+                resumed_existing_change = bool(
+                    self.workspace_tracker.changed_paths
+                )
 
         self._last_repository_context = (
             self.context.repository.system_suffix(prompt)
@@ -484,6 +530,8 @@ class Conversation:
                         mutation_failures
                     ),
                 )
+            elif resumed_existing_change or completion_review_required:
+                request_tools = self._resumed_change_review_tools()
             elif verification_recovery:
                 request_tools = self._verification_tools(
                     require_tests=tests_required,
@@ -520,6 +568,7 @@ class Conversation:
                 full_tests_required=full_tests_required,
                 test_changes_required=test_changes_required,
                 verification_recovery=verification_recovery,
+                resumed_existing_change=resumed_existing_change,
             )
             context_window_tokens = getattr(
                 self.client, 'context_window', None
@@ -1053,6 +1102,47 @@ class Conversation:
                     )
                     return
                 if (
+                    change_required
+                    and self.workspace_tracker is not None
+                ):
+                    changed_for_review = {
+                        path.replace('\\', '/')
+                        for path in self.workspace_tracker.changed_paths
+                    }
+                    unreviewed = sorted(
+                        changed_for_review - completion_reviewed_paths
+                    )
+                    if len(changed_for_review) > 1 and unreviewed:
+                        completion_review_required = True
+                        change_convergence_required = False
+                        post_mutation_convergence = False
+                        force_synthesis = False
+                        calls_without_progress = 0
+                        completion_ready_context = (
+                            render_completion_ready_context(
+                                self.workspace_tracker.changed_paths,
+                                latest_verification,
+                                0,
+                                self.completion_decision_limit,
+                                completion_reviewed_paths,
+                                require_diff_review=True,
+                            )
+                        )
+                        request_messages.append(
+                            {
+                                'role': 'user',
+                                'content': (
+                                    'ForgeCode rejected prose completion because '
+                                    'the final Diff has unreviewed changed files: '
+                                    + ', '.join(unreviewed)
+                                    + '. Use scoped git_diff for every listed '
+                                    'file, including all pagination pages, then '
+                                    'complete without unrelated edits.'
+                                ),
+                            }
+                        )
+                        continue
+                if (
                     force_synthesis
                     and self.working_state.evidence_paths
                     and not self.working_state.answer_mentions_evidence(
@@ -1310,12 +1400,37 @@ class Conversation:
                                 ),
                             },
                         )
+                placeholder_rejection: ToolResult | None = None
+                if (
+                    tool_effect == 'workspace_write'
+                    and hook_rejection is None
+                    and permission_rejection is None
+                    and scope_rejection is None
+                    and is_placeholder_mutation(
+                        tool_call,
+                        self.task_manager.active.goal
+                        if self.task_manager.active is not None
+                        else prompt,
+                    )
+                ):
+                    placeholder_rejection = ToolResult.fail(
+                        'placeholder_mutation_denied',
+                        'Workspace write denied because it only creates a '
+                        'temporary, noop, sentinel, or recovery-marker change. '
+                        'Make a task-relevant implementation edit instead.',
+                        details={
+                            'targets': list(
+                                mutation_target_paths(tool_call, maximum=None)
+                            )
+                        },
+                    )
                 destructive_rejection: ToolResult | None = None
                 if (
                     tool_effect == 'workspace_write'
                     and hook_rejection is None
                     and permission_rejection is None
                     and scope_rejection is None
+                    and placeholder_rejection is None
                     and not infer_deletion_required(
                         self.task_manager.active.goal
                         if self.task_manager.active is not None
@@ -1446,6 +1561,8 @@ class Conversation:
                     result = permission_rejection
                 elif scope_rejection is not None:
                     result = scope_rejection
+                elif placeholder_rejection is not None:
+                    result = placeholder_rejection
                 elif destructive_rejection is not None:
                     result = destructive_rejection
                 elif convergence_read_blocked or mutation_read_blocked:
@@ -1946,6 +2063,25 @@ class Conversation:
             workspace_write_progressed = (
                 last_workspace_write_change_position >= 0
             )
+            active_goal = (
+                self.task_manager.active.goal
+                if self.task_manager.active is not None
+                else prompt
+            )
+            substantive_write_progressed = any(
+                changed
+                and result.success
+                and is_substantive_mutation(call, active_goal)
+                for _, call, result, changed in workspace_write_results
+            )
+            if (
+                workspace_write_progressed
+                and not substantive_write_progressed
+                and last_workspace_change_position
+                == last_workspace_write_change_position
+            ):
+                workspace_progressed = False
+                workspace_write_progressed = False
             batch_reverted_to_baseline = (
                 workspace_progressed
                 and self.workspace_tracker is not None
@@ -1954,12 +2090,43 @@ class Conversation:
             if batch_reverted_to_baseline:
                 workspace_progressed = False
                 workspace_write_progressed = False
+            write_progress_targets = tuple(
+                dict.fromkeys(
+                    target
+                    for _, call, result, changed in workspace_write_results
+                    if changed and result.success
+                    for target in mutation_target_paths(call, maximum=None)
+                )
+            )
+            strategy_recovery_chain = bool(mutation_failures) and (
+                any(
+                    failure.get('code') == 'file_already_exists'
+                    for failure in mutation_failures
+                )
+                or (
+                    bool(mutation_failure_targets)
+                    and all(
+                        target.startswith('@tool:')
+                        for target in mutation_failure_targets
+                    )
+                )
+            )
+            write_resolves_active_failure = (
+                not mutation_failures
+                or mutation_targets_overlap(
+                    write_progress_targets,
+                    mutation_failure_targets,
+                )
+                or (strategy_recovery_chain and substantive_write_progressed)
+            )
             if workspace_write_progressed:
                 chunk_fallback_required = False
-                mutation_failure_count = 0
-                mutation_failure_total = 0
-                mutation_failure_targets = ()
-                mutation_failures.clear()
+                if write_resolves_active_failure:
+                    mutation_failure_count = 0
+                    mutation_failure_total = 0
+                    mutation_failure_targets = ()
+                    mutation_failures.clear()
+                    mutation_recovery_cycles = 0
                 mutation_recovery_read_used = False
                 mutation_recovery_context = ''
                 mutation_text_recoveries = 0
@@ -1968,12 +2135,17 @@ class Conversation:
                 completion_ready_revision = None
                 completion_decision_calls = 0
                 completion_ready_context = ''
+                completion_review_required = False
                 completion_reviewed_paths.clear()
                 deferred_diff_review_finish = None
                 # A successful write can be only one part of a larger change.
                 # Keep implementation tools available; the stagnation and
                 # completion paths enforce fresh verification before finish.
                 verification_recovery = False
+            protocol_failure = bool(tool_results) and all(
+                is_tool_protocol_failure(result)
+                for _, result in tool_results
+            )
             pending_write_results = [
                 (call, result)
                 for position, call, result, changed
@@ -1985,7 +2157,13 @@ class Conversation:
                     and (
                         result.error is None
                         or result.error.code
-                        not in {'permission_denied', 'repeated_tool_call'}
+                        not in {
+                                'permission_denied',
+                                'repeated_tool_call',
+                                'outside_task_scope',
+                                'placeholder_mutation_denied',
+                                'directory_already_exists',
+                            }
                     )
                 )
             ]
@@ -2012,6 +2190,7 @@ class Conversation:
                 )
                 if current_failure_targets != mutation_failure_targets:
                     mutation_failure_count = 0
+                    mutation_recovery_cycles = 0
                     mutation_failures.clear()
                 mutation_failure_targets = current_failure_targets
                 mutation_failure_count += len(pending_write_results)
@@ -2025,6 +2204,8 @@ class Conversation:
                     )
                 mutation_failures = mutation_failures[-3:]
             if mutation_failures:
+                if not protocol_failure:
+                    mutation_recovery_cycles += 1
                 mutation_recovery_context = (
                     render_mutation_recovery_context(
                         mutation_failures,
@@ -2039,14 +2220,33 @@ class Conversation:
                             self.task_manager.system_suffix(),
                         )
                     )
+                recovery_read_succeeded = any(
+                    call.name in EDIT_RECOVERY_READ_TOOLS and result.success
+                    for call, result in tool_results
+                )
                 if (
-                    mutation_failure_count >= self.mutation_recovery_limit
-                    or mutation_failure_total
-                    >= self.mutation_recovery_limit * 2
+                    not protocol_failure
+                    and not recovery_read_succeeded
+                    and (
+                        mutation_recovery_cycles
+                        >= self.mutation_recovery_limit
+                        or mutation_failure_count
+                        >= self.mutation_recovery_limit
+                        or mutation_failure_total
+                        >= self.mutation_recovery_limit * 2
+                    )
                 ):
-                    reason = mutation_recovery_stuck_reason(
-                        mutation_failures,
-                        mutation_failure_total,
+                    reason = (
+                        'Stopped after '
+                        f'{mutation_recovery_cycles} edit-recovery cycle(s) '
+                        'without a task-relevant correction to '
+                        f'{", ".join(mutation_failure_targets)}.'
+                        if mutation_recovery_cycles
+                        >= self.mutation_recovery_limit
+                        else mutation_recovery_stuck_reason(
+                            mutation_failures,
+                            mutation_failure_total,
+                        )
                     )
                     self.task_manager.stuck((reason,))
                     self.messages[:] = request_messages
@@ -2068,10 +2268,6 @@ class Conversation:
                         )
                     )
                     return
-            protocol_failure = bool(tool_results) and all(
-                is_tool_protocol_failure(result)
-                for _, result in tool_results
-            )
             if protocol_failure:
                 tool_protocol_failures += 1
             elif any(result.success for _, result in tool_results):
@@ -2167,14 +2363,16 @@ class Conversation:
                     completion_decision_calls,
                     self.completion_decision_limit,
                     completion_reviewed_paths,
-                    require_diff_review=full_tests_required,
+                    require_diff_review=(
+                        full_tests_required or completion_review_required
+                    ),
                 )
                 changed_for_review = {
                     path.replace('\\', '/')
                     for path in self.workspace_tracker.changed_paths
                 }
                 if (
-                    full_tests_required
+                    (full_tests_required or completion_review_required)
                     and new_reviews
                     and changed_for_review <= completion_reviewed_paths
                 ):
@@ -2484,6 +2682,20 @@ class Conversation:
             and not tracker.changed_paths
         )
 
+    def _resumed_change_review_tools(
+        self,
+    ) -> list[dict[str, Any]] | None:
+        '''Expose only deterministic review/finalization for resumed work.'''
+        definitions = self._tool_definitions()
+        if definitions is None:
+            return None
+        allowed = {'git_diff', 'git_status', 'verify', 'finish_task'}
+        return [
+            definition
+            for definition in definitions
+            if str(definition.get('name', '')) in allowed
+        ]
+
     def _verification_tools(
         self,
         *,
@@ -2554,6 +2766,8 @@ class Conversation:
                 self.registry.effect(
                     str(definition.get('name', ''))
                 ) == 'workspace_write'
+                and str(definition.get('name', ''))
+                != 'create_directory'
                 and str(definition.get('name', ''))
                 not in excluded_write_tools
             )
@@ -2686,6 +2900,7 @@ class Conversation:
         full_tests_required: bool = False,
         test_changes_required: bool = False,
         verification_recovery: bool = False,
+        resumed_existing_change: bool = False,
     ) -> str:
         prompt = self._system_prompt_with_task(
             include_tool_availability=not finalization_recovery,
@@ -2701,6 +2916,7 @@ class Conversation:
                     else ()
                 ),
                 mutation_attempted=mutation_attempted,
+                resumed_existing_change=resumed_existing_change,
             )
         if verification_required:
             prompt += (
@@ -3489,9 +3705,25 @@ def render_change_contract_context(
     changed_paths: tuple[str, ...],
     *,
     mutation_attempted: bool,
+    resumed_existing_change: bool = False,
 ) -> str:
     paths = ', '.join(changed_paths) if changed_paths else 'none'
     attempted = 'yes' if mutation_attempted else 'no'
+    if resumed_existing_change:
+        return (
+            '[ForgeCode Resumed Change Contract]\n'
+            'This is a bare continuation of an unfinished persisted task. '
+            'The task-local changes below were produced by earlier turns of '
+            'this same task and satisfy its workspace-change requirement.\n'
+            f'- persisted task changed paths: {paths}\n'
+            'Do not create another edit merely to produce a new per-turn Diff. '
+            'Review the existing changed paths with scoped git_diff, run the '
+            'appropriate verification on the current workspace, then call '
+            'finish_task alone if the original goal is satisfied. Only edit '
+            'again when the Diff reveals a concrete missing requirement. Do '
+            'not create notes, proposals, placeholders, markers, or temporary '
+            'files as progress evidence.'
+        )
     return (
         '[ForgeCode Turn Change Contract]\n'
         'The user requested an implemented workspace change; an explanation '
@@ -3867,6 +4099,139 @@ def mutation_failure_record(
     }
 
 
+
+def mutation_targets_overlap(
+    successful: tuple[str, ...],
+    failed: tuple[str, ...],
+) -> bool:
+    '''Return whether a successful write addresses an active failed target.'''
+
+    def normalized_scope(path: str) -> str:
+        normalized = path.replace('\\', '/').rstrip('/')
+        if normalized.endswith('/.gitkeep'):
+            return normalized.removesuffix('/.gitkeep')
+        return normalized
+
+    successful_paths = {normalized_scope(path) for path in successful}
+    failed_paths = {
+        normalized_scope(path)
+        for path in failed
+        if not path.startswith('@tool:')
+    }
+    return any(
+        successful_path == failed_path
+        or successful_path.startswith(f'{failed_path}/')
+        or failed_path.startswith(f'{successful_path}/')
+        for successful_path in successful_paths
+        for failed_path in failed_paths
+    )
+
+
+def is_substantive_mutation(tool_call: ToolCall, goal: str) -> bool:
+    '''Return whether a write advances implementation rather than scaffolding.'''
+    if is_placeholder_mutation(tool_call, goal):
+        return False
+    if tool_call.name != 'create_directory':
+        return True
+    raw_path = str(tool_call.arguments.get('path', '')).strip()
+    normalized_path = raw_path.replace('\\', '/').rstrip('/').casefold()
+    normalized_goal = goal.replace('\\', '/').casefold()
+    return bool(normalized_path and normalized_path in normalized_goal)
+
+
+def is_placeholder_mutation(tool_call: ToolCall, goal: str) -> bool:
+    '''Reject common recovery markers unless the user explicitly requested them.'''
+    targets = mutation_target_paths(tool_call, maximum=None)
+    normalized_goal = goal.casefold().replace('\\', '/')
+    if any(target.casefold() in normalized_goal for target in targets):
+        return False
+    normalized_targets = tuple(target.casefold() for target in targets)
+    if any('/.tmp/' in f'/{target.strip("/")}/' for target in normalized_targets):
+        return True
+    placeholder_names = {
+        '.gitkeep',
+        '.keep',
+        '.touch',
+        'scratch.txt',
+        'noop.txt',
+        'tmp.txt',
+        'temp.txt',
+        'test.txt',
+    }
+    if tool_call.name != 'create_directory' and any(
+        target.rstrip('/').rsplit('/', 1)[-1] in placeholder_names
+        or re.fullmatch(
+            r'(?:.*\.tmp|\.?(?:tmp|temp|test|scratch|noop|probe)'
+            r'(?:[-_.].*)?)',
+            target.rstrip('/').rsplit('/', 1)[-1],
+        )
+        for target in normalized_targets
+    ):
+        return True
+    content = tool_call.arguments.get('content')
+    normalized_content = (
+        content.strip().casefold() if isinstance(content, str) else ''
+    )
+    if isinstance(content, str) and (
+        normalized_content
+        in {
+            '',
+            'x',
+            '{}',
+            '[]',
+            'tmp',
+            'noop',
+            'test',
+            'temp',
+            'audit',
+            'init',
+            'marker',
+            'progress marker',
+            'continue marker',
+            'progress note',
+            '// marker',
+            'placeholder',
+            'src-ready',
+        }
+        or (
+            len(normalized_content) <= 200
+            and any(
+                marker in normalized_content
+                for marker in (
+                    'placeholder',
+                    'progress marker',
+                    'temporary marker',
+                )
+            )
+        )
+    ):
+        return True
+    compact_content = re.sub(r'\s+', ' ', normalized_content)
+    if (
+        isinstance(content, str)
+        and len(normalized_content) <= 500
+        and any(is_test_file_path(target) for target in targets)
+        and (
+            'typeof process.cwd()' in compact_content
+            or re.search(r'\bassert\s+(?:true|1\s*==\s*1)\b', compact_content)
+            is not None
+            or 'expect(true).tobe(true)' in compact_content
+        )
+    ):
+        return True
+    if tool_call.name == 'create_directory':
+        raw_path = str(tool_call.arguments.get('path', ''))
+        name = raw_path.replace('\\', '/').rstrip('/').rsplit('/', 1)[-1]
+        return name.casefold() in {
+            'tmp',
+            '.tmp',
+            'temp',
+            '.keep',
+            'scratch',
+        }
+    return False
+
+
 def mutation_target_paths(
     tool_call: ToolCall,
     *,
@@ -4093,6 +4458,18 @@ def mutation_recovery_stuck_reason(
         f'Stopped after {failure_count} workspace-write attempt(s) failed '
         'to change the task workspace; the Edit Recovery failure limit was '
         f'reached. Latest failure: {tool} [{code}].'
+    )
+
+
+def is_bare_continuation_directive(prompt: str) -> bool:
+    '''Return true only when the user asks to resume without adding new work.'''
+    text = prompt.strip().lstrip('\ufeff').strip()
+    return bool(
+        re.fullmatch(
+            r'(?i)(?:继续|接着|继续执行|接着执行|'
+            r'continue|proceed|resume|keep\s+going)[。.!！]?',
+            text,
+        )
     )
 
 

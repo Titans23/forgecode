@@ -10,7 +10,10 @@ from forge.runtime.agent_loop import (
     Conversation,
     build_final_acceptance_audit_feedback,
     completion_review_paths,
+    is_placeholder_mutation,
+    is_substantive_mutation,
     is_test_file_path,
+    mutation_targets_overlap,
     placeholder_only_implementation,
     render_completion_ready_context,
 )
@@ -31,6 +34,7 @@ from forge.runtime.state import (
 )
 from forge.tools import create_default_registry
 from forge.tools.base import Tool, ToolInput, ToolResult
+from forge.tasks.state import ActiveTask
 
 
 def initialize_git_repository(root: Path) -> None:
@@ -73,6 +77,150 @@ def add_tracked_smoke_test(root: Path) -> None:
         cwd=root,
         check=True,
     )
+
+
+def test_recovery_placeholder_mutations_are_rejected_unless_requested() -> None:
+    marker = ToolCall(
+        0,
+        'marker',
+        'write_file',
+        {'path': 'play/.touch', 'content': 'noop'},
+    )
+
+    assert is_placeholder_mutation(marker, '升级 play 中的游戏') is True
+    assert is_placeholder_mutation(marker, '创建 play/.touch 文件') is False
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'tmp-json',
+            'write_file',
+            {'path': 'play/tmp2.json', 'content': '{}'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'progress-marker',
+            'write_file',
+            {'path': 'play/notes.txt', 'content': 'progress marker'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'bracket-placeholder',
+            'write_file',
+            {'path': 'play/proposal.txt', 'content': '[placeholder]'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'plan-placeholder',
+            'write_file',
+            {'path': 'play/notes.txt', 'content': 'plan placeholder'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'tmp-probe-patch',
+            'apply_patch',
+            {
+                'patch': (
+                    '*** Begin Patch\n'
+                    '*** Update File: play/.tmp_probe.txt\n'
+                    '@@\n-test\n+probe\n'
+                    '*** End Patch'
+                )
+            },
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'readme-tmp',
+            'write_file',
+            {'path': 'play/README.tmp', 'content': 'init'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'dot-tmpcheck',
+            'write_file',
+            {'path': 'play/src/.tmpcheck', 'content': 'init'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'continue-marker',
+            'write_file',
+            {'path': 'play/src/notes.txt', 'content': 'continue marker'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'trivial-smoke-test',
+            'write_file',
+            {
+                'path': 'play/tests/pvz.test.js',
+                'content': (
+                    "import { test } from 'node:test';\n"
+                    "import assert from 'node:assert/strict';\n"
+                    "test('project smoke check', () => {\n"
+                    "  assert.equal(typeof process.cwd(), 'string');\n"
+                    "});\n"
+                ),
+            },
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    assert is_placeholder_mutation(
+        ToolCall(
+            0,
+            'marker-js',
+            'write_file',
+            {'path': 'play/src/.tmp/inject.js', 'content': '// marker'},
+        ),
+        '升级 play 中的游戏',
+    ) is True
+    directory = ToolCall(
+        0,
+        'assets-directory',
+        'create_directory',
+        {'path': 'play/src/assets'},
+    )
+    assert is_substantive_mutation(directory, '升级 play 中的游戏') is False
+    assert is_substantive_mutation(
+        directory,
+        '创建 play/src/assets 目录',
+    ) is True
+
+
+def test_unrelated_success_does_not_resolve_failed_mutation_target() -> None:
+    assert mutation_targets_overlap(
+        ('play/index.html',),
+        ('play/game.js',),
+    ) is False
+    assert mutation_targets_overlap(
+        ('play/game.js',),
+        ('play/game.js',),
+    ) is True
+    assert mutation_targets_overlap(
+        ('play/src/main.js',),
+        ('play/src/.gitkeep',),
+    ) is True
 
 
 def test_standard_cross_language_test_paths_are_recognized() -> None:
@@ -768,6 +916,184 @@ def test_full_suite_completion_requires_final_diff_review(
     assert 'sample.txt' in completion_prompt
 
 
+
+def test_resumed_task_can_finish_from_persisted_workspace_change(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / 'sample.txt').write_text(
+        'earlier task edit\n',
+        encoding='utf-8',
+    )
+    diff = ToolCall(
+        0,
+        'resume-diff',
+        'git_diff',
+        {'path': 'sample.txt'},
+    )
+    verify = ToolCall(
+        0,
+        'resume-verify',
+        'verify',
+        {'command': 'git diff --check'},
+    )
+    client = FakeModelClient(
+        response_with_tool(diff),
+        response_with_tool(verify),
+        finish_response(
+            'resume-finish',
+            task_kind='change',
+            summary='Completed the persisted task change.',
+        ),
+    )
+    task = ActiveTask(
+        id='task-resume000001',
+        goal='Change and verify sample.txt',
+        status='stuck',
+        requires_change=True,
+        scope_hints=('sample.txt',),
+        scope_source='explicit',
+        workspace_paths=('sample.txt',),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+        ),
+        active_task=task,
+    )
+
+    events = collect_turn(conversation, '\ufeffcontinue')
+    completed = events[-1]
+
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.changed_paths == ('sample.txt',)
+    assert completed.result.verification is not None
+    assert '[ForgeCode Resumed Change Contract]' in str(
+        client.calls[0]['system']
+    )
+    assert 'Do not create another edit' in str(client.calls[0]['system'])
+    first_tool_names = {
+        str(definition['name'])
+        for definition in client.calls[0]['tools'] or ()
+    }
+    assert first_tool_names == {
+        'finish_task',
+        'git_diff',
+        'git_status',
+        'verify',
+    }
+    assert all(
+        {
+            str(definition['name'])
+            for definition in call['tools'] or ()
+        }
+        == first_tool_names
+        for call in client.calls
+    )
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == (
+        'earlier task edit\n'
+    )
+
+
+
+def test_bare_continue_after_completed_task_does_not_call_model_or_tools(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    client = FakeModelClient()
+    task = ActiveTask(
+        id='task-complete00001',
+        goal='Implement the game in play',
+        status='completed',
+        requires_change=True,
+        scope_hints=('play/**',),
+        scope_source='explicit',
+        workspace_paths=('play/game.js',),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        active_task=task,
+    )
+
+    events = collect_turn(conversation, '\ufeffcontinue')
+    completed = events[-1]
+
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.model_calls == 0
+    assert completed.result.tool_calls == ()
+    assert '请直接描述下一项具体修改要求' in completed.result.text
+    assert client.calls == []
+    assert conversation.task_manager.active == task
+
+
+
+def test_prose_completion_reviews_every_changed_file(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    first = ToolCall(
+        0,
+        'multi-write-first',
+        'write_file',
+        {'path': 'alpha.js', 'content': 'export const alpha = 1;\n'},
+    )
+    second = ToolCall(
+        1,
+        'multi-write-second',
+        'write_file',
+        {'path': 'beta.js', 'content': 'export const beta = 2;\n'},
+    )
+    diff_first = ToolCall(
+        0,
+        'multi-diff-first',
+        'git_diff',
+        {'path': 'alpha.js'},
+    )
+    diff_second = ToolCall(
+        0,
+        'multi-diff-second',
+        'git_diff',
+        {'path': 'beta.js'},
+    )
+    client = FakeModelClient(
+        response_with_tools(first, second),
+        text_response('Created alpha.js and beta.js.'),
+        response_with_tool(diff_first),
+        response_with_tool(diff_second),
+        text_response('Created and reviewed alpha.js and beta.js.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+    )
+
+    events = collect_turn(conversation, 'Create alpha.js and beta.js')
+    completed = events[-1]
+
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.changed_paths == ('alpha.js', 'beta.js')
+    review_names = {
+        str(definition['name'])
+        for definition in client.calls[2]['tools'] or ()
+    }
+    assert review_names == {
+        'finish_task',
+        'git_diff',
+        'git_status',
+        'verify',
+    }
+    assert 'unreviewed changed files' in str(client.calls[2]['messages'])
+    assert len(client.calls) == 5
+
+
 def test_completion_validation_rejects_unverified_change_once(
     tmp_path: Path,
 ) -> None:
@@ -1158,16 +1484,307 @@ def test_edit_recovery_counts_failures_per_target(
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
 
-def test_existing_directory_failure_switches_to_concrete_write(
+def test_unrelated_writes_cannot_extend_edit_recovery_indefinitely(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
-    (tmp_path / 'play' / 'src').mkdir(parents=True)
+    failed_patch = ToolCall(
+        0,
+        'failed-target-edit',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Update File: sample.txt\n'
+                '@@\n'
+                '-missing\n'
+                '+fixed\n'
+                '*** End Patch\n'
+            )
+        },
+    )
+    unrelated_writes = [
+        ToolCall(
+            0,
+            f'unrelated-{index}',
+            'write_file',
+            {
+                'path': f'unrelated-{index}.py',
+                'content': f'VALUE = {index}\n',
+            },
+        )
+        for index in range(1, 4)
+    ]
+    client = FakeModelClient(
+        response_with_tool(failed_patch),
+        *(response_with_tool(call) for call in unrelated_writes),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+        mutation_recovery_limit=4,
+    )
+
+    events = collect_turn(conversation, 'Refactor the project')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'stuck'
+    assert completed.result.model_calls == 4
+    assert 'edit-recovery cycle(s)' in completed.result.text
+    assert not (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'fixed\n'
+
+
+def test_final_targeted_read_gets_one_corrected_edit_opportunity(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    failed_patch = ToolCall(
+        0,
+        'late-read-patch-1',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Update File: sample.txt\n'
+                '@@\n'
+                '-missing-one\n'
+                '+new\n'
+                '*** End Patch\n'
+            )
+        },
+    )
+    failed_replace = ToolCall(
+        0,
+        'late-read-replace',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'missing-two\n',
+            'new_text': 'new\n',
+        },
+    )
+    second_patch = ToolCall(
+        0,
+        'late-read-patch-2',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Update File: sample.txt\n'
+                '@@\n'
+                '-missing-three\n'
+                '+new\n'
+                '*** End Patch\n'
+            )
+        },
+    )
+    targeted_read = ToolCall(
+        0,
+        'late-targeted-read',
+        'read_file',
+        {'path': 'sample.txt', 'start_line': 1, 'end_line': 5},
+    )
+    corrected_edit = ToolCall(
+        0,
+        'late-corrected-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(failed_patch),
+        response_with_tool(failed_replace),
+        response_with_tool(second_patch),
+        response_with_tool(targeted_read),
+        response_with_tool(corrected_edit),
+        finish_response(
+            'late-read-finish',
+            task_kind='change',
+            summary='Corrected the edit from exact file evidence.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+        mutation_recovery_limit=4,
+    )
+
+    events = collect_turn(conversation, 'Update sample.txt')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.model_calls == 6
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
+
+
+def test_targetless_patch_failure_clears_on_real_code_edit(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    empty_patch = ToolCall(
+        0,
+        'targetless-empty-patch',
+        'apply_patch',
+        {'patch': '*** Begin Patch\n*** End Patch\n'},
+    )
+    corrected_edit = ToolCall(
+        0,
+        'targetless-corrected-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(empty_patch),
+        response_with_tool(corrected_edit),
+        finish_response(
+            'targetless-finish',
+            task_kind='change',
+            summary='Completed a real code edit after malformed patch recovery.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+    )
+
+    events = collect_turn(conversation, 'Update sample.txt')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.changed_paths == ('sample.txt',)
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
+
+
+def test_existing_file_recovery_exposes_edits_not_new_scaffolding(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    existing_write = ToolCall(
+        0,
+        'existing-file-write',
+        'write_file',
+        {'path': 'sample.txt', 'content': 'dummy'},
+    )
+    corrected_edit = ToolCall(
+        0,
+        'existing-file-correction',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(existing_write),
+        response_with_tool(corrected_edit),
+        finish_response(
+            'existing-file-finish',
+            task_kind='change',
+            summary='Updated the existing implementation file.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+    )
+
+    events = collect_turn(conversation, 'Update sample.txt')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    recovery_names = {
+        definition['name'] for definition in client.calls[1]['tools'] or ()
+    }
+    assert 'create_directory' not in recovery_names
+    assert 'write_file' not in recovery_names
+    assert {'apply_patch', 'replace_text'} <= recovery_names
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
+
+
+def test_existing_file_strategy_error_clears_on_task_relevant_sibling_edit(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / 'other.py').write_text('OLD = True\n', encoding='utf-8')
+    existing_write = ToolCall(
+        0,
+        'sibling-existing-file-write',
+        'write_file',
+        {'path': 'sample.txt', 'content': 'dummy'},
+    )
+    failed_same_target_edit = ToolCall(
+        0,
+        'sibling-failed-same-target-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'missing\n',
+            'new_text': 'new\n',
+        },
+    )
+    sibling_edit = ToolCall(
+        0,
+        'sibling-corrected-edit',
+        'replace_text',
+        {
+            'path': 'other.py',
+            'old_text': 'OLD = True\n',
+            'new_text': 'READY = True\n',
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(existing_write),
+        response_with_tool(failed_same_target_edit),
+        response_with_tool(sibling_edit),
+        finish_response(
+            'sibling-edit-finish',
+            task_kind='change',
+            summary='Completed the task through a relevant existing-file edit.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+    )
+
+    events = collect_turn(conversation, 'Improve the project implementation')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.changed_paths == ('other.py',)
+    assert (tmp_path / 'other.py').read_text(encoding='utf-8') == (
+        'READY = True\n'
+    )
+
+
+def test_existing_directory_noop_does_not_create_recovery_debt(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    (tmp_path / 'play' / 'src' / 'assets').mkdir(parents=True)
     create_existing = ToolCall(
         0,
         'existing-directory-create',
         'create_directory',
-        {'path': 'play/src'},
+        {'path': 'play/src/assets'},
     )
     concrete_write = ToolCall(
         0,
@@ -1196,11 +1813,13 @@ def test_existing_directory_failure_switches_to_concrete_write(
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
     assert completed.result.changed_paths == ('play/src/main.js',)
-    assert not (tmp_path / 'play' / 'src' / '.gitkeep').exists()
+    assert not (
+        tmp_path / 'play' / 'src' / 'assets' / '.gitkeep'
+    ).exists()
     recovery_names = {
         definition['name'] for definition in client.calls[1]['tools'] or ()
     }
-    assert 'create_directory' not in recovery_names
+    assert 'create_directory' in recovery_names
     assert 'write_file' in recovery_names
     assert 'apply_patch' in recovery_names
 
@@ -1299,7 +1918,7 @@ def test_required_change_prose_gets_one_bounded_edit_retry(
 
     events = collect_turn(
         conversation,
-        '帮我在里面写一个复杂的我的世界',
+        'Change sample.txt',
     )
 
     completed = events[-1]

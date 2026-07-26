@@ -124,6 +124,54 @@ def test_new_anaphoric_task_resolves_previous_directory_scope(
     assert game.scope_hints == ('play/**',)
 
 
+@pytest.mark.parametrize(
+    'directive',
+    [
+        '帮我将其工程化，并升级为超级复杂的植物大战僵尸',
+        '把它升级为企业级版本',
+    ],
+)
+def test_anaphoric_project_reference_inherits_previous_directory_scope(
+    tmp_path: Path,
+    directive: str,
+) -> None:
+    manager = TaskManager(tmp_path)
+    previous = manager.start('详细介绍 play 目录中的内容')
+    manager.complete()
+
+    task = manager.begin_turn(directive, requires_change=True)
+
+    assert task.id != previous.id
+    assert task.scope_hints == ('play/**',)
+    assert task.scope_source == 'inherited'
+    assert task.goal.startswith('在 play 目录下：')
+    assert manager.outside_scope(('play/src/game.js',)) == ()
+    assert manager.outside_scope(('scratch.txt',)) == ('scratch.txt',)
+
+
+def test_unresolved_anaphoric_scope_fails_closed(tmp_path: Path) -> None:
+    manager = TaskManager(tmp_path)
+
+    task = manager.start('帮我将其升级为复杂版本', requires_change=True)
+
+    assert task.scope_hints == ()
+    assert task.scope_source == 'unresolved'
+    assert manager.outside_scope(('scratch.txt', 'play/game.js')) == (
+        'scratch.txt',
+        'play/game.js',
+    )
+
+
+def test_plan_without_scope_keeps_inferred_scope(tmp_path: Path) -> None:
+    manager = TaskManager(tmp_path)
+    manager.start('在 play 目录实现复杂游戏', requires_change=True)
+
+    task = manager.plan(['分析结构', '实现功能'], scope_hints=[])
+
+    assert task.scope_hints == ('play/**',)
+    assert task.scope_source == 'explicit'
+
+
 def test_continuation_after_completed_keeps_goal_and_inferred_scope(
     tmp_path: Path,
 ) -> None:
@@ -211,3 +259,17 @@ def test_resume_rejects_invalid_task_id(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match='Invalid task ID'):
         manager.resume('../../outside')
+
+
+def test_observed_workspace_paths_are_limited_to_task_scope(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    manager.start('在 play 目录实现复杂游戏', requires_change=True)
+
+    manager.observe_mutation_paths(
+        ('play/src/main.js', 'scratch.txt', '@tool:apply_patch')
+    )
+
+    assert manager.active is not None
+    assert manager.active.workspace_paths == ('play/src/main.js',)

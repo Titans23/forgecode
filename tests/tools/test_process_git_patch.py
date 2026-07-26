@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 from forge.tools.base import ToolResult
 from forge.tools.git import GitDiffTool, GitLogTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
@@ -305,6 +307,29 @@ def test_verify_rejects_npm_test_without_package_manifest(
     assert result.error.code == 'verification_command_not_applicable'
     assert result.metadata['required_manifest'] == 'package.json'
     assert 'node --check' in result.content
+
+
+@pytest.mark.parametrize(
+    'command',
+    [
+        "sed -n '1,20p' play/index.html",
+        'Get-Content play/index.html',
+        'echo changed > play/index.html',
+        'mkdir generated',
+    ],
+)
+def test_verify_rejects_file_access_and_directory_mutation(
+    tmp_path: Path,
+    command: str,
+) -> None:
+    tracker = WorkspaceTracker(tmp_path)
+    asyncio.run(tracker.begin_turn())
+
+    result = run(VerifyTool(tmp_path, tracker).run({'command': command}))
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'verification_command_not_allowed'
 
 
 def test_git_log_returns_bounded_history_and_supports_path(

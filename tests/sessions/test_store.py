@@ -47,6 +47,126 @@ def test_session_round_trip_restores_messages_and_task(
     assert reopened.sequence == state.info.sequence
 
 
+def test_replay_preserves_completed_turn_paths_for_same_legacy_task(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'project'
+    root.mkdir()
+    store = SessionStore(root, data_root=tmp_path / 'data')
+    journal = store.create(model='test-model')
+    task = ActiveTask(
+        id='task-resume000001',
+        goal='继续修改 play 游戏',
+        status='stuck',
+        requires_change=True,
+        scope_hints=('play/**',),
+        scope_source='explicit',
+    )
+    journal.record_turn_completed(
+        [],
+        task,
+        TurnResult(
+            text='stuck',
+            usage=TokenUsage(input_tokens=0, output_tokens=0),
+            status='stuck',
+            changed_paths=(
+                'play/src/main.js',
+                'play/.touch',
+                'play/.tmp/probe.txt',
+                'outside.txt',
+            ),
+        ),
+    )
+    journal.append(
+        'task_state',
+        {
+            'task': {
+                'id': task.id,
+                'goal': task.goal,
+                'status': 'in_progress',
+                'requires_change': True,
+                'scope_hints': ['play/**'],
+            }
+        },
+    )
+
+    restored = store.latest().active_task
+
+    assert restored is not None
+    assert restored.workspace_paths == ('play/src/main.js',)
+
+
+def test_legacy_anaphoric_task_inherits_previous_scope_on_replay(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'project'
+    root.mkdir()
+    store = SessionStore(root, data_root=tmp_path / 'data')
+    journal = store.create(model='test-model')
+    previous = ActiveTask(
+        id='task-previous0001',
+        goal='查看 play 目录',
+        scope_hints=('play/**',),
+        scope_source='explicit',
+    )
+    journal.record_task_state(previous)
+    legacy = {
+        'id': 'task-legacy000001',
+        'goal': '帮我将其工程化，并升级为复杂游戏',
+        'status': 'stuck',
+        'requires_change': True,
+        'planned': False,
+        'current_step_id': None,
+        'steps': [],
+        'constraints': [],
+        'scope_hints': [],
+        'blocked_reasons': ['legacy failure'],
+    }
+    journal.append('task_state', {'task': legacy})
+    legacy['status'] = 'in_progress'
+    legacy['blocked_reasons'] = []
+    journal.append('task_state', {'task': legacy})
+
+    restored = store.latest().active_task
+
+    assert restored is not None
+    assert restored.scope_hints == ('play/**',)
+    assert restored.scope_source == 'inherited'
+
+
+def test_legacy_unscoped_repository_task_does_not_inherit_scope(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'project'
+    root.mkdir()
+    store = SessionStore(root, data_root=tmp_path / 'data')
+    journal = store.create(model='test-model')
+    journal.record_task_state(
+        ActiveTask(
+            id='task-previous0001',
+            goal='查看 play 目录',
+            scope_hints=('play/**',),
+            scope_source='explicit',
+        )
+    )
+    journal.append(
+        'task_state',
+        {
+            'task': {
+                'id': 'task-repository01',
+                'goal': '重构整个仓库',
+                'scope_hints': [],
+            }
+        },
+    )
+
+    restored = store.latest().active_task
+
+    assert restored is not None
+    assert restored.scope_hints == ()
+    assert restored.scope_source == 'repository'
+
+
 def test_unnamed_session_uses_first_prompt_as_title(
     tmp_path: Path,
 ) -> None:

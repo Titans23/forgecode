@@ -8,7 +8,13 @@ from pathlib import Path, PurePosixPath
 import re
 from uuid import uuid4
 
-from forge.tasks.state import ActiveTask, StepStatus, TaskStep
+from forge.tasks.state import (
+    ActiveTask,
+    ScopeSource,
+    StepStatus,
+    TaskStep,
+    has_anaphoric_reference,
+)
 from forge.tasks.store import TaskStore
 
 
@@ -49,9 +55,12 @@ class TaskManager:
         }:
             return self._continue_active(goal, requires_change=requires_change)
         previous_goal = self.active.goal if self.active is not None else ''
+        resolved_goal = resolve_anaphoric_goal(goal, previous_goal)
+        inherited_scope = resolved_goal != goal
         return self.start(
-            resolve_anaphoric_goal(goal, previous_goal),
+            resolved_goal,
             requires_change=requires_change,
+            scope_source='inherited' if inherited_scope else None,
         )
 
     def _continue_active(
@@ -78,15 +87,27 @@ class TaskManager:
         goal: str,
         *,
         requires_change: bool = False,
+        scope_source: ScopeSource | None = None,
     ) -> ActiveTask:
         clean_goal = goal.strip()
         if not clean_goal:
             raise ValueError('Task goal must not be empty.')
+        scope_hints = infer_goal_scope(clean_goal)
+        resolved_scope_source: ScopeSource = (
+            scope_source
+            if scope_source is not None
+            else 'explicit'
+            if scope_hints
+            else 'unresolved'
+            if has_anaphoric_reference(clean_goal)
+            else 'repository'
+        )
         self.active = ActiveTask(
             id=f'task-{uuid4().hex[:12]}',
             goal=clean_goal,
             requires_change=requires_change,
-            scope_hints=infer_goal_scope(clean_goal),
+            scope_hints=scope_hints,
+            scope_source=resolved_scope_source,
         )
         self._resume_next_turn = False
         self._latest_directive = ''
@@ -140,9 +161,12 @@ class TaskManager:
             constraints=tuple(
                 clean_strings(constraints or [], name='constraints')
             ),
-            scope_hints=tuple(
-                clean_strings(scope_hints or [], name='scope_hints')
+            scope_hints=(
+                tuple(clean_strings(scope_hints, name='scope_hints'))
+                if scope_hints
+                else task.scope_hints
             ),
+            scope_source='planned' if scope_hints else task.scope_source,
             blocked_reasons=(),
         )
         self.store.save(self.active)
@@ -215,20 +239,50 @@ class TaskManager:
         return self.active
 
     def observe_mutation_paths(self, paths: tuple[str, ...]) -> None:
-        '''Restore declared scope for legacy task records that lack scope data.'''
-        del paths
-        if self.active is None or self.active.scope_hints:
+        '''Persist task-owned paths and restore missing legacy scope data.'''
+        if self.active is None:
             return
-        declared = infer_goal_scope(self.active.goal)
-        if not declared:
-            return
-        self.active = replace(self.active, scope_hints=declared)
+        declared = (
+            self.active.scope_hints
+            or infer_goal_scope(self.active.goal)
+        )
+        normalized_paths = tuple(
+            normalized
+            for path in paths
+            if path and not path.startswith('@tool:')
+            for normalized in (normalize_task_path(path),)
+            if not declared
+            or any(
+                task_path_matches(normalized, pattern)
+                for pattern in declared
+            )
+        )
+        self.active = replace(
+            self.active,
+            scope_hints=declared,
+            scope_source=(
+                self.active.scope_source
+                if self.active.scope_hints
+                else 'explicit'
+                if declared
+                else self.active.scope_source
+            ),
+            workspace_paths=tuple(
+                dict.fromkeys(
+                    (*self.active.workspace_paths, *normalized_paths)
+                )
+            ),
+        )
         if self.active.planned:
             self.store.save(self.active)
 
     def outside_scope(self, paths: tuple[str, ...]) -> tuple[str, ...]:
         '''Return mutation targets outside the active task's anchored scope.'''
-        if self.active is None or not self.active.scope_hints:
+        if self.active is None:
+            return ()
+        if self.active.scope_source == 'unresolved':
+            return paths
+        if not self.active.scope_hints:
             return ()
         return tuple(
             path
@@ -330,6 +384,15 @@ class TaskManager:
                 'All workspace writes must remain inside these paths unless '
                 'the user explicitly changes the scope.'
             )
+        elif task.scope_source == 'unresolved':
+            lines.extend(
+                [
+                    '',
+                    'Write scope: unresolved.',
+                    'Do not request workspace writes until the target path is '
+                    'resolved from the user or prior task context.',
+                ]
+            )
         if self._latest_directive:
             lines.extend(
                 [
@@ -405,10 +468,7 @@ def infer_goal_scope(goal: str) -> tuple[str, ...]:
 
 def resolve_anaphoric_goal(goal: str, previous_goal: str) -> str:
     '''Resolve “inside it” against the immediately preceding task goal.'''
-    if not re.search(
-        r'(?i)(?:里面|其中|该目录|这个目录|那里|\bthere\b|\bit\b)',
-        goal,
-    ):
+    if not has_anaphoric_reference(goal):
         return goal
     previous_scope = infer_goal_scope(previous_goal)
     if not previous_scope:

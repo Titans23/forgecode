@@ -32,16 +32,26 @@ class WorkspaceTracker:
         self.revision = 0
         self.available = False
         self._watched_paths: set[str] = set()
+        self._carried_paths: set[str] = set()
 
     async def begin_turn(self) -> None:
         '''Use the current working tree as the immutable baseline for one turn.'''
         self._watched_paths.clear()
+        self._carried_paths.clear()
         snapshot = await self._capture()
         self.available = snapshot is not None
         resolved = snapshot or WorkspaceSnapshot()
         self.baseline = resolved
         self.current = resolved
         self.revision = 0
+
+    def carry_existing_changes(self, paths: tuple[str, ...]) -> None:
+        '''Restore only persisted task paths still dirty relative to Git HEAD.'''
+        self._carried_paths = {
+            normalize_path(path)
+            for path in paths
+            if normalize_path(path) in self.baseline.files
+        }
 
     def watch_paths(self, paths: tuple[str, ...]) -> None:
         '''Capture task baselines for tool targets, including ignored files.'''
@@ -73,6 +83,7 @@ class WorkspaceTracker:
             self.available = False
             return None
         self.available = True
+        self._carried_paths.intersection_update(snapshot.files)
         paths = changed_paths(self.current, snapshot)
         if not paths:
             return None
@@ -83,7 +94,12 @@ class WorkspaceTracker:
     @property
     def changed_paths(self) -> tuple[str, ...]:
         '''Return only paths whose content differs from the turn baseline.'''
-        return changed_paths(self.baseline, self.current)
+        return tuple(
+            sorted(
+                set(changed_paths(self.baseline, self.current))
+                | self._carried_paths
+            )
+        )
 
     async def _capture(self) -> WorkspaceSnapshot | None:
         # Import lazily so WorkspaceTracker can be imported independently;

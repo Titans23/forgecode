@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 import hashlib
 import json
@@ -13,7 +13,8 @@ from typing import Any
 from uuid import uuid4
 
 from forge.runtime.state import TurnResult
-from forge.tasks.state import ActiveTask
+from forge.tasks.manager import task_path_matches
+from forge.tasks.state import ActiveTask, has_anaphoric_reference
 
 
 SESSION_ID_PATTERN = re.compile(r'session-[0-9a-f]{24}')
@@ -613,10 +614,13 @@ class SessionStore:
                     pending_assistant = None
             elif event_type == 'task_state':
                 task_payload = payload.get('task')
-                task = (
+                restored_task = (
                     ActiveTask.from_dict(task_payload)
                     if isinstance(task_payload, dict)
                     else None
+                )
+                task = sanitize_task_workspace_paths(
+                    migrate_replayed_task_scope(restored_task, task)
                 )
             elif event_type == 'tool_started':
                 tool_id = str(payload.get('tool_call_id', ''))
@@ -628,6 +632,21 @@ class SessionStore:
                 name = optional_string(payload.get('name'))
             elif event_type == 'turn_completed':
                 status = str(payload.get('status', 'completed'))
+                changed = payload.get('changed_paths')
+                if task is not None and isinstance(changed, list):
+                    task = sanitize_task_workspace_paths(
+                        replace(
+                            task,
+                            workspace_paths=tuple(
+                                dict.fromkeys(
+                                    (
+                                        *task.workspace_paths,
+                                        *(str(path) for path in changed),
+                                    )
+                                )
+                            ),
+                        )
+                    )
             elif event_type == 'session_stopped':
                 status = 'stopped'
             elif event_type == 'session_resumed':
@@ -735,6 +754,82 @@ class SessionStore:
                 f'Invalid session artifact payload: {artifact}'
             )
         return decoded
+
+
+
+def is_persistable_task_evidence_path(path: str) -> bool:
+    '''Exclude recovery markers from durable task completion evidence.'''
+    normalized = path.replace('\\', '/').strip('/')
+    if not normalized or normalized.startswith('@tool:'):
+        return False
+    parts = tuple(part.casefold() for part in normalized.split('/'))
+    name = parts[-1]
+    if any(part in {'.tmp', '.keep'} for part in parts[:-1]):
+        return False
+    if name in {'.gitkeep', '.keep', '.touch'}:
+        return False
+    return re.fullmatch(
+        r'(?:tmp|temp|test|scratch|noop)[-_]?\d*\.(?:txt|json|js|ts)',
+        name,
+    ) is None and not re.fullmatch(
+        r'.*(?:_inject|_probe)\.(?:js|ts|txt|json)',
+        name,
+    )
+
+
+def sanitize_task_workspace_paths(
+    task: ActiveTask | None,
+) -> ActiveTask | None:
+    '''Keep persisted completion evidence inside the active task scope.'''
+    if task is None or not task.scope_hints:
+        return task
+    filtered = tuple(
+        path
+        for path in task.workspace_paths
+        if is_persistable_task_evidence_path(path)
+        and any(
+            task_path_matches(path, pattern)
+            for pattern in task.scope_hints
+        )
+    )
+    if filtered == task.workspace_paths:
+        return task
+    return replace(task, workspace_paths=filtered)
+
+
+def migrate_replayed_task_scope(
+    current: ActiveTask | None,
+    previous: ActiveTask | None,
+) -> ActiveTask | None:
+    '''Repair task evidence omitted by records written before task anchoring.'''
+    if current is None or previous is None:
+        return current
+    same_task = current.id == previous.id
+    inherited_task = not same_task and has_anaphoric_reference(current.goal)
+    scope_hints = current.scope_hints
+    scope_source = current.scope_source
+    if (
+        not scope_hints
+        and previous.scope_hints
+        and (same_task or inherited_task)
+    ):
+        scope_hints = previous.scope_hints
+        scope_source = previous.scope_source if same_task else 'inherited'
+    workspace_paths = current.workspace_paths
+    if same_task and not workspace_paths and previous.workspace_paths:
+        workspace_paths = previous.workspace_paths
+    if (
+        scope_hints == current.scope_hints
+        and scope_source == current.scope_source
+        and workspace_paths == current.workspace_paths
+    ):
+        return current
+    return replace(
+        current,
+        scope_hints=scope_hints,
+        scope_source=scope_source,
+        workspace_paths=workspace_paths,
+    )
 
 
 def project_storage_key(root: Path) -> str:

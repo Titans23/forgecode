@@ -962,7 +962,7 @@ def test_edit_recovery_stops_noop_writes_without_total_call_limit(
     assert conversation.task_manager.active.status == 'stuck'
 
 
-def test_recovery_reads_do_not_consume_failed_edit_limit(
+def test_one_recovery_read_preserves_bounded_final_edit_attempts(
     tmp_path: Path,
 ) -> None:
     write = FailingWriteTool(tmp_path)
@@ -1021,6 +1021,7 @@ def test_recovery_reads_do_not_consume_failed_edit_limit(
     )
     assert result.status == 'stuck'
     assert '4 workspace-write attempt(s)' in result.text
+    assert result.model_calls == 6
     assert len(client.calls) == 6
     assert len(client.responses) == 0
     assert '[Failed Mutation Recovery]' in client.calls[1]['system']

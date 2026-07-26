@@ -66,9 +66,12 @@ def text_response(text: str) -> list[ModelStreamEvent]:
     ]
 
 
-def collect(conversation: Conversation) -> list[ConversationEvent]:
+def collect(
+    conversation: Conversation,
+    prompt: str = 'do it',
+) -> list[ConversationEvent]:
     async def run() -> list[ConversationEvent]:
-        return [event async for event in conversation.stream('do it')]
+        return [event async for event in conversation.stream(prompt)]
 
     return asyncio.run(run())
 
@@ -157,7 +160,7 @@ def test_tool_and_file_hooks_wrap_actual_mutation(tmp_path: Path) -> None:
         hook_manager=hooks,  # type: ignore[arg-type]
     )
 
-    events = collect(conversation)
+    events = collect(conversation, 'Update changed.py')
 
     assert not (tmp_path / 'original.py').exists()
     assert (tmp_path / 'changed.py').read_text(

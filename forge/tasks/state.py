@@ -3,11 +3,31 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import re
 from typing import Any, Literal
 
 
 TaskStatus = Literal['in_progress', 'completed', 'blocked', 'stuck']
 StepStatus = Literal['pending', 'in_progress', 'completed', 'blocked']
+ScopeSource = Literal[
+    'repository',
+    'explicit',
+    'inherited',
+    'planned',
+    'unresolved',
+]
+
+
+def has_anaphoric_reference(goal: str) -> bool:
+    '''Recognize references whose repository scope depends on prior context.'''
+    return bool(
+        re.search(
+            r'(?i)(?:里面|其中|将其|对其|把它|该目录|这个目录|这个项目|'
+            r'当前项目|上述项目|刚才的项目|前面的实现|现有游戏|那里|'
+            r'\bthere\b|\bit\b)',
+            goal,
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +58,8 @@ class ActiveTask:
     steps: tuple[TaskStep, ...] = ()
     constraints: tuple[str, ...] = ()
     scope_hints: tuple[str, ...] = ()
+    scope_source: ScopeSource = 'repository'
+    workspace_paths: tuple[str, ...] = ()
     blocked_reasons: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
@@ -66,6 +88,15 @@ class ActiveTask:
             ),
             scope_hints=tuple(
                 str(item) for item in data.get('scope_hints', [])
+            ),
+            scope_source=str(  # type: ignore[arg-type]
+                data.get(
+                    'scope_source',
+                    'explicit' if data.get('scope_hints') else 'repository',
+                )
+            ),
+            workspace_paths=tuple(
+                str(item) for item in data.get('workspace_paths', [])
             ),
             blocked_reasons=tuple(
                 str(item) for item in data.get('blocked_reasons', [])
