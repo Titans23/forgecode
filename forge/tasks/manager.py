@@ -25,7 +25,6 @@ class TaskManager:
         self.root = root.resolve()
         self.store = store or TaskStore(self.root)
         self.active: ActiveTask | None = None
-        self._resume_next_turn = False
         self._latest_directive = ''
 
     def begin_turn(
@@ -34,25 +33,21 @@ class TaskManager:
         *,
         requires_change: bool = False,
     ) -> ActiveTask:
-        if self._resume_next_turn and self.active is not None:
-            self._resume_next_turn = False
-            return self._continue_active(goal, requires_change=requires_change)
         if (
             self.active is not None
-            and self.active.status == 'completed'
             and (
                 is_continuation_directive(goal)
                 or (
-                    self.active.requires_change
+                    self.active.status in {'blocked', 'stuck'}
+                    and is_change_followup_directive(goal)
+                )
+                or (
+                    self.active.status == 'completed'
+                    and self.active.requires_change
                     and is_change_followup_directive(goal)
                 )
             )
         ):
-            return self._continue_active(goal, requires_change=requires_change)
-        if self.active is not None and self.active.status in {
-            'blocked',
-            'stuck',
-        }:
             return self._continue_active(goal, requires_change=requires_change)
         previous_goal = self.active.goal if self.active is not None else ''
         resolved_goal = resolve_anaphoric_goal(goal, previous_goal)
@@ -82,6 +77,18 @@ class TaskManager:
             self.store.save(self.active)
         return self.active
 
+    def continue_active(
+        self,
+        directive: str,
+        *,
+        requires_change: bool = False,
+    ) -> ActiveTask:
+        '''Continue the active task after the turn router chose that transition.'''
+        return self._continue_active(
+            directive,
+            requires_change=requires_change,
+        )
+
     def start(
         self,
         goal: str,
@@ -109,14 +116,12 @@ class TaskManager:
             scope_hints=scope_hints,
             scope_source=resolved_scope_source,
         )
-        self._resume_next_turn = False
         self._latest_directive = ''
         return self.active
 
     def restore(self, task: ActiveTask | None) -> None:
         '''Restore session-owned task state without starting a new turn.'''
         self.active = task
-        self._resume_next_turn = task is not None
         self._latest_directive = ''
 
     def require_workspace_change(self) -> ActiveTask | None:
@@ -344,7 +349,6 @@ class TaskManager:
             status='in_progress',
             blocked_reasons=(),
         )
-        self._resume_next_turn = True
         self.store.save(self.active)
         return self.active
 
@@ -404,7 +408,9 @@ class TaskManager:
         lines.extend(
             [
                 '',
-                'Continue this task. Do not switch to unrelated work.',
+                'This is persisted task context, not an instruction to resume '
+                'execution. Follow the latest user prompt. Continue '
+                'implementation only when that prompt explicitly requests it.',
             ]
         )
         return '\n'.join(lines)
@@ -494,7 +500,8 @@ def is_change_followup_directive(goal: str) -> bool:
     text = goal.strip().lstrip('\ufeff')
     return bool(
         re.match(
-            r'^(?:要求|需要|还要|同时|另外|并且|按(?:照)?顺序|'
+            r'^(?:(?:你直接|直接)?帮我(?:继续)?(?:修复|解决|完成|实现)|'
+            r'要求|需要|还要|同时|另外|并且|按(?:照)?顺序|'
             r'就按(?:这个|上述|上面|刚才|顺序)|'
             r'可以(?:直接)?开始(?:工作)?(?:了|吧)?|开始(?:工作)?(?:吧)?)',
             text,

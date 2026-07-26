@@ -27,6 +27,7 @@ from forge.runtime.model_client import (
     ModelOutputTruncatedError,
     ModelProtocolError,
 )
+from forge.runtime.router import RouteResult, TurnDecision
 from forge.runtime.state import (
     ConversationEvent,
     ModelCallCompleted,
@@ -47,6 +48,7 @@ from forge.runtime.state import (
 from forge.tools.base import Tool, ToolInput, ToolRegistry, ToolResult
 from forge.tools.filesystem import ReadFileTool
 from forge.tools.search import GrepTool
+from forge.tasks.state import ActiveTask
 
 
 class FakeModelClient:
@@ -71,6 +73,44 @@ class FakeModelClient:
             if isinstance(event, Exception):
                 raise event
             yield event
+
+
+class StaticIntentRouter:
+    def __init__(self, *decisions: TurnDecision) -> None:
+        self.decisions = list(decisions)
+        self.calls: list[str] = []
+
+    async def route(
+        self,
+        prompt: str,
+        active_task: ActiveTask | None,
+        recent_messages: list[dict[str, object]],
+    ) -> RouteResult:
+        self.calls.append(prompt)
+        decision = (
+            self.decisions.pop(0)
+            if len(self.decisions) > 1
+            else self.decisions[0]
+        )
+        return RouteResult(
+            decision=decision,
+            usage=TokenUsage(input_tokens=7, output_tokens=3),
+        )
+
+
+def routed(
+    intent: str,
+    *,
+    relation: str = 'none',
+    requires_change: bool = False,
+) -> TurnDecision:
+    return TurnDecision(
+        intent=intent,
+        task_relation=relation,
+        requires_workspace_change=requires_change,
+        confidence=0.99,
+        reason='test decision',
+    )
 
 
 def streamed_response(
@@ -351,6 +391,307 @@ def test_orphan_continuation_returns_guidance_without_calling_model() -> None:
     assert completed.result.model_calls == 0
     assert '没有可继续的历史任务' in completed.result.text
     assert client.calls == []
+    assert conversation.task_manager.active is None
+
+
+def test_task_status_query_after_resume_is_deterministic_and_read_only(
+    tmp_path: Path,
+) -> None:
+    task = ActiveTask(
+        id='task-resumed-status',
+        goal='修复 play 目录中的复杂游戏',
+        status='stuck',
+        requires_change=True,
+        constraints=('只能修改 play/**',),
+        scope_hints=('play/**',),
+        blocked_reasons=('Patch validation failed.',),
+    )
+    write_tool = NoOpWriteTool(tmp_path)
+    tracker = NoChangeWorkspaceTracker(tmp_path)
+    registry = ToolRegistry(
+        [write_tool],
+        workspace_tracker=tracker,
+    )
+    client = FakeModelClient()
+    router = StaticIntentRouter(routed('task_query', relation='active'))
+    conversation = Conversation(
+        client=client,
+        registry=registry,
+        active_task=task,
+        intent_router=router,
+    )
+
+    for prompt in (
+        '当前任务是什么',
+        '现在的任务状态怎么样？',
+        '为什么任务卡住了？',
+    ):
+        events = collect_turn(conversation, prompt)
+        completed = events[-1]
+        assert isinstance(completed, TurnCompleted)
+        assert completed.result.status == 'completed'
+        assert completed.result.model_calls == 1
+        assert completed.result.usage == TokenUsage(7, 3)
+        assert task.goal in completed.result.text
+        assert '已卡住' in completed.result.text
+        assert 'Patch validation failed.' in completed.result.text
+
+    assert client.calls == []
+    assert router.calls == [
+        '当前任务是什么',
+        '现在的任务状态怎么样？',
+        '为什么任务卡住了？',
+    ]
+    assert write_tool.calls == []
+    assert tracker.revision == 0
+    assert conversation.task_manager.active == task
+
+
+def test_long_session_status_queries_never_enter_agent_loop(
+    tmp_path: Path,
+) -> None:
+    task = ActiveTask(
+        id='task-long-session-status',
+        goal='完成企业级多文件迁移',
+        status='blocked',
+        requires_change=True,
+        scope_hints=('forge/**',),
+        blocked_reasons=('Waiting for user input.',),
+    )
+    write_tool = NoOpWriteTool(tmp_path)
+    tracker = NoChangeWorkspaceTracker(tmp_path)
+    client = FakeModelClient()
+    router = StaticIntentRouter(routed('task_query', relation='active'))
+    conversation = Conversation(
+        client=client,
+        registry=ToolRegistry(
+            [write_tool],
+            workspace_tracker=tracker,
+        ),
+        active_task=task,
+        intent_router=router,
+    )
+    prompts = (
+        '当前任务是什么',
+        '当前进度到哪一步了',
+        '为什么任务被阻塞？',
+        'What is the current task?',
+    )
+
+    for index in range(100):
+        events = collect_turn(conversation, prompts[index % len(prompts)])
+        completed = events[-1]
+        assert isinstance(completed, TurnCompleted)
+        assert completed.result.model_calls == 1
+        assert completed.result.usage == TokenUsage(7, 3)
+
+    assert len(conversation.messages) == 200
+    assert conversation.task_manager.active == task
+    assert client.calls == []
+    assert len(router.calls) == 100
+    assert write_tool.calls == []
+    assert tracker.revision == 0
+
+
+def test_task_status_query_without_active_task_uses_no_model() -> None:
+    client = FakeModelClient()
+    router = StaticIntentRouter(routed('task_query'))
+    conversation = Conversation(client=client, intent_router=router)
+
+    events = collect_turn(conversation, '当前任务是什么')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.model_calls == 1
+    assert completed.result.usage == TokenUsage(7, 3)
+    assert '没有活动任务' in completed.result.text
+    assert client.calls == []
+    assert conversation.task_manager.active is None
+
+
+def test_read_only_continuation_does_not_inherit_change_contract(
+    tmp_path: Path,
+) -> None:
+    task = ActiveTask(
+        id='task-resumed-explain',
+        goal='修复 play 目录中的复杂游戏',
+        status='stuck',
+        requires_change=True,
+        scope_hints=('play/**',),
+        blocked_reasons=('Patch validation failed.',),
+    )
+    tracker = NoChangeWorkspaceTracker(tmp_path)
+    write_tool = NoOpWriteTool(tmp_path)
+    registry = ToolRegistry(
+        [RecordingReadFileTool(tmp_path), write_tool],
+        workspace_tracker=tracker,
+    )
+    client = FakeModelClient(streamed_response('这是之前失败的原因。'))
+    conversation = Conversation(
+        client=client,
+        registry=registry,
+        active_task=task,
+        intent_router=StaticIntentRouter(
+            routed('read_only', relation='active')
+        ),
+    )
+
+    events = collect_turn(conversation, '继续解释之前失败的原因')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.model_calls == 2
+    assert completed.result.usage == TokenUsage(17, 5)
+    assert completed.result.text == '这是之前失败的原因。'
+    assert '[ForgeCode Turn Change Contract]' not in client.calls[0]['system']
+    assert {
+        definition['name'] for definition in client.calls[0]['tools']
+    } == {'read_file', 'task_get'}
+    assert write_tool.calls == []
+    assert conversation.task_manager.active == task
+
+
+def test_mixed_status_and_change_prompt_reaches_normal_agent_loop(
+    tmp_path: Path,
+) -> None:
+    task = ActiveTask(
+        id='task-resumed-mixed',
+        goal='修复 play 目录中的复杂游戏',
+        status='stuck',
+        requires_change=True,
+        scope_hints=('play/**',),
+    )
+    client = FakeModelClient(streamed_response('准备继续修复。'))
+    conversation = Conversation(
+        client=client,
+        active_task=task,
+        permission_manager=PermissionManager(tmp_path, mode='plan'),
+        intent_router=StaticIntentRouter(
+            routed(
+                'change_task',
+                relation='active',
+                requires_change=True,
+            )
+        ),
+    )
+
+    events = collect_turn(conversation, '当前任务是什么，然后继续修复')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.model_calls == 2
+    assert len(client.calls) == 1
+
+
+def test_ambiguous_route_preserves_task_and_skips_main_model(
+    tmp_path: Path,
+) -> None:
+    task = ActiveTask(
+        id='task-ambiguous-safe',
+        goal='保护当前任务',
+        status='blocked',
+        requires_change=True,
+        blocked_reasons=('Need clarification.',),
+    )
+    client = FakeModelClient()
+    conversation = Conversation(
+        client=client,
+        active_task=task,
+        intent_router=StaticIntentRouter(routed('ambiguous')),
+    )
+
+    events = collect_turn(conversation, '弄一下这个')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.model_calls == 1
+    assert '无法安全判断' in completed.result.text
+    assert conversation.task_manager.active == task
+    assert client.calls == []
+
+
+def test_model_routed_new_change_task_replaces_previous_task(
+    tmp_path: Path,
+) -> None:
+    previous = ActiveTask(
+        id='task-previous-read',
+        goal='查看旧任务',
+        status='completed',
+    )
+    client = FakeModelClient(streamed_response('已进入新任务。'))
+    conversation = Conversation(
+        client=client,
+        active_task=previous,
+        permission_manager=PermissionManager(tmp_path, mode='plan'),
+        intent_router=StaticIntentRouter(
+            routed(
+                'change_task',
+                relation='new',
+                requires_change=True,
+            )
+        ),
+    )
+
+    events = collect_turn(conversation, '把 README 更新一下')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.model_calls == 2
+    assert conversation.task_manager.active is not None
+    assert conversation.task_manager.active.id != previous.id
+    assert conversation.task_manager.active.goal == '把 README 更新一下'
+
+
+def test_model_routed_continue_keeps_original_task_identity(
+    tmp_path: Path,
+) -> None:
+    task = ActiveTask(
+        id='task-explicit-continue',
+        goal='完成 play 游戏',
+        status='stuck',
+        requires_change=True,
+        blocked_reasons=('Previous edit failed.',),
+    )
+    client = FakeModelClient(streamed_response('继续处理。'))
+    conversation = Conversation(
+        client=client,
+        active_task=task,
+        permission_manager=PermissionManager(tmp_path, mode='plan'),
+        intent_router=StaticIntentRouter(
+            routed(
+                'continue_task',
+                relation='active',
+                requires_change=True,
+            )
+        ),
+    )
+
+    events = collect_turn(conversation, '接着完成刚才没做完的工作')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.model_calls == 2
+    assert conversation.task_manager.active is not None
+    assert conversation.task_manager.active.id == task.id
+    assert conversation.task_manager.active.goal == task.goal
+
+
+def test_read_only_route_without_active_task_does_not_create_task(
+    tmp_path: Path,
+) -> None:
+    client = FakeModelClient(streamed_response('这是只读分析。'))
+    conversation = Conversation(
+        client=client,
+        permission_manager=PermissionManager(tmp_path, mode='plan'),
+        intent_router=StaticIntentRouter(routed('read_only')),
+    )
+
+    events = collect_turn(conversation, '解释这个项目的架构')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.model_calls == 2
     assert conversation.task_manager.active is None
 
 

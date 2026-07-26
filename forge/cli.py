@@ -14,6 +14,7 @@ from forge.hooks import HookConfigurationError, HookManager
 from forge.mcp import MCPClientManager, MCPConfigurationError, load_mcp_servers
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.model_client import AnthropicModelClient
+from forge.runtime.router import ModelIntentRouter
 from forge.runtime.state import (
     CompletionBlocked,
     ModelTextDelta,
@@ -628,8 +629,15 @@ def create_session_runtime(
             if state.info.model
             else config
         )
+        model_client = AnthropicModelClient.from_config(resumed_config)
         conversation = Conversation(
-            client=AnthropicModelClient.from_config(resumed_config),
+            client=model_client,
+            intent_router=ModelIntentRouter(
+                AnthropicModelClient.from_config(
+                    resumed_config,
+                    max_tokens=600,
+                )
+            ),
             registry=registry,
             initial_messages=list(state.messages),
             active_task=state.active_task,
@@ -643,7 +651,16 @@ def create_session_runtime(
             journal.record_resumed()
         return conversation, journal, state
 
+    config = ForgeConfig.from_env()
+    model_client = AnthropicModelClient.from_config(config)
     conversation = Conversation(
+        client=model_client,
+        intent_router=ModelIntentRouter(
+            AnthropicModelClient.from_config(
+                config,
+                max_tokens=600,
+            )
+        ),
         registry=registry,
         mcp_manager=mcp_manager,
     )

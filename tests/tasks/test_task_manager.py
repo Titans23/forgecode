@@ -59,6 +59,51 @@ def test_complex_plan_persists_updates_and_resumes(tmp_path: Path) -> None:
     assert following.goal == 'Start a separate task'
 
 
+def test_restored_task_waits_for_explicit_continuation(
+    tmp_path: Path,
+) -> None:
+    source = TaskManager(tmp_path)
+    original = source.start(
+        '修复 play 目录中的游戏',
+        requires_change=True,
+    )
+    source.stuck(('Patch validation failed.',))
+    restored_state = source.active
+    assert restored_state is not None
+
+    manager = TaskManager(tmp_path)
+    manager.restore(restored_state)
+    following = manager.begin_turn(
+        '更新 README',
+        requires_change=True,
+    )
+
+    assert following.id != original.id
+    assert following.goal == '更新 README'
+
+
+def test_explicit_continue_after_restore_keeps_original_task(
+    tmp_path: Path,
+) -> None:
+    source = TaskManager(tmp_path)
+    original = source.start(
+        '修复 play 目录中的游戏',
+        requires_change=True,
+    )
+    source.stuck(('Patch validation failed.',))
+    restored_state = source.active
+    assert restored_state is not None
+
+    manager = TaskManager(tmp_path)
+    manager.restore(restored_state)
+    continued = manager.begin_turn('继续')
+
+    assert continued.id == original.id
+    assert continued.goal == original.goal
+    assert continued.status == 'in_progress'
+    assert continued.blocked_reasons == ()
+
+
 def test_plan_is_optional_and_cannot_be_recreated_accidentally(
     tmp_path: Path,
 ) -> None:

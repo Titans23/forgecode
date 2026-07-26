@@ -29,6 +29,7 @@ from forge.runtime.intent import (
     infer_test_execution_required,
     infer_verification_required,
 )
+from forge.runtime.router import IntentRouter, TurnDecision
 from forge.runtime.model_client import (
     AnthropicModelClient,
     ModelCallError,
@@ -63,7 +64,11 @@ from forge.runtime.state import (
 )
 from forge.runtime.workspace import WorkspaceTracker
 from forge.sessions.checkpoint import CheckpointError, CheckpointStore
-from forge.tasks.manager import TaskManager, is_continuation_directive
+from forge.tasks.manager import (
+    TaskManager,
+    is_change_followup_directive,
+    is_continuation_directive,
+)
 from forge.tools.base import ToolRegistry, ToolResult
 from forge.tools.task import create_task_tools
 
@@ -124,6 +129,7 @@ class Conversation:
         hook_manager: HookManager | None = None,
         permission_manager: PermissionManager | None = None,
         mcp_manager: MCPClientManager | None = None,
+        intent_router: IntentRouter | None = None,
         include_task_tools: bool = True,
     ) -> None:
         if tools is not None and registry is not None:
@@ -200,6 +206,7 @@ class Conversation:
             journal=session_journal,
         )
         self.mcp_manager = mcp_manager
+        self.intent_router = intent_router
         if self.mcp_manager is not None:
             self.mcp_manager.bind(
                 self.permission_manager,
@@ -266,6 +273,54 @@ class Conversation:
             raise ValueError('prompt must not be empty')
 
         await self.session_start(source='stream')
+        routing_usage = TokenUsage(input_tokens=0, output_tokens=0)
+        routing_model_calls = 0
+        turn_decision: TurnDecision | None = None
+        if self.intent_router is not None:
+            route_result = await self.intent_router.route(
+                prompt,
+                self.task_manager.active,
+                self.messages,
+            )
+            turn_decision = route_result.decision
+            routing_usage = route_result.usage
+            routing_model_calls = 1
+            yield ModelUsageUpdate(
+                usage=routing_usage,
+                request_usage=routing_usage,
+                model_calls=1,
+            )
+            if turn_decision.intent in {'task_query', 'ambiguous'}:
+                active_task = self.task_manager.active
+                text = (
+                    render_task_status(active_task)
+                    if turn_decision.intent == 'task_query'
+                    else (
+                        '我无法安全判断你是要查询、继续还是开始新任务。'
+                        '当前任务状态没有变化，请更明确地描述你的意图。'
+                    )
+                )
+                user_message = {'role': 'user', 'content': prompt}
+                assistant_message = {'role': 'assistant', 'content': text}
+                self.messages.extend((user_message, assistant_message))
+                if self.session_journal is not None:
+                    self.session_journal.record_user_message(
+                        user_message,
+                        active_task,
+                    )
+                    self.session_journal.record_assistant_message(
+                        assistant_message
+                    )
+                yield TurnCompleted(
+                    result=TurnResult(
+                        text=text,
+                        usage=routing_usage,
+                        model_calls=1,
+                        status='completed',
+                    )
+                )
+                return
+
         if self.mcp_manager is not None:
             await self.mcp_manager.ensure_connected()
 
@@ -286,46 +341,130 @@ class Conversation:
             )
             return
 
-        prompt_change_required = infer_change_required(prompt)
         previous_task = self.task_manager.active
-        if (
-            previous_task is not None
-            and previous_task.status == 'completed'
-            and is_bare_continuation_directive(prompt)
-        ):
-            text = (
-                '当前任务已经完成。“继续”没有提供新的修改目标，因此 '
-                'ForgeCode 未调用模型或工具。请直接描述下一项具体修改要求。'
+        preserve_active_task = False
+        if turn_decision is not None:
+            prompt_change_required = (
+                turn_decision.requires_workspace_change
             )
-            user_message = {'role': 'user', 'content': prompt}
-            assistant_message = {'role': 'assistant', 'content': text}
-            self.messages.extend((user_message, assistant_message))
-            if self.session_journal is not None:
-                self.session_journal.record_user_message(
-                    user_message,
-                    previous_task,
-                )
-                self.session_journal.record_assistant_message(
-                    assistant_message
-                )
-            yield TurnCompleted(
-                result=TurnResult(
-                    text=text,
-                    usage=TokenUsage(input_tokens=0, output_tokens=0),
-                    model_calls=0,
-                    status='completed',
+            turn_change_required = bool(
+                prompt_change_required
+                or (
+                    turn_decision.intent == 'continue_task'
+                    and previous_task is not None
+                    and previous_task.requires_change
                 )
             )
-            return
-        if (
-            previous_task is not None
-            and infer_change_required(previous_task.goal)
-        ):
-            self.task_manager.require_workspace_change()
-        self.task_manager.begin_turn(
-            prompt,
-            requires_change=prompt_change_required,
-        )
+            if (
+                previous_task is not None
+                and previous_task.status == 'completed'
+                and turn_decision.intent == 'continue_task'
+            ):
+                text = (
+                    '当前任务已经完成。请描述要追加的具体工作，'
+                    '或者明确提出一个新任务。'
+                )
+                user_message = {'role': 'user', 'content': prompt}
+                assistant_message = {'role': 'assistant', 'content': text}
+                self.messages.extend((user_message, assistant_message))
+                if self.session_journal is not None:
+                    self.session_journal.record_user_message(
+                        user_message,
+                        previous_task,
+                    )
+                    self.session_journal.record_assistant_message(
+                        assistant_message
+                    )
+                yield TurnCompleted(
+                    result=TurnResult(
+                        text=text,
+                        usage=routing_usage,
+                        model_calls=routing_model_calls,
+                        status='completed',
+                    )
+                )
+                return
+            if turn_decision.intent == 'read_only':
+                preserve_active_task = True
+            elif turn_decision.intent == 'continue_task':
+                self.task_manager.continue_active(
+                    prompt,
+                    requires_change=turn_change_required,
+                )
+            elif (
+                turn_decision.intent == 'change_task'
+                and turn_decision.task_relation == 'active'
+                and previous_task is not None
+            ):
+                self.task_manager.continue_active(
+                    prompt,
+                    requires_change=True,
+                )
+                turn_change_required = True
+            elif turn_decision.intent in {'new_task', 'change_task'}:
+                self.task_manager.start(
+                    prompt,
+                    requires_change=turn_change_required,
+                )
+            else:
+                raise AssertionError(
+                    f'Unhandled turn intent: {turn_decision.intent}'
+                )
+        else:
+            prompt_change_required = infer_change_required(prompt)
+            change_followup_required = bool(
+                previous_task is not None
+                and previous_task.requires_change
+                and is_change_followup_directive(prompt)
+            )
+            turn_change_required = bool(
+                prompt_change_required or change_followup_required
+            )
+            if (
+                previous_task is not None
+                and previous_task.status == 'completed'
+                and is_bare_continuation_directive(prompt)
+            ):
+                text = (
+                    '当前任务已经完成。“继续”没有提供新的修改目标，因此 '
+                    'ForgeCode 未调用模型或工具。请直接描述下一项具体修改要求。'
+                )
+                user_message = {'role': 'user', 'content': prompt}
+                assistant_message = {'role': 'assistant', 'content': text}
+                self.messages.extend((user_message, assistant_message))
+                if self.session_journal is not None:
+                    self.session_journal.record_user_message(
+                        user_message,
+                        previous_task,
+                    )
+                    self.session_journal.record_assistant_message(
+                        assistant_message
+                    )
+                yield TurnCompleted(
+                    result=TurnResult(
+                        text=text,
+                        usage=routing_usage,
+                        model_calls=routing_model_calls,
+                        status='completed',
+                    )
+                )
+                return
+            if (
+                previous_task is not None
+                and turn_change_required
+                and infer_change_required(previous_task.goal)
+            ):
+                self.task_manager.require_workspace_change()
+            preserve_active_task = bool(
+                previous_task is not None
+                and is_continuation_directive(prompt)
+                and not turn_change_required
+            )
+            if not preserve_active_task:
+                self.task_manager.begin_turn(
+                    prompt,
+                    requires_change=turn_change_required,
+                )
         self.working_state = WorkingState()
         self._last_task_context = self.task_manager.system_suffix()
         user_message = {'role': 'user', 'content': prompt}
@@ -344,18 +483,11 @@ class Conversation:
                 user_message,
                 self.task_manager.active,
             )
-        completed_usage = TokenUsage(input_tokens=0, output_tokens=0)
+        completed_usage = routing_usage
         all_tool_calls: list[ToolCall] = []
         latest_verification: VerificationEvidence | None = None
         mutation_attempted = False
         active_task = self.task_manager.active
-        inherited_change_required = bool(
-            active_task is not None
-            and (
-                active_task.requires_change
-                or infer_change_required(active_task.goal)
-            )
-        )
         change_required = bool(
             self.permission_manager.mode != 'plan'
             and (
@@ -365,10 +497,7 @@ class Conversation:
                 )
                 or (
                     self.workspace_tracker is not None
-                    and (
-                        prompt_change_required
-                        or inherited_change_required
-                    )
+                    and turn_change_required
                 )
             )
         )
@@ -490,7 +619,7 @@ class Conversation:
                     result=TurnResult(
                         text=reason,
                         usage=completed_usage,
-                        model_calls=iteration - 1,
+                        model_calls=iteration - 1 + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status='stuck',
                         changed_paths=(
@@ -549,6 +678,8 @@ class Conversation:
                     request_tools = self._edit_recovery_tools(
                         read_available=read_available,
                     )
+            elif preserve_active_task:
+                request_tools = self._read_only_tools()
             else:
                 request_tools = self._tool_definitions()
             request_tools = self._permission_filtered_tools(request_tools)
@@ -627,7 +758,7 @@ class Conversation:
                     result=TurnResult(
                         text=reason,
                         usage=completed_usage,
-                        model_calls=iteration - 1,
+                        model_calls=iteration - 1 + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status='failed',
                         changed_paths=(
@@ -697,7 +828,7 @@ class Conversation:
                                 request_usage,
                             ),
                             request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                         )
                     else:
                         yield event
@@ -844,7 +975,7 @@ class Conversation:
                             text=reason,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(),
@@ -873,7 +1004,7 @@ class Conversation:
                             text=reason,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(
@@ -902,7 +1033,7 @@ class Conversation:
                             text=reason,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(
@@ -950,7 +1081,7 @@ class Conversation:
                         text=reason,
                         usage=completed_usage,
                         last_request_usage=request_usage,
-                        model_calls=iteration,
+                        model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status='stuck',
                         changed_paths=(
@@ -989,7 +1120,7 @@ class Conversation:
                             text=reason,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(
@@ -1041,7 +1172,7 @@ class Conversation:
                                 text=complete_text,
                                 usage=completed_usage,
                                 last_request_usage=request_usage,
-                                model_calls=iteration,
+                                model_calls=iteration + routing_model_calls,
                                 tool_calls=tuple(all_tool_calls),
                                 status='stuck',
                                 changed_paths=(
@@ -1092,7 +1223,7 @@ class Conversation:
                             text=reason,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(),
@@ -1169,7 +1300,7 @@ class Conversation:
                             text=complete_text,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(
@@ -1219,7 +1350,7 @@ class Conversation:
                                 text=complete_text,
                                 usage=completed_usage,
                                 last_request_usage=request_usage,
-                                model_calls=iteration,
+                                model_calls=iteration + routing_model_calls,
                                 tool_calls=tuple(all_tool_calls),
                                 status='stuck',
                                 changed_paths=(
@@ -1230,7 +1361,8 @@ class Conversation:
                             )
                         )
                         return
-                self.task_manager.complete()
+                if not preserve_active_task:
+                    self.task_manager.complete()
                 self.messages[:] = request_messages
                 self.context.capture_explicit_memory(prompt)
                 yield TurnCompleted(
@@ -1238,7 +1370,7 @@ class Conversation:
                         text=complete_text,
                         usage=completed_usage,
                         last_request_usage=request_usage,
-                        model_calls=iteration,
+                        model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         changed_paths=(
                             self.workspace_tracker.changed_paths
@@ -1270,7 +1402,7 @@ class Conversation:
                         text=reason,
                         usage=completed_usage,
                         last_request_usage=request_usage,
-                        model_calls=iteration,
+                        model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status='stuck',
                         changed_paths=(
@@ -1979,7 +2111,7 @@ class Conversation:
                         text=reason,
                         usage=completed_usage,
                         last_request_usage=request_usage,
-                        model_calls=iteration,
+                        model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status='blocked',
                         changed_paths=(
@@ -2004,7 +2136,7 @@ class Conversation:
                         ),
                         usage=completed_usage,
                         last_request_usage=request_usage,
-                        model_calls=iteration,
+                        model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status='stuck',
                         changed_paths=(
@@ -2030,10 +2162,11 @@ class Conversation:
                         [],
                     )
                 )
-                if declaration_status == 'blocked':
-                    self.task_manager.block(blocked_reasons)
-                else:
-                    self.task_manager.complete()
+                if not preserve_active_task:
+                    if declaration_status == 'blocked':
+                        self.task_manager.block(blocked_reasons)
+                    else:
+                        self.task_manager.complete()
                 self.messages[:] = request_messages
                 self.context.capture_explicit_memory(prompt)
                 yield TurnCompleted(
@@ -2041,7 +2174,7 @@ class Conversation:
                         text=summary,
                         usage=completed_usage,
                         last_request_usage=request_usage,
-                        model_calls=iteration,
+                        model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status=(
                             'blocked'
@@ -2255,7 +2388,7 @@ class Conversation:
                             text=reason,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(
@@ -2324,7 +2457,7 @@ class Conversation:
                             text=summary,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='completed',
                             changed_paths=self.workspace_tracker.changed_paths,
@@ -2442,7 +2575,7 @@ class Conversation:
                             text=reason,
                             usage=completed_usage,
                             last_request_usage=request_usage,
-                            model_calls=iteration,
+                            model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
                             status='stuck',
                             changed_paths=(
@@ -2608,7 +2741,7 @@ class Conversation:
                         text=reason,
                         usage=completed_usage,
                         last_request_usage=request_usage,
-                        model_calls=iteration,
+                        model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
                         status='stuck',
                         changed_paths=(
@@ -2633,7 +2766,7 @@ class Conversation:
                 result=TurnResult(
                     text=reason,
                     usage=completed_usage,
-                    model_calls=self.max_iterations,
+                    model_calls=self.max_iterations + routing_model_calls,
                     tool_calls=tuple(all_tool_calls),
                     status='stuck',
                     changed_paths=(
@@ -2992,6 +3125,22 @@ class Conversation:
                 'paused repository tools.'
             )
         return prompt
+
+    def _read_only_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose only tools that cannot mutate the workspace or run processes.'''
+        if self.registry is None:
+            return None
+        task_state_writes = {'task_plan', 'task_update'}
+        return [
+            definition
+            for definition in self._tool_definitions() or ()
+            if (
+                self.registry.effect(str(definition.get('name', '')))
+                == 'read_only'
+                and str(definition.get('name', ''))
+                not in task_state_writes
+            )
+        ]
 
     def _permission_filtered_tools(
         self,
@@ -3472,6 +3621,9 @@ class Conversation:
         self._last_task_context = self.task_manager.system_suffix()
         if state.info.model and hasattr(self.client, 'model'):
             self.client.model = state.info.model
+            router_client = getattr(self.intent_router, 'client', None)
+            if router_client is not None and hasattr(router_client, 'model'):
+                router_client.model = state.info.model
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
         if self.mcp_manager is not None:
@@ -4459,6 +4611,36 @@ def mutation_recovery_stuck_reason(
         'to change the task workspace; the Edit Recovery failure limit was '
         f'reached. Latest failure: {tool} [{code}].'
     )
+
+
+def render_task_status(task: ActiveTask | None) -> str:
+    '''Render persisted task state without invoking the model or workspace tools.'''
+    if task is None:
+        return '当前会话没有活动任务。你可以直接描述一个新任务。'
+    labels = {
+        'in_progress': '进行中',
+        'completed': '已完成',
+        'blocked': '已阻塞',
+        'stuck': '已卡住',
+    }
+    lines = [
+        '当前任务：',
+        f'- 目标：{task.goal}',
+        f'- 状态：{labels.get(task.status, task.status)}',
+        f"- 是否需要修改工作区：{'是' if task.requires_change else '否'}",
+    ]
+    if task.current_step is not None:
+        lines.append(f'- 当前步骤：{task.current_step.title}')
+    if task.steps:
+        completed = sum(step.status == 'completed' for step in task.steps)
+        lines.append(f'- 计划进度：{completed}/{len(task.steps)}')
+    if task.scope_hints:
+        lines.append(f"- 工作范围：{', '.join(task.scope_hints)}")
+    if task.constraints:
+        lines.append(f"- 约束：{'; '.join(task.constraints)}")
+    if task.blocked_reasons:
+        lines.append(f"- 停止原因：{'; '.join(task.blocked_reasons)}")
+    return '\n'.join(lines)
 
 
 def is_bare_continuation_directive(prompt: str) -> bool:

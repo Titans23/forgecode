@@ -1,13 +1,20 @@
 '''End-to-end session lifecycle tests for M4.'''
 
+import asyncio
 from pathlib import Path
 
 import pytest
 
 from forge.runtime.agent_loop import Conversation
 from forge.cli import create_session_runtime
+from forge.runtime.router import (
+    ModelIntentRouter,
+    RouteResult,
+    TurnDecision,
+)
 from forge.runtime.state import (
     TokenUsage,
+    TurnCompleted,
     TurnResult,
     VerificationEvidence,
 )
@@ -20,6 +27,20 @@ class DummyClient:
     model = 'test-model'
     context_window = None
     max_tokens = 1_000
+
+
+class TaskQueryRouter:
+    async def route(self, prompt, active_task, recent_messages):
+        return RouteResult(
+            decision=TurnDecision(
+                intent='task_query',
+                task_relation='active',
+                requires_workspace_change=False,
+                confidence=0.99,
+                reason='test decision',
+            ),
+            usage=TokenUsage(input_tokens=5, output_tokens=2),
+        )
 
 
 def completed_session(
@@ -187,8 +208,65 @@ def test_cli_runtime_restores_recorded_model(
     )
 
     assert conversation.client.model == 'recorded-model'
+    assert isinstance(conversation.intent_router, ModelIntentRouter)
+    assert conversation.intent_router.client.max_tokens == 600
+    assert conversation.intent_router.client.model == 'recorded-model'
     assert resumed.session_id == journal.session_id
     assert state is not None
+
+
+def test_persisted_stuck_task_status_query_survives_multiple_restarts(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'project'
+    root.mkdir()
+    store = SessionStore(root, data_root=tmp_path / 'data')
+    journal = store.create(model='test-model', name='stuck-game')
+    task = ActiveTask(
+        id='task-persisted-stuck',
+        goal='仅修改 play/** 并完成复杂游戏',
+        status='stuck',
+        requires_change=True,
+        constraints=('禁止修改 play 目录之外的文件',),
+        scope_hints=('play/**',),
+        workspace_paths=('play/src/main.js',),
+        blocked_reasons=('Edit recovery limit reached.',),
+    )
+    journal.record_user_message(
+        {'role': 'user', 'content': task.goal},
+        task,
+    )
+    journal.record_assistant_message(
+        {'role': 'assistant', 'content': '任务暂时卡住。'}
+    )
+
+    prompts = (
+        '当前任务是什么',
+        '当前进度到哪一步了',
+        '为什么任务卡住了？',
+        'What is the current task?',
+    )
+    for prompt in prompts:
+        conversation = conversation_for(store, journal.session_id)
+        conversation.intent_router = TaskQueryRouter()
+
+        async def collect():
+            return [event async for event in conversation.stream(prompt)]
+
+        events = asyncio.run(collect())
+        completed = events[-1]
+        assert isinstance(completed, TurnCompleted)
+        assert completed.result.model_calls == 1
+        assert completed.result.usage == TokenUsage(5, 2)
+        assert task.goal in completed.result.text
+        assert conversation.task_manager.active == task
+
+        reloaded = store.load(journal.session_id)
+        assert reloaded.active_task == task
+        assert reloaded.messages[-2:] == (
+            {'role': 'user', 'content': prompt},
+            {'role': 'assistant', 'content': completed.result.text},
+        )
 
 
 def test_in_process_resume_switches_model_and_context(
