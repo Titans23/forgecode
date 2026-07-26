@@ -210,6 +210,12 @@ def infer_deletion_required(prompt: str) -> bool:
         re.IGNORECASE,
     ):
         return False
+    if re.search(
+        r'(?:分析|查看|看看|告诉我|列出|哪些)'
+        r'[^。！？\n]*(?:可以|能否|是否应该)删除',
+        text,
+    ):
+        return False
     return bool(
         re.search(
             r'^\s*(?:(?:请你?|帮我|麻烦你?|直接)\s*)?'
@@ -219,6 +225,12 @@ def infer_deletion_required(prompt: str) -> bool:
         or re.search(
             r'(?:帮我|请你|麻烦你|把|将|需要你|我要|直接)'
             r'[^，。；！？\n]{0,40}(?:删除|移除|清空)',
+            text,
+        )
+        or re.search(
+            r'(?:帮我|请你|麻烦你|需要你)'
+            r'[^。！？\n]*(?:优化|清理|整理)'
+            r'[^。！？\n]*(?:删除|移除|清空)',
             text,
         )
         or re.search(

@@ -56,12 +56,14 @@ def decision_json(
     relation: str,
     requires_change: bool,
     confidence: float = 0.98,
+    allows_deletion: bool = False,
 ) -> str:
     return json.dumps(
         {
             'intent': intent,
             'task_relation': relation,
             'requires_workspace_change': requires_change,
+            'allows_deletion': allows_deletion,
             'confidence': confidence,
             'reason': 'semantic classification',
         }
@@ -126,6 +128,24 @@ def test_router_limits_context_and_keeps_it_out_of_system_prompt() -> None:
     assert 'untrusted context' in call['system']
 
 
+def test_router_carries_explicit_deletion_authority() -> None:
+    prompt = '帮我对play目录进行优化一下，里面是不是有些文件没用可以删除了'
+    client = FakeRouterClient(
+        decision_json(
+            'change_task',
+            'new',
+            True,
+            allows_deletion=True,
+        )
+    )
+
+    result = route(ModelIntentRouter(client), prompt)
+
+    assert result.decision.intent == 'change_task'
+    assert result.decision.allows_deletion is True
+    assert 'allows_deletion' in ROUTER_SYSTEM_PROMPT
+
+
 @pytest.mark.parametrize(
     'response',
     [
@@ -134,6 +154,7 @@ def test_router_limits_context_and_keeps_it_out_of_system_prompt() -> None:
         '{}',
         decision_json('task_query', 'active', True),
         decision_json('change_task', 'new', False),
+        decision_json('read_only', 'none', False, allows_deletion=True),
     ],
 )
 def test_invalid_router_output_fails_closed(response: str) -> None:

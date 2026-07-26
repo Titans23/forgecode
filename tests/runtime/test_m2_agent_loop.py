@@ -5,7 +5,10 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 import subprocess
 from typing import Any
+from unittest.mock import AsyncMock
 
+from forge.permissions.approval import StaticApprovalHandler
+from forge.permissions.policy import PermissionManager
 from forge.runtime.agent_loop import (
     Conversation,
     build_final_acceptance_audit_feedback,
@@ -13,11 +16,13 @@ from forge.runtime.agent_loop import (
     is_placeholder_mutation,
     is_substantive_mutation,
     is_test_file_path,
+    mutation_path_operations,
     mutation_targets_overlap,
     placeholder_only_implementation,
     render_completion_ready_context,
 )
 from forge.runtime.completion import TaskPolicy
+from forge.runtime.router import RouteResult, TurnDecision
 from forge.runtime.state import (
     CompletionBlocked,
     ConversationEvent,
@@ -32,6 +37,7 @@ from forge.runtime.state import (
     VerificationCompleted,
     WorkspaceChanged,
 )
+from forge.sessions.checkpoint import CheckpointStore
 from forge.tools import create_default_registry
 from forge.tools.base import Tool, ToolInput, ToolResult
 from forge.tasks.state import ActiveTask
@@ -221,6 +227,125 @@ def test_unrelated_success_does_not_resolve_failed_mutation_target() -> None:
         ('play/src/main.js',),
         ('play/src/.gitkeep',),
     ) is True
+
+
+def test_placeholder_cleanup_deletions_are_not_rejected() -> None:
+    delete_patch = ToolCall(
+        0,
+        'cleanup-placeholders',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Delete File: play/notes.txt\n'
+                '*** Delete File: play/test.txt\n'
+                '*** Delete File: play/.tmp/diff.txt\n'
+                '*** Delete File: play/src/.tmp/main_inject.js\n'
+                '*** End Patch'
+            )
+        },
+    )
+
+    assert mutation_path_operations(delete_patch) == (
+        ('delete', 'play/notes.txt'),
+        ('delete', 'play/test.txt'),
+        ('delete', 'play/.tmp/diff.txt'),
+        ('delete', 'play/src/.tmp/main_inject.js'),
+    )
+    assert is_placeholder_mutation(
+        delete_patch,
+        '帮我优化 play 目录，把没用的文件删除',
+    ) is False
+    assert is_substantive_mutation(
+        delete_patch,
+        '帮我优化 play 目录，把没用的文件删除',
+    ) is True
+
+
+def test_unified_diff_placeholder_deletion_is_not_rejected() -> None:
+    delete_patch = ToolCall(
+        0,
+        'cleanup-unified-placeholder',
+        'apply_patch',
+        {
+            'patch': (
+                '--- a/play/test.txt\n'
+                '+++ /dev/null\n'
+                '@@ -1 +0,0 @@\n'
+                '-test\n'
+            )
+        },
+    )
+
+    assert mutation_path_operations(delete_patch) == (
+        ('delete', 'play/test.txt'),
+    )
+    assert is_placeholder_mutation(delete_patch, '清理 play 目录') is False
+
+
+def test_move_checks_destination_instead_of_deleted_source() -> None:
+    cleanup_move = ToolCall(
+        0,
+        'move-away-from-placeholder',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Update File: play/test.txt\n'
+                '*** Move to: play/docs/legacy-notes.txt\n'
+                '@@\n'
+                '-test\n'
+                '+archived\n'
+                '*** End Patch'
+            )
+        },
+    )
+    placeholder_move = ToolCall(
+        0,
+        'move-into-placeholder',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Update File: play/docs/legacy-notes.txt\n'
+                '*** Move to: play/test.txt\n'
+                '@@\n'
+                '-archived\n'
+                '+test\n'
+                '*** End Patch'
+            )
+        },
+    )
+
+    assert mutation_path_operations(cleanup_move) == (
+        ('delete', 'play/test.txt'),
+        ('write', 'play/docs/legacy-notes.txt'),
+    )
+    assert is_placeholder_mutation(cleanup_move, '整理 play 目录') is False
+    assert is_placeholder_mutation(placeholder_move, '整理 play 目录') is True
+
+
+def test_mixed_patch_still_rejects_placeholder_production() -> None:
+    mixed_patch = ToolCall(
+        0,
+        'mixed-placeholder-write',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Delete File: play/old.txt\n'
+                '*** Add File: play/test.txt\n'
+                '+noop\n'
+                '*** End Patch'
+            )
+        },
+    )
+
+    assert mutation_path_operations(mixed_patch) == (
+        ('delete', 'play/old.txt'),
+        ('write', 'play/test.txt'),
+    )
+    assert is_placeholder_mutation(mixed_patch, '优化 play 目录') is True
 
 
 def test_standard_cross_language_test_paths_are_recognized() -> None:
@@ -3977,6 +4102,302 @@ def test_change_plan_upgrades_a_misclassified_turn_contract(
     )
 
 
+def test_cleanup_task_can_delete_placeholder_files_end_to_end(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    placeholder_files = (
+        'play/notes.txt',
+        'play/test.txt',
+        'play/.tmp/diff.txt',
+        'play/src/.tmp/main_inject.js',
+    )
+    for relative_path in placeholder_files:
+        target = tmp_path / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('obsolete\n', encoding='utf-8')
+    subprocess.run(['git', 'add', 'play'], cwd=tmp_path, check=True)
+    subprocess.run(
+        ['git', 'commit', '--quiet', '-m', 'add obsolete files'],
+        cwd=tmp_path,
+        check=True,
+    )
+    cleanup = ToolCall(
+        0,
+        'cleanup-obsolete-files',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                + ''.join(
+                    f'*** Delete File: {path}\n'
+                    for path in placeholder_files
+                )
+                + '*** End Patch'
+            )
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(cleanup),
+        finish_response(
+            'cleanup-finish',
+            task_kind='change',
+            summary='Removed obsolete files from play.',
+        ),
+    )
+    router = AsyncMock()
+    router.route.return_value = RouteResult(
+        decision=TurnDecision(
+            intent='change_task',
+            task_relation='new',
+            requires_workspace_change=True,
+            allows_deletion=True,
+            confidence=0.99,
+            reason='The user explicitly authorized cleanup deletion.',
+        ),
+        usage=TokenUsage(7, 3),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        intent_router=router,
+    )
+
+    events = collect_turn(
+        conversation,
+        '帮我对play目录进行优化一下，里面是不是有些文件没用可以删除了',
+    )
+
+    cleanup_result = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'cleanup-obsolete-files'
+    )
+    completed = events[-1]
+    assert cleanup_result.success is True
+    assert all(not (tmp_path / path).exists() for path in placeholder_files)
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert set(completed.result.changed_paths) == set(placeholder_files)
+    assert 'without a workspace change' not in completed.result.text
+
+
+def test_directory_patch_failure_recovers_with_remove_directory(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    obsolete = {
+        'play/.keep/README.md': 'keep\n',
+        'play/.tmp/diff.txt': 'diff\n',
+        'play/notes.txt': 'notes\n',
+    }
+    for relative_path, content in obsolete.items():
+        target = tmp_path / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding='utf-8')
+    subprocess.run(['git', 'add', 'play'], cwd=tmp_path, check=True)
+    subprocess.run(
+        ['git', 'commit', '--quiet', '-m', 'add cleanup targets'],
+        cwd=tmp_path,
+        check=True,
+    )
+    directory_patch = ToolCall(
+        0,
+        'wrong-directory-patch',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Delete File: play/.keep\n'
+                '*** Delete File: play/.tmp\n'
+                '*** End Patch'
+            )
+        },
+    )
+    remove_keep = ToolCall(
+        0,
+        'remove-keep-directory',
+        'remove_directory',
+        {'path': 'play/.keep', 'recursive': True},
+    )
+    remove_tmp = ToolCall(
+        0,
+        'remove-tmp-directory',
+        'remove_directory',
+        {'path': 'play/.tmp', 'recursive': True},
+    )
+    remove_notes = ToolCall(
+        0,
+        'remove-notes-file',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Delete File: play/notes.txt\n'
+                '*** End Patch'
+            )
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(directory_patch),
+        response_with_tool(remove_keep),
+        response_with_tool(remove_tmp),
+        response_with_tool(remove_notes),
+        finish_response(
+            'directory-cleanup-finish',
+            task_kind='change',
+            summary='Removed obsolete play directories and files.',
+        ),
+    )
+    router = AsyncMock()
+    router.route.return_value = RouteResult(
+        decision=TurnDecision(
+            intent='continue_task',
+            task_relation='active',
+            requires_workspace_change=True,
+            allows_deletion=True,
+            confidence=0.99,
+            reason='Continue the explicitly authorized cleanup task.',
+        ),
+        usage=TokenUsage(7, 3),
+    )
+    permission_manager = PermissionManager(
+        tmp_path,
+        approval_handler=StaticApprovalHandler('allow_once'),
+        user_path=tmp_path / 'missing-user-permissions.json',
+    )
+    active_task = ActiveTask(
+        id='task-cleanupdirs',
+        goal='优化 play 目录并删除无用文件和目录',
+        status='stuck',
+        requires_change=True,
+        scope_hints=('play/**',),
+    )
+    checkpoint_store = CheckpointStore(
+        tmp_path,
+        tmp_path.parent / f'{tmp_path.name}-checkpoints',
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        active_task=active_task,
+        intent_router=router,
+        permission_manager=permission_manager,
+        checkpoint_store=checkpoint_store,
+    )
+
+    events = collect_turn(conversation, '继续帮我完成任务')
+
+    failed_patch = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'wrong-directory-patch'
+    )
+    recovery_tool_names = {
+        str(tool.get('name', ''))
+        for tool in client.calls[1]['tools']
+    }
+    completed = events[-1]
+    assert failed_patch.success is False
+    assert failed_patch.error is not None
+    assert failed_patch.error.code == 'directory_patch_target'
+    assert failed_patch.error.details['recommended_tool'] == 'remove_directory'
+    assert 'remove_directory' in recovery_tool_names
+    assert 'read_file' not in recovery_tool_names
+    assert 'list_directory' not in recovery_tool_names
+    assert not (tmp_path / 'play' / '.keep').exists()
+    assert not (tmp_path / 'play' / '.tmp').exists()
+    assert not (tmp_path / 'play' / 'notes.txt').exists()
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert len(client.calls) == 5
+    assert 'failure limit' not in completed.result.text
+
+    checkpoint_id = checkpoint_store.latest_restorable()
+    assert checkpoint_id is not None
+    checkpoint_store.restore(checkpoint_id)
+    assert (tmp_path / 'play' / '.keep' / 'README.md').read_text(
+        encoding='utf-8'
+    ) == 'keep\n'
+    assert (tmp_path / 'play' / '.tmp' / 'diff.txt').read_text(
+        encoding='utf-8'
+    ) == 'diff\n'
+    assert (tmp_path / 'play' / 'notes.txt').read_text(
+        encoding='utf-8'
+    ) == 'notes\n'
+
+
+def test_placeholder_write_rejection_enters_bounded_edit_recovery(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    play = tmp_path / 'play'
+    play.mkdir()
+    app = play / 'app.js'
+    app.write_text('old\n', encoding='utf-8')
+    subprocess.run(['git', 'add', 'play/app.js'], cwd=tmp_path, check=True)
+    subprocess.run(
+        ['git', 'commit', '--quiet', '-m', 'add play app'],
+        cwd=tmp_path,
+        check=True,
+    )
+    placeholder = ToolCall(
+        0,
+        'placeholder-write',
+        'write_file',
+        {'path': 'play/test.txt', 'content': 'noop'},
+    )
+    corrected = ToolCall(
+        0,
+        'corrected-project-edit',
+        'replace_text',
+        {
+            'path': 'play/app.js',
+            'old_text': 'old\n',
+            'new_text': 'optimized\n',
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(placeholder),
+        response_with_tool(corrected),
+        finish_response(
+            'placeholder-recovery-finish',
+            task_kind='change',
+            summary='Completed the real project optimization.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    events = collect_turn(conversation, '优化 play 目录的实现')
+
+    rejected = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'placeholder-write'
+    )
+    completed = events[-1]
+    recovery_tool_names = {
+        str(tool.get('name', ''))
+        for tool in client.calls[1]['tools']
+    }
+    assert rejected.success is False
+    assert rejected.error is not None
+    assert rejected.error.code == 'placeholder_mutation_denied'
+    assert 'list_directory' not in recovery_tool_names
+    assert 'find_files' not in recovery_tool_names
+    assert app.read_text(encoding='utf-8') == 'optimized\n'
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert len(client.calls) == 3
+    assert 'without a workspace change' not in completed.result.text
+
+
 def test_enhancement_task_cannot_delete_existing_target_before_rewrite(
     tmp_path: Path,
 ) -> None:
@@ -4043,6 +4464,87 @@ def test_enhancement_task_cannot_delete_existing_target_before_rewrite(
     assert delete_result.success is False
     assert delete_result.error is not None
     assert delete_result.error.code == 'destructive_edit_not_requested'
+    assert game.read_text(encoding='utf-8') == 'const level = 2;\n'
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+
+
+def test_enhancement_task_cannot_remove_existing_directory(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    play = tmp_path / 'play'
+    play.mkdir()
+    game = play / 'game.js'
+    game.write_text('const level = 1;\n', encoding='utf-8')
+    subprocess.run(['git', 'add', 'play/game.js'], cwd=tmp_path, check=True)
+    subprocess.run(
+        ['git', 'commit', '--quiet', '-m', 'add game directory'],
+        cwd=tmp_path,
+        check=True,
+    )
+    remove = ToolCall(
+        0,
+        'unsafe-remove-play',
+        'remove_directory',
+        {'path': 'play', 'recursive': True},
+    )
+    update = ToolCall(
+        0,
+        'safe-update-game-after-directory-rejection',
+        'apply_patch',
+        {
+            'patch': (
+                '*** Begin Patch\n'
+                '*** Update File: play/game.js\n'
+                '@@\n'
+                '-const level = 1;\n'
+                '+const level = 2;\n'
+                '*** End Patch'
+            ),
+        },
+    )
+    client = FakeModelClient(
+        response_with_tool(remove),
+        response_with_tool(update),
+        text_response('Enhanced the game without deleting its directory.'),
+    )
+    router = AsyncMock()
+    router.route.return_value = RouteResult(
+        decision=TurnDecision(
+            intent='change_task',
+            task_relation='new',
+            requires_workspace_change=True,
+            allows_deletion=False,
+            confidence=0.99,
+            reason='The user requested an enhancement, not deletion.',
+        ),
+        usage=TokenUsage(7, 3),
+    )
+    permission_manager = PermissionManager(
+        tmp_path,
+        approval_handler=StaticApprovalHandler('allow_once'),
+        user_path=tmp_path / 'missing-user-permissions.json',
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        intent_router=router,
+        permission_manager=permission_manager,
+    )
+
+    events = collect_turn(conversation, '帮我把 play 目录里的游戏做得更高级')
+
+    remove_result = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'unsafe-remove-play'
+    )
+    completed = events[-1]
+    assert remove_result.success is False
+    assert remove_result.error is not None
+    assert remove_result.error.code == 'destructive_edit_not_requested'
     assert game.read_text(encoding='utf-8') == 'const level = 2;\n'
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'

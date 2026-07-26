@@ -39,6 +39,33 @@ def test_checkpoint_restores_modified_and_created_files(
     assert not created.exists()
 
 
+def test_checkpoint_restores_deleted_directory_tree(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'project'
+    nested = root / 'play' / '.tmp' / 'nested'
+    nested.mkdir(parents=True)
+    file = nested / 'probe.txt'
+    file.write_text('before', encoding='utf-8')
+    paths = (
+        'play/.tmp',
+        'play/.tmp/nested',
+        'play/.tmp/nested/probe.txt',
+    )
+    store = CheckpointStore(root, tmp_path / 'checkpoints')
+    checkpoint_id = store.begin()
+    store.capture_before(checkpoint_id, paths)
+    file.unlink()
+    nested.rmdir()
+    (root / 'play' / '.tmp').rmdir()
+    store.record_after(checkpoint_id, paths)
+
+    restored = store.restore(checkpoint_id)
+
+    assert restored == paths
+    assert file.read_text(encoding='utf-8') == 'before'
+
+
 def test_checkpoint_refuses_to_overwrite_external_change(
     tmp_path: Path,
 ) -> None:

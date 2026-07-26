@@ -131,7 +131,9 @@ class CheckpointStore:
 
         restored: list[str] = []
         for relative, target, entry in restorable:
-            if entry.get('before_exists'):
+            if entry.get('before_directory'):
+                target.mkdir(parents=True, exist_ok=True)
+            elif entry.get('before_exists'):
                 blob_hash = str(entry.get('before_sha256', ''))
                 blob = self.blob_directory / blob_hash
                 try:
@@ -229,7 +231,11 @@ class CheckpointStore:
         if target.is_symlink():
             return {'skipped': 'symbolic links are not checkpointed'}
         if target.exists() and target.is_dir():
-            return {'skipped': 'directories are not checkpointed'}
+            return {
+                'before_exists': True,
+                'before_sha256': None,
+                'before_directory': True,
+            }
         if target.exists() and target.stat().st_nlink > 1:
             return {'skipped': 'hard-linked files are not checkpointed'}
         identity = file_identity(target)

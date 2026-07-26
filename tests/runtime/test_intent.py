@@ -189,6 +189,8 @@ def test_negated_or_descriptive_verification_text_is_not_required(
     [
         ('删除 play/game.js', True),
         ('帮我移除废弃文件', True),
+        ('帮我对play目录进行优化一下，里面是不是有些文件没用可以删除了', True),
+        ('帮我分析哪些文件可以删除', False),
         ('Remove the obsolete module.', True),
         ('Could you remove the obsolete module?', True),
         ('优化 game.js，不要删除原文件', False),

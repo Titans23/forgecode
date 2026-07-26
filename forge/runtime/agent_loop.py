@@ -465,6 +465,18 @@ class Conversation:
                     prompt,
                     requires_change=turn_change_required,
                 )
+        deletion_allowed = (
+            turn_decision.allows_deletion
+            if turn_decision is not None
+            else infer_deletion_required(prompt)
+        )
+        if (
+            not deletion_allowed
+            and turn_decision is not None
+            and turn_decision.task_relation == 'active'
+            and previous_task is not None
+        ):
+            deletion_allowed = infer_deletion_required(previous_task.goal)
         self.working_state = WorkingState()
         self._last_task_context = self.task_manager.system_suffix()
         user_message = {'role': 'user', 'content': prompt}
@@ -1547,8 +1559,8 @@ class Conversation:
                 ):
                     placeholder_rejection = ToolResult.fail(
                         'placeholder_mutation_denied',
-                        'Workspace write denied because it only creates a '
-                        'temporary, noop, sentinel, or recovery-marker change. '
+                        'Workspace write denied because it creates or overwrites only '
+                        'temporary, noop, sentinel, or recovery-marker content. '
                         'Make a task-relevant implementation edit instead.',
                         details={
                             'targets': list(
@@ -1563,11 +1575,7 @@ class Conversation:
                     and permission_rejection is None
                     and scope_rejection is None
                     and placeholder_rejection is None
-                    and not infer_deletion_required(
-                        self.task_manager.active.goal
-                        if self.task_manager.active is not None
-                        else prompt
-                    )
+                    and not deletion_allowed
                 ):
                     deleted_paths = existing_deleted_paths(
                         self.task_manager.root,
@@ -1735,7 +1743,10 @@ class Conversation:
                     )
                 else:
                     checkpoint_paths = (
-                        mutation_target_paths(tool_call, maximum=None)
+                        checkpoint_mutation_paths(
+                            self.task_manager.root,
+                            tool_call,
+                        )
                         if tool_effect == 'workspace_write'
                         and checkpoint_id is not None
                         and self.checkpoint_store is not None
@@ -2233,7 +2244,11 @@ class Conversation:
             )
             strategy_recovery_chain = bool(mutation_failures) and (
                 any(
-                    failure.get('code') == 'file_already_exists'
+                    failure.get('code') in {
+                        'file_already_exists',
+                        'placeholder_mutation_denied',
+                        'directory_patch_target',
+                    }
                     for failure in mutation_failures
                 )
                 or (
@@ -2294,7 +2309,6 @@ class Conversation:
                                 'permission_denied',
                                 'repeated_tool_call',
                                 'outside_task_scope',
-                                'placeholder_mutation_denied',
                                 'directory_already_exists',
                             }
                     )
@@ -2304,7 +2318,14 @@ class Conversation:
                 _, last_call, last_result, _ = workspace_write_results[-1]
                 pending_write_results = [(last_call, last_result)]
             if pending_write_results:
-                mutation_recovery_read_used = False
+                mutation_recovery_read_used = all(
+                    result.error is not None
+                    and result.error.code in {
+                        'placeholder_mutation_denied',
+                        'directory_patch_target',
+                    }
+                    for _, result in pending_write_results
+                )
                 mutation_text_recoveries = 0
                 current_failure_targets = tuple(
                     sorted(
@@ -4292,10 +4313,21 @@ def is_substantive_mutation(tool_call: ToolCall, goal: str) -> bool:
 
 
 def is_placeholder_mutation(tool_call: ToolCall, goal: str) -> bool:
-    '''Reject common recovery markers unless the user explicitly requested them.'''
-    targets = mutation_target_paths(tool_call, maximum=None)
+    '''Reject placeholder-producing writes, while allowing cleanup deletions.'''
+    targets = tuple(
+        path
+        for operation, path in mutation_path_operations(tool_call)
+        if operation != 'delete'
+    )
+    if not targets:
+        return False
     normalized_goal = goal.casefold().replace('\\', '/')
-    if any(target.casefold() in normalized_goal for target in targets):
+    targets = tuple(
+        target
+        for target in targets
+        if target.casefold() not in normalized_goal
+    )
+    if not targets:
         return False
     normalized_targets = tuple(target.casefold() for target in targets)
     if any('/.tmp/' in f'/{target.strip("/")}/' for target in normalized_targets):
@@ -4384,6 +4416,76 @@ def is_placeholder_mutation(tool_call: ToolCall, goal: str) -> bool:
     return False
 
 
+def mutation_path_operations(tool_call: ToolCall) -> tuple[tuple[str, str], ...]:
+    '''Return normalized mutation operations without losing delete semantics.'''
+    if tool_call.name != 'apply_patch':
+        operation = (
+            'create'
+            if tool_call.name == 'create_directory'
+            else 'delete'
+            if tool_call.name == 'remove_directory'
+            else 'write'
+        )
+        return tuple(
+            (operation, path)
+            for path in mutation_target_paths(tool_call, maximum=None)
+        )
+    patch = tool_call.arguments.get('patch')
+    if not isinstance(patch, str):
+        return ()
+    operations: list[tuple[str, str]] = []
+    pending_update: int | None = None
+    lines = patch.splitlines()
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('*** Update File:'):
+            path = stripped.removeprefix('*** Update File:').strip()
+            path = path.replace('\\', '/')
+            if path:
+                operations.append(('write', path))
+                pending_update = len(operations) - 1
+            continue
+        if stripped.startswith('*** Move to:'):
+            path = stripped.removeprefix('*** Move to:').strip()
+            path = path.replace('\\', '/')
+            if pending_update is not None:
+                _, source = operations[pending_update]
+                operations[pending_update] = ('delete', source)
+            if path:
+                operations.append(('write', path))
+            pending_update = None
+            continue
+        if stripped.startswith('*** Add File:'):
+            path = stripped.removeprefix('*** Add File:').strip()
+            path = path.replace('\\', '/')
+            if path:
+                operations.append(('write', path))
+            pending_update = None
+            continue
+        if stripped.startswith('*** Delete File:'):
+            path = stripped.removeprefix('*** Delete File:').strip()
+            path = path.replace('\\', '/')
+            if path:
+                operations.append(('delete', path))
+            pending_update = None
+            continue
+        if not stripped.startswith('--- '):
+            continue
+        pending_update = None
+        old_path = stripped.removeprefix('--- ').strip()
+        next_line = lines[index + 1].strip() if index + 1 < len(lines) else ''
+        if not next_line.startswith('+++ '):
+            continue
+        new_path = next_line.removeprefix('+++ ').strip()
+        if new_path == '/dev/null' and old_path.startswith('a/'):
+            operations.append(('delete', old_path.removeprefix('a/')))
+        elif old_path == '/dev/null' and new_path.startswith('b/'):
+            operations.append(('write', new_path.removeprefix('b/')))
+        elif new_path.startswith('b/'):
+            operations.append(('write', new_path.removeprefix('b/')))
+    return tuple(dict.fromkeys(operations))
+
+
 def mutation_target_paths(
     tool_call: ToolCall,
     *,
@@ -4426,8 +4528,49 @@ def mutation_target_paths(
     return unique if maximum is None else unique[:maximum]
 
 
+def checkpoint_mutation_paths(
+    root: Path,
+    tool_call: ToolCall,
+) -> tuple[str, ...]:
+    '''Expand recursive directory deletion into checkpoint-restorable entries.'''
+    targets = mutation_target_paths(tool_call, maximum=None)
+    if tool_call.name != 'remove_directory' or not targets:
+        return targets
+    raw_path = targets[0]
+    candidate = (root.resolve() / raw_path).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        return targets
+    if not candidate.is_dir():
+        return targets
+    descendants = sorted(
+        (
+            path.relative_to(root.resolve()).as_posix()
+            for path in candidate.rglob('*')
+            if not path.is_symlink()
+        ),
+        key=lambda path: (path.count('/'), path),
+    )
+    return tuple(dict.fromkeys((raw_path, *descendants)))
+
+
 def existing_deleted_paths(root: Path, tool_call: ToolCall) -> tuple[str, ...]:
     '''Find existing files a write request would remove or truncate outright.'''
+    if tool_call.name == 'remove_directory':
+        raw_path = tool_call.arguments.get('path')
+        if isinstance(raw_path, str):
+            candidate = (root.resolve() / raw_path).resolve()
+            try:
+                candidate.relative_to(root.resolve())
+            except ValueError:
+                return ()
+            return (
+                (raw_path.replace('\\', '/'),)
+                if candidate.is_dir()
+                else ()
+            )
+        return ()
     if tool_call.name == 'write_file_chunk':
         raw_path = tool_call.arguments.get('path')
         if (

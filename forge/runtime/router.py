@@ -32,6 +32,7 @@ class TurnDecision(BaseModel):
     intent: TurnIntent
     task_relation: TaskRelation
     requires_workspace_change: bool
+    allows_deletion: bool = False
     confidence: float = Field(ge=0.0, le=1.0)
     reason: str = Field(min_length=1, max_length=500)
 
@@ -46,6 +47,13 @@ class TurnDecision(BaseModel):
             raise ValueError('new_task must use the new task relation')
         if self.intent == 'change_task' and not self.requires_workspace_change:
             raise ValueError('change_task must require a workspace change')
+        if self.allows_deletion and (
+            not self.requires_workspace_change
+            or self.intent not in {'change_task', 'continue_task'}
+        ):
+            raise ValueError(
+                'allows_deletion requires an explicit change or continuation'
+            )
         return self
 
 
@@ -207,6 +215,7 @@ Return exactly one JSON object with these fields:
 - intent: task_query | continue_task | new_task | read_only | change_task | ambiguous
 - task_relation: active | new | none
 - requires_workspace_change: boolean
+- allows_deletion: boolean
 - confidence: number from 0 to 1
 - reason: short explanation
 
@@ -219,6 +228,10 @@ Semantic definitions:
   act on the workspace. Use task_relation=active only when it clearly extends
   the active task; otherwise use new.
 - ambiguous: the requested state transition cannot be determined safely.
+- allows_deletion: true only when the latest prompt explicitly authorizes
+  deleting/removing workspace content, or explicitly continues an active task
+  whose stated goal authorizes deletion. A question about deletion is not
+  permission unless it is part of an action request.
 
 Understand paraphrases, colloquial language, and minor spelling mistakes.
 Do not execute the request and do not output Markdown.

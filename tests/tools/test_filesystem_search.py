@@ -8,6 +8,7 @@ from forge.tools.filesystem import (
     CreateDirectoryTool,
     ListDirectoryTool,
     ReadFileTool,
+    RemoveDirectoryTool,
     ReplaceTextTool,
     WriteFileChunkTool,
     WriteFileTool,
@@ -113,6 +114,68 @@ def test_create_directory_does_not_mutate_existing_directory(
     }
     assert not (directory / '.gitkeep').exists()
     assert existing.read_text(encoding='utf-8') == 'export {};\n'
+
+
+def test_remove_directory_handles_empty_and_recursive_cleanup(
+    tmp_path: Path,
+) -> None:
+    empty = tmp_path / 'empty'
+    empty.mkdir()
+    empty_result = run(
+        RemoveDirectoryTool(tmp_path).run({'path': 'empty'})
+    )
+
+    nested = tmp_path / 'play' / '.tmp' / 'nested'
+    nested.mkdir(parents=True)
+    (nested / 'probe.txt').write_text('obsolete\n', encoding='utf-8')
+    non_recursive = run(
+        RemoveDirectoryTool(tmp_path).run({'path': 'play/.tmp'})
+    )
+    recursive = run(
+        RemoveDirectoryTool(tmp_path).run(
+            {'path': 'play/.tmp', 'recursive': True}
+        )
+    )
+
+    assert empty_result.success is True
+    assert not empty.exists()
+    assert non_recursive.success is False
+    assert non_recursive.error is not None
+    assert non_recursive.error.code == 'directory_not_empty'
+    assert recursive.success is True
+    assert recursive.metadata['removed_entries'] == 2
+    assert not (tmp_path / 'play' / '.tmp').exists()
+
+
+def test_remove_directory_rejects_repository_root_and_control_plane(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / '.git').mkdir()
+    tool = RemoveDirectoryTool(tmp_path)
+
+    root_result = run(tool.run({'path': '.', 'recursive': True}))
+    git_result = run(tool.run({'path': '.git', 'recursive': True}))
+
+    assert root_result.success is False
+    assert root_result.error is not None
+    assert root_result.error.code == 'protected_path'
+    assert git_result.success is False
+    assert git_result.error is not None
+    assert git_result.error.code == 'protected_path'
+    assert (tmp_path / '.git').is_dir()
+
+
+def test_remove_directory_requests_high_risk_delete_permission(
+    tmp_path: Path,
+) -> None:
+    request = RemoveDirectoryTool(tmp_path).permission_request(
+        {'path': 'play/.tmp', 'recursive': True}
+    )
+
+    assert request is not None
+    assert request.capability == 'file.delete'
+    assert request.risk == 'high'
+    assert request.targets == ('play/.tmp',)
 
 
 def test_list_directory_sorts_directories_before_files(

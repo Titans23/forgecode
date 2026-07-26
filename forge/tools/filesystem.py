@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 import difflib
 import hashlib
 import os
 from pathlib import Path
 import re
+import shutil
 import tempfile
 
 from pydantic import Field, model_validator
 
+from forge.permissions.policy import PermissionRequest
 from forge.tools.base import (
     Tool,
     ToolExecutionError,
@@ -134,6 +137,109 @@ class CreateDirectoryTool(Tool[CreateDirectoryInput]):
             metadata={
                 'path': shown_path,
                 'marker': display_path(self.root, marker),
+            },
+        )
+
+
+class RemoveDirectoryInput(ToolInput):
+    path: str = Field(min_length=1)
+    recursive: bool = False
+
+
+class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
+    name = 'remove_directory'
+    description = (
+        'Delete one repository directory after the user explicitly authorizes '
+        'deletion. Set recursive=true only to remove a non-empty directory and '
+        'all of its contents. Use apply_patch to delete files; do not pass a '
+        'directory to apply_patch. Repository root, control-plane paths, and '
+        'directories containing symbolic links are always rejected.'
+    )
+    input_model = RemoveDirectoryInput
+    effect = 'workspace_write'
+
+    def permission_request(
+        self,
+        arguments: Mapping[str, object],
+    ) -> PermissionRequest | None:
+        raw_path = str(arguments.get('path', '')).replace('\\', '/')
+        return PermissionRequest(
+            tool_name=self.name,
+            capability='file.delete',
+            risk='high',
+            targets=(raw_path,) if raw_path else (),
+            reason='Removing a directory can discard repository state.',
+            preview=(
+                f'remove_directory path={raw_path!r} '
+                f'recursive={bool(arguments.get("recursive", False))}'
+            ),
+        )
+
+    async def execute(self, arguments: RemoveDirectoryInput) -> ToolResult:
+        return await asyncio.to_thread(self._execute_sync, arguments)
+
+    def _execute_sync(self, arguments: RemoveDirectoryInput) -> ToolResult:
+        directory = resolve_repository_path(self.root, arguments.path)
+        if directory == self.root:
+            raise ToolExecutionError(
+                'protected_path',
+                'Repository root cannot be removed.',
+            )
+        lexical = self.root
+        for part in Path(arguments.path).parts:
+            lexical /= part
+            if lexical.is_symlink():
+                raise ToolExecutionError(
+                    'symbolic_link_denied',
+                    f'Directory path contains a symbolic link: {arguments.path}',
+                )
+        if not directory.is_dir():
+            raise ToolExecutionError(
+                'not_a_directory',
+                f'Path is not a directory: {arguments.path}',
+            )
+        symbolic_links = [
+            display_path(self.root, path)
+            for path in directory.rglob('*')
+            if path.is_symlink()
+            or (
+                hasattr(path, 'is_junction')
+                and path.is_junction()
+            )
+        ]
+        if symbolic_links:
+            raise ToolExecutionError(
+                'symbolic_link_denied',
+                'Directory contains symbolic links or junctions and was not removed.',
+                details={'paths': symbolic_links[:20]},
+            )
+        shown_path = display_path(self.root, directory)
+        if arguments.recursive:
+            entry_count = sum(1 for _ in directory.rglob('*'))
+            shutil.rmtree(directory)
+        else:
+            try:
+                directory.rmdir()
+            except OSError as error:
+                raise ToolExecutionError(
+                    'directory_not_empty',
+                    f'Directory is not empty: {shown_path}',
+                    details={
+                        'path': shown_path,
+                        'recovery': (
+                            'Inspect the directory once, then retry '
+                            'remove_directory with recursive=true only if every '
+                            'entry should be deleted.'
+                        ),
+                    },
+                ) from error
+            entry_count = 0
+        return ToolResult.ok(
+            f'Removed directory {shown_path}.',
+            metadata={
+                'path': shown_path,
+                'recursive': arguments.recursive,
+                'removed_entries': entry_count,
             },
         )
 

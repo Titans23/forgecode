@@ -332,6 +332,16 @@ def build_unified_patch(
 
         path = resolve_repository_path(root, operation.path)
         if not path.is_file():
+            if path.is_dir():
+                raise _EnvelopeError(
+                    f'Patch target is a directory: {operation.path!r}. '
+                    'Use remove_directory instead of apply_patch.',
+                    code='directory_patch_target',
+                    details={
+                        'path': operation.path,
+                        'recommended_tool': 'remove_directory',
+                    },
+                )
             raise _EnvelopeError(
                 f'Patch target is not a file: {operation.path!r}.'
             )
