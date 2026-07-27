@@ -1,41 +1,46 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>植物大战僵尸（复杂版）</title>
+  <title>Plant Defense Arena</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main id="game">
+  <main id="game-app">
     <header>
-      <h1>植物大战僵尸 · HTML 版</h1>
-      <p>一个纯前端可运行的“复杂版”玩法：波次、阳光、植物冷却、僵尸波、子弹、吃豆、吃日常太阳。</p>
+      <h1>Plant Defense Arena</h1>
+      <p class="subtitle">A browser game inspired by the classic lane-based plant defense style.</p>
     </header>
 
-    <section id="statusBar">
-      <span class="chip">阳光：<strong id="sunCount">0</strong></span>
-      <span class="chip">波次：<strong id="waveInfo">1 / 6</strong></span>
-      <span class="chip">生命：<strong id="livesInfo">5</strong></span>
-      <span class="chip">分数：<strong id="scoreInfo">0</strong></span>
-      <span id="buttons">
-        <button id="startBtn">开始</button>
-        <button id="pauseBtn">暂停</button>
-        <button id="restartBtn">重开</button>
-      </span>
+    <section id="hud" aria-live="polite">
+      <span>Sun: <strong id="sun-display">0</strong></span>
+      <span>Score: <strong id="score-display">0</strong></span>
+      <span>Wave: <strong id="wave-display">1</strong></span>
+      <span>Lives: <strong id="lives-display">5</strong></span>
+      <span>Next Wave: <strong id="wave-timer">0</strong>s</span>
+      <span>Selected: <strong id="selected-name">Pea Shooter</strong></span>
     </section>
 
-    <section id="toolbar"></section>
-
-    <section id="playfield">
-      <div id="cells"></div>
-      <div id="suns" class="layer"></div>
-      <div id="projectiles" class="layer"></div>
-      <div id="zombies" class="layer"></div>
-      <div id="overlay"><div><div id="overlayText">准备开始！</div><button id="overlayRestart">重新开始</button></div></div>
+    <section id="controls">
+      <button id="pauseBtn" data-state="running">Pause</button>
+      <button id="restartBtn">Restart</button>
+      <button id="shovelBtn" data-plant="shovel">Shovel</button>
     </section>
 
-    <section id="footerInfo">提示：先选卡片，再点击格子放置植物。僵尸会按波次出现，击败全部僵尸并坚持到第6波胜利。</section>
+    <section id="plant-selector" aria-label="Plant palette">
+      <button class="plant-card selected" data-plant="pea" data-cost="100">Pea Shooter<br><small>100</small></button>
+      <button class="plant-card" data-plant="sun" data-cost="50">Sunflower<br><small>50</small></button>
+      <button class="plant-card" data-plant="wall" data-cost="50">Wall-Nut<br><small>50</small></button>
+      <button class="plant-card" data-plant="cherry" data-cost="150">Cherry Bomb<br><small>150</small></button>
+      <button class="plant-card" data-plant="potato" data-cost="125">Potato Mine<br><small>125</small></button>
+    </section>
+
+    <section id="hint">Click a plant card and then click a lawn cell to place it. Click flying suns or spawned sun tokens to collect sunlight.</section>
+
+    <canvas id="game-canvas" width="860" height="580"></canvas>
+
+    <section id="status" aria-live="assertive"></section>
   </main>
 
   <script src="game.js"></script>

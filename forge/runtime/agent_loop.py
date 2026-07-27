@@ -404,6 +404,7 @@ class Conversation:
         required_change_text_recoveries = 0
         finish_declaration_recoveries = 0
         stagnation_action_recoveries = 0
+        action_only_recovery = False
         force_synthesis = False
         verification_recovery = False
         tool_protocol_failures = 0
@@ -496,6 +497,8 @@ class Conversation:
                 and turn_decision.intent == 'read_only'
             ):
                 request_tools = self._read_only_tools()
+            elif action_only_recovery:
+                request_tools = self._workspace_write_tools()
             elif preserve_active_task:
                 request_tools = self._read_only_tools()
             else:
@@ -929,6 +932,38 @@ class Conversation:
                 return
 
             if not tool_calls:
+                serialized_tool = serialized_tool_arguments(
+                    text,
+                    request_tools,
+                )
+                if (
+                    serialized_tool is not None
+                    and protocol_recoveries < self.max_protocol_recoveries
+                ):
+                    protocol_recoveries += 1
+                    request_messages[-1] = {
+                        'role': 'assistant',
+                        'content': (
+                            '[Malformed serialized tool arguments omitted; '
+                            f'intended tool: {serialized_tool}.]'
+                        ),
+                    }
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                'ForgeCode protocol recovery: your previous '
+                                'response printed arguments for '
+                                f'{serialized_tool!r} as ordinary text, so '
+                                'nothing executed. Call that tool through the '
+                                'structured tool interface now. Keep the retry '
+                                'focused; do not repeat the JSON as prose.'
+                            ),
+                        }
+                    )
+                    calls_without_progress = 0
+                    force_synthesis = False
+                    continue
                 if mutation_failures:
                     if mutation_text_recoveries < 1:
                         mutation_text_recoveries += 1
@@ -2004,6 +2039,7 @@ class Conversation:
                 )
             ):
                 calls_without_progress = 0
+                action_only_recovery = False
                 force_synthesis = False
             elif protocol_failure:
                 # Malformed tool arguments are a protocol-recovery problem,
@@ -2112,6 +2148,7 @@ class Conversation:
                     and stagnation_action_recoveries < 1
                 ):
                     stagnation_action_recoveries += 1
+                    action_only_recovery = True
                     force_synthesis = True
                     # Preserve one final decision turn. Novel evidence or a
                     # workspace mutation resets this counter normally.
@@ -2406,6 +2443,18 @@ class Conversation:
             definition
             for definition in self._tool_definitions() or ()
             if str(definition.get('name', '')) == 'task_get'
+        ]
+        return tools or None
+
+    def _workspace_write_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose only concrete workspace mutations at an action checkpoint.'''
+        if self.registry is None:
+            return self._tool_definitions()
+        tools = [
+            definition
+            for definition in self._tool_definitions() or ()
+            if self.registry.effect(str(definition.get('name', '')))
+            == 'workspace_write'
         ]
         return tools or None
 
@@ -3590,6 +3639,39 @@ def build_output_continuation_feedback(
             f'Continuation attempt {attempt} of {maximum}.'
         ),
     }
+
+
+def serialized_tool_arguments(
+    text: str,
+    tool_definitions: list[dict[str, Any]] | None,
+) -> str | None:
+    '''Identify tool arguments emitted as prose instead of a tool call.'''
+    candidate = text.lstrip('\ufeff \t\r\n')
+    if not candidate.startswith('{'):
+        return None
+    try:
+        payload, _ = json.JSONDecoder().raw_decode(candidate)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or not payload:
+        return None
+    keys = set(payload)
+    for definition in tool_definitions or ():
+        schema = definition.get('input_schema')
+        if not isinstance(schema, dict):
+            continue
+        properties = schema.get('properties')
+        required = schema.get('required', ())
+        if (
+            isinstance(properties, dict)
+            and isinstance(required, list)
+            and set(required).issubset(keys)
+            and keys.issubset(properties)
+        ):
+            name = definition.get('name')
+            if isinstance(name, str) and name:
+                return name
+    return None
 
 
 def build_protocol_recovery_feedback(

@@ -434,12 +434,14 @@ class TaskManager:
 
 def infer_goal_scope(goal: str) -> tuple[str, ...]:
     '''Extract only an explicitly named repository directory from the goal.'''
+    segment = r'[a-z0-9_-](?:[a-z0-9_.-]*[a-z0-9_-])?'
+    repository_path = rf'{segment}(?:[/\\]{segment})*'
     patterns = (
-        r'(?i)([a-z0-9_.-]+(?:[/\\][a-z0-9_.-]+)*)\s*'
-        r'(?:目录|文件夹)',
-        r'(?i)\b(?:inside|under|within)\s+(?:the\s+)?'
-        r'([a-z0-9_.-]+(?:[/\\][a-z0-9_.-]+)*)'
-        r'(?:\s+(?:directory|folder))?',
+        rf'(?i)({repository_path})\s*(?:目录|文件夹)',
+        rf'(?i)\bin\s+(?:the\s+)?({repository_path})'
+        rf'\s+(?:directory|folder)\b',
+        rf'(?i)\b(?:inside|under|within)\s+(?:the\s+)?'
+        rf'({repository_path})(?:\s+(?:directory|folder))?',
     )
     for pattern in patterns:
         match = re.search(pattern, goal)

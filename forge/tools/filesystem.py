@@ -381,10 +381,11 @@ class WriteFileInput(ToolInput):
 class WriteFileTool(Tool[WriteFileInput]):
     name = 'write_file'
     description = (
-        'Create one new UTF-8 repository text file atomically, with content '
-        'limited to 30000 characters. This tool never overwrites an existing '
-        'path and safely creates missing repository-relative parent '
-        'directories; use apply_patch for every change to an existing file. '
+        'Create one new UTF-8 repository text file, or initialize an existing '
+        'empty/whitespace-only UTF-8 placeholder, atomically with content '
+        'limited to 30000 characters. This tool never overwrites a non-empty '
+        'file and safely creates missing repository-relative parent '
+        'directories; use apply_patch for focused changes to non-empty files. '
         'For a larger new file, create a focused skeleton and extend it with '
         'apply_patch calls.'
     )
@@ -405,25 +406,42 @@ class WriteFileTool(Tool[WriteFileInput]):
                 'not_a_file',
                 f'Path is not a file: {arguments.path}',
             )
-        if path.exists():
-            raise ToolExecutionError(
-                'file_already_exists',
-                f'write_file only creates new files: {arguments.path}. Use '
-                'apply_patch for a focused change to the existing file.',
-                details={'path': arguments.path},
-            )
+        existed = path.exists()
+        initialized_placeholder = False
+        if existed:
+            try:
+                current = read_text_preserving_newlines(path)
+            except UnicodeDecodeError as error:
+                raise ToolExecutionError(
+                    'not_utf8_text',
+                    f'File is not valid UTF-8 text: {arguments.path}',
+                ) from error
+            if current.strip():
+                raise ToolExecutionError(
+                    'file_already_exists',
+                    f'write_file will not overwrite non-empty file '
+                    f'{arguments.path}. Use apply_patch or replace_text for a '
+                    'focused change.',
+                    details={
+                        'path': arguments.path,
+                        'existing_characters': len(current),
+                    },
+                )
+            initialized_placeholder = True
         ensure_parent_directory(path, arguments.path)
         atomic_write_text(path, arguments.content)
         shown_path = display_path(self.root, path)
+        action = 'Initialized' if initialized_placeholder else 'Created'
         return ToolResult.ok(
-            f'Created {shown_path} with {len(arguments.content)} characters.',
+            f'{action} {shown_path} with {len(arguments.content)} characters.',
             metadata={
                 'path': shown_path,
                 'characters': len(arguments.content),
                 'sha256': hashlib.sha256(
                     arguments.content.encode('utf-8')
                 ).hexdigest(),
-                'created': True,
+                'created': not existed,
+                'initialized_placeholder': initialized_placeholder,
             },
         )
 
