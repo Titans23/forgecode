@@ -144,16 +144,26 @@ class CreateDirectoryTool(Tool[CreateDirectoryInput]):
 class RemoveDirectoryInput(ToolInput):
     path: str = Field(min_length=1)
     recursive: bool = False
+    contents_only: bool = False
+
+    @model_validator(mode='after')
+    def validate_contents_only(self) -> RemoveDirectoryInput:
+        if self.contents_only and not self.recursive:
+            raise ValueError('contents_only=true requires recursive=true')
+        return self
 
 
 class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
     name = 'remove_directory'
     description = (
         'Delete one repository directory after the user explicitly authorizes '
-        'deletion. Set recursive=true only to remove a non-empty directory and '
-        'all of its contents. Use apply_patch to delete files; do not pass a '
-        'directory to apply_patch. Repository root, control-plane paths, and '
-        'directories containing symbolic links are always rejected.'
+        'deletion. To empty a directory while keeping that directory, make one '
+        'call on the parent with recursive=true and contents_only=true; do not '
+        'inspect or delete each child separately. Otherwise recursive=true '
+        'removes the directory and all contents. Use apply_patch to delete '
+        'individual files; do not pass a directory to apply_patch. Repository '
+        'root, control-plane paths, and directories containing symbolic links '
+        'are always rejected.'
     )
     input_model = RemoveDirectoryInput
     effect = 'workspace_write'
@@ -171,7 +181,8 @@ class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
             reason='Removing a directory can discard repository state.',
             preview=(
                 f'remove_directory path={raw_path!r} '
-                f'recursive={bool(arguments.get("recursive", False))}'
+                f'recursive={bool(arguments.get("recursive", False))} '
+                f'contents_only={bool(arguments.get("contents_only", False))}'
             ),
         )
 
@@ -216,7 +227,14 @@ class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
         shown_path = display_path(self.root, directory)
         if arguments.recursive:
             entry_count = sum(1 for _ in directory.rglob('*'))
-            shutil.rmtree(directory)
+            if arguments.contents_only:
+                for child in directory.iterdir():
+                    if child.is_dir():
+                        shutil.rmtree(child)
+                    else:
+                        child.unlink()
+            else:
+                shutil.rmtree(directory)
         else:
             try:
                 directory.rmdir()
@@ -234,11 +252,17 @@ class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
                     },
                 ) from error
             entry_count = 0
+        action = (
+            'Cleared directory contents'
+            if arguments.contents_only
+            else 'Removed directory'
+        )
         return ToolResult.ok(
-            f'Removed directory {shown_path}.',
+            f'{action} {shown_path}.',
             metadata={
                 'path': shown_path,
                 'recursive': arguments.recursive,
+                'contents_only': arguments.contents_only,
                 'removed_entries': entry_count,
             },
         )
@@ -281,8 +305,9 @@ class ReadFileTool(Tool[ReadFileInput]):
                     'path': arguments.path,
                     'recommended_tool': 'list_directory',
                     'recovery': (
-                        'Use list_directory for this path, then call read_file '
-                        'with one concrete file path from the result.'
+                        'Use list_directory to inspect this path. If the task '
+                        'is to delete or clear the directory, call '
+                        'remove_directory instead of read_file.'
                     ),
                 },
             )
@@ -551,6 +576,19 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
     def _execute_sync(self, arguments: ReplaceTextInput) -> ToolResult:
         path = resolve_repository_path(self.root, arguments.path)
         if not path.is_file():
+            if path.is_dir():
+                raise ToolExecutionError(
+                    'not_a_file',
+                    f'Path is a directory, not a file: {arguments.path}',
+                    details={
+                        'path': arguments.path,
+                        'recommended_tool': 'list_directory',
+                        'recovery': (
+                            'Use list_directory to inspect it, or '
+                            'remove_directory to delete or clear it.'
+                        ),
+                    },
+                )
             raise ToolExecutionError(
                 'not_a_file',
                 f'Path is not a file: {arguments.path}',

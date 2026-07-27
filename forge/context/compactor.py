@@ -45,9 +45,9 @@ class CompactionConfig:
     tool_result_inline_limit: int = 30_000
     keep_recent_tool_results: int = 3
     old_tool_result_limit: int = 120
-    message_limit: int = 12
+    message_limit: int = 24
     keep_first_messages: int = 0
-    keep_recent_messages: int = 12
+    keep_recent_messages: int = 16
     keep_file_evidence_units: int = 4
     file_evidence_character_budget: int = 100_000
     auto_compact_characters: int = 120_000
@@ -251,6 +251,11 @@ def cheap_compact(
         artifact_dir,
         resolved,
     )
+    protected_file_results = file_evidence_result_ids(
+        compacted,
+        resolved,
+        scope_hints=scope_hints,
+    )
     before = len(compacted)
     compacted = snip_middle_messages(
         compacted,
@@ -258,7 +263,11 @@ def cheap_compact(
         scope_hints=scope_hints,
     )
     removed = before - len(compacted)
-    shortened = shorten_old_tool_results(compacted, resolved)
+    shortened = shorten_old_tool_results(
+        compacted,
+        resolved,
+        protected_result_ids=protected_file_results,
+    )
     return CheapCompactionResult(
         messages=compacted,
         artifacts=tuple(artifacts),
@@ -313,6 +322,38 @@ def persist_large_tool_results(
     return written
 
 
+def file_evidence_result_ids(
+    messages: list[dict[str, Any]],
+    config: CompactionConfig,
+    *,
+    scope_hints: tuple[str, ...] = (),
+) -> set[str]:
+    '''Return tool-result IDs whose source ranges must survive shortening.'''
+    units = atomic_message_units(messages)
+    first = take_units_from_start(units, config.keep_first_messages)
+    recent = take_units_from_end(units, config.keep_recent_messages)
+    excluded_ids = {id(unit) for unit in (*first, *recent)}
+    evidence = select_file_evidence_units(
+        units,
+        excluded_ids=excluded_ids,
+        maximum=config.keep_file_evidence_units,
+        character_budget=config.file_evidence_character_budget,
+        scope_hints=scope_hints,
+    )
+    result_ids: set[str] = set()
+    for unit in evidence:
+        for message in unit:
+            content = message.get('content')
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if isinstance(block, dict) and block.get('type') == 'tool_result':
+                    call_id = str(block.get('tool_use_id', ''))
+                    if call_id:
+                        result_ids.add(call_id)
+    return result_ids
+
+
 def snip_middle_messages(
     messages: list[dict[str, Any]],
     config: CompactionConfig,
@@ -362,23 +403,27 @@ def select_file_evidence_units(
     character_budget: int,
     scope_hints: tuple[str, ...] = (),
 ) -> list[list[dict[str, Any]]]:
-    '''Keep recent distinct read_file evidence outside the message window.'''
+    '''Keep recent distinct read_file ranges outside the message window.'''
     if maximum <= 0 or character_budget <= 0:
         return []
     selected: list[list[dict[str, Any]]] = []
-    covered_paths: set[str] = set()
+    covered: dict[str, list[tuple[int, int]]] = {}
     characters = 0
     for unit in reversed(units):
+        spans = file_read_spans(unit, substantive_only=True)
         if id(unit) in excluded_ids:
-            covered_paths.update(file_read_paths(unit))
+            add_file_read_spans(covered, spans)
             continue
-        paths = file_read_paths(unit)
+        paths = {path for path, _, _ in spans}
         if scope_hints and paths and not all(
             any(scope_path_matches(path, hint) for hint in scope_hints)
             for path in paths
         ):
             continue
-        if not paths or not (paths - covered_paths):
+        if not spans or all(
+            file_span_is_covered(covered, path, start, end)
+            for path, start, end in spans
+        ):
             continue
         unit_characters = len(
             json.dumps(unit, ensure_ascii=False, default=str)
@@ -386,7 +431,7 @@ def select_file_evidence_units(
         if characters + unit_characters > character_budget:
             continue
         selected.append(unit)
-        covered_paths.update(paths)
+        add_file_read_spans(covered, spans)
         characters += unit_characters
         if len(selected) >= maximum:
             break
@@ -404,8 +449,18 @@ def scope_path_matches(path: str, pattern: str) -> bool:
 
 
 def file_read_paths(unit: list[dict[str, Any]]) -> set[str]:
-    calls: dict[str, str] = {}
-    successful_results: set[str] = set()
+    return {path for path, _, _ in file_read_spans(unit)}
+
+
+def file_read_spans(
+    unit: list[dict[str, Any]],
+    *,
+    substantive_only: bool = False,
+) -> set[tuple[str, int, int]]:
+    calls: dict[str, tuple[str, int, int]] = {}
+    successful_results: dict[
+        str, tuple[dict[str, Any], bool]
+    ] = {}
     for message in unit:
         content = message.get('content')
         if not isinstance(content, list):
@@ -417,29 +472,119 @@ def file_read_paths(unit: list[dict[str, Any]]) -> set[str]:
                 and block.get('name') == 'read_file'
             ):
                 arguments = block.get('input')
-                if isinstance(arguments, dict):
-                    path = str(arguments.get('path', '')).strip()
-                    if path:
-                        calls[str(block.get('id', ''))] = path.replace(
-                            '\\',
-                            '/',
-                        )
+                if not isinstance(arguments, dict):
+                    continue
+                path = str(arguments.get('path', '')).strip()
+                if not path:
+                    continue
+                try:
+                    start = int(arguments.get('start_line', 1))
+                    raw_end = arguments.get('end_line')
+                    end = (
+                        2**31 - 1
+                        if raw_end is None
+                        else int(raw_end)
+                    )
+                except (TypeError, ValueError):
+                    continue
+                calls[str(block.get('id', ''))] = (
+                    path.replace('\\', '/'),
+                    start,
+                    end,
+                )
             elif (
                 isinstance(block, dict)
                 and block.get('type') == 'tool_result'
                 and block.get('is_error') is not True
             ):
-                successful_results.add(str(block.get('tool_use_id', '')))
-    return {
-        path
-        for call_id, path in calls.items()
-        if call_id and call_id in successful_results
-    }
+                call_id = str(block.get('tool_use_id', ''))
+                raw_result = block.get('content')
+                if not call_id or not isinstance(raw_result, str):
+                    continue
+                try:
+                    payload = json.loads(raw_result)
+                except json.JSONDecodeError:
+                    payload = {}
+                if isinstance(payload, dict) and payload.get('success') is False:
+                    continue
+                metadata = (
+                    payload.get('metadata')
+                    if isinstance(payload, dict)
+                    else None
+                )
+                resolved_metadata = (
+                    metadata if isinstance(metadata, dict) else {}
+                )
+                payload_content = (
+                    payload.get('content', '')
+                    if isinstance(payload, dict)
+                    else raw_result
+                )
+                substantive = not bool(
+                    resolved_metadata.get('cache_content_omitted')
+                ) and not str(payload_content).startswith(
+                    '[Cached source omitted'
+                )
+                successful_results[call_id] = (
+                    resolved_metadata,
+                    substantive,
+                )
+    spans: set[tuple[str, int, int]] = set()
+    for call_id, fallback in calls.items():
+        if call_id not in successful_results:
+            continue
+        metadata, substantive = successful_results[call_id]
+        if substantive_only and not substantive:
+            continue
+        try:
+            path = str(metadata.get('path', fallback[0])).replace(
+                '\\',
+                '/',
+            )
+            start = int(metadata.get('start_line', fallback[1]))
+            end = int(metadata.get('end_line', fallback[2]))
+        except (TypeError, ValueError):
+            path, start, end = fallback
+        spans.add((path, start, end))
+    return spans
+
+
+def file_span_is_covered(
+    covered: dict[str, list[tuple[int, int]]],
+    path: str,
+    start: int,
+    end: int,
+) -> bool:
+    return any(
+        known_start <= start and known_end >= end
+        for known_start, known_end in covered.get(path, ())
+    )
+
+
+def add_file_read_spans(
+    covered: dict[str, list[tuple[int, int]]],
+    spans: set[tuple[str, int, int]],
+) -> None:
+    for path, start, end in spans:
+        ranges = sorted([*covered.get(path, ()), (start, end)])
+        merged: list[tuple[int, int]] = []
+        for range_start, range_end in ranges:
+            if not merged or range_start > merged[-1][1] + 1:
+                merged.append((range_start, range_end))
+                continue
+            previous_start, previous_end = merged[-1]
+            merged[-1] = (
+                previous_start,
+                max(previous_end, range_end),
+            )
+        covered[path] = merged
 
 
 def shorten_old_tool_results(
     messages: list[dict[str, Any]],
     config: CompactionConfig,
+    *,
+    protected_result_ids: set[str] | None = None,
 ) -> int:
     '''Clear old replayable tool results while preserving durable task outputs.'''
     tool_names: dict[str, str] = {}
@@ -461,8 +606,11 @@ def shorten_old_tool_results(
                     result_blocks.append(block)
     keep_recent = max(1, config.keep_recent_tool_results)
     old_blocks = result_blocks[:-keep_recent]
+    protected = protected_result_ids or set()
     shortened = 0
     for block in old_blocks:
+        if str(block.get('tool_use_id', '')) in protected:
+            continue
         content = str(block.get('content', ''))
         if len(content) <= config.old_tool_result_limit:
             continue

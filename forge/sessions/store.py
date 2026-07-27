@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from forge.runtime.state import TurnResult
 from forge.tasks.manager import task_path_matches
-from forge.tasks.state import ActiveTask, has_anaphoric_reference
+from forge.tasks.state import ActiveTask
 
 
 SESSION_ID_PATTERN = re.compile(r'session-[0-9a-f]{24}')
@@ -757,36 +757,16 @@ class SessionStore:
 
 
 
-def is_persistable_task_evidence_path(path: str) -> bool:
-    '''Exclude recovery markers from durable task completion evidence.'''
-    normalized = path.replace('\\', '/').strip('/')
-    if not normalized or normalized.startswith('@tool:'):
-        return False
-    parts = tuple(part.casefold() for part in normalized.split('/'))
-    name = parts[-1]
-    if any(part in {'.tmp', '.keep'} for part in parts[:-1]):
-        return False
-    if name in {'.gitkeep', '.keep', '.touch'}:
-        return False
-    return re.fullmatch(
-        r'(?:tmp|temp|test|scratch|noop)[-_]?\d*\.(?:txt|json|js|ts)',
-        name,
-    ) is None and not re.fullmatch(
-        r'.*(?:_inject|_probe)\.(?:js|ts|txt|json)',
-        name,
-    )
-
-
 def sanitize_task_workspace_paths(
     task: ActiveTask | None,
 ) -> ActiveTask | None:
-    '''Keep persisted completion evidence inside the active task scope.'''
+    '''Keep persisted completion evidence inside the explicit task scope.'''
     if task is None or not task.scope_hints:
         return task
     filtered = tuple(
         path
         for path in task.workspace_paths
-        if is_persistable_task_evidence_path(path)
+        if not path.startswith('@tool:')
         and any(
             task_path_matches(path, pattern)
             for pattern in task.scope_hints
@@ -805,16 +785,15 @@ def migrate_replayed_task_scope(
     if current is None or previous is None:
         return current
     same_task = current.id == previous.id
-    inherited_task = not same_task and has_anaphoric_reference(current.goal)
     scope_hints = current.scope_hints
     scope_source = current.scope_source
     if (
         not scope_hints
         and previous.scope_hints
-        and (same_task or inherited_task)
+        and same_task
     ):
         scope_hints = previous.scope_hints
-        scope_source = previous.scope_source if same_task else 'inherited'
+        scope_source = previous.scope_source
     workspace_paths = current.workspace_paths
     if same_task and not workspace_paths and previous.workspace_paths:
         workspace_paths = previous.workspace_paths

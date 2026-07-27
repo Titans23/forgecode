@@ -13,6 +13,8 @@ from forge.runtime.router import (
     TurnDecision,
 )
 from forge.runtime.state import (
+    ModelTextDelta,
+    ModelUsageUpdate,
     TokenUsage,
     TurnCompleted,
     TurnResult,
@@ -27,6 +29,12 @@ class DummyClient:
     model = 'test-model'
     context_window = None
     max_tokens = 1_000
+
+    async def stream(self, messages, tools=None, system=None):
+        del messages, tools
+        yield ModelUsageUpdate(usage=TokenUsage(10, 0))
+        yield ModelTextDelta(text=f'模型读取到的当前任务上下文：{system}')
+        yield ModelUsageUpdate(usage=TokenUsage(10, 2))
 
 
 class TaskQueryRouter:
@@ -256,8 +264,8 @@ def test_persisted_stuck_task_status_query_survives_multiple_restarts(
         events = asyncio.run(collect())
         completed = events[-1]
         assert isinstance(completed, TurnCompleted)
-        assert completed.result.model_calls == 1
-        assert completed.result.usage == TokenUsage(5, 2)
+        assert completed.result.model_calls == 2
+        assert completed.result.usage == TokenUsage(15, 4)
         assert task.goal in completed.result.text
         assert conversation.task_manager.active == task
 

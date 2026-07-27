@@ -53,9 +53,11 @@ class FindFilesInput(ToolInput):
 class FindFilesTool(Tool[FindFilesInput]):
     name = 'find_files'
     description = (
-        'Find repository files by a glob pattern, excluding common generated '
-        'directories. Use a narrow path and pattern; avoid scanning **/* when '
-        'the target directory or extension is already known.'
+        'Find repository files (never directories) by a glob pattern, '
+        'excluding common generated directories. A zero result does not mean '
+        'the directory tree is empty; use list_directory for directories. Use '
+        'a narrow path and pattern, and do not vary extensions after a zero '
+        'result when the task is to remove or clear directories.'
     )
     input_model = FindFilesInput
 
@@ -77,8 +79,14 @@ class FindFilesTool(Tool[FindFilesInput]):
                     break
                 matches.append(relative)
 
+        summary = f'Found {len(matches)} matching files.'
+        if not matches:
+            summary += (
+                ' find_files does not return directories; use the existing '
+                'list_directory evidence for directory operations.'
+            )
         return ToolResult.ok(
-            f'Found {len(matches)} matching files.',
+            summary,
             content='\n'.join(matches),
             metadata={
                 'pattern': arguments.pattern,

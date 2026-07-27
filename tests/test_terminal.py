@@ -2,10 +2,15 @@
 
 from io import StringIO
 
+from prompt_toolkit.application import create_app_session
 from prompt_toolkit.completion import CompleteEvent
+from prompt_toolkit.input import create_pipe_input
+from prompt_toolkit.output import DummyOutput
 from prompt_toolkit.document import Document
 from rich.console import Console
+import forge.terminal as terminal_module
 
+from forge.permissions.policy import PermissionRequest
 from forge.runtime.state import (
     TokenUsage,
     ToolCall,
@@ -41,6 +46,139 @@ def terminal_with_output() -> tuple[TerminalUI, StringIO]:
         width=100,
     )
     return TerminalUI(console=console), output
+
+
+def test_delete_permission_prompt_is_concise_and_one_shot(
+    monkeypatch,
+) -> None:
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, width=100)
+    terminal = TerminalUI(
+        console=console,
+        prompt_session=FakePromptSession(''),
+    )
+    captured: dict[str, object] = {}
+
+    def fake_choice(**kwargs):
+        captured.update(kwargs)
+        return 'allow_once'
+
+    monkeypatch.setattr(terminal_module, 'choice', fake_choice)
+    response = terminal.select_permission(
+        PermissionRequest(
+            'apply_patch',
+            'file.delete',
+            'high',
+            ('play/a.txt', 'play/b.txt'),
+            'The patch deletes repository files.',
+            '{}',
+        )
+    )
+
+    rendered = output.getvalue()
+    assert response.choice == 'allow_once'
+    assert '删除文件' in rendered
+    assert '目标（2）' in rendered
+    assert 'play/a.txt' in rendered
+    assert '{}' not in rendered
+    assert '如何操作' in rendered
+    assert '直接按 Enter、Y 或 1：同意一次' in rendered
+    assert '按 N 或 Esc：拒绝' in rendered
+    assert captured['default'] == 'allow_once'
+    assert captured['options'] == [
+        ('allow_once', '1. 是，仅允许这一次'),
+        ('deny', '2. 否，停止本轮操作'),
+    ]
+
+
+def test_pressing_enter_accepts_default_one_shot_delete() -> None:
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, width=100)
+    terminal = TerminalUI(
+        console=console,
+        prompt_session=FakePromptSession(''),
+    )
+
+    with create_pipe_input() as pipe_input:
+        pipe_input.send_text('\r')
+        with create_app_session(
+            input=pipe_input,
+            output=DummyOutput(),
+        ):
+            response = terminal.select_permission(
+                PermissionRequest(
+                    'remove_directory',
+                    'file.delete',
+                    'high',
+                    ('play/src',),
+                )
+            )
+
+    assert response.choice == 'allow_once'
+
+
+def permission_choice_for_keys(keys: str) -> str:
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, width=100)
+    terminal = TerminalUI(
+        console=console,
+        prompt_session=FakePromptSession(''),
+    )
+    with create_pipe_input() as pipe_input:
+        pipe_input.send_text(keys)
+        with create_app_session(
+            input=pipe_input,
+            output=DummyOutput(),
+        ):
+            return terminal.select_permission(
+                PermissionRequest(
+                    'remove_directory',
+                    'file.delete',
+                    'high',
+                    ('play/src',),
+                )
+            ).choice
+
+
+def test_permission_keyboard_shortcuts_are_obvious_and_work() -> None:
+    assert permission_choice_for_keys('y') == 'allow_once'
+    assert permission_choice_for_keys('1') == 'allow_once'
+    assert permission_choice_for_keys('2') == 'allow_session'
+    assert permission_choice_for_keys('n') == 'deny'
+
+
+def test_single_target_delete_can_be_allowed_for_session(
+    monkeypatch,
+) -> None:
+    output = StringIO()
+    console = Console(file=output, force_terminal=True, width=100)
+    terminal = TerminalUI(
+        console=console,
+        prompt_session=FakePromptSession(''),
+    )
+    captured: dict[str, object] = {}
+
+    def fake_choice(**kwargs):
+        captured.update(kwargs)
+        return 'allow_session'
+
+    monkeypatch.setattr(terminal_module, 'choice', fake_choice)
+    response = terminal.select_permission(
+        PermissionRequest(
+            'remove_directory',
+            'file.delete',
+            'high',
+            ('play/src',),
+        )
+    )
+
+    assert response.choice == 'allow_session'
+    assert captured['default'] == 'allow_once'
+    assert captured['options'] == [
+        ('allow_once', '1. 是，仅允许这一次'),
+        ('allow_session', '2. 是，本会话不再询问此目标'),
+        ('deny', '3. 否，停止本轮操作'),
+    ]
 
 
 def test_terminal_preserves_multiline_prompt_from_interactive_session() -> None:

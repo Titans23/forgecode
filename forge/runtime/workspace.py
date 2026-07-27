@@ -189,7 +189,23 @@ def fingerprint_path(root: Path, relative_path: str) -> str:
     if not path.exists():
         return 'missing'
     if path.is_dir():
-        return 'directory'
+        digest = sha256()
+        for current, directories, files in os.walk(path, followlinks=False):
+            current_path = Path(current)
+            relative = current_path.relative_to(path)
+            for name in sorted(directories):
+                child = current_path / name
+                kind = 'link' if child.is_symlink() else 'directory'
+                digest.update(
+                    f'{kind}:{(relative / name).as_posix()}\0'.encode()
+                )
+            for name in sorted(files):
+                child = current_path / name
+                kind = 'link' if child.is_symlink() else 'file'
+                digest.update(
+                    f'{kind}:{(relative / name).as_posix()}\0'.encode()
+                )
+        return f'directory:{digest.hexdigest()}'
     digest = sha256()
     with path.open('rb') as file:
         for chunk in iter(lambda: file.read(1024 * 1024), b''):

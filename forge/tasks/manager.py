@@ -13,7 +13,6 @@ from forge.tasks.state import (
     ScopeSource,
     StepStatus,
     TaskStep,
-    has_anaphoric_reference,
 )
 from forge.tasks.store import TaskStore
 
@@ -33,30 +32,12 @@ class TaskManager:
         *,
         requires_change: bool = False,
     ) -> ActiveTask:
-        if (
-            self.active is not None
-            and (
-                is_continuation_directive(goal)
-                or (
-                    self.active.status in {'blocked', 'stuck'}
-                    and is_change_followup_directive(goal)
-                )
-                or (
-                    self.active.status == 'completed'
-                    and self.active.requires_change
-                    and is_change_followup_directive(goal)
-                )
-            )
-        ):
-            return self._continue_active(goal, requires_change=requires_change)
-        previous_goal = self.active.goal if self.active is not None else ''
-        resolved_goal = resolve_anaphoric_goal(goal, previous_goal)
-        inherited_scope = resolved_goal != goal
-        return self.start(
-            resolved_goal,
-            requires_change=requires_change,
-            scope_source='inherited' if inherited_scope else None,
-        )
+        '''Start a task when no semantic router is provided.
+
+        Continuation is an explicit router decision handled by
+        continue_active; this method does not infer it from keywords.
+        '''
+        return self.start(goal, requires_change=requires_change)
 
     def _continue_active(
         self,
@@ -105,8 +86,6 @@ class TaskManager:
             if scope_source is not None
             else 'explicit'
             if scope_hints
-            else 'unresolved'
-            if has_anaphoric_reference(clean_goal)
             else 'repository'
         )
         self.active = ActiveTask(
@@ -470,43 +449,6 @@ def infer_goal_scope(goal: str) -> tuple[str, ...]:
         if path and path not in {'.', '..'}:
             return (f'{path}/**',)
     return ()
-
-
-def resolve_anaphoric_goal(goal: str, previous_goal: str) -> str:
-    '''Resolve “inside it” against the immediately preceding task goal.'''
-    if not has_anaphoric_reference(goal):
-        return goal
-    previous_scope = infer_goal_scope(previous_goal)
-    if not previous_scope:
-        return goal
-    directory = previous_scope[0][:-3].rstrip('/')
-    return f'在 {directory} 目录下：{goal.strip()}'
-
-
-def is_continuation_directive(goal: str) -> bool:
-    '''Recognize explicit follow-ups whose meaning depends on the previous task.'''
-    text = goal.strip().lstrip('\ufeff')
-    return bool(
-        re.match(
-            r'(?i)^(?:继续|接着|接下来|然后|按(?:照)?(?:刚才|上面|之前)|'
-            r'continue\b|proceed\b|resume\b|keep\s+going\b)',
-            text,
-        )
-    )
-
-
-def is_change_followup_directive(goal: str) -> bool:
-    '''Recognize constraints and approvals that extend a completed change task.'''
-    text = goal.strip().lstrip('\ufeff')
-    return bool(
-        re.match(
-            r'^(?:(?:你直接|直接)?帮我(?:继续)?(?:修复|解决|完成|实现)|'
-            r'要求|需要|还要|同时|另外|并且|按(?:照)?顺序|'
-            r'就按(?:这个|上述|上面|刚才|顺序)|'
-            r'可以(?:直接)?开始(?:工作)?(?:了|吧)?|开始(?:工作)?(?:吧)?)',
-            text,
-        )
-    )
 
 
 def normalize_task_path(path: str) -> str:

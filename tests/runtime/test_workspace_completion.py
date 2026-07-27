@@ -11,50 +11,10 @@ from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
     matches_any,
-    verification_command_runs_full_suite,
 )
 from forge.runtime.state import ToolCall, VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
-from forge.tools.filesystem import CreateDirectoryTool
-
-
-def test_full_suite_command_rejects_focused_pytest_invocations() -> None:
-    assert verification_command_runs_full_suite('uv run pytest -q') is True
-    assert verification_command_runs_full_suite('pytest') is True
-    assert verification_command_runs_full_suite(
-        'python -m pytest -q'
-    ) is True
-    assert verification_command_runs_full_suite(
-        'uv run pytest -q tests/runtime/test_agent_loop.py'
-    ) is False
-    assert verification_command_runs_full_suite(
-        'uv run pytest -q -k permission'
-    ) is False
-    assert verification_command_runs_full_suite(
-        'python -m pytest --version'
-    ) is False
-
-
-def initialize_git_repository(root: Path) -> None:
-    subprocess.run(['git', 'init', '--quiet'], cwd=root, check=True)
-    subprocess.run(
-        ['git', 'config', 'user.email', 'forge@example.test'],
-        cwd=root,
-        check=True,
-    )
-    subprocess.run(
-        ['git', 'config', 'user.name', 'ForgeCode Tests'],
-        cwd=root,
-        check=True,
-    )
-    (root / 'sample.txt').write_text('old\n', encoding='utf-8')
-    (root / 'user.txt').write_text('baseline\n', encoding='utf-8')
-    subprocess.run(['git', 'add', '.'], cwd=root, check=True)
-    subprocess.run(
-        ['git', 'commit', '--quiet', '-m', 'baseline'],
-        cwd=root,
-        check=True,
-    )
+from forge.tools.filesystem import CreateDirectoryTool, RemoveDirectoryTool
 
 
 def test_workspace_tracker_imports_in_fresh_process() -> None:
@@ -79,6 +39,65 @@ def test_workspace_tracker_imports_in_fresh_process() -> None:
 
 def run(coroutine: object) -> Any:
     return asyncio.run(coroutine)  # type: ignore[arg-type]
+
+
+def initialize_git_repository(root: Path) -> None:
+    subprocess.run(['git', 'init', '--quiet'], cwd=root, check=True)
+    subprocess.run(
+        ['git', 'config', 'user.email', 'forge@example.test'],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(
+        ['git', 'config', 'user.name', 'ForgeCode Tests'],
+        cwd=root,
+        check=True,
+    )
+    (root / 'sample.txt').write_text('old\n', encoding='utf-8')
+    subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+    subprocess.run(
+        ['git', 'commit', '--quiet', '-m', 'baseline'],
+        cwd=root,
+        check=True,
+    )
+
+
+def test_empty_directory_tree_cleanup_is_visible_to_workspace_tracker(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    play = tmp_path / 'play'
+    (play / 'src' / 'modules').mkdir(parents=True)
+    (play / '.tmp').mkdir()
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    tracker.watch_paths(('play',))
+
+    result = run(
+        RemoveDirectoryTool(tmp_path).run(
+            {
+                'path': 'play',
+                'recursive': True,
+                'contents_only': True,
+            }
+        )
+    )
+    change = run(tracker.refresh())
+    decision = run(
+        CompletionGate(tmp_path).evaluate(
+            tracker,
+            None,
+            mutation_attempted=True,
+        )
+    )
+
+    assert result.success is True
+    assert change is not None
+    assert change.paths == ('play',)
+    assert tracker.changed_paths == ('play',)
+    assert play.is_dir()
+    assert list(play.iterdir()) == []
+    assert decision.allowed is True
 
 
 def test_create_directory_is_visible_to_completion_gate(tmp_path: Path) -> None:

@@ -197,6 +197,16 @@ class PermissionManager:
                 'approval_unavailable',
             )
         response = await self.approval_handler(request)
+        # Remembered delete grants must never broaden into file.delete:*.
+        # Every distinct destructive operation requires a fresh confirmation.
+        if request.capability == 'file.delete' and (
+            response.choice == 'allow_project'
+            or (
+                response.choice == 'allow_session'
+                and len(request.targets) != 1
+            )
+        ):
+            response = ApprovalResponse('allow_once', response.reason)
         if response.choice == 'allow_session':
             self.session_rules.append(
                 PermissionRule(

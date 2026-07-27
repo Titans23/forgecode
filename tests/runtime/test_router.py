@@ -56,14 +56,14 @@ def decision_json(
     relation: str,
     requires_change: bool,
     confidence: float = 0.98,
-    allows_deletion: bool = False,
+    requires_verification: bool = False,
 ) -> str:
     return json.dumps(
         {
             'intent': intent,
             'task_relation': relation,
             'requires_workspace_change': requires_change,
-            'allows_deletion': allows_deletion,
+            'requires_verification': requires_verification,
             'confidence': confidence,
             'reason': 'semantic classification',
         }
@@ -128,22 +128,19 @@ def test_router_limits_context_and_keeps_it_out_of_system_prompt() -> None:
     assert 'untrusted context' in call['system']
 
 
-def test_router_carries_explicit_deletion_authority() -> None:
-    prompt = '帮我对play目录进行优化一下，里面是不是有些文件没用可以删除了'
-    client = FakeRouterClient(
-        decision_json(
-            'change_task',
-            'new',
-            True,
-            allows_deletion=True,
-        )
+def test_router_carries_verification_contract_and_raw_diagnostics() -> None:
+    response = decision_json(
+        'change_task',
+        'new',
+        True,
+        requires_verification=True,
     )
-
-    result = route(ModelIntentRouter(client), prompt)
+    result = route(ModelIntentRouter(FakeRouterClient(response)), '实现并详细测试')
 
     assert result.decision.intent == 'change_task'
-    assert result.decision.allows_deletion is True
-    assert 'allows_deletion' in ROUTER_SYSTEM_PROMPT
+    assert result.decision.requires_verification is True
+    assert result.raw_response == response
+    assert 'requires_verification' in ROUTER_SYSTEM_PROMPT
 
 
 @pytest.mark.parametrize(
@@ -154,7 +151,6 @@ def test_router_carries_explicit_deletion_authority() -> None:
         '{}',
         decision_json('task_query', 'active', True),
         decision_json('change_task', 'new', False),
-        decision_json('read_only', 'none', False, allows_deletion=True),
     ],
 )
 def test_invalid_router_output_fails_closed(response: str) -> None:

@@ -283,38 +283,84 @@ class TerminalUI:
                 'deny',
                 'Interactive approval is unavailable.',
             )
-        target = ', '.join(request.targets) or 'repository'
+        target_lines = list(request.targets[:8]) or ['当前仓库']
+        if len(request.targets) > 8:
+            target_lines.append(f'… 还有 {len(request.targets) - 8} 个目标')
+        risk_labels = {
+            'low': '低',
+            'medium': '中',
+            'high': '高',
+            'critical': '严重',
+        }
+        action_labels = {
+            'file.delete': '删除文件',
+            'file.write': '修改文件',
+            'process.exec': '运行命令',
+            'dependency.install': '安装依赖',
+            'network.access': '访问网络',
+        }
+        detail = request.preview.strip()
+        if detail in {'', '{}'}:
+            detail = request.reason or '该操作需要你的明确授权。'
+        raw_values = [('allow_once', '是，仅允许这一次')]
+        if request.capability == 'file.delete':
+            if len(request.targets) == 1:
+                raw_values.append(
+                    ('allow_session', '是，本会话不再询问此目标')
+                )
+        else:
+            raw_values.extend(
+                [
+                    ('allow_session', '本会话允许相同范围'),
+                    ('allow_project', '当前项目记住相同范围'),
+                ]
+            )
+        raw_values.append(('deny', '否，停止本轮操作'))
+        values = [
+            (identifier, f'{index}. {label}')
+            for index, (identifier, label) in enumerate(raw_values, start=1)
+        ]
+        option_help = '\n'.join(f'  {label}' for _, label in values)
+        targets = '\n'.join(f'  • {value}' for value in target_lines)
         self.console.print(
             Panel.fit(
-                f'[bold]{escape(request.tool_name)}[/bold]\n'
-                f'capability: {escape(request.capability)}\n'
-                f'target: {escape(target)}\n'
-                f'risk: {escape(request.risk)}\n'
-                f'{escape(request.preview)}',
-                title='Permission required',
+                f'[bold]{escape(action_labels.get(request.capability, request.tool_name))}[/bold]'
+                f'  风险：{escape(risk_labels.get(request.risk, request.risk))}\n'
+                f'目标（{max(1, len(request.targets))}）：\n{escape(targets)}\n\n'
+                f'{escape(detail)}\n\n'
+                f'[bold]如何操作[/bold]\n{escape(option_help)}\n\n'
+                f'[bold green]直接按 Enter、Y 或 1：同意一次[/bold green]\n'
+                f'按 ↑/↓ 后 Enter，或按对应数字：选择其他项\n'
+                f'按 N 或 Esc：拒绝',
+                title='需要你的确认',
                 border_style='yellow',
             )
         )
-        values = [
-            ('allow_once', '允许一次'),
-            ('allow_session', '本会话允许'),
-            ('allow_project', '当前项目允许'),
-            ('deny', '拒绝'),
-        ]
         bindings = KeyBindings()
 
-        @bindings.add('escape')
-        def cancel(event: Any) -> None:
-            event.app.exit(result='deny')
+        def exit_with(result: str):
+            def handler(event: Any) -> None:
+                event.app.exit(result=result)
+
+            return handler
+
+        for number, (identifier, _) in enumerate(values, start=1):
+            bindings.add(
+                str(number),
+                eager=True,
+            )(exit_with(identifier))
+        bindings.add('y', eager=True)(exit_with('allow_once'))
+        bindings.add('n', eager=True)(exit_with('deny'))
+        bindings.add('escape', eager=True)(exit_with('deny'))
 
         try:
             selected = choice(
-                message='选择权限操作',
+                message='是否允许？直接按 Enter 即同意一次',
                 options=values,
-                default='deny',
+                default='allow_once',
                 show_frame=False,
                 key_bindings=bindings,
-                bottom_toolbar='↑/↓ 选择  Enter 确认  Esc 拒绝',
+                bottom_toolbar='Enter/Y/1 同意一次  数字选择  N/Esc 拒绝',
             )
         except KeyboardInterrupt:
             selected = 'deny'

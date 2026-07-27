@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-import re
 from typing import Any, Literal
 
 
@@ -16,18 +15,6 @@ ScopeSource = Literal[
     'planned',
     'unresolved',
 ]
-
-
-def has_anaphoric_reference(goal: str) -> bool:
-    '''Recognize references whose repository scope depends on prior context.'''
-    return bool(
-        re.search(
-            r'(?i)(?:里面|其中|将其|对其|把它|该目录|这个目录|这个项目|'
-            r'当前项目|上述项目|刚才的项目|前面的实现|现有游戏|那里|'
-            r'\bthere\b|\bit\b)',
-            goal,
-        )
-    )
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,7 +20,12 @@ INSTALL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 DELETE_PATTERN = re.compile(
-    r'\b(?:rm|rmdir|del|erase|Remove-Item|git\s+clean)\b',
+    r'\b(?:rm|rmdir|del|erase|Remove-Item|git\s+clean)\b'
+    r'|\bos\.(?:remove|unlink|rmdir)\s*\('
+    r'|\bshutil\.rmtree\s*\('
+    r'|\b(?:fs\.)?(?:unlink|rm|rmdir)(?:Sync)?\s*\('
+    r'|\.unlink\s*\('
+    r'|\.rmdir\s*\(',
     re.IGNORECASE,
 )
 PRIVILEGE_PATTERN = re.compile(
@@ -62,6 +67,21 @@ def classify_tool_call(tool_call: ToolCall, effect: str | None) -> PermissionReq
     if effect == 'process':
         return _classify_process(tool_call, targets)
     if effect == 'workspace_write':
+        if (
+            tool_call.name == 'remove_directory'
+            or (
+                tool_call.name == 'apply_patch'
+                and _patch_deletes_content(tool_call.arguments.get('patch'))
+            )
+        ):
+            return PermissionRequest(
+                tool_call.name,
+                'file.delete',
+                'high',
+                targets,
+                'The patch deletes repository files.',
+                _preview(tool_call),
+            )
         return PermissionRequest(
             tool_call.name,
             'file.write',
@@ -85,52 +105,55 @@ def _classify_process(
     targets: tuple[str, ...],
 ) -> PermissionRequest:
     command = str(tool_call.arguments.get('command', ''))
-    if PRIVILEGE_PATTERN.search(command):
+    stdin = str(tool_call.arguments.get('stdin', ''))
+    process_input = f'{command}\n{stdin}'
+    preview = process_input[:500]
+    if PRIVILEGE_PATTERN.search(process_input):
         return PermissionRequest(
             tool_call.name,
             'process.privileged',
             'critical',
             targets,
             'Privilege escalation commands are forbidden.',
-            command[:500],
+            preview,
             hard_deny=True,
         )
-    if DESTRUCTIVE_PATTERN.search(command):
+    if DESTRUCTIVE_PATTERN.search(process_input):
         return PermissionRequest(
             tool_call.name,
             'file.delete',
             'critical',
             targets,
             'The command can discard repository or filesystem state.',
-            command[:500],
+            preview,
             hard_deny=True,
         )
-    if DELETE_PATTERN.search(command):
+    if DELETE_PATTERN.search(process_input):
         return PermissionRequest(
             tool_call.name,
             'file.delete',
             'high',
             targets,
             'The command deletes files.',
-            command[:500],
+            preview,
         )
-    if INSTALL_PATTERN.search(command):
+    if INSTALL_PATTERN.search(process_input):
         return PermissionRequest(
             tool_call.name,
             'dependency.install',
             'high',
             targets,
             'The command installs or updates dependencies.',
-            command[:500],
+            preview,
         )
-    if NETWORK_PATTERN.search(command):
+    if NETWORK_PATTERN.search(process_input):
         return PermissionRequest(
             tool_call.name,
             'network.access',
             'high',
             targets,
             'The command accesses a network or remote repository.',
-            command[:500],
+            preview,
         )
     return PermissionRequest(
         tool_call.name,
@@ -138,7 +161,17 @@ def _classify_process(
         'low',
         targets,
         'Local repository command.',
-        command[:500],
+        preview,
+    )
+
+
+def _patch_deletes_content(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    return bool(
+        re.search(r'^\*\*\* Delete File:', value, re.MULTILINE)
+        or re.search(r'^\+\+\+\s+/dev/null(?:\s|$)', value, re.MULTILINE)
+        or re.search(r'^deleted file mode\s+', value, re.MULTILINE)
     )
 
 

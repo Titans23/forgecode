@@ -50,7 +50,7 @@ def test_complex_plan_persists_updates_and_resumes(tmp_path: Path) -> None:
     assert resumed.current_step_id == 'step-2'
     assert 'Fix UVs' in restarted.system_suffix()
 
-    continued = restarted.begin_turn('Continue from the saved task')
+    continued = restarted.continue_active('Continue from the saved task')
     following = restarted.begin_turn('Start a separate task')
 
     assert continued.id == planned.id
@@ -96,7 +96,7 @@ def test_explicit_continue_after_restore_keeps_original_task(
 
     manager = TaskManager(tmp_path)
     manager.restore(restored_state)
-    continued = manager.begin_turn('继续')
+    continued = manager.continue_active('继续')
 
     assert continued.id == original.id
     assert continued.goal == original.goal
@@ -143,7 +143,7 @@ def test_followup_after_stuck_keeps_root_goal_and_latest_directive(
     original = manager.start('Fix the rendering bug in play/js/world.js')
     manager.stuck(('Repeated actions did not make progress.',))
 
-    continued = manager.begin_turn('你直接帮我修复')
+    continued = manager.continue_active('你直接帮我修复')
 
     assert continued.id == original.id
     assert continued.goal == original.goal
@@ -151,60 +151,6 @@ def test_followup_after_stuck_keeps_root_goal_and_latest_directive(
     suffix = manager.system_suffix()
     assert original.goal in suffix
     assert '你直接帮我修复' in suffix
-
-
-def test_new_anaphoric_task_resolves_previous_directory_scope(
-    tmp_path: Path,
-) -> None:
-    manager = TaskManager(tmp_path)
-    visibility = manager.start('能看到play目录吗')
-    manager.complete()
-
-    game = manager.begin_turn('帮我在里面写一个高级版本的雷霆战机')
-
-    assert game.id != visibility.id
-    assert game.goal == (
-        '在 play 目录下：帮我在里面写一个高级版本的雷霆战机'
-    )
-    assert game.scope_hints == ('play/**',)
-
-
-@pytest.mark.parametrize(
-    'directive',
-    [
-        '帮我将其工程化，并升级为超级复杂的植物大战僵尸',
-        '把它升级为企业级版本',
-    ],
-)
-def test_anaphoric_project_reference_inherits_previous_directory_scope(
-    tmp_path: Path,
-    directive: str,
-) -> None:
-    manager = TaskManager(tmp_path)
-    previous = manager.start('详细介绍 play 目录中的内容')
-    manager.complete()
-
-    task = manager.begin_turn(directive, requires_change=True)
-
-    assert task.id != previous.id
-    assert task.scope_hints == ('play/**',)
-    assert task.scope_source == 'inherited'
-    assert task.goal.startswith('在 play 目录下：')
-    assert manager.outside_scope(('play/src/game.js',)) == ()
-    assert manager.outside_scope(('scratch.txt',)) == ('scratch.txt',)
-
-
-def test_unresolved_anaphoric_scope_fails_closed(tmp_path: Path) -> None:
-    manager = TaskManager(tmp_path)
-
-    task = manager.start('帮我将其升级为复杂版本', requires_change=True)
-
-    assert task.scope_hints == ()
-    assert task.scope_source == 'unresolved'
-    assert manager.outside_scope(('scratch.txt', 'play/game.js')) == (
-        'scratch.txt',
-        'play/game.js',
-    )
 
 
 def test_plan_without_scope_keeps_inferred_scope(tmp_path: Path) -> None:
@@ -225,7 +171,7 @@ def test_continuation_after_completed_keeps_goal_and_inferred_scope(
     manager.observe_mutation_paths(('play/src/core/.gitkeep',))
     manager.complete()
 
-    continued = manager.begin_turn('继续，允许你执行文件写入')
+    continued = manager.continue_active('继续，允许你执行文件写入')
 
     assert continued.id == original.id
     assert continued.goal == original.goal
@@ -276,7 +222,7 @@ def test_change_followup_keeps_goal_and_change_contract(
     )
     manager.complete()
 
-    continued = manager.begin_turn(directive)
+    continued = manager.continue_active(directive)
 
     assert continued.id == original.id
     assert continued.goal == original.goal

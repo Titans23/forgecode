@@ -147,6 +147,32 @@ def test_remove_directory_handles_empty_and_recursive_cleanup(
     assert not (tmp_path / 'play' / '.tmp').exists()
 
 
+def test_remove_directory_can_clear_contents_and_keep_root(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'play'
+    nested = root / 'src' / 'modules'
+    nested.mkdir(parents=True)
+    (root / '.tmp').mkdir()
+    (nested / 'app.js').write_text('export {};\n', encoding='utf-8')
+
+    result = run(
+        RemoveDirectoryTool(tmp_path).run(
+            {
+                'path': 'play',
+                'recursive': True,
+                'contents_only': True,
+            }
+        )
+    )
+
+    assert result.success is True
+    assert result.metadata['contents_only'] is True
+    assert result.metadata['removed_entries'] == 4
+    assert root.is_dir()
+    assert list(root.iterdir()) == []
+
+
 def test_remove_directory_rejects_repository_root_and_control_plane(
     tmp_path: Path,
 ) -> None:
@@ -258,6 +284,7 @@ def test_read_file_directory_error_recommends_list_directory(
     assert result.error is not None
     assert result.error.code == 'not_a_file'
     assert result.error.details['recommended_tool'] == 'list_directory'
+    assert 'remove_directory' in result.error.details['recovery']
 
 
 def test_read_file_supports_inclusive_line_ranges(tmp_path: Path) -> None:
@@ -654,6 +681,23 @@ def test_find_files_uses_globs_and_ignores_generated_directories(
     assert result.success is True
     assert result.content == 'src/app.py'
     assert result.metadata['truncated'] is False
+
+
+def test_find_files_zero_result_explains_directories_are_excluded(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / 'play' / 'src' / 'modules').mkdir(parents=True)
+
+    result = run(
+        FindFilesTool(tmp_path).run(
+            {'path': 'play', 'pattern': '*'}
+        )
+    )
+
+    assert result.success is True
+    assert result.content == ''
+    assert 'does not return directories' in result.summary
+    assert 'list_directory' in result.summary
 
 
 def test_find_files_hides_control_and_environment_paths(

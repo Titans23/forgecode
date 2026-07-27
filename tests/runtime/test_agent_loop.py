@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import AsyncIterator
 import json
 from pathlib import Path
+import subprocess
 from typing import Any
 
 import pytest
@@ -12,15 +13,17 @@ from unittest.mock import AsyncMock
 
 from forge.context.compactor import CompactionConfig
 from forge.permissions.approval import StaticApprovalHandler
-from forge.permissions.policy import PermissionManager, PermissionRequest
+from forge.permissions.policy import (
+    ApprovalResponse,
+    PermissionManager,
+    PermissionRequest,
+)
+from forge.permissions.risk import classify_tool_call
 from forge.runtime.agent_loop import (
     Conversation,
     ModelResponseError,
-    build_verification_plateau_feedback,
     is_tool_protocol_failure,
     load_system_prompt,
-    verification_failure_family_matches,
-    verification_failure_fingerprint_from_result,
 )
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import (
@@ -45,7 +48,11 @@ from forge.runtime.state import (
     TurnResult,
     ToolCall,
 )
+from forge.tools import create_default_registry
 from forge.tools.base import Tool, ToolInput, ToolRegistry, ToolResult
+from forge.tools.finish import FinishTaskTool
+from forge.tools.shell import RunCommandTool
+from forge.runtime.workspace import WorkspaceTracker
 from forge.tools.filesystem import ReadFileTool
 from forge.tools.search import GrepTool
 from forge.tasks.state import ActiveTask
@@ -291,6 +298,322 @@ def test_permission_modes_and_hard_denies(tmp_path: Path) -> None:
     assert asyncio.run(manager.authorize(secret)).source == 'hard_deny'
 
 
+def test_python_stdin_delete_requires_high_risk_approval() -> None:
+    request = classify_tool_call(
+        ToolCall(
+            index=0,
+            id='python-delete',
+            name='run_command',
+            arguments={
+                'command': 'python -',
+                'stdin': "import os\nos.remove('play/a.txt')",
+            },
+        ),
+        'process',
+    )
+
+    assert request.capability == 'file.delete'
+    assert request.risk == 'high'
+    assert "os.remove('play/a.txt')" in request.preview
+
+
+def test_delete_approval_is_never_persisted_as_wildcard(
+    tmp_path: Path,
+) -> None:
+    manager = PermissionManager(
+        tmp_path,
+        mode='supervised',
+        approval_handler=StaticApprovalHandler('allow_project'),
+        user_path=tmp_path / 'user-permissions.json',
+    )
+    request = PermissionRequest(
+        'apply_patch',
+        'file.delete',
+        'high',
+        ('play/a.txt', 'play/b.txt'),
+    )
+
+    decision = asyncio.run(manager.authorize(request))
+
+    assert decision.action == 'allow'
+    assert manager.project_rules == []
+    assert not manager.project_path.exists()
+
+
+def _init_test_repository(root: Path) -> None:
+    subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+    subprocess.run(
+        ['git', 'config', 'user.email', 'forge-tests@example.invalid'],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(
+        ['git', 'config', 'user.name', 'Forge Tests'],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+    subprocess.run(
+        ['git', 'commit', '-qm', 'baseline'],
+        cwd=root,
+        check=True,
+    )
+
+
+class RecordingApprovalHandler:
+    def __init__(self) -> None:
+        self.requests: list[PermissionRequest] = []
+
+    async def __call__(self, request: PermissionRequest) -> ApprovalResponse:
+        self.requests.append(request)
+        return ApprovalResponse('allow_once')
+
+
+def test_identical_successful_delete_is_not_prompted_or_executed_twice(
+    tmp_path: Path,
+) -> None:
+    play = tmp_path / 'play'
+    play.mkdir()
+    (play / '.touch').write_text('x', encoding='utf-8')
+    (play / 'keep.txt').write_text('keep', encoding='utf-8')
+    _init_test_repository(tmp_path)
+
+    delete_patch = (
+        '*** Begin Patch\n'
+        '*** Delete File: play/.touch\n'
+        '*** End Patch'
+    )
+    first = ToolCall(
+        index=0,
+        id='delete-first',
+        name='apply_patch',
+        arguments={'patch': delete_patch},
+    )
+    repeated = ToolCall(
+        index=1,
+        id='delete-repeat',
+        name='apply_patch',
+        arguments={'patch': delete_patch},
+    )
+    clear_remaining = ToolCall(
+        index=0,
+        id='clear-remaining',
+        name='run_command',
+        arguments={
+            'command': 'python -',
+            'stdin': "from pathlib import Path\nPath('play/keep.txt').unlink()\n",
+        },
+    )
+    finish = ToolCall(
+        index=0,
+        id='finish-delete',
+        name='finish_task',
+        arguments={
+            'task_kind': 'change',
+            'status': 'completed',
+            'summary': 'Deleted the requested marker.',
+            'blocked_reasons': [],
+        },
+    )
+    approvals = RecordingApprovalHandler()
+    registry = create_default_registry(tmp_path)
+    conversation = Conversation(
+        client=FakeModelClient(
+            tool_response(first, repeated),
+            tool_response(clear_remaining),
+            tool_response(finish),
+        ),
+        registry=registry,
+        permission_manager=PermissionManager(
+            tmp_path,
+            approval_handler=approvals,
+            user_path=tmp_path / 'user-permissions.json',
+        ),
+        intent_router=StaticIntentRouter(
+            routed('change_task', relation='none', requires_change=True)
+        ),
+    )
+
+    events = collect_turn(conversation, '删除 play/.touch')
+
+    completed = [
+        event for event in events if isinstance(event, ToolExecutionCompleted)
+    ]
+    assert len(approvals.requests) == 2
+    assert [item.capability for item in approvals.requests] == [
+        'file.delete',
+        'file.delete',
+    ]
+    assert completed[0].result.success is True
+    assert completed[1].result.success is True
+    assert completed[1].result.metadata['status'] == 'already_completed'
+    assert not (play / '.touch').exists()
+    assert not (play / 'keep.txt').exists()
+    assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'completed', [
+        getattr(event, 'reasons')
+        for event in events
+        if getattr(event, 'reasons', None)
+    ]
+
+
+def test_agent_clears_empty_directory_tree_without_stagnation(
+    tmp_path: Path,
+) -> None:
+    play = tmp_path / 'play'
+    (play / '.keep').mkdir(parents=True)
+    (play / '.tmp').mkdir()
+    (play / 'src' / 'assets').mkdir(parents=True)
+    (play / 'src' / 'modules').mkdir()
+    (play / 'tests').mkdir()
+    (tmp_path / 'README.md').write_text('baseline\n', encoding='utf-8')
+    _init_test_repository(tmp_path)
+
+    clear = ToolCall(
+        index=0,
+        id='clear-play-contents',
+        name='remove_directory',
+        arguments={
+            'path': 'play',
+            'recursive': True,
+            'contents_only': True,
+        },
+    )
+    finish = ToolCall(
+        index=0,
+        id='finish-clear-play',
+        name='finish_task',
+        arguments={
+            'task_kind': 'change',
+            'status': 'completed',
+            'summary': 'Cleared the play directory contents.',
+            'blocked_reasons': [],
+        },
+    )
+    approvals = RecordingApprovalHandler()
+    registry = create_default_registry(tmp_path)
+    conversation = Conversation(
+        client=FakeModelClient(
+            tool_response(clear),
+            tool_response(finish),
+        ),
+        registry=registry,
+        permission_manager=PermissionManager(
+            tmp_path,
+            approval_handler=approvals,
+            user_path=tmp_path / 'user-permissions.json',
+        ),
+        intent_router=StaticIntentRouter(
+            routed('change_task', relation='none', requires_change=True)
+        ),
+    )
+
+    events = collect_turn(conversation, '帮我清空 play 里面的内容')
+
+    assert [item.capability for item in approvals.requests] == ['file.delete']
+    assert play.is_dir()
+    assert list(play.iterdir()) == []
+    assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'completed'
+    assert events[-1].result.changed_paths == ('play',)
+    assert 'without a workspace change' not in events[-1].result.text
+
+
+def test_process_workspace_change_clears_prior_edit_failure(
+    tmp_path: Path,
+) -> None:
+    play = tmp_path / 'play'
+    play.mkdir()
+    (play / 'old.txt').write_text('old', encoding='utf-8')
+    _init_test_repository(tmp_path)
+
+    failed = ToolCall(
+        index=0,
+        id='failed-edit',
+        name='failing_write',
+        arguments={'path': 'play/missing.txt'},
+    )
+    process = ToolCall(
+        index=0,
+        id='process-delete',
+        name='run_command',
+        arguments={
+            'command': 'python -',
+            'stdin': "from pathlib import Path\nPath('play/old.txt').unlink()\n",
+        },
+    )
+    finish = ToolCall(
+        index=0,
+        id='finish-process',
+        name='finish_task',
+        arguments={
+            'task_kind': 'change',
+            'status': 'completed',
+            'summary': 'Cleared the remaining file.',
+            'blocked_reasons': [],
+        },
+    )
+    approvals = RecordingApprovalHandler()
+    tracker = WorkspaceTracker(tmp_path)
+    registry = ToolRegistry(
+        [
+            FailingWriteTool(tmp_path),
+            RunCommandTool(tmp_path),
+            FinishTaskTool(tmp_path),
+        ],
+        workspace_tracker=tracker,
+    )
+    conversation = Conversation(
+        client=FakeModelClient(
+            tool_response(failed),
+            tool_response(process),
+            tool_response(finish),
+        ),
+        registry=registry,
+        permission_manager=PermissionManager(
+            tmp_path,
+            approval_handler=approvals,
+            user_path=tmp_path / 'user-permissions.json',
+        ),
+        intent_router=StaticIntentRouter(
+            routed('change_task', relation='none', requires_change=True)
+        ),
+    )
+
+    events = collect_turn(conversation, '清空 play 目录')
+
+    assert not (play / 'old.txt').exists()
+    assert [item.capability for item in approvals.requests] == ['file.delete']
+    assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'completed'
+
+
+def test_single_target_delete_can_be_allowed_for_session_rule(
+    tmp_path: Path,
+) -> None:
+    manager = PermissionManager(
+        tmp_path,
+        mode='supervised',
+        approval_handler=StaticApprovalHandler('allow_session'),
+        user_path=tmp_path / 'user-permissions.json',
+    )
+    request = PermissionRequest(
+        'remove_directory',
+        'file.delete',
+        'high',
+        ('play/src',),
+    )
+
+    first = asyncio.run(manager.authorize(request))
+    manager.approval_handler = None
+    second = asyncio.run(manager.authorize(request))
+
+    assert first.action == 'allow'
+    assert second.action == 'allow'
+    assert second.source == 'session'
+    assert manager.session_rules[0].target == 'play/src'
+
+
 def test_supervised_permission_can_be_allowed_for_session(
     tmp_path: Path,
 ) -> None:
@@ -340,8 +663,7 @@ def test_plan_mode_hides_effectful_tools_and_explains_mode(
     assert '/permission supervised' in client.calls[0]['system']
     assert isinstance(events[-1], TurnCompleted)
     assert events[-1].result.status == 'completed'
-    assert conversation.task_manager.active is not None
-    assert conversation.task_manager.active.requires_change is True
+    assert conversation.task_manager.active is None
 
 
 def test_permission_denial_stops_turn_without_model_recovery(
@@ -379,22 +701,20 @@ def test_permission_denial_stops_turn_without_model_recovery(
     assert '/permission supervised' in events[-1].result.text
 
 
-def test_orphan_continuation_returns_guidance_without_calling_model() -> None:
-    client = FakeModelClient()
+def test_orphan_continuation_is_answered_by_the_model() -> None:
+    client = FakeModelClient(streamed_response('请告诉我需要继续哪项工作。'))
     conversation = Conversation(client=client)
 
     events = collect_turn(conversation, '继续')
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
-    assert completed.result.model_calls == 0
-    assert '没有可继续的历史任务' in completed.result.text
-    assert client.calls == []
+    assert completed.result.text == '请告诉我需要继续哪项工作。'
+    assert len(client.calls) == 1
     assert conversation.task_manager.active is None
 
 
-def test_task_status_query_after_resume_is_deterministic_and_read_only(
+def test_task_status_query_is_model_answered_and_read_only(
     tmp_path: Path,
 ) -> None:
     task = ActiveTask(
@@ -402,110 +722,46 @@ def test_task_status_query_after_resume_is_deterministic_and_read_only(
         goal='修复 play 目录中的复杂游戏',
         status='stuck',
         requires_change=True,
-        constraints=('只能修改 play/**',),
         scope_hints=('play/**',),
         blocked_reasons=('Patch validation failed.',),
     )
     write_tool = NoOpWriteTool(tmp_path)
     tracker = NoChangeWorkspaceTracker(tmp_path)
-    registry = ToolRegistry(
-        [write_tool],
-        workspace_tracker=tracker,
-    )
-    client = FakeModelClient()
-    router = StaticIntentRouter(routed('task_query', relation='active'))
+    client = FakeModelClient(streamed_response('当前任务是修复 play 游戏，状态为卡住。'))
     conversation = Conversation(
         client=client,
-        registry=registry,
+        registry=ToolRegistry([write_tool], workspace_tracker=tracker),
         active_task=task,
-        intent_router=router,
-    )
-
-    for prompt in (
-        '当前任务是什么',
-        '现在的任务状态怎么样？',
-        '为什么任务卡住了？',
-    ):
-        events = collect_turn(conversation, prompt)
-        completed = events[-1]
-        assert isinstance(completed, TurnCompleted)
-        assert completed.result.status == 'completed'
-        assert completed.result.model_calls == 1
-        assert completed.result.usage == TokenUsage(7, 3)
-        assert task.goal in completed.result.text
-        assert '已卡住' in completed.result.text
-        assert 'Patch validation failed.' in completed.result.text
-
-    assert client.calls == []
-    assert router.calls == [
-        '当前任务是什么',
-        '现在的任务状态怎么样？',
-        '为什么任务卡住了？',
-    ]
-    assert write_tool.calls == []
-    assert tracker.revision == 0
-    assert conversation.task_manager.active == task
-
-
-def test_long_session_status_queries_never_enter_agent_loop(
-    tmp_path: Path,
-) -> None:
-    task = ActiveTask(
-        id='task-long-session-status',
-        goal='完成企业级多文件迁移',
-        status='blocked',
-        requires_change=True,
-        scope_hints=('forge/**',),
-        blocked_reasons=('Waiting for user input.',),
-    )
-    write_tool = NoOpWriteTool(tmp_path)
-    tracker = NoChangeWorkspaceTracker(tmp_path)
-    client = FakeModelClient()
-    router = StaticIntentRouter(routed('task_query', relation='active'))
-    conversation = Conversation(
-        client=client,
-        registry=ToolRegistry(
-            [write_tool],
-            workspace_tracker=tracker,
+        intent_router=StaticIntentRouter(
+            routed('task_query', relation='active')
         ),
-        active_task=task,
-        intent_router=router,
     )
-    prompts = (
-        '当前任务是什么',
-        '当前进度到哪一步了',
-        '为什么任务被阻塞？',
-        'What is the current task?',
-    )
-
-    for index in range(100):
-        events = collect_turn(conversation, prompts[index % len(prompts)])
-        completed = events[-1]
-        assert isinstance(completed, TurnCompleted)
-        assert completed.result.model_calls == 1
-        assert completed.result.usage == TokenUsage(7, 3)
-
-    assert len(conversation.messages) == 200
-    assert conversation.task_manager.active == task
-    assert client.calls == []
-    assert len(router.calls) == 100
-    assert write_tool.calls == []
-    assert tracker.revision == 0
-
-
-def test_task_status_query_without_active_task_uses_no_model() -> None:
-    client = FakeModelClient()
-    router = StaticIntentRouter(routed('task_query'))
-    conversation = Conversation(client=client, intent_router=router)
 
     events = collect_turn(conversation, '当前任务是什么')
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.model_calls == 1
-    assert completed.result.usage == TokenUsage(7, 3)
-    assert '没有活动任务' in completed.result.text
-    assert client.calls == []
+    assert completed.result.text == '当前任务是修复 play 游戏，状态为卡住。'
+    assert {item['name'] for item in client.calls[0]['tools']} == {'task_get'}
+    assert write_tool.calls == []
+    assert tracker.revision == 0
+    assert conversation.task_manager.active == task
+
+
+def test_task_status_query_without_active_task_uses_model() -> None:
+    client = FakeModelClient(streamed_response('当前没有活动任务。'))
+    conversation = Conversation(
+        client=client,
+        intent_router=StaticIntentRouter(routed('task_query')),
+    )
+
+    events = collect_turn(conversation, '当前任务是什么')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.text == '当前没有活动任务。'
+    assert len(client.calls) == 1
+    assert client.calls[0]['tools'] is None
     assert conversation.task_manager.active is None
 
 
@@ -584,7 +840,7 @@ def test_mixed_status_and_change_prompt_reaches_normal_agent_loop(
     assert len(client.calls) == 1
 
 
-def test_ambiguous_route_preserves_task_and_skips_main_model(
+def test_ambiguous_route_preserves_task_and_asks_model(
     tmp_path: Path,
 ) -> None:
     task = ActiveTask(
@@ -594,7 +850,7 @@ def test_ambiguous_route_preserves_task_and_skips_main_model(
         requires_change=True,
         blocked_reasons=('Need clarification.',),
     )
-    client = FakeModelClient()
+    client = FakeModelClient(streamed_response('你希望我修改哪一部分？'))
     conversation = Conversation(
         client=client,
         active_task=task,
@@ -605,10 +861,10 @@ def test_ambiguous_route_preserves_task_and_skips_main_model(
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.model_calls == 1
-    assert '无法安全判断' in completed.result.text
+    assert completed.result.text == '你希望我修改哪一部分？'
     assert conversation.task_manager.active == task
-    assert client.calls == []
+    assert len(client.calls) == 1
+    assert client.calls[0]['tools'] is None
 
 
 def test_model_routed_new_change_task_replaces_previous_task(
@@ -730,7 +986,6 @@ def test_conversation_forwards_stream_and_returns_final_result() -> None:
     ]
     assert client.calls[0]['tools'] is None
     assert client.calls[0]['system'].startswith(load_system_prompt())
-    assert 'Goal:\nOnly reply READY' in client.calls[0]['system']
 
 
 def test_system_prompt_defines_forgecode_identity() -> None:
@@ -757,7 +1012,6 @@ def test_conversation_accepts_an_explicit_system_prompt() -> None:
     collect_turn(conversation, 'hello')
 
     assert client.calls[0]['system'].startswith('test system')
-    assert 'Goal:\nhello' in client.calls[0]['system']
 
 
 def test_task_policy_requires_workspace_tracking(tmp_path: Path) -> None:
@@ -1182,7 +1436,6 @@ def test_conversation_sends_previous_turns_as_context() -> None:
         {'role': 'user', 'content': 'What is my name?'},
     ]
     assert client.calls[1]['system'].startswith(load_system_prompt())
-    assert 'Goal:\nWhat is my name?' in client.calls[1]['system']
     assert conversation.messages == [
         {'role': 'user', 'content': 'Hello'},
         {'role': 'assistant', 'content': 'Hello'},
@@ -1217,6 +1470,9 @@ def test_current_goal_survives_many_tool_calls_and_message_snipping(
             message_limit=10,
             keep_first_messages=2,
             keep_recent_messages=8,
+        ),
+        intent_router=StaticIntentRouter(
+            routed('new_task', relation='new')
         ),
     )
 
@@ -1301,137 +1557,6 @@ def test_edit_recovery_stops_noop_writes_without_total_call_limit(
     assert 'model calls without new workspace' not in result.text
     assert conversation.task_manager.active is not None
     assert conversation.task_manager.active.status == 'stuck'
-
-
-def test_one_recovery_read_preserves_bounded_final_edit_attempts(
-    tmp_path: Path,
-) -> None:
-    write = FailingWriteTool(tmp_path)
-    read = RecordingReadFileTool(tmp_path)
-    tracker = NoChangeWorkspaceTracker(tmp_path)
-    failed_write = tool_response(
-        ToolCall(
-            index=0,
-            id='failed-write',
-            name='failing_write',
-            arguments={'path': 'world.js'},
-        )
-    )
-    recovery_reads = [
-        tool_response(
-            ToolCall(
-                index=0,
-                id=f'novel-read-{index}',
-                name='read_file',
-                arguments={'path': f'file-{index}.js'},
-            )
-        )
-        for index in range(1, 3)
-    ]
-    later_failed_writes = [
-        tool_response(
-            ToolCall(
-                index=0,
-                id=f'failed-write-{index}',
-                name='failing_write',
-                arguments={'path': f'world-{index}.js'},
-            )
-        )
-        for index in range(2, 5)
-    ]
-    client = FakeModelClient(
-        failed_write,
-        *recovery_reads,
-        *later_failed_writes,
-    )
-    conversation = Conversation(
-        client=client,
-        registry=ToolRegistry(
-            [write, read],
-            workspace_tracker=tracker,
-        ),
-        stagnation_warning=20,
-        stagnation_limit=30,
-        mutation_recovery_limit=2,
-    )
-
-    events = collect_turn(conversation, 'Fix the rendering bug')
-
-    result = next(
-        event.result for event in events if isinstance(event, TurnCompleted)
-    )
-    assert result.status == 'stuck'
-    assert '4 workspace-write attempt(s)' in result.text
-    assert result.model_calls == 6
-    assert len(client.calls) == 6
-    assert len(client.responses) == 0
-    assert '[Failed Mutation Recovery]' in client.calls[1]['system']
-    assert 'patch_rejected' in client.calls[1]['system']
-    assert 'target context did not match' in client.calls[1]['system']
-    assert {'failing_write', 'read_file'} <= {
-        tool['name'] for tool in client.calls[1]['tools']
-    }
-    assert {tool['name'] for tool in client.calls[2]['tools']} == {
-        'failing_write'
-    }
-
-
-def test_edit_recovery_allows_one_read_then_blocks_repeated_reads(
-    tmp_path: Path,
-) -> None:
-    write = FailingWriteTool(tmp_path)
-    read = RecordingReadFileTool(tmp_path)
-    tracker = NoChangeWorkspaceTracker(tmp_path)
-    first_failure = tool_response(
-        ToolCall(
-            index=0,
-            id='initial-failed-write',
-            name='failing_write',
-            arguments={'path': 'world-1.js'},
-        )
-    )
-    replayed_reads = [
-        tool_response(
-            ToolCall(
-                index=0,
-                id=f'replayed-read-{index}',
-                name='read_file',
-                arguments={'path': 'already-read.js'},
-            )
-        )
-        for index in range(4)
-    ]
-    client = FakeModelClient(
-        first_failure,
-        *replayed_reads,
-    )
-    conversation = Conversation(
-        client=client,
-        registry=ToolRegistry(
-            [write, read],
-            workspace_tracker=tracker,
-        ),
-        stagnation_warning=1,
-        stagnation_limit=2,
-        mutation_recovery_limit=5,
-        max_tool_protocol_recoveries=3,
-    )
-
-    events = collect_turn(conversation, 'Fix the rendering bug')
-
-    result = next(
-        event.result for event in events if isinstance(event, TurnCompleted)
-    )
-    assert result.status == 'stuck'
-    assert 'malformed or schema-invalid tool requests' in result.text
-    assert len(client.calls) == 5
-    assert {'failing_write', 'read_file'} <= {
-        tool['name'] for tool in client.calls[1]['tools']
-    }
-    assert all(
-        {tool['name'] for tool in call['tools']} == {'failing_write'}
-        for call in client.calls[2:]
-    )
 
 
 def test_turn_stops_at_cumulative_input_token_limit(
@@ -1591,104 +1716,6 @@ def test_copied_patch_line_numbers_are_a_protocol_recovery_failure() -> None:
     )
 
     assert is_tool_protocol_failure(result) is True
-
-
-def test_verification_failure_fingerprint_prefers_stable_pytest_node_id() -> None:
-    result = ToolResult.fail(
-        'verification_failed',
-        'Verification failed.',
-        content=(
-            '_____ test_hook_denial_blocks_alternative_edit_tools_and_change_task _____\n'
-            'FAILED tests/runtime/test_hooks.py::'
-            'test_hook_denial_blocks_alternative_edit_tools_and_change_task - assert 2 == 1\n'
-        ),
-    )
-
-    assert verification_failure_fingerprint_from_result(result) == (
-        'tests/runtime/test_hooks.py::'
-        'test_hook_denial_blocks_alternative_edit_tools_and_change_task'
-        ' | test_hook_denial_blocks_alternative_edit_tools_and_change_task'
-    )
-
-
-def test_verification_failure_family_matches_a_shrinking_failure_set() -> None:
-    previous = 'tests/test_a.py::test_a | tests/test_b.py::test_b'
-
-    assert verification_failure_family_matches(
-        previous,
-        'tests/test_b.py::test_b',
-    ) is True
-    assert verification_failure_family_matches(
-        previous,
-        'tests/test_c.py::test_c',
-    ) is False
-    assert verification_failure_family_matches(None, previous) is False
-
-
-def test_verification_plateau_feedback_requires_invariant_review() -> None:
-    result = ToolResult.fail(
-        'verification_failed',
-        'One test failed.',
-        summary='Verification failed with exit code 1.',
-    )
-
-    feedback = build_verification_plateau_feedback(
-        result,
-        'tests/runtime/test_hooks.py::test_denial',
-    )
-
-    assert feedback['role'] == 'user'
-    assert 'survived three workspace revisions' in feedback['content']
-    assert 'every entry or terminal branch' in feedback['content']
-    assert 'one coherent production-code edit' in feedback['content']
-
-
-def test_semantic_read_repeats_force_evidence_based_synthesis(
-    tmp_path: Path,
-) -> None:
-    (tmp_path / 'player.js').write_text(
-        '\n'.join(f'line {index}' for index in range(1, 252)),
-        encoding='utf-8',
-    )
-    calls = [
-        ToolCall(
-            index=0,
-            id=f'toolu_{index}',
-            name='read_file',
-            arguments={
-                'path': 'player.js',
-                'start_line': 1,
-                'end_line': end_line,
-            },
-        )
-        for index, end_line in enumerate((260, 280, 120), start=1)
-    ]
-    client = FakeModelClient(
-        *(tool_response(call) for call in calls),
-        streamed_response('I am ForgeCode.'),
-        streamed_response('player.js contains the player implementation.'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=ToolRegistry([ReadFileTool(tmp_path)]),
-        stagnation_warning=2,
-        stagnation_limit=4,
-    )
-
-    events = collect_turn(conversation, 'Understand the player project')
-
-    tool_events = [
-        event for event in events
-        if isinstance(event, ToolExecutionCompleted)
-    ]
-    assert tool_events[0].result.success is True
-    assert all(event.result.success for event in tool_events)
-    assert client.calls[3]['tools'] is not None
-    result = next(
-        event.result for event in events if isinstance(event, TurnCompleted)
-    )
-    assert result.status == 'completed'
-    assert 'player.js' in result.text
 
 
 def test_changing_grep_patterns_cannot_extend_a_completed_file_read(

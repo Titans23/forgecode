@@ -30,49 +30,6 @@ class CompletionDecision:
     reasons: tuple[str, ...] = ()
 
 
-def verification_command_runs_tests(command: str) -> bool:
-    '''Return whether a verification command invokes a recognizable test runner.'''
-    normalized = ' '.join(command.casefold().split())
-    markers = (
-        'pytest',
-        'unittest',
-        'npm test',
-        'npm run test',
-        'pnpm test',
-        'yarn test',
-        'bun test',
-        'cargo test',
-        'go test',
-        'dotnet test',
-        'mvn test',
-        'gradle test',
-        'ctest',
-    )
-    return any(marker in normalized for marker in markers)
-
-
-def verification_command_runs_full_suite(command: str) -> bool:
-    '''Return whether a test command represents an unscoped full-suite run.'''
-    normalized = ' '.join(command.casefold().split())
-    if not verification_command_runs_tests(normalized):
-        return False
-    if 'pytest' not in normalized:
-        return True
-    pytest_arguments = normalized.split('pytest', maxsplit=1)[1]
-    focused_markers = (
-        ' -k ',
-        ' -m ',
-        '::',
-        '.py',
-        ' tests/',
-        ' test/',
-        ' --version',
-        ' --help',
-        ' --collect-only',
-    )
-    return not any(marker in pytest_arguments for marker in focused_markers)
-
-
 class CompletionGate:
     '''Reject final answers that violate the active task policy.'''
 
@@ -91,8 +48,6 @@ class CompletionGate:
         *,
         mutation_attempted: bool,
         require_verification: bool = False,
-        require_tests: bool = False,
-        require_full_tests: bool = False,
     ) -> CompletionDecision:
         changed_paths = tracker.changed_paths
         verification_required = (
@@ -137,20 +92,6 @@ class CompletionGate:
                 reasons.append(
                     'The code changed after verification; run verify again for '
                     f'workspace revision {tracker.revision}.'
-                )
-            elif require_tests and not verification_command_runs_tests(
-                verification.command
-            ):
-                reasons.append(
-                    'The user explicitly requested tests, but the latest '
-                    'verification command did not run a recognized test runner.'
-                )
-            elif require_full_tests and not verification_command_runs_full_suite(
-                verification.command
-            ):
-                reasons.append(
-                    'The user explicitly requested the full test suite, but '
-                    'the latest verification command was focused or partial.'
                 )
         elif verification is not None and not verification.success:
             reasons.append(

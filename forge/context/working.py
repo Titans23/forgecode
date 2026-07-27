@@ -213,6 +213,27 @@ class WorkingState:
             return self._observe_signature(signature)
         return False
 
+    def covers_read(self, tool_call: ToolCall, revision: int) -> bool:
+        '''Return whether the requested read range is already cached.'''
+        if tool_call.name != 'read_file':
+            return False
+        arguments = tool_call.arguments
+        path = normalize_path(str(arguments.get('path', '')))
+        evidence = self.files.get((revision, path))
+        if evidence is None:
+            return False
+        try:
+            start_line = int(arguments.get('start_line', 1))
+            raw_end = arguments.get('end_line')
+            end_line = (
+                evidence.total_lines
+                if raw_end is None
+                else min(int(raw_end), evidence.total_lines)
+            )
+        except (TypeError, ValueError):
+            return False
+        return evidence.covers(start_line, end_line)
+
     def advance_revision(
         self,
         revision: int,
