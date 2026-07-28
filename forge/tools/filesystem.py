@@ -94,8 +94,8 @@ class CreateDirectoryTool(Tool[CreateDirectoryInput]):
     name = 'create_directory'
     description = (
         'Create one repository directory, including missing parent directories. '
-        'The tool adds an empty .gitkeep marker so Git can represent and '
-        'ForgeCode can verify an otherwise empty directory. Do not '
+        'Workspace tracking records empty directories directly, so do not add '
+        'a .gitkeep marker unless the repository explicitly requires one. Do not '
         'use run_command with mkdir or New-Item for this operation.'
     )
     input_model = CreateDirectoryInput
@@ -128,16 +128,11 @@ class CreateDirectoryTool(Tool[CreateDirectoryInput]):
                     ),
                 },
             )
-        marker = directory / '.gitkeep'
         directory.mkdir(parents=True, exist_ok=True)
-        marker.touch(exist_ok=False)
         shown_path = display_path(self.root, directory)
         return ToolResult.ok(
-            f'Created directory {shown_path} with a .gitkeep marker.',
-            metadata={
-                'path': shown_path,
-                'marker': display_path(self.root, marker),
-            },
+            f'Created directory {shown_path}.',
+            metadata={'path': shown_path},
         )
 
 
@@ -421,10 +416,18 @@ class WriteFileTool(Tool[WriteFileInput]):
                     'file_already_exists',
                     f'write_file will not overwrite non-empty file '
                     f'{arguments.path}. Use apply_patch or replace_text for a '
-                    'focused change.',
+                    'focused change. For a deliberate whole-file replacement '
+                    'after failed focused edits, use write_file_chunk with '
+                    'offset=0, truncate=true, final=false, then append the '
+                    'remaining final chunk.',
                     details={
                         'path': arguments.path,
                         'existing_characters': len(current),
+                        'recommended_tools': [
+                            'apply_patch',
+                            'replace_text',
+                            'write_file_chunk',
+                        ],
                     },
                 )
             initialized_placeholder = True
@@ -470,8 +473,10 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
     name = 'write_file_chunk'
     description = (
         'Create or extend one UTF-8 repository file in ordered chunks of at '
-        'most 30000 characters. Start a new or replacement file with '
-        'offset=0 and truncate=true. For every later chunk, set offset to '
+        'most 30000 characters. Start a new or multi-chunk replacement file '
+        'with offset=0, truncate=true, and final=false. A single final chunk '
+        'cannot replace an existing non-empty file; use apply_patch for that. '
+        'For every later chunk, set offset to '
         'the exact next_offset returned by the previous call. Each chunk is '
         'applied atomically and an offset mismatch is rejected without '
         'writing. Set final=true on the last chunk and optionally provide '
@@ -497,6 +502,19 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
                 f'Path is not a file: {arguments.path}',
             )
         existed = path.exists()
+        if (
+            existed
+            and arguments.truncate
+            and arguments.final
+            and path.stat().st_size > 0
+        ):
+            raise ToolExecutionError(
+                'single_chunk_overwrite_denied',
+                'write_file_chunk cannot replace an existing non-empty file '
+                'with one final chunk. Use apply_patch for a focused change, '
+                'or start a genuine multi-chunk replacement with final=false.',
+                details={'path': arguments.path},
+            )
         if arguments.truncate:
             existing = ''
         elif existed:

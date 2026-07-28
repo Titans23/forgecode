@@ -146,8 +146,13 @@ class CompletionGate:
                 timeout_seconds=30,
             )
             if diff_check.exit_code != 0:
+                detail = (
+                    diff_check.stdout.strip()
+                    or diff_check.stderr.strip()
+                )[:2_000]
                 reasons.append(
                     'git diff --check found a deterministic Patch error.'
+                    + (f'\n{detail}' if detail else '')
                 )
 
         for path in untracked:
@@ -168,9 +173,14 @@ class CompletionGate:
                 diff_check.exit_code not in {0, 1}
                 or diff_check.stdout.strip()
             ):
+                detail = (
+                    diff_check.stdout.strip()
+                    or diff_check.stderr.strip()
+                )[:2_000]
                 reasons.append(
                     'Git whitespace checking found a deterministic Patch '
                     f'error in untracked file: {path}.'
+                    + (f'\n{detail}' if detail else '')
                 )
         return reasons
 

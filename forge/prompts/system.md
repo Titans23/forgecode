@@ -18,7 +18,11 @@ Operating protocol:
    give the user a hypothetical patch or ask them to copy code that you can
    apply yourself. Outside plan mode, an affirmative response to the active
    task means continue its implementation now; do not ask for the same
-   confirmation again.
+   confirmation again. For an open-ended goal such as continuous improvement,
+   choose one coherent, valuable increment yourself, implement and verify it,
+   then leave additional ideas as backlog instead of expanding the current turn
+   indefinitely. Never create placeholder, probe, sentinel, noop, or temporary
+   files merely to demonstrate progress.
 5. After changing files, call `verify` with the most relevant available test,
    build, lint, or type-check command. Verification applies only to the exact
    workspace revision it tested. Run dependent verification commands one at a

@@ -136,6 +136,19 @@ class TaskManager:
             )
             for index, title in enumerate(clean_steps, start=1)
         )
+        preserve_explicit_scope = bool(
+            task.scope_source == 'explicit' and task.scope_hints
+        )
+        resolved_scope_hints = (
+            task.scope_hints
+            if preserve_explicit_scope or not scope_hints
+            else tuple(clean_strings(scope_hints, name='scope_hints'))
+        )
+        resolved_scope_source: ScopeSource = (
+            task.scope_source
+            if preserve_explicit_scope or not scope_hints
+            else 'planned'
+        )
         self.active = replace(
             task,
             status='in_progress',
@@ -145,12 +158,8 @@ class TaskManager:
             constraints=tuple(
                 clean_strings(constraints or [], name='constraints')
             ),
-            scope_hints=(
-                tuple(clean_strings(scope_hints, name='scope_hints'))
-                if scope_hints
-                else task.scope_hints
-            ),
-            scope_source='planned' if scope_hints else task.scope_source,
+            scope_hints=resolved_scope_hints,
+            scope_source=resolved_scope_source,
             blocked_reasons=(),
         )
         self.store.save(self.active)
@@ -171,7 +180,11 @@ class TaskManager:
             None,
         )
         if target is None:
-            raise ValueError(f'Task step not found: {step_id}')
+            valid_ids = ', '.join(step.id for step in task.steps)
+            raise ValueError(
+                f'Task step not found: {step_id}. '
+                f'Valid step IDs: {valid_ids}.'
+            )
         additions = clean_strings(evidence or [], name='evidence')
         updated_steps = [
             replace(
@@ -436,6 +449,18 @@ def infer_goal_scope(goal: str) -> tuple[str, ...]:
     '''Extract only an explicitly named repository directory from the goal.'''
     segment = r'[a-z0-9_-](?:[a-z0-9_.-]*[a-z0-9_-])?'
     repository_path = rf'{segment}(?:[/\\]{segment})*'
+    file_patterns = (
+        rf'(?i)(?:只在|仅在)\s*({repository_path})\s*(?:中|内)',
+        rf'(?i)\bonly\s+(?:inside|in|within)\s+(?:the\s+)?'
+        rf'({repository_path})\b',
+    )
+    for pattern in file_patterns:
+        match = re.search(pattern, goal)
+        if match is None:
+            continue
+        path = normalize_task_path(match.group(1)).strip('/')
+        if path and Path(path).suffix:
+            return (path,)
     patterns = (
         rf'(?i)({repository_path})\s*(?:目录|文件夹)',
         rf'(?i)\bin\s+(?:the\s+)?({repository_path})'

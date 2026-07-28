@@ -124,10 +124,10 @@ def test_create_directory_is_visible_to_completion_gate(tmp_path: Path) -> None:
     )
 
     assert result.success is True
-    assert targets == ('play/.gitkeep',)
+    assert targets == ('play',)
     assert change is not None
-    assert change.paths == ('play/.gitkeep',)
-    assert tracker.changed_paths == ('play/.gitkeep',)
+    assert change.paths == ('play',)
+    assert tracker.changed_paths == ('play',)
     assert decision.allowed is True
 
 

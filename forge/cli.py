@@ -197,12 +197,19 @@ async def _run_interactive_chat(
             None,
         )
     resolved_terminal = terminal if terminal is not None else TerminalUI()
+    active_response_view: StreamingResponseView | None = None
 
     async def approve_permission(request: Any):
-        return await asyncio.to_thread(
-            resolved_terminal.select_permission,
-            request,
-        )
+        if active_response_view is not None:
+            active_response_view.pause_for_prompt()
+        try:
+            return await asyncio.to_thread(
+                resolved_terminal.select_permission,
+                request,
+            )
+        finally:
+            if active_response_view is not None:
+                active_response_view.resume_after_prompt()
 
     permission_manager = getattr(
         resolved_session,
@@ -513,12 +520,16 @@ async def _run_interactive_chat(
 
         try:
             with resolved_terminal.stream_response() as response_view:
-                await render_streamed_turn(
-                    resolved_session,
-                    prompt,
-                    response_view,
-                    resolved_recorder,
-                )
+                active_response_view = response_view
+                try:
+                    await render_streamed_turn(
+                        resolved_session,
+                        prompt,
+                        response_view,
+                        resolved_recorder,
+                    )
+                finally:
+                    active_response_view = None
         except (KeyboardInterrupt, typer.Abort):
             await stop_interactive_session_async(
                 resolved_session,

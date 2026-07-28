@@ -133,14 +133,15 @@ class GitDiffTool(Tool[GitDiffInput]):
         'Show unstaged or staged Git changes, optionally limited to one '
         'repository file. Directory paths are rejected; select a concrete '
         'file from git_status or repository evidence. An unscoped response '
-        'larger than 30000 characters is rejected with diff_too_large; retry '
-        'with path set to one relevant file. A large '
+        'larger than 30000 characters is summarized instead of failing; use '
+        'the returned changed-file summary to select a relevant path. A large '
         'single-file Diff is returned in ordered pages; continue with the '
         'returned next_offset and diff_sha256 as expected_sha256. A path-limited '
         'request also renders an untracked UTF-8 file as a reviewable '
         'new-file Diff. Prefer a path-limited Diff in a dirty '
         'repository. Use it to review actual changes, not to rediscover '
-        'unchanged source.'
+        'unchanged source. For an overview request, a summarized unscoped '
+        'result is complete evidence; do not open every changed file.'
     )
     input_model = GitDiffInput
 
@@ -208,25 +209,39 @@ class GitDiffTool(Tool[GitDiffInput]):
             shown_path is None
             and len(raw_content) > MAX_UNSCOPED_DIFF_CHARACTERS
         ):
-            message = (
-                f'Unscoped Git diff contains {len(raw_content)} characters, '
-                f'exceeding the {MAX_UNSCOPED_DIFF_CHARACTERS}-character '
-                'limit. Call git_diff again with path set to one relevant '
-                'repository file.'
+            summary_command = [
+                'git',
+                'diff',
+                '--no-ext-diff',
+                '--stat',
+                '--stat-count=100',
+            ]
+            if arguments.staged:
+                summary_command.append('--cached')
+            summary_result = await run_process(
+                summary_command,
+                cwd=self.root,
+                timeout_seconds=30,
             )
-            return ToolResult.fail(
-                'diff_too_large',
-                message,
-                content=message,
-                details={
-                    'characters': len(raw_content),
-                    'maximum_characters': MAX_UNSCOPED_DIFF_CHARACTERS,
-                    'required_argument': 'path',
-                },
+            summary_content = summary_result.stdout.rstrip()
+            if not summary_content:
+                summary_content = (
+                    'Git reports changes, but no Diff stat was available.'
+                )
+            content = (
+                f'{summary_content}\n\n'
+                f'The complete Diff contains {len(raw_content)} characters. '
+                'Inspect only the relevant changed file with git_diff(path=...).'
+            )
+            return ToolResult.ok(
+                'Git diff was too large; returned a bounded changed-file summary.',
+                content=content[:MAX_UNSCOPED_DIFF_CHARACTERS],
                 metadata={
                     **metadata,
                     'diff_characters': len(raw_content),
                     'maximum_characters': MAX_UNSCOPED_DIFF_CHARACTERS,
+                    'diff_summarized': True,
+                    'summary_exit_code': summary_result.exit_code,
                 },
             )
 

@@ -521,6 +521,8 @@ class StreamingResponseView:
         self.model_calls = 0
         self.completed = False
         self.result: TurnResult | None = None
+        self._live_running = False
+        self._prompt_paused = False
         self.live = Live(
             self._render(),
             console=console,
@@ -538,11 +540,29 @@ class StreamingResponseView:
             )
         )
         self.live.start(refresh=True)
+        self._live_running = True
         return self
 
     def __exit__(self, *_: object) -> None:
-        self.live.stop()
+        if self._live_running:
+            self.live.stop()
+        self._live_running = False
+        self._prompt_paused = False
         self.console.print()
+
+    def pause_for_prompt(self) -> None:
+        '''Stop live repainting before prompt_toolkit takes terminal control.'''
+        if self._live_running:
+            self.live.stop()
+            self._live_running = False
+        self._prompt_paused = True
+
+    def resume_after_prompt(self) -> None:
+        '''Resume the live response after an interactive prompt closes.'''
+        if self._prompt_paused and not self._live_running:
+            self.live.start(refresh=True)
+            self._live_running = True
+        self._prompt_paused = False
 
     def append_text(self, text: str) -> None:
         '''Append one provider text delta and refresh immediately.'''

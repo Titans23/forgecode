@@ -364,7 +364,7 @@ def test_git_status_and_diff_return_real_working_tree_state(
     assert 'stdout' not in diff.metadata
 
 
-def test_git_diff_rejects_large_unscoped_output_without_echoing_it(
+def test_git_diff_summarizes_large_unscoped_output_without_echoing_it(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -375,12 +375,12 @@ def test_git_diff_rejects_large_unscoped_output_without_echoing_it(
 
     result = run(GitDiffTool(tmp_path).run({}))
 
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'diff_too_large'
-    assert result.error.details['required_argument'] == 'path'
+    assert result.success is True
+    assert result.error is None
+    assert result.metadata['diff_summarized'] is True
     assert result.metadata['diff_characters'] > 30_000
-    assert len(result.content) < 500
+    assert len(result.content) < 30_000
+    assert 'sample.txt' in result.content
     assert 'changed content' not in result.content
     assert 'stdout' not in result.metadata
 

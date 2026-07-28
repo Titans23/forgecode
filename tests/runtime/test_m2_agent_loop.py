@@ -1740,7 +1740,7 @@ def test_inferred_task_scope_blocks_unrelated_workspace_write(
     assert completed.result.status == 'completed'
     assert set(completed.result.changed_paths) == {
         'play/index.html',
-        'play/src/.gitkeep',
+        'play/src',
     }
 
 

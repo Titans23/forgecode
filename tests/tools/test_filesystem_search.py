@@ -67,16 +67,13 @@ def create_protected_repository(root: Path) -> None:
     )
 
 
-def test_create_directory_adds_gitkeep_marker(tmp_path: Path) -> None:
+def test_create_directory_keeps_empty_directory_empty(tmp_path: Path) -> None:
     result = run(CreateDirectoryTool(tmp_path).run({'path': 'nested/play'}))
 
     assert result.success is True
     assert (tmp_path / 'nested' / 'play').is_dir()
-    assert (tmp_path / 'nested' / 'play' / '.gitkeep').read_bytes() == b''
-    assert result.metadata == {
-        'path': 'nested/play',
-        'marker': 'nested/play/.gitkeep',
-    }
+    assert list((tmp_path / 'nested' / 'play').iterdir()) == []
+    assert result.metadata == {'path': 'nested/play'}
 
 
 def test_create_directory_rejects_existing_marker(tmp_path: Path) -> None:

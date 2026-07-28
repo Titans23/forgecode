@@ -79,7 +79,7 @@ def classify_tool_call(tool_call: ToolCall, effect: str | None) -> PermissionReq
                 'file.delete',
                 'high',
                 targets,
-                'The patch deletes repository files.',
+                'This call immediately deletes the listed files and does not create replacements. Only approve if that exact deletion is intended.',
                 _preview(tool_call),
             )
         return PermissionRequest(

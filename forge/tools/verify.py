@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import re
 
@@ -23,6 +24,7 @@ from forge.tools.shell import (
     shell_directory_write_reason,
     shell_file_read_reason,
     shell_file_write_reason,
+    has_unquoted_heredoc,
 )
 
 
@@ -45,7 +47,10 @@ class VerifyTool(Tool[VerifyInput]):
         'evidence after workspace changes. Choose the most relevant project '
         'command; use git diff --check only when no more specific validation '
         'exists. A successful result applies only to the exact current '
-        'workspace revision, so verify again after later edits.'
+        'workspace revision, so verify again after later edits. Do not use '
+        'verify for repository inspection. On Windows, POSIX heredocs and '
+        'commands such as ls are invalid; use dedicated repository tools for '
+        'inspection and a native test/build/check command for verification.'
     )
     input_model = VerifyInput
     effect = 'process'
@@ -56,6 +61,19 @@ class VerifyTool(Tool[VerifyInput]):
 
     async def execute(self, arguments: VerifyInput) -> ToolResult:
         cwd = resolve_repository_path(self.root, arguments.cwd)
+        if os.name == 'nt' and has_unquoted_heredoc(arguments.command):
+            return ToolResult.fail(
+                'unsupported_shell_syntax',
+                'Windows cmd.exe does not support POSIX << heredocs. Use a '
+                'dedicated repository tool for inspection or a single-line '
+                'native verification command such as node --check <path>.',
+                metadata={
+                    'command': arguments.command,
+                    'cwd': arguments.cwd,
+                    'workspace_revision': self.tracker.revision,
+                    'verification': True,
+                },
+            )
         if not cwd.is_dir():
             raise ToolExecutionError(
                 'not_a_directory',

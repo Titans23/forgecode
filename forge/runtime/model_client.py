@@ -230,6 +230,30 @@ class AnthropicModelClient:
                     delay_seconds=delay,
                 )
                 await asyncio.sleep(delay)
+            except AssertionError as error:
+                # Anthropic-compatible proxies can terminate a malformed
+                # stream through an SDK assertion before emitting content.
+                # Treat that boundary failure like a transient provider
+                # protocol error, but never replay a response that already
+                # produced semantic output or a tool call.
+                reason = 'provider_protocol_error'
+                can_retry = (
+                    not response_started
+                    and attempt <= self.max_retries
+                )
+                if not can_retry:
+                    raise ModelCallError(
+                        reason,
+                        model_error_message(reason, response_started),
+                        retryable=not response_started,
+                    ) from error
+                delay = retry_delay(attempt)
+                yield ModelRetryScheduled(
+                    attempt=attempt + 1,
+                    reason=reason,
+                    delay_seconds=delay,
+                )
+                await asyncio.sleep(delay)
 
         raise AssertionError('model retry loop ended unexpectedly')
 

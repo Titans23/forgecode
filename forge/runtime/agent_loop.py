@@ -391,8 +391,11 @@ class Conversation:
         # request and repository evidence. The harness validates only its exit
         # status and workspace revision.
         tool_attempts: dict[str, tuple[int, bool]] = {}
+        successful_plan_calls = 0
+        completed_workspace_calls: set[str] = set()
         completed_destructive_calls: set[str] = set()
         calls_without_progress = 0
+        change_exploration_calls = 0
         mutation_failure_count = 0
         mutation_failure_total = 0
         mutation_failure_targets: tuple[str, ...] = ()
@@ -403,8 +406,12 @@ class Conversation:
         mutation_text_recoveries = 0
         required_change_text_recoveries = 0
         finish_declaration_recoveries = 0
+        stagnation_plan_recoveries = 0
         stagnation_action_recoveries = 0
-        action_only_recovery = False
+        planning_checkpoint_recovery = False
+        planned_progress_checkpoint = False
+        mutation_action_checkpoint = False
+        action_checkpoint_recovery = False
         force_synthesis = False
         verification_recovery = False
         tool_protocol_failures = 0
@@ -480,13 +487,31 @@ class Conversation:
                 )
                 return
 
-            if finalization_recovery:
+            if (
+                finalization_recovery
+                and change_required
+                and self.finish_protocol
+            ):
+                request_tools = self._finish_task_tools()
+            elif finalization_recovery:
                 request_tools = None
+            elif (
+                completion_ready_context
+                and change_required
+                and self.finish_protocol
+                and finish_declaration_recoveries > 0
+            ):
+                request_tools = self._finish_task_tools()
             elif (
                 turn_decision is not None
                 and turn_decision.intent in {'conversation', 'ambiguous'}
             ):
-                request_tools = None
+                # A conversational-looking question may still require repository
+                # evidence (for example, "can you see the play directory?").
+                # Keep safe inspection tools visible and let the main model decide
+                # whether it needs them instead of treating router labels as a
+                # capability boundary.
+                request_tools = self._read_only_tools()
             elif (
                 turn_decision is not None
                 and turn_decision.intent == 'task_query'
@@ -497,8 +522,14 @@ class Conversation:
                 and turn_decision.intent == 'read_only'
             ):
                 request_tools = self._read_only_tools()
-            elif action_only_recovery:
-                request_tools = self._workspace_write_tools()
+            elif planning_checkpoint_recovery:
+                request_tools = self._planning_checkpoint_tools()
+            elif planned_progress_checkpoint:
+                request_tools = self._planned_progress_tools()
+            elif mutation_action_checkpoint:
+                request_tools = self._mutation_action_tools()
+            elif action_checkpoint_recovery:
+                request_tools = self._action_checkpoint_tools()
             elif preserve_active_task:
                 request_tools = self._read_only_tools()
             else:
@@ -526,6 +557,19 @@ class Conversation:
                 str(definition.get('name', ''))
                 for definition in request_tools or ()
             }
+            enforce_declared_tool_phase = bool(
+                planning_checkpoint_recovery
+                or planned_progress_checkpoint
+                or mutation_action_checkpoint
+                or action_checkpoint_recovery
+                or finalization_recovery
+                or bool(
+                    completion_ready_context
+                    and change_required
+                    and self.finish_protocol
+                    and finish_declaration_recoveries > 0
+                )
+            )
             request_system_prompt = self._request_system_prompt(
                 force_synthesis=force_synthesis,
                 mutation_recovery_context=mutation_recovery_context,
@@ -902,8 +946,21 @@ class Conversation:
                 self.session_journal.record_assistant_message(
                     request_messages[-1]
                 )
+            if tool_calls:
+                # Protocol recovery limits consecutive malformed provider
+                # responses. A valid structured response restores the budget
+                # for long-running tasks.
+                protocol_recoveries = 0
 
-            if finalization_recovery and tool_calls:
+            if (
+                finalization_recovery
+                and tool_calls
+                and not (
+                    change_required
+                    and len(tool_calls) == 1
+                    and tool_calls[0].name == 'finish_task'
+                )
+            ):
                 all_tool_calls.extend(tool_calls)
                 reason = (
                     'The model requested another tool during the dedicated '
@@ -964,6 +1021,7 @@ class Conversation:
                     calls_without_progress = 0
                     force_synthesis = False
                     continue
+                protocol_recoveries = 0
                 if mutation_failures:
                     if mutation_text_recoveries < 1:
                         mutation_text_recoveries += 1
@@ -1178,7 +1236,61 @@ class Conversation:
                 return
 
             all_tool_calls.extend(tool_calls)
+            delete_only_allowed = bool(
+                turn_decision is None
+                or turn_decision.allows_delete_only is not False
+            )
+            destructive_batch_ids: set[str] = set()
+            agent_created_destructive_ids: set[str] = set()
+            batch_created_targets: set[str] = set()
+            constructive_batch_write = False
+            for candidate in tool_calls:
+                candidate_effect = self.registry.effect(candidate.name)
+                candidate_request = (
+                    self.registry.permission_request(
+                        candidate.name,
+                        candidate.arguments,
+                    )
+                    or classify_tool_call(candidate, candidate_effect)
+                )
+                candidate_targets = mutation_target_paths(
+                    candidate,
+                    maximum=None,
+                )
+                if candidate_request.capability == 'file.delete':
+                    destructive_batch_ids.add(candidate.id)
+                    if candidate_targets and all(
+                        target in batch_created_targets
+                        or (
+                            self.workspace_tracker is not None
+                            and self.workspace_tracker.baseline.files.get(target)
+                            == 'missing'
+                        )
+                        for target in candidate_targets
+                    ):
+                        agent_created_destructive_ids.add(candidate.id)
+                elif candidate_effect == 'workspace_write':
+                    for target in candidate_targets:
+                        if not (self.task_manager.root / target).exists():
+                            batch_created_targets.add(target)
+                if candidate_effect == 'workspace_write' and (
+                    candidate_request.capability != 'file.delete'
+                    or patch_has_constructive_operation(candidate)
+                ):
+                    constructive_batch_write = True
+            reject_delete_only_batch = bool(
+                destructive_batch_ids
+                and not constructive_batch_write
+                and not delete_only_allowed
+            )
+            offered_tool_names = frozenset(
+                str(definition.get('name', ''))
+                for definition in (request_tools or ())
+                if definition.get('name')
+            )
             tool_results: list[tuple[ToolCall, ToolResult]] = []
+            workspace_write_batch_failure: ToolResult | None = None
+            workspace_write_batch_boundary = False
             last_workspace_change_position = -1
             last_workspace_write_change_position = -1
             task_progressed = False
@@ -1243,6 +1355,64 @@ class Conversation:
                                     arguments=arguments,
                                 )
                 tool_effect = self.registry.effect(tool_call.name)
+                phase_rejection = (
+                    None
+                    if (
+                        not enforce_declared_tool_phase
+                        or tool_call.name in offered_tool_names
+                        or tool_call.name not in self.registry.names
+                    )
+                    else ToolResult.fail(
+                        'tool_not_available_in_phase',
+                        f'{tool_call.name} is not available in the current '
+                        'execution phase. Choose from the tools declared in '
+                        'this model request.',
+                        details={
+                            'tool': tool_call.name,
+                            'offered': sorted(offered_tool_names),
+                        },
+                    )
+                )
+                if (
+                    phase_rejection is None
+                    and obvious_probe_write(tool_call, prompt)
+                ):
+                    phase_rejection = ToolResult.fail(
+                        'placeholder_write_denied',
+                        'Workspace write denied because it only creates an '
+                        'obvious placeholder, probe, noop, or temporary value. '
+                        'Make the actual task-relevant implementation edit.',
+                    )
+                if (
+                    phase_rejection is None
+                    and tool_call.name == 'task_plan'
+                    and successful_plan_calls >= 1
+                ):
+                    phase_rejection = ToolResult.fail(
+                        'plan_already_created_this_turn',
+                        'A task plan was already created during this turn. '
+                        'Advance it with task_update or perform the next '
+                        'planned action instead of replacing it.',
+                    )
+                if (
+                    phase_rejection is None
+                    and reject_delete_only_batch
+                    and tool_call.id in destructive_batch_ids
+                    and tool_call.id not in agent_created_destructive_ids
+                ):
+                    phase_rejection = ToolResult.fail(
+                        'delete_only_batch_requires_replacement',
+                        'This task is an implementation or refactor, but this '
+                        'model response only deletes files. Create replacements '
+                        'first or combine deletions with constructive edits in '
+                        'the same response. Delete-only completion is reserved '
+                        'for user-requested cleanup or removal tasks.',
+                        details={
+                            'targets': list(
+                                mutation_target_paths(tool_call, maximum=None)
+                            ),
+                        },
+                    )
                 if (
                     tool_effect == 'workspace_write'
                     and self.task_manager.active is None
@@ -1286,10 +1456,28 @@ class Conversation:
                             'BeforeFileEdit', before_edit.reason
                         )
                 permission_rejection: ToolResult | None = None
+                completed_write_replay: ToolResult | None = None
                 destructive_replay: ToolResult | None = None
                 permission_request = None
+                workspace_write_identity = (
+                    tool_call_identity(tool_call)
+                    if tool_effect == 'workspace_write'
+                    else ''
+                )
                 destructive_identity = ''
-                if hook_rejection is None:
+                if (
+                    workspace_write_identity
+                    and workspace_write_identity in completed_workspace_calls
+                ):
+                    completed_write_replay = ToolResult.ok(
+                        'Skipped an identical workspace write that already '
+                        'succeeded during this turn.',
+                        metadata={'status': 'already_completed'},
+                    )
+                elif (
+                    hook_rejection is None
+                    and phase_rejection is None
+                ):
                     permission_request = (
                         self.registry.permission_request(
                             tool_call.name,
@@ -1306,6 +1494,10 @@ class Conversation:
                             'during this turn.',
                             metadata={'status': 'already_completed'},
                         )
+                    elif tool_call.id in agent_created_destructive_ids:
+                        # Reverting a path created after the immutable turn
+                        # baseline cannot delete user-owned pre-turn content.
+                        pass
                     else:
                         permission_decision = (
                             await self.permission_manager.authorize(
@@ -1328,6 +1520,7 @@ class Conversation:
                 if (
                     tool_effect == 'workspace_write'
                     and hook_rejection is None
+                    and phase_rejection is None
                     and permission_rejection is None
                 ):
                     targets = mutation_target_paths(tool_call, maximum=None)
@@ -1349,7 +1542,10 @@ class Conversation:
                 # Content relevance and deletion intent are semantic
                 # decisions for the model. Deterministic path and permission
                 # checks above remain the enforcement boundary.
-                if tool_effect == 'workspace_write':
+                if (
+                    tool_effect == 'workspace_write'
+                    and phase_rejection is None
+                ):
                     mutation_attempted = True
                     change_required = True
                 if (
@@ -1359,6 +1555,7 @@ class Conversation:
                     change_required = True
                 if (
                     tool_effect == 'workspace_write'
+                    and phase_rejection is None
                     and self.workspace_tracker is not None
                 ):
                     self.workspace_tracker.watch_paths(
@@ -1390,8 +1587,12 @@ class Conversation:
                     revision,
                     signature,
                 )
-                if hook_rejection is not None:
+                if phase_rejection is not None:
+                    result = phase_rejection
+                elif hook_rejection is not None:
                     result = hook_rejection
+                elif completed_write_replay is not None:
+                    result = completed_write_replay
                 elif destructive_replay is not None:
                     result = destructive_replay
                 elif permission_rejection is not None:
@@ -1477,6 +1678,13 @@ class Conversation:
                             result.success,
                         )
                 if (
+                    workspace_write_identity
+                    and completed_write_replay is None
+                    and result.success
+                    and result.metadata.get('status') != 'already_completed'
+                ):
+                    completed_workspace_calls.add(workspace_write_identity)
+                if (
                     destructive_identity
                     and destructive_replay is None
                     and result.success
@@ -1558,6 +1766,8 @@ class Conversation:
                 ):
                     terminal_permission_denial = result
                     break
+                if tool_effect == 'workspace_write' and not result.success:
+                    workspace_write_batch_failure = result
                 if finish_rejection:
                     yield CompletionBlocked(
                         attempt=1,
@@ -1595,6 +1805,24 @@ class Conversation:
                             tool_changed_workspace,
                         )
                     )
+                if (
+                    tool_effect == 'workspace_write'
+                    and result.metadata.get('status') != 'already_completed'
+                ):
+                    workspace_write_batch_boundary = True
+                    if workspace_write_batch_failure is not None:
+                        break
+                    next_call = (
+                        tool_calls[tool_position + 1]
+                        if tool_position + 1 < len(tool_calls)
+                        else None
+                    )
+                    if (
+                        next_call is None
+                        or self.registry.effect(next_call.name)
+                        != 'workspace_write'
+                    ):
+                        break
                 if tool_call.name == 'verify':
                     latest_verification = verification_from_result(
                         result,
@@ -1635,6 +1863,7 @@ class Conversation:
                 if tool_call.name == 'explore_repository':
                     task_progressed = True
                 if tool_call.name == 'task_plan' and result.success:
+                    successful_plan_calls += 1
                     task_progressed = True
                 if tool_call.name == 'task_update' and result.success:
                     task_progressed = True
@@ -1646,6 +1875,31 @@ class Conversation:
                             ToolResult.fail(
                                 'not_executed_after_permission_denial',
                                 'Not executed because an earlier tool call was denied.',
+                            ),
+                        )
+                    )
+            elif workspace_write_batch_failure is not None:
+                for skipped_call in tool_calls[len(tool_results):]:
+                    tool_results.append(
+                        (
+                            skipped_call,
+                            ToolResult.fail(
+                                'not_executed_after_workspace_write_failure',
+                                'Not executed because an earlier workspace '
+                                'write failed. Correct that edit first.',
+                            ),
+                        )
+                    )
+            elif workspace_write_batch_boundary:
+                for skipped_call in tool_calls[len(tool_results):]:
+                    tool_results.append(
+                        (
+                            skipped_call,
+                            ToolResult.ok(
+                                'Deferred because an earlier tool changed the '
+                                'workspace. Reconsider this call against the '
+                                'new workspace revision.',
+                                metadata={'status': 'deferred_after_write'},
                             ),
                         )
                     )
@@ -1710,6 +1964,47 @@ class Conversation:
                     ),
                     None,
                 )
+                active_finish_task = self.task_manager.active
+                premature_planned_finish = bool(
+                    finish_call is not None
+                    and finish_call.arguments.get('task_kind') != 'change'
+                    and change_required
+                    and active_finish_task is not None
+                    and active_finish_task.planned
+                    and any(
+                        step.status != 'completed'
+                        for step in active_finish_task.steps
+                    )
+                    and (
+                        self.workspace_tracker is None
+                        or not self.workspace_tracker.changed_paths
+                    )
+                )
+                if (
+                    premature_planned_finish
+                    and finish_declaration_recoveries < 1
+                ):
+                    finish_declaration_recoveries += 1
+                    calls_without_progress = 0
+                    planning_checkpoint_recovery = False
+                    action_checkpoint_recovery = False
+                    mutation_action_checkpoint = False
+                    planned_progress_checkpoint = True
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                'ForgeCode completion correction: inspection '
+                                'cannot complete this requested workspace change. '
+                                'Continue the existing task plan now with one '
+                                'task-relevant edit or task_update transition. '
+                                'Do not re-plan, re-explore, or return another '
+                                'completion declaration before implementation.'
+                            ),
+                        }
+                    )
+                    terminal_finish_reasons = ()
+                    continue
                 correctable_kind_mismatch = bool(
                     finish_call is not None
                     and finish_call.arguments.get('task_kind') != 'change'
@@ -1737,6 +2032,44 @@ class Conversation:
                                 'matches the current workspace changes and '
                                 'verification evidence. Do not perform more '
                                 'exploration or create probe files.'
+                            ),
+                        }
+                    )
+                    terminal_finish_reasons = ()
+                    continue
+                correctable_workspace_finish = bool(
+                    finish_call is not None
+                    and finish_call.arguments.get('task_kind') == 'change'
+                    and self.workspace_tracker is not None
+                    and self.workspace_tracker.changed_paths
+                    and any(
+                        'deterministic Patch error' in reason
+                        for reason in terminal_finish_reasons
+                    )
+                )
+                if (
+                    correctable_workspace_finish
+                    and finish_declaration_recoveries < 1
+                ):
+                    finish_declaration_recoveries += 1
+                    calls_without_progress = 0
+                    planning_checkpoint_recovery = False
+                    planned_progress_checkpoint = False
+                    action_checkpoint_recovery = False
+                    mutation_action_checkpoint = True
+                    rendered_reasons = '\n'.join(terminal_finish_reasons)
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                '[ForgeCode Final Correction]\n'
+                                'The completion gate found a correctable problem '
+                                'in the current workspace change:\n'
+                                f'{rendered_reasons}\n'
+                                'Use the reported path and line evidence to make '
+                                'one focused correction now. Do not re-plan, '
+                                'broaden exploration, or finish before correcting '
+                                'and re-verifying the final revision.'
                             ),
                         }
                     )
@@ -1849,6 +2182,12 @@ class Conversation:
                 completion_ready_revision = None
                 completion_decision_calls = 0
                 completion_ready_context = ''
+                mutation_action_checkpoint = False
+                # A real new revision begins a fresh implementation phase. Do
+                # not let exploration consumed before that revision exhaust the
+                # recovery opportunity needed to inspect or correct it.
+                stagnation_plan_recoveries = 0
+                stagnation_action_recoveries = 0
                 # A successful write can be only one part of a larger change.
                 # Keep implementation tools available; the stagnation and
                 # completion paths enforce fresh verification before finish.
@@ -1874,6 +2213,7 @@ class Conversation:
                                 'repeated_tool_call',
                                 'outside_task_scope',
                                 'directory_already_exists',
+                                'not_executed_after_workspace_write_failure',
                             }
                     )
                 )
@@ -1882,6 +2222,8 @@ class Conversation:
                 _, last_call, last_result, _ = workspace_write_results[-1]
                 pending_write_results = [(last_call, last_result)]
             if pending_write_results:
+                planned_progress_checkpoint = False
+                mutation_action_checkpoint = False
                 mutation_text_recoveries = 0
                 current_failure_targets = tuple(
                     sorted(
@@ -1918,7 +2260,11 @@ class Conversation:
                 for call, result in tool_results
             )
             if mutation_failures:
-                if not protocol_failure and not recovery_read_succeeded:
+                if (
+                    workspace_write_results
+                    and not protocol_failure
+                    and not recovery_read_succeeded
+                ):
                     mutation_recovery_cycles += 1
                 mutation_recovery_context = (
                     render_mutation_recovery_context(
@@ -1982,6 +2328,84 @@ class Conversation:
                 tool_protocol_failures += 1
             elif any(result.success for _, result in tool_results):
                 tool_protocol_failures = 0
+            if mutation_attempted:
+                change_exploration_calls = 0
+            elif change_required and tool_results:
+                change_exploration_calls += 1
+
+            active_task = self.task_manager.active
+            planned_work_remaining = bool(
+                active_task is not None
+                and active_task.planned
+                and any(
+                    step.status != 'completed'
+                    for step in active_task.steps
+                )
+            )
+            successful_plan_created = any(
+                call.name == 'task_plan' and result.success
+                for call, result in tool_results
+            )
+            if successful_plan_created:
+                # Planning consumes the exploration that produced it. The next
+                # request must execute that plan, not inherit a pre-plan
+                # exploration checkpoint and reopen task_plan.
+                change_exploration_calls = 0
+            successful_plan_transition = any(
+                call.name == 'task_update' and result.success
+                for call, result in tool_results
+            )
+            successful_current_verification = bool(
+                any(
+                    call.name == 'verify' and result.success
+                    for call, result in tool_results
+                )
+                and self.workspace_tracker is not None
+                and latest_verification is not None
+                and latest_verification.success
+                and latest_verification.workspace_revision
+                == self.workspace_tracker.revision
+            )
+            needs_planned_progress_checkpoint = bool(
+                planned_work_remaining
+                and (
+                    successful_plan_created
+                    or successful_plan_transition
+                    or workspace_progressed
+                    or successful_current_verification
+                )
+            )
+            if (
+                change_exploration_calls >= self.change_exploration_limit
+                and change_required
+                and not mutation_attempted
+            ):
+                if (
+                    active_task is not None
+                    and not active_task.planned
+                    and stagnation_plan_recoveries < 1
+                ):
+                    stagnation_plan_recoveries += 1
+                    planning_checkpoint_recovery = True
+                    action_checkpoint_recovery = False
+                    request_messages.append(
+                        build_planning_checkpoint_feedback(
+                            self.task_manager.system_suffix(),
+                            self.working_state.system_suffix(),
+                        )
+                    )
+                    continue
+                if stagnation_action_recoveries < 1:
+                    stagnation_action_recoveries += 1
+                    action_checkpoint_recovery = True
+                    request_messages.append(
+                        build_action_checkpoint_feedback(
+                            self.task_manager.system_suffix(),
+                            self.working_state.system_suffix(),
+                        )
+                    )
+                    continue
+
             completion_ready = (
                 not protocol_failure
                 and await self._can_finalize_after_stagnation(
@@ -2032,6 +2456,7 @@ class Conversation:
             if (
                 workspace_progressed
                 or task_progressed
+                or needs_planned_progress_checkpoint
                 or (
                     change_required
                     and not mutation_attempted
@@ -2039,8 +2464,18 @@ class Conversation:
                 )
             ):
                 calls_without_progress = 0
-                action_only_recovery = False
+                planning_checkpoint_recovery = False
+                planned_progress_checkpoint = (
+                    needs_planned_progress_checkpoint
+                )
+                action_checkpoint_recovery = False
                 force_synthesis = False
+                if needs_planned_progress_checkpoint:
+                    request_messages.append(
+                        build_planned_progress_feedback(
+                            self.task_manager.system_suffix()
+                        )
+                    )
             elif protocol_failure:
                 # Malformed tool arguments are a protocol-recovery problem,
                 # not evidence that the task itself is stuck.
@@ -2084,11 +2519,25 @@ class Conversation:
                 # global stagnation count pre-empt the corrected retry.
                 continue
             elif mutation_failures:
-                # Edit Recovery exclusively owns progress limits while a
-                # workspace-write failure remains unresolved. Reads and
-                # searches may guide the corrected edit without also
-                # consuming the global Stagnation budget.
-                calls_without_progress = 0
+                # A failed write gets one evidence-gathering turn followed by
+                # an edit-only checkpoint. Other calls still consume the
+                # ordinary stagnation budget instead of creating an unlimited
+                # cached-read loop.
+                if recovery_read_succeeded:
+                    calls_without_progress = 0
+                    mutation_action_checkpoint = True
+                    request_messages.append(
+                        build_mutation_action_feedback(
+                            self.task_manager.system_suffix(),
+                            mutation_failure_targets,
+                        )
+                    )
+                elif workspace_write_results:
+                    # Actual failed edits are bounded by the dedicated
+                    # mutation attempt counters above.
+                    calls_without_progress = 0
+                else:
+                    calls_without_progress += 1
             else:
                 calls_without_progress += 1
             if calls_without_progress == self.stagnation_warning:
@@ -2142,13 +2591,33 @@ class Conversation:
                             )
                         )
                     continue
+                active_task = self.task_manager.active
+                if (
+                    pending_required_change
+                    and not mutation_attempted
+                    and active_task is not None
+                    and not active_task.planned
+                    and stagnation_plan_recoveries < 1
+                ):
+                    stagnation_plan_recoveries += 1
+                    planning_checkpoint_recovery = True
+                    action_checkpoint_recovery = False
+                    force_synthesis = True
+                    calls_without_progress = self.stagnation_limit - 1
+                    request_messages.append(
+                        build_planning_checkpoint_feedback(
+                            self.task_manager.system_suffix(),
+                            self.working_state.system_suffix(),
+                        )
+                    )
+                    continue
                 if (
                     pending_required_change
                     and not mutation_attempted
                     and stagnation_action_recoveries < 1
                 ):
                     stagnation_action_recoveries += 1
-                    action_only_recovery = True
+                    action_checkpoint_recovery = True
                     force_synthesis = True
                     # Preserve one final decision turn. Novel evidence or a
                     # workspace mutation resets this counter normally.
@@ -2408,17 +2877,24 @@ class Conversation:
                 'the appropriate verify command before completing.'
             )
         elif finalization_recovery:
-            prompt += (
-                '\n\n[ForgeCode Finalization Recovery]\n'
-                'The current workspace revision satisfies the objective '
-                'completion checks. This is a dedicated final '
-                'synthesis request, so no tools are included. Return one '
-                'concise final answer in the user\'s language based only on '
-                'the collected evidence. State what changed and the exact '
-                'verification performed. Be honest about anything that was '
-                'not semantically or visually verified. Do not request or '
-                'describe another tool call.'
-            )
+            if change_required and self.finish_protocol:
+                prompt += (
+                    '\n\n[ForgeCode Finalization Recovery]\n'
+                    'The current workspace revision satisfies deterministic '
+                    'completion checks. Only finish_task is available. Call it '
+                    'once with an honest structured status and an evidence-based '
+                    'summary; do not return prose instead.'
+                )
+            else:
+                prompt += (
+                    '\n\n[ForgeCode Finalization Recovery]\n'
+                    'The current workspace revision satisfies the objective '
+                    'completion checks. This is a dedicated final synthesis '
+                    'request, so no tools are included. Return one concise final '
+                    'answer in the user\'s language based only on the collected '
+                    'evidence. State what changed and the exact verification '
+                    'performed. Be honest about anything not verified.'
+                )
         elif force_synthesis:
             prompt += (
                 '\n\n[ForgeCode Recovery Checkpoint]\n'
@@ -2437,6 +2913,15 @@ class Conversation:
             )
         return prompt
 
+    def _finish_task_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose only the structured terminal declaration when work is ready.'''
+        tools = [
+            definition
+            for definition in self._tool_definitions() or ()
+            if str(definition.get('name', '')) == 'finish_task'
+        ]
+        return tools or None
+
     def _task_query_tools(self) -> list[dict[str, Any]] | None:
         '''Expose only structured task-state inspection to task queries.'''
         tools = [
@@ -2446,16 +2931,69 @@ class Conversation:
         ]
         return tools or None
 
-    def _workspace_write_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only concrete workspace mutations at an action checkpoint.'''
-        if self.registry is None:
-            return self._tool_definitions()
+    def _planning_checkpoint_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose only task planning or an honest terminal declaration.'''
+        names = {'task_plan', 'finish_task'}
         tools = [
             definition
             for definition in self._tool_definitions() or ()
-            if self.registry.effect(str(definition.get('name', '')))
-            == 'workspace_write'
+            if str(definition.get('name', '')) in names
         ]
+        return tools or None
+
+    def _mutation_action_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose only a corrected workspace edit or honest termination.'''
+        tools = self._action_checkpoint_tools()
+        if tools is None or self.registry is None:
+            return tools
+        return [
+            definition
+            for definition in tools
+            if (
+                self.registry.effect(str(definition.get('name', '')))
+                == 'workspace_write'
+                or str(definition.get('name', '')) == 'finish_task'
+            )
+        ]
+
+    def _planned_progress_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose the next plan transition without reopening exploration.'''
+        tools = self._action_checkpoint_tools()
+        if tools is None:
+            return None
+        return [
+            definition
+            for definition in tools
+            if str(definition.get('name', '')) != 'task_plan'
+        ]
+
+    def _action_checkpoint_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose planning, mutation, verification, and completion actions.'''
+        if self.registry is None:
+            return self._tool_definitions()
+        orchestration = {
+            'task_plan',
+            'task_update',
+            'verify',
+            'finish_task',
+        }
+        tools = [
+            definition
+            for definition in self._tool_definitions() or ()
+            if (
+                self.registry.effect(str(definition.get('name', '')))
+                == 'workspace_write'
+                or str(definition.get('name', '')) in orchestration
+            )
+        ]
+        exposed_names = {
+            str(definition.get('name', ''))
+            for definition in tools
+        }
+        for name in ('write_file_chunk', 'replace_text'):
+            definition = self.registry.definition(name)
+            if definition is not None and name not in exposed_names:
+                tools.append(definition)
         return tools or None
 
     def _read_only_tools(self) -> list[dict[str, Any]] | None:
@@ -2544,7 +3082,6 @@ class Conversation:
             tracker is None
             or gate is None
             or not tracker.changed_paths
-            or mutation_failures
         ):
             return False
         task = self.task_manager.active
@@ -3113,9 +3650,16 @@ def verification_from_result(
 
 
 def tool_call_signature(tool_call: ToolCall, revision: int) -> str:
-    '''Identify an exact tool request within one workspace revision.'''
+    '''Identify a semantic tool request within one workspace revision.'''
+    normalized = dict(tool_call.arguments)
+    if tool_call.name == 'git_diff':
+        # Omitted Pydantic defaults and explicitly supplied defaults are the
+        # same request and must share one working-evidence cache entry.
+        normalized.setdefault('staged', False)
+        normalized.setdefault('offset', 0)
+        normalized.setdefault('expected_sha256', None)
     arguments = json.dumps(
-        tool_call.arguments,
+        normalized,
         ensure_ascii=False,
         sort_keys=True,
         separators=(',', ':'),
@@ -3247,6 +3791,45 @@ def build_stagnation_feedback(
     }
 
 
+def build_planning_checkpoint_feedback(
+    task_context: str,
+    working_context: str,
+) -> dict[str, Any]:
+    '''Require an unplanned complex task to choose a concrete strategy.'''
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n{working_context}\n\n'
+            '[ForgeCode Planning Checkpoint]\n'
+            'The requested workspace change remains broad after repository '
+            'exploration. Exploration and editing tools are temporarily closed. '
+            'Use task_plan to choose concrete implementation and verification '
+            'steps from the evidence already gathered. If no honest plan can '
+            'satisfy the user request, call finish_task with a blocked outcome. '
+            'Do not create a probe, marker, placeholder, or no-op edit.'
+        ),
+    }
+
+
+def build_planned_progress_feedback(
+    task_context: str,
+) -> dict[str, Any]:
+    '''Move a planned task forward after planning or current verification.'''
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n'
+            '[ForgeCode Planned Progress Checkpoint]\n'
+            'A plan was just created or the current revision was just verified, '
+            'but planned work remains. Do not reopen repository exploration or '
+            'repeat verification. Use the existing evidence to choose one '
+            'semantic transition: update completed plan steps, make the next '
+            'task-relevant workspace edit, or finish honestly if the remaining '
+            'plan is no longer required. Probe and placeholder edits are invalid.'
+        ),
+    }
+
+
 def build_action_checkpoint_feedback(
     task_context: str,
     working_context: str,
@@ -3259,11 +3842,16 @@ def build_action_checkpoint_feedback(
             '[ForgeCode Action Checkpoint]\n'
             'Exploration has reached its useful limit. Consume the evidence '
             'returned by the latest tool batch before the runtime can stop. '
-            'Choose the next semantic action yourself: make a focused '
-            'task-relevant edit, run a necessary verification, or call '
-            'finish_task with an honest blocked explanation. Do not create '
-            'probe, marker, sentinel, placeholder, or no-op files. Do not '
-            'repeat covered reads or broaden search patterns.'
+            'Exploration tools are temporarily closed; planning, workspace '
+            'edits, verification, and finish_task remain available. Choose the '
+            'next semantic action yourself. If the request is broad and the '
+            'implementation path is not concrete, create or update the task '
+            'plan before editing. Otherwise make a focused task-relevant edit, '
+            'run a necessary verification, or call finish_task with an honest '
+            'blocked explanation. For a deliberate whole-file replacement, use '
+            'write_file_chunk with offset=0 and truncate=true; do not delete and '
+            'recreate the file merely to bypass focused edit constraints. Do not '
+            'create probe, marker, sentinel, placeholder, or no-op files.'
         ),
     }
 
@@ -3403,8 +3991,6 @@ def mutation_target_paths(
     direct_path = tool_call.arguments.get('path')
     if isinstance(direct_path, str) and direct_path.strip():
         direct_path = direct_path.strip().replace('\\', '/')
-        if tool_call.name == 'create_directory':
-            direct_path = direct_path.rstrip('/') + '/.gitkeep'
         paths.append(direct_path)
     patch = tool_call.arguments.get('patch')
     if isinstance(patch, str):
@@ -3539,6 +4125,26 @@ def build_mutation_recovery_feedback(
     }
 
 
+def build_mutation_action_feedback(
+    task_context: str,
+    targets: tuple[str, ...],
+) -> dict[str, Any]:
+    '''Turn freshly gathered recovery evidence into one corrected edit.'''
+    rendered = ', '.join(targets) or 'the failed edit target'
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n'
+            '[ForgeCode Edit Action Checkpoint]\n'
+            f'Fresh targeted evidence is now available for {rendered}. '
+            'Repository exploration is closed for this request. Make one '
+            'materially corrected workspace edit using that evidence, or '
+            'finish with an honest blocked outcome. Do not reread cached '
+            'ranges, verify an unchanged revision, or create a probe.'
+        ),
+    }
+
+
 def mutation_recovery_stuck_reason(
     failures: list[dict[str, Any]],
     failure_count: int,
@@ -3561,8 +4167,13 @@ def is_tool_protocol_failure(result: ToolResult) -> bool:
         and result.error.code in {
             'invalid_arguments',
             'unknown_tool',
+            'tool_not_available_in_phase',
+            'plan_already_created_this_turn',
+            'not_executed_after_workspace_write_failure',
             'finish_must_be_alone',
             'unsupported_shell_syntax',
+            'file_already_exists',
+            'placeholder_write_denied',
             'invalid_pattern',
             'patch_contains_read_line_numbers',
             'patch_empty_hunk',
@@ -3639,6 +4250,39 @@ def build_output_continuation_feedback(
             f'Continuation attempt {attempt} of {maximum}.'
         ),
     }
+
+
+def obvious_probe_write(tool_call: ToolCall, prompt: str) -> bool:
+    '''Reject only unmistakable synthetic progress writes not requested by the user.'''
+    if tool_call.name not in {'write_file', 'write_file_chunk'}:
+        return False
+    content = tool_call.arguments.get('content')
+    if not isinstance(content, str):
+        return False
+    normalized = content.strip().casefold()
+    probes = {
+        'noop',
+        'temp',
+        'temporary',
+        'test',
+        'placeholder',
+        'placeholder2',
+        'delete',
+    }
+    return normalized in probes and normalized not in prompt.casefold()
+
+
+def patch_has_constructive_operation(tool_call: ToolCall) -> bool:
+    '''Return whether a destructive patch also creates or updates content.'''
+    if tool_call.name != 'apply_patch':
+        return False
+    patch = tool_call.arguments.get('patch')
+    if not isinstance(patch, str):
+        return False
+    return any(
+        marker in patch
+        for marker in ('*** Add File:', '*** Update File:')
+    )
 
 
 def serialized_tool_arguments(

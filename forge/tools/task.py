@@ -39,7 +39,14 @@ class TaskGetTool(Tool[TaskGetInput]):
 class TaskPlanInput(ToolInput):
     steps: list[str] = Field(min_length=2, max_length=20)
     constraints: list[str] = Field(default_factory=list, max_length=20)
-    scope_hints: list[str] = Field(default_factory=list, max_length=20)
+    scope_hints: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            'Optional repository-relative paths or glob patterns only. '
+            'Do not put prose, rationale, or implementation preferences here.'
+        ),
+    )
     replace: bool = False
 
 
@@ -68,10 +75,22 @@ class TaskPlanTool(Tool[TaskPlanInput]):
             )
         except ValueError as error:
             raise ToolExecutionError('task_plan_rejected', str(error)) from error
+        step_refs = tuple(
+            {'id': step.id, 'title': step.title}
+            for step in task.steps
+        )
+        rendered_refs = '; '.join(
+            f'{step.id}: {step.title}'
+            for step in task.steps
+        )
         return ToolResult.ok(
-            f'Created a {len(task.steps)}-step task plan.',
+            f'Created a {len(task.steps)}-step task plan: {rendered_refs}',
             content=self.manager.describe(),
-            metadata={'task_id': task.id, 'step_count': len(task.steps)},
+            metadata={
+                'task_id': task.id,
+                'step_count': len(task.steps),
+                'steps': step_refs,
+            },
         )
 
 

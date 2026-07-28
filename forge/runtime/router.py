@@ -34,6 +34,7 @@ class TurnDecision(BaseModel):
     task_relation: TaskRelation
     requires_workspace_change: bool
     requires_verification: bool = False
+    allows_delete_only: bool | None = None
     confidence: float = Field(ge=0.0, le=1.0)
     reason: str = Field(min_length=1, max_length=500)
 
@@ -228,16 +229,19 @@ Return exactly one JSON object with these fields:
 - task_relation: active | new | none
 - requires_workspace_change: boolean
 - requires_verification: boolean
+- allows_delete_only: boolean
 - confidence: number from 0 to 1
 - reason: short explanation
 
 Semantic definitions:
-- conversation: greetings, thanks, casual conversation, capability questions, or
-  other replies that do not need repository inspection or task-state changes.
+- conversation: greetings, thanks, casual conversation, or other replies whose
+  answer does not need repository evidence or task-state changes.
 - task_query: asks what the current task, goal, progress, state, or blocker is.
 - continue_task: explicitly asks to resume the active unfinished task.
 - new_task: introduces a separate executable task that does not require workspace writes, such as running an existing command or test, or another action distinct from the active task.
-- read_only: asks for explanation, analysis, review, planning, or discussion.
+- read_only: asks for explanation, analysis, review, planning, discussion, or a
+  repository/workspace question that may need inspection to answer. Questions
+  about whether a path or file exists are read_only, not capability questions.
 - change_task: asks to create, edit, delete, fix, implement, or otherwise
   modify workspace contents. Merely running existing tests or commands is not a
   workspace change. Use task_relation=active only when it clearly extends
@@ -247,6 +251,9 @@ Semantic definitions:
   workspace-write tools.
 - requires_verification: true when the user explicitly requires tests, builds,
   linting, type-checking, or another executed verification as part of a change.
+- allows_delete_only: true only when the user's requested final outcome is deletion,
+  cleanup, or emptying content. Keep it false for refactors, upgrades, migrations,
+  rewrites, and implementations where deleted files must have replacements.
 
 Understand paraphrases, colloquial language, and minor spelling mistakes.
 Do not execute the request and do not output Markdown.
