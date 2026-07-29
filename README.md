@@ -4,7 +4,7 @@
 
 ForgeCode 面向真实代码仓库中的长链路工程任务。它不把模型的一句“已经完成”视为成功，而是通过工具执行、测试反馈、权限控制、变更检查和可复现评测，客观判断任务是否真正完成。
 
-当前项目处于早期开发阶段，但 M1 多步 Agent Loop、M2 工作区与完成门禁、M3 权限与安全控制核心、M4 会话恢复、M5 上下文工程以及 M6 Hooks 与 MCP Client 已经落地。本 README 同时描述当前可用能力、系统边界和从 M0 到 v1.0 的后续路线。
+当前项目处于早期开发阶段，但 M1 多步 Agent Loop、M2 工作区与完成门禁、M3 权限与安全控制核心、M4 会话恢复、M5 上下文工程以及 M6 Hooks、MCP Client 与只读 Explore Agent 已经落地。近期工作重点从“补齐基本能力”转向长任务健壮性：工具失败恢复、依赖安装闭环、验证债务、会话并发保护和可控 Token 预算。本 README 同时描述当前可用能力、已知边界和从 M0 到 v1.0 的后续路线。
 
 ## 项目定位
 
@@ -45,18 +45,92 @@ ForgeCode 的核心职责是为模型提供一套可靠、可恢复、可评测�
 
 ## 当前可用能力
 
-- 持续交互的多步 Agent Loop，支持流式文本、多工具调用、结构化错误恢复和 JSONL 轨迹；每轮保存路由决策、原始路由输出和降级原因，便于定位模型判断与运行时执行的边界；
-- 仓库范围内的读取、搜索、原子写入、分块写入、精确替换、Patch、命令、验证和 Git 工具；
-- 基于任务起始快照的工作区版本追踪，内置写入工具可以追踪 Git ignored 目标文件；
-- 路由模型判定为变更任务后，主模型使用结构化 `finish_task` 声明完成；运行时只校验真实 Diff、路径边界以及路由或 `TaskPolicy(require_verification=True)` 要求的当前 revision 验证；
-- Edit Recovery 默认累计 5 次失败写入；失败后保留普通工具集，并把结构化错误、当前证据和重复调用结果交给模型决定下一步，任何真实工作区修改都会清除旧失败债务；
-- 相同 revision 中已覆盖的文件范围不会重新访问磁盘，也不会再次向模型注入完整源码；完全相同的读取先返回短缓存引用，继续重复时再由精确重复保护拒绝；
-- 单次用户回合默认不设置累计输入 Token 上限，依靠覆盖读取缓存、完全相同调用保护、编辑失败预算和无进展检测收敛；嵌入式调用仍可显式配置上限；
+- 持续交互的多步 Agent Loop，支持流式文本、单响应多工具调用、结构化错误恢复和 JSONL 轨迹；每轮保存路由决策、原始输出和降级原因，便于区分模型判断、工具协议与运行时门禁；
+- 仓库范围内的读取、搜索、原子写入、分块写入、精确替换、Patch、命令、验证和 Git 工具；整文件破坏性缩减、delete-only 实现、任务规格删除和越界路径会在执行前被拒绝；
+- 基于任务起始快照和递增 `workspace_revision` 的工作区追踪，能够识别 Git ignored 目标、区分用户原有脏文件与 Agent 本轮修改，并使修改后的旧验证自动失效；
+- 路由模型负责识别问答、读取、变更以及新任务/继续任务关系；变更任务使用结构化 `finish_task`，Completion Gate 只接受真实 Diff、当前 revision 验证、允许路径和有效计划状态；
+- Edit Recovery、工具协议恢复、Mutation Recovery 和验证修复使用独立预算。失败写入保留结构化错误和最接近原文，真实工作区进展会清除旧失败债务；完全相同的失败调用会被拒绝；
+- 验证失败按 `typecheck`、`build` 等类别形成未解决验证债务，较弱或不同的命令不能覆盖先前失败；源码修复后必须在当前 revision 重新运行对应验证；
+- 对缺失的 `tsc`、`vite` 等已声明项目工具提供“依赖安装 → 原命令复验”的专用恢复阶段，并把普通源码修复与依赖恢复分开；该流程仍有一个工具可见性边缘问题，见下方“已知限制”；
+- 相同 revision 中已覆盖的文件范围不会重新访问磁盘，也不会再次向模型注入完整源码；相同读取先返回短缓存引用，继续重复时由精确重复保护拒绝；
+- 普通任务默认上限为每轮 80 次模型调用和 120 次工具调用；显式复杂计划可扩展到 160 次模型调用、320 次工具调用，并启用 2,000,000 累计输入 Token 的保险上限。嵌入式调用可以显式覆盖这些值；
 - `plan`、`supervised`、`auto` 权限模式，通过唯一 Slash Command `/permission` 查看或切换；Plan 模式只向模型暴露只读工具，权限拒绝会立即结束当前轮次；
 - 支持会话/项目/用户三级权限规则、交互审批和 JSONL 审计；删除权限根据最终 ToolCall 的确定性文件操作判定，不依赖用户措辞关键词；
-- 子进程清理敏感环境变量、限制输出、超时终止进程树，并对网络、安装、删除和提权行为执行风险决策；
+- 子进程清理敏感环境变量、限制输出、超时终止进程树，并对网络、安装、删除和提权行为执行风险决策；模型请求由 ForgeCode 统一进行最多 6 次有限重试；
+- append-only Session Journal 支持合法分支链恢复、并发写入头检查和过期 writer 拒绝，避免中断或两个进程同时恢复同一 session 时继续分叉；
 - WorkingState、廉价压缩、结构化摘要、项目规则、仓库记忆和 `/context`、`/compact`、`/task`、`/memory` 等 Slash Command；
-- MCP Client 支持 stdio、Streamable HTTP、动态工具发现、统一权限治理、来源审计和 `/mcp` 状态查看。
+- MCP Client 支持 stdio、Streamable HTTP、动态工具发现、统一权限治理、来源审计和 `/mcp` 状态查看；只读 Explore Agent 使用独立上下文和独立 Token 预算返回结构化调查报告。
+
+### 近期真实验收与已知限制
+
+除 406 项自动化测试外，当前版本已经使用真实 `gpt-5.4-mini` 驱动完整 `Conversation → ToolRegistry → WorkspaceTracker → Completion Gate` 链路：从仅保留任务说明的目录生成 Vite、TypeScript、Phaser 项目；一次大 Patch 格式失败、一次精确替换失败和首次编译失败均被恢复；最终 `npm run typecheck` 与 `npm run build` 通过，开发服务器关键模块和生产构建资源均可通过 HTTP 加载。`play/` 仅用于这类验收，不属于 ForgeCode 产品交付物。
+
+当前仍有以下已知边界：
+
+- Windows 项目未执行 `npm install` 时，`vite`/`tsc` 缺失能够被识别为依赖问题，但最近一次长任务中出现了恢复提示已经生成、下一请求却未向模型提供 `run_command` 的阶段一致性问题，最终被 Completion Gate 正确拒绝并以 `stuck` 结束；
+- 大型单响应 Patch 必须完整生成后才会执行，超大场景文件会带来明显的首个工具调用延迟；
+- ForgeCode 本身不提供浏览器、截图或视觉理解工具，网页和游戏的自动验收目前以源码、类型检查、构建、HTTP 资源加载和项目自带测试为主；
+- 原生文件系统、网络、CPU、内存和进程数量的强隔离仍依赖后续平台 Sandbox Backend；当前安全边界适用于可信本机仓库和受监督的高风险操作。
+
+## 运行时架构
+
+ForgeCode 把“模型推理”和“可验证执行”分开。模型可以选择下一步行动，但不能自行决定权限、工作区版本、验证是否有效或任务是否真正完成。
+
+```text
+Terminal / CLI
+  │
+  ├─ Intent Router ──────────────── 识别意图、任务关系、变更与验证契约
+  │
+  └─ Conversation / Agent Loop
+       ├─ Context Manager ───────── System、Repository、Task、Working 四层上下文
+       ├─ Tool Registry ─────────── 内置工具、MCP 工具和只读 Explore Agent
+       ├─ Permission Manager ────── 模式、规则、风险分类、审批与审计
+       ├─ Hook Manager ──────────── 模型、工具、编辑、验证和会话生命周期扩展
+       ├─ Workspace Tracker ─────── 基线、changed paths 与 workspace_revision
+       ├─ Completion Gate ───────── Diff、范围、计划、验证债务与 finish_task
+       └─ Session Runtime
+            ├─ append-only Journal
+            ├─ Checkpoint / Blob Store
+            └─ Context transcript / task / memory
+```
+
+一次变更任务的主要数据流：
+
+```text
+用户 Prompt
+→ Router 生成结构化 TurnDecision
+→ TaskManager 建立或恢复 ActiveTask
+→ Context Manager 组装本次模型请求
+→ 模型返回文本或 ToolCall
+→ 运行时校验“本阶段声明的工具”
+→ Permission Manager 与 PreToolUse Hook
+→ ToolRegistry 执行并返回结构化 ToolResult
+→ WorkspaceTracker 更新 revision
+→ 验证工具产生带 revision 的 VerificationEvidence
+→ Completion Gate 接受完成，或把明确缺口反馈给下一次模型请求
+→ Session Journal 持久化可恢复事件
+```
+
+恢复逻辑不是一个笼统的重试循环，而是一组短生命周期 checkpoint：
+
+| 恢复类型 | 触发条件 | 下一请求的目标 |
+| --- | --- | --- |
+| Tool Protocol Recovery | 未知参数、截断 JSON、不可用工具 | 修正结构化 ToolCall |
+| Edit / Mutation Recovery | Patch、替换或写入失败 | 读取最小证据并执行针对性修改 |
+| Dependency Recovery | 验证发现项目工具未安装 | 运行包管理器安装命令 |
+| Verification Recheck | 修复了失败 revision | 重跑原验证，清除对应验证债务 |
+| Completion Correction | `finish_task` 与证据不一致 | 根据拒绝原因继续行动或修正声明 |
+| Finalization Recovery | 所有确定性门禁已经满足 | 无工具地生成最终交付说明 |
+
+运行时必须保持以下不变量：
+
+1. 没有真实工作区变更，变更任务不能完成；
+2. 验证证据只对执行时的 `workspace_revision` 有效；
+3. 失败的 `typecheck`、`build` 只能由当前 revision 上同类别成功验证清除；
+4. 当前恢复阶段未声明的工具不得执行；
+5. `task.md`、`AGENTS.md` 和显式任务根目录不能被实现任务误删；
+6. 已完成的有副作用工具在会话恢复后不得自动重放；
+7. Session Journal 只能由持有最新 durable head 的 writer 继续追加。
 
 ## 技术基线
 
@@ -121,7 +195,7 @@ macOS/Linux：
 
     uv run forge
 
-启动后可以连续输入消息，每一轮都会携带经过裁剪的相关会话上下文；按 `Ctrl+C` 退出。终端支持直接粘贴包含换行的多行 Prompt，粘贴内容会作为一条完整消息提交。模型文本按照 Provider 的 delta 实时显示。Token 区分最近一次模型请求和当前用户回合累计值，同时显示模型调用次数；如果使用了 Prompt Cache，还会显示缓存读写 Token。交互运行时默认不按累计输入 Token 强制停止当前用户回合，而由重复调用、编辑恢复、停滞和完成决策预算控制收敛；代码调用方仍可通过 `Conversation(max_turn_input_tokens=...)` 主动设置保险上限。
+启动后可以连续输入消息，每一轮都会携带经过裁剪的相关会话上下文；按 `Ctrl+C` 退出。终端支持直接粘贴包含换行的多行 Prompt，粘贴内容会作为一条完整消息提交。模型文本按照 Provider 的 delta 实时显示。Token 区分最近一次模型请求和当前用户回合累计值，同时显示模型调用次数；如果使用了 Prompt Cache，还会显示缓存读写 Token。普通任务使用每轮 80 次模型调用和 120 次工具调用作为默认保险，累计输入 Token 默认不单独设限；创建显式复杂计划后，运行时把保险扩展为 160 次模型调用、320 次工具调用和 2,000,000 累计输入 Token。代码调用方仍可通过 `Conversation(max_iterations=..., max_tool_calls=..., max_turn_input_tokens=...)` 显式覆盖。
 
 权限模式统一使用 `/permission` 管理：
 
@@ -134,7 +208,7 @@ macOS/Linux：
 
 MCP Server 从用户级 `~/.forge/mcp.json` 和项目根目录 `.mcp.json` 加载，项目同名配置覆盖用户配置。复制 `.mcp.json.example` 可以启动仓库内置的 stdio 示例；`/mcp` 显示连接状态、Transport、工具数量、Server 版本和最近错误。MCP 工具使用 `mcp__<server>__<tool>` 命名，连接与调用均经过权限审批。首版支持 stdio 和 Streamable HTTP，不支持旧 SSE、OAuth、Resources、Prompts 或 Sampling。配置中的 `${VAR}` 从当前环境展开，缺失变量会让配置以明确错误停止加载。
 
-`.env` 已被 Git 忽略，仓库只提交不含真实凭据的 `.env.example`。系统环境变量优先于 `.env` 中的同名配置。`ANTHROPIC_API_KEY` 和 `MODEL_ID` 必填；`ANTHROPIC_BASE_URL` 可以省略，默认使用 `https://api.anthropic.com`。`MODEL_MAX_TOKENS` 可选，默认 `8192`，允许范围为 `1024～32768`。`MODEL_CONTEXT_WINDOW` 可选，必须根据当前 Provider 和模型文档填写，并且大于 `MODEL_MAX_TOKENS`；ForgeCode 不猜测第三方兼容模型的窗口大小。`MODEL_REQUEST_TIMEOUT_SECONDS` 控制流式请求无响应超时，默认 `120` 秒，允许范围为 `10～600` 秒。SDK 内置重试被关闭，由 ForgeCode 统一决定何时安全重试。`forge config` 显示 Model ID、Base URL、最大输出 Token、请求超时、上下文窗口和密钥配置状态，但不会回显 API Key。交互模式的每轮消息都会发起真实 API 请求，可能产生 Provider 费用。
+`.env` 已被 Git 忽略，仓库只提交不含真实凭据的 `.env.example`。系统环境变量优先于 `.env` 中的同名配置。`ANTHROPIC_API_KEY` 和 `MODEL_ID` 必填；`ANTHROPIC_BASE_URL` 可以省略，默认使用 `https://api.anthropic.com`。`MODEL_MAX_TOKENS` 可选，默认 `8192`，允许范围为 `1024～32768`。`MODEL_CONTEXT_WINDOW` 可选，必须根据当前 Provider 和模型文档填写，并且大于 `MODEL_MAX_TOKENS`；ForgeCode 不猜测第三方兼容模型的窗口大小。`MODEL_REQUEST_TIMEOUT_SECONDS` 控制流式请求无响应超时，默认 `120` 秒，允许范围为 `10～600` 秒。SDK 内置重试被关闭，由 ForgeCode 统一决定何时安全重试；模型客户端默认最多执行 6 次有限重试，用于处理临时连接、限流和 5xx 错误。`forge config` 显示 Model ID、Base URL、最大输出 Token、请求超时、上下文窗口和密钥配置状态，但不会回显 API Key。交互模式的每轮消息都会发起真实 API 请求，可能产生 Provider 费用。
 
 ## 项目结构
 
@@ -306,7 +380,7 @@ M1.4 将模型决策和内置工具连接成真正的执行循环：
 - [x] 一次用户请求内累计所有模型调用的输入、输出和缓存 Token；
 - [x] 保存完整的 `user → assistant(tool_use) → user(tool_result) → assistant(final)` 会话上下文；
 - [x] 终端按事件时间线内联显示模型文本与工具组，并展示工具名称、参数摘要、成功或失败状态、结果摘要及最多 800 字符的失败诊断；
-- [x] 默认不限制模型调用次数和单回合累计输入 Token，依靠重复调用、编辑恢复、停滞与完成决策预算收敛；用户可按 `Ctrl+C` 中断，调用方仍可显式设置模型调用或累计输入 Token 上限；
+- [x] 普通任务默认限制为 80 次模型调用和 120 次工具调用；显式复杂计划扩展为 160/320，并启用 2,000,000 累计输入 Token 保险；用户可按 `Ctrl+C` 中断，调用方可以显式覆盖全部上限；
 - [x] 写入工具没有产生真实最终 Diff 后进入独立 Edit Recovery：只累计失败写入，默认连续 5 次后停止；存在未解决写入失败时暂停全局 Stagnation，避免两套停止机制互相抢占；
 - [x] Edit Recovery 不再按恢复阶段隐藏读取、搜索、验证或编辑工具；模型接收结构化失败诊断并选择下一步，完全相同的失败调用仍会被拒绝，已覆盖读取只返回短缓存引用；
 - [x] 未解决的写入失败会阻止纯文本和 `finish_task` 完成声明；任意真实、任务范围内的工作区修改都会清除旧失败债务，不再要求修改路径必须与失败工具的目标字符串重合。
@@ -325,7 +399,7 @@ Model Client：
 - [x] 支持 Tool Calling 和单轮返回多个 Tool Call；
 - [x] 读取并显示每轮输入、输出和缓存 Token；
 - [ ] 记录模型调用耗时；
-- [ ] 处理超时、限流、格式错误和有限次数重试。
+- [x] 处理请求超时、限流、5xx、连接错误、输出截断、格式错误和有限次数重试；
 
 ```python
 class ModelClient(Protocol):
@@ -353,7 +427,7 @@ Agent Loop 与 CLI：
 - [x] 初始化 System Prompt，将工具 Schema 提供给模型；
 - [x] 执行 Tool Call 并将结果反馈给模型；
 - [x] 默认持续循环直到任务完成，并支持 `Ctrl+C` 中断；测试可显式设置最大循环次数；
-- [x] 支持可选的单次用户回合累计输入 Token 上限，默认禁用，代码调用方可显式配置；
+- [x] 支持单次用户回合累计输入 Token 上限；普通任务默认不单独启用，显式复杂计划默认使用 2,000,000，代码调用方可显式配置；
 - [x] 在相同工作区版本中缓存只读证据；已覆盖的 `read_file` 范围返回短引用，不重复访问磁盘或注入完整源码；
 - [x] 普通任务连续 4 次模型调用没有工作区、计划或仓库证据进展时提示模型改变策略，连续 8 次无进展时以 `stuck` 结束；Edit Recovery 只使用独立的失败写入预算，不再限制模型只能进行一次针对性读取；
 - [x] 保存完整 JSONL 执行轨迹；
@@ -372,7 +446,7 @@ Agent Loop 与 CLI：
 
 ## M2：可靠的代码修改与验证闭环
 
-### 当前进度：核心实现与评测 Runner 完成，等待真实模型验收
+### 当前进度：核心实现、评测 Runner 与一次真实模型工程验收完成；三个固定 Fixture 的全量真实模型验收仍待执行
 
 ### 目标
 
@@ -402,7 +476,9 @@ M2 不试图替代模型判断代码是否正确，而是建立一条可检查�
 - [x] 新增 `verify` 工具，与普通 `run_command` 明确区分；
 - [x] 复用现有命令执行能力，记录验证命令、退出码、耗时和执行时的 `workspace_revision`；
 - [x] 只有退出码为零的 `verify` 调用才能成为成功验证证据；
-- [x] 验证后如果代码再次变化，旧验证自动失效。
+- [x] 验证后如果代码再次变化，旧验证自动失效；
+- [x] 按 `typecheck`、`build` 分类保留未解决验证债务，不允许用较弱或不同命令覆盖失败；
+- [x] 提供缺少 `tsc`、`vite` 等项目工具时的依赖安装与原命令复验阶段；当前仍需修复一个恢复阶段工具可见性边缘问题。
 
 #### M2.3：完成检查
 
@@ -547,7 +623,9 @@ M4 首版优先保证可靠恢复和不重复执行工具，不尝试自动恢�
 - [x] 大型工具输出单独保存，事件中只保留引用；
 - [x] 流式增量不逐 Token 持久化，只在完整消息形成后写入可恢复记录；
 - [x] 原始历史持续保留，压缩后通过父事件链选择实际发送给模型的有效消息；
-- [x] 写入采用追加、刷新和尾部损坏容错，事件不被静默覆盖。
+- [x] 写入采用追加、刷新和尾部损坏容错，事件不被静默覆盖；
+- [x] 把事件视为父 UUID 构成的 DAG，从被并发 writer 意外分叉的日志中选择最长合法分支恢复；
+- [x] 每次追加前校验 durable head，过期或并发 writer 不能继续向同一 session 写出新分支。
 
 恢复语义：
 
@@ -557,7 +635,8 @@ M4 首版优先保证可靠恢复和不重复执行工具，不尝试自动恢�
 - [x] 已有 `ToolResult` 的工具绝不重放；只有 `ToolStarted` 而没有结果的工具标记为结果未知；
 - [x] 结果未知的读取工具可以重新执行，写入、命令和其他有副作用工具必须先检查工作区并由用户决定；
 - [x] 危险权限和临时审批不随会话自动恢复；
-- [x] 会话分支复制有效消息链并生成新会话 ID，原会话保持不变。
+- [x] 会话分支复制有效消息链并生成新会话 ID，原会话保持不变；
+- [x] 运行时 API 只允许在显式 fork 时覆盖模型配置，避免原 session 被静默切换模型。
 
 文件 Checkpoint：
 
@@ -684,7 +763,7 @@ Working Layer
 - [x] 文件发生变化并产生新的 `workspace_revision` 后允许重新读取；
 - [x] 新文件、未覆盖行、搜索结果、工作区变化、计划推进和验证结果才算有效进展；空 Git 结果以及已读取文件被 `find_files` 再次发现不会重复计为进展；
 - [x] 纯读取任务同样受无进展保护，不再依赖是否尝试修改文件；
-- [x] 普通无进展和 Edit Recovery 都保留当前权限模式允许的完整工具集；系统通过结构化错误、覆盖读取缓存和完全相同调用保护控制浪费，不再用阶段状态机猜测模型下一步需要哪类工具；
+- [x] 普通无进展和常规 Edit Recovery 保留当前权限模式允许的工具；对规划修正、Mutation Recovery、依赖安装、验证复查和 Finalization 使用短生命周期的确定性工具阶段，并校验模型只能调用本次声明的工具；
 - [x] 写入失败后的恢复预算独立于只读证据新颖性；缓存回放不注入源码，重复的完全相同调用被拒绝，参数不同的读取是否有价值由模型结合 WorkingState 决定；
 - [x] 工具参数/Schema 错误使用独立的协议恢复反馈，不计入任务语义停滞；
 - [x] 当前修改和当前验证满足 Completion Gate 后使用独立收敛计数；新的只读证据不能再把已完成候选无限延长，已审阅的缓存 Diff 也不能重复续命；
@@ -693,7 +772,7 @@ Working Layer
 - [x] 区分 `blocked` 与 `stuck`：前者只表示需要用户或外部条件，后者表示 Agent 行为循环；
 - [x] 路由模型显式判定 `continue_task` 时保留原始任务 ID、目标、范围和变更契约；任务管理器不再根据“继续”“它”“其”“里面”等固定词表猜测任务关系。
 
-当前有意保持简单：不使用向量数据库、Embedding、全局/云端记忆或额外子 Agent。项目规则是模型上下文，不代替 M3 的强制权限控制。
+当前有意保持简单：不使用向量数据库、Embedding 或全局/云端记忆；仅提供一个隔离、只读、不可递归委派的 Explore Agent。项目规则是模型上下文，不代替 M3 的强制权限控制。
 
 ### 验收条件
 
@@ -744,7 +823,7 @@ ForgeCode 在交互终端中提供 Slash Command，用于执行不需要交给�
 
 自动压缩在 Agent Loop 的每一次模型调用前使用相同的请求口径重新检查：System Prompt、ActiveTask、WorkingState、仓库规则/相关 Memory、工具 Schema、廉价压缩后的消息历史以及 `MODEL_MAX_TOKENS` 预留输出之和，达到 `MODEL_CONTEXT_WINDOW` 的 80% 时生成结构化任务摘要。未配置模型窗口时，使用 120,000 个历史字符作为兜底阈值；Provider 仍明确报告上下文溢出时，会强制压缩并恢复请求一次。
 
-利用率按照“预计输入 + 预留输出”占总窗口的比例显示，与 80% 自动压缩阈值使用同一口径。工具结果已经包含在历史中，只单独显示大小而不会重复计入总量。统计不包含用户下一条尚未输入的 Prompt。终端中的 `last request` 是最近一次模型调用的真实 usage，`turn cumulative` 是当前用户回合所有模型调用的累计消耗，不能把累计值误认为单次上下文大小；默认不按累计输入 Token 强制停止，只有代码调用方显式配置 `max_turn_input_tokens` 时才启用该保险上限。由于不同模型的分词方式不同，Provider 返回的真实 `input_tokens` 仍是请求完成后的最终依据；未配置 `MODEL_CONTEXT_WINDOW` 时，ForgeCode 会把剩余量显示为 `unavailable`。
+利用率按照“预计输入 + 预留输出”占总窗口的比例显示，与 80% 自动压缩阈值使用同一口径。工具结果已经包含在历史中，只单独显示大小而不会重复计入总量。统计不包含用户下一条尚未输入的 Prompt。终端中的 `last request` 是最近一次模型调用的真实 usage，`turn cumulative` 是当前用户回合所有模型调用的累计消耗，不能把累计值误认为单次上下文大小；普通任务默认不按累计输入 Token 单独停止；显式复杂计划自动启用 2,000,000 累计输入 Token 保险，代码调用方设置 `max_turn_input_tokens` 时以显式值为准。由于不同模型的分词方式不同，Provider 返回的真实 `input_tokens` 仍是请求完成后的最终依据；未配置 `MODEL_CONTEXT_WINDOW` 时，ForgeCode 会把剩余量显示为 `unavailable`。
 
 ## M6：Hooks、MCP 与子 Agent 扩展
 
