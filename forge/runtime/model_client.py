@@ -114,7 +114,7 @@ class AnthropicModelClient:
         cls,
         config: ForgeConfig | None = None,
         max_tokens: int | None = None,
-        max_retries: int = 3,
+        max_retries: int = 6,
         client: AsyncAnthropic | None = None,
     ) -> AnthropicModelClient:
         '''Create a model client from .env or an explicit ForgeConfig.'''
@@ -139,7 +139,7 @@ class AnthropicModelClient:
         self,
         model: str,
         max_tokens: int = DEFAULT_MODEL_MAX_TOKENS,
-        max_retries: int = 3,
+        max_retries: int = 6,
         context_window: int | None = None,
         request_timeout_seconds: float = 120.0,
         config: ForgeConfig | None = None,

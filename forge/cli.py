@@ -603,8 +603,14 @@ def create_session_runtime(
     continue_session: bool = False,
     resume_identifier: str | None = None,
     fork_session: bool = False,
+    model_override: str | None = None,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Create a new conversation or hydrate one from durable history.'''
+    if model_override is not None and not fork_session:
+        raise ValueError('model_override requires fork_session=True.')
+    resolved_model_override = (
+        model_override.strip() if model_override is not None else ''
+    )
     store = SessionStore(root)
     registry = create_default_registry(root)
     hook_manager = HookManager.from_root(root)
@@ -626,7 +632,7 @@ def create_session_runtime(
                 source,
                 messages=list(state.messages),
                 task=state.active_task,
-                model=state.info.model,
+                model=resolved_model_override or state.info.model,
             )
             checkpoint_store = CheckpointStore.for_session(
                 root,
@@ -635,9 +641,10 @@ def create_session_runtime(
             )
             state = store.load(journal.session_id)
         config = ForgeConfig.from_env()
+        resumed_model = resolved_model_override or state.info.model
         resumed_config = (
-            replace(config, model_id=state.info.model)
-            if state.info.model
+            replace(config, model_id=resumed_model)
+            if resumed_model
             else config
         )
         model_client = AnthropicModelClient.from_config(resumed_config)

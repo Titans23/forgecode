@@ -383,10 +383,14 @@ class Conversation:
                 or len(active_task.goal) >= 500
             )
         ):
+            # Complex plans need more room than small edits, but must not
+            # silently spend hundreds of model calls in a single turn.
             if self.max_iterations == 80:
-                self.max_iterations = 600
+                self.max_iterations = 160
             if self.max_tool_calls == 120:
-                self.max_tool_calls = 1200
+                self.max_tool_calls = 320
+            if self.max_turn_input_tokens is None:
+                self.max_turn_input_tokens = 2_000_000
             if self.max_tool_protocol_recoveries == 6:
                 self.max_tool_protocol_recoveries = 24
             if self.mutation_recovery_limit == 4:
@@ -449,6 +453,10 @@ class Conversation:
         verification_recovery = False
         verification_fix_checkpoint = False
         verification_action_checkpoint = False
+        dependency_recovery_checkpoint = False
+        dependency_verification_checkpoint = False
+        verification_recheck_checkpoint = False
+        unresolved_verifications: dict[str, VerificationEvidence] = {}
         tool_protocol_failures = 0
         finalization_recovery = False
         task_state_synthesis = False
@@ -573,6 +581,12 @@ class Conversation:
                 request_tools = self._mutation_read_tools()
             elif mutation_action_checkpoint:
                 request_tools = self._mutation_action_tools()
+            elif dependency_verification_checkpoint:
+                request_tools = self._dependency_verification_tools()
+            elif dependency_recovery_checkpoint:
+                request_tools = self._dependency_recovery_tools()
+            elif verification_recheck_checkpoint:
+                request_tools = self._dependency_verification_tools()
             elif verification_fix_checkpoint:
                 request_tools = self._verification_fix_tools()
             elif verification_action_checkpoint:
@@ -615,6 +629,9 @@ class Conversation:
                 or planned_progress_checkpoint
                 or mutation_read_checkpoint
                 or mutation_action_checkpoint
+                or dependency_recovery_checkpoint
+                or dependency_verification_checkpoint
+                or verification_recheck_checkpoint
                 or verification_fix_checkpoint
                 or verification_action_checkpoint
                 or action_checkpoint_recovery
@@ -1498,6 +1515,33 @@ class Conversation:
                     )
                 if (
                     phase_rejection is None
+                    and not delete_only_allowed
+                    and tool_call.id in destructive_batch_ids
+                    and protected_task_input_delete(
+                        tool_call,
+                        (
+                            self.task_manager.active.scope_hints
+                            if self.task_manager.active is not None
+                            else ()
+                        ),
+                    )
+                ):
+                    phase_rejection = ToolResult.fail(
+                        'protected_task_input_delete',
+                        'This implementation task cannot delete its task '
+                        'specification or explicit scope root. Preserve task.md, '
+                        'AGENTS.md, and the scoped project directory; make '
+                        'focused edits inside that directory instead. Deleting '
+                        'them is allowed only for an explicit user-requested '
+                        'cleanup or removal task.',
+                        details={
+                            'targets': list(
+                                mutation_target_paths(tool_call, maximum=None)
+                            ),
+                        },
+                    )
+                if (
+                    phase_rejection is None
                     and reject_delete_only_batch
                     and tool_call.id in destructive_batch_ids
                     and not (
@@ -1923,6 +1967,18 @@ class Conversation:
                         verification=latest_verification,
                         verification_required=verification_required,
                     )
+                    if unresolved_verifications:
+                        unresolved_commands = ', '.join(
+                            f'{kind}: {evidence.command!r} in '
+                            f'{evidence.cwd or "."!r}'
+                            for kind, evidence in unresolved_verifications.items()
+                        )
+                        finish_reasons = (
+                            'Earlier verification failures remain unresolved by '
+                            'the same commands on the current revision: '
+                            f'{unresolved_commands}.',
+                            *finish_reasons,
+                        )
                     if (
                         result.metadata.get('status') != 'blocked'
                         and mutation_failures
@@ -2064,6 +2120,15 @@ class Conversation:
                     )
                     verification_recovery = False
                     if latest_verification is not None:
+                        verification_key = verification_obligation(
+                            latest_verification.command
+                        )
+                        if verification_key and latest_verification.success:
+                            unresolved_verifications.pop(verification_key, None)
+                        elif verification_key:
+                            unresolved_verifications[verification_key] = (
+                                latest_verification
+                            )
                         verification_hook = await self._emit_hook(
                             HookEvent(
                                 name='AfterVerification',
@@ -2121,9 +2186,11 @@ class Conversation:
                         )
                     ):
                         if self.max_iterations == 80:
-                            self.max_iterations = 600
+                            self.max_iterations = 160
                         if self.max_tool_calls == 120:
-                            self.max_tool_calls = 1200
+                            self.max_tool_calls = 320
+                        if self.max_turn_input_tokens is None:
+                            self.max_turn_input_tokens = 2_000_000
                         if self.max_tool_protocol_recoveries == 6:
                             self.max_tool_protocol_recoveries = 24
                         if self.mutation_recovery_limit == 4:
@@ -2445,6 +2512,13 @@ class Conversation:
             write_resolves_active_failure = (
                 not mutation_failures or workspace_progressed
             )
+            verification_edit_progressed = bool(
+                workspace_progressed
+                and (
+                    verification_fix_checkpoint
+                    or verification_action_checkpoint
+                )
+            )
             if workspace_progressed:
                 chunk_fallback_required = False
                 oversized_write_checkpoint = False
@@ -2452,6 +2526,9 @@ class Conversation:
                 current_step_action_checkpoint = False
                 verification_fix_checkpoint = False
                 verification_action_checkpoint = False
+                dependency_recovery_checkpoint = False
+                dependency_verification_checkpoint = False
+                verification_recheck_checkpoint = verification_edit_progressed
                 if write_resolves_active_failure:
                     mutation_failure_count = 0
                     mutation_failure_total = 0
@@ -2687,6 +2764,83 @@ class Conversation:
             elif change_required and tool_results:
                 change_exploration_calls += 1
 
+            dependency_recovery_succeeded = bool(
+                dependency_recovery_checkpoint
+                and any(
+                    call.name == 'run_command' and result.success
+                    for call, result in tool_results
+                )
+            )
+            if dependency_recovery_succeeded:
+                dependency_recovery_checkpoint = False
+                dependency_verification_checkpoint = True
+                verification_fix_checkpoint = False
+                verification_action_checkpoint = False
+                calls_without_progress = 0
+                force_synthesis = False
+                request_messages.append(
+                    build_dependency_recovery_completed_feedback(
+                        self.task_manager.system_suffix()
+                    )
+                )
+                continue
+
+            dependency_verification_succeeded = bool(
+                dependency_verification_checkpoint
+                and any(
+                    call.name == 'verify' and result.success
+                    for call, result in tool_results
+                )
+            )
+            if dependency_verification_succeeded:
+                dependency_verification_checkpoint = False
+                calls_without_progress = 0
+                force_synthesis = False
+                request_messages.append(
+                    build_dependency_verification_completed_feedback(
+                        self.task_manager.system_suffix()
+                    )
+                )
+                continue
+
+            verification_recheck_succeeded = bool(
+                verification_recheck_checkpoint
+                and any(
+                    call.name == 'verify' and result.success
+                    for call, result in tool_results
+                )
+            )
+            if verification_recheck_succeeded:
+                verification_recheck_checkpoint = bool(unresolved_verifications)
+                calls_without_progress = 0
+                force_synthesis = False
+                unresolved_summary = '; '.join(
+                    f'{kind}: {evidence.command} '
+                    f'(cwd={evidence.cwd or "."})'
+                    for kind, evidence in unresolved_verifications.items()
+                )
+                request_messages.append(
+                    {
+                        'role': 'user',
+                        'content': (
+                            f'{self.task_manager.system_suffix()}\n\n'
+                            + (
+                                'The current verification command passes, but '
+                                'earlier verification failures remain unresolved '
+                                'on this revision. Run each exact command now: '
+                                f'{unresolved_summary}. A weaker or different '
+                                'command cannot replace this evidence.'
+                                if unresolved_summary
+                                else
+                                'The corrected revision now passes its verification. '
+                                'Continue with the next concrete requirement, or use '
+                                'finish_task if the complete original goal is satisfied.'
+                            )
+                        ),
+                    }
+                )
+                continue
+
             verification_retry_deferred = (
                 not any(
                     call.name in EDIT_RECOVERY_READ_TOOLS
@@ -2738,13 +2892,26 @@ class Conversation:
                 in {'verification_failed', 'verification_timeout'}
             )
             if requires_verification_fix:
-                verification_fix_checkpoint = True
+                dependency_verification_checkpoint = False
+                verification_recheck_checkpoint = False
+                missing_dependency = verification_missing_dependency(
+                    failed_verification
+                )
+                dependency_recovery_checkpoint = missing_dependency
+                verification_fix_checkpoint = not missing_dependency
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
-                    build_verification_fix_feedback(
-                        self.task_manager.system_suffix(),
-                        failed_verification,
+                    (
+                        build_dependency_recovery_feedback(
+                            self.task_manager.system_suffix(),
+                            failed_verification,
+                        )
+                        if missing_dependency
+                        else build_verification_fix_feedback(
+                            self.task_manager.system_suffix(),
+                            failed_verification,
+                        )
                     )
                 )
                 continue
@@ -3565,6 +3732,28 @@ class Conversation:
             )
         ]
 
+    def _dependency_verification_tools(
+        self,
+    ) -> list[dict[str, Any]] | None:
+        '''Expose only verification immediately after dependency installation.'''
+        names = {'verify'}
+        tools = [
+            definition
+            for definition in self._tool_definitions() or ()
+            if str(definition.get('name', '')) in names
+        ]
+        return tools or None
+
+    def _dependency_recovery_tools(self) -> list[dict[str, Any]] | None:
+        '''Expose only the process action needed for a missing declared tool.'''
+        names = {'run_command'}
+        tools = [
+            definition
+            for definition in self._tool_definitions() or ()
+            if str(definition.get('name', '')) in names
+        ]
+        return tools or None
+
     def _verification_fix_tools(self) -> list[dict[str, Any]] | None:
         '''Expose only targeted evidence and edits after verification failure.'''
         names = {
@@ -3575,6 +3764,7 @@ class Conversation:
             'replace_text',
             'apply_patch',
             'remove_file',
+            'run_command',
             'verify',
             'finish_task',
         }
@@ -4719,6 +4909,59 @@ def build_verification_failure_feedback(
     }
 
 
+def build_dependency_recovery_feedback(
+    task_context: str,
+    result: ToolResult,
+) -> dict[str, Any]:
+    '''Force package installation when verification cannot find a declared tool.'''
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n'
+            '[ForgeCode Dependency Recovery]\n'
+            'Verification cannot find a declared project compiler or command. '
+            f'The failure was: {result.summary} '
+            'Repository reads, edits, planning, task updates, and repeated '
+            'verification are closed for this request. Use run_command now to '
+            'run the project package-manager install command in the exact cwd '
+            'used by the failed verification (for example npm install). Do not '
+            'change scripts or compiler settings to hide the missing dependency.'
+        ),
+    }
+
+
+def build_dependency_recovery_completed_feedback(
+    task_context: str,
+) -> dict[str, Any]:
+    '''Require verification immediately after dependency installation.'''
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n'
+            '[ForgeCode Dependency Recovery Complete]\n'
+            'The dependency installation command succeeded. Re-run the exact '
+            'failed typecheck or build verification now. Do not edit configuration '
+            'again unless the new verification reports a concrete source error.'
+        ),
+    }
+
+
+def build_dependency_verification_completed_feedback(
+    task_context: str,
+) -> dict[str, Any]:
+    '''Return to implementation after the post-install verification passes.'''
+    return {
+        'role': 'user',
+        'content': (
+            f'{task_context}\n\n'
+            '[ForgeCode Post-Install Verification Passed]\n'
+            'The previously missing project command is installed and the repeated '
+            'verification passed. Continue the current plan from the next concrete '
+            'implementation step; do not reinstall or rewrite the toolchain.'
+        ),
+    }
+
+
 def build_verification_fix_feedback(
     task_context: str,
     result: ToolResult,
@@ -4739,7 +4982,11 @@ def build_verification_fix_feedback(
             'inspection, version queries, and immediate re-verification are '
             'closed for this request. Read only a file named by the failure if '
             'needed, or make the smallest concrete source/config correction now. '
-            'Do not create check, keep, readme, temporary, probe, or marker files.'
+            'If stderr says a declared compiler, package, or command is missing '
+            '(for example tsc is not recognized), use run_command to execute the '
+            'project package-manager install command in the exact task cwd before '
+            're-running verification. Do not create check, keep, readme, '
+            'temporary, probe, or marker files.'
         ),
     }
 
@@ -4903,6 +5150,60 @@ def checkpoint_mutation_paths(
     return tuple(dict.fromkeys((raw_path, *descendants)))
 
 
+def protected_task_input_delete(
+    tool_call: ToolCall,
+    scope_hints: tuple[str, ...],
+) -> bool:
+    '''Protect task inputs and explicit scope roots during implementation.'''
+    targets = mutation_target_paths(tool_call, maximum=None)
+    if any(
+        Path(target).name.casefold() in {'task.md', 'agents.md'}
+        for target in targets
+    ):
+        return True
+    if tool_call.name != 'remove_directory' or not targets:
+        return False
+    raw_target = targets[0].strip().replace('\\', '/').strip('/')
+    scope_roots = {
+        hint.strip().replace('\\', '/').removesuffix('/**').strip('/')
+        for hint in scope_hints
+        if hint.strip().replace('\\', '/').endswith('/**')
+    }
+    return bool(raw_target and raw_target in scope_roots)
+
+
+def verification_obligation(command: str) -> str | None:
+    '''Classify verification commands whose evidence must not be weakened.'''
+    normalized = command.casefold()
+    if re.search(r'\b(?:typecheck|tsc)\b', normalized):
+        return 'typecheck'
+    if re.search(r'\bbuild\b', normalized):
+        return 'build'
+    return None
+
+
+def verification_missing_dependency(result: ToolResult) -> bool:
+    '''Detect verification failures caused by an unavailable declared command.'''
+    rendered = ' '.join(
+        part
+        for part in (
+            result.summary,
+            str(result.content or ''),
+            result.error.message if result.error is not None else '',
+        )
+        if part
+    ).casefold()
+    if 'is not recognized as an internal or external command' in rendered:
+        return True
+    return bool(
+        re.search(
+            r'\b(?:tsc|vite|eslint|prettier|jest|vitest)\b'
+            r'[^\n]{0,80}\b(?:command\s+not\s+found|not\s+found)\b',
+            rendered,
+        )
+    )
+
+
 def oversized_write_file_result(
     tool_call: ToolCall,
     result: ToolResult,
@@ -5028,6 +5329,7 @@ def is_tool_protocol_failure(result: ToolResult) -> bool:
             'tool_not_available_in_phase',
             'plan_already_created_this_turn',
             'delete_only_batch_requires_replacement',
+            'protected_task_input_delete',
             'not_executed_after_workspace_write_failure',
             'finish_must_be_alone',
             'unsupported_shell_syntax',

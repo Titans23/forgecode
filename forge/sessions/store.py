@@ -244,6 +244,7 @@ class SessionJournal:
 
     def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._assert_append_head()
         event_uuid = str(uuid4())
         self.sequence += 1
         encoded_payload = json.dumps(
@@ -281,6 +282,30 @@ class SessionJournal:
             os.fsync(file.fileno())
         self.parent_uuid = event_uuid
         return record
+
+    def _assert_append_head(self) -> None:
+        '''Refuse to fork a journal changed by another live writer.'''
+        if not self.path.exists():
+            if self.sequence or self.parent_uuid is not None:
+                raise SessionError('Session journal disappeared before append.')
+            return
+        try:
+            lines = self.path.read_text(encoding='utf-8').splitlines()
+            last_line = next(line for line in reversed(lines) if line.strip())
+            durable = json.loads(last_line)
+        except (OSError, StopIteration, json.JSONDecodeError) as error:
+            raise SessionError(
+                f'Cannot validate session append head: {self.path}'
+            ) from error
+        if (
+            durable.get('sequence') != self.sequence
+            or durable.get('uuid') != self.parent_uuid
+        ):
+            raise SessionError(
+                'Session changed after it was opened, likely because another '
+                'ForgeCode process is still writing it. Stop the other process '
+                'and resume again instead of creating a forked journal.'
+            )
 
     def _write_artifact(
         self,
@@ -696,7 +721,7 @@ class SessionStore:
         except OSError as error:
             raise SessionError(f'Cannot read session {path}: {error}') from error
         records: list[dict[str, Any]] = []
-        previous_uuid: str | None = None
+        line_numbers: list[int] = []
         for index, line in enumerate(lines):
             if not line.strip():
                 continue
@@ -712,18 +737,76 @@ class SessionStore:
                 raise SessionCorruptError(
                     f'Invalid event at {path}:{index + 1}'
                 )
-            expected_sequence = len(records) + 1
-            if record.get('sequence') != expected_sequence:
-                raise SessionCorruptError(
-                    f'Invalid sequence at {path}:{index + 1}'
-                )
-            if record.get('parent_uuid') != previous_uuid:
-                raise SessionCorruptError(
-                    f'Broken event chain at {path}:{index + 1}'
-                )
-            previous_uuid = str(record.get('uuid', ''))
             records.append(record)
-        return records
+            line_numbers.append(index + 1)
+        return self._select_valid_record_chain(records, line_numbers, path)
+
+    @staticmethod
+    def _select_valid_record_chain(
+        records: list[dict[str, Any]],
+        line_numbers: list[int],
+        path: Path,
+    ) -> list[dict[str, Any]]:
+        '''Recover a longest valid branch left by interrupted concurrent writers.'''
+        if not records:
+            return []
+        by_uuid: dict[str, dict[str, Any]] = {}
+        order: dict[str, int] = {}
+        roots: list[str] = []
+        referenced_parents: set[str] = set()
+        for position, (record, line_number) in enumerate(
+            zip(records, line_numbers, strict=True)
+        ):
+            event_uuid = str(record.get('uuid', '')).strip()
+            if not event_uuid or event_uuid in by_uuid:
+                raise SessionCorruptError(
+                    f'Invalid event UUID at {path}:{line_number}'
+                )
+            sequence = record.get('sequence')
+            parent_uuid = record.get('parent_uuid')
+            if parent_uuid is None:
+                if sequence != 1:
+                    raise SessionCorruptError(
+                        f'Invalid sequence at {path}:{line_number}'
+                    )
+                roots.append(event_uuid)
+            else:
+                parent_uuid = str(parent_uuid)
+                parent = by_uuid.get(parent_uuid)
+                if parent is None:
+                    raise SessionCorruptError(
+                        f'Broken event chain at {path}:{line_number}'
+                    )
+                if sequence != int(parent.get('sequence', 0)) + 1:
+                    raise SessionCorruptError(
+                        f'Invalid sequence at {path}:{line_number}'
+                    )
+                referenced_parents.add(parent_uuid)
+            by_uuid[event_uuid] = record
+            order[event_uuid] = position
+        if len(roots) != 1:
+            raise SessionCorruptError(f'Invalid session roots at {path}')
+        terminals = [
+            event_uuid
+            for event_uuid in by_uuid
+            if event_uuid not in referenced_parents
+        ]
+        winner = max(
+            terminals,
+            key=lambda event_uuid: (
+                int(by_uuid[event_uuid].get('sequence', 0)),
+                order[event_uuid],
+            ),
+        )
+        selected: list[dict[str, Any]] = []
+        cursor: str | None = winner
+        while cursor is not None:
+            record = by_uuid[cursor]
+            selected.append(record)
+            parent = record.get('parent_uuid')
+            cursor = str(parent) if parent is not None else None
+        selected.reverse()
+        return selected
 
     @staticmethod
     def _payload(record: dict[str, Any], path: Path) -> dict[str, Any]:

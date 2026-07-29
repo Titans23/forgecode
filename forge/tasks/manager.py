@@ -495,6 +495,9 @@ def infer_goal_scope(goal: str) -> tuple[str, ...]:
             return (path,)
     patterns = (
         rf'(?i)({repository_path})\s*(?:目录|文件夹)',
+        rf'(?i)\b(?:inside|under|within)\s+(?:the\s+)?'
+        rf'(?:(?:currently|current|clean|existing|new|empty)\s+)*'
+        rf'({repository_path})\s+(?:directory|folder)\b',
         rf'(?i)\bin\s+(?:the\s+)?({repository_path})'
         rf'\s+(?:directory|folder)\b',
         rf'(?i)\b(?:inside|under|within)\s+(?:the\s+)?'
