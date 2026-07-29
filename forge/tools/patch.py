@@ -421,6 +421,17 @@ def apply_update_hunks(before: str, operation: _EnvelopeOperation) -> str:
     for hunk_number, hunk in enumerate(hunks, start=1):
         old_lines: list[str] = []
         new_lines: list[str] = []
+        if not any(line.startswith(('+', '-')) for line in hunk):
+            raise _EnvelopeError(
+                f'Update hunk {hunk_number} for {operation.path!r} contains '
+                'context only and cannot change the file. Include at least one '
+                'removed (-) or added (+) line with the intended correction.',
+                code='patch_no_changes',
+                details={
+                    'path': operation.path,
+                    'recommended_tools': ['apply_patch', 'replace_text'],
+                },
+            )
         for line in hunk:
             if not line or line[0] not in {' ', '+', '-'}:
                 raise _EnvelopeError(

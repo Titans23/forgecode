@@ -191,34 +191,53 @@ class AnthropicModelClient:
         for attempt in range(1, self.max_retries + 2):
             response_started = False
             try:
-                async with asyncio.timeout(self.request_timeout_seconds):
-                    async for event in self._stream_once(sdk_arguments):
-                        if isinstance(
-                            event,
-                            (
-                                ModelTextDelta,
-                                ModelToolCallStarted,
-                                ModelToolCallArgumentsDelta,
-                                ModelToolCallCompleted,
-                            ),
-                        ):
-                            response_started = True
-                        yield event
+                stream = self._stream_once(sdk_arguments).__aiter__()
+                while True:
+                    try:
+                        event = await asyncio.wait_for(
+                            anext(stream),
+                            timeout=self.request_timeout_seconds,
+                        )
+                    except StopAsyncIteration:
+                        break
+                    if isinstance(
+                        event,
+                        (
+                            ModelTextDelta,
+                            ModelToolCallStarted,
+                            ModelToolCallArgumentsDelta,
+                            ModelToolCallCompleted,
+                        ),
+                    ):
+                        response_started = True
+                    yield event
                 return
             except TimeoutError as error:
                 reason = 'stream_interrupted' if response_started else 'timeout'
+                can_retry = (
+                    not response_started and attempt <= self.max_retries
+                )
+                if can_retry:
+                    delay = retry_delay(attempt)
+                    yield ModelRetryScheduled(
+                        attempt=attempt + 1,
+                        reason=reason,
+                        delay_seconds=delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
                 raise ModelCallError(
                     reason,
                     (
-                        'The provider stream exceeded ForgeCode hard timeout '
-                        f'of {self.request_timeout_seconds:g} seconds'
+                        'The provider stream produced no event for '
+                        f'{self.request_timeout_seconds:g} seconds'
                         + (
                             ' after response output had started.'
                             if response_started
                             else ' before producing semantic output.'
                         )
                     ),
-                    retryable=False,
+                    retryable=not response_started,
                 ) from error
             except (
                 APIConnectionError,

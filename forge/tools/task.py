@@ -228,14 +228,24 @@ class TaskUpdateTool(Tool[TaskUpdateInput]):
                 target.status == 'completed'
                 and target.id != active.current_step_id
             )
+            current_step_action_required = bool(
+                target.status == 'in_progress'
+                and arguments.status == 'in_progress'
+            )
             summary = (
                 f'{target.id} is already completed. The current step is '
                 f'{active.current_step_id or "none"}; do not update '
                 f'{target.id} again. Execute the current step action.'
                 if stale_step_redirect
                 else (
-                    f'Preserved {target.id} as {target.status}; the requested '
-                    f'{arguments.status} transition was already satisfied.'
+                    f'{target.id} is already in progress. Do not call '
+                    'task_update again for preparation or commentary; perform '
+                    'the concrete current-step action.'
+                    if current_step_action_required
+                    else (
+                        f'Preserved {target.id} as {target.status}; the requested '
+                        f'{arguments.status} transition was already satisfied.'
+                    )
                 )
             )
             return ToolResult.ok(
@@ -253,6 +263,9 @@ class TaskUpdateTool(Tool[TaskUpdateInput]):
                         else 'continue_current_step'
                     ),
                     'stale_step_redirect': stale_step_redirect,
+                    'current_step_action_required': (
+                        current_step_action_required
+                    ),
                 },
             )
         try:
