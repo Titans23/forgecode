@@ -173,6 +173,7 @@ class TaskManager:
         evidence: list[str] | None = None,
     ) -> ActiveTask:
         task = self._require_planned()
+        step_id = normalize_step_id(step_id)
         if status not in {'pending', 'in_progress', 'completed', 'blocked'}:
             raise ValueError(f'Unsupported step status: {status}')
         target = next(
@@ -186,6 +187,37 @@ class TaskManager:
                 f'Valid step IDs: {valid_ids}.'
             )
         additions = clean_strings(evidence or [], name='evidence')
+        if status == 'in_progress':
+            current = task.current_step_id or 'none'
+            if target.id != task.current_step_id:
+                raise ValueError(
+                    'Plan steps must advance in order. Only the current step '
+                    f'can be active. Current step: {current}. Requested step: '
+                    f'{step_id}.'
+                )
+            if target.status == 'in_progress':
+                raise ValueError(
+                    f'{step_id} is already in progress. Do not use task_update '
+                    'for commentary or preparation notes; perform the concrete '
+                    'repository action, then complete the step with evidence.'
+                )
+            if additions:
+                raise ValueError(
+                    'in_progress does not accept evidence. Evidence records '
+                    'completed execution, not intended future work.'
+                )
+        if status == 'completed':
+            if target.id != task.current_step_id or target.status != 'in_progress':
+                current = task.current_step_id or 'none'
+                raise ValueError(
+                    'Only the current in-progress step can be completed. '
+                    f'Current step: {current}. Requested step: {step_id}.'
+                )
+            if not additions and not target.evidence:
+                raise ValueError(
+                    'Completing a task step requires non-empty execution '
+                    'evidence from the work actually performed.'
+                )
         updated_steps = [
             replace(
                 step,
@@ -480,6 +512,17 @@ def infer_goal_scope(goal: str) -> tuple[str, ...]:
 
 def normalize_task_path(path: str) -> str:
     return PurePosixPath(path.strip().replace('\\', '/')).as_posix()
+
+
+def normalize_step_id(step_id: str) -> str:
+    '''Accept concise numeric forms while keeping one canonical stored ID.'''
+    cleaned = str(step_id).strip()
+    if cleaned.isdecimal():
+        return f'step-{int(cleaned)}'
+    match = re.fullmatch(r'(?i:step)[-_ ]?(\d+)', cleaned)
+    if match is not None:
+        return f'step-{int(match.group(1))}'
+    return cleaned
 
 
 def task_path_matches(path: str, pattern: str) -> bool:

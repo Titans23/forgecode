@@ -47,10 +47,13 @@ class VerifyTool(Tool[VerifyInput]):
         'evidence after workspace changes. Choose the most relevant project '
         'command; use git diff --check only when no more specific validation '
         'exists. A successful result applies only to the exact current '
-        'workspace revision, so verify again after later edits. Do not use '
-        'verify for repository inspection. On Windows, POSIX heredocs and '
-        'commands such as ls are invalid; use dedicated repository tools for '
-        'inspection and a native test/build/check command for verification.'
+        'workspace revision, so verify again after later edits. Runtime version '
+        'queries, read-only Git inspection, and native directory listings are '
+        'tolerated as inspection-only commands, but never count as verification '
+        'evidence. Other repository inspection remains rejected. On Windows, '
+        'POSIX heredocs and commands '
+        'such as ls are invalid; use dedicated repository tools for inspection '
+        'and a native test/build/check command for verification.'
     )
     input_model = VerifyInput
     effect = 'process'
@@ -80,6 +83,52 @@ class VerifyTool(Tool[VerifyInput]):
                 f'Verification cwd is not a directory: {arguments.cwd}',
             )
         revision = self.tracker.revision
+        inspection_reason = non_verification_command_reason(
+            arguments.command
+        )
+        if inspection_reason in {
+            'a runtime or tool version query',
+            'a read-only Git inspection command',
+            'a shell directory inspection command',
+            'an executable lookup command',
+        }:
+            result = await run_process(
+                arguments.command,
+                cwd=cwd,
+                timeout_seconds=arguments.timeout_seconds,
+                shell=True,
+            )
+            metadata = {
+                **process_metadata(result),
+                'command': arguments.command,
+                'cwd': display_path(self.root, cwd),
+                'workspace_revision': revision,
+                'verification': False,
+                'status': 'inspection_only',
+                'inspection_reason': inspection_reason,
+            }
+            content = render_process_output(result)
+            if result.timed_out:
+                return ToolResult.fail(
+                    'inspection_timeout',
+                    f'Inspection command timed out after '
+                    f'{arguments.timeout_seconds:g}s.',
+                    content=content,
+                    metadata=metadata,
+                )
+            if result.exit_code != 0:
+                return ToolResult.fail(
+                    'inspection_failed',
+                    f'Inspection command exited with code {result.exit_code}.',
+                    content=content,
+                    metadata=metadata,
+                )
+            return ToolResult.ok(
+                'Inspection command completed successfully; this result does '
+                'not count as verification evidence.',
+                content=content,
+                metadata=metadata,
+            )
         disallowed_reason = verification_command_disallowed_reason(
             arguments.command
         )
@@ -160,12 +209,66 @@ class VerifyTool(Tool[VerifyInput]):
 
 
 def verification_command_disallowed_reason(command: str) -> str | None:
-    '''Prevent verify from bypassing tracked file and directory tools.'''
-    return (
+    '''Prevent verify from bypassing tools or recording pure inspection as proof.'''
+    unsafe_reason = (
         shell_file_read_reason(command)
         or shell_file_write_reason(command)
         or shell_directory_write_reason(command)
     )
+    if unsafe_reason is not None:
+        return unsafe_reason
+    return non_verification_command_reason(command)
+
+
+PURE_INSPECTION_PATTERNS = (
+    (
+        re.compile(
+            r'(?:^|[;&|]\s*)(?:ls|dir|tree|pwd|cd)(?:\s|$)',
+            re.IGNORECASE,
+        ),
+        'a shell directory inspection command',
+    ),
+    (
+        re.compile(
+            r'(?:^|[;&|]\s*)(?:where|which)(?:\.exe)?(?:\s|$)',
+            re.IGNORECASE,
+        ),
+        'an executable lookup command',
+    ),
+    (
+        re.compile(
+            r'(?:^|[;&|]\s*)find(?:\.exe)?(?:\s|$)',
+            re.IGNORECASE,
+        ),
+        'a shell file or text inspection command',
+    ),
+    (
+        re.compile(
+            r'^\s*(?:node|python(?:\d+(?:\.\d+)*)?|npm|pnpm|yarn|bun|'
+            r'git|java|javac|go|cargo|rustc|dotnet)(?:\.exe|\.cmd)?\s+'
+            r'(?:-v|--version|version)\s*$',
+            re.IGNORECASE,
+        ),
+        'a runtime or tool version query',
+    ),
+    (
+        re.compile(
+            r'^\s*git(?:\.exe)?\s+'
+            r'(?:status|log|show|branch|rev-parse|diff(?![^\r\n]*--check))\b',
+            re.IGNORECASE,
+        ),
+        'a read-only Git inspection command',
+    ),
+)
+
+
+def non_verification_command_reason(command: str) -> str | None:
+    '''Return a reason for commands that can never validate repository behavior.'''
+    normalized = ' '.join(command.split())
+    for pattern, reason in PURE_INSPECTION_PATTERNS:
+        if pattern.search(normalized):
+            return reason
+    return None
 
 
 def missing_verification_manifest(command: str, cwd: Path) -> Path | None:

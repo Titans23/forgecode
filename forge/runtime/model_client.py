@@ -191,19 +191,35 @@ class AnthropicModelClient:
         for attempt in range(1, self.max_retries + 2):
             response_started = False
             try:
-                async for event in self._stream_once(sdk_arguments):
-                    if isinstance(
-                        event,
-                        (
-                            ModelTextDelta,
-                            ModelToolCallStarted,
-                            ModelToolCallArgumentsDelta,
-                            ModelToolCallCompleted,
-                        ),
-                    ):
-                        response_started = True
-                    yield event
+                async with asyncio.timeout(self.request_timeout_seconds):
+                    async for event in self._stream_once(sdk_arguments):
+                        if isinstance(
+                            event,
+                            (
+                                ModelTextDelta,
+                                ModelToolCallStarted,
+                                ModelToolCallArgumentsDelta,
+                                ModelToolCallCompleted,
+                            ),
+                        ):
+                            response_started = True
+                        yield event
                 return
+            except TimeoutError as error:
+                reason = 'stream_interrupted' if response_started else 'timeout'
+                raise ModelCallError(
+                    reason,
+                    (
+                        'The provider stream exceeded ForgeCode hard timeout '
+                        f'of {self.request_timeout_seconds:g} seconds'
+                        + (
+                            ' after response output had started.'
+                            if response_started
+                            else ' before producing semantic output.'
+                        )
+                    ),
+                    retryable=False,
+                ) from error
             except (
                 APIConnectionError,
                 APIStatusError,

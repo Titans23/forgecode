@@ -331,6 +331,10 @@ class ToolRegistry:
         tool = self._tools.get(name)
         return None if tool is None else tool.effect
 
+    def implementation(self, name: str) -> Tool[Any] | None:
+        '''Return one internal tool implementation without exposing new schema.'''
+        return self._tools.get(name)
+
     def provenance(self, name: str) -> dict[str, Any]:
         tool = self._tools.get(name)
         return {} if tool is None else tool.provenance

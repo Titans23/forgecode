@@ -81,6 +81,20 @@ class ApplyPatchTool(Tool[ApplyPatchInput]):
                 operations = parse_codex_envelope(arguments.patch)
                 normalized_patch = build_unified_patch(self.root, operations)
             except (_EnvelopeError, ToolExecutionError) as error:
+                if (
+                    isinstance(error, _EnvelopeError)
+                    and error.code == 'patch_already_applied'
+                ):
+                    target = str(error.details.get('path', ''))
+                    return ToolResult.ok(
+                        str(error),
+                        metadata={
+                            'format': patch_format,
+                            'status': 'already_completed',
+                            'resolution_checkpoint': True,
+                            'target_paths': [target] if target else [],
+                        },
+                    )
                 code = (
                     error.code
                     if isinstance(error, _EnvelopeError)
@@ -366,7 +380,10 @@ def build_unified_patch(
         after = apply_update_hunks(before, operation)
         if after == before:
             raise _EnvelopeError(
-                f'Update for {operation.path!r} does not change the file.'
+                f'Update for {operation.path!r} is already satisfied; '
+                'the requested patch would not change the file.',
+                code='patch_already_applied',
+                details={'path': operation.path},
             )
         changes.append((display_path(root, path), before, after))
 

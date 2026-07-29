@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Mapping
 import difflib
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -93,10 +94,12 @@ class CreateDirectoryInput(ToolInput):
 class CreateDirectoryTool(Tool[CreateDirectoryInput]):
     name = 'create_directory'
     description = (
-        'Create one repository directory, including missing parent directories. '
-        'Workspace tracking records empty directories directly, so do not add '
-        'a .gitkeep marker unless the repository explicitly requires one. Do not '
-        'use run_command with mkdir or New-Item for this operation.'
+        'Create one genuinely empty repository directory, including missing '
+        'parents. write_file and apply_patch already create parent directories '
+        'for concrete files, so do not call create_directory before adding a '
+        'file and never use an empty file as a directory marker. Workspace '
+        'tracking records empty directories directly; do not add .gitkeep '
+        'unless the repository explicitly requires one.'
     )
     input_model = CreateDirectoryInput
     effect = 'workspace_write'
@@ -377,12 +380,17 @@ class WriteFileTool(Tool[WriteFileInput]):
     name = 'write_file'
     description = (
         'Create one new UTF-8 repository text file, or initialize an existing '
-        'empty/whitespace-only UTF-8 placeholder, atomically with content '
-        'limited to 30000 characters. This tool never overwrites a non-empty '
-        'file and safely creates missing repository-relative parent '
-        'directories; use apply_patch for focused changes to non-empty files. '
-        'For a larger new file, create a focused skeleton and extend it with '
-        'apply_patch calls.'
+        'empty/whitespace-only UTF-8 placeholder, atomically with real '
+        'task-relevant content limited to 30000 characters. An exact '
+        'content replay is an idempotent success; different model-supplied '
+        'content never overwrites a non-empty file. ForgeCode may internally '
+        'correct a file already changed by the active task using a checked '
+        'current-content hash. JSON content is parsed before it can reach disk. '
+        'The tool automatically creates missing parent '
+        'directories. Never call it with an empty extensionless path to create '
+        'a directory; write the concrete child file directly instead. Use '
+        'apply_patch for focused changes to non-empty files. For a larger new '
+        'file, create a focused skeleton and extend it with apply_patch calls.'
     )
     input_model = WriteFileInput
     effect = 'workspace_write'
@@ -390,7 +398,115 @@ class WriteFileTool(Tool[WriteFileInput]):
     async def execute(self, arguments: WriteFileInput) -> ToolResult:
         return await asyncio.to_thread(self._execute_sync, arguments)
 
+    async def correct_existing(
+        self,
+        *,
+        path: str,
+        content: str,
+        expected_sha256: str,
+    ) -> ToolResult:
+        '''Internally correct one active-task file with conflict protection.'''
+        try:
+            return await asyncio.to_thread(
+                self._correct_existing_sync,
+                path,
+                content,
+                expected_sha256,
+            )
+        except ToolExecutionError as error:
+            return ToolResult.fail(
+                error.code,
+                str(error),
+                details=error.details,
+            )
+        except Exception as error:
+            return ToolResult.fail(
+                'tool_execution_failed',
+                f'{self.name} correction failed: {error}',
+                details={'exception_type': type(error).__name__},
+            )
+
+    def _correct_existing_sync(
+        self,
+        raw_path: str,
+        content: str,
+        expected_sha256: str,
+    ) -> ToolResult:
+        path = resolve_repository_path(self.root, raw_path)
+        if not path.is_file():
+            raise ToolExecutionError(
+                'not_a_file',
+                f'Path is not a file: {raw_path}',
+            )
+        validate_structured_file_content(path, content, raw_path)
+        try:
+            current = read_text_preserving_newlines(path)
+        except UnicodeDecodeError as error:
+            raise ToolExecutionError(
+                'not_utf8_text',
+                f'File is not valid UTF-8 text: {raw_path}',
+            ) from error
+        actual_sha256 = hashlib.sha256(
+            current.encode('utf-8')
+        ).hexdigest()
+        if actual_sha256 != expected_sha256.casefold():
+            raise ToolExecutionError(
+                'write_conflict',
+                'The active-task file changed after ForgeCode prepared its '
+                f'correction for {raw_path}; no file was written.',
+                details={
+                    'path': raw_path,
+                    'expected_sha256': expected_sha256.casefold(),
+                    'actual_sha256': actual_sha256,
+                },
+            )
+        if current == content:
+            shown_path = display_path(self.root, path)
+            return ToolResult.ok(
+                f'File already has the requested content: {shown_path}.',
+                metadata={
+                    'path': shown_path,
+                    'characters': len(current),
+                    'sha256': actual_sha256,
+                    'created': False,
+                    'status': 'already_completed',
+                },
+            )
+        atomic_write_text(path, content)
+        shown_path = display_path(self.root, path)
+        digest = hashlib.sha256(content.encode('utf-8')).hexdigest()
+        return ToolResult.ok(
+            f'Corrected active-task file {shown_path} with '
+            f'{len(content)} characters.',
+            metadata={
+                'path': shown_path,
+                'characters': len(content),
+                'sha256': digest,
+                'created': False,
+                'corrected_existing': True,
+            },
+        )
+
     def _execute_sync(self, arguments: WriteFileInput) -> ToolResult:
+        if empty_write_looks_like_directory(
+            arguments.path,
+            arguments.content,
+        ):
+            raise ToolExecutionError(
+                'directory_intent_mismatch',
+                'write_file cannot create an empty directory-shaped path. '
+                'Write the concrete child file directly (missing parents are '
+                'created automatically), or use create_directory only when an '
+                'empty directory is the actual task result.',
+                details={
+                    'path': arguments.path,
+                    'recommended_tools': ['write_file', 'create_directory'],
+                    'recovery': (
+                        'For example, write play/src/entities/index.ts directly '
+                        'instead of writing empty content to play/src/entities.'
+                    ),
+                },
+            )
         path = resolve_repository_path(
             self.root,
             arguments.path,
@@ -401,6 +517,11 @@ class WriteFileTool(Tool[WriteFileInput]):
                 'not_a_file',
                 f'Path is not a file: {arguments.path}',
             )
+        validate_structured_file_content(
+            path,
+            arguments.content,
+            arguments.path,
+        )
         existed = path.exists()
         initialized_placeholder = False
         if existed:
@@ -411,15 +532,32 @@ class WriteFileTool(Tool[WriteFileInput]):
                     'not_utf8_text',
                     f'File is not valid UTF-8 text: {arguments.path}',
                 ) from error
+            if current == arguments.content:
+                shown_path = display_path(self.root, path)
+                return ToolResult.ok(
+                    f'File already has the requested content: {shown_path}.',
+                    metadata={
+                        'path': shown_path,
+                        'characters': len(current),
+                        'sha256': hashlib.sha256(
+                            current.encode('utf-8')
+                        ).hexdigest(),
+                        'created': False,
+                        'initialized_placeholder': False,
+                        'status': 'already_completed',
+                    },
+                )
             if current.strip():
                 raise ToolExecutionError(
                     'file_already_exists',
                     f'write_file will not overwrite non-empty file '
                     f'{arguments.path}. Use apply_patch or replace_text for a '
-                    'focused change. For a deliberate whole-file replacement '
-                    'after failed focused edits, use write_file_chunk with '
-                    'offset=0, truncate=true, final=false, then append the '
-                    'remaining final chunk.',
+                    'focused change. Whole-file replacement is a last resort. '
+                    'If it is explicitly required, split the real replacement '
+                    'content across at least two non-empty write_file_chunk '
+                    'calls: first offset=0, truncate=true, final=false with an '
+                    'actual prefix, then append the remainder at next_offset '
+                    'with final=true. Never send an empty starter chunk.',
                     details={
                         'path': arguments.path,
                         'existing_characters': len(current),
@@ -474,7 +612,8 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
     description = (
         'Create or extend one UTF-8 repository file in ordered chunks of at '
         'most 30000 characters. Start a new or multi-chunk replacement file '
-        'with offset=0, truncate=true, and final=false. A single final chunk '
+        'with a non-empty real content prefix, offset=0, truncate=true, and '
+        'final=false; an empty starter chunk is invalid. A single final chunk '
         'cannot replace an existing non-empty file; use apply_patch for that. '
         'For every later chunk, set offset to '
         'the exact next_offset returned by the previous call. Each chunk is '
@@ -561,6 +700,12 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
                 },
             )
 
+        if arguments.final:
+            validate_structured_file_content(
+                path,
+                updated,
+                arguments.path,
+            )
         ensure_parent_directory(path, arguments.path)
         atomic_write_text(path, updated)
         shown_path = display_path(self.root, path)
@@ -646,10 +791,26 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
             )
         occurrences = content.count(old_text)
         if occurrences == 0:
+            new_occurrences = content.count(new_text) if new_text else 0
+            if new_occurrences == 1:
+                shown_path = display_path(self.root, path)
+                return ToolResult.ok(
+                    f'Replacement already present in {shown_path}.',
+                    metadata={
+                        'path': shown_path,
+                        'status': 'already_completed',
+                        'resolution_checkpoint': True,
+                        'new_characters': len(arguments.new_text),
+                    },
+                )
             diagnostic = closest_text_diagnostic(content, old_text)
             closest_start = diagnostic.get('closest_start_line')
+            candidate_usable = bool(
+                diagnostic['whitespace_only_mismatch']
+                or float(diagnostic['similarity']) >= 0.65
+            )
             location = ''
-            if closest_start is not None:
+            if closest_start is not None and candidate_usable:
                 location = (
                     ' Closest candidate: lines {}-{} with similarity {:.2f}.'
                 ).format(
@@ -666,7 +827,7 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
             copy_hint = (
                 '\nClosest current text (copy exactly as the next old_text):'
                 f'\n---\n{closest_text}\n---'
-                if isinstance(closest_text, str)
+                if isinstance(closest_text, str) and candidate_usable
                 else ''
             )
             raise ToolExecutionError(
@@ -692,6 +853,11 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
             old_text,
             new_text,
             1,
+        )
+        validate_structured_file_content(
+            path,
+            updated,
+            arguments.path,
         )
         atomic_write_text(path, updated)
         shown_path = display_path(self.root, path)
@@ -759,8 +925,79 @@ def closest_text_diagnostic(content: str, old_text: str) -> dict[str, object]:
     }
 
 
+DIRECTORY_LIKE_NAMES = frozenset({
+    'ai',
+    'assets',
+    'build',
+    'combat',
+    'components',
+    'config',
+    'configs',
+    'dist',
+    'entities',
+    'graphics',
+    'input',
+    'lib',
+    'loot',
+    'public',
+    'scripts',
+    'services',
+    'spawn',
+    'src',
+    'system',
+    'systems',
+    'test',
+    'tests',
+    'ui',
+    'weapons',
+})
+
+
+def empty_write_looks_like_directory(raw_path: str, content: str) -> bool:
+    '''Detect writes that are almost certainly mistaken directory creation.'''
+    rendered = raw_path.replace('\\', '/')
+    normalized = rendered.rstrip('/')
+    leaf = normalized.rsplit('/', 1)[-1] if normalized else ''
+    if rendered.endswith(('/', '/.', '/..')):
+        return True
+    if leaf.casefold() in DIRECTORY_LIKE_NAMES:
+        return True
+    return bool(
+        not content
+        and (
+            leaf in {'', '.', '..'}
+            or (
+                '.' not in leaf
+                and leaf.casefold() not in {'makefile', 'license'}
+            )
+        )
+    )
+
+
 def ensure_parent_directory(path: Path, raw_path: str) -> None:
     '''Create validated repository-relative parent directories when needed.'''
+    ancestor = path.parent
+    raw_ancestor = Path(raw_path).parent
+    while not ancestor.exists() and ancestor.parent != ancestor:
+        ancestor = ancestor.parent
+        raw_ancestor = raw_ancestor.parent
+    if ancestor.exists() and not ancestor.is_dir():
+        shown_ancestor = raw_ancestor.as_posix()
+        raise ToolExecutionError(
+            'parent_is_file',
+            f'Cannot create a child below {shown_ancestor}: that parent path '
+            'is an existing file, not a directory.',
+            details={
+                'path': raw_path,
+                'blocking_parent': shown_ancestor,
+                'recovery': (
+                    'Do not retry the child write. If this file was created by '
+                    'mistake in the current task, delete that exact file with '
+                    'apply_patch, create the intended concrete child file, and '
+                    'let its parent directory be created automatically.'
+                ),
+            },
+        )
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
     except OSError as error:
@@ -775,6 +1012,35 @@ def ensure_parent_directory(path: Path, raw_path: str) -> None:
             f'Parent path is not a directory: {raw_path}',
             details={'path': raw_path},
         )
+
+
+def validate_structured_file_content(
+    path: Path,
+    content: str,
+    raw_path: str,
+) -> None:
+    '''Reject malformed structured text before it reaches the workspace.'''
+    if path.suffix.casefold() != '.json':
+        return
+    try:
+        json.loads(content)
+    except json.JSONDecodeError as error:
+        raise ToolExecutionError(
+            'invalid_json_content',
+            f'JSON content for {raw_path} is invalid at line '
+            f'{error.lineno}, column {error.colno}: {error.msg}. '
+            'No file was written.',
+            details={
+                'path': raw_path,
+                'line': error.lineno,
+                'column': error.colno,
+                'position': error.pos,
+                'recovery': (
+                    'Send one complete JSON document. Do not initialize a JSON '
+                    'file with a partial object or trailing property separator.'
+                ),
+            },
+        ) from error
 
 
 def atomic_write_text(path: Path, content: str) -> None:
