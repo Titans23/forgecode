@@ -212,6 +212,8 @@ def test_slash_opens_command_completion_menu() -> None:
     descriptions = [completion.display_meta_text for completion in completions]
 
     assert '/context' in usages
+    assert '/skills' in usages
+    assert '/skill skill-name' in usages
     assert '/remember name | content' in usages
     assert '/memory consolidate' in usages
     assert '/task' in usages

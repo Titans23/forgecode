@@ -386,6 +386,35 @@ async def _run_interactive_chat(
                 resolved_terminal.show_error(error)
             continue
 
+        if prompt.strip() == '/skills':
+            resolved_terminal.show_notice(
+                'Skills',
+                resolved_session.skill_list(),
+            )
+            continue
+
+        if prompt.strip() == '/skill':
+            resolved_terminal.show_error(
+                ValueError('Usage: /skill skill-name')
+            )
+            continue
+
+        if prompt.startswith('/skill '):
+            name = prompt[len('/skill '):].strip()
+            if not name:
+                resolved_terminal.show_error(
+                    ValueError('Usage: /skill skill-name')
+                )
+            else:
+                try:
+                    resolved_terminal.show_notice(
+                        'Skill',
+                        resolved_session.skill_show(name),
+                    )
+                except ValueError as error:
+                    resolved_terminal.show_error(error)
+            continue
+
         if prompt.strip() == '/mcp':
             resolved_terminal.show_notice(
                 'MCP Servers',

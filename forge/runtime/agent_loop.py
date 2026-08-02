@@ -52,6 +52,7 @@ from forge.runtime.state import (
 )
 from forge.runtime.workspace import WorkspaceTracker
 from forge.sessions.checkpoint import CheckpointError, CheckpointStore
+from forge.skills import SkillManager
 from forge.tasks.manager import TaskManager
 from forge.tools.base import ToolRegistry, ToolResult
 from forge.tools.task import create_task_tools
@@ -120,6 +121,7 @@ class Conversation:
         hook_manager: HookManager | None = None,
         permission_manager: PermissionManager | None = None,
         mcp_manager: MCPClientManager | None = None,
+        skill_manager: SkillManager | None = None,
         intent_router: IntentRouter | None = None,
         include_task_tools: bool = True,
     ) -> None:
@@ -197,6 +199,16 @@ class Conversation:
             journal=session_journal,
         )
         self.mcp_manager = mcp_manager
+        skill_tool = (
+            registry.implementation('load_skill')
+            if registry is not None
+            else None
+        )
+        self.skill_manager = skill_manager or getattr(
+            skill_tool,
+            'manager',
+            None,
+        )
         self.intent_router = intent_router
         if self.mcp_manager is not None:
             self.mcp_manager.bind(
@@ -235,8 +247,15 @@ class Conversation:
         self.mutation_recovery_limit = mutation_recovery_limit
         self.max_tool_calls = max_tool_calls
         self.max_turn_input_tokens = max_turn_input_tokens
-        self._last_repository_context = self.context.repository.system_suffix('')
+        self._last_repository_context = self._repository_context('')
         self._last_task_context = ''
+
+    def _repository_context(self, query: str) -> str:
+        parts = [self.context.repository.system_suffix(query)]
+        if self.skill_manager is not None:
+            self.skill_manager.refresh()
+            parts.append(self.skill_manager.system_suffix(query))
+        return '\n\n'.join(part for part in parts if part)
 
     def _tool_definitions(self) -> list[dict[str, Any]] | None:
         if self.registry is not None:
@@ -482,9 +501,7 @@ class Conversation:
                     self.workspace_tracker.changed_paths
                 )
 
-        self._last_repository_context = (
-            self.context.repository.system_suffix(prompt)
-        )
+        self._last_repository_context = self._repository_context(prompt)
         reactive_compaction_attempted = False
         protocol_recoveries = 0
         output_continuations = 0
@@ -4229,6 +4246,18 @@ class Conversation:
         if self.mcp_manager is None:
             return 'MCP Client Manager is unavailable.'
         return self.mcp_manager.status()
+
+    def skill_list(self) -> str:
+        if self.skill_manager is None:
+            return 'ForgeCode skill discovery is unavailable.'
+        self.skill_manager.refresh()
+        return self.skill_manager.describe()
+
+    def skill_show(self, name: str) -> str:
+        if self.skill_manager is None:
+            raise ValueError('ForgeCode skill discovery is unavailable.')
+        self.skill_manager.refresh()
+        return self.skill_manager.show(name)
 
     async def runtime_close(self, *, reason: str = 'exit') -> None:
         await self.session_end(reason=reason)

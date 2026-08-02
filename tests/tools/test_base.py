@@ -19,6 +19,8 @@ def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> 
         'find_files',
         'read_file',
         'grep',
+        'load_skill',
+        'read_skill_resource',
         'create_directory',
         'remove_directory',
         'write_file',

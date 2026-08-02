@@ -19,6 +19,7 @@ from forge.tools.search import FindFilesTool, GrepTool
 from forge.tools.shell import RunCommandTool
 from forge.tools.verify import VerifyTool
 from forge.runtime.workspace import WorkspaceTracker
+from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
 
 
 def create_default_registry(root: Path) -> ToolRegistry:
@@ -27,12 +28,15 @@ def create_default_registry(root: Path) -> ToolRegistry:
     from forge.subagents.explore import ExploreRepositoryTool
 
     tracker = WorkspaceTracker(root)
+    skill_manager = SkillManager(root)
     return ToolRegistry(
         [
             ListDirectoryTool(root),
             FindFilesTool(root),
             ReadFileTool(root),
             GrepTool(root),
+            LoadSkillTool(root, skill_manager),
+            ReadSkillResourceTool(root, skill_manager),
             CreateDirectoryTool(root),
             RemoveDirectoryTool(root),
             WriteFileTool(root),
@@ -61,7 +65,9 @@ __all__ = [
     'GitStatusTool',
     'GrepTool',
     'ListDirectoryTool',
+    'LoadSkillTool',
     'ReadFileTool',
+    'ReadSkillResourceTool',
     'RemoveDirectoryTool',
     'ReplaceTextTool',
     'RunCommandTool',

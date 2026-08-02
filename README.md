@@ -4,7 +4,7 @@
 
 ForgeCode 面向真实代码仓库中的长链路工程任务。它不把模型的一句“已经完成”视为成功，而是通过工具执行、测试反馈、权限控制、变更检查和可复现评测，客观判断任务是否真正完成。
 
-当前项目处于早期开发阶段，但 M1 多步 Agent Loop、M2 工作区与完成门禁、M3 权限与安全控制核心、M4 会话恢复、M5 上下文工程以及 M6 Hooks、MCP Client 与只读 Explore Agent 已经落地。近期工作重点从“补齐基本能力”转向长任务健壮性：工具失败恢复、依赖安装闭环、验证债务、会话并发保护和可控 Token 预算。本 README 同时描述当前可用能力、已知边界和从 M0 到 v1.0 的后续路线。
+当前项目处于早期开发阶段，但 M1 多步 Agent Loop、M2 工作区与完成门禁、M3 权限与安全控制核心、M4 会话恢复、M5 上下文工程以及 M6 Hooks、MCP Client、Skill 与只读 Explore Agent 已经落地。近期工作重点从“补齐基本能力”转向长任务健壮性：工具失败恢复、依赖安装闭环、验证债务、会话并发保护和可控 Token 预算。本 README 同时描述当前可用能力、已知边界和从 M0 到 v1.0 的后续路线。
 
 ## 项目定位
 
@@ -59,11 +59,12 @@ ForgeCode 的核心职责是为模型提供一套可靠、可恢复、可评测�
 - 子进程清理敏感环境变量、限制输出、超时终止进程树，并对网络、安装、删除和提权行为执行风险决策；模型请求由 ForgeCode 统一进行最多 6 次有限重试；
 - append-only Session Journal 支持合法分支链恢复、并发写入头检查和过期 writer 拒绝，避免中断或两个进程同时恢复同一 session 时继续分叉；
 - WorkingState、廉价压缩、结构化摘要、项目规则、仓库记忆和 `/context`、`/compact`、`/task`、`/memory` 等 Slash Command；
+- Skill 机制兼容 `SKILL.md` 的 `name` / `description` YAML frontmatter，按用户级、项目 `.forge`、项目 `.agents` 的确定性优先级发现；默认只注入元数据，显式 `$skill-name` 或只读 `load_skill` 才加载正文，附带资源由 `read_skill_resource` 按需读取；
 - MCP Client 支持 stdio、Streamable HTTP、动态工具发现、统一权限治理、来源审计和 `/mcp` 状态查看；只读 Explore Agent 使用独立上下文和独立 Token 预算返回结构化调查报告。
 
 ### 近期真实验收与已知限制
 
-除 406 项自动化测试外，当前版本已经使用真实 `gpt-5.4-mini` 驱动完整 `Conversation → ToolRegistry → WorkspaceTracker → Completion Gate` 链路：从仅保留任务说明的目录生成 Vite、TypeScript、Phaser 项目；一次大 Patch 格式失败、一次精确替换失败和首次编译失败均被恢复；最终 `npm run typecheck` 与 `npm run build` 通过，开发服务器关键模块和生产构建资源均可通过 HTTP 加载。`play/` 仅用于这类验收，不属于 ForgeCode 产品交付物。
+除 415 项自动化测试外，当前版本已经使用真实 `gpt-5.4-mini` 驱动完整 `Conversation → ToolRegistry → WorkspaceTracker → Completion Gate` 链路：从仅保留任务说明的目录生成 Vite、TypeScript、Phaser 项目；一次大 Patch 格式失败、一次精确替换失败和首次编译失败均被恢复；最终 `npm run typecheck` 与 `npm run build` 通过，开发服务器关键模块和生产构建资源均可通过 HTTP 加载。`play/` 仅用于这类验收，不属于 ForgeCode 产品交付物。
 
 当前仍有以下已知边界：
 
@@ -83,7 +84,8 @@ Terminal / CLI
   │
   └─ Conversation / Agent Loop
        ├─ Context Manager ───────── System、Repository、Task、Working 四层上下文
-       ├─ Tool Registry ─────────── 内置工具、MCP 工具和只读 Explore Agent
+       ├─ Skill Manager ─────────── 发现、校验、优先级与渐进披露
+       ├─ Tool Registry ─────────── 内置工具、Skill 工具、MCP 工具和只读 Explore Agent
        ├─ Permission Manager ────── 模式、规则、风险分类、审批与审计
        ├─ Hook Manager ──────────── 模型、工具、编辑、验证和会话生命周期扩展
        ├─ Workspace Tracker ─────── 基线、changed paths 与 workspace_revision
@@ -134,7 +136,7 @@ Terminal / CLI
 
 ## 技术基线
 
-当前基线采用 Python 3.12、uv、Typer、Rich、Pydantic 和 pytest，并默认直接在用户本机运行，不要求安装 Docker。Rich 用于交互终端，Pydantic 用于工具输入 Schema 和运行时校验。M4 首版采用 append-only JSONL 持久化会话，避免过早引入重复状态源；需要更大规模的检索和统计时，再评估增加 SQLite 索引。模型层定义统一的 `ModelClient` 接口，首版只接入一个模型 Provider，后续再扩展多模型或模型路由。
+当前基线采用 Python 3.12、uv、Typer、Rich、Pydantic、PyYAML 和 pytest，并默认直接在用户本机运行，不要求安装 Docker。Rich 用于交互终端，Pydantic 用于工具输入 Schema 和运行时校验。M4 首版采用 append-only JSONL 持久化会话，避免过早引入重复状态源；需要更大规模的检索和统计时，再评估增加 SQLite 索引。模型层定义统一的 `ModelClient` 接口，首版只接入一个模型 Provider，后续再扩展多模型或模型路由。
 
 ### 本地开发
 
@@ -144,7 +146,7 @@ Terminal / CLI
     uv run pytest
     uv run forge --help
 
-当前自动化测试基线为 `406 passed`。提交前建议同时运行：
+当前自动化测试基线为 `415 passed`。提交前建议同时运行：
 
     uv lock --check
     uv run python -m compileall -q forge tests
@@ -208,6 +210,47 @@ macOS/Linux：
 
 MCP Server 从用户级 `~/.forge/mcp.json` 和项目根目录 `.mcp.json` 加载，项目同名配置覆盖用户配置。复制 `.mcp.json.example` 可以启动仓库内置的 stdio 示例；`/mcp` 显示连接状态、Transport、工具数量、Server 版本和最近错误。MCP 工具使用 `mcp__<server>__<tool>` 命名，连接与调用均经过权限审批。首版支持 stdio 和 Streamable HTTP，不支持旧 SSE、OAuth、Resources、Prompts 或 Sampling。配置中的 `${VAR}` 从当前环境展开，缺失变量会让配置以明确错误停止加载。
 
+### Skill 机制
+
+Skill 是可复用的本地工作说明。ForgeCode 兼容 Claude Code/Codex 风格的目录约定：每个 Skill 是一个含 `SKILL.md` 的独立目录，正文前必须有 `name` 与 `description` YAML frontmatter。可选的 `scripts/`、`references/`、`assets/` 只建立目录清单，不会在发现阶段塞入模型上下文，也不会被自动执行。
+
+发现顺序从低到高为：
+
+1. 用户级 `~/.forge/skills/<name>/SKILL.md`；
+2. 当前项目 `.forge/skills/<name>/SKILL.md`；
+3. 当前项目 `.agents/skills/<name>/SKILL.md`。
+
+同名 Skill 由后一个位置覆盖前一个，并通过 `/skills` 显示 `skill_shadowed` 诊断。建议将需要随仓库版本管理的团队 Skill 放入 `.agents/skills/`，把本机私有 Skill 放入 `~/.forge/skills/`。
+
+最小示例：
+
+```text
+.agents/skills/release-check/
+├── SKILL.md
+├── references/
+│   └── checklist.md
+└── scripts/
+    └── verify.ps1
+```
+
+```markdown
+---
+name: release-check
+description: 发布前检查版本、构建、测试与变更记录；用户要求发布或准备版本时使用。
+---
+
+先读取当前版本与变更，再按 references/checklist.md 执行检查。
+```
+
+加载使用渐进披露，避免大量 Skill 长期占用 Token：
+
+- 每次模型请求只注入已验证 Skill 的名称、描述和来源；
+- 用户写 `$release-check` 时，ForgeCode 将该 Skill 正文作为显式激活内容直接加入当前请求；
+- 未显式点名但任务明显匹配时，模型调用只读 `load_skill` 取得正文；
+- 正文列出的 UTF-8 资源再通过只读 `read_skill_resource` 单文件读取。
+
+`/skills` 列出当前有效 Skill、来源和非致命加载诊断；`/skill release-check` 在本地显示完整说明，不调用模型。Skill 名称只能使用小写字母、数字和单连字符，且必须与目录名一致。发现器拒绝符号链接 Skill 根、符号链接文件、越界资源路径、非 UTF-8 正文以及超过大小/数量上限的输入；资源路径只能位于 `scripts/`、`references/` 或 `assets/`。Skill 是模型工作流指令，不会绕过 Tool Schema、权限审批、Workspace Tracker 或 Completion Gate。
+
 `.env` 已被 Git 忽略，仓库只提交不含真实凭据的 `.env.example`。系统环境变量优先于 `.env` 中的同名配置。`ANTHROPIC_API_KEY` 和 `MODEL_ID` 必填；`ANTHROPIC_BASE_URL` 可以省略，默认使用 `https://api.anthropic.com`。`MODEL_MAX_TOKENS` 可选，默认 `8192`，允许范围为 `1024～32768`。`MODEL_CONTEXT_WINDOW` 可选，必须根据当前 Provider 和模型文档填写，并且大于 `MODEL_MAX_TOKENS`；ForgeCode 不猜测第三方兼容模型的窗口大小。`MODEL_REQUEST_TIMEOUT_SECONDS` 控制流式请求无响应超时，默认 `120` 秒，允许范围为 `10～600` 秒。SDK 内置重试被关闭，由 ForgeCode 统一决定何时安全重试；模型客户端默认最多执行 6 次有限重试，用于处理临时连接、限流和 5xx 错误。`forge config` 显示 Model ID、Base URL、最大输出 Token、请求超时、上下文窗口和密钥配置状态，但不会回显 API Key。交互模式的每轮消息都会发起真实 API 请求，可能产生 Provider 费用。
 
 ## 项目结构
@@ -216,6 +259,8 @@ MCP Server 从用户级 `~/.forge/mcp.json` 和项目根目录 `.mcp.json` 加�
 forge-code/
 ├── .env.example
 ├── .mcp.json.example
+├── .agents/
+│   └── skills/              # 可版本化的项目 Skill（按需创建）
 ├── pyproject.toml
 ├── README.md
 ├── forge/
@@ -224,6 +269,7 @@ forge-code/
 │   ├── hooks/
 │   ├── mcp/
 │   ├── runtime/
+│   ├── skills/
 │   ├── tools/
 │   ├── permissions/
 │   ├── context/
@@ -255,7 +301,7 @@ M4  会话持久化与任务恢复
  ↓
 M3  权限、安全与代码回滚（核心完成，原生强隔离继续加固）
  ↓
-M6  Hooks、MCP 与子 Agent 扩展
+M6  Hooks、MCP、Skill 与子 Agent 扩展
  ↓
 M7  Benchmark、消融实验与 v1.0
 ```
@@ -796,6 +842,8 @@ ForgeCode 在交互终端中提供 Slash Command，用于执行不需要交给�
 | `/task` | 查看当前目标、状态和可选计划进度 | 否 |
 | `/task history` | 列出 `.forge/tasks/` 中保存的复杂任务 | 否 |
 | `/task resume task-id` | 恢复一个已保存的复杂任务 | 否 |
+| `/skills` | 列出有效 Skill、来源和加载诊断 | 否 |
+| `/skill skill-name` | 查看指定 Skill 的完整正文和资源清单 | 否 |
 | `/remember name \| content` | 将一条知识写入当前仓库的持久化记忆 | 否 |
 | `/memory list` | 列出当前仓库中的全部记忆 | 否 |
 | `/memory show name` | 查看指定记忆的描述和完整内容 | 否 |
@@ -825,7 +873,7 @@ ForgeCode 在交互终端中提供 Slash Command，用于执行不需要交给�
 
 利用率按照“预计输入 + 预留输出”占总窗口的比例显示，与 80% 自动压缩阈值使用同一口径。工具结果已经包含在历史中，只单独显示大小而不会重复计入总量。统计不包含用户下一条尚未输入的 Prompt。终端中的 `last request` 是最近一次模型调用的真实 usage，`turn cumulative` 是当前用户回合所有模型调用的累计消耗，不能把累计值误认为单次上下文大小；普通任务默认不按累计输入 Token 单独停止；显式复杂计划自动启用 2,000,000 累计输入 Token 保险，代码调用方设置 `max_turn_input_tokens` 时以显式值为准。由于不同模型的分词方式不同，Provider 返回的真实 `input_tokens` 仍是请求完成后的最终依据；未配置 `MODEL_CONTEXT_WINDOW` 时，ForgeCode 会把剩余量显示为 `unavailable`。
 
-## M6：Hooks、MCP 与子 Agent 扩展
+## M6：Hooks、MCP、Skill 与子 Agent 扩展
 
 ### 目标
 
@@ -910,11 +958,21 @@ Explore Agent 默认最多执行 8 轮，独立累计输入预算为 120000 Toke
 - [x] 由主 Agent 决定是否采纳结论；
 - [x] 比较启用前后的主 Agent 上下文消耗。
 
+### 6.4 Skills
+
+- [x] 从用户级 `~/.forge/skills`、项目 `.forge/skills` 和项目 `.agents/skills` 发现并校验 `SKILL.md`；
+- [x] 项目 Skill 以确定性优先级覆盖用户同名 Skill，错误 Skill 形成诊断而不阻塞其他 Skill；
+- [x] 元数据常驻、显式点名自动激活、隐式匹配调用 `load_skill`，正文资源再按需读取；
+- [x] `load_skill` 与 `read_skill_resource` 均为只读工具，Plan 模式可用且不绕过统一工具边界；
+- [x] 对符号链接、目录穿越、超大输入、非 UTF-8 文本、非法名称和未知资源返回结构化错误；
+- [x] 提供 `/skills`、`/skill skill-name` 与终端补全，并用完整双请求 Agent Loop 验证工具结果回注。
+
 ### 验收条件
 
 - [x] Hook 能在编辑后自动触发，并能阻止一个禁止操作；
 - [x] 至少接入一个 MCP Server，且其工具接受统一权限治理；
 - [x] Explore Agent 能完成只读仓库调查；
+- [x] Skill 只注入必要上下文，显式/隐式加载与资源路径约束均可复现；
 - [x] 主 Agent 上下文 Token 明显少于直接探索方案；
 - [x] 加入扩展能力时不需要大幅修改 Agent Loop。
 

@@ -148,6 +148,12 @@ class FakeConversation:
     def mcp_status(self) -> str:
         return 'example: ready · stdio · 2 tool(s)'
 
+    def skill_list(self) -> str:
+        return '- release-check [project:.agents]: Prepare releases'
+
+    def skill_show(self, name: str) -> str:
+        return f'# Skill: {name}\nRun the checklist.'
+
     def permission_status(self) -> str:
         return 'Mode: auto'
 
@@ -372,6 +378,27 @@ def test_memory_commands_do_not_call_model(
     assert 'Forgot testing.' in result.output
     assert 'Rebuilt memory index.' in result.output
     assert 'Consolidated memory' in result.output
+    assert conversation.prompts == []
+
+
+def test_skill_commands_do_not_call_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    conversation = FakeConversation()
+    monkeypatch.setattr(
+        cli_module,
+        'Conversation',
+        lambda **_kwargs: conversation,
+    )
+
+    result = runner.invoke(
+        app,
+        input='/skills\n/skill release-check\n',
+    )
+
+    assert result.exit_code == 0
+    assert 'release-check [project:.agents]' in result.output
+    assert 'Run the checklist.' in result.output
     assert conversation.prompts == []
 
 

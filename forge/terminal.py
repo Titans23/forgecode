@@ -56,6 +56,8 @@ SLASH_COMMANDS = (
     SlashCommandSpec('/rename ', '/rename name', '重命名当前会话'),
     SlashCommandSpec('/branch ', '/branch [name]', '从当前上下文创建会话分支'),
     SlashCommandSpec('/clear', '/clear', '保存当前会话并开始空白会话'),
+    SlashCommandSpec('/skills', '/skills', '列出可用 Skill 与加载诊断'),
+    SlashCommandSpec('/skill ', '/skill skill-name', '查看一个 Skill 的完整说明'),
     SlashCommandSpec('/mcp', '/mcp', '查看 MCP Server 连接和工具状态'),
     SlashCommandSpec(
         '/permission ',
