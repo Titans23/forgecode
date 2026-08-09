@@ -53,7 +53,7 @@ from forge.runtime.state import (
 from forge.runtime.workspace import WorkspaceTracker
 from forge.sessions.checkpoint import CheckpointError, CheckpointStore
 from forge.skills import SkillManager
-from forge.tasks.manager import TaskManager
+from forge.tasks.manager import TaskManager, task_path_matches
 from forge.tools.base import ToolRegistry, ToolResult
 from forge.tools.task import create_task_tools
 
@@ -324,6 +324,7 @@ class Conversation:
                 or (
                     turn_decision.intent == 'continue_task'
                     and previous_task is not None
+                    and previous_task.status != 'completed'
                     and previous_task.requires_change
                 )
             )
@@ -460,6 +461,7 @@ class Conversation:
         mutation_text_recoveries = 0
         required_change_text_recoveries = 0
         finish_declaration_recoveries = 0
+        false_blocker_recoveries = 0
         stagnation_plan_recoveries = 0
         stagnation_action_recoveries = 0
         planning_checkpoint_recovery = False
@@ -1756,7 +1758,21 @@ class Conversation:
                     and permission_rejection is None
                 ):
                     targets = mutation_target_paths(tool_call, maximum=None)
-                    outside_scope = self.task_manager.outside_scope(targets)
+                    outside_scope = tuple(
+                        path
+                        for path in self.task_manager.outside_scope(targets)
+                        if not (
+                            self.completion_gate is not None
+                            and any(
+                                task_path_matches(path, allowed)
+                                for allowed in self.completion_gate.policy.allowed_paths
+                            )
+                            and not any(
+                                task_path_matches(path, forbidden)
+                                for forbidden in self.completion_gate.policy.forbidden_paths
+                            )
+                        )
+                    )
                     if outside_scope:
                         scope_rejection = ToolResult.fail(
                             'outside_task_scope',
@@ -2398,6 +2414,42 @@ class Conversation:
                     )
                     terminal_finish_reasons = ()
                     continue
+                correctable_read_only_kind = bool(
+                    finish_call is not None
+                    and finish_call.arguments.get('task_kind') == 'change'
+                    and not mutation_attempted
+                    and not turn_change_required
+                    and not (
+                        self.completion_gate is not None
+                        and self.completion_gate.policy.require_changes
+                    )
+                    and self.workspace_tracker is not None
+                    and not self.workspace_tracker.changed_paths
+                    and self.working_state.evidence_paths
+                )
+                if (
+                    correctable_read_only_kind
+                    and finish_declaration_recoveries < 1
+                ):
+                    finish_declaration_recoveries += 1
+                    calls_without_progress = 0
+                    change_required = False
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                'ForgeCode completion correction: this turn '
+                                'inspected existing code and produced no workspace '
+                                'change. Reuse the repository and verification '
+                                'evidence already collected, then call '
+                                'finish_task once more with '
+                                'task_kind=inspection. Do not edit files, '
+                                're-read evidence, or run another verification.'
+                            ),
+                        }
+                    )
+                    terminal_finish_reasons = ()
+                    continue
                 correctable_workspace_finish = bool(
                     finish_call is not None
                     and finish_call.arguments.get('task_kind') == 'change'
@@ -2431,6 +2483,40 @@ class Conversation:
                                 'one focused correction now. Do not re-plan, '
                                 'broaden exploration, or finish before correcting '
                                 'and re-verifying the final revision.'
+                            ),
+                        }
+                    )
+                    terminal_finish_reasons = ()
+                    continue
+                correctable_false_blocker = bool(
+                    finish_call is not None
+                    and finish_call.arguments.get('task_kind') == 'change'
+                    and finish_call.arguments.get('status') == 'blocked'
+                    and change_required
+                    and not mutation_attempted
+                    and false_blocker_recoveries < 1
+                )
+                if correctable_false_blocker:
+                    false_blocker_recoveries += 1
+                    calls_without_progress = 0
+                    planning_checkpoint_recovery = False
+                    planned_progress_checkpoint = False
+                    mutation_read_checkpoint = False
+                    mutation_action_checkpoint = False
+                    action_checkpoint_recovery = True
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                '[ForgeCode Action Recovery]\n'
+                                'The blocked declaration was rejected because no '
+                                'external blocker exists. Editing tools are '
+                                'available in this request. Use the repository '
+                                'evidence already collected to make one concrete '
+                                'task-relevant edit now, then verify it. Do not '
+                                're-read unchanged files or declare the task '
+                                'blocked again unless a new external condition is '
+                                'reported by a tool.'
                             ),
                         }
                     )
@@ -3871,15 +3957,17 @@ class Conversation:
         return tools or None
 
     def _planned_progress_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose the next plan transition without reopening exploration.'''
-        tools = self._action_checkpoint_tools()
-        if tools is None:
-            return None
-        return [
-            definition
-            for definition in tools
-            if str(definition.get('name', '')) != 'task_plan'
+        '''Expose evidence, execution, and transition tools after planning.'''
+        combined = [
+            *(self._read_only_tools() or ()),
+            *(self._action_checkpoint_tools() or ()),
         ]
+        tools_by_name = {
+            str(definition.get('name', '')): definition
+            for definition in combined
+            if str(definition.get('name', '')) != 'task_plan'
+        }
+        return list(tools_by_name.values()) or None
 
     def _action_checkpoint_tools(self) -> list[dict[str, Any]] | None:
         '''Expose planning, mutation, verification, and completion actions.'''
@@ -3996,11 +4084,6 @@ class Conversation:
             tracker is None
             or gate is None
             or not tracker.changed_paths
-        ):
-            return False
-        task = self.task_manager.active
-        if task is not None and task.planned and any(
-            step.status != 'completed' for step in task.steps
         ):
             return False
         decision = await gate.evaluate(
@@ -4867,10 +4950,11 @@ def build_planned_progress_feedback(
             f'{task_context}\n\n'
             '[ForgeCode Planned Progress Checkpoint]\n'
             'A plan was just created or the current revision was just verified, '
-            'but planned work remains. Do not reopen repository exploration or '
-            'repeat verification. Use the existing evidence to choose one '
-            'semantic transition: update completed plan steps, make the next '
-            'task-relevant workspace edit, or finish honestly if the remaining '
+            'but planned work remains. Do not reopen broad repository exploration '
+            'or repeat verification. If the current step needs exact content not '
+            'yet seen, perform one targeted read; otherwise use existing evidence '
+            'to update completed plan steps, make the next task-relevant workspace '
+            'edit, or finish honestly if the remaining '
             'plan is no longer required. Probe and placeholder edits are invalid.'
         ),
     }
@@ -5493,6 +5577,7 @@ def obvious_probe_write(tool_call: ToolCall, prompt: str) -> bool:
     normalized_words = re.sub(r'[^a-z0-9]+', ' ', normalized).strip()
     probes = {
         'noop',
+        'tmp',
         'temp',
         'temporary',
         'test',

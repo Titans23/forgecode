@@ -22,7 +22,8 @@ import yaml
 
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy, matches_any
-from forge.runtime.model_client import ModelClient
+from forge.runtime.model_client import AnthropicModelClient, ModelClient
+from forge.runtime.router import ModelIntentRouter
 from forge.runtime.state import TurnCompleted, TurnResult
 from forge.sessions.trajectory import TrajectoryRecorder
 from forge.tools import create_default_registry
@@ -262,10 +263,17 @@ async def run_agent(
         allowed_paths=case.allowed_paths,
         forbidden_paths=case.forbidden_paths,
     )
+    agent_client = client or AnthropicModelClient.from_config()
+    intent_router = (
+        None
+        if client is not None
+        else ModelIntentRouter(AnthropicModelClient.from_config(max_tokens=600))
+    )
     conversation = Conversation(
-        client=client,
+        client=agent_client,
         registry=create_default_registry(workspace),
         task_policy=policy,
+        intent_router=intent_router,
     )
     prompt = build_agent_prompt(case)
     recorder.record_user_message(prompt)
@@ -459,13 +467,13 @@ async def run_selected_cases(
 ) -> list[EvalOutcome]:
     outcomes: list[EvalOutcome] = []
     for _, case in cases:
-        print(f'[{case.id}] running')
+        print(f'[{case.id}] running', flush=True)
         outcome = await run_case(case, output_dir=output_dir)
         outcomes.append(outcome)
         state = 'PASS' if outcome.passed else 'FAIL'
-        print(f'[{case.id}] {state}')
+        print(f'[{case.id}] {state}', flush=True)
         for reason in outcome.reasons:
-            print(f'  - {reason}')
+            print(f'  - {reason}', flush=True)
     return outcomes
 
 
@@ -514,7 +522,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_selected_cases(cases, arguments.output_dir.resolve())
     )
     passed = sum(outcome.passed for outcome in outcomes)
-    print(f'\nResult: {passed}/{len(outcomes)} cases passed.')
+    print(f'\nResult: {passed}/{len(outcomes)} cases passed.', flush=True)
     return 0 if passed == len(outcomes) else 1
 
 

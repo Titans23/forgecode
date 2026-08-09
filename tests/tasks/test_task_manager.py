@@ -163,6 +163,31 @@ def test_plan_without_scope_keeps_inferred_scope(tmp_path: Path) -> None:
     assert task.scope_source == 'explicit'
 
 
+def test_literal_directory_scope_includes_descendant_files(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    manager.start('Implement and verify the order service', requires_change=True)
+    task = manager.plan(
+        ['Fix implementation', 'Verify behavior'],
+        scope_hints=[
+            'src/main/java/io/forgecode/orders',
+            'src/test',
+        ],
+    )
+
+    assert task.scope_source == 'planned'
+    assert manager.outside_scope(
+        (
+            'src/main/java/io/forgecode/orders/OrderService.java',
+            'src/test/java/io/forgecode/orders/OrderServiceTest.java',
+        )
+    ) == ()
+    assert manager.outside_scope(
+        ('src/main/java/io/forgecode/payments/PaymentService.java',)
+    ) == ('src/main/java/io/forgecode/payments/PaymentService.java',)
+
+
 def test_continuation_after_completed_keeps_goal_and_inferred_scope(
     tmp_path: Path,
 ) -> None:

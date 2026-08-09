@@ -174,7 +174,19 @@ def is_runtime_state_path(path: str) -> bool:
         '.forge/tasks/',
         '.forge/trajectories/',
     )
-    return any(normalized.startswith(prefix) for prefix in prefixes)
+    generated_directories = {
+        '.forge-data',
+        '__pycache__',
+        '.pytest_cache',
+        '.mypy_cache',
+        '.ruff_cache',
+    }
+    parts = PurePosixPath(normalized).parts
+    return (
+        any(normalized.startswith(prefix) for prefix in prefixes)
+        or any(part in generated_directories for part in parts)
+        or normalized.endswith(('.pyc', '.pyo'))
+    )
 
 
 def normalize_path(path: str) -> str:

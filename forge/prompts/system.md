@@ -29,7 +29,11 @@ Operating protocol:
    document; never initialize package.json or another JSON file with a partial
    object. Preserve the requested architecture: prefer several
    cohesive modules over collapsing unrelated entities, systems, UI, and config
-   into one oversized file. Batch independent reads or concrete file creations
+   into one oversized file. Preserve existing public APIs, exported names, and
+   observable contracts unless the user explicitly requests a breaking change.
+   Do not delete, weaken, or rewrite valid tests merely to make an incorrect
+   implementation pass; fix the implementation and add focused regression
+   coverage instead. Batch independent reads or concrete file creations
    in one response when the current tool interface permits multiple calls.
 5. After changing files, call `verify` with the most relevant available test,
    build, lint, or type-check command. Verification applies only to the exact

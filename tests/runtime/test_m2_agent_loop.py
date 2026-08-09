@@ -300,6 +300,74 @@ def test_resumed_task_can_finish_from_persisted_workspace_change(
 
 
 
+def test_completed_change_task_can_resume_as_inspection(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    task = ActiveTask(
+        id='task-completed001',
+        goal='Change and verify sample.txt',
+        status='completed',
+        requires_change=True,
+        workspace_paths=('sample.txt',),
+    )
+    router = AsyncMock()
+    router.route.return_value = RouteResult(
+        decision=TurnDecision(
+            intent='continue_task',
+            task_relation='active',
+            requires_workspace_change=False,
+            requires_verification=True,
+            confidence=0.99,
+            reason='Inspect the already completed task.',
+        ),
+        usage=TokenUsage(7, 3),
+    )
+    client = FakeModelClient(
+        response_with_tool(
+            ToolCall(0, 'inspect-read', 'read_file', {'path': 'sample.txt'})
+        ),
+        response_with_tool(
+            ToolCall(
+                0,
+                'inspect-verify',
+                'verify',
+                {'command': 'git diff --check'},
+            )
+        ),
+        finish_response(
+            'inspect-wrong-kind',
+            task_kind='change',
+            summary='Inspected the completed task; no edit was needed.',
+        ),
+        finish_response(
+            'inspect-finish',
+            task_kind='inspection',
+            summary='Inspected the completed task and verification passed.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        active_task=task,
+        intent_router=router,
+    )
+
+    events = collect_turn(conversation, 'Continue and inspect the completed task.')
+    completed = events[-1]
+
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed', (
+        completed.result,
+        len(client.calls),
+        conversation.working_state.evidence_paths,
+    )
+    assert completed.result.changed_paths == ()
+    assert completed.result.verification is not None
+    assert conversation.task_manager.active is not None
+    assert conversation.task_manager.active.status == 'completed'
+
+
 def test_completion_validation_rejects_unverified_change_once(
     tmp_path: Path,
 ) -> None:
@@ -688,6 +756,38 @@ def test_edit_recovery_counts_failures_per_target(
     assert completed.result.status == 'completed'
     assert completed.result.changed_paths == ('sample.txt',)
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
+
+
+def test_tmp_content_is_rejected_as_placeholder_write(tmp_path: Path) -> None:
+    initialize_git_repository(tmp_path)
+    client = FakeModelClient(
+        response_with_tool(
+            ToolCall(
+                0,
+                'tmp-placeholder',
+                'write_file',
+                {'path': 'src/index.ts', 'content': 'tmp'},
+            )
+        ),
+        text_response('Unable to continue.'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+    )
+
+    events = collect_turn(conversation, 'Fix the TypeScript implementation.')
+
+    rejected = next(
+        event
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'tmp-placeholder'
+    )
+    assert rejected.result.success is False
+    assert rejected.result.error is not None
+    assert rejected.result.error.code == 'placeholder_write_denied'
+    assert not (tmp_path / 'src' / 'index.ts').exists()
 
 
 def test_final_targeted_read_gets_one_corrected_edit_opportunity(
@@ -1744,6 +1844,94 @@ def test_inferred_task_scope_blocks_unrelated_workspace_write(
     }
 
 
+def test_explicit_policy_scope_overrides_narrow_planned_scope(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    blocked_file = tmp_path / 'blocked.txt'
+    blocked_file.write_text('safe\n', encoding='utf-8')
+    task = ActiveTask(
+        id='task-plan-scope01',
+        goal='Fix the implementation in sample.txt',
+        status='in_progress',
+        requires_change=True,
+        planned=True,
+        scope_hints=('**/*clamp*',),
+        scope_source='planned',
+    )
+    forbidden_edit = ToolCall(
+        0,
+        'policy-scope-forbidden',
+        'replace_text',
+        {
+            'path': 'blocked.txt',
+            'old_text': 'safe\n',
+            'new_text': 'corrupted\n',
+        },
+    )
+    edit = ToolCall(
+        0,
+        'policy-scope-edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'fixed\n',
+        },
+    )
+    verify = ToolCall(
+        0,
+        'policy-scope-verify',
+        'verify',
+        {'command': 'git diff --check'},
+    )
+    client = FakeModelClient(
+        response_with_tool(forbidden_edit),
+        response_with_tool(edit),
+        response_with_tool(verify),
+        finish_response(
+            'policy-scope-finish',
+            task_kind='change',
+            summary='Fixed the explicitly allowed implementation file.',
+        ),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+            allowed_paths=('sample.txt', 'blocked.txt'),
+            forbidden_paths=('blocked.txt',),
+        ),
+        active_task=task,
+    )
+
+    events = collect_turn(conversation, 'Continue the planned fix.')
+
+    forbidden_result = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'policy-scope-forbidden'
+    )
+    edit_result = next(
+        event.result
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'policy-scope-edit'
+    )
+    completed = events[-1]
+    assert forbidden_result.error is not None
+    assert forbidden_result.error.code == 'outside_task_scope'
+    assert blocked_file.read_text(encoding='utf-8') == 'safe\n'
+    assert edit_result.success is True
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert completed.result.changed_paths == ('sample.txt',)
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'fixed\n'
+
+
 def test_runtime_tells_model_that_request_tools_are_available(
     tmp_path: Path,
 ) -> None:
@@ -2073,7 +2261,76 @@ def test_agent_loop_stops_after_one_completion_rejection(
     assert conversation.task_manager.active.status == 'stuck'
 
 
-def test_false_blocker_is_rejected_without_open_ended_recovery(
+def test_verified_revision_can_finish_with_incomplete_plan(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    plan = ToolCall(
+        0,
+        'toolu_plan',
+        'task_plan',
+        {'steps': ['Implement the fix', 'Verify the final revision']},
+    )
+    edit = ToolCall(
+        0,
+        'toolu_plan_edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    verify = ToolCall(
+        0,
+        'toolu_plan_verify',
+        'verify',
+        {'command': 'git diff --check'},
+    )
+    client = FakeModelClient(
+        response_with_tool(plan),
+        response_with_tool(edit),
+        response_with_tool(verify),
+        finish_response('toolu_plan_finish', task_kind='change'),
+    )
+    conversation = Conversation(
+        client=client,
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+        ),
+    )
+
+    events = collect_turn(conversation, 'Change and verify sample.txt')
+
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    task = conversation.task_manager.active
+    assert task is not None
+    assert all(step.status == 'completed' for step in task.steps)
+    assert len(client.calls) == 4
+
+
+def test_planned_progress_keeps_targeted_read_and_action_tools(
+    tmp_path: Path,
+) -> None:
+    conversation = Conversation(
+        client=FakeModelClient(),
+        registry=create_default_registry(tmp_path),
+    )
+
+    names = {
+        str(definition['name'])
+        for definition in conversation._planned_progress_tools() or []
+    }
+
+    assert {'read_file', 'apply_patch', 'task_update', 'verify', 'finish_task'} <= names
+    assert 'task_plan' not in names
+
+
+def test_false_blocker_gets_one_bounded_action_recovery(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -2086,15 +2343,22 @@ def test_false_blocker_is_rejected_without_open_ended_recovery(
         )
         for index, pattern in enumerate(('missing-a', 'missing-b'), start=1)
     ]
-    recovery_searches = [
-        ToolCall(
-            0,
-            f'toolu_recovery_{index}',
-            'find_files',
-            {'path': '.', 'pattern': f'still-missing-{index}'},
-        )
-        for index in range(1, 5)
-    ]
+    edit = ToolCall(
+        0,
+        'toolu_recovery_edit',
+        'replace_text',
+        {
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'new\n',
+        },
+    )
+    verify = ToolCall(
+        0,
+        'toolu_recovery_verify',
+        'verify',
+        {'command': 'git diff --check'},
+    )
     client = FakeModelClient(
         *(response_with_tool(call) for call in searches),
         finish_response(
@@ -2104,7 +2368,10 @@ def test_false_blocker_is_rejected_without_open_ended_recovery(
             summary='I could not complete the requested code change.',
             blocked_reasons=['No applicable source evidence was found.'],
         ),
-        *(response_with_tool(call) for call in recovery_searches),
+        response_with_tool(edit),
+        response_with_tool(verify),
+        finish_response('finish_wrong_kind', task_kind='inspection'),
+        finish_response('finish_recovered', task_kind='change'),
     )
     conversation = Conversation(
         client=client,
@@ -2119,19 +2386,32 @@ def test_false_blocker_is_rejected_without_open_ended_recovery(
 
     events = collect_turn(conversation, 'Change and verify the game')
 
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
-    assert len(client.calls) == 3
-    assert len(client.responses) == 4
-    assert all(call['tools'] is not None for call in client.calls)
     finish_event = next(
-        event for event in events
+        event
+        for event in events
         if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.name == 'finish_task'
+        and event.tool_call.id == 'finish_blocked'
     )
     assert finish_event.result.error is not None
     assert finish_event.result.error.code == 'finish_rejected'
+    recovery_tools = {
+        str(tool['name']) for tool in client.calls[3]['tools'] or []
+    }
+    assert 'replace_text' in recovery_tools
+    assert 'read_file' not in recovery_tools
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
+    wrong_kind = next(
+        event
+        for event in events
+        if isinstance(event, ToolExecutionCompleted)
+        and event.tool_call.id == 'finish_wrong_kind'
+    )
+    assert wrong_kind.result.error is not None
+    assert wrong_kind.result.error.code == 'finish_rejected'
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.result.status == 'completed'
+    assert len(client.calls) == 7
 
 
 def test_empty_recovery_response_returns_stuck_turn(

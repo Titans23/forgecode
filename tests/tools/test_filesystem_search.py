@@ -680,6 +680,28 @@ def test_find_files_uses_globs_and_ignores_generated_directories(
     assert result.metadata['truncated'] is False
 
 
+def test_find_files_double_star_matches_direct_and_nested_files(
+    tmp_path: Path,
+) -> None:
+    create_repository(tmp_path)
+    nested = tmp_path / 'src' / 'nested'
+    nested.mkdir()
+    (nested / 'worker.ts').write_text('export {}\n', encoding='utf-8')
+
+    result = run(
+        FindFilesTool(tmp_path).run(
+            {'path': '.', 'pattern': 'src/**/*'}
+        )
+    )
+
+    assert result.success is True
+    assert result.content.splitlines() == [
+        'src/app.py',
+        'src/app.ts',
+        'src/nested/worker.ts',
+    ]
+
+
 def test_find_files_zero_result_explains_directories_are_excluded(
     tmp_path: Path,
 ) -> None:

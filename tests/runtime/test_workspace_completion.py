@@ -201,12 +201,27 @@ def test_workspace_tracker_excludes_generated_runtime_state(
         '{}\n',
         encoding='utf-8',
     )
+    python_cache = tmp_path / '__pycache__'
+    python_cache.mkdir()
+    (python_cache / 'app.cpython-312.pyc').write_bytes(b'cache')
+    pytest_cache = tmp_path / '.pytest_cache'
+    pytest_cache.mkdir()
+    (pytest_cache / 'README.md').write_text('cache\n', encoding='utf-8')
+    forge_data = tmp_path / '.forge-data' / 'projects' / 'example'
+    forge_data.mkdir(parents=True)
+    (forge_data / 'session.jsonl').write_text('{}\n', encoding='utf-8')
+    ordinary_hidden = tmp_path / '.project-data'
+    ordinary_hidden.mkdir()
+    (ordinary_hidden / 'state.json').write_text('{}\n', encoding='utf-8')
 
     change = run(tracker.refresh())
 
     assert change is not None
-    assert change.paths == ('.forge/settings.json',)
-    assert tracker.changed_paths == ('.forge/settings.json',)
+    assert change.paths == ('.forge/settings.json', '.project-data/state.json')
+    assert tracker.changed_paths == (
+        '.forge/settings.json',
+        '.project-data/state.json',
+    )
 
 
 def test_path_patterns_match_deep_source_files() -> None:

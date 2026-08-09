@@ -44,6 +44,26 @@ def iter_files(path: Path) -> list[Path]:
     return files
 
 
+def glob_variants(pattern: str) -> tuple[str, ...]:
+    '''Treat every double-star directory segment as matching zero directories.'''
+    variants = [pattern]
+    pending = [pattern]
+    while pending:
+        current = pending.pop()
+        marker = '**/'
+        start = 0
+        while True:
+            index = current.find(marker, start)
+            if index < 0:
+                break
+            collapsed = current[:index] + current[index + len(marker):]
+            if collapsed not in variants:
+                variants.append(collapsed)
+                pending.append(collapsed)
+            start = index + len(marker)
+    return tuple(variants)
+
+
 class FindFilesInput(ToolInput):
     pattern: str = Field(min_length=1)
     path: str = '.'
@@ -68,11 +88,13 @@ class FindFilesTool(Tool[FindFilesInput]):
         start = resolve_repository_path(self.root, arguments.path)
         matches: list[str] = []
         truncated = False
+        patterns = glob_variants(arguments.pattern)
         for candidate in iter_files(start):
             relative = display_path(self.root, candidate)
-            if (
-                fnmatch.fnmatch(relative, arguments.pattern)
-                or fnmatch.fnmatch(candidate.name, arguments.pattern)
+            if any(
+                fnmatch.fnmatch(relative, pattern)
+                or fnmatch.fnmatch(candidate.name, pattern)
+                for pattern in patterns
             ):
                 if len(matches) == arguments.max_results:
                     truncated = True

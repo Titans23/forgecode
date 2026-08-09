@@ -534,6 +534,9 @@ def task_path_matches(path: str, pattern: str) -> bool:
     if normalized_pattern.endswith('/**'):
         prefix = normalized_pattern[:-3].rstrip('/')
         return candidate == prefix or candidate.startswith(prefix + '/')
+    if not any(character in normalized_pattern for character in '*?['):
+        prefix = normalized_pattern.rstrip('/')
+        return candidate == prefix or candidate.startswith(prefix + '/')
     return fnmatchcase(candidate, normalized_pattern)
 
 
