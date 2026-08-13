@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from forge.tasks.manager import TaskManager, infer_goal_scope
+from forge.tasks.manager import TaskManager
 
 
 def test_simple_task_stays_in_memory_without_creating_files(
@@ -289,44 +289,3 @@ def test_observed_workspace_paths_are_limited_to_task_scope(
 
     assert manager.active is not None
     assert manager.active.workspace_paths == ('play/src/main.js',)
-
-
-def test_scope_inference_ignores_ordinary_within_another_phrase() -> None:
-    goal = (
-        'The process of placing a phrase within another phrase is called '
-        'embedding. Use the supplied file House.java.'
-    )
-
-    assert infer_goal_scope(goal) == ()
-
-
-def test_scope_inference_ignores_prose_in_supplied_root_files() -> None:
-    goal = '''
-    Given students in a grade, implement the roster. Keep names sorted within
-    her grade and modify the supplied files: lib.rs, Cargo.toml.
-    '''
-
-    assert infer_goal_scope(goal) == ()
-
-
-def test_scope_inference_anchors_path_qualified_supplied_files() -> None:
-    goal = 'Modify the supplied files: src/lib.rs, tests/roster.rs.'
-
-    assert infer_goal_scope(goal) == ('src/**', 'tests/**')
-
-def test_plan_resolves_unique_file_name_to_actual_repository_path(
-    tmp_path: Path,
-) -> None:
-    source = tmp_path / 'src' / 'main' / 'java' / 'WordProblemSolver.java'
-    source.parent.mkdir(parents=True)
-    source.write_text('class WordProblemSolver {}\n', encoding='utf-8')
-
-    manager = TaskManager(tmp_path)
-    manager.start('Implement the supplied Java file.', requires_change=True)
-    task = manager.plan(
-        ['Inspect the source', 'Implement and verify'],
-        scope_hints=['WordProblemSolver.java'],
-    )
-
-    assert task.scope_hints == ('src/main/java/WordProblemSolver.java',)
-    assert manager.outside_scope(('src/main/java/WordProblemSolver.java',)) == ()

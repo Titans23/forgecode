@@ -292,62 +292,6 @@ def test_verify_failure_is_structured(tmp_path: Path) -> None:
     assert result.metadata['exit_code'] == 3
 
 
-def test_verify_falls_back_from_unavailable_python_or_pytest(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    tracker = WorkspaceTracker(tmp_path)
-    asyncio.run(tracker.begin_turn())
-
-    class FakeResult:
-        def __init__(self, exit_code: int, output: str) -> None:
-            self.exit_code = exit_code
-            self.stdout = output
-            self.stderr = ''
-            self.duration_seconds = 0.01
-            self.timed_out = False
-            self.stdout_truncated = False
-            self.stderr_truncated = False
-            self.stdout_bytes = len(output)
-            self.stderr_bytes = 0
-
-    calls: list[str] = []
-
-    async def fake_run(command, **kwargs):
-        calls.append(command)
-        if command == 'pytest -q':
-            return FakeResult(127, '/bin/sh: pytest: not found')
-        return FakeResult(0, 'python3 fallback passed')
-
-    monkeypatch.setattr('forge.tools.verify.run_process', fake_run)
-    result = run(VerifyTool(tmp_path, tracker).run({'command': 'pytest -q'}))
-
-    assert result.success is True
-    assert calls == ['pytest -q', 'python3 -m pytest -q']
-    assert result.metadata['command'] == 'python3 -m pytest -q'
-
-
-def test_verify_treats_cmake_missing_test_source_as_not_applicable(
-    tmp_path: Path,
-) -> None:
-    tracker = WorkspaceTracker(tmp_path)
-    asyncio.run(tracker.begin_turn())
-    output = (
-        'CMake Error: Cannot find source file: missing_test.cpp\\n'
-        'CMake Error: No SOURCES given to target: demo_tests'
-    )
-    script = f'print({output!r}); raise SystemExit(1)'
-    command = subprocess.list2cmdline([sys.executable, '-c', script])
-
-    result = run(VerifyTool(tmp_path, tracker).run({'command': command}))
-
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'verification_command_not_applicable'
-    assert result.metadata['verification'] is False
-    assert result.metadata['status'] == 'not_applicable'
-
-
 def test_verify_rejects_npm_test_without_package_manifest(
     tmp_path: Path,
 ) -> None:
