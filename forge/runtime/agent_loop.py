@@ -2143,7 +2143,7 @@ class Conversation:
                     ):
                         break
                 if tool_call.name == 'verify':
-                    latest_verification = verification_from_result(
+                    observed_verification = verification_from_result(
                         result,
                         workspace_revision=(
                             self.workspace_tracker.revision
@@ -2152,7 +2152,8 @@ class Conversation:
                         ),
                     )
                     verification_recovery = False
-                    if latest_verification is not None:
+                    if observed_verification is not None:
+                        latest_verification = observed_verification
                         verification_key = verification_obligation(
                             latest_verification.command
                         )

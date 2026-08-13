@@ -171,15 +171,30 @@ class VerifyTool(Tool[VerifyInput]):
                     'required_manifest': missing_manifest.name,
                 },
             )
+        effective_command = arguments.command
         result = await run_process(
-            arguments.command,
+            effective_command,
             cwd=cwd,
             timeout_seconds=arguments.timeout_seconds,
             shell=True,
         )
+        fallback_command = verification_command_fallback(
+            effective_command,
+            render_process_output(result),
+        )
+        if fallback_command is not None and result.exit_code != 0:
+            fallback_result = await run_process(
+                fallback_command,
+                cwd=cwd,
+                timeout_seconds=arguments.timeout_seconds,
+                shell=True,
+            )
+            if fallback_result.exit_code == 0 and not fallback_result.timed_out:
+                effective_command = fallback_command
+                result = fallback_result
         metadata = {
             **process_metadata(result),
-            'command': arguments.command,
+            'command': effective_command,
             'cwd': display_path(self.root, cwd),
             'workspace_revision': revision,
             'verification': True,
@@ -194,6 +209,21 @@ class VerifyTool(Tool[VerifyInput]):
                 metadata=metadata,
             )
         if result.exit_code != 0:
+            unavailable_reason = runtime_verification_not_applicable_reason(
+                arguments.command,
+                content,
+            )
+            if unavailable_reason is not None:
+                return ToolResult.fail(
+                    'verification_command_not_applicable',
+                    unavailable_reason,
+                    content=content,
+                    metadata={
+                        **metadata,
+                        'verification': False,
+                        'status': 'not_applicable',
+                    },
+                )
             return ToolResult.fail(
                 'verification_failed',
                 f'Verification exited with code {result.exit_code}.',
@@ -205,6 +235,63 @@ class VerifyTool(Tool[VerifyInput]):
             content=content,
             metadata=metadata,
         )
+
+
+def verification_command_fallback(
+    command: str,
+    output: str,
+) -> str | None:
+    '''Return a safe equivalent when a common executable name is unavailable.'''
+    normalized = output.casefold()
+    unavailable = (
+        'not found' in normalized
+        or 'command not found' in normalized
+        or 'is not recognized as an internal or external command' in normalized
+    )
+    if not unavailable:
+        return None
+    stripped = command.strip()
+    if re.match(r'^pytest(?:\.exe)?(?:\s|$)', stripped, re.IGNORECASE):
+        return re.sub(r'^pytest(?:\.exe)?', 'python3 -m pytest', stripped, count=1, flags=re.IGNORECASE)
+    if re.match(r'^python(?:\.exe)?(?:\s|$)', stripped, re.IGNORECASE):
+        return re.sub(r'^python(?:\.exe)?', 'python3', stripped, count=1, flags=re.IGNORECASE)
+    return None
+
+
+def runtime_verification_not_applicable_reason(
+    command: str,
+    output: str,
+) -> str | None:
+    '''Recognize configured checks that cannot run in the supplied checkout.'''
+    normalized_command = command.casefold()
+    normalized_output = output.casefold()
+    if (
+        ('eslint' in normalized_command or 'lint' in normalized_command)
+        and any(
+            marker in normalized_output
+            for marker in (
+                "couldn't find an eslint.config",
+                "couldn't find a configuration file",
+                'no eslint configuration found',
+            )
+        )
+    ):
+        return 'The configured lint command has no lint configuration.'
+    if (
+        ('jest' in normalized_command or 'npm test' in normalized_command)
+        and 'no tests found' in normalized_output
+    ):
+        return 'The configured test command found no tests in this checkout.'
+    if (
+        'cmake' in normalized_command
+        and 'cannot find source file:' in normalized_output
+        and 'no sources given to target' in normalized_output
+    ):
+        return (
+            'CMake references a source or test file that is absent from the '
+            'supplied checkout.'
+        )
+    return None
 
 
 

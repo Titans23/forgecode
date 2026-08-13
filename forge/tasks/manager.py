@@ -142,7 +142,10 @@ class TaskManager:
         resolved_scope_hints = (
             task.scope_hints
             if preserve_explicit_scope or not scope_hints
-            else tuple(clean_strings(scope_hints, name='scope_hints'))
+            else canonicalize_scope_hints(
+                self.root,
+                clean_strings(scope_hints, name='scope_hints'),
+            )
         )
         resolved_scope_source: ScopeSource = (
             task.scope_source
@@ -479,6 +482,9 @@ class TaskManager:
 
 def infer_goal_scope(goal: str) -> tuple[str, ...]:
     '''Extract only an explicitly named repository directory from the goal.'''
+    supplied_scope = _scope_from_supplied_files(goal)
+    if supplied_scope is not None:
+        return supplied_scope
     segment = r'[a-z0-9_-](?:[a-z0-9_.-]*[a-z0-9_-])?'
     repository_path = rf'{segment}(?:[/\\]{segment})*'
     file_patterns = (
@@ -508,13 +514,99 @@ def infer_goal_scope(goal: str) -> tuple[str, ...]:
         if match is None:
             continue
         path = normalize_task_path(match.group(1)).strip('/')
-        if path and path not in {'.', '..'}:
+        if (
+            path
+            and path not in {'.', '..'}
+            and path.casefold() not in AMBIGUOUS_SCOPE_WORDS
+        ):
             return (f'{path}/**',)
     return ()
 
 
+def _scope_from_supplied_files(goal: str) -> tuple[str, ...] | None:
+    '''Prefer the concrete paths in benchmark-style file declarations.
+
+    Coding benchmarks commonly append ``supplied files: lib.rs, Cargo.toml``
+    to a prose task.  The prose can contain phrases such as ``within a grade``
+    or ``within her song``; treating those nouns as repository directories
+    creates a false write scope.  A path-qualified supplied file still anchors
+    its containing directory, while root-level files intentionally leave the
+    repository scope unresolved.
+    '''
+    match = re.search(
+        r'(?im)\bsupplied\s+files?\s*:\s*([^\n]+)',
+        goal,
+    )
+    if match is None:
+        return None
+
+    paths = re.findall(
+        r'(?<![\w.-])([a-z0-9_.-]+(?:[/\\][a-z0-9_.-]+)+)',
+        match.group(1),
+        flags=re.IGNORECASE,
+    )
+    parents = {
+        normalize_task_path(str(PurePosixPath(path).parent)).strip('/')
+        for path in paths
+        if str(PurePosixPath(path).parent) not in {'.', ''}
+    }
+    return tuple(f'{path}/**' for path in sorted(parents))
+
+
+AMBIGUOUS_SCOPE_WORDS = {
+    'another',
+    'any',
+    'each',
+    'either',
+    'every',
+    'some',
+    'that',
+    'this',
+}
+
+
 def normalize_task_path(path: str) -> str:
     return PurePosixPath(path.strip().replace('\\', '/')).as_posix()
+
+
+_SCOPE_SEARCH_EXCLUDED_PARTS = frozenset({'.forge', '.git', 'node_modules', 'target'})
+
+
+def canonicalize_scope_hints(
+    root: Path,
+    hints: list[str],
+) -> tuple[str, ...]:
+    '''Resolve unique file-name hints against the actual repository layout.'''
+    resolved: list[str] = []
+    repository_root = root.resolve()
+    for raw_hint in hints:
+        hint = normalize_task_path(raw_hint).strip('/')
+        if not hint or any(character in hint for character in '*?['):
+            resolved.append(hint)
+            continue
+        candidate = repository_root / hint
+        if candidate.is_file():
+            resolved.append(hint)
+            continue
+        basename = PurePosixPath(hint).name
+        if not Path(basename).suffix:
+            resolved.append(hint)
+            continue
+        matches: list[str] = []
+        for path in repository_root.rglob(basename):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(repository_root)
+            if any(
+                part.casefold() in _SCOPE_SEARCH_EXCLUDED_PARTS
+                for part in relative.parts
+            ):
+                continue
+            matches.append(relative.as_posix())
+            if len(matches) > 1:
+                break
+        resolved.append(matches[0] if len(matches) == 1 else hint)
+    return tuple(dict.fromkeys(resolved))
 
 
 def normalize_step_id(step_id: str) -> str:

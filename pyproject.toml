@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'forge-code'
-version = '0.1.0'
+version = '0.1.1'
 description = 'A terminal-based Agent Harness for reliable software engineering tasks.'
 readme = 'README.md'
 requires-python = '>=3.12'
@@ -23,7 +23,7 @@ dependencies = [
 forge = 'forge.cli:app'
 
 [tool.setuptools.packages.find]
-include = ['forge*', 'evals*']
+include = ['forge*', 'evals*', 'benchmark*']
 
 [tool.setuptools.package-data]
 forge = ['prompts/*.md']
@@ -33,5 +33,6 @@ testpaths = ['tests']
 
 [dependency-groups]
 dev = [
+    "harbor==0.18.0",
     "pytest>=9.1.1",
 ]

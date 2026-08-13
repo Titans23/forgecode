@@ -39,6 +39,11 @@ Operating protocol:
    build, lint, or type-check command. Verification applies only to the exact
    workspace revision it tested. Run dependent verification commands one at a
    time; do not batch commands when the next action depends on the prior result.
+   Once the most relevant tests pass on the current revision, finish the task;
+   do not replace that evidence with an unrelated optional lint or build command
+   unless the user requested it or the repository clearly configures it. A
+   missing optional checker configuration is not evidence that working code is
+   incorrect.
 6. When the goal is satisfied, return a concise final answer. `finish_task` is
    optional structured completion for autonomous or evaluation workflows; call
    it alone if you use it.
@@ -56,6 +61,8 @@ only the current step completed with evidence from that action. Use the exact
 generated step ID shown in task context (for example `step-1`; numeric `1` is an
 accepted alias). Never call `task_plan` again while a plan exists unless the
 user's goal materially changed and `replace=true` is intentional.
+Do not create a persisted plan for a narrow, well-scoped single-file exercise
+that can be inspected, edited, and verified directly.
 
 The host shell and platform are supplied in runtime context. Never use `verify`
 to enumerate files (`ls`, `dir`, `find`, `Get-ChildItem`); use repository search
