@@ -4,6 +4,46 @@
 
 ForgeCode 面向真实代码仓库中的长链路工程任务。它不把模型的一句“已经完成”视为成功，而是通过工具执行、测试反馈、权限控制、变更检查和可复现评测，客观判断任务是否真正完成。
 
+## 快速开始
+
+运行 ForgeCode CLI 需要 Python 3.12、[uv](https://docs.astral.sh/uv/) 和一个可用的 Anthropic 或兼容接口模型配置。普通 CLI 运行不需要 Docker。
+
+### 1. 获取代码并安装依赖
+
+```powershell
+git clone https://github.com/Titans23/forgecode.git
+cd forgecode
+uv sync
+```
+
+### 2. 配置模型
+
+PowerShell：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+macOS/Linux：
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env`，至少填写 `ANTHROPIC_API_KEY` 和 `MODEL_ID`；使用兼容接口时同时设置 `ANTHROPIC_BASE_URL`。配置检查不会回显密钥：
+
+```powershell
+uv run forge config
+```
+
+### 3. 启动交互会话
+
+```powershell
+uv run forge
+```
+
+启动后直接输入任务，例如“分析当前项目的测试失败并修复代码”。使用 `Ctrl+C` 退出。更完整的模型参数、权限模式和评测命令见下文的[模型接口基线](#模型接口基线)和[运行评测](#运行评测)章节。
+
 当前项目处于早期开发阶段，但 M1 多步 Agent Loop、M2 工作区与完成门禁、M3 权限与安全控制核心、M4 会话恢复、M5 上下文工程以及 M6 Hooks、MCP Client、Skill 与只读 Explore Agent 已经落地。近期工作重点从“补齐基本能力”转向长任务健壮性：工具失败恢复、依赖安装闭环、验证债务、会话并发保护和可控 Token 预算。本 README 同时描述当前可用能力、已知边界和从 M0 到 v1.0 的后续路线。
 
 ## 项目定位
@@ -24,14 +64,6 @@ ForgeCode 的核心职责是为模型提供一套可靠、可恢复、可评测�
 - 分析测试失败；
 - 输出 Git Diff。
 
-第一版暂不实现：
-
-- IDE 插件；
-- Web 前端；
-- 向量数据库；
-- 多 Agent 团队；
-- SFT/RL；
-- 自动提交和推送代码。
 
 ## 设计原则
 
@@ -64,7 +96,7 @@ ForgeCode 的核心职责是为模型提供一套可靠、可恢复、可评测�
 
 ### 近期真实验收与已知限制
 
-除 415 项自动化测试外，当前版本已经使用真实 `gpt-5.4-mini` 驱动完整 `Conversation → ToolRegistry → WorkspaceTracker → Completion Gate` 链路：从仅保留任务说明的目录生成 Vite、TypeScript、Phaser 项目；一次大 Patch 格式失败、一次精确替换失败和首次编译失败均被恢复；最终 `npm run typecheck` 与 `npm run build` 通过，开发服务器关键模块和生产构建资源均可通过 HTTP 加载。`play/` 仅用于这类验收，不属于 ForgeCode 产品交付物。
+除本地自动化测试外，当前版本已经使用真实 `gpt-5.4-mini` 驱动完整 `Conversation → ToolRegistry → WorkspaceTracker → Completion Gate` 链路：从仅保留任务说明的目录生成 Vite、TypeScript、Phaser 项目；一次大 Patch 格式失败、一次精确替换失败和首次编译失败均被恢复；最终 `npm run typecheck` 与 `npm run build` 通过，开发服务器关键模块和生产构建资源均可通过 HTTP 加载。`play/` 仅用于这类验收，不属于 ForgeCode 产品交付物。
 
 当前仍有以下已知边界：
 
@@ -72,6 +104,21 @@ ForgeCode 的核心职责是为模型提供一套可靠、可恢复、可评测�
 - 大型单响应 Patch 必须完整生成后才会执行，超大场景文件会带来明显的首个工具调用延迟；
 - ForgeCode 本身不提供浏览器、截图或视觉理解工具，网页和游戏的自动验收目前以源码、类型检查、构建、HTTP 资源加载和项目自带测试为主；
 - 原生文件系统、网络、CPU、内存和进程数量的强隔离仍依赖后续平台 Sandbox Backend；当前安全边界适用于可信本机仓库和受监督的高风险操作。
+
+### Aider Polyglot / Harbor 225 题真实评测基线
+
+ForgeCode v0.1.1 已使用真实模型 `gpt-5.6-luna` 完成 Aider Polyglot 的完整 225 题 Harbor 运行：
+
+- 最终 reward：**211/225（93.78%）**；
+- 排除 1 条 Harbor 基础设施错误后，代码题准确率：**211/224（94.20%）**；
+- 严格首轮 pass@1：**97/224（43.30%）**；
+- 允许一次 verifier-feedback repair，首轮失败后修复通过：**114 题**；
+- 模型调用 / 工具调用：**3,488 / 3,840**；
+- 输入 / 输出 token：**42,090,702 / 885,602**。
+
+分语言最终准确率：C++ 96.00%、Go 94.87%、JavaScript 100%、Java 82.98%、Python 94.12%、Rust 100%。Java 的项目布局、构建工具和 API 发现仍是主要改进方向。
+
+评测配置为 Harbor 0.18.0、Docker 29.7.2、Aider Polyglot 数据集 commit `f30b14415dd733c83627204bad0af69a89ceb46f`、并发 1、最多重试 3 次。完整配置、失败任务和复现命令见 [`benchmark/harbor/README.md`](benchmark/harbor/README.md)；汇总报告见 [`EVALUATION_SUMMARY_20260813.md`](EVALUATION_SUMMARY_20260813.md) 和 [`report.md`](report.md)。上述分数是 v0.1.1 的基线，不包含之后未完成的 postfix 运行。
 
 ## 运行时架构
 
@@ -146,7 +193,7 @@ Terminal / CLI
     uv run pytest
     uv run forge --help
 
-当前自动化测试基线为 `415 passed`。提交前建议同时运行：
+当前自动化测试基线为 `442 passed`（2026-08-14，本地工作区）。提交前建议同时运行：
 
     uv lock --check
     uv run python -m compileall -q forge tests
@@ -492,7 +539,7 @@ Agent Loop 与 CLI：
 
 ## M2：可靠的代码修改与验证闭环
 
-### 当前进度：核心实现、评测 Runner 与一次真实模型工程验收完成；三个固定 Fixture 的全量真实模型验收仍待执行
+### 当前进度：核心实现、评测 Runner 与 Harbor 225 题真实模型基线完成；三个固定 Fixture 的全量真实模型验收仍待执行
 
 ### 目标
 
@@ -992,18 +1039,20 @@ Explore Agent 默认最多执行 8 轮，独立累计输入预算为 120000 Toke
 → 有能力后再继续扩展
 ```
 
-### Benchmark Harness
+### Benchmark Harness（Harbor adapter 已落地；跨基准能力继续建设）
 
-- [ ] 每个任务固定基础 Commit；
-- [ ] 每次运行创建独立工作目录；
-- [ ] 提供可选 Docker 执行后端，但不作为 ForgeCode 安装或运行依赖；
+Aider Polyglot / Harbor 适配器已经完成一次完整 225 题真实模型基线，并支持独立任务目录、隐藏 verifier、反馈修复、重试和结果汇总。下面的清单继续追踪跨数据集复用、默认网络策略、预算控制和消融实验等尚未全部完成的能力。
+
+- [x] 每个任务固定基础 Commit；
+- [x] 每次运行创建独立工作目录；
+- [x] 提供可选 Docker 执行后端，但不作为 ForgeCode 安装或运行依赖；
 - [ ] 默认关闭网络；
 - [ ] 设置时间、Token 和费用上限；
-- [ ] Agent 无法查看隐藏测试，结束后再注入隐藏测试；
-- [ ] 保存最终 Patch、完整事件轨迹和容器日志；
-- [ ] 同一任务支持重复运行；
-- [ ] 自动分类失败原因；
-- [ ] 支持多个模型或策略配置。
+- [x] Agent 无法查看隐藏测试，结束后再注入隐藏测试；
+- [x] 保存最终 Patch、完整事件轨迹和容器日志；
+- [x] 同一任务支持重复运行；
+- [x] 自动分类失败原因；
+- [x] 支持多个模型或策略配置。
 
 结果格式：
 

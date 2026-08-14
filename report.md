@@ -392,3 +392,32 @@ MCP 配置从用户级 `~/.forge/mcp.json` 和项目 `.mcp.json` 合并，项目
 ForgeCode 已经实现了一个完整的本地工程 Agent 运行时：模型负责语义判断与行动选择，运行时负责边界、证据、状态、恢复和审计。项目最有价值的部分不是工具数量，而是围绕 `workspace_revision`、结构化 ToolResult、ActiveTask、Completion Gate、append-only Session 与有界恢复建立的一组可验证不变量。
 
 当前最大技术风险也很明确：核心循环的恢复状态过多且集中，容易出现提示、工具 Schema 与退出条件之间的不一致。下一阶段最有效的工作不是继续添加更多特例，而是把这些隐含布尔状态收敛为显式 phase state machine，并用真实 Provider 场景持续测量“最终完成率、自动恢复率和单位成功任务 Token”，从而让 ForgeCode 从“能够安全阻止错误”进一步成长为“能够稳定完成复杂任务”。
+
+## 17. Aider Polyglot / Harbor 真实评测基线
+
+### 17.1 评测结论
+
+ForgeCode 使用真实模型 `gpt-5.6-luna` 完成了 Aider Polyglot 的完整 225 题 Harbor 运行。最终 reward 为 **211/225（93.78%）**；其中 1 题属于 Harbor 基础设施错误（`RewardFileNotFoundError`），按 224 道可计分代码题计算，最终准确率为 **211/224（94.20%）**。
+
+该协议允许一次 verifier-feedback repair：严格首轮通过为 **97/224（43.30%）**，另有 **114** 道题在反馈后修复通过。因此首轮 pass@1 与允许修复后的最终代码正确率必须分别报告。
+
+### 17.2 运行配置与可复核证据
+
+| 项目 | 配置/结果 |
+| --- | --- |
+| 基准 | Aider Polyglot / Harbor |
+| 题目数 | 225 |
+| 模型 | `gpt-5.6-luna` |
+| Harbor / Docker | `0.18.0` / `29.7.2` |
+| 数据集 commit | `f30b14415dd733c83627204bad0af69a89ceb46f` |
+| 并发 / 最大重试 | 1 / 3 |
+| 运行目录 | `benchmark/runs/harbor/full-225-luna-rerun/2026-08-12__11-53-03` |
+| 汇总 JSON | `benchmark/runs/harbor/full-225-luna-rerun/summary.json` |
+| 模型调用 / 工具调用 | 3,488 / 3,840 |
+| 输入 / 输出 token | 42,090,702 / 885,602 |
+
+按语言统计的最终准确率为：C++ **24/25（96.00%）**、Go **37/39（94.87%）**、JavaScript **49/49（100%）**、Java **39/47（82.98%）**、Python **32/34（94.12%）**、Rust **30/30（100%）**。Java 的工程布局、构建工具和 API 发现仍是主要改进方向。
+
+### 17.3 版本与复测边界
+
+`v0.1.1` 标签保留上述 211/225 评测基线；当前 `main` 的回滚提交 `5f74fdc` 恢复了该基线行为。之后启动但未完成的 `full-225-luna-postfix` 运行不计入上述分数，也不作为版本质量结论。后续若修改恢复状态机、任务作用域或验证器，应在同一数据集 commit 和 Harbor 配置下重新运行完整 225 题，并同时报告最终 reward、严格首轮 pass@1、基础设施错误数和遥测开销。
