@@ -299,7 +299,9 @@ class TerminalUI:
             'file.write': '修改文件',
             'process.exec': '运行命令',
             'dependency.install': '安装依赖',
-            'network.access': '访问网络',
+                'network.access': '访问网络',
+                'mcp.read': '读取外部办公数据',
+                'mcp.write': '修改外部办公数据',
         }
         detail = request.preview.strip()
         if detail in {'', '{}'}:

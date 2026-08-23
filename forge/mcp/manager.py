@@ -17,6 +17,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from forge.mcp.config import (
     HTTPServerConfig,
+    InternalStdioServerConfig,
     MCPServerConfig,
     StdioServerConfig,
 )
@@ -173,6 +174,8 @@ class MCPClientManager:
         if manager is None:
             return False
         config = connection.config
+        if isinstance(config, InternalStdioServerConfig):
+            return True
         if isinstance(config, StdioServerConfig):
             capability = 'mcp.connect.process'
             preview = ' '.join((config.command, *config.args))[:500]
@@ -234,6 +237,7 @@ class MCPClientManager:
                     manager=self,
                     server_name=server_name,
                     remote_tool=tool,
+                    policy=connection.config.tool_policies.get(tool.name),
                 )
                 for tool in discovered
             ]

@@ -219,6 +219,13 @@ class Tool(ABC, Generic[InputT]):
         del arguments
         return None
 
+    def audit_arguments(
+        self,
+        arguments: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        '''Return arguments safe to persist in execution audit events.'''
+        return dict(arguments)
+
     async def run(self, arguments: Mapping[str, Any]) -> ToolResult:
         '''Validate arguments and execute without leaking exceptions.'''
         try:
@@ -348,6 +355,14 @@ class ToolRegistry:
         if tool is None:
             return None
         return tool.permission_request(arguments)
+
+    def audit_arguments(
+        self,
+        name: str,
+        arguments: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        tool = self._tools.get(name)
+        return dict(arguments) if tool is None else tool.audit_arguments(arguments)
 
     async def execute(
         self,

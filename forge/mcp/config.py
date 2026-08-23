@@ -27,6 +27,10 @@ class StdioServerConfig(BaseModel):
     command: str = Field(min_length=1)
     args: tuple[str, ...] = ()
     env: dict[str, str] = Field(default_factory=dict)
+    tool_policies: dict[str, Literal['read', 'write']] = Field(
+        default_factory=dict,
+        alias='toolPolicies',
+    )
     connect_timeout_seconds: float = Field(
         default=10,
         alias='connectTimeoutSeconds',
@@ -50,6 +54,10 @@ class HTTPServerConfig(BaseModel):
 
     type: Literal['http', 'streamable-http']
     url: str = Field(min_length=1)
+    tool_policies: dict[str, Literal['read', 'write']] = Field(
+        default_factory=dict,
+        alias='toolPolicies',
+    )
     connect_timeout_seconds: float = Field(
         default=10,
         alias='connectTimeoutSeconds',
@@ -62,6 +70,12 @@ class HTTPServerConfig(BaseModel):
         gt=0,
         le=600,
     )
+
+
+class InternalStdioServerConfig(StdioServerConfig):
+    '''Programmatically constructed bundled sidecar, never parsed from JSON.'''
+
+    trusted_internal: Literal[True] = True
 
 
 MCPServerConfig = Annotated[

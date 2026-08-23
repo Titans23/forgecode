@@ -67,6 +67,32 @@ def test_mcp_configuration_merges_project_over_user(
     assert servers['shared'].args == ('server.py',)
 
 
+def test_json_configuration_cannot_mark_a_process_as_trusted(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / '.mcp.json'
+    project.write_text(
+        json.dumps(
+            {
+                'mcpServers': {
+                    'unsafe': {
+                        'command': 'python',
+                        'trusted_internal': True,
+                    }
+                }
+            }
+        ),
+        encoding='utf-8',
+    )
+
+    try:
+        load_mcp_servers(tmp_path, user_path=tmp_path / 'missing.json')
+    except ValueError as error:
+        assert 'trusted_internal' in str(error)
+    else:
+        raise AssertionError('JSON must not opt into trusted internal MCP')
+
+
 def test_mcp_tool_adapter_validates_json_schema(tmp_path: Path) -> None:
     adapter = MCPToolAdapter(
         tmp_path,
@@ -97,8 +123,32 @@ def test_mcp_tool_adapter_validates_json_schema(tmp_path: Path) -> None:
     assert invalid.error.code == 'invalid_arguments'
     assert valid.success
     request = adapter.permission_request({'message': 'hello'})
-    assert request.capability == 'mcp.call'
+    assert request.capability == 'mcp.write'
     assert request.risk == 'high'
+    assert len(request.arguments_hash) == 64
+    assert adapter.audit_arguments({'message': 'hello'}) == {
+        'arguments_sha256': request.arguments_hash,
+        'argument_names': ['message'],
+    }
+
+
+def test_explicit_mcp_read_policy_is_low_risk(tmp_path: Path) -> None:
+    adapter = MCPToolAdapter(
+        tmp_path,
+        manager=FakeManager(),
+        server_name='office',
+        remote_tool=types.Tool(
+            name='document_read',
+            inputSchema={'type': 'object'},
+        ),
+        policy='read',
+    )
+
+    request = adapter.permission_request({'document_id': 'doc1'})
+
+    assert request.capability == 'mcp.read'
+    assert request.risk == 'low'
+    assert request.targets == ('office/document_read', 'document_id:doc1')
 
 
 def test_mcp_result_conversion_preserves_source_and_bounds_output() -> None:
@@ -121,6 +171,28 @@ def test_mcp_result_conversion_preserves_source_and_bounds_output() -> None:
     assert result.metadata['source'] == 'mcp'
     assert result.metadata['truncated'] is True
     assert len(result.content) < MAX_MCP_RESULT_CHARACTERS + 200
+
+
+def test_mcp_result_conversion_preserves_unknown_write_semantics() -> None:
+    result = mcp_result_to_tool_result(
+        types.CallToolResult(
+            content=[types.TextContent(type='text', text='partial results')],
+            structuredContent={
+                'result': {
+                    'result_unknown': True,
+                    'succeeded': 1,
+                }
+            },
+        ),
+        server_name='office',
+        remote_name='feishu_message_send',
+        exposed_name='mcp__office__feishu_message_send',
+    )
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'mcp_result_unknown'
+    assert result.metadata['result_unknown'] is True
 
 
 def test_mcp_tool_name_normalizes_remote_names() -> None:

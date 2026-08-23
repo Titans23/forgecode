@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import re
 from typing import Any, Mapping, TYPE_CHECKING
@@ -46,11 +47,13 @@ class MCPToolAdapter(Tool[_UnusedInput]):
         manager: MCPClientManager,
         server_name: str,
         remote_tool: types.Tool,
+        policy: str | None = None,
     ) -> None:
         super().__init__(root)
         self.manager = manager
         self.server_name = server_name
         self.remote_name = remote_tool.name
+        self.policy = policy
         self.name = mcp_tool_name(server_name, remote_tool.name)
         self.description = (
             f'[MCP: {server_name}/{remote_tool.name}] '
@@ -86,19 +89,52 @@ class MCPToolAdapter(Tool[_UnusedInput]):
         self,
         arguments: Mapping[str, Any],
     ) -> PermissionRequest:
-        preview = json.dumps(
+        canonical = json.dumps(
             dict(arguments),
             ensure_ascii=False,
             default=str,
-        )[:500]
+            sort_keys=True,
+            separators=(',', ':'),
+        )
+        preview = canonical[:500]
+        read_only = self.policy == 'read'
+        targets = [f'{self.server_name}/{self.remote_name}']
+        for key in ('document_id', 'chat_id', 'chat_ids', 'receive_id'):
+            value = arguments.get(key)
+            values = value if isinstance(value, (list, tuple)) else (value,)
+            targets.extend(
+                f'{key}:{item}'
+                for item in values
+                if isinstance(item, str) and item
+            )
         return PermissionRequest(
             tool_name=self.name,
-            capability='mcp.call',
-            risk='high',
-            targets=(f'{self.server_name}/{self.remote_name}',),
-            reason='External MCP tools are untrusted and may have side effects.',
+            capability='mcp.read' if read_only else 'mcp.write',
+            risk='low' if read_only else 'high',
+            targets=tuple(targets),
+            reason=(
+                'Explicit server policy marks this external tool read-only.'
+                if read_only
+                else 'External MCP tools may have side effects.'
+            ),
             preview=preview,
+            arguments_hash=hashlib.sha256(canonical.encode('utf-8')).hexdigest(),
         )
+
+    def audit_arguments(self, arguments: Mapping[str, Any]) -> dict[str, Any]:
+        canonical = json.dumps(
+            dict(arguments),
+            ensure_ascii=False,
+            default=str,
+            sort_keys=True,
+            separators=(',', ':'),
+        )
+        return {
+            'arguments_sha256': hashlib.sha256(
+                canonical.encode('utf-8')
+            ).hexdigest(),
+            'argument_names': sorted(str(key) for key in arguments),
+        }
 
     async def run(self, arguments: Mapping[str, Any]) -> ToolResult:
         try:
@@ -176,6 +212,25 @@ def mcp_result_to_tool_result(
         'tool': exposed_name,
         'truncated': truncated,
     }
+    result_unknown = (
+        '[mcp_result_unknown]' in content
+        or _contains_result_unknown(result.structuredContent)
+    )
+    if result_unknown:
+        metadata['result_unknown'] = True
+        return ToolResult.fail(
+            'mcp_result_unknown',
+            (
+                f'MCP tool {server_name}/{remote_name} may have completed. '
+                'Its write will not be automatically replayed.'
+            ),
+            content=content,
+            details={
+                'server': server_name,
+                'remote_tool': remote_name,
+            },
+            metadata=metadata,
+        )
     if result.isError:
         return ToolResult.fail(
             'mcp_tool_error',
@@ -192,3 +247,13 @@ def mcp_result_to_tool_result(
         content=content,
         metadata=metadata,
     )
+
+
+def _contains_result_unknown(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        if value.get('result_unknown') is True:
+            return True
+        return any(_contains_result_unknown(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_result_unknown(item) for item in value)
+    return False

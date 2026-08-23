@@ -4237,7 +4237,11 @@ class Conversation:
             journal.record_tool_started(
                 call.id,
                 call.name,
-                call.arguments,
+                (
+                    self.registry.audit_arguments(call.name, call.arguments)
+                    if self.registry is not None
+                    else call.arguments
+                ),
                 provenance=(
                     self.registry.provenance(call.name)
                     if self.registry is not None

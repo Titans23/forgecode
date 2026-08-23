@@ -3,15 +3,21 @@
 import asyncio
 from dataclasses import replace
 from datetime import datetime
+import os
 from pathlib import Path
+import sys
 from typing import Annotated, Any
 
 import typer
 
 from forge import __version__
+from forge.channels import ChannelConfigurationError, load_channel_settings
+from forge.channels.feishu import FeishuChannelAdapter
+from forge.channels.gateway import ChannelGateway
 from forge.config import ConfigurationError, ForgeConfig
 from forge.hooks import HookConfigurationError, HookManager
 from forge.mcp import MCPClientManager, MCPConfigurationError, load_mcp_servers
+from forge.mcp.config import InternalStdioServerConfig
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.router import ModelIntentRouter
@@ -112,6 +118,7 @@ def main(
             ConfigurationError,
             HookConfigurationError,
             MCPConfigurationError,
+            ChannelConfigurationError,
             SessionError,
         ) as error:
             print_configuration_error(error)
@@ -130,6 +137,10 @@ def print_configuration_error(error: Exception) -> None:
         return
     if isinstance(error, MCPConfigurationError):
         typer.echo('MCP configuration is invalid.', err=True)
+        typer.echo(str(error), err=True)
+        return
+    if isinstance(error, ChannelConfigurationError):
+        typer.echo('Channel configuration is invalid.', err=True)
         typer.echo(str(error), err=True)
         return
     typer.echo('Model configuration is incomplete.', err=True)
@@ -646,7 +657,7 @@ def create_session_runtime(
     mcp_manager = MCPClientManager(
         root,
         registry,
-        load_mcp_servers(root),
+        load_runtime_mcp_servers(root),
     )
     if continue_session or resume_identifier is not None:
         state, journal = store.open(resume_identifier)
@@ -725,6 +736,38 @@ def create_session_runtime(
     if permission_manager is not None:
         mcp_manager.bind(permission_manager, journal)
     return conversation, journal, None
+
+
+def load_runtime_mcp_servers(root: Path) -> dict[str, Any]:
+    '''Merge explicit MCP servers with enabled built-in office sidecars.'''
+    servers: dict[str, Any] = dict(load_mcp_servers(root))
+    settings = load_channel_settings(root)
+    policies = {
+        'feishu_document_read': 'read',
+        'feishu_document_create': 'write',
+        'feishu_document_update': 'write',
+        'feishu_message_send': 'write',
+    }
+    for name, config in settings.channels.items():
+        if not config.enabled or config.platform != 'feishu':
+            continue
+        ready, _ = config.credential_status()
+        if not ready:
+            continue
+        server_name = f'office-{name}'
+        servers.setdefault(
+            server_name,
+            InternalStdioServerConfig(
+                command=sys.executable,
+                args=('-m', 'forge.office.mcp_server'),
+                env={
+                    'APP_ID': os.environ[config.app_id_env],
+                    'APP_SECRET': os.environ[config.app_secret_env],
+                },
+                toolPolicies=policies,
+            ),
+        )
+    return servers
 
 
 async def read_terminal_prompt(terminal: Any) -> str:
@@ -916,6 +959,109 @@ def show_config() -> None:
         )
     )
     typer.echo('API key: configured')
+
+
+@app.command('integrations')
+def show_integrations() -> None:
+    '''Show channel readiness without displaying credentials.'''
+    try:
+        settings = load_channel_settings(Path.cwd())
+    except ChannelConfigurationError as error:
+        print_configuration_error(error)
+        raise typer.Exit(code=1) from error
+    if not settings.channels:
+        typer.echo('No office channels configured.')
+        typer.echo('Create .forge/channels.json from examples/channels.feishu.json.')
+        return
+    try:
+        import lark_channel  # noqa: F401
+        feishu_sdk = True
+    except ImportError:
+        feishu_sdk = False
+    for name, config in settings.channels.items():
+        ready, missing = config.credential_status()
+        state = 'ready' if config.enabled and ready else 'disabled' if not config.enabled else 'missing credentials'
+        if config.platform == 'feishu' and not feishu_sdk:
+            state = 'missing lark-channel-sdk'
+        typer.echo(
+            f'{name}: {state} · {config.platform} · {config.transport} · '
+            f'{len(config.allowed_users)} user(s) · {len(config.allowed_chats)} chat(s)'
+        )
+        if missing:
+            typer.echo('  missing environment: ' + ', '.join(missing))
+
+
+@app.command('gateway')
+def run_gateway(
+    channel: Annotated[
+        str | None,
+        typer.Option('--channel', '-C', help='Configured channel name.'),
+    ] = None,
+) -> None:
+    '''Run one official chat channel gateway until interrupted.'''
+    root = Path.cwd()
+    try:
+        settings = load_channel_settings(root)
+        enabled = {
+            name: value
+            for name, value in settings.channels.items()
+            if value.enabled
+        }
+        if channel is None:
+            if len(enabled) != 1:
+                raise ChannelConfigurationError(
+                    'Specify --channel when zero or multiple channels are enabled.'
+                )
+            channel, config = next(iter(enabled.items()))
+        else:
+            config = enabled.get(channel)
+            if config is None:
+                raise ChannelConfigurationError(
+                    f'Enabled channel not found: {channel}'
+                )
+        if config.platform != 'feishu':
+            raise ChannelConfigurationError(
+                f'{config.platform} gateway is reserved for a later adapter.'
+            )
+        if config.transport != 'websocket':
+            raise ChannelConfigurationError(
+                'The Feishu gateway currently requires transport=websocket.'
+            )
+        ready, missing = config.credential_status()
+        if not ready:
+            raise ChannelConfigurationError(
+                'Missing channel credential environment: ' + ', '.join(missing)
+            )
+        store = SessionStore(root)
+        state_directory = store.directory.parent / 'channels' / channel
+        adapter = FeishuChannelAdapter(config)
+
+        def runtime_factory(identifier: str | None):
+            return create_session_runtime(
+                root,
+                resume_identifier=identifier,
+            ) if identifier else create_session_runtime(root)
+
+        gateway = ChannelGateway(
+            adapter=adapter,
+            config=config,
+            runtime_factory=runtime_factory,
+            state_directory=state_directory,
+        )
+
+        async def serve() -> None:
+            try:
+                await gateway.run()
+            finally:
+                await gateway.close()
+
+        typer.echo(f'Starting ForgeCode gateway: {channel} ({config.platform})')
+        asyncio.run(serve())
+    except (ChannelConfigurationError, ConfigurationError) as error:
+        print_configuration_error(error)
+        raise typer.Exit(code=1) from error
+    except KeyboardInterrupt:
+        typer.echo('Gateway stopped.')
 
 
 if __name__ == '__main__':

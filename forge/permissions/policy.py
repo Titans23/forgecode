@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from fnmatch import fnmatch
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Literal
@@ -29,6 +30,7 @@ class PermissionRequest:
     reason: str = ''
     preview: str = ''
     hard_deny: bool = False
+    arguments_hash: str = ''
 
     @property
     def signature(self) -> str:
@@ -143,7 +145,7 @@ class PermissionManager:
             return self._decision(
                 'deny', request, 'A matching deny rule applies.', 'rule'
             )
-        if matching:
+        if matching and request.capability != 'mcp.write':
             scope_rank = {'user': 0, 'project': 1, 'session': 2}
             rule = max(
                 matching,
@@ -158,6 +160,12 @@ class PermissionManager:
                 )
             return await self._request_approval(request, source=rule.scope)
 
+        if request.capability == 'mcp.write':
+            return await self._request_approval(
+                request,
+                source='external_write',
+            )
+
         default = self._mode_default(request)
         if default == 'allow':
             return self._decision(
@@ -170,7 +178,11 @@ class PermissionManager:
         return await self._request_approval(request, source=self.mode)
 
     def _mode_default(self, request: PermissionRequest) -> PermissionAction:
-        read_only = request.capability in {'file.read', 'repository.read'}
+        read_only = request.capability in {
+            'file.read',
+            'repository.read',
+            'mcp.read',
+        }
         if self.mode == 'plan':
             return 'allow' if read_only else 'deny'
         if self.mode == 'supervised':
@@ -199,6 +211,11 @@ class PermissionManager:
         response = await self.approval_handler(request)
         # Remembered delete grants must never broaden into file.delete:*.
         # Every distinct destructive operation requires a fresh confirmation.
+        if request.capability == 'mcp.write' and response.choice in {
+            'allow_session',
+            'allow_project',
+        }:
+            response = ApprovalResponse('allow_once', response.reason)
         if request.capability == 'file.delete' and (
             response.choice == 'allow_project'
             or (
@@ -260,6 +277,14 @@ class PermissionManager:
     def _request_payload(request: PermissionRequest) -> dict[str, Any]:
         payload = asdict(request)
         payload['targets'] = list(request.targets)
+        if request.capability == 'mcp.write' and request.preview:
+            digest = request.arguments_hash or hashlib.sha256(
+                request.preview.encode('utf-8')
+            ).hexdigest()
+            payload['preview'] = (
+                f'[redacted external write preview; sha256={digest}; '
+                f'characters={len(request.preview)}]'
+            )
         return payload
 
     def _audit(self, event: str, payload: dict[str, Any]) -> None:

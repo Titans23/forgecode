@@ -5,7 +5,11 @@ from pathlib import Path
 import socket
 import sys
 
-from forge.mcp.config import HTTPServerConfig, StdioServerConfig
+from forge.mcp.config import (
+    HTTPServerConfig,
+    InternalStdioServerConfig,
+    StdioServerConfig,
+)
 from forge.mcp.manager import MCPClientManager
 from forge.permissions.approval import StaticApprovalHandler
 from forge.permissions.policy import PermissionManager
@@ -49,6 +53,41 @@ def test_real_stdio_server_lists_and_calls_tools(tmp_path: Path) -> None:
             assert result.success
             assert 'stdio works' in result.content
             assert 'ready' in manager.status()
+        finally:
+            await manager.close()
+
+    asyncio.run(run())
+
+
+def test_bundled_office_sidecar_lists_only_narrow_tools(
+    tmp_path: Path,
+) -> None:
+    async def run() -> None:
+        registry = ToolRegistry()
+        manager = MCPClientManager(
+            tmp_path,
+            registry,
+            {
+                'office': InternalStdioServerConfig(
+                    command=sys.executable,
+                    args=('-m', 'forge.office.mcp_server'),
+                    env={'APP_ID': 'test-id', 'APP_SECRET': 'test-secret'},
+                )
+            },
+            permission_manager=PermissionManager(
+                tmp_path,
+                mode='auto',
+                user_path=tmp_path / 'missing-user-permissions.json',
+            ),
+        )
+        try:
+            await manager.ensure_connected()
+            assert set(registry.names) == {
+                'mcp__office__feishu_document_create',
+                'mcp__office__feishu_document_read',
+                'mcp__office__feishu_document_update',
+                'mcp__office__feishu_message_send',
+            }
         finally:
             await manager.close()
 

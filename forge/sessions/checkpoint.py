@@ -317,7 +317,10 @@ def file_identity(path: Path) -> dict[str, str | bool | None]:
 
 
 def atomic_write_bytes(path: Path, content: bytes) -> None:
-    temporary = path.with_name(f'.{path.name}.{uuid4().hex}.tmp')
+    # Keep the temporary in the destination directory for atomic replacement,
+    # but do not repeat a potentially long content hash in its filename. This
+    # avoids Windows MAX_PATH failures in deep project/session directories.
+    temporary = path.with_name(f'.forge-{uuid4().hex[:12]}.tmp')
     try:
         temporary.write_bytes(content)
         os.replace(temporary, path)

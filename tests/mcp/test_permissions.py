@@ -6,7 +6,12 @@ from pathlib import Path
 from forge.mcp.config import StdioServerConfig
 from forge.mcp.manager import MCPClientManager
 from forge.permissions.approval import StaticApprovalHandler
-from forge.permissions.policy import PermissionManager
+from forge.permissions.policy import (
+    ApprovalResponse,
+    PermissionManager,
+    PermissionRequest,
+    PermissionRule,
+)
 from forge.tools.base import ToolRegistry
 
 
@@ -59,3 +64,102 @@ def test_denied_connection_is_not_retried_automatically(
         await manager.close()
 
     asyncio.run(run())
+
+
+def test_supervised_mode_allows_explicit_mcp_reads_without_approval(
+    tmp_path: Path,
+) -> None:
+    permissions = PermissionManager(
+        tmp_path,
+        mode='supervised',
+        user_path=tmp_path / 'missing.json',
+    )
+
+    decision = asyncio.run(
+        permissions.authorize(
+            PermissionRequest(
+                tool_name='mcp__office__read',
+                capability='mcp.read',
+                risk='low',
+            )
+        )
+    )
+
+    assert decision.action == 'allow'
+    assert decision.source == 'supervised'
+
+
+def test_mcp_writes_always_require_exact_one_shot_approval(
+    tmp_path: Path,
+) -> None:
+    approvals: list[str] = []
+
+    async def approve(request: PermissionRequest) -> ApprovalResponse:
+        approvals.append(request.arguments_hash)
+        return ApprovalResponse('allow_session')
+
+    permissions = PermissionManager(
+        tmp_path,
+        mode='auto',
+        approval_handler=approve,
+        user_path=tmp_path / 'missing.json',
+    )
+    permissions.session_rules.append(
+        PermissionRule(
+            action='allow',
+            capability='mcp.write',
+            target='*',
+        )
+    )
+    first = PermissionRequest(
+        tool_name='mcp__office__send',
+        capability='mcp.write',
+        risk='high',
+        targets=('chat_id:one',),
+        arguments_hash='hash-one',
+    )
+    second = PermissionRequest(
+        tool_name='mcp__office__send',
+        capability='mcp.write',
+        risk='high',
+        targets=('chat_id:one',),
+        arguments_hash='hash-two',
+    )
+
+    assert asyncio.run(permissions.authorize(first)).action == 'allow'
+    assert asyncio.run(permissions.authorize(second)).action == 'allow'
+    assert approvals == ['hash-one', 'hash-two']
+    assert len(permissions.session_rules) == 1
+
+
+def test_mcp_write_audit_redacts_the_body_and_keeps_its_hash(
+    tmp_path: Path,
+) -> None:
+    class Journal:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, dict]] = []
+
+        def append(self, event: str, payload: dict) -> None:
+            self.events.append((event, payload))
+
+    journal = Journal()
+    permissions = PermissionManager(
+        tmp_path,
+        mode='auto',
+        approval_handler=StaticApprovalHandler('deny'),
+        journal=journal,
+        user_path=tmp_path / 'missing.json',
+    )
+    request = PermissionRequest(
+        tool_name='mcp__office__send',
+        capability='mcp.write',
+        risk='high',
+        preview='confidential announcement',
+        arguments_hash='f' * 64,
+    )
+
+    asyncio.run(permissions.authorize(request))
+
+    serialized = repr(journal.events)
+    assert 'confidential announcement' not in serialized
+    assert 'f' * 64 in serialized
