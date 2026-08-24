@@ -25,6 +25,7 @@ from extensions.qwen_tool_distillation import (
     to_openai_messages,
     to_openai_tools,
     validate_json_schema,
+    write_training_assets,
 )
 from forge.runtime.model_client import ModelOutputTruncatedError, ModelProtocolError
 from forge.runtime.state import (
@@ -414,6 +415,15 @@ def test_schema_validation_handles_nested_constraints() -> None:
     assert validate_json_schema({'items': [{'name': 'x'}]}, schema) == [
         '$.items[0].name is too short'
     ]
+
+
+def test_training_assets_render_service_commands(tmp_path: Path) -> None:
+    write_training_assets(tmp_path)
+    assert 'Qwen/Qwen3.5-4B' in (tmp_path / 'serve_vllm.txt').read_text()
+    assert 'enable_thinking' in (tmp_path / 'serve_vllm.txt').read_text()
+    assert '--tool-call-parser qwen3_coder' in (
+        tmp_path / 'serve_sglang.txt'
+    ).read_text()
 
 
 def test_rollout_environment_isolated_worktree_and_completion_gate(tmp_path: Path) -> None:

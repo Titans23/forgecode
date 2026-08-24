@@ -1481,10 +1481,10 @@ def write_training_assets(output_dir: Path) -> None:
             encoding='utf-8',
         )
     (output_dir / 'serve_vllm.txt').write_text(
-        VLLM_SERVE.format(model=DEFAULT_MODEL) + '\n', encoding='utf-8'
+        VLLM_SERVE.replace('{model}', DEFAULT_MODEL) + '\n', encoding='utf-8'
     )
     (output_dir / 'serve_sglang.txt').write_text(
-        SGLANG_SERVE.format(model=DEFAULT_MODEL) + '\n', encoding='utf-8'
+        SGLANG_SERVE.replace('{model}', DEFAULT_MODEL) + '\n', encoding='utf-8'
     )
 
 
