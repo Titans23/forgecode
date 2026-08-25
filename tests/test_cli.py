@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import AsyncIterator, Iterator
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
@@ -715,6 +716,40 @@ def test_config_command_explains_missing_api_key(
     assert result.exit_code == 1
     assert 'Model configuration is incomplete.' in result.output
     assert 'ANTHROPIC_API_KEY is not set.' in result.output
+
+
+def test_feishu_pairing_resolves_future_from_sdk_thread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeAdapter:
+        def __init__(self, _config, *, pairing_mode: bool) -> None:
+            assert pairing_mode
+            self.stopped = asyncio.Event()
+
+        async def start(self, on_message, _on_approval) -> None:
+            message = SimpleNamespace(
+                chat_type='p2p',
+                sender_id='ou_threaded_user',
+                text='绑定 abc123',
+            )
+            await asyncio.to_thread(
+                lambda: asyncio.run(on_message(message))
+            )
+            await self.stopped.wait()
+
+        async def stop(self) -> None:
+            self.stopped.set()
+
+    monkeypatch.setattr(cli_module, 'FeishuChannelAdapter', FakeAdapter)
+
+    async def run() -> str:
+        return await cli_module._pair_feishu_user(
+            object(),  # type: ignore[arg-type]
+            pairing_code='abc123',
+            timeout_seconds=1,
+        )
+
+    assert asyncio.run(run()) == 'ou_threaded_user'
 
 
 def test_feishu_setup_saves_paired_user(

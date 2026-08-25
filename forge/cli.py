@@ -983,7 +983,8 @@ async def _pair_feishu_user(
     timeout_seconds: float,
 ) -> str:
     adapter = FeishuChannelAdapter(config, pairing_mode=True)
-    paired: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+    pairing_loop = asyncio.get_running_loop()
+    paired: asyncio.Future[str] = pairing_loop.create_future()
 
     async def on_message(message: InboundMessage) -> None:
         expected = f'绑定 {pairing_code}'
@@ -998,9 +999,12 @@ async def _pair_feishu_user(
             message.chat_type == 'p2p'
             and message.sender_id
             and code_matches
-            and not paired.done()
         ):
-            paired.set_result(message.sender_id)
+            def complete_pairing() -> None:
+                if not paired.done():
+                    paired.set_result(message.sender_id)
+
+            pairing_loop.call_soon_threadsafe(complete_pairing)
 
     async def on_approval(_value: Any) -> None:
         return None
