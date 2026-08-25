@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -118,6 +119,93 @@ def test_channel_configuration_merges_and_uses_environment_names(
 
     assert config.platform == 'feishu'
     assert config.credential_status() == (True, ())
+
+
+def test_channel_credentials_load_from_project_dotenv(tmp_path: Path) -> None:
+    dotenv_path = tmp_path / '.env'
+    dotenv_path.write_text(
+        'FEISHU_DOTENV_ID=dotenv-app\n'
+        'FEISHU_DOTENV_SECRET=dotenv-secret\n',
+        encoding='utf-8',
+    )
+    previous = {
+        name: os.environ.get(name)
+        for name in ('FEISHU_DOTENV_ID', 'FEISHU_DOTENV_SECRET')
+    }
+    os.environ.pop('FEISHU_DOTENV_ID', None)
+    os.environ.pop('FEISHU_DOTENV_SECRET', None)
+    try:
+        config_path = tmp_path / '.forge'
+        config_path.mkdir()
+        (config_path / 'channels.json').write_text(
+            json.dumps(
+                {
+                    'channels': {
+                        'dotenv': {
+                            'platform': 'feishu',
+                            'appIdEnv': 'FEISHU_DOTENV_ID',
+                            'appSecretEnv': 'FEISHU_DOTENV_SECRET',
+                            'allowedUsers': ['user-1'],
+                        }
+                    }
+                }
+            ),
+            encoding='utf-8',
+        )
+
+        config = load_channel_settings(tmp_path).channels['dotenv']
+
+        assert config.credential_status() == (True, ())
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
+def test_feishu_channel_can_be_configured_entirely_from_project_dotenv(
+    tmp_path: Path,
+) -> None:
+    dotenv_path = tmp_path / '.env'
+    dotenv_path.write_text(
+        'FEISHU_APP_ID=dotenv-app\n'
+        'FEISHU_APP_SECRET=dotenv-secret\n'
+        'FEISHU_TENANT_ID=tenant-from-dotenv\n'
+        'FEISHU_ALLOWED_USERS=user-1,user-2\n'
+        'FEISHU_ALLOWED_CHATS=chat-1\n'
+        'FEISHU_REQUIRE_MENTION=false\n'
+        'FEISHU_APPROVAL_TIMEOUT_SECONDS=300\n',
+        encoding='utf-8',
+    )
+    names = (
+        'FEISHU_APP_ID',
+        'FEISHU_APP_SECRET',
+        'FEISHU_TENANT_ID',
+        'FEISHU_ALLOWED_USERS',
+        'FEISHU_ALLOWED_CHATS',
+        'FEISHU_REQUIRE_MENTION',
+        'FEISHU_APPROVAL_TIMEOUT_SECONDS',
+    )
+    previous = {name: os.environ.get(name) for name in names}
+    for name in names:
+        os.environ.pop(name, None)
+    try:
+        config = load_channel_settings(tmp_path).channels['feishu-main']
+
+        assert config.platform == 'feishu'
+        assert config.tenant_id == 'tenant-from-dotenv'
+        assert config.allowed_users == ('user-1', 'user-2')
+        assert config.allowed_chats == ('chat-1',)
+        assert config.require_mention is False
+        assert config.approval_timeout_seconds == 300
+        assert config.credential_status() == (True, ())
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def test_allowlist_and_group_mention_are_enforced() -> None:
@@ -319,6 +407,43 @@ def test_feishu_adapter_normalizes_message_and_card_action() -> None:
     assert normalized.mentioned_bot
     assert normalized.thread_id == 'thread-1'
     assert action == ApprovalAction('approval', 'u1', 'approve', 'hash')
+
+
+def test_feishu_sdk_isolates_its_loop_from_running_gateway_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv('APP_ID', 'test-app')
+    monkeypatch.setenv('APP_SECRET', 'test-secret')
+
+    async def run() -> None:
+        from lark_channel.ws import client as ws_client
+
+        original_loop = ws_client.loop
+        ws_client.loop = asyncio.get_running_loop()
+        replacement_loop = None
+        try:
+            adapter = FeishuChannelAdapter(
+                ChannelConfig(
+                    platform='feishu',
+                    tenantId='tenant',
+                    allowedUsers=('u1',),
+                )
+            )
+            adapter._build_channel()
+            replacement_loop = ws_client.loop
+
+            assert replacement_loop is not asyncio.get_running_loop()
+            assert replacement_loop is not original_loop
+        finally:
+            ws_client.loop = original_loop
+            if (
+                replacement_loop is not None
+                and replacement_loop is not original_loop
+                and not replacement_loop.is_closed()
+            ):
+                replacement_loop.close()
+
+    asyncio.run(run())
 
 
 def test_feishu_sdk_receives_the_same_allowlist_policy(monkeypatch) -> None:

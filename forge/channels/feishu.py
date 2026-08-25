@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -15,14 +16,36 @@ class FeishuChannelUnavailable(RuntimeError):
     '''Raised when the optional official SDK is not installed.'''
 
 
+def _detach_sdk_event_loop() -> None:
+    '''Keep lark-channel's synchronous WS loop off ForgeCode's async loop.'''
+    try:
+        running_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    try:
+        from lark_channel.ws import client as ws_client
+    except ImportError:
+        return
+    sdk_loop = getattr(ws_client, 'loop', None)
+    if sdk_loop is running_loop:
+        ws_client.loop = asyncio.new_event_loop()
+
+
 class FeishuChannelAdapter(ChannelAdapter):
     '''Normalize the official lark-channel-sdk for ForgeCode.'''
 
-    def __init__(self, config: ChannelConfig, *, channel: Any | None = None) -> None:
+    def __init__(
+        self,
+        config: ChannelConfig,
+        *,
+        channel: Any | None = None,
+        pairing_mode: bool = False,
+    ) -> None:
         if config.platform != 'feishu':
             raise ValueError('FeishuChannelAdapter requires platform=feishu')
         self.config = config
         self._channel = channel
+        self._pairing_mode = pairing_mode
         self._started = False
 
     def _build_channel(self) -> Any:
@@ -30,6 +53,7 @@ class FeishuChannelAdapter(ChannelAdapter):
             return self._channel
         try:
             from lark_channel import FeishuChannel, PolicyConfig, SecurityConfig
+            _detach_sdk_event_loop()
         except ImportError as error:
             raise FeishuChannelUnavailable(
                 'Install lark-channel-sdk or run `uv sync` before starting '
@@ -47,12 +71,16 @@ class FeishuChannelAdapter(ChannelAdapter):
             app_secret=app_secret,
             policy=PolicyConfig(
                 dm_policy=(
-                    'allowlist' if self.config.allowed_users else 'disabled'
+                    'open'
+                    if self._pairing_mode
+                    else 'allowlist' if self.config.allowed_users else 'disabled'
                 ),
                 group_policy=(
-                    'allowlist' if self.config.allowed_chats else 'open'
+                    'disabled'
+                    if self._pairing_mode
+                    else 'allowlist' if self.config.allowed_chats else 'open'
                 ),
-                require_mention=self.config.require_mention,
+                require_mention=(False if self._pairing_mode else self.config.require_mention),
                 allow_from=list(self.config.allowed_users) or None,
                 group_allowlist=list(self.config.allowed_chats) or None,
             ),

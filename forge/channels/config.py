@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -24,6 +25,101 @@ class ChannelConfigurationError(ValueError):
 
 _ENV_NAME = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 _CHANNEL_NAME = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
+_TRUE_VALUES = frozenset({'1', 'true', 'yes', 'on'})
+_FALSE_VALUES = frozenset({'0', 'false', 'no', 'off'})
+_FEISHU_ENV_FIELDS = {
+    'FEISHU_CHANNEL_NAME',
+    'FEISHU_ENABLED',
+    'FEISHU_TRANSPORT',
+    'FEISHU_TENANT_ID',
+    'FEISHU_ALLOWED_USERS',
+    'FEISHU_ALLOWED_CHATS',
+    'FEISHU_REQUIRE_MENTION',
+    'FEISHU_APPROVAL_TIMEOUT_SECONDS',
+    'FEISHU_APP_ID',
+    'FEISHU_APP_SECRET',
+}
+
+
+def _env_list(name: str) -> list[str]:
+    return [
+        item.strip()
+        for item in re.split(r'[,\n]', os.environ[name])
+        if item.strip()
+    ]
+
+
+def _env_bool(name: str) -> bool:
+    value = os.environ[name].strip().lower()
+    if value in _TRUE_VALUES:
+        return True
+    if value in _FALSE_VALUES:
+        return False
+    raise ChannelConfigurationError(
+        f'{name} must be one of: true, false, 1, 0, yes, no, on, off.'
+    )
+
+
+def _env_float(name: str) -> float:
+    try:
+        return float(os.environ[name].strip())
+    except ValueError as error:
+        raise ChannelConfigurationError(f'{name} must be a number.') from error
+
+
+def _apply_feishu_environment(merged: dict[str, object]) -> None:
+    if not any(name in os.environ for name in _FEISHU_ENV_FIELDS):
+        return
+    channel_name = (
+        os.environ.get('FEISHU_CHANNEL_NAME', '').strip() or 'feishu-main'
+    )
+    if not _CHANNEL_NAME.fullmatch(channel_name):
+        raise ChannelConfigurationError(
+            f'FEISHU_CHANNEL_NAME is invalid: {channel_name!r}.'
+        )
+    if channel_name not in merged and not any(
+        name in os.environ
+        for name in ('FEISHU_ALLOWED_USERS', 'FEISHU_ALLOWED_CHATS')
+    ):
+        return
+    if channel_name not in merged:
+        feishu_names = [
+            name
+            for name, value in merged.items()
+            if isinstance(value, dict) and value.get('platform') == 'feishu'
+        ]
+        if 'FEISHU_CHANNEL_NAME' not in os.environ and len(feishu_names) == 1:
+            channel_name = feishu_names[0]
+    raw_current = merged.get(channel_name, {})
+    current = dict(raw_current) if isinstance(raw_current, dict) else {}
+    if current and current.get('platform') not in (None, 'feishu'):
+        raise ChannelConfigurationError(
+            f'Environment channel {channel_name!r} conflicts with its platform.'
+        )
+    current.update(
+        {
+            'platform': 'feishu',
+            'appIdEnv': 'FEISHU_APP_ID',
+            'appSecretEnv': 'FEISHU_APP_SECRET',
+        }
+    )
+    if 'FEISHU_ENABLED' in os.environ:
+        current['enabled'] = _env_bool('FEISHU_ENABLED')
+    if 'FEISHU_TRANSPORT' in os.environ:
+        current['transport'] = os.environ['FEISHU_TRANSPORT'].strip()
+    if 'FEISHU_TENANT_ID' in os.environ:
+        current['tenantId'] = os.environ['FEISHU_TENANT_ID'].strip()
+    if 'FEISHU_ALLOWED_USERS' in os.environ:
+        current['allowedUsers'] = _env_list('FEISHU_ALLOWED_USERS')
+    if 'FEISHU_ALLOWED_CHATS' in os.environ:
+        current['allowedChats'] = _env_list('FEISHU_ALLOWED_CHATS')
+    if 'FEISHU_REQUIRE_MENTION' in os.environ:
+        current['requireMention'] = _env_bool('FEISHU_REQUIRE_MENTION')
+    if 'FEISHU_APPROVAL_TIMEOUT_SECONDS' in os.environ:
+        current['approvalTimeoutSeconds'] = _env_float(
+            'FEISHU_APPROVAL_TIMEOUT_SECONDS'
+        )
+    merged[channel_name] = current
 
 
 class ChannelConfig(BaseModel):
@@ -102,6 +198,7 @@ def load_channel_settings(
     user_path: Path | None = None,
 ) -> ChannelSettings:
     '''Load user config and apply project entries by channel name.'''
+    load_dotenv(dotenv_path=root.resolve() / '.env', override=False)
     paths = (
         user_path or Path.home() / '.forge' / 'channels.json',
         root.resolve() / '.forge' / 'channels.json',
@@ -126,6 +223,7 @@ def load_channel_settings(
                     f'{path}: invalid channel name {name!r}.'
                 )
             merged[str(name)] = value
+    _apply_feishu_environment(merged)
     try:
         return ChannelSettings.model_validate({'channels': merged})
     except ValidationError as error:

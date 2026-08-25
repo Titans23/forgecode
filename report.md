@@ -290,7 +290,7 @@ MCP 配置从用户级 `~/.forge/mcp.json` 和项目 `.mcp.json` 合并，项目
 
 飞书接入由两条相互衔接但职责不同的路径组成。[`forge/channels/feishu.py`](forge/channels/feishu.py) 使用官方 WebSocket Channel SDK，把平台消息和卡片回调归一化为 `InboundMessage`/`ApprovalAction`；[`forge/channels/gateway.py`](forge/channels/gateway.py) 负责白名单过滤、事件去重、按 `platform/tenant/chat/thread` 隔离 Conversation、复用或恢复 Session，以及把高风险 PermissionRequest 转成聊天审批。
 
-Channel 配置位于用户级 `~/.forge/channels.json` 和项目 `.forge/channels.json`，项目同名项覆盖用户配置。启用的 Channel 必须至少有一个 `allowedUsers` 或 `allowedChats`；凭据字段只保存环境变量名，不保存密钥值。`forge integrations` 只报告 ready/missing credentials 等状态，`forge gateway --channel feishu-main` 才启动 WebSocket Gateway。Gateway 将事件摘要持久化到 `.forge/channels/<channel>/channel-events.log`，用哈希实现重启后的 at-most-once 事件预留，并把聊天映射到固定 Session。
+Channel 的结构配置可位于用户级 `~/.forge/channels.json` 和项目 `.forge/channels.json`，项目同名项覆盖用户配置；飞书也可完全通过项目 `.env` 配置，环境变量会生成默认 `feishu-main` 并覆盖同名 Channel 的字段。启用的 Channel 必须至少有一个 `allowedUsers` 或 `allowedChats`，对应的环境变量为 `FEISHU_ALLOWED_USERS` 和 `FEISHU_ALLOWED_CHATS`；凭据和白名单值不写入 JSON。首次接入可运行 `forge feishu setup`，通过终端一次性验证码确认私聊用户后，把发送者 `open_id` 写入项目 `.env`；`forge integrations` 只报告 ready/missing credentials 等状态，`forge gateway --channel feishu-main` 才启动 WebSocket Gateway。Gateway 将事件摘要持久化到 `.forge/channels/<channel>/channel-events.log`，用哈希实现重启后的 at-most-once 事件预留，并把聊天映射到固定 Session。
 
 飞书办公能力由 [`forge/office/mcp_server.py`](forge/office/mcp_server.py) 启动本地 stdio MCP sidecar，底层 [`FeishuOpenAPI`](forge/office/feishu.py) 使用应用身份 token 缓存和官方 OpenAPI。sidecar 只暴露四个工具：`feishu_document_read`、`feishu_document_create`、`feishu_document_update` 和 `feishu_message_send`。`load_runtime_mcp_servers` 会为凭据齐全的飞书 Channel 生成 `office-<channel>` 内部 Server，并用显式 `toolPolicies` 将读取标为低风险、写入标为高风险。
 

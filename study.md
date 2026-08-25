@@ -706,7 +706,7 @@ MCP / Skill / Explore Agent
 建议实际走一遍：
 
 ```powershell
-Copy-Item examples/channels.feishu.json .forge/channels.json
+uv run forge feishu setup       # 首次运行：按终端验证码私聊机器人完成配对
 uv run forge integrations
 uv run forge gateway --channel feishu-main
 ```

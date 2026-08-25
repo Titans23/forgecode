@@ -102,28 +102,33 @@ ForgeCode 的办公自动化分为两层：聊天 Channel 接收自然语言请�
 ### 飞书配置
 
 1. 在飞书开放平台创建并发布企业自建应用，启用机器人，并按需授予 IM 和 Docx 权限。
-2. 将示例配置复制到项目的 `.forge/channels.json`，然后填写允许访问的用户和群聊 ID：
+2. 在项目根目录的 `.env` 中配置凭据和 Channel 参数。Gateway 会自动加载项目 `.env`，已有进程环境变量优先：
 
-   ```powershell
-   Copy-Item examples/channels.feishu.json .forge/channels.json
+   ```env
+   FEISHU_APP_ID=cli_xxx
+   FEISHU_APP_SECRET=secret
+   FEISHU_CHANNEL_NAME=feishu-main
+   FEISHU_ENABLED=true
+   FEISHU_TRANSPORT=websocket
+   FEISHU_TENANT_ID=company-main
+   FEISHU_ALLOWED_USERS=ou_your_open_id
+   FEISHU_ALLOWED_CHATS=
+   FEISHU_REQUIRE_MENTION=true
+   FEISHU_APPROVAL_TIMEOUT_SECONDS=600
    ```
 
-   启用的 Channel 必须至少配置一个用户白名单或群聊白名单，空白名单会被拒绝。
+   `FEISHU_ALLOWED_USERS` 和 `FEISHU_ALLOWED_CHATS` 使用逗号分隔，至少配置一个。只填 `FEISHU_ALLOWED_USERS` 可先测试私聊；群聊还需要填 `chat_id`，并在 `FEISHU_REQUIRE_MENTION=true` 时 @机器人。也可以不创建 `.forge/channels.json`，环境变量会生成默认的 `feishu-main` Channel；如果该文件存在，环境变量会覆盖上述飞书配置。不要把密钥写入 `channels.json`、`.mcp.json` 或命令参数。
 
-3. 通过进程环境变量注入凭据。不要把凭据值写入 `channels.json`、`.mcp.json` 或 MCP 命令参数：
-
-   ```powershell
-   $env:FEISHU_APP_ID = 'cli_xxx'
-   $env:FEISHU_APP_SECRET = 'secret'
-   ```
-
-4. 安装依赖、检查连接准备状态并启动 Gateway：
+3. 安装依赖、检查连接准备状态并启动 Gateway：
 
    ```powershell
    uv sync
+   uv run forge feishu setup       # 首次运行：私聊机器人完成一次配对
    uv run forge integrations
    uv run forge gateway --channel feishu-main
    ```
+
+   `forge feishu setup` 只在首次接入时运行：它只接收私聊，不开放群聊；终端会生成一次性验证码，你把终端提示的“绑定 验证码”发送给机器人后，程序会把发送者的 `open_id` 自动写入项目 `.env` 的 `FEISHU_ALLOWED_USERS`。之后直接启动 Gateway 即可。
 
 启用飞书 Channel 后，ForgeCode 会启动内置的办公 MCP sidecar。凭据只通过子进程环境传递，不会显示在 `forge integrations`、Session Journal 或审计参数中。内置 MCP 只暴露以下窄范围工具：
 

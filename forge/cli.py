@@ -1,18 +1,26 @@
 '''Command-line entry point for ForgeCode.'''
 
 import asyncio
+from contextlib import suppress
 from dataclasses import replace
 from datetime import datetime
 import os
 from pathlib import Path
+import secrets
 import sys
 from typing import Annotated, Any
 
 import typer
+from dotenv import load_dotenv, set_key
 
 from forge import __version__
-from forge.channels import ChannelConfigurationError, load_channel_settings
-from forge.channels.feishu import FeishuChannelAdapter
+from forge.channels import (
+    ChannelConfig,
+    ChannelConfigurationError,
+    InboundMessage,
+    load_channel_settings,
+)
+from forge.channels.feishu import FeishuChannelAdapter, FeishuChannelUnavailable
 from forge.channels.gateway import ChannelGateway
 from forge.config import ConfigurationError, ForgeConfig
 from forge.hooks import HookConfigurationError, HookManager
@@ -52,6 +60,12 @@ app = typer.Typer(
     invoke_without_command=True,
     no_args_is_help=False,
 )
+feishu_app = typer.Typer(
+    name='feishu',
+    help='Feishu setup and pairing commands.',
+    add_completion=False,
+)
+app.add_typer(feishu_app, name='feishu')
 
 
 def version_callback(value: bool) -> None:
@@ -959,6 +973,116 @@ def show_config() -> None:
         )
     )
     typer.echo('API key: configured')
+
+
+
+async def _pair_feishu_user(
+    config: ChannelConfig,
+    *,
+    pairing_code: str,
+    timeout_seconds: float,
+) -> str:
+    adapter = FeishuChannelAdapter(config, pairing_mode=True)
+    paired: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+
+    async def on_message(message: InboundMessage) -> None:
+        expected = f'绑定 {pairing_code}'
+        code_matches = message.text.strip() == expected
+        typer.echo(
+            'Pairing event received: '
+            f'chat_type={message.chat_type}, '
+            f'sender_id={"present" if message.sender_id else "missing"}, '
+            f'code_match={"yes" if code_matches else "no"}'
+        )
+        if (
+            message.chat_type == 'p2p'
+            and message.sender_id
+            and code_matches
+            and not paired.done()
+        ):
+            paired.set_result(message.sender_id)
+
+    async def on_approval(_value: Any) -> None:
+        return None
+
+    async def connect() -> None:
+        try:
+            await adapter.start(on_message, on_approval)
+        except Exception as error:
+            if not paired.done():
+                paired.set_exception(error)
+
+    connection_task = asyncio.create_task(connect())
+    try:
+        return await asyncio.wait_for(paired, timeout_seconds)
+    finally:
+        await adapter.stop()
+        if not connection_task.done():
+            with suppress(Exception):
+                await asyncio.wait_for(connection_task, 5)
+
+
+@feishu_app.command('setup')
+def setup_feishu(
+    timeout_seconds: Annotated[
+        float,
+        typer.Option('--timeout', help='Pairing timeout in seconds.'),
+    ] = 300,
+) -> None:
+    '''Pair the first private-chat user and save their open_id to .env.'''
+    root = Path.cwd()
+    load_dotenv(dotenv_path=root / '.env', override=False)
+    if os.environ.get('FEISHU_ALLOWED_USERS', '').strip():
+        typer.echo(
+            'Feishu is already paired. Edit FEISHU_ALLOWED_USERS in .env '
+            'to change the allowed user.'
+        )
+        return
+    if not os.environ.get('FEISHU_APP_ID', '').strip() or not os.environ.get(
+        'FEISHU_APP_SECRET', ''
+    ).strip():
+        typer.echo(
+            'Missing FEISHU_APP_ID or FEISHU_APP_SECRET in the project .env.',
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    config = ChannelConfig(
+        platform='feishu',
+        enabled=False,
+        transport='websocket',
+        appIdEnv='FEISHU_APP_ID',
+        appSecretEnv='FEISHU_APP_SECRET',
+        tenantId=os.environ.get('FEISHU_TENANT_ID', 'company-main').strip()
+        or 'company-main',
+        requireMention=False,
+    )
+    pairing_code = secrets.token_hex(3)
+    typer.echo(
+        'Pairing Feishu: send this exact private message to the bot within '
+        f'{timeout_seconds:g} seconds:'
+    )
+    typer.echo(f'  绑定 {pairing_code}')
+    try:
+        sender_id = asyncio.run(
+            _pair_feishu_user(
+                config,
+                pairing_code=pairing_code,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+    except TimeoutError:
+        typer.echo('Pairing timed out. Run forge feishu setup again.', err=True)
+        raise typer.Exit(code=1) from None
+    except (FeishuChannelUnavailable, RuntimeError, ValueError) as error:
+        typer.echo(f'Feishu pairing failed: {error}', err=True)
+        raise typer.Exit(code=1) from error
+
+    env_path = root / '.env'
+    set_key(str(env_path), 'FEISHU_ALLOWED_USERS', sender_id, quote_mode='never')
+    typer.echo(f'Paired Feishu user: {sender_id}')
+    typer.echo('Saved FEISHU_ALLOWED_USERS to .env. Start the gateway with:')
+    typer.echo('  uv run forge gateway --channel feishu-main')
 
 
 @app.command('integrations')

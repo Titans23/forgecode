@@ -2,15 +2,8 @@
   "channels": {
     "feishu-main": {
       "platform": "feishu",
-      "enabled": true,
-      "transport": "websocket",
       "appIdEnv": "FEISHU_APP_ID",
-      "appSecretEnv": "FEISHU_APP_SECRET",
-      "tenantId": "company-main",
-      "allowedUsers": ["ou_replace_with_allowed_open_id"],
-      "allowedChats": ["oc_replace_with_allowed_chat_id"],
-      "requireMention": true,
-      "approvalTimeoutSeconds": 600
+      "appSecretEnv": "FEISHU_APP_SECRET"
     }
   }
 }

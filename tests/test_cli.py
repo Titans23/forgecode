@@ -1,7 +1,8 @@
 '''Tests for the ForgeCode CLI.'''
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+import os
 from pathlib import Path
 
 import pytest
@@ -49,13 +50,33 @@ class FakeTrajectoryRecorder:
 def avoid_real_runtime_files(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-) -> None:
+) -> Iterator[None]:
+    feishu_names = (
+        'FEISHU_APP_ID',
+        'FEISHU_APP_SECRET',
+        'FEISHU_CHANNEL_NAME',
+        'FEISHU_ENABLED',
+        'FEISHU_TRANSPORT',
+        'FEISHU_TENANT_ID',
+        'FEISHU_ALLOWED_USERS',
+        'FEISHU_ALLOWED_CHATS',
+        'FEISHU_REQUIRE_MENTION',
+        'FEISHU_APPROVAL_TIMEOUT_SECONDS',
+    )
+    for name in feishu_names:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
+    monkeypatch.setenv('MODEL_ID', 'test-model')
     monkeypatch.setenv('FORGE_DATA_DIR', str(tmp_path / 'forge-data'))
     monkeypatch.setattr(
         cli_module,
         'create_trajectory_recorder',
         lambda _root: FakeTrajectoryRecorder(),
     )
+    yield
+    for name in feishu_names:
+        os.environ.pop(name, None)
 
 
 class FakeConversation:
@@ -694,6 +715,37 @@ def test_config_command_explains_missing_api_key(
     assert result.exit_code == 1
     assert 'Model configuration is incomplete.' in result.output
     assert 'ANTHROPIC_API_KEY is not set.' in result.output
+
+
+def test_feishu_setup_saves_paired_user(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('FEISHU_APP_ID', 'test-app')
+    monkeypatch.setenv('FEISHU_APP_SECRET', 'test-secret')
+    monkeypatch.delenv('FEISHU_ALLOWED_USERS', raising=False)
+
+    async def pair(
+        _config,
+        *,
+        pairing_code: str,
+        timeout_seconds: float,
+    ) -> str:
+        assert len(pairing_code) == 6
+        assert timeout_seconds == 300
+        return 'ou_paired_user'
+
+    monkeypatch.setattr(cli_module, '_pair_feishu_user', pair)
+
+    result = runner.invoke(app, ['feishu', 'setup'])
+
+    assert result.exit_code == 0
+    assert 'Paired Feishu user: ou_paired_user' in result.output
+    assert 'FEISHU_ALLOWED_USERS=ou_paired_user' in (
+        tmp_path / '.env'
+    ).read_text(encoding='utf-8')
+
 
 
 def test_config_command_explains_missing_model_id(
