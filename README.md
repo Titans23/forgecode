@@ -130,16 +130,125 @@ ForgeCode 的办公自动化分为两层：聊天 Channel 接收自然语言请�
 
    `forge feishu setup` 只在首次接入时运行：它只接收私聊，不开放群聊；终端会生成一次性验证码，你把终端提示的“绑定 验证码”发送给机器人后，程序会把发送者的 `open_id` 自动写入项目 `.env` 的 `FEISHU_ALLOWED_USERS`。之后直接启动 Gateway 即可。
 
-启用飞书 Channel 后，ForgeCode 会启动内置的办公 MCP sidecar。凭据只通过子进程环境传递，不会显示在 `forge integrations`、Session Journal 或审计参数中。内置 MCP 只暴露以下窄范围工具：
+### 飞书使用教程
 
-- `feishu_document_read`：读取文档及稳定 block ID；
-- `feishu_document_create`：新建文档；
-- `feishu_document_update`：按读取时的 revision 安全更新已有文本块；
-- `feishu_message_send`：向一个或多个目标群聊发送相同消息。
+#### 1. 检查配对和连接状态
 
-读取操作可以自动执行。新建、更新和发消息属于高风险写操作，执行前会发送一次性审批卡片；只有原始请求者能够确认，并且确认仅对参数哈希完全一致的单次调用有效。审批超时、参数变化或文档 revision 变化后必须重新确认。
+配对成功后，不需要每次重复执行 `forge feishu setup`。可以先检查：
 
-文档写入目前支持正文、标题、无序列表、有序列表、代码块、引用和待办。表格、图片、附件等尚未支持的块会保留原位，不会被静默删除或重排。群发会逐个记录目标结果；部分失败或结果未知时，不会自动重发已经成功的目标。
+```powershell
+uv run forge integrations
+```
+
+正常情况下会看到类似：
+
+```text
+feishu-main: ready · feishu · websocket · 1 user(s) · 0 chat(s)
+```
+
+首次配对时，成功标志是终端出现：
+
+```text
+Pairing event received: chat_type=p2p, sender_id=present, code_match=yes
+Paired Feishu user: ou_...
+Saved FEISHU_ALLOWED_USERS to .env.
+```
+
+如果提示 `Feishu is already paired`，说明 `.env` 中已经保存了允许使用的用户。
+
+#### 2. 启动飞书机器人
+
+保持下面的终端进程持续运行：
+
+```powershell
+uv run forge gateway --channel feishu-main
+```
+
+然后在飞书私聊“ForgeCode 办公助手”。飞书消息会被转发给 ForgeCode，ForgeCode 的回复会返回到原消息所在的会话。
+
+不需要使用特殊命令，直接用自然语言描述任务即可，例如：
+
+```text
+你好，请告诉我你可以做什么
+```
+
+#### 3. 操作飞书文档和消息
+
+当前内置办公 MCP 支持以下操作：
+
+- `feishu_document_read`：读取文档元数据、正文和稳定 block ID；
+- `feishu_document_create`：新建飞书文档；
+- `feishu_document_update`：按文档 revision 安全更新文本块；
+- `feishu_message_send`：向一个或多个群聊发送相同文本。
+
+可以在飞书中直接发送类似请求：
+
+```text
+读取飞书文档 abc123，帮我总结内容
+```
+
+```text
+新建一个飞书文档，标题是《今日工作记录》，内容包括：
+1. 完成飞书接入
+2. 测试文档读取
+```
+
+```text
+读取文档 abc123，找到“项目状态”这一段并改成“已完成”
+```
+
+```text
+把“部署已经完成”发送到群 oc_xxx
+```
+
+其中 `abc123` 是飞书文档 URL 中的文档 token，`oc_xxx` 是群聊 ID。当前文档写入支持正文、标题、无序列表、有序列表、代码块、引用和待办；表格、图片和附件等未支持的块会保留原位。
+
+#### 4. 写操作审批
+
+读取操作可以自动执行。新建文档、修改文档和发送群消息属于高风险写操作，ForgeCode 会先在飞书当前会话发送一次性审批卡片。
+
+只有原始请求者点击“确认执行”后，操作才会真正执行。审批只对本次完全一致的参数有效；参数变化、审批超时或文档 revision 变化后，需要重新确认。
+
+#### 5. 使用群聊
+
+在 `.env` 中配置允许的群聊 ID：
+
+```env
+FEISHU_ALLOWED_CHATS=oc_xxx,oc_yyy
+FEISHU_REQUIRE_MENTION=true
+```
+
+重启 Gateway 后，在群里 @机器人：
+
+```text
+@ForgeCode 办公助手 读取这个文档并总结
+```
+
+只配置 `FEISHU_ALLOWED_USERS` 时，可以使用私聊；群聊还必须配置 `FEISHU_ALLOWED_CHATS`。启用 `FEISHU_REQUIRE_MENTION=true` 时，群消息必须 @机器人。
+
+#### 6. 查看使用日志
+
+将 Gateway 的终端输出保存为文件：
+
+```powershell
+uv run forge gateway --channel feishu-main *> feishu-gateway.log
+```
+
+另开终端实时查看：
+
+```powershell
+Get-Content .\feishu-gateway.log -Wait
+```
+
+ForgeCode 的会话、模型回复和工具调用记录默认保存在：
+
+```text
+%USERPROFILE%\.forge\projects\<项目标识>\sessions\
+```
+
+`channels\feishu-main\channel-sessions.json` 保存飞书聊天与 ForgeCode 会话的对应关系，`channel-events.log` 只保存消息去重信息，不包含完整消息内容。
+
+当前内置办公 MCP 只支持文档和消息操作，不直接操作飞书日历、审批、多维表格等其他服务。凭据不会显示在 `forge integrations`、Session Journal 或审计参数中，但会话日志可能包含用户消息和模型回复，请妥善保护日志文件。
 
 ### 飞书官方 OpenAPI MCP
 
