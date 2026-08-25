@@ -286,11 +286,37 @@ MCP 配置从用户级 `~/.forge/mcp.json` 和项目 `.mcp.json` 合并，项目
 
 [`ExploreRepositoryTool`](forge/subagents/explore.py#L144) 是隔离的只读子 Agent。它使用独立消息历史、独立 Token/调用预算和只读工具注册表，提示位于 [`forge/prompts/explore.md`](forge/prompts/explore.md#L1)。返回值必须通过结构化 `ExploreReport` 校验，包括 findings、relevant_files、suggested_edit_points、current_excerpt 和 unanswered_questions；原始探索链不会进入父 Agent 上下文，只交接有界报告。
 
+### 11.1 飞书 Channel 与内置办公 MCP
+
+飞书接入由两条相互衔接但职责不同的路径组成。[`forge/channels/feishu.py`](forge/channels/feishu.py) 使用官方 WebSocket Channel SDK，把平台消息和卡片回调归一化为 `InboundMessage`/`ApprovalAction`；[`forge/channels/gateway.py`](forge/channels/gateway.py) 负责白名单过滤、事件去重、按 `platform/tenant/chat/thread` 隔离 Conversation、复用或恢复 Session，以及把高风险 PermissionRequest 转成聊天审批。
+
+Channel 配置位于用户级 `~/.forge/channels.json` 和项目 `.forge/channels.json`，项目同名项覆盖用户配置。启用的 Channel 必须至少有一个 `allowedUsers` 或 `allowedChats`；凭据字段只保存环境变量名，不保存密钥值。`forge integrations` 只报告 ready/missing credentials 等状态，`forge gateway --channel feishu-main` 才启动 WebSocket Gateway。Gateway 将事件摘要持久化到 `.forge/channels/<channel>/channel-events.log`，用哈希实现重启后的 at-most-once 事件预留，并把聊天映射到固定 Session。
+
+飞书办公能力由 [`forge/office/mcp_server.py`](forge/office/mcp_server.py) 启动本地 stdio MCP sidecar，底层 [`FeishuOpenAPI`](forge/office/feishu.py) 使用应用身份 token 缓存和官方 OpenAPI。sidecar 只暴露四个工具：`feishu_document_read`、`feishu_document_create`、`feishu_document_update` 和 `feishu_message_send`。`load_runtime_mcp_servers` 会为凭据齐全的飞书 Channel 生成 `office-<channel>` 内部 Server，并用显式 `toolPolicies` 将读取标为低风险、写入标为高风险。
+
+文档更新采用读取时的 revision 做乐观并发检查，支持的文本、标题、列表、代码、引用和待办块会保留稳定 block ID；表格、图片和附件等不支持块不会被静默重排或删除。群发会去重目标并逐个记录结果；网络错误会标记 `result_unknown`，MCP 和 Gateway 都不会自动重放可能已经完成的外部副作用。这条链路的测试分别见 `tests/channels/`、`tests/office/` 和 `tests/mcp/`。
+
+### 11.2 Qwen 工具调用蒸馏扩展
+
+[`extensions/qwen_tool_distillation.py`](extensions/qwen_tool_distillation.py) 是显式 opt-in 的单文件扩展，不注册自身、不 patch ForgeCode 全局对象，也不读取 `ForgeConfig` 的 Anthropic 配置。它通过 `QwenEndpoint` 和 OpenAI-compatible `QwenModelClient` 接入 Qwen；角色为 `main`、`router`、`summary`、`explore` 的 endpoint 可以用 `QWEN_DISTILL_<ROLE>_*` 环境变量隔离配置。适配器把 OpenAI 流式响应恢复为 ForgeCode 事件，处理并行工具调用、增量参数 JSON、Schema 外工具、截断和空响应。
+
+采集时，`RecordingModelClient` 包装 Qwen client，在 `ModelClient.stream` 的实际边界捕获 system、压缩后的消息和当前阶段工具表；`TraceRecorder` 以 append-only JSONL 写入 `forgecode-qwen-distillation/v1` 轨迹，包含 model request/response、tool result、workspace revision、验证证据和 Completion Gate 结果。`RecordedConversation` 通过显式组合把记录器接到一个 Conversation，并允许注入独立 outcome validator；核心运行时不会因为导入扩展而改变。
+
+导出前的 `clean_episode` 会检查公开来源和批准许可证、Aider Polyglot test-only holdout、密钥模式、请求与工具结果绑定、JSON Schema、执行验证、权限决定、非幂等重放和独立验证。`build_sft_rows` 使用 `transformers` 的精确 tokenizer，在不截断 system、工具 Schema 或最新错误的前提下生成 `forgecode-qwen-sft/v1` next-action 行；`build_dpo_row` 提供安全优先的 chosen/rejected 行，`ForgeCodeRolloutEnvironment` 提供每个 rollout 一个隔离 Git worktree、有限决策/工具预算和注入式 Completion Gate。`write_training_assets` 则生成可选 ms-swift 的 SFT/DPO/GRPO recipe，以及 vLLM/SGLang 的工具调用服务命令。
+
+这部分代码提供的是采集、清洗、转换和训练资产接口，不等同于已经完成的模型训练结果。主要测试见 [`tests/extensions/test_qwen_tool_distillation.py`](tests/extensions/test_qwen_tool_distillation.py)，最小入口为：
+
+```powershell
+uv run python -m extensions.qwen_tool_distillation preflight
+uv run python -m extensions.qwen_tool_distillation write-recipes distill/recipes
+uv run python -m extensions.qwen_tool_distillation build-sft data/teacher.jsonl data/train.jsonl
+```
+
 ## 12. 自动化测试与真实评测
 
 ### 12.1 测试结构
 
-`tests/` 当前包含 34 个 Python 文件、383 个显式 `test_` 函数；参数化展开后的仓库基线是 406 项。测试不是只覆盖 happy path，而是围绕运行时不变量组织：
+`tests/` 当前包含 38 个 Python 测试文件、453 个显式 `test_` 函数；参数化测试的最终收集数量仍应以 pytest 输出为准。测试不是只覆盖 happy path，而是围绕运行时不变量组织：
 
 - `tests/runtime/test_agent_loop.py`：流式循环、多工具顺序、预算、重复调用、协议恢复、权限和上下文；
 - `tests/runtime/test_m2_agent_loop.py`：真实 Diff、编辑恢复、验证债务、停滞、finish_task、依赖与作用域；
@@ -299,6 +325,8 @@ MCP 配置从用户级 `~/.forge/mcp.json` 和项目 `.mcp.json` 合并，项目
 - `tests/sessions/`：半写 Journal、未知副作用、分支恢复、并发头、Checkpoint 冲突；
 - `tests/context/`：工具对配对、范围缓存、压缩阈值、摘要 fuse、记忆密钥过滤；
 - `tests/hooks/` 与 `tests/mcp/`：真实子进程/stdio/HTTP 集成、超时、动态工具刷新和结果未知语义；
+- `tests/channels/` 与 `tests/office/`：飞书消息归一化、白名单、去重、聊天审批、文档 revision 和群发部分失败；
+- `tests/extensions/`：Qwen endpoint、OpenAI 消息/工具转换、流式工具调用、轨迹清洗、SFT 行和 rollout worktree；
 - `tests/subagents/test_explore.py`：只读能力、结构化报告和父上下文隔离。
 
 这些测试大量使用 fake model 稳定复现轨迹边界，其价值是精确验证状态机；但它们不能代替真实 Provider 在超长工具参数、流事件差异和策略选择上的表现。
@@ -384,12 +412,18 @@ MCP 配置从用户级 `~/.forge/mcp.json` 和项目 `.mcp.json` 合并，项目
 | Session Journal | [`forge/sessions/store.py`](forge/sessions/store.py#L60) |
 | Checkpoint | [`forge/sessions/checkpoint.py`](forge/sessions/checkpoint.py#L34) |
 | MCP Manager | [`forge/mcp/manager.py`](forge/mcp/manager.py#L44) |
+| Channel 配置与 Gateway | [`forge/channels/config.py`](forge/channels/config.py#L29)、[`forge/channels/gateway.py`](forge/channels/gateway.py#L171) |
+| 飞书 Channel | [`forge/channels/feishu.py`](forge/channels/feishu.py#L18) |
+| 飞书办公 API / MCP | [`forge/office/feishu.py`](forge/office/feishu.py#L52)、[`forge/office/mcp_server.py`](forge/office/mcp_server.py#L14) |
+| Qwen 工具调用蒸馏 | [`extensions/qwen_tool_distillation.py`](extensions/qwen_tool_distillation.py#L194)、[`extensions/qwen_tool_distillation.py`](extensions/qwen_tool_distillation.py#L535) |
 | Explore Agent | [`forge/subagents/explore.py`](forge/subagents/explore.py#L144) |
 | Eval Runner | [`evals/runner.py`](evals/runner.py#L286) |
 
 ## 16. 总结
 
 ForgeCode 已经实现了一个完整的本地工程 Agent 运行时：模型负责语义判断与行动选择，运行时负责边界、证据、状态、恢复和审计。项目最有价值的部分不是工具数量，而是围绕 `workspace_revision`、结构化 ToolResult、ActiveTask、Completion Gate、append-only Session 与有界恢复建立的一组可验证不变量。
+
+在此核心之上，当前工作树还提供了两个外部能力扩展：飞书通过官方 Channel/WebSocket 和窄范围办公 MCP 接入消息、文档与群发，并继续受白名单、revision、审批和结果未知语义约束；Qwen 蒸馏扩展则在模型请求边界记录真实工具调用轨迹，经过来源、Schema、权限、执行验证和 Completion Gate 清洗后导出训练样本。二者都复用主系统的边界，不把外部副作用或未验证训练数据提升为默认可信结果。
 
 当前最大技术风险也很明确：核心循环的恢复状态过多且集中，容易出现提示、工具 Schema 与退出条件之间的不一致。下一阶段最有效的工作不是继续添加更多特例，而是把这些隐含布尔状态收敛为显式 phase state machine，并用真实 Provider 场景持续测量“最终完成率、自动恢复率和单位成功任务 Token”，从而让 ForgeCode 从“能够安全阻止错误”进一步成长为“能够稳定完成复杂任务”。
 

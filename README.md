@@ -142,6 +142,33 @@ ForgeCode 的办公自动化分为两层：聊天 Channel 接收自然语言请�
 
 当前不控制个人微信或个人 QQ 客户端，也不采用注入、模拟登录、非官方协议或桌面 RPA。后续企业微信和 QQ 适配器将复用同一套 Channel 接口、会话隔离、白名单、去重和审批规则，并且只使用平台官方开放能力。
 
+## 工具调用蒸馏（可选扩展）
+
+仓库还提供 [`extensions/qwen_tool_distillation.py`](extensions/qwen_tool_distillation.py)，用于把 ForgeCode 的真实模型请求、阶段工具表、工具调用结果、验证证据和 Completion Gate 结果记录为可审计轨迹，再导出 Qwen 工具调用训练数据。它是显式 opt-in 的单文件扩展：不会自动注册到 ForgeCode、修改全局工厂或读取普通 Anthropic 配置，核心 CLI 和基础安装不依赖 OpenAI、Transformers 或 ms-swift。
+
+扩展的主要链路是：
+
+```text
+Conversation.stream()
+  → RecordingModelClient 捕获已准备好的请求
+  → TraceRecorder 写入 provider-neutral JSONL
+  → clean_episode 校验来源、许可证、密钥、Schema、权限和独立验证
+  → build_sft_rows 导出 next-action SFT 样本
+  → 可选 DPO / GRPO rollout / ms-swift recipe
+```
+
+默认 endpoint 是 OpenAI-compatible 的 `Qwen/Qwen3.5-4B`；`main`、`router`、`summary`、`explore` 四类角色可以用 `QWEN_DISTILL_<ROLE>_*` 环境变量分别配置。记录格式版本为 `forgecode-qwen-distillation/v1`，SFT 数据集版本为 `forgecode-qwen-sft/v1`。训练数据只接受公开且许可证在允许集合内的来源，Aider Polyglot 固定作为 test holdout；未独立验证或绕过 Completion Gate 的 episode 会被拒绝。
+
+扩展命令不改变核心运行时，可以先做环境检查，再生成训练 recipe 或导出 SFT JSONL：
+
+```powershell
+uv run python -m extensions.qwen_tool_distillation preflight
+uv run python -m extensions.qwen_tool_distillation write-recipes distill/recipes
+uv run python -m extensions.qwen_tool_distillation build-sft data/teacher.jsonl data/train.jsonl
+```
+
+推理需要额外安装 `openai`；使用精确 Qwen tokenizer 导出 SFT 需要 `transformers`；训练 recipe 面向可选的 `ms-swift` 环境。仓库当前提供的是采集、校验、转换和训练资产生成能力，不把某次蒸馏训练结果冒充为 ForgeCode 的默认模型或版本基线。
+
 ## 当前能力
 
 - 多步 Agent Loop：模型可以在同一用户回合中连续读取、修改、执行和验证。
@@ -153,6 +180,8 @@ ForgeCode 的办公自动化分为两层：聊天 Channel 接收自然语言请�
 - 上下文工程：WorkingState、项目规则、历史压缩、长期 Markdown 记忆和只读 Explore Agent。
 - 会话恢复：append-only Session Journal、文件 Checkpoint、`/undo`、`/rewind` 和会话分支。
 - 权限与扩展：用户/项目/会话规则、Hooks、MCP、Skill 和审计轨迹。
+- 办公 Channel：飞书 WebSocket 消息接入、白名单、事件去重、按聊天隔离会话和聊天审批。
+- 工具调用蒸馏：Qwen-compatible adapter、provider-neutral 轨迹、独立数据清洗和 SFT/DPO/GRPO 资产接口。
 
 ## 架构导航
 
@@ -176,6 +205,7 @@ forge/channels/                办公聊天 Channel 和 Gateway
 forge/office/                  飞书办公 OpenAPI 与内置 MCP Server
 forge/skills/                  Skill 发现和加载
 forge/subagents/               只读 Explore Agent
+extensions/qwen_tool_distillation.py  可选 Qwen 工具调用蒸馏与 rollout 扩展
 
 evals/                         本地独立评测
 benchmark/                     Harbor / Aider Polyglot 适配
@@ -284,4 +314,7 @@ Harbor 是可选的外部评测后端，不是普通 CLI 的运行依赖。运�
 - [`forge/tools/base.py`](forge/tools/base.py)：统一工具协议和注册表；
 - [`forge/runtime/workspace.py`](forge/runtime/workspace.py)：工作区 revision；
 - [`forge/runtime/completion.py`](forge/runtime/completion.py)：Completion Gate；
+- [`forge/channels/gateway.py`](forge/channels/gateway.py)：办公消息路由、去重、聊天会话和审批；
+- [`forge/office/mcp_server.py`](forge/office/mcp_server.py)：窄范围飞书办公 MCP sidecar；
+- [`extensions/qwen_tool_distillation.py`](extensions/qwen_tool_distillation.py)：工具调用轨迹记录与数据导出；
 - [`evals/runner.py`](evals/runner.py)：本地独立评测 Runner。

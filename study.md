@@ -16,7 +16,8 @@ pyproject.toml
 → Workspace / Completion
 → Recovery
 → Session / Checkpoint
-→ MCP / Skill / Subagent
+→ MCP / Feishu Channel / Skill / Subagent
+→ Qwen Tool-call Distillation
 → Local Eval
 → Harbor Benchmark
 ```
@@ -665,16 +666,22 @@ Token 用量
 - 为什么两个恢复进程不能同时追加
 - 为什么大 Payload 不能全部直接塞进 Journal
 
-## 阶段 14：MCP、Skill 和 Explore Agent
+## 阶段 14：MCP、飞书办公、Skill 和 Explore Agent
 
 核心主线理解完后，再读扩展：
 
 - [`forge/mcp/config.py`](D:/learn_project/forgecode/forge/mcp/config.py)
 - [`forge/mcp/manager.py`](D:/learn_project/forgecode/forge/mcp/manager.py:44)
 - [`forge/mcp/tool.py`](D:/learn_project/forgecode/forge/mcp/tool.py)
+- [`forge/channels/config.py`](D:/learn_project/forgecode/forge/channels/config.py)
+- [`forge/channels/gateway.py`](D:/learn_project/forgecode/forge/channels/gateway.py)
+- [`forge/channels/feishu.py`](D:/learn_project/forgecode/forge/channels/feishu.py)
+- [`forge/office/feishu.py`](D:/learn_project/forgecode/forge/office/feishu.py)
+- [`forge/office/mcp_server.py`](D:/learn_project/forgecode/forge/office/mcp_server.py)
 - [`forge/skills/manager.py`](D:/learn_project/forgecode/forge/skills/manager.py)
 - [`forge/subagents/explore.py`](D:/learn_project/forgecode/forge/subagents/explore.py:144)
 - `tests/mcp/`
+- `tests/channels/`、`tests/office/`
 - `tests/skills/`
 - `tests/subagents/`
 
@@ -694,7 +701,43 @@ MCP / Skill / Explore Agent
 - Explore Agent 使用隔离的只读上下文
 - Skill 主要注入工作说明，不会绕过工具权限和 Completion Gate
 
-## 阶段 15：本地 Eval Harness
+飞书办公链路要单独看两层：`forge/channels/` 负责官方 WebSocket 消息、白名单、@ 提及过滤、事件去重、按聊天隔离 Session 和审批卡片；`forge/office/` 负责一个本地 stdio MCP sidecar，只暴露文档读取/创建/更新和消息发送四个窄范围工具。运行时会把已配置且凭据齐全的飞书 Channel 转成 `office-<channel>` MCP Server，并让工具继续经过统一的 `ToolRegistry`、`PermissionManager` 和审计管线。
+
+建议实际走一遍：
+
+```powershell
+Copy-Item examples/channels.feishu.json .forge/channels.json
+uv run forge integrations
+uv run forge gateway --channel feishu-main
+```
+
+重点验证：启用 Channel 必须有用户或群聊白名单；凭据只能来自环境变量；高风险的文档写入和群发需要原始请求者对参数哈希一致的单次审批；飞书文档更新必须带读取时的 revision，网络结果未知时不能自动重发。
+
+## 阶段 15：Qwen 工具调用蒸馏扩展
+
+阅读：
+
+- [`extensions/qwen_tool_distillation.py`](D:/learn_project/forgecode/extensions/qwen_tool_distillation.py)
+- [`tests/extensions/test_qwen_tool_distillation.py`](D:/learn_project/forgecode/tests/extensions/test_qwen_tool_distillation.py)
+
+这条线是可选的模型工程扩展，不是核心 Agent Loop 的隐式分支。先理解四个边界：
+
+1. `QwenModelClient` 把 OpenAI-compatible 流式响应转换回 ForgeCode 的 `ModelStreamEvent`，处理并行工具调用、增量 JSON、不可用工具、截断和空响应；
+2. `RecordingModelClient` 在 `ModelClient.stream` 边界记录已经过上下文压缩和阶段工具过滤的真实请求，因此样本包含动态 system、消息历史和当前工具 Schema；
+3. `TraceRecorder` 以 append-only JSONL 记录 model request/response、tool result、workspace revision、验证和完成结果，版本分别是 `forgecode-qwen-distillation/v1` 与 `forgecode-qwen-sft/v1`；
+4. `clean_episode` 在导出前校验公开来源、许可证、密钥、工具 Schema/结果配对、权限合规、执行验证和 Completion Gate，`build_sft_rows` 只保留未截断且可独立验证的 next-action 样本。
+
+之后再读 `build_dpo_row`、`ForgeCodeRolloutEnvironment` 和 `write_training_assets`：它们分别提供安全优先的偏好样本、隔离 Git worktree 的有限 rollout，以及 SFT/DPO/GRPO 的 ms-swift recipe 和 vLLM/SGLang 服务命令。扩展默认关闭 thinking，训练和推理依赖需要单独安装，不应把生成的 recipe 或未验证轨迹当作核心产品配置。
+
+可执行的最小检查：
+
+```powershell
+uv run python -m extensions.qwen_tool_distillation preflight
+uv run python -m extensions.qwen_tool_distillation write-recipes distill/recipes
+uv run python -m extensions.qwen_tool_distillation build-sft data/teacher.jsonl data/train.jsonl
+```
+
+## 阶段 16：本地 Eval Harness
 
 阅读顺序：
 
@@ -748,7 +791,7 @@ uv run python -m evals.runner --case python-calculator-001
 - 本地 Eval 有独立的逐案例结果和轨迹
 - 跨运行的成本、恢复次数、成功率聚合还不是完整模块
 
-## 阶段 16：Harbor / Aider Polyglot Benchmark
+## 阶段 17：Harbor / Aider Polyglot Benchmark
 
 最后阅读：
 
