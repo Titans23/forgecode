@@ -85,6 +85,41 @@ def message(*, message_id: str = 'm1', mentioned: bool = True) -> InboundMessage
     )
 
 
+def test_private_chat_reuses_context_across_topic_replies() -> None:
+    first = InboundMessage(
+        platform='feishu',
+        tenant_id='tenant',
+        message_id='m1',
+        sender_id='user-1',
+        chat_id='chat-1',
+        chat_type='p2p',
+        text='first',
+    )
+    topic_reply = InboundMessage(
+        platform='feishu',
+        tenant_id='tenant',
+        message_id='m2',
+        sender_id='user-1',
+        chat_id='chat-1',
+        chat_type='p2p',
+        thread_id='topic-1',
+        text='follow-up',
+    )
+    group_topic = InboundMessage(
+        platform='feishu',
+        tenant_id='tenant',
+        message_id='m3',
+        sender_id='user-1',
+        chat_id='chat-1',
+        chat_type='group',
+        thread_id='topic-1',
+        text='group follow-up',
+    )
+
+    assert first.session_key == topic_reply.session_key
+    assert first.session_key != group_topic.session_key
+
+
 def test_channel_configuration_merges_and_uses_environment_names(
     tmp_path: Path,
     monkeypatch,

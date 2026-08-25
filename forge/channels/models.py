@@ -36,12 +36,15 @@ class InboundMessage:
     @property
     def session_key(self) -> str:
         '''Stable, non-secret key for per-chat Conversation isolation.'''
+        # Feishu private replies may be rendered as topic messages. Keep one
+        # context for the private chat; retain topic isolation for groups.
+        thread_scope = '' if self.chat_type == 'p2p' else self.thread_id
         raw = '\x1f'.join(
             (
                 self.platform,
                 self.tenant_id,
                 self.chat_id,
-                self.thread_id,
+                thread_scope,
             )
         )
         return hashlib.sha256(raw.encode('utf-8')).hexdigest()
