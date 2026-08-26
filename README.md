@@ -14,7 +14,7 @@ ForgeCode 是一个运行在终端中的 Agent Harness，用于可靠地执行�
   → Completion Gate 判断是否允许完成
 ```
 
-当前发行版本以 [`pyproject.toml`](pyproject.toml) 为准，目前是 `0.1.1`。详细源码审阅见 [`report.md`](report.md)；本文只保留安装、使用、架构和评测入口，避免重复维护实现细节与历史 Benchmark 数字。
+当前发行版本以 [`pyproject.toml`](pyproject.toml) 为准，目前是 `0.1.2`。详细源码审阅见 [`report.md`](report.md)；本文只保留安装、使用、架构和评测入口，避免重复维护实现细节与历史 Benchmark 数字。
 
 ## 快速开始
 
