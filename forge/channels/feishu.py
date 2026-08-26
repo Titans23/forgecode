@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 from typing import Any
 
 from forge.channels.base import ApprovalHandler, ChannelAdapter, MessageHandler
 from forge.channels.config import ChannelConfig
 from forge.channels.models import ApprovalAction, Attachment, InboundMessage, OutboundMessage
 from forge.permissions.policy import PermissionRequest
+
+
+_SDK_STOP_TIMEOUT_SECONDS = 3.0
 
 
 class FeishuChannelUnavailable(RuntimeError):
@@ -47,12 +51,14 @@ class FeishuChannelAdapter(ChannelAdapter):
         self._channel = channel
         self._pairing_mode = pairing_mode
         self._started = False
+        self._stop_event: asyncio.Event | None = None
+        self._worker: threading.Thread | None = None
 
     def _build_channel(self) -> Any:
         if self._channel is not None:
             return self._channel
         try:
-            from lark_channel import FeishuChannel, PolicyConfig, SecurityConfig
+            from lark_channel import FeishuChannel, LogLevel, PolicyConfig, SecurityConfig
             _detach_sdk_event_loop()
         except ImportError as error:
             raise FeishuChannelUnavailable(
@@ -69,6 +75,7 @@ class FeishuChannelAdapter(ChannelAdapter):
         self._channel = FeishuChannel(
             app_id=app_id,
             app_secret=app_secret,
+            log_level=LogLevel.WARNING,
             policy=PolicyConfig(
                 dm_policy=(
                     'open'
@@ -108,18 +115,72 @@ class FeishuChannelAdapter(ChannelAdapter):
 
         channel.on('message', message_handler)
         channel.on('cardAction', approval_handler)
+        loop = asyncio.get_running_loop()
+        worker_done: asyncio.Future[None] = loop.create_future()
+        self._stop_event = asyncio.Event()
         self._started = True
-        await channel.connect()
+
+        def finish_worker(error: BaseException | None) -> None:
+            if worker_done.done():
+                return
+            if error is None:
+                worker_done.set_result(None)
+            else:
+                worker_done.set_exception(error)
+
+        def run_channel() -> None:
+            error: BaseException | None = None
+            try:
+                channel.start()
+            except BaseException as caught:
+                error = caught
+            try:
+                loop.call_soon_threadsafe(finish_worker, error)
+            except RuntimeError:
+                pass
+
+        self._worker = threading.Thread(
+            target=run_channel,
+            name='forge-feishu-channel',
+            daemon=True,
+        )
+        self._worker.start()
+        stop_wait = asyncio.create_task(self._stop_event.wait())
+        try:
+            done, _ = await asyncio.wait(
+                (worker_done, stop_wait),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if worker_done in done:
+                if self._stop_event.is_set():
+                    worker_done.exception()
+                else:
+                    await worker_done
+        finally:
+            stop_wait.cancel()
+            try:
+                await stop_wait
+            except asyncio.CancelledError:
+                pass
+            self._stop_event = None
 
     async def stop(self) -> None:
-        channel = self._channel
         self._started = False
+        if self._stop_event is not None:
+            self._stop_event.set()
+        channel = self._channel
         if channel is not None:
-            disconnect = getattr(channel, 'disconnect', None)
-            if disconnect is not None:
-                result = disconnect()
-                if hasattr(result, '__await__'):
-                    await result
+            stop_worker = threading.Thread(
+                target=lambda: channel.stop(join_timeout=0.5),
+                name='forge-feishu-stop',
+                daemon=True,
+            )
+            stop_worker.start()
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + _SDK_STOP_TIMEOUT_SECONDS
+            while stop_worker.is_alive() and loop.time() < deadline:
+                await asyncio.sleep(0.05)
+        self._worker = None
 
     async def send(self, message: OutboundMessage) -> None:
         channel = self._build_channel()
@@ -230,26 +291,31 @@ class FeishuChannelAdapter(ChannelAdapter):
             for item in resources
         )
         conversation = getattr(value, 'conversation', None)
+        raw = dict(getattr(value, 'raw', {}) or {})
+        message_id = str(getattr(value, 'message_id', getattr(value, 'id', '')))
+        thread_id = str(
+            getattr(conversation, 'thread_id', '')
+            or getattr(value, 'thread_id', '')
+            or raw.get('thread_id', '')
+            or raw.get('root_id', '')
+            or message_id
+        )
         return InboundMessage(
             platform='feishu',
             tenant_id=self.config.tenant_id,
-            message_id=str(getattr(value, 'message_id', getattr(value, 'id', ''))),
+            message_id=message_id,
             sender_id=str(getattr(value, 'sender_id', '')),
             sender_name=str(getattr(value, 'sender_name', '')),
             chat_id=str(getattr(value, 'chat_id', '')),
             chat_type=str(getattr(value, 'chat_type', 'unknown')),
-            thread_id=str(
-                getattr(conversation, 'thread_id', '')
-                or getattr(value, 'thread_id', '')
-                or getattr(value, 'reply_to_message_id', '')
-            ),
+            thread_id=thread_id,
             text=str(
                 getattr(value, 'body_text', '')
                 or getattr(value, 'content_text', '')
             ),
             mentioned_bot=bool(getattr(value, 'mentioned_bot', False)),
             attachments=attachments,
-            raw=dict(getattr(value, 'raw', {}) or {}),
+            raw=raw,
         )
 
     @staticmethod

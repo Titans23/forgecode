@@ -6,10 +6,12 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import threading
 from types import SimpleNamespace
 
 import pytest
 
+from forge.channels import feishu as feishu_module
 from forge.channels.base import ChannelAdapter
 from forge.channels.config import ChannelConfig, load_channel_settings
 from forge.channels.gateway import (
@@ -19,7 +21,18 @@ from forge.channels.gateway import (
 )
 from forge.channels.models import ApprovalAction, InboundMessage, OutboundMessage
 from forge.permissions.policy import PermissionRequest
-from forge.runtime.state import ModelTextDelta, TokenUsage, TurnCompleted, TurnResult
+from forge.runtime.state import (
+    ModelCallCompleted,
+    ModelCallStarted,
+    ModelTextDelta,
+    TokenUsage,
+    ToolCall,
+    ToolExecutionCompleted,
+    ToolExecutionStarted,
+    TurnCompleted,
+    TurnResult,
+)
+from forge.tools.base import ToolResult
 from forge.channels.feishu import FeishuChannelAdapter
 
 
@@ -57,6 +70,19 @@ class FakeRuntime:
 
     async def stream(self, prompt: str):
         self.prompts.append(prompt)
+        tool_call = ToolCall(
+            0,
+            'call-1',
+            'read_file',
+            {'path': 'README.md', 'api_key': 'secret-value'},
+        )
+        yield ModelCallStarted(iteration=1)
+        yield ToolExecutionStarted(tool_call)
+        yield ToolExecutionCompleted(
+            tool_call,
+            ToolResult.ok('read', content='README contents'),
+        )
+        yield ModelCallCompleted(iteration=1)
         yield ModelTextDelta(text='ok')
         yield TurnCompleted(
             result=TurnResult(
@@ -85,17 +111,17 @@ def message(*, message_id: str = 'm1', mentioned: bool = True) -> InboundMessage
     )
 
 
-def test_private_chat_reuses_context_across_topic_replies() -> None:
-    first = InboundMessage(
+def test_topics_are_isolated_in_private_and_group_chats() -> None:
+    private_root = InboundMessage(
         platform='feishu',
         tenant_id='tenant',
         message_id='m1',
         sender_id='user-1',
         chat_id='chat-1',
         chat_type='p2p',
-        text='first',
+        text='root',
     )
-    topic_reply = InboundMessage(
+    private_topic = InboundMessage(
         platform='feishu',
         tenant_id='tenant',
         message_id='m2',
@@ -103,21 +129,43 @@ def test_private_chat_reuses_context_across_topic_replies() -> None:
         chat_id='chat-1',
         chat_type='p2p',
         thread_id='topic-1',
-        text='follow-up',
+        text='topic',
     )
-    group_topic = InboundMessage(
+    private_topic_reply = InboundMessage(
         platform='feishu',
         tenant_id='tenant',
         message_id='m3',
         sender_id='user-1',
         chat_id='chat-1',
+        chat_type='p2p',
+        thread_id='topic-1',
+        text='follow-up',
+    )
+    private_other_topic = InboundMessage(
+        platform='feishu',
+        tenant_id='tenant',
+        message_id='m4',
+        sender_id='user-1',
+        chat_id='chat-1',
+        chat_type='p2p',
+        thread_id='topic-2',
+        text='other topic',
+    )
+    group_topic = InboundMessage(
+        platform='feishu',
+        tenant_id='tenant',
+        message_id='m5',
+        sender_id='user-1',
+        chat_id='chat-1',
         chat_type='group',
         thread_id='topic-1',
-        text='group follow-up',
+        text='group topic',
     )
 
-    assert first.session_key == topic_reply.session_key
-    assert first.session_key != group_topic.session_key
+    assert private_root.session_key != private_topic.session_key
+    assert private_topic.session_key == private_topic_reply.session_key
+    assert private_topic.session_key != private_other_topic.session_key
+    assert private_topic.session_key != group_topic.session_key
 
 
 def test_channel_configuration_merges_and_uses_environment_names(
@@ -264,6 +312,7 @@ def test_gateway_deduplicates_and_reuses_one_runtime(tmp_path: Path) -> None:
     async def run() -> None:
         adapter = FakeAdapter()
         runtime = FakeRuntime()
+        progress: list[str] = []
         calls = 0
 
         def factory(identifier):
@@ -280,6 +329,7 @@ def test_gateway_deduplicates_and_reuses_one_runtime(tmp_path: Path) -> None:
             ),
             runtime_factory=factory,
             state_directory=tmp_path,
+            progress=progress.append,
         )
         await gateway.handle_message(message(message_id='same'))
         await gateway.handle_message(message(message_id='same'))
@@ -288,7 +338,21 @@ def test_gateway_deduplicates_and_reuses_one_runtime(tmp_path: Path) -> None:
         assert calls == 1
         assert runtime.prompts == ['hello', 'hello']
         assert [item.text for item in adapter.sent] == ['done', 'done']
+        assert any(line.startswith('[Feishu] received') for line in progress)
+        assert any(line.startswith('[Session] created') for line in progress)
+        assert '[Model] call started iteration=1' in progress
+        logs = '\n'.join(progress)
+        assert 'text=hello' in logs
+        assert '[Tool] started name=read_file id=call-1' in logs
+        assert 'arguments={"path": "README.md", "api_key": "***"}' in logs
+        assert 'summary=read content=README contents' in logs
+        assert '[Model] call completed iteration=1' in logs
+        assert '[Turn] completed status=completed model_calls=1 tokens=2' in logs
+        assert 'secret-value' not in logs
+        assert any('ignored duplicate' in line for line in progress)
+        assert any('text=done' in line for line in progress)
         await gateway.close()
+        assert progress[-1] == '[Gateway] stopped'
 
     asyncio.run(run())
 
@@ -444,6 +508,43 @@ def test_feishu_adapter_normalizes_message_and_card_action() -> None:
     assert action == ApprovalAction('approval', 'u1', 'approve', 'hash')
 
 
+def test_feishu_adapter_uses_root_message_as_topic_context() -> None:
+    adapter = FeishuChannelAdapter(
+        ChannelConfig(
+            platform='feishu',
+            tenantId='tenant',
+            allowedUsers=('u1',),
+        ),
+        channel=object(),
+    )
+
+    def normalize(message_id: str, raw: dict[str, object]) -> InboundMessage:
+        return adapter._normalize_message(
+            SimpleNamespace(
+                message_id=message_id,
+                sender_id='u1',
+                chat_id='c1',
+                chat_type='p2p',
+                content_text='hello',
+                body_text='hello',
+                conversation=SimpleNamespace(thread_id=None),
+                mentioned_bot=False,
+                resources=(),
+                raw=raw,
+            )
+        )
+
+    root = normalize('root-message', {})
+    reply = normalize('reply-message', {'root_id': 'root-message'})
+    other_root = normalize('other-root', {})
+
+    assert root.thread_id == 'root-message'
+    assert reply.thread_id == root.thread_id
+    assert other_root.thread_id == 'other-root'
+    assert root.session_key == reply.session_key
+    assert root.session_key != other_root.session_key
+
+
 def test_feishu_sdk_isolates_its_loop_from_running_gateway_loop(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -503,3 +604,96 @@ def test_feishu_sdk_receives_the_same_allowlist_policy(monkeypatch) -> None:
     assert policy.group_allowlist == ['c1']
     assert channel._config.security.is_strict
     assert channel._config.security.strict_content_text
+    assert channel._config.log_level.name == 'WARNING'
+
+
+def test_feishu_adapter_daemon_lifecycle_stops_cleanly() -> None:
+    class FakeChannel:
+        def __init__(self) -> None:
+            self.started = threading.Event()
+            self.release = threading.Event()
+            self.stopped = False
+            self.handlers: dict[str, object] = {}
+
+        def on(self, name: str, handler) -> None:
+            self.handlers[name] = handler
+
+        def start(self) -> None:
+            self.started.set()
+            self.release.wait(timeout=1)
+            raise RuntimeError('event loop stopped during intentional shutdown')
+
+        def stop(self, *, join_timeout: float) -> None:
+            assert join_timeout == 0.5
+            assert threading.current_thread().daemon
+            assert threading.current_thread().name == 'forge-feishu-stop'
+            self.stopped = True
+            self.release.set()
+
+    async def run() -> None:
+        channel = FakeChannel()
+        adapter = FeishuChannelAdapter(
+            ChannelConfig(
+                platform='feishu',
+                tenantId='tenant',
+                allowedUsers=('u1',),
+            ),
+            channel=channel,
+        )
+
+        task = asyncio.create_task(
+            adapter.start(lambda _value: None, lambda _value: None)
+        )
+        assert await asyncio.to_thread(channel.started.wait, 1)
+
+        await adapter.stop()
+        await asyncio.wait_for(task, timeout=1)
+        assert channel.stopped
+        assert adapter._worker is None
+
+    asyncio.run(run())
+
+
+def test_feishu_adapter_stop_is_bounded_when_sdk_stop_hangs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeChannel:
+        def __init__(self) -> None:
+            self.started = threading.Event()
+            self.stop_started = threading.Event()
+            self.release = threading.Event()
+
+        def on(self, _name: str, _handler) -> None:
+            return None
+
+        def start(self) -> None:
+            self.started.set()
+            self.release.wait(timeout=1)
+
+        def stop(self, *, join_timeout: float) -> None:
+            assert join_timeout == 0.5
+            self.stop_started.set()
+            self.release.wait(timeout=1)
+
+    async def run() -> None:
+        monkeypatch.setattr(feishu_module, '_SDK_STOP_TIMEOUT_SECONDS', 0.05)
+        channel = FakeChannel()
+        adapter = FeishuChannelAdapter(
+            ChannelConfig(
+                platform='feishu',
+                tenantId='tenant',
+                allowedUsers=('u1',),
+            ),
+            channel=channel,
+        )
+        task = asyncio.create_task(
+            adapter.start(lambda _value: None, lambda _value: None)
+        )
+        assert await asyncio.to_thread(channel.started.wait, 1)
+
+        await asyncio.wait_for(adapter.stop(), timeout=0.5)
+        assert channel.stop_started.is_set()
+        channel.release.set()
+        await asyncio.wait_for(task, timeout=1)
+
+    asyncio.run(run())

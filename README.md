@@ -164,7 +164,11 @@ Saved FEISHU_ALLOWED_USERS to .env.
 uv run forge gateway --channel feishu-main
 ```
 
+Windows 下启动成功后应看到 `[Gateway] Windows Ctrl+C direct handler active`，表示退出按键由 ForgeCode 直接接管，不依赖 `uv` 转发。Gateway 会在终端实时显示消息正文预览、话题对应的 Session、模型迭代、工具名称与参数、工具结果摘要、Token 用量、变更路径、回复预览和退出清理过程。`secret`、`token`、`api_key`、`password`、`authorization` 等参数字段会自动脱敏，长内容会截断。首次按 `Ctrl+C` 会执行有界清理；如果第三方 SDK 卡住，10 秒后会强制结束 Gateway 子进程，再按一次 `Ctrl+C` 可立即强制退出。
+
 然后在飞书私聊“ForgeCode 办公助手”。飞书消息会被转发给 ForgeCode，ForgeCode 的回复会返回到原消息所在的会话。
+
+每条飞书顶层消息都会创建一个独立的 ForgeCode 话题上下文；点击该消息下方的“回复话题”继续发送时会复用这个上下文，直接在底部输入框发送另一条顶层消息则会创建新上下文。不同话题、群聊话题和私聊话题互不串线，ForgeCode 的回复也会发送回原话题。
 
 不需要使用特殊命令，直接用自然语言描述任务即可，例如：
 
@@ -294,7 +298,7 @@ uv run python -m extensions.qwen_tool_distillation build-sft data/teacher.jsonl 
 - 上下文工程：WorkingState、项目规则、历史压缩、长期 Markdown 记忆和只读 Explore Agent。
 - 会话恢复：append-only Session Journal、文件 Checkpoint、`/undo`、`/rewind` 和会话分支。
 - 权限与扩展：用户/项目/会话规则、Hooks、MCP、Skill 和审计轨迹。
-- 办公 Channel：飞书 WebSocket 消息接入、白名单、事件去重、按聊天隔离会话和聊天审批。
+- 办公 Channel：飞书 WebSocket 消息接入、白名单、事件去重、按聊天和话题隔离会话、聊天审批。
 - 工具调用蒸馏：Qwen-compatible adapter、provider-neutral 轨迹、独立数据清洗和 SFT/DPO/GRPO 资产接口。
 
 ## 架构导航

@@ -7,8 +7,10 @@ from datetime import datetime
 import os
 from pathlib import Path
 import secrets
+import signal
 import sys
-from typing import Annotated, Any
+import threading
+from typing import Annotated, Any, Callable
 
 import typer
 from dotenv import load_dotenv, set_key
@@ -1119,6 +1121,155 @@ def show_integrations() -> None:
             typer.echo('  missing environment: ' + ', '.join(missing))
 
 
+def _start_windows_ctrl_c_reader(
+    on_ctrl_c: Callable[[], None],
+) -> Callable[[], None] | None:
+    if os.name != 'nt' or not sys.stdin.isatty():
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        import msvcrt
+
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        get_std_handle = kernel32.GetStdHandle
+        get_std_handle.argtypes = [wintypes.DWORD]
+        get_std_handle.restype = wintypes.HANDLE
+        get_console_mode = kernel32.GetConsoleMode
+        get_console_mode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        get_console_mode.restype = wintypes.BOOL
+        set_console_mode = kernel32.SetConsoleMode
+        set_console_mode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        set_console_mode.restype = wintypes.BOOL
+
+        handle = get_std_handle(wintypes.DWORD(-10))
+        original_mode = wintypes.DWORD()
+        if not handle or not get_console_mode(handle, ctypes.byref(original_mode)):
+            return None
+        if not set_console_mode(handle, original_mode.value & ~0x0001):
+            return None
+    except (ImportError, OSError, ValueError):
+        return None
+
+    stopped = threading.Event()
+
+    def read_console() -> None:
+        while not stopped.is_set():
+            try:
+                character = msvcrt.getwch()
+            except (OSError, ValueError):
+                return
+            if character == '\x03':
+                on_ctrl_c()
+
+    threading.Thread(
+        target=read_console,
+        name='forge-windows-ctrl-c',
+        daemon=True,
+    ).start()
+
+    def restore() -> None:
+        stopped.set()
+        set_console_mode(handle, original_mode.value)
+
+    return restore
+
+
+_GATEWAY_FORCE_EXIT_SECONDS = 10.0
+
+
+def _exit_gateway_process() -> None:
+    try:
+        os.write(2, b'Forcing ForgeCode gateway process exit.\n')
+    except OSError:
+        pass
+    os._exit(130)
+
+
+def _force_exit_if_stuck(process_stopped: threading.Event) -> None:
+    if not process_stopped.wait(_GATEWAY_FORCE_EXIT_SECONDS):
+        _exit_gateway_process()
+
+
+def _exit_gateway_process_cleanly() -> None:
+    try:
+        os.write(1, b'Gateway stopped.\n')
+    except OSError:
+        pass
+    os._exit(0)
+
+
+async def serve_channel_gateway(
+    gateway: ChannelGateway,
+    process_stopped: threading.Event | None = None,
+) -> bool:
+    '''Run a channel gateway with explicit Windows console signal handling.'''
+    loop = asyncio.get_running_loop()
+    stop_requested = asyncio.Event()
+    previous_handlers: list[tuple[int, Any]] = []
+    stop_signal_received = False
+
+    def request_stop(_signum: int, _frame: Any) -> None:
+        nonlocal stop_signal_received
+        if stop_signal_received:
+            if process_stopped is not None:
+                _exit_gateway_process()
+            return
+        stop_signal_received = True
+        if process_stopped is not None:
+            threading.Thread(
+                target=_force_exit_if_stuck,
+                args=(process_stopped,),
+                name='forge-gateway-exit-watchdog',
+                daemon=True,
+            ).start()
+        loop.call_soon_threadsafe(stop_requested.set)
+
+    watched_signals = [signal.SIGINT]
+    sigbreak = getattr(signal, 'SIGBREAK', None)
+    if sigbreak is not None:
+        watched_signals.append(sigbreak)
+    for watched in watched_signals:
+        previous_handlers.append((watched, signal.getsignal(watched)))
+        signal.signal(watched, request_stop)
+    restore_console_input = _start_windows_ctrl_c_reader(
+        lambda: request_stop(signal.SIGINT, None)
+    )
+    if restore_console_input is not None:
+        typer.echo('[Gateway] Windows Ctrl+C direct handler active')
+
+    gateway_task = asyncio.create_task(gateway.run())
+    stop_task = asyncio.create_task(stop_requested.wait())
+    try:
+        done, _ = await asyncio.wait(
+            (gateway_task, stop_task),
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        if stop_task in done:
+            typer.echo('Stopping ForgeCode gateway...')
+        if gateway_task in done:
+            await gateway_task
+    finally:
+        stop_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await stop_task
+        try:
+            await gateway.close()
+            if not gateway_task.done():
+                try:
+                    await asyncio.wait_for(gateway_task, timeout=5.0)
+                except TimeoutError:
+                    gateway_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await gateway_task
+        finally:
+            if restore_console_input is not None:
+                restore_console_input()
+            for watched, previous in previous_handlers:
+                signal.signal(watched, previous)
+    return stop_signal_received
+
+
 @app.command('gateway')
 def run_gateway(
     channel: Annotated[
@@ -1175,16 +1326,21 @@ def run_gateway(
             config=config,
             runtime_factory=runtime_factory,
             state_directory=state_directory,
+            progress=typer.echo,
         )
 
-        async def serve() -> None:
-            try:
-                await gateway.run()
-            finally:
-                await gateway.close()
-
         typer.echo(f'Starting ForgeCode gateway: {channel} ({config.platform})')
-        asyncio.run(serve())
+        process_stopped = threading.Event()
+        interrupted = False
+        try:
+            interrupted = asyncio.run(
+                serve_channel_gateway(gateway, process_stopped)
+            )
+        finally:
+            process_stopped.set()
+        if interrupted:
+            _exit_gateway_process_cleanly()
+        typer.echo('Gateway stopped.')
     except (ChannelConfigurationError, ConfigurationError) as error:
         print_configuration_error(error)
         raise typer.Exit(code=1) from error

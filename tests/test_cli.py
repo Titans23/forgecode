@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Iterator
 import os
 from pathlib import Path
 from types import SimpleNamespace
+import threading
 
 import pytest
 from typer.testing import CliRunner
@@ -796,3 +797,73 @@ def test_config_command_explains_missing_model_id(
 
     assert result.exit_code == 1
     assert 'MODEL_ID is not set.' in result.output
+
+
+def test_serve_channel_gateway_handles_sigint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    handlers: dict[int, object] = {}
+    monkeypatch.setattr(cli_module.signal, 'getsignal', lambda _signal: 'previous')
+    monkeypatch.setattr(
+        cli_module.signal,
+        'signal',
+        lambda watched, handler: handlers.__setitem__(watched, handler),
+    )
+    console_callbacks = []
+    console_restored: list[bool] = []
+
+    def start_console_reader(callback):
+        console_callbacks.append(callback)
+        return lambda: console_restored.append(True)
+
+    monkeypatch.setattr(
+        cli_module,
+        '_start_windows_ctrl_c_reader',
+        start_console_reader,
+    )
+
+    class FakeGateway:
+        def __init__(self) -> None:
+            self.started = asyncio.Event()
+            self.release = asyncio.Event()
+            self.closed = False
+
+        async def run(self) -> None:
+            self.started.set()
+            await self.release.wait()
+
+        async def close(self) -> None:
+            self.closed = True
+            self.release.set()
+
+    async def run() -> None:
+        gateway = FakeGateway()
+        process_stopped = threading.Event()
+        watchdog_started = threading.Event()
+        forced_exits: list[bool] = []
+        monkeypatch.setattr(
+            cli_module,
+            '_force_exit_if_stuck',
+            lambda _stopped: watchdog_started.set(),
+        )
+        monkeypatch.setattr(
+            cli_module,
+            '_exit_gateway_process',
+            lambda: forced_exits.append(True),
+        )
+        task = asyncio.create_task(
+            cli_module.serve_channel_gateway(gateway, process_stopped)
+        )
+        await gateway.started.wait()
+        handler = handlers[cli_module.signal.SIGINT]
+        console_callbacks[0]()
+        handler(cli_module.signal.SIGINT, None)
+        interrupted = await asyncio.wait_for(task, timeout=1)
+        process_stopped.set()
+        assert await asyncio.to_thread(watchdog_started.wait, 1)
+        assert interrupted
+        assert gateway.closed
+        assert forced_exits == [True]
+        assert console_restored == [True]
+
+    asyncio.run(run())

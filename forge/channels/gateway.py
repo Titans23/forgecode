@@ -15,7 +15,47 @@ from forge.channels.base import ChannelAdapter
 from forge.channels.config import ChannelConfig
 from forge.channels.models import ApprovalAction, InboundMessage, OutboundMessage
 from forge.permissions.policy import ApprovalResponse, PermissionRequest
-from forge.runtime.state import ModelTextDelta, TurnCompleted
+from forge.runtime.state import (
+    ModelCallCompleted,
+    ModelCallFailed,
+    ModelCallStarted,
+    ModelTextDelta,
+    ToolExecutionCompleted,
+    ToolExecutionStarted,
+    TurnCompleted,
+)
+
+
+_SENSITIVE_LOG_KEYS = ('secret', 'token', 'api_key', 'password', 'authorization')
+
+
+def _safe_log_value(value: Any, *, key: str = '') -> Any:
+    if any(marker in key.lower() for marker in _SENSITIVE_LOG_KEYS):
+        return '***'
+    if isinstance(value, dict):
+        return {
+            str(item_key): _safe_log_value(item, key=str(item_key))
+            for item_key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_safe_log_value(item) for item in value]
+    return value
+
+
+def _log_preview(value: Any, *, limit: int = 500) -> str:
+    if isinstance(value, str):
+        rendered = value
+    else:
+        try:
+            rendered = json.dumps(
+                _safe_log_value(value),
+                ensure_ascii=False,
+                default=str,
+            )
+        except (TypeError, ValueError):
+            rendered = str(value)
+    rendered = rendered.replace('\r', '\\r').replace('\n', '\\n')
+    return rendered if len(rendered) <= limit else rendered[:limit] + '…'
 
 
 @dataclass(slots=True)
@@ -166,6 +206,7 @@ class ChannelSessionIndex:
 
 
 RuntimeFactory = Callable[[str | None], tuple[Any, Any, Any]]
+ProgressReporter = Callable[[str], None]
 
 
 class ChannelGateway:
@@ -178,10 +219,12 @@ class ChannelGateway:
         config: ChannelConfig,
         runtime_factory: RuntimeFactory,
         state_directory: Path,
+        progress: ProgressReporter | None = None,
     ) -> None:
         self.adapter = adapter
         self.config = config
         self.runtime_factory = runtime_factory
+        self.progress = progress
         self.approvals = ApprovalBroker()
         self.deduplicator = DurableEventDeduplicator(
             state_directory / 'channel-events.log'
@@ -193,22 +236,53 @@ class ChannelGateway:
         self._runtimes: dict[str, Any] = {}
 
     async def run(self) -> None:
+        self._report('[Feishu] waiting for messages')
         await self.adapter.start(self.handle_message, self.approvals.resolve)
 
     async def close(self) -> None:
+        self._report('[Gateway] stopping')
         self.approvals.close()
+        await self.adapter.stop()
+        runtime_closures = []
         for runtime in self._runtimes.values():
             close = getattr(runtime, 'runtime_close', None)
             if close is not None:
-                await close(reason='gateway_stop')
+                runtime_closures.append(close(reason='gateway_stop'))
         self._runtimes.clear()
-        await self.adapter.stop()
+        if runtime_closures:
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*runtime_closures, return_exceptions=True),
+                    timeout=5.0,
+                )
+                for result in results:
+                    if isinstance(result, BaseException):
+                        self._report(
+                            f'[Gateway] runtime cleanup failed '
+                            f'type={type(result).__name__}'
+                        )
+            except TimeoutError:
+                self._report('[Gateway] runtime cleanup timed out after 5 seconds')
+        self._report('[Gateway] stopped')
 
     async def handle_message(self, message: InboundMessage) -> None:
         if not self.config.accepts(message):
+            self._report(
+                f'[Feishu] ignored unauthorized message={message.message_id or "missing"}'
+            )
             return
-        if not message.message_id or not self.deduplicator.reserve(message):
+        if not message.message_id:
+            self._report('[Feishu] ignored message without message_id')
             return
+        if not self.deduplicator.reserve(message):
+            self._report(f'[Feishu] ignored duplicate message={message.message_id}')
+            return
+        topic = message.thread_id or 'main'
+        self._report(
+            f'[Feishu] received message={message.message_id} '
+            f'chat={message.chat_id} topic={topic} sender={message.sender_id} '
+            f'text={_log_preview(message.text, limit=300)}'
+        )
         key = message.session_key
         lock = self._locks.setdefault(key, asyncio.Lock())
         async with lock:
@@ -218,6 +292,10 @@ class ChannelGateway:
                 runtime, journal, _ = self.runtime_factory(identifier)
                 self._runtimes[key] = runtime
                 self.sessions.set(key, journal.session_id)
+                self._report(
+                    f'[Session] {"resumed" if identifier else "created"} '
+                    f'session={journal.session_id} topic={topic}'
+                )
                 start = getattr(runtime, 'session_start', None)
                 if start is not None:
                     await start(source=f'channel:{message.platform}')
@@ -242,13 +320,58 @@ class ChannelGateway:
                         record(event)
                     if isinstance(event, ModelTextDelta):
                         response_parts.append(event.text)
+                    elif isinstance(event, ModelCallStarted):
+                        self._report(
+                            f'[Model] call started iteration={event.iteration}'
+                        )
+                    elif isinstance(event, ModelCallCompleted):
+                        self._report(
+                            f'[Model] call completed iteration={event.iteration}'
+                        )
+                    elif isinstance(event, ModelCallFailed):
+                        self._report(
+                            f'[Model] call failed iteration={event.iteration} '
+                            f'retryable={event.retryable} '
+                            f'reason={_log_preview(event.reason)}'
+                        )
+                    elif isinstance(event, ToolExecutionStarted):
+                        self._report(
+                            f'[Tool] started name={event.tool_call.name} '
+                            f'id={event.tool_call.id} '
+                            f'arguments={_log_preview(event.tool_call.arguments)}'
+                        )
+                    elif isinstance(event, ToolExecutionCompleted):
+                        error_code = (
+                            event.result.error.code
+                            if event.result.error is not None
+                            else '-'
+                        )
+                        self._report(
+                            f'[Tool] completed name={event.tool_call.name} '
+                            f'id={event.tool_call.id} '
+                            f'success={event.result.success} error={error_code} '
+                            f'summary={_log_preview(event.result.summary)} '
+                            f'content={_log_preview(event.result.content)}'
+                        )
                     elif isinstance(event, TurnCompleted):
                         result_text = event.result.text
+                        self._report(
+                            f'[Turn] completed status={event.result.status} '
+                            f'model_calls={event.result.model_calls} '
+                            f'tokens={event.result.usage.total_tokens} '
+                            f'changed_paths={_log_preview(event.result.changed_paths)}'
+                        )
             except Exception as error:
                 recorder = getattr(runtime, 'record_session_error', None)
                 if recorder is not None:
                     recorder(error)
-                result_text = f'ForgeCode failed to process this request: {type(error).__name__}'
+                result_text = (
+                    'ForgeCode failed to process this request: '
+                    f'{type(error).__name__}'
+                )
+                self._report(
+                    f'[ForgeCode] request failed type={type(error).__name__}'
+                )
             text = result_text or ''.join(response_parts).strip()
             if text:
                 await self.adapter.send(
@@ -259,3 +382,12 @@ class ChannelGateway:
                         thread_id=message.thread_id,
                     )
                 )
+                self._report(
+                    f'[Feishu] reply sent message={message.message_id} '
+                    f'topic={topic} characters={len(text)} '
+                    f'text={_log_preview(text, limit=300)}'
+                )
+
+    def _report(self, message: str) -> None:
+        if self.progress is not None:
+            self.progress(message)
