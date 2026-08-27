@@ -940,7 +940,7 @@ def test_apply_patch_standard_diff_rejects_repository_escape(
     assert result.success is False
     assert result.error is not None
     assert result.error.code == 'patch_rejected'
-    assert 'outside the repository' in result.content
+    assert "invalid path '../standard-outside.txt'" in result.content
     assert not outside.exists()
 
 

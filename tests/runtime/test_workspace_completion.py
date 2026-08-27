@@ -131,6 +131,34 @@ def test_create_directory_is_visible_to_completion_gate(tmp_path: Path) -> None:
     assert decision.allowed is True
 
 
+def test_workspace_tracker_records_absolute_external_changes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'repository'
+    root.mkdir()
+    initialize_git_repository(root)
+    external = tmp_path / 'external.txt'
+    tracker = WorkspaceTracker(root)
+    run(tracker.begin_turn())
+    tracker.watch_paths((str(external.resolve()),))
+
+    external.write_text('outside change\n', encoding='utf-8')
+    change = run(tracker.refresh())
+    decision = run(
+        CompletionGate(root).evaluate(
+            tracker,
+            None,
+            mutation_attempted=True,
+        )
+    )
+
+    shown_path = external.resolve().as_posix()
+    assert change is not None
+    assert change.paths == (shown_path,)
+    assert tracker.changed_paths == (shown_path,)
+    assert decision.allowed is True
+
+
 def test_workspace_tracker_preserves_preexisting_user_changes(
     tmp_path: Path,
 ) -> None:

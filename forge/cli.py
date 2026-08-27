@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import datetime
 import os
 from pathlib import Path
+import re
 import secrets
 import signal
 import sys
@@ -53,6 +54,7 @@ from forge.terminal import (
     TerminalUI,
 )
 from forge.tools import create_default_registry
+from forge.tools.base import is_repository_path_protected
 
 
 app = typer.Typer(
@@ -575,6 +577,12 @@ async def _run_interactive_chat(
             continue
 
         try:
+            prompt = expand_file_mentions(prompt, Path.cwd())
+        except ValueError as error:
+            resolved_terminal.show_notice('File mention', str(error))
+            continue
+
+        try:
             with resolved_terminal.stream_response() as response_view:
                 active_response_view = response_view
                 try:
@@ -597,6 +605,44 @@ async def _run_interactive_chat(
         except Exception as error:
             resolved_terminal.show_error(error)
             continue
+
+
+FILE_MENTION_PATTERN = re.compile(r'(?<!\S)@([^\s]+)')
+
+
+def expand_file_mentions(prompt: str, root: Path) -> str:
+    '''Append UTF-8 working-directory files referenced as @path.'''
+    resolved_root = root.resolve()
+    references: list[tuple[str, str]] = []
+    seen: set[Path] = set()
+    for match in FILE_MENTION_PATTERN.finditer(prompt):
+        raw_path = match.group(1)
+        candidate = (resolved_root / raw_path).resolve(strict=False)
+        try:
+            relative = candidate.relative_to(resolved_root)
+        except ValueError as error:
+            raise ValueError(
+                f'@{raw_path} is outside the working directory.'
+            ) from error
+        if is_repository_path_protected(relative):
+            raise ValueError(f'@{raw_path} is a protected file.')
+        if not candidate.is_file():
+            raise ValueError(f'@{raw_path} is not a file.')
+        if candidate in seen:
+            continue
+        try:
+            content = candidate.read_text(encoding='utf-8')
+        except UnicodeDecodeError as error:
+            raise ValueError(f'@{raw_path} is not a UTF-8 text file.') from error
+        seen.add(candidate)
+        references.append((relative.as_posix(), content))
+    if not references:
+        return prompt
+    blocks = [
+        f'[Referenced file: {path}]\n{content}'
+        for path, content in references
+    ]
+    return prompt + '\n\n' + '\n\n'.join(blocks)
 
 
 async def render_streamed_turn(

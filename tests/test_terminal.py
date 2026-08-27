@@ -1,6 +1,7 @@
 '''Tests for the Rich terminal presentation.'''
 
 from io import StringIO
+from pathlib import Path
 
 from prompt_toolkit.application import create_app_session
 from prompt_toolkit.completion import CompleteEvent
@@ -231,6 +232,28 @@ def test_slash_completion_filters_and_replaces_current_input() -> None:
         '/memory show '
     ]
     assert completions[0].start_position == -len('/memory s')
+
+
+def test_file_mention_completion_uses_working_directory(tmp_path) -> None:
+    source = tmp_path / 'src'
+    source.mkdir()
+    (source / 'app.py').write_text('print("ready")\n', encoding='utf-8')
+    (tmp_path / '.env').write_text('SECRET=value\n', encoding='utf-8')
+    completer = SlashCommandCompleter(tmp_path)
+
+    completions = list(
+        completer.get_completions(
+            Document(
+                text='review @src/a',
+                cursor_position=len('review @src/a'),
+            ),
+            CompleteEvent(completion_requested=True),
+        )
+    )
+
+    assert [item.text for item in completions] == ['src/app.py']
+    assert completions[0].display_text == '@src/app.py'
+    assert completions[0].start_position == -len('src/a')
 
 
 def test_normal_prompt_does_not_offer_slash_commands() -> None:

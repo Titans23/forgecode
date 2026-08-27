@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
 DEFAULT_MODEL_MAX_TOKENS = 8_192
 DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS = 120.0
+FORGECODE_ENV_PATH = Path(__file__).resolve().parent.parent / '.env'
 
 
 class ConfigurationError(ValueError):
@@ -74,9 +75,12 @@ class ForgeConfig:
         cls,
         environ: Mapping[str, str] | None = None,
     ) -> ForgeConfig:
-        '''Load Anthropic-compatible settings from environment variables.'''
+        '''Load settings from the environment or the nearest supported .env.'''
         if environ is None:
-            load_dotenv(dotenv_path=Path.cwd() / '.env', override=False)
+            dotenv_path = Path.cwd() / '.env'
+            if not dotenv_path.is_file():
+                dotenv_path = FORGECODE_ENV_PATH
+            load_dotenv(dotenv_path=dotenv_path, override=False)
             source: Mapping[str, str] = os.environ
         else:
             source = environ

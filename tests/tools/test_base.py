@@ -38,10 +38,10 @@ def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> 
     assert exposed == [
         name
         for name in registry.names
-        if name not in {'write_file_chunk', 'replace_text'}
+        if name != 'write_file_chunk'
     ]
     assert 'write_file_chunk' not in exposed
-    assert 'replace_text' not in exposed
+    assert 'replace_text' in exposed
     assert all(
         definition['input_schema']['type'] == 'object'
         for definition in registry.definitions
@@ -123,11 +123,21 @@ def test_tool_validation_failure_explains_oversized_content(
     )
 
 
-def test_repository_escape_returns_structured_error(tmp_path: Path) -> None:
-    registry = create_default_registry(tmp_path)
+def test_repository_tools_can_read_paths_outside_working_directory(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'workspace'
+    root.mkdir()
+    secret = tmp_path / 'shared.txt'
+    secret.write_text('shared content\n', encoding='utf-8')
+    registry = create_default_registry(root)
 
-    result = run(registry.execute('read_file', {'path': '../secret.txt'}))
+    relative = run(registry.execute('read_file', {'path': '../shared.txt'}))
+    absolute = run(
+        registry.execute('read_file', {'path': str(secret.resolve())})
+    )
 
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'path_outside_repository'
+    assert relative.success is True
+    assert absolute.success is True
+    assert 'shared content' in relative.content
+    assert absolute.metadata['path'] == secret.resolve().as_posix()

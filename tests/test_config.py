@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import forge.config as config_module
 from forge.config import (
     DEFAULT_ANTHROPIC_BASE_URL,
     DEFAULT_MODEL_MAX_TOKENS,
@@ -64,6 +65,57 @@ def test_config_loads_dotenv_from_current_directory(
     assert config.api_key == 'dotenv-key'
     assert config.model_id == 'dotenv-model'
     assert config.base_url == 'http://localhost:8080/anthropic'
+
+
+def test_config_loads_dotenv_from_forgecode_directory_as_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    working_directory = tmp_path / 'workspace'
+    working_directory.mkdir()
+    fallback_env = tmp_path / 'forgecode.env'
+    fallback_env.write_text(
+        'ANTHROPIC_API_KEY=fallback-key\n'
+        'MODEL_ID=fallback-model\n',
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(working_directory)
+    monkeypatch.setattr(config_module, 'FORGECODE_ENV_PATH', fallback_env)
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    monkeypatch.delenv('MODEL_ID', raising=False)
+
+    config = ForgeConfig.from_env()
+
+    assert config.api_key == 'fallback-key'
+    assert config.model_id == 'fallback-model'
+
+
+def test_current_directory_dotenv_takes_priority_over_forgecode_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    working_directory = tmp_path / 'workspace'
+    working_directory.mkdir()
+    (working_directory / '.env').write_text(
+        'ANTHROPIC_API_KEY=workspace-key\n'
+        'MODEL_ID=workspace-model\n',
+        encoding='utf-8',
+    )
+    fallback_env = tmp_path / 'forgecode.env'
+    fallback_env.write_text(
+        'ANTHROPIC_API_KEY=fallback-key\n'
+        'MODEL_ID=fallback-model\n',
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(working_directory)
+    monkeypatch.setattr(config_module, 'FORGECODE_ENV_PATH', fallback_env)
+    monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+    monkeypatch.delenv('MODEL_ID', raising=False)
+
+    config = ForgeConfig.from_env()
+
+    assert config.api_key == 'workspace-key'
+    assert config.model_id == 'workspace-model'
 
 
 def test_environment_variables_override_dotenv(

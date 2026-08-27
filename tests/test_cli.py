@@ -11,6 +11,7 @@ import pytest
 from typer.testing import CliRunner
 
 import forge.cli as cli_module
+import forge.config as config_module
 from forge.cli import app
 from forge.config import ConfigurationError
 from forge.runtime.state import (
@@ -341,6 +342,32 @@ def test_cli_starts_an_interactive_conversation(
     assert 'total 23' in result.output
     assert 'Session ended.' in result.output
     assert conversation.prompts == ['first', 'second']
+
+
+def test_expand_file_mentions_appends_file_content(tmp_path: Path) -> None:
+    source = tmp_path / 'src'
+    source.mkdir()
+    (source / 'app.py').write_text('print("ready")\n', encoding='utf-8')
+
+    expanded = cli_module.expand_file_mentions(
+        'Review @src/app.py and @src/app.py',
+        tmp_path,
+    )
+
+    assert expanded.startswith('Review @src/app.py and @src/app.py')
+    assert expanded.count('[Referenced file: src/app.py]') == 1
+    assert 'print("ready")' in expanded
+
+
+@pytest.mark.parametrize('mention', ['@../outside.py', '@.env', '@missing.py'])
+def test_expand_file_mentions_rejects_unsafe_or_missing_files(
+    tmp_path: Path,
+    mention: str,
+) -> None:
+    (tmp_path / '.env').write_text('SECRET=value\n', encoding='utf-8')
+
+    with pytest.raises(ValueError):
+        cli_module.expand_file_mentions(f'Review {mention}', tmp_path)
 
 
 def test_context_command_does_not_call_model(
@@ -708,6 +735,11 @@ def test_config_command_explains_missing_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        config_module,
+        'FORGECODE_ENV_PATH',
+        tmp_path / 'missing.env',
+    )
     monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
     monkeypatch.delenv('MODEL_ID', raising=False)
     monkeypatch.delenv('ANTHROPIC_BASE_URL', raising=False)
@@ -789,6 +821,11 @@ def test_config_command_explains_missing_model_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        config_module,
+        'FORGECODE_ENV_PATH',
+        tmp_path / 'missing.env',
+    )
     monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
     monkeypatch.delenv('MODEL_ID', raising=False)
     monkeypatch.delenv('ANTHROPIC_BASE_URL', raising=False)

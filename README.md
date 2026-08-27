@@ -24,6 +24,7 @@ CLI 需要 Python 3.12、[uv](https://docs.astral.sh/uv/) 和一个 Anthropic �
 git clone https://github.com/Titans23/forgecode.git
 cd forgecode
 uv sync
+uv tool install --editable .
 Copy-Item .env.example .env
 ```
 
@@ -34,14 +35,18 @@ ANTHROPIC_API_KEY=your-api-key
 MODEL_ID=claude-sonnet-4-6
 ```
 
-然后检查配置并启动：
+`uv tool install --editable .` 会把 `forge` 安装为当前用户的全局命令，同时保留对本地源码的引用。之后可以在任意工作目录检查配置并启动：
 
 ```powershell
-uv run forge config
-uv run forge
+forge config
+forge
 ```
 
+如果当前终端仍然找不到 `forge`，执行 `uv tool update-shell` 后重新打开终端。
+
 `forge config` 只显示 `API key: configured`，不会回显密钥。使用兼容接口时，可以同时设置 `ANTHROPIC_BASE_URL`。
+
+配置加载优先使用启动 `forge` 时所在目录的 `.env`；如果该目录没有 `.env`，则回退到 ForgeCode 源码目录的 `.env`。进程中已经设置的环境变量仍具有最高优先级。
 
 如果本机没有 `uv`，也可以在已安装依赖的 Python 环境中使用：
 
@@ -78,6 +83,10 @@ forge --version               显示版本
 /undo、/rewind                回退代码或会话
 /memory list                  查看长期记忆
 ```
+
+在提示词中输入 `@相对路径` 可以把启动目录中的 UTF-8 文本文件加入当前消息；交互终端会按路径前缀补全可选文件。例如：`请检查 @forge/config.py`。
+
+内置文件工具同时接受相对于启动目录的路径、`..` 路径和绝对路径，因此可以访问与修改启动目录外的文件。`find_files` 和 `grep` 会遍历 `.git`、`node_modules` 等目录，不再应用生成目录忽略表；为保护凭据和 ForgeCode 运行状态，`.env`、`.env.*` 与 `.forge` 仍不可通过这些工具访问。
 
 三种权限模式：
 
@@ -416,7 +425,7 @@ Harbor 是可选的外部评测后端，不是普通 CLI 的运行依赖。运�
 
 ## 安全边界和已知限制
 
-- 仓库路径、敏感文件、删除操作和命令风险由应用层规则控制。
+- 文件路径、敏感文件、删除操作和命令风险由应用层规则控制；文件工具支持全局路径，但 `.env` 与 `.forge` 仍受保护。
 - 当前默认面向可信本机仓库和受监督的高风险操作。
 - ForgeCode 目前不是操作系统级沙箱；CPU、内存、进程数以及原生文件系统/网络的强隔离仍依赖后续 Sandbox Backend。
 - ForgeCode 不内置浏览器、截图或视觉理解工具，网页和游戏项目主要通过源码、命令、构建、测试和 HTTP 资源加载进行验证。

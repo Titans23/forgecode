@@ -57,14 +57,16 @@ class WorkspaceTracker:
         '''Capture task baselines for tool targets, including ignored files.'''
         for raw_path in paths:
             candidate = Path(raw_path)
-            if candidate.is_absolute():
-                continue
-            resolved = (self.root / candidate).resolve(strict=False)
+            resolved = (
+                candidate.resolve(strict=False)
+                if candidate.is_absolute()
+                else (self.root / candidate).resolve(strict=False)
+            )
             try:
-                relative = resolved.relative_to(self.root)
+                shown_path = resolved.relative_to(self.root)
             except ValueError:
-                continue
-            normalized = normalize_path(str(relative))
+                shown_path = resolved
+            normalized = normalize_path(str(shown_path))
             if normalized in self._watched_paths:
                 continue
             fingerprint = fingerprint_path(self.root, normalized)

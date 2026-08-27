@@ -170,7 +170,7 @@ def test_remove_directory_can_clear_contents_and_keep_root(
     assert list(root.iterdir()) == []
 
 
-def test_remove_directory_rejects_repository_root_and_control_plane(
+def test_remove_directory_rejects_root_but_allows_git_directory(
     tmp_path: Path,
 ) -> None:
     (tmp_path / '.git').mkdir()
@@ -182,10 +182,8 @@ def test_remove_directory_rejects_repository_root_and_control_plane(
     assert root_result.success is False
     assert root_result.error is not None
     assert root_result.error.code == 'protected_path'
-    assert git_result.success is False
-    assert git_result.error is not None
-    assert git_result.error.code == 'protected_path'
-    assert (tmp_path / '.git').is_dir()
+    assert git_result.success is True
+    assert not (tmp_path / '.git').exists()
 
 
 def test_remove_directory_requests_high_risk_delete_permission(
@@ -263,11 +261,12 @@ def test_list_directory_hides_control_and_environment_paths(
 
     assert result.success is True
     assert result.content.splitlines() == [
+        '.git/',
         '.env.example',
         '.gitignore',
         'app.py',
     ]
-    assert result.metadata['entry_count'] == 3
+    assert result.metadata['entry_count'] == 4
 
 
 def test_read_file_directory_error_recommends_list_directory(
@@ -331,7 +330,6 @@ def test_read_file_rejects_control_and_sensitive_environment_paths(
 
     for path in (
         '.forge/trajectory.jsonl',
-        '.git/config',
         '.env',
         '.env.local',
         '.env.production',
@@ -341,6 +339,10 @@ def test_read_file_rejects_control_and_sensitive_environment_paths(
         assert result.success is False
         assert result.error is not None
         assert result.error.code == 'protected_path'
+
+    git_config = run(tool.run({'path': '.git/config'}))
+    assert git_config.success is True
+    assert 'CONTROL_SECRET' in git_config.content
 
 
 def test_read_file_allows_public_env_example_and_gitignore(
@@ -668,7 +670,53 @@ def test_replace_text_preserves_crlf_and_normalizes_replacement_lines(
     )
 
 
-def test_find_files_uses_globs_and_ignores_generated_directories(
+def test_filesystem_tools_support_absolute_paths_outside_workspace(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'workspace'
+    root.mkdir()
+    external = tmp_path / 'external'
+    external.mkdir()
+    target = external / 'shared.txt'
+
+    written = run(
+        WriteFileTool(root).run(
+            {'path': str(target.resolve()), 'content': 'GLOBAL_MARKER\n'}
+        )
+    )
+    listed = run(
+        ListDirectoryTool(root).run({'path': str(external.resolve())})
+    )
+    found = run(
+        FindFilesTool(root).run(
+            {'path': str(external.resolve()), 'pattern': '*.txt'}
+        )
+    )
+    replaced = run(
+        ReplaceTextTool(root).run(
+            {
+                'path': str(target.resolve()),
+                'old_text': 'GLOBAL_MARKER',
+                'new_text': 'UPDATED_MARKER',
+            }
+        )
+    )
+    grepped = run(
+        GrepTool(root).run(
+            {'path': str(external.resolve()), 'pattern': 'UPDATED_MARKER'}
+        )
+    )
+
+    shown_target = target.resolve().as_posix()
+    assert written.success is True
+    assert written.metadata['path'] == shown_target
+    assert listed.content == 'shared.txt'
+    assert found.content == shown_target
+    assert replaced.success is True
+    assert grepped.content == f'{shown_target}:1:UPDATED_MARKER'
+
+
+def test_find_files_includes_generated_directories(
     tmp_path: Path,
 ) -> None:
     create_repository(tmp_path)
@@ -676,7 +724,10 @@ def test_find_files_uses_globs_and_ignores_generated_directories(
     result = run(FindFilesTool(tmp_path).run({'pattern': '*.py'}))
 
     assert result.success is True
-    assert result.content == 'src/app.py'
+    assert result.content.splitlines() == [
+        'node_modules/ignored.py',
+        'src/app.py',
+    ]
     assert result.metadata['truncated'] is False
 
 
@@ -731,6 +782,7 @@ def test_find_files_hides_control_and_environment_paths(
         '.env.example',
         '.gitignore',
         'app.py',
+        '.git/config',
     ]
 
 
@@ -763,8 +815,8 @@ def test_grep_does_not_scan_control_or_sensitive_environment_paths(
     public = run(tool.run({'pattern': 'SAFE_PLACEHOLDER|VISIBLE_MARKER'}))
 
     assert protected.success is True
-    assert protected.content == ''
-    assert protected.metadata['match_count'] == 0
+    assert protected.content == '.git/config:1:CONTROL_SECRET'
+    assert protected.metadata['match_count'] == 1
     assert public.success is True
     assert public.content.splitlines() == [
         '.env.example:1:SAFE_PLACEHOLDER=true',
@@ -777,16 +829,20 @@ def test_direct_search_or_listing_of_protected_paths_is_rejected(
 ) -> None:
     create_protected_repository(tmp_path)
 
-    results = (
+    protected = (
         run(ListDirectoryTool(tmp_path).run({'path': '.forge'})),
-        run(FindFilesTool(tmp_path).run({'path': '.git', 'pattern': '*'})),
         run(GrepTool(tmp_path).run({'path': '.env', 'pattern': 'SECRET'})),
     )
+    git_result = run(
+        FindFilesTool(tmp_path).run({'path': '.git', 'pattern': '*'})
+    )
 
-    for result in results:
+    for result in protected:
         assert result.success is False
         assert result.error is not None
         assert result.error.code == 'protected_path'
+    assert git_result.success is True
+    assert git_result.content == '.git/config'
 
 
 def test_grep_returns_invalid_regex_as_structured_error(

@@ -1,4 +1,4 @@
-'''Repository-scoped file discovery and text search tools.'''
+'''Filesystem file discovery and text search tools.'''
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import re
 from pydantic import Field, field_validator
 
 from forge.tools.base import (
-    IGNORED_DIRECTORIES,
     Tool,
     ToolExecutionError,
     ToolInput,
@@ -30,8 +29,7 @@ def iter_files(path: Path) -> list[Path]:
         directory_names[:] = sorted(
             name
             for name in directory_names
-            if name not in IGNORED_DIRECTORIES
-            and not is_repository_path_protected(Path(name))
+            if not is_repository_path_protected(Path(name))
             and not (Path(directory) / name).is_symlink()
         )
         for file_name in sorted(file_names):
@@ -73,8 +71,8 @@ class FindFilesInput(ToolInput):
 class FindFilesTool(Tool[FindFilesInput]):
     name = 'find_files'
     description = (
-        'Find repository files (never directories) by a glob pattern, '
-        'excluding common generated directories. A zero result does not mean '
+        'Find filesystem files (never directories) by a glob pattern. '
+        'A zero result does not mean '
         'the directory tree is empty; use list_directory for directories. Use '
         'a narrow path and pattern, and do not vary extensions after a zero '
         'result when the task is to remove or clear directories.'
@@ -139,7 +137,7 @@ class GrepInput(ToolInput):
 class GrepTool(Tool[GrepInput]):
     name = 'grep'
     description = (
-        'Search UTF-8 repository files and return path, line number, and '
+        'Search UTF-8 filesystem files and return path, line number, and '
         'matching text. Use it to locate symbols or unknown occurrences before '
         'reading focused files. pattern is a regular expression by default; '
         'set regex=false for literal text containing characters such as '

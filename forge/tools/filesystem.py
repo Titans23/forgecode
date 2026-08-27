@@ -1,4 +1,4 @@
-'''Repository-scoped directory and file reading tools.'''
+'''Filesystem directory, reading, and editing tools.'''
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class ListDirectoryInput(ToolInput):
 class ListDirectoryTool(Tool[ListDirectoryInput]):
     name = 'list_directory'
     description = (
-        'List the direct children of one repository directory. Use it to '
+        'List direct children of a filesystem directory. path accepts an absolute path or a path relative to the working directory. Use it to '
         'discover immediate structure, not file contents or recursive trees. '
         'Do not repeat it unless that directory may have changed.'
     )
@@ -62,7 +62,7 @@ class ListDirectoryTool(Tool[ListDirectoryInput]):
                 entry
                 for entry in directory.iterdir()
                 if not is_repository_path_protected(
-                    entry.relative_to(self.root)
+                    entry
                 )
             ),
             key=lambda path: (not path.is_dir(), path.name.casefold()),
@@ -94,7 +94,7 @@ class CreateDirectoryInput(ToolInput):
 class CreateDirectoryTool(Tool[CreateDirectoryInput]):
     name = 'create_directory'
     description = (
-        'Create one genuinely empty repository directory, including missing '
+        'Create one genuinely empty filesystem directory, including missing '
         'parents. write_file and apply_patch already create parent directories '
         'for concrete files, so do not call create_directory before adding a '
         'file and never use an empty file as a directory marker. Workspace '
@@ -154,7 +154,7 @@ class RemoveDirectoryInput(ToolInput):
 class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
     name = 'remove_directory'
     description = (
-        'Delete one repository directory after the user explicitly authorizes '
+        'Delete one filesystem directory after the user explicitly authorizes '
         'deletion. To empty a directory while keeping that directory, make one '
         'call on the parent with recursive=true and contents_only=true; do not '
         'inspect or delete each child separately. Otherwise recursive=true '
@@ -281,7 +281,7 @@ class ReadFileInput(ToolInput):
 class ReadFileTool(Tool[ReadFileInput]):
     name = 'read_file'
     description = (
-        'Read at most 400 numbered lines from one UTF-8 repository file. '
+        'Read at most 400 numbered lines from one UTF-8 filesystem file. path accepts absolute and working-directory-relative paths. '
         'Requests covering more than 400 lines return the first 400 lines and '
         'continuation metadata instead of failing. Prefer a focused inclusive '
         'start_line/end_line range for large files. The '
@@ -379,7 +379,7 @@ class WriteFileInput(ToolInput):
 class WriteFileTool(Tool[WriteFileInput]):
     name = 'write_file'
     description = (
-        'Create one new UTF-8 repository text file, or initialize an existing '
+        'Create one new UTF-8 filesystem text file, or initialize an existing '
         'empty/whitespace-only UTF-8 placeholder, atomically with real '
         'task-relevant content limited to 30000 characters. An exact '
         'content replay is an idempotent success; different model-supplied '
@@ -610,7 +610,7 @@ class WriteFileChunkInput(ToolInput):
 class WriteFileChunkTool(Tool[WriteFileChunkInput]):
     name = 'write_file_chunk'
     description = (
-        'Create or extend one UTF-8 repository file in ordered chunks of at '
+        'Create or extend one UTF-8 filesystem file in ordered chunks of at '
         'most 30000 characters. Start a new or multi-chunk replacement file '
         'with a non-empty real content prefix, offset=0, truncate=true, and '
         'final=false; an empty starter chunk is invalid. A single final chunk '
@@ -741,7 +741,7 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
     name = 'replace_text'
     description = (
         'Replace one exact, unique UTF-8 text fragment in an existing '
-        'repository file. Both old_text and new_text are limited to 30000 '
+        'filesystem file. Both old_text and new_text are limited to 30000 '
         'characters. Use this for a focused edit after reading the relevant '
         'source. If old_text is missing, the error returns the closest exact '
         'current text when it is small enough; copy that text directly into '
@@ -975,7 +975,7 @@ def empty_write_looks_like_directory(raw_path: str, content: str) -> bool:
 
 
 def ensure_parent_directory(path: Path, raw_path: str) -> None:
-    '''Create validated repository-relative parent directories when needed.'''
+    '''Create validated parent directories when needed.'''
     ancestor = path.parent
     raw_ancestor = Path(raw_path).parent
     while not ancestor.exists() and ancestor.parent != ancestor:

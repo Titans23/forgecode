@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 import json
+import os
 from pathlib import Path
+import re
 from typing import Any, Protocol
 
 from prompt_toolkit import PromptSession
@@ -28,7 +31,7 @@ from forge.permissions.policy import ApprovalResponse, PermissionRequest
 from forge.runtime.state import TokenUsage, ToolCall, TurnResult
 from forge.context.manager import ContextStats
 from forge.context.manager import CompactionReport
-from forge.tools.base import ToolResult
+from forge.tools.base import ToolResult, is_repository_path_protected
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,9 +113,10 @@ SLASH_COMMANDS = (
 
 
 class SlashCommandCompleter(Completer):
-    '''Offer local commands only while the input starts with a slash.'''
+    '''Offer slash commands and working-directory file mentions.'''
 
-    def __init__(self) -> None:
+    def __init__(self, root: Path | None = None) -> None:
+        self.root = root.resolve() if root is not None else None
         self.session_options: tuple[SessionOption, ...] = ()
 
     def set_session_options(
@@ -129,6 +133,21 @@ class SlashCommandCompleter(Completer):
         del complete_event
         text = document.text_before_cursor
         if not text.startswith('/'):
+            mention = re.search(r'(?:^|\s)@([^\s]*)$', text)
+            if mention is None:
+                return
+            query = mention.group(1).replace('\\', '/')
+            root = self.root or Path.cwd().resolve()
+            for candidate in iter_prompt_files(root):
+                relative = candidate.relative_to(root).as_posix()
+                if not relative.casefold().startswith(query.casefold()):
+                    continue
+                yield Completion(
+                    relative,
+                    start_position=-len(mention.group(1)),
+                    display='@' + relative,
+                    display_meta='文件',
+                )
             return
         normalized = text.casefold()
         resume_prefix = '/resume '
@@ -162,6 +181,27 @@ class SlashCommandCompleter(Completer):
                 display=command.usage,
                 display_meta=command.description,
             )
+
+
+def iter_prompt_files(root: Path) -> Iterator[Path]:
+    '''Yield mentionable files without following links or exposing secrets.'''
+    for directory, directory_names, file_names in os.walk(root):
+        current = Path(directory)
+        directory_names[:] = sorted(
+            name
+            for name in directory_names
+            if not (current / name).is_symlink()
+            and not is_repository_path_protected(
+                (current / name).relative_to(root)
+            )
+        )
+        for name in sorted(file_names):
+            candidate = current / name
+            if (
+                not candidate.is_symlink()
+                and not is_repository_path_protected(candidate.relative_to(root))
+            ):
+                yield candidate
 
 
 SLASH_COMMAND_COMPLETER = SlashCommandCompleter()
@@ -201,7 +241,7 @@ class TerminalUI:
     ) -> None:
         self.console = console if console is not None else Console()
         self.prompt_session = prompt_session
-        self.slash_completer = SlashCommandCompleter()
+        self.slash_completer = SlashCommandCompleter(Path.cwd())
         if self.prompt_session is None and self.console.is_terminal:
             self.prompt_session = PromptSession(
                 completer=self.slash_completer,

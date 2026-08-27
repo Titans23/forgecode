@@ -388,23 +388,14 @@ def resolve_repository_path(
     *,
     must_exist: bool = True,
 ) -> Path:
-    '''Resolve one relative path while preventing repository escape.'''
+    '''Resolve a path from the working directory or the wider filesystem.'''
     candidate = Path(raw_path)
-    if candidate.is_absolute():
-        raise ToolExecutionError(
-            'path_outside_repository',
-            f'Absolute paths are not allowed: {raw_path}',
-        )
-
-    resolved = (root / candidate).resolve(strict=False)
-    try:
-        relative = resolved.relative_to(root)
-    except ValueError as error:
-        raise ToolExecutionError(
-            'path_outside_repository',
-            f'Path is outside the repository: {raw_path}',
-        ) from error
-    if is_repository_path_protected(relative):
+    resolved = (
+        candidate.resolve(strict=False)
+        if candidate.is_absolute()
+        else (root / candidate).resolve(strict=False)
+    )
+    if is_repository_path_protected(resolved):
         raise ToolExecutionError(
             'protected_path',
             f'Path is protected from repository tools: {raw_path}',
@@ -419,12 +410,15 @@ def resolve_repository_path(
 
 
 def display_path(root: Path, path: Path) -> str:
-    '''Return a stable POSIX-style path relative to the tool root.'''
-    relative = path.relative_to(root)
+    '''Return a relative path in the workspace and an absolute path outside it.'''
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return path.as_posix()
     return relative.as_posix() or '.'
 
 
-CONTROL_PLANE_DIRECTORIES = frozenset({'.forge', '.git'})
+CONTROL_PLANE_DIRECTORIES = frozenset({'.forge'})
 PUBLIC_ENV_FILES = frozenset({'.env.example'})
 
 
@@ -439,21 +433,3 @@ def is_repository_path_protected(path: Path) -> bool:
         if name.startswith('.env.') and name not in PUBLIC_ENV_FILES:
             return True
     return False
-
-
-IGNORED_DIRECTORIES = frozenset(
-    {
-        '.forge',
-        '.git',
-        '.idea',
-        '.mypy_cache',
-        '.pytest_cache',
-        '.ruff_cache',
-        '.venv',
-        '.vscode',
-        '__pycache__',
-        'dist',
-        'node_modules',
-        'target',
-    }
-)

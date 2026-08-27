@@ -207,7 +207,7 @@ class RunCommandInput(ToolInput):
 class RunCommandTool(Tool[RunCommandInput]):
     name = 'run_command'
     description = (
-        'Run an executable repository command for exploration, diagnostics, '
+        'Run an executable command for exploration, diagnostics, '
         'or development. Do not use it to display source files or directory '
         'trees; use read_file, grep, find_files, or list_directory. Do not '
         'create directories or write files through scripts or redirection; '

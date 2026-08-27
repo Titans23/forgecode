@@ -298,6 +298,40 @@ def test_permission_modes_and_hard_denies(tmp_path: Path) -> None:
     assert asyncio.run(manager.authorize(secret)).source == 'hard_deny'
 
 
+def test_absolute_and_git_paths_are_not_hard_denied() -> None:
+    absolute = classify_tool_call(
+        ToolCall(
+            index=0,
+            id='read-absolute',
+            name='read_file',
+            arguments={'path': 'D:/shared/example.txt'},
+        ),
+        'read_only',
+    )
+    git_path = classify_tool_call(
+        ToolCall(
+            index=0,
+            id='read-git',
+            name='read_file',
+            arguments={'path': '.git/config'},
+        ),
+        'read_only',
+    )
+    env_path = classify_tool_call(
+        ToolCall(
+            index=0,
+            id='read-env',
+            name='read_file',
+            arguments={'path': '.env'},
+        ),
+        'read_only',
+    )
+
+    assert absolute.hard_deny is False
+    assert git_path.hard_deny is False
+    assert env_path.hard_deny is True
+
+
 def test_python_stdin_delete_requires_high_risk_approval() -> None:
     request = classify_tool_call(
         ToolCall(

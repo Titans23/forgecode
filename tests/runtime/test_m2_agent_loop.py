@@ -1317,7 +1317,7 @@ def test_cli_fix_intent_can_edit_after_bounded_novel_reads(
         for definition in client.calls[3]['tools'] or ()
     }
     assert 'apply_patch' in available_names
-    assert 'replace_text' not in available_names
+    assert 'replace_text' in available_names
     assert 'write_file_chunk' not in available_names
     assert 'find_files' in available_names
     assert 'list_directory' in available_names
@@ -1452,7 +1452,7 @@ def test_normal_discovery_batch_does_not_enter_a_forced_edit_phase(
     assert 'read_file' in post_read_names
     assert 'grep' in post_read_names
     assert 'apply_patch' in post_read_names
-    assert 'replace_text' not in post_read_names
+    assert 'replace_text' in post_read_names
     assert isinstance(events[-1], TurnCompleted)
     assert events[-1].result.status == 'completed'
 

@@ -202,10 +202,8 @@ def _unsafe_target_reason(targets: tuple[str, ...]) -> str:
     for value in targets:
         path = Path(value)
         folded = {part.casefold() for part in path.parts}
-        if path.is_absolute() or '..' in path.parts:
-            return 'Repository path escape attempts are forbidden.'
-        if '.git' in folded or '.forge' in folded:
-            return 'ForgeCode and Git control-plane paths are protected.'
+        if '.forge' in folded:
+            return 'ForgeCode control-plane paths are protected.'
         if any(
             name in SENSITIVE_NAMES
             or name.startswith('.env.') and name != '.env.example'
