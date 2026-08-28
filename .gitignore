@@ -18,6 +18,7 @@ target/
 fixtures/
 .local/
 benchmark/runs/
+benchmark/.cache/
 # game/
 # keep static demo in play/
 !play/

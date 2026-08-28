@@ -10,6 +10,19 @@ Harbor agent. It follows the same core protocol used by FirstCoder:
 - for Aider Polyglot only, allow one same-session repair turn after a real
   verifier failure, matching Aider's two-attempt protocol.
 
+The same installed agent can also be run on the other registered Harbor
+datasets that match ForgeCode's terminal interface:
+
+| Benchmark | Dataset | Runner | Repair protocol |
+| --- | --- | --- | --- |
+| Aider Polyglot | `aider-polyglot` | `python -m benchmark.harbor.run_aider` | one Aider feedback repair |
+| SWE-bench Verified | `swe-bench/swe-bench-verified` | `python -m benchmark.harbor.run_swebench` | single attempt |
+| Terminal-Bench 2 | `terminal-bench/terminal-bench-2` | `python -m benchmark.harbor.run_terminal` | single attempt |
+
+Use [`../README.md`](../README.md) for the capability matrix and the required
+report fields. The generic Dataset runner deliberately does not install the
+Aider feedback plugin for SWE-bench or Terminal-Bench.
+
 ## Prerequisites
 
 ```powershell

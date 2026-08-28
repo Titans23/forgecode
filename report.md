@@ -344,7 +344,7 @@ uv run python -m extensions.qwen_tool_distillation build-sft data/teacher.jsonl 
 7. 恢复隐藏测试并执行；
 8. 把 outcome 与 trajectory 保存到工作区外。
 
-客观验收条件位于 [`acceptance_reasons`](evals/runner.py#L366)：Agent 状态必须 completed、Diff 非空、具备成功 Verify 证据、无越界路径，而且构建、公开测试、隐藏测试和 diff check 均通过。当前 [`evals/metrics.py`](evals/metrics.py#L1) 仍是空占位文件，尚未实现跨运行的成功率、成本和恢复次数聚合；现阶段的结果输出由 `EvalOutcome` JSON 与 JSONL trajectory 承担。
+客观验收条件位于 [`acceptance_reasons`](evals/runner.py#L366)：Agent 状态必须 completed、Diff 非空、具备成功 Verify 证据、无越界路径，而且构建、公开测试、隐藏测试和 diff check 均通过。当前本地 [`evals/metrics.py`](evals/metrics.py#L1) 仍是空占位文件；外部 Harbor 运行则由 [`benchmark/harbor/summarize.py`](benchmark/harbor/summarize.py) 统一读取 verifier reward、基础设施异常、首轮/最终通过率和 Agent 遥测。现阶段的本地结果输出仍由 `EvalOutcome` JSON 与 JSONL trajectory 承担。
 
 ### 12.3 当前实战状态
 
@@ -428,6 +428,19 @@ ForgeCode 已经实现了一个完整的本地工程 Agent 运行时：模型负
 当前最大技术风险也很明确：核心循环的恢复状态过多且集中，容易出现提示、工具 Schema 与退出条件之间的不一致。下一阶段最有效的工作不是继续添加更多特例，而是把这些隐含布尔状态收敛为显式 phase state machine，并用真实 Provider 场景持续测量“最终完成率、自动恢复率和单位成功任务 Token”，从而让 ForgeCode 从“能够安全阻止错误”进一步成长为“能够稳定完成复杂任务”。
 
 ## 17. Aider Polyglot / Harbor 真实评测基线
+
+除已有的 Aider Polyglot 适配外，当前工作树还提供了同一
+`ForgeCodeHarborAgent` 的 SWE-bench Verified 和 Terminal-Bench 2 入口：
+
+```text
+benchmark.harbor.run_swebench → swe-bench/swe-bench-verified
+benchmark.harbor.run_terminal → terminal-bench/terminal-bench-2
+```
+
+这两个基准使用各自的独立 verifier，不复用 Aider 的 feedback repair；
+结果应使用 `final_pass_rate` 和 `pass_at_1_rate` 报告，并保留 dataset 标识、
+Harbor 版本、模型、并发、重试和基础设施异常。BFCL V4 与 OSWorld 暂不纳入
+真实分数，因为 ForgeCode 尚未提供它们所需的外部工具状态或 GUI/视觉后端。
 
 ### 17.1 评测结论
 

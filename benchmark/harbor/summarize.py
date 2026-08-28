@@ -38,10 +38,21 @@ class RunSummary:
     def pass_at_2_rate(self) -> float:
         return self.pass_at_2 / self.scored_trials if self.scored_trials else 0.0
 
+    @property
+    def final_pass_rate(self) -> float:
+        '''Final verifier success rate for both one- and two-attempt jobs.'''
+        return self.pass_at_2_rate
+
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value['pass_at_1_rate'] = self.pass_at_1_rate
         value['pass_at_2_rate'] = self.pass_at_2_rate
+        # ``pass_at_2`` is the historical field used by the Aider adapter.
+        # For benchmarks without a repair protocol it is simply the final
+        # (and only) verifier result.  The explicit aliases make that fact
+        # clear to downstream dashboards.
+        value['final_pass_count'] = self.pass_at_2
+        value['final_pass_rate'] = self.final_pass_rate
         for stats in value['language_stats'].values():
             first_known = int(stats.get('first_attempt_known', 0))
             scored = int(stats.get('scored_trials', 0))
@@ -133,6 +144,14 @@ def summarize_run(run_dir: Path) -> RunSummary:
                         and final_reward == 1
                         and bool(attempt.get('feedback_requested'))
                     )
+        elif exception_info is None and isinstance(final_reward, int | float):
+            # Terminal-Bench and SWE-bench do not use the Aider feedback
+            # plugin.  Their final verifier result is therefore also their
+            # first-attempt result; counting it here keeps pass@1 meaningful
+            # instead of reporting a misleading zero.
+            first_attempt_known += 1
+            first_passed = final_reward == 1
+            pass_at_1 += int(first_passed)
 
         for log in sorted((result_path.parent / 'agent').glob('forgecode*.txt')):
             payload = _last_forgecode_result(log)

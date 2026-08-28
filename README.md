@@ -335,7 +335,7 @@ forge/subagents/               只读 Explore Agent
 extensions/qwen_tool_distillation.py  可选 Qwen 工具调用蒸馏与 rollout 扩展
 
 evals/                         本地独立评测
-benchmark/                     Harbor / Aider Polyglot 适配
+benchmark/                     外部 Benchmark 目录、Harbor 适配和汇总
 tests/                         自动化回归测试
 ```
 
@@ -417,11 +417,48 @@ uv run python -m evals.runner --case python-calculator-001
 
 当前 YAML 用例位于 [`evals/cases/`](evals/cases/)。对应的 `fixtures/` 是评测资产，目录被 `.gitignore` 忽略；如果本地没有这些 Fixture，`--list` 可以工作，但实际 `--case` 运行无法开始。
 
-## Harbor Benchmark
+## 外部 Benchmark 评测
 
-Harbor 是可选的外部评测后端，不是普通 CLI 的运行依赖。运行前需要额外准备 Docker、Harbor 和 Aider Polyglot 数据集。
+Harbor 是可选的外部评测后端，不是普通 CLI 的运行依赖。ForgeCode 现在
+提供面向三类主流终端 Agent 基准的统一入口：
 
-完整命令和结果解释见 [`benchmark/harbor/README.md`](benchmark/harbor/README.md)。版本化的评测数字和运行边界见 [`report.md`](report.md) 与 [`EVALUATION_SUMMARY_20260813.md`](EVALUATION_SUMMARY_20260813.md)；README 不重复维护容易过期的分数、Token 和测试数量。
+| Benchmark | 能力维度 | 入口 |
+| --- | --- | --- |
+| Aider Polyglot | 多语言仓库代码编辑 | `benchmark.harbor.run_aider` |
+| SWE-bench Verified | 真实 GitHub Issue 的仓库级修复 | `benchmark.harbor.run_swebench` |
+| Terminal-Bench 2 | 通用终端任务、脚本和环境操作 | `benchmark.harbor.run_terminal` |
+
+先查看能力矩阵：
+
+```powershell
+uv run python -m benchmark list
+```
+
+也可以使用统一入口运行已接入的基准：
+
+```powershell
+uv run python -m benchmark run swe-bench-verified --n-tasks 1 --concurrency 1
+uv run python -m benchmark run terminal-bench-2 --n-tasks 1 --concurrency 1
+```
+
+运行 SWE-bench Verified 或 Terminal-Bench smoke test：
+
+```powershell
+uv run python -m benchmark.harbor.run_swebench --n-tasks 1 --concurrency 1
+uv run python -m benchmark.harbor.run_terminal --n-tasks 1 --concurrency 1
+```
+
+两个新入口复用现有的 `ForgeCodeHarborAgent`，通过 Harbor 的独立容器和
+verifier 评分，不把 Agent 自己返回的“完成”当作结果。SWE-bench 和
+Terminal-Bench 不使用 Aider 专用的 feedback repair；Aider Polyglot 仍按
+原有协议支持一次修复回合。完整命令、smoke/stratified/full 运行方式、
+结果汇总和发布时必须记录的元数据见
+[`benchmark/README.md`](benchmark/README.md)。
+
+当前 BFCL V4（工具调用）和 OSWorld（桌面/多模态）已列入能力目录，但分别
+需要外部工具状态适配器和 computer-use/vision backend，尚未伪装成可运行的
+ForgeCode 分数。版本化的既有评测数字和运行边界见 [`report.md`](report.md)
+与 [`EVALUATION_SUMMARY_20260813.md`](EVALUATION_SUMMARY_20260813.md)。
 
 ## 安全边界和已知限制
 

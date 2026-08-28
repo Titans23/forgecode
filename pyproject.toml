@@ -24,7 +24,7 @@ dependencies = [
 forge = 'forge.cli:app'
 
 [tool.setuptools.packages.find]
-include = ['forge*', 'evals*', 'benchmark*']
+include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
 
 [tool.setuptools.package-data]
 forge = ['prompts/*.md']

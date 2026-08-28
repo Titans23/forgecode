@@ -791,58 +791,105 @@ uv run python -m evals.runner --case python-calculator-001
 - 本地 Eval 有独立的逐案例结果和轨迹
 - 跨运行的成本、恢复次数、成功率聚合还不是完整模块
 
-## 阶段 17：Harbor / Aider Polyglot Benchmark
+## 阶段 17：Harbor Benchmark 与能力矩阵
 
-最后阅读：
+外部评测不应只看 Aider Polyglot。先阅读：
 
-- [`benchmark/harbor/README.md`](D:/learn_project/forgecode/benchmark/harbor/README.md)
+- [`benchmark/README.md`](benchmark/README.md)
+- [`benchmark/harbor/README.md`](benchmark/harbor/README.md)
+- `benchmark/catalog.py`
+- `benchmark/cli.py`
 - `benchmark/harbor/forgecode_agent.py`
+- `benchmark/harbor/run_dataset.py`
 - `benchmark/harbor/run_aider.py`
+- `benchmark/harbor/run_swebench.py`
+- `benchmark/harbor/run_terminal.py`
 - `benchmark/harbor/summarize.py`
 - `benchmark/harbor/aider_feedback_plugin.py`
 
-理解 Benchmark 和本地 Eval 的区别：
+先查看当前能力矩阵：
+
+```powershell
+uv run python -m benchmark list
+```
+
+当前三条可执行路径分别是：
+
+```text
+Aider Polyglot
+  → 多语言仓库代码编辑
+
+SWE-bench Verified
+  → 真实 GitHub Issue 的仓库级修复
+
+Terminal-Bench 2
+  → 通用终端任务、脚本、环境和工具协作
+```
+
+对应入口是 `benchmark.harbor.run_aider`、
+`benchmark.harbor.run_swebench` 和 `benchmark.harbor.run_terminal`。三者都
+使用 Harbor 的隔离任务环境和独立 verifier；只有 Aider Polyglot 使用仓库中
+现有的一次 feedback repair。
+
+理解 Harbor Benchmark 和本地 Eval 的区别：
 
 | 本地 Eval | Harbor Benchmark |
 |---|---|
-| ForgeCode 自己控制 Runner | Harbor 负责外部执行和评分 |
-| 3 个固定案例 | Aider Polyglot 225 题 |
-| 本地隐藏测试 | Docker / Harbor 独立 verifier |
-| 主要验证系统不变量 | 验证跨语言真实任务表现 |
+| ForgeCode 自己控制 Runner | Harbor 负责隔离执行和评分 |
+| 3 个固定案例 | Aider、SWE-bench、Terminal-Bench 等外部数据集 |
+| 本地恢复 hidden tests | Docker / Harbor 独立 verifier |
+| 主要验证系统不变量 | 验证跨语言、仓库级和终端任务表现 |
 
-Benchmark 流程：
+通用 Benchmark 流程：
 
 ```text
 Harbor Dataset
-→ Docker Task Workspace
+→ 隔离任务工作区
 → ForgeCode 非交互 Agent
 → 独立 Verifier
 → reward
-→ pass@1 / pass@2 / repair / token / tool-call 统计
+→ pass rate / repair / token / tool-call 统计
 ```
 
-需要区分：
+协议差异必须单独记录：
 
-- `pass@1`：第一次尝试就成功
-- `pass@2`：允许一次 verifier feedback repair 后成功
-- infrastructure error：环境或 Provider 错误
-- code failure：Agent 真正没完成任务
+- Aider Polyglot：多语言代码编辑，共 225 题；允许一次 verifier feedback repair
+- SWE-bench Verified：真实 GitHub Issue 修复；单次尝试，不使用 Aider repair 插件
+- Terminal-Bench 2：终端、脚本、环境和工具协作；单次尝试
+- `pass@1`：第一次尝试即通过
+- `pass@2`：Aider 历史指标，表示允许一次 repair 后通过；不能套用到不允许 repair 的基准
+- infrastructure error：环境、镜像、网络或 Provider 错误
+- code failure：执行环境正常，但 Agent 没有完成任务
 
-当前仓库文档中有多组不同时间的测试和 Benchmark 数字，简历中不要直接混用。你应该记录：
+阅读汇总代码时，重点区分：
+
+- `scored_trials`：真正进入评分分母的任务数
+- `final_pass_rate`：按该基准正式协议计算的最终通过率
+- `pass_at_1_rate`：首次尝试通过率
+- `infrastructure_failures`：不应与代码失败混为一谈的基础设施错误
+- token/tool telemetry：成本和行为统计，不等于正确率
+
+当前仓库文档中有多组不同时间的测试和 Benchmark 数字，简历或报告中不要直接混用。每次结果至少记录：
 
 ```text
 运行时间
-代码版本
-模型
-数据集 commit
+ForgeCode 代码版本
+模型和 Provider
+Benchmark 名称与数据集 commit
+Harbor / Docker 版本
 并发数
 重试次数
 是否允许 feedback repair
+scored trials
 基础设施错误数
-pass@1
-pass@2
-最终 reward
+pass@1 或首次通过率
+最终通过率 / reward
+Token 和工具调用统计
 ```
+
+BFCL V4 可以作为未来的工具调用基准，但需要先完成 ToolRegistry 到外部
+tool schema/state machine 的适配；OSWorld 需要 GUI、桌面应用和视觉输入，
+不能用当前终端 Agent 的分数替代。
 
 ## 最终你要形成的完整讲解
 

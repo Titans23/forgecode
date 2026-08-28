@@ -1,4 +1,4 @@
-'''Build and run a reproducible ForgeCode Aider Polyglot Harbor job.'''
+'''Run a ForgeCode Harbor agent against a registered Harbor dataset.'''
 
 from __future__ import annotations
 
@@ -9,103 +9,67 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from typing import Sequence
 from urllib.parse import urlsplit, urlunsplit
 
 from dotenv import dotenv_values
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_MIRROR_MARKER = '# ForgeCode local Ubuntu mirror override'
 
 
 def container_base_url(value: str) -> str:
+    '''Make a host-loopback provider reachable from a Docker task.'''
     parsed = urlsplit(value)
     if parsed.hostname not in {'localhost', '127.0.0.1'}:
         return value.rstrip('/')
     port = f':{parsed.port}' if parsed.port is not None else ''
-    netloc = f'host.docker.internal{port}'
     return urlunsplit(
-        (parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment)
+        (parsed.scheme, f'host.docker.internal{port}', parsed.path,
+         parsed.query, parsed.fragment)
     ).rstrip('/')
-
-
-def apply_ubuntu_mirror(
-    task_names: tuple[str, ...],
-    mirror: str,
-    *,
-    tasks_cache: Path | None = None,
-) -> int:
-    parsed = urlsplit(mirror)
-    if parsed.scheme != 'https' or not parsed.netloc or parsed.query:
-        raise ValueError('Ubuntu mirror must be an absolute HTTPS URL')
-    base = mirror.rstrip('/')
-    cache = tasks_cache or Path.home() / '.cache' / 'harbor' / 'tasks'
-    selected = set(task_names)
-    changed = 0
-    for dockerfile in cache.glob('*/polyglot_*/environment/Dockerfile'):
-        if selected and dockerfile.parents[1].name not in selected:
-            continue
-        content = dockerfile.read_text(encoding='utf-8')
-        if _MIRROR_MARKER in content:
-            continue
-        lines = content.splitlines(keepends=True)
-        insertion = next(
-            (index + 1 for index, line in enumerate(lines) if line.startswith('FROM ')),
-            None,
-        )
-        if insertion is None:
-            continue
-        newline = '\r\n' if '\r\n' in content else '\n'
-        override = (
-            f'{_MIRROR_MARKER}{newline}'
-            'RUN sed -i '
-            f"'s|http://archive.ubuntu.com/ubuntu|{base}|g; "
-            f"s|http://security.ubuntu.com/ubuntu|{base}|g' "
-            f'/etc/apt/sources.list{newline}'
-        )
-        lines.insert(insertion, override)
-        dockerfile.write_text(''.join(lines), encoding='utf-8', newline='')
-        changed += 1
-    return changed
 
 
 def build_command(
     *,
     harbor: str,
+    dataset: str,
     env_file: Path,
     output_dir: Path,
     cache_dir: Path,
     model: str,
     base_url: str,
+    agent: str = 'benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent',
     tasks: tuple[str, ...] = (),
     n_tasks: int | None = None,
     concurrency: int = 1,
-    feedback: bool = True,
+    max_retries: int = 1,
     max_model_calls: int = 120,
     max_tool_calls: int = 240,
-    max_retries: int = 1,
+    max_turn_seconds: int = 1800,
+    agent_setup_timeout_multiplier: int = 12,
+    install_retries: int = 8,
+    install_retry_delay_seconds: int = 30,
+    timeout_multiplier: float | None = None,
+    environment: str | None = None,
     force_build: bool = False,
-    agent_setup_timeout_multiplier: int = 4,
-    install_retries: int = 5,
-    install_retry_delay_seconds: int = 20,
 ) -> list[str]:
+    '''Build a Harbor command without exposing credentials in argv.'''
     mounts = json.dumps(
-        [
-            {
-                'type': 'bind',
-                'source': str(cache_dir.resolve()),
-                'target': '/opt/forgecode-cache',
-            }
-        ],
+        [{
+            'type': 'bind',
+            'source': str(cache_dir.resolve()),
+            'target': '/opt/forgecode-cache',
+        }],
         separators=(',', ':'),
     )
     command = [
         harbor,
         'run',
         '-d',
-        'aider-polyglot',
+        dataset,
         '-a',
-        'benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent',
+        agent,
         '-m',
         model,
         '-n',
@@ -119,7 +83,7 @@ def build_command(
         '--ak',
         f'max_tool_calls={max_tool_calls}',
         '--ak',
-        'max_turn_seconds=1800',
+        f'max_turn_seconds={max_turn_seconds}',
         '--ak',
         f'install_retries={install_retries}',
         '--ak',
@@ -144,13 +108,10 @@ def build_command(
         str(output_dir.resolve()),
         '-y',
     ]
-    if feedback:
-        command.extend(
-            [
-                '--plugin',
-                'benchmark.harbor.aider_feedback_plugin:AiderFeedbackPlugin',
-            ]
-        )
+    if timeout_multiplier is not None:
+        command.extend(['--timeout-multiplier', str(timeout_multiplier)])
+    if environment is not None:
+        command.extend(['--env', environment])
     for task in tasks:
         command.extend(['-i', task])
     if n_tasks is not None:
@@ -160,7 +121,8 @@ def build_command(
     return command
 
 
-def _configured_values(env_file: Path) -> dict[str, str]:
+def configured_values(env_file: Path) -> dict[str, str]:
+    '''Read model settings while allowing process env overrides.'''
     values = {
         key: value
         for key, value in dotenv_values(env_file).items()
@@ -172,7 +134,7 @@ def _configured_values(env_file: Path) -> dict[str, str]:
     return values
 
 
-def _harbor_executable() -> str:
+def harbor_executable() -> str:
     found = shutil.which('harbor')
     if found:
         return found
@@ -182,47 +144,56 @@ def _harbor_executable() -> str:
     raise RuntimeError('Harbor executable is not available in this environment.')
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
+def build_parser(
+    *,
+    default_dataset: str | None = None,
+    default_output_dir: Path | None = None,
+) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description='Run ForgeCode on a Harbor-registered benchmark dataset.'
+    )
+    parser.add_argument('--dataset', default=default_dataset, required=default_dataset is None)
     parser.add_argument('--task', action='append', default=[])
     parser.add_argument('--n-tasks', type=int)
     parser.add_argument('--concurrency', type=int, default=1)
     parser.add_argument('--max-retries', type=int, default=1)
-    parser.add_argument(
-        '--agent-setup-timeout-multiplier',
-        type=int,
-        default=4,
-        help='Multiplier for ForgeCode installation/setup timeout.',
-    )
-    parser.add_argument('--install-retries', type=int, default=5)
-    parser.add_argument('--install-retry-delay-seconds', type=int, default=20)
     parser.add_argument('--model')
     parser.add_argument('--base-url')
     parser.add_argument('--env-file', type=Path, default=PROJECT_ROOT / '.env')
     parser.add_argument(
-        '--output-dir',
-        type=Path,
-        default=PROJECT_ROOT / 'benchmark' / 'runs' / 'harbor' / 'aider',
+        '--output-dir', type=Path,
+        default=default_output_dir or PROJECT_ROOT / 'benchmark' / 'runs' / 'harbor' / 'dataset',
     )
     parser.add_argument(
         '--cache-dir',
         type=Path,
         default=PROJECT_ROOT / 'benchmark' / '.cache' / 'harbor',
+        help='Harbor/uv cache directory (defaults to an ignored project path).',
     )
-    parser.add_argument('--no-feedback', action='store_true')
-    parser.add_argument(
-        '--force-build',
-        action='store_true',
-        help='Force a fresh Docker build for each selected task environment.',
-    )
-    parser.add_argument(
-        '--ubuntu-mirror',
-        help=(
-            'Optional HTTPS Ubuntu mirror used only for task image package '
-            'downloads; task sources and verifiers are unchanged.'
-        ),
-    )
+    parser.add_argument('--agent', default='benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent')
+    parser.add_argument('--max-model-calls', type=int, default=120)
+    parser.add_argument('--max-tool-calls', type=int, default=240)
+    parser.add_argument('--max-turn-seconds', type=int, default=1800)
+    parser.add_argument('--agent-setup-timeout-multiplier', type=int, default=12)
+    parser.add_argument('--install-retries', type=int, default=8)
+    parser.add_argument('--install-retry-delay-seconds', type=int, default=30)
+    parser.add_argument('--timeout-multiplier', type=float)
+    parser.add_argument('--environment')
+    parser.add_argument('--force-build', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    return parser
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    default_dataset: str | None = None,
+    default_output_dir: Path | None = None,
+) -> int:
+    parser = build_parser(
+        default_dataset=default_dataset,
+        default_output_dir=default_output_dir,
+    )
     args = parser.parse_args(argv)
     if args.concurrency < 1:
         parser.error('--concurrency must be positive')
@@ -230,61 +201,58 @@ def main(argv: list[str] | None = None) -> int:
         parser.error('--n-tasks must be positive')
     if args.max_retries < 0:
         parser.error('--max-retries must not be negative')
-    if args.agent_setup_timeout_multiplier < 1:
-        parser.error('--agent-setup-timeout-multiplier must be positive')
-    if args.install_retries < 1:
-        parser.error('--install-retries must be positive')
-    if args.install_retry_delay_seconds < 1:
-        parser.error('--install-retry-delay-seconds must be positive')
+    for name in (
+        'max_model_calls', 'max_tool_calls', 'max_turn_seconds',
+        'agent_setup_timeout_multiplier', 'install_retries',
+        'install_retry_delay_seconds',
+    ):
+        if getattr(args, name) < 1:
+            parser.error(f'--{name.replace("_", "-")} must be positive')
+    if args.timeout_multiplier is not None and args.timeout_multiplier <= 0:
+        parser.error('--timeout-multiplier must be positive')
 
-    values = _configured_values(args.env_file)
+    values = configured_values(args.env_file)
     model = args.model or values.get('MODEL_ID')
     base_url = args.base_url or values.get('ANTHROPIC_BASE_URL')
     if not model or not base_url:
         parser.error('MODEL_ID and ANTHROPIC_BASE_URL must be configured')
-    args.cache_dir.mkdir(parents=True, exist_ok=True)
-    if args.ubuntu_mirror:
-        changed = apply_ubuntu_mirror(
-            tuple(args.task),
-            args.ubuntu_mirror,
-        )
-        print(f'Applied Ubuntu mirror override to {changed} task Dockerfile(s).')
     command = build_command(
-        harbor=_harbor_executable(),
+        harbor=harbor_executable(),
+        dataset=args.dataset,
         env_file=args.env_file,
         output_dir=args.output_dir,
         cache_dir=args.cache_dir,
         model=model,
         base_url=container_base_url(base_url),
+        agent=args.agent,
         tasks=tuple(args.task),
         n_tasks=args.n_tasks,
         concurrency=args.concurrency,
-        feedback=not args.no_feedback,
         max_retries=args.max_retries,
-        force_build=args.force_build,
+        max_model_calls=args.max_model_calls,
+        max_tool_calls=args.max_tool_calls,
+        max_turn_seconds=args.max_turn_seconds,
         agent_setup_timeout_multiplier=args.agent_setup_timeout_multiplier,
         install_retries=args.install_retries,
         install_retry_delay_seconds=args.install_retry_delay_seconds,
+        timeout_multiplier=args.timeout_multiplier,
+        environment=args.environment,
+        force_build=args.force_build,
     )
     if args.dry_run:
         print(json.dumps(command, ensure_ascii=False, indent=2))
         return 0
-
+    args.cache_dir.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     docker_bin = (
         Path(os.environ.get('LOCALAPPDATA', ''))
-        / 'Programs'
-        / 'DockerDesktop'
-        / 'resources'
-        / 'bin'
+        / 'Programs' / 'DockerDesktop' / 'resources' / 'bin'
     )
     env['PATH'] = os.pathsep.join(
         item for item in (str(docker_bin), env.get('PATH', '')) if item
     )
     env['PYTHONPATH'] = os.pathsep.join(
-        item
-        for item in (str(PROJECT_ROOT), env.get('PYTHONPATH', ''))
-        if item
+        item for item in (str(PROJECT_ROOT), env.get('PYTHONPATH', '')) if item
     )
     return subprocess.run(command, cwd=PROJECT_ROOT, env=env, check=False).returncode
 
