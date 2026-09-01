@@ -231,7 +231,8 @@ def _git_baseline_command() -> str:
     return (
         "find . -type f \\( -name '*.sh' -o -name gradlew \\) "
         "  -exec sed -i 's/\\r$//' {} \\; 2>/dev/null || true; "
-        'if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then '
+        'if command -v git >/dev/null 2>&1 && '
+        '  ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then '
         '  git init --quiet; '
         '  git config user.email forgecode-harbor@example.test; '
         '  git config user.name "ForgeCode Harbor"; '
@@ -259,13 +260,15 @@ def _install_command(
         'attempt=1; '
         'while true; do '
         '  if [ ! -x "$UV_BIN" ]; then '
-        '    if command -v curl >/dev/null 2>&1; then '
+        '    if [ -f "$CACHE_DIR/bin/uv" ]; then '
+        '      cp "$CACHE_DIR/bin/uv" "$UV_BIN"; chmod 755 "$UV_BIN"; '
+        '    elif command -v curl >/dev/null 2>&1; then '
         '      if curl -LsSf https://astral.sh/uv/install.sh | '
         '        UV_UNMANAGED_INSTALL="$AGENT_ROOT/bin" sh; then :; fi; '
         '    elif command -v wget >/dev/null 2>&1; then '
         '      if wget -qO- https://astral.sh/uv/install.sh | '
         '        UV_UNMANAGED_INSTALL="$AGENT_ROOT/bin" sh; then :; fi; '
-        '    else echo "ForgeCode setup requires curl or wget." >&2; exit 64; fi; '
+        '    else echo "ForgeCode setup requires cached uv, curl, or wget." >&2; exit 64; fi; '
         '  fi; '
         '  if "$UV_BIN" python install 3.12 && '
         '    PYTHON_BIN="$("$UV_BIN" python find 3.12)"; then '

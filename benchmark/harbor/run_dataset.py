@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import sys
 from typing import Sequence
@@ -28,6 +29,21 @@ def container_base_url(value: str) -> str:
         (parsed.scheme, f'host.docker.internal{port}', parsed.path,
          parsed.query, parsed.fragment)
     ).rstrip('/')
+
+
+def local_provider_available(value: str, timeout_seconds: float = 2) -> bool:
+    '''Return whether a configured host-loopback provider is listening.'''
+    parsed = urlsplit(value)
+    if parsed.hostname not in {'localhost', '127.0.0.1'}:
+        return True
+    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+    try:
+        with socket.create_connection(
+            (parsed.hostname, port), timeout=timeout_seconds
+        ):
+            return True
+    except OSError:
+        return False
 
 
 def build_command(
@@ -216,6 +232,11 @@ def main(
     base_url = args.base_url or values.get('ANTHROPIC_BASE_URL')
     if not model or not base_url:
         parser.error('MODEL_ID and ANTHROPIC_BASE_URL must be configured')
+    if not args.dry_run and not local_provider_available(base_url):
+        parser.error(
+            'The local model provider is not listening at '
+            f'{base_url}. Start it before launching Docker benchmark tasks.'
+        )
     command = build_command(
         harbor=harbor_executable(),
         dataset=args.dataset,
@@ -254,6 +275,8 @@ def main(
     env['PYTHONPATH'] = os.pathsep.join(
         item for item in (str(PROJECT_ROOT), env.get('PYTHONPATH', '')) if item
     )
+    env['PYTHONIOENCODING'] = 'utf-8'
+    env['PYTHONUTF8'] = '1'
     return subprocess.run(command, cwd=PROJECT_ROOT, env=env, check=False).returncode
 
 

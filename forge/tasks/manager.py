@@ -84,8 +84,6 @@ class TaskManager:
         resolved_scope_source: ScopeSource = (
             scope_source
             if scope_source is not None
-            else 'explicit'
-            if scope_hints
             else 'repository'
         )
         self.active = ActiveTask(
@@ -292,8 +290,6 @@ class TaskManager:
             scope_source=(
                 self.active.scope_source
                 if self.active.scope_hints
-                else 'explicit'
-                if declared
                 else self.active.scope_source
             ),
             workspace_paths=tuple(
@@ -311,6 +307,8 @@ class TaskManager:
             return ()
         if self.active.scope_source == 'unresolved':
             return paths
+        if self.active.scope_source == 'repository':
+            return ()
         if not self.active.scope_hints:
             return ()
         return tuple(
@@ -408,10 +406,16 @@ class TaskManager:
             lines.extend(
                 ['', 'Focus paths:', *[f'- {item}' for item in task.scope_hints]]
             )
-            lines.append(
-                'All workspace writes must remain inside these paths unless '
-                'the user explicitly changes the scope.'
-            )
+            if task.scope_source in {'explicit', 'planned'}:
+                lines.append(
+                    'All workspace writes must remain inside these paths unless '
+                    'the user explicitly changes the scope.'
+                )
+            else:
+                lines.append(
+                    'These paths are inferred focus hints, not a hard write '
+                    'boundary; modify other relevant paths when required.'
+                )
         elif task.scope_source == 'unresolved':
             lines.extend(
                 [

@@ -270,6 +270,20 @@ def test_empty_git_results_do_not_count_as_evidence_progress() -> None:
         ) is False
 
 
+def test_successful_process_results_count_as_progress() -> None:
+    state = WorkingState()
+    call = ToolCall(
+        index=0,
+        id='process',
+        name='run_command',
+        arguments={'command': 'printf ready'},
+    )
+    result = ToolResult.ok('Command completed.', content='ready')
+
+    assert state.observe(call, result, 0, 'process') is True
+    assert state.observe(call, result, 0, 'process') is False
+
+
 def test_only_explicit_external_error_codes_create_a_blocker() -> None:
     state = WorkingState()
     call = ToolCall(0, 'failure', 'read_file', {'path': 'sample.txt'})

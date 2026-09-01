@@ -30,6 +30,7 @@ from forge.hooks import HookConfigurationError, HookManager
 from forge.mcp import MCPClientManager, MCPConfigurationError, load_mcp_servers
 from forge.mcp.config import InternalStdioServerConfig
 from forge.runtime.agent_loop import Conversation
+from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.router import ModelIntentRouter
 from forge.runtime.state import (
@@ -706,6 +707,8 @@ def create_session_runtime(
     resume_identifier: str | None = None,
     fork_session: bool = False,
     model_override: str | None = None,
+    task_policy: TaskPolicy | None = None,
+    allow_container_writes: bool = False,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Create a new conversation or hydrate one from durable history.'''
     if model_override is not None and not fork_session:
@@ -714,7 +717,10 @@ def create_session_runtime(
         model_override.strip() if model_override is not None else ''
     )
     store = SessionStore(root)
-    registry = create_default_registry(root)
+    registry = create_default_registry(
+        root,
+        allow_container_writes=allow_container_writes,
+    )
     hook_manager = HookManager.from_root(root)
     mcp_manager = MCPClientManager(
         root,
@@ -766,6 +772,7 @@ def create_session_runtime(
             session_store=store,
             hook_manager=hook_manager,
             mcp_manager=mcp_manager,
+            task_policy=task_policy,
         )
         if not fork_session:
             journal.record_resumed()
@@ -783,6 +790,7 @@ def create_session_runtime(
         ),
         registry=registry,
         mcp_manager=mcp_manager,
+        task_policy=task_policy,
     )
     client = getattr(conversation, 'client', None)
     journal = store.create(model=str(getattr(client, 'model', '')))

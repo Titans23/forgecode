@@ -22,7 +22,11 @@ from forge.runtime.workspace import WorkspaceTracker
 from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
 
 
-def create_default_registry(root: Path) -> ToolRegistry:
+def create_default_registry(
+    root: Path,
+    *,
+    allow_container_writes: bool = False,
+) -> ToolRegistry:
     '''Create built-in tools sharing one task-local workspace tracker.'''
     # Delayed import prevents runtime.state -> forge.tools package cycles.
     from forge.subagents.explore import ExploreRepositoryTool
@@ -43,7 +47,10 @@ def create_default_registry(root: Path) -> ToolRegistry:
             WriteFileChunkTool(root),
             ReplaceTextTool(root),
             ApplyPatchTool(root),
-            RunCommandTool(root),
+            RunCommandTool(
+                root,
+                allow_container_writes=allow_container_writes,
+            ),
             VerifyTool(root, tracker),
             GitStatusTool(root),
             GitDiffTool(root),

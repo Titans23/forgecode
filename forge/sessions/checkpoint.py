@@ -252,11 +252,11 @@ class CheckpointStore:
 
     def _resolve(self, value: str) -> tuple[str, Path]:
         raw = Path(value)
-        if raw.is_absolute():
-            raise CheckpointError(
-                f'Checkpoint path must be repository-relative: {value}'
-            )
-        target = (self.root / raw).resolve(strict=False)
+        target = (
+            raw.resolve(strict=False)
+            if raw.is_absolute()
+            else (self.root / raw).resolve(strict=False)
+        )
         try:
             relative = target.relative_to(self.root).as_posix()
         except ValueError as error:

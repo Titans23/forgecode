@@ -24,6 +24,8 @@ from forge.runtime.agent_loop import (
     ModelResponseError,
     is_tool_protocol_failure,
     load_system_prompt,
+    summarize_changed_paths,
+    verification_missing_dependency,
 )
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import (
@@ -118,6 +120,28 @@ def routed(
         confidence=0.99,
         reason='test decision',
     )
+
+
+def test_changed_path_summary_is_bounded() -> None:
+    paths = tuple(f'source/generated/file-{index}.txt' for index in range(100))
+
+    rendered = summarize_changed_paths(paths, maximum_paths=5)
+
+    assert 'file-0.txt' in rendered
+    assert 'file-4.txt' in rendered
+    assert 'file-5.txt' not in rendered
+    assert '(+95 more; 100 total)' in rendered
+
+
+def test_changed_path_summary_handles_empty_and_character_budget() -> None:
+    assert summarize_changed_paths(()) == 'none'
+
+    rendered = summarize_changed_paths(
+        ('a' * 50, 'second.txt'),
+        maximum_characters=10,
+    )
+
+    assert rendered == '(paths omitted) ... (+2 more; 2 total)'
 
 
 def streamed_response(
@@ -1919,3 +1943,21 @@ def test_conversation_context_stats_include_request_layers() -> None:
     assert stats.context_window_tokens == 1_000
     assert stats.reserved_output_tokens == 100
     assert stats.remaining_tokens is not None
+
+
+def test_verification_missing_dependency_covers_common_toolchains() -> None:
+    messages = (
+        '/bin/sh: 1: Rscript: not found',
+        'ModuleNotFoundError: No module named numpy',
+        'ld.so: cannot open shared object file',
+        'CMake Error: Could NOT find OpenSSL (missing: OPENSSL_CRYPTO_LIBRARY)',
+    )
+
+    for message in messages:
+        assert verification_missing_dependency(
+            ToolResult.fail('verification_failed', message, content=message)
+        ) is True
+
+    assert verification_missing_dependency(
+        ToolResult.fail('verification_failed', 'test assertion failed')
+    ) is False

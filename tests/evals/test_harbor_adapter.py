@@ -24,6 +24,13 @@ from benchmark.harbor.run_aider import (
     build_command,
     container_base_url,
 )
+from benchmark.harbor.run_dataset import local_provider_available
+from benchmark.harbor.run_forge import (
+    BENCHMARK_TASK_POLICY,
+    MAX_RESULT_CHANGED_PATHS,
+    result_payload,
+)
+from forge.runtime.state import TokenUsage, TurnResult
 from harbor.trial.trial import Trial
 
 
@@ -47,6 +54,32 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
     assert 'export FORGE_DATA_DIR=/tmp/forgecode-harbor' in command
     assert '-exec cp {} /logs/agent/' in command
     assert 'git commit --quiet -m "Harbor evaluation baseline"' not in command
+
+
+def test_harbor_requires_workspace_change_and_verification() -> None:
+    assert BENCHMARK_TASK_POLICY.require_changes is True
+    assert BENCHMARK_TASK_POLICY.require_verification is True
+
+
+def test_harbor_result_bounds_changed_path_summary() -> None:
+    paths = tuple(
+        f'generated/path-{index}.txt'
+        for index in range(MAX_RESULT_CHANGED_PATHS + 25)
+    )
+    result = TurnResult(
+        text='done',
+        usage=TokenUsage(input_tokens=0, output_tokens=0),
+        model_calls=1,
+        tool_calls=(),
+        status='completed',
+        changed_paths=paths,
+    )
+
+    payload = result_payload(result, resumed=False)
+
+    assert len(payload['changed_paths']) == MAX_RESULT_CHANGED_PATHS
+    assert payload['changed_path_count'] == len(paths)
+    assert payload['changed_paths_truncated'] is True
 
 
 def test_adapter_can_run_with_uploaded_message_file(tmp_path: Path) -> None:
@@ -120,6 +153,8 @@ def test_install_uses_python_312_and_shared_cache() -> None:
     assert 'python install 3.12' in command
     assert 'python find 3.12' in command
     assert 'CACHE_DIR=/opt/forgecode-cache' in command
+    assert 'cp "$CACHE_DIR/bin/uv" "$UV_BIN"' in command
+    assert 'chmod 755 "$UV_BIN"' in command
     assert command.count('--clear') == 1
     assert 'while true; do' in command
     assert 'attempt" -ge 3' in command
@@ -354,6 +389,33 @@ def test_container_base_url_only_rewrites_loopback() -> None:
     assert container_base_url('https://provider.example/v1') == (
         'https://provider.example/v1'
     )
+
+
+def test_local_provider_preflight_skips_remote_endpoints(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unexpected_connection(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError('remote providers must not be probed by socket')
+
+    monkeypatch.setattr(
+        'benchmark.harbor.run_dataset.socket.create_connection',
+        unexpected_connection,
+    )
+
+    assert local_provider_available('https://provider.example/v1') is True
+
+
+def test_local_provider_preflight_reports_closed_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def refused(*_args: object, **_kwargs: object) -> None:
+        raise ConnectionRefusedError
+
+    monkeypatch.setattr(
+        'benchmark.harbor.run_dataset.socket.create_connection', refused
+    )
+
+    assert local_provider_available('http://localhost:53496') is False
 
 
 def test_ubuntu_mirror_override_only_changes_selected_task(

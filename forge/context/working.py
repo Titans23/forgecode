@@ -211,6 +211,14 @@ class WorkingState:
             return self._observe_signature(signature)
         if tool_call.name == 'task_get':
             return self._observe_signature(signature)
+        if tool_call.name in {'run_command', 'verify'}:
+            # Terminal work can be entirely process-oriented: installing a
+            # dependency, compiling a project, querying a service, or running
+            # a task-specific check may not change the repository. Treat a
+            # successful, non-empty process result as real progress while
+            # keeping repeated identical calls idempotent via the signature.
+            if result.content.strip() or result.summary.strip():
+                return self._observe_signature(signature)
         return False
 
     def covers_read(self, tool_call: ToolCall, revision: int) -> bool:

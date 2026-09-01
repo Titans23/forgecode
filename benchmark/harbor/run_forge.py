@@ -11,6 +11,7 @@ from typing import Any
 
 from forge.cli import create_session_runtime
 from forge.permissions.policy import ApprovalResponse, PermissionRequest
+from forge.runtime.completion import TaskPolicy
 from forge.runtime.state import (
     ModelTextDelta,
     ToolExecutionCompleted,
@@ -20,11 +21,23 @@ from forge.runtime.state import (
 )
 
 
+BENCHMARK_TASK_POLICY = TaskPolicy(
+    require_changes=True,
+    require_verification=True,
+)
+MAX_RESULT_CHANGED_PATHS = 100
+
+
 def result_payload(result: TurnResult, *, resumed: bool) -> dict[str, Any]:
+    changed_paths = list(result.changed_paths[:MAX_RESULT_CHANGED_PATHS])
     return {
         'status': result.status,
         'resumed': resumed,
-        'changed_paths': list(result.changed_paths),
+        'changed_paths': changed_paths,
+        'changed_path_count': len(result.changed_paths),
+        'changed_paths_truncated': (
+            len(result.changed_paths) > MAX_RESULT_CHANGED_PATHS
+        ),
         'model_calls': result.model_calls,
         'tool_calls': len(result.tool_calls),
         'usage': asdict(result.usage),
@@ -48,6 +61,8 @@ async def run_turn(
     conversation, journal, _ = create_session_runtime(
         project,
         continue_session=resume,
+        task_policy=BENCHMARK_TASK_POLICY,
+        allow_container_writes=True,
     )
     conversation.max_iterations = max_model_calls
     conversation.max_tool_calls = max_tool_calls

@@ -47,6 +47,23 @@ def test_large_tool_result_is_persisted_without_mutating_source(
     assert messages[1]['content'][0]['content'] == 'x' * 40
 
 
+def test_large_tool_result_preview_keeps_head_and_tail_without_read_path(
+    tmp_path: Path,
+) -> None:
+    content = 'HEAD' + 'x' * 6_000 + 'TAIL_ERROR'
+    messages = tool_pair('toolu_big', content)
+    config = CompactionConfig(tool_result_inline_limit=20)
+
+    result = cheap_compact(messages, tmp_path / 'artifacts', config)
+
+    compacted = result.messages[1]['content'][0]['content']
+    assert 'HEAD' in compacted
+    assert 'TAIL_ERROR' in compacted
+    assert 'characters omitted' in compacted
+    assert 'path:' not in compacted
+    assert 'Do not attempt to read ForgeCode control-plane files' in compacted
+
+
 def test_old_tool_results_are_shortened_but_recent_results_stay() -> None:
     messages: list[dict[str, object]] = []
     for index in range(5):

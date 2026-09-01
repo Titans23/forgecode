@@ -1750,7 +1750,10 @@ def test_failed_verification_enters_bounded_edit_recovery(
         if isinstance(event, ToolExecutionCompleted)
         and event.tool_call.id == 'failed-verify-stale-verify'
     )
-    assert stale_verify_result.success is True
+    assert stale_verify_result.success is False
+    assert stale_verify_result.error is not None
+    assert stale_verify_result.error.code == 'verification_requires_correction'
+    assert stale_verify_result.metadata['verification_retry_blocked'] is True
     recovery_names = {
         str(definition['name'])
         for definition in client.calls[2]['tools'] or ()
@@ -1779,7 +1782,7 @@ def test_completion_decision_default_is_bounded() -> None:
     assert conversation.completion_decision_limit == 3
 
 
-def test_inferred_task_scope_blocks_unrelated_workspace_write(
+def test_inferred_task_scope_does_not_create_a_hard_write_boundary(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -1832,13 +1835,13 @@ def test_inferred_task_scope_blocks_unrelated_workspace_write(
         if isinstance(event, ToolExecutionCompleted)
         and event.tool_call.id == 'scope-wrong-edit'
     )
-    assert wrong_result.error is not None
-    assert wrong_result.error.code == 'outside_task_scope'
-    assert state_file.read_text(encoding='utf-8') == 'safe\n'
+    assert wrong_result.success is True
+    assert state_file.read_text(encoding='utf-8') == 'corrupted\n'
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
     assert set(completed.result.changed_paths) == {
+        'forge/runtime/state.py',
         'play/index.html',
         'play/src',
     }

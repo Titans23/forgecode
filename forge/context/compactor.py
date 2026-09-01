@@ -310,16 +310,35 @@ def persist_large_tool_results(
         path = artifact_dir / f'{digest}.txt'
         if not path.exists():
             path.write_text(content, encoding='utf-8')
-        relative = path.as_posix()
-        preview = content[:2_000]
+        preview = tool_result_preview(content)
         block['content'] = (
             '[ForgeCode stored a large tool result]\n'
-            f'path: {relative}\nsha256: {digest}\n'
+            'The complete result was archived internally. Do not attempt to '
+            'read ForgeCode control-plane files directly.\n'
+            f'sha256: {digest}\n'
             f'characters: {len(content)}\npreview:\n{preview}'
         )
-        written.append(relative)
+        written.append(path.as_posix())
         total -= max(0, len(content) - len(str(block['content'])))
     return written
+
+
+def tool_result_preview(
+    content: str,
+    *,
+    head_characters: int = 1_000,
+    tail_characters: int = 4_000,
+) -> str:
+    '''Keep error context from both ends of an oversized tool result.'''
+    maximum = head_characters + tail_characters
+    if len(content) <= maximum:
+        return content
+    omitted = len(content) - maximum
+    return (
+        content[:head_characters]
+        + f'\n\n[... {omitted} characters omitted ...]\n\n'
+        + content[-tail_characters:]
+    )
 
 
 def file_evidence_result_ids(

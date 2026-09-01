@@ -132,12 +132,20 @@ class ApplyPatchTool(Tool[ApplyPatchInput]):
                 metadata={'format': patch_format},
             )
 
-        check = await run_process(
-            ['git', 'apply', '--check', '--whitespace=nowarn', '-'],
-            cwd=self.root,
-            timeout_seconds=30,
-            input_text=normalized_patch,
-        )
+        try:
+            check = await run_process(
+                ['git', 'apply', '--check', '--whitespace=nowarn', '-'],
+                cwd=self.root,
+                timeout_seconds=30,
+                input_text=normalized_patch,
+            )
+        except FileNotFoundError:
+            return apply_unified_patch_without_git(
+                self.root,
+                normalized_patch,
+                patch_format=patch_format,
+                target_paths=target_paths,
+            )
         if check.exit_code != 0:
             return ToolResult.fail(
                 'patch_rejected',
@@ -194,6 +202,256 @@ class ApplyPatchTool(Tool[ApplyPatchInput]):
                 'status': process_metadata(status),
             },
         )
+
+
+def apply_unified_patch_without_git(
+    root: Path,
+    patch: str,
+    *,
+    patch_format: str,
+    target_paths: tuple[str, ...],
+) -> ToolResult:
+    '''Apply a validated text patch when the runtime image has no Git binary.'''
+    try:
+        changes = parse_unified_patch_changes(root, patch)
+        if not changes:
+            raise _EnvelopeError(
+                'Patch does not contain any unified file changes.'
+            )
+        for path, before, after in changes:
+            if before == after:
+                raise _EnvelopeError(
+                    f'Patch for {path!r} is already applied.',
+                    code='patch_already_applied',
+                    details={'path': path},
+                )
+    except (OSError, UnicodeDecodeError, _EnvelopeError) as error:
+        code = error.code if isinstance(error, _EnvelopeError) else 'patch_rejected'
+        details = {
+            'format': patch_format,
+            'backend': 'filesystem',
+        }
+        if isinstance(error, _EnvelopeError):
+            details.update(error.details)
+        return ToolResult.fail(
+            code,
+            'Patch validation failed without Git.',
+            content=str(error),
+            details=details,
+            metadata={
+                'format': patch_format,
+                'backend': 'filesystem',
+            },
+        )
+
+    try:
+        for path, _before, after in changes:
+            target = resolve_repository_path(
+                root,
+                path,
+                must_exist=False,
+            )
+            if after is None:
+                if target.exists():
+                    target.unlink()
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with target.open('w', encoding='utf-8', newline='') as file:
+                    file.write(after)
+    except OSError as error:
+        return ToolResult.fail(
+            'patch_apply_failed',
+            'Patch could not be applied without Git.',
+            content=str(error),
+            details={
+                'format': patch_format,
+                'backend': 'filesystem',
+            },
+            metadata={
+                'format': patch_format,
+                'backend': 'filesystem',
+            },
+        )
+
+    return ToolResult.ok(
+        f'Applied patch to {len(target_paths)} target path(s) without Git.',
+        content='Changed paths: ' + ', '.join(target_paths),
+        metadata={
+            'format': patch_format,
+            'backend': 'filesystem',
+            'target_paths': list(target_paths),
+            'changed_files': list(target_paths),
+        },
+    )
+
+
+def parse_unified_patch_changes(
+    root: Path,
+    patch: str,
+) -> tuple[tuple[str, str | None, str | None], ...]:
+    '''Parse and materialize standard unified text changes in memory.'''
+    lines = patch.splitlines()
+    changes: list[tuple[str, str | None, str | None]] = []
+    index = 0
+    while index < len(lines):
+        if not lines[index].startswith('--- '):
+            index += 1
+            continue
+        old_path = normalize_unified_patch_path(
+            root,
+            parse_unified_file_header(lines[index], index + 1),
+        )
+        index += 1
+        if index >= len(lines) or not lines[index].startswith('+++ '):
+            raise _EnvelopeError(
+                f'Unified Diff is missing its +++ header after patch line '
+                f'{index}.'
+            )
+        new_path = normalize_unified_patch_path(
+            root,
+            parse_unified_file_header(lines[index], index + 1),
+        )
+        index += 1
+
+        hunks: list[tuple[int, int, list[str], bool]] = []
+        while index < len(lines):
+            line = lines[index]
+            if line.startswith('--- '):
+                break
+            if line.startswith('diff --git '):
+                break
+            if not line.startswith('@@'):
+                index += 1
+                continue
+            match = re.match(
+                r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@',
+                line,
+            )
+            if match is None:
+                raise _EnvelopeError(
+                    f'Invalid unified hunk header at patch line {index + 1}.'
+                )
+            old_start = int(match.group(1))
+            old_count = int(match.group(2) or 1)
+            new_count = int(match.group(4) or 1)
+            index += 1
+            body: list[str] = []
+            new_has_final_newline = True
+            last_prefix = ''
+            while index < len(lines):
+                body_line = lines[index]
+                if body_line.startswith(('@@', '--- ')):
+                    break
+                if body_line == r'\ No newline at end of file':
+                    if last_prefix in {' ', '+'}:
+                        new_has_final_newline = False
+                    index += 1
+                    continue
+                if not body_line or body_line[0] not in {' ', '+', '-'}:
+                    raise _EnvelopeError(
+                        f'Invalid unified hunk line at patch line {index + 1}.'
+                    )
+                body.append(body_line)
+                last_prefix = body_line[0]
+                index += 1
+            old_actual = sum(line[0] in {' ', '-'} for line in body)
+            new_actual = sum(line[0] in {' ', '+'} for line in body)
+            if old_actual != old_count or new_actual != new_count:
+                raise _EnvelopeError(
+                    'Unified hunk line counts do not match its header.',
+                    details={
+                        'path': old_path or new_path,
+                        'expected_old': old_count,
+                        'actual_old': old_actual,
+                        'expected_new': new_count,
+                        'actual_new': new_actual,
+                    },
+                )
+            hunks.append((old_start, old_count, body, new_has_final_newline))
+
+        if not hunks:
+            raise _EnvelopeError(
+                f'Unified Diff for {old_path or new_path!r} has no hunks.'
+            )
+        changes.append(
+            materialize_unified_file_change(
+                root,
+                old_path,
+                new_path,
+                hunks,
+            )
+        )
+    return tuple(changes)
+
+
+def normalize_unified_patch_path(root: Path, raw_path: str) -> str:
+    if raw_path == '/dev/null':
+        return raw_path
+    normalized = raw_path.replace('\\', '/')
+    if normalized.startswith(('a/', 'b/')):
+        normalized = normalized[2:]
+    target = resolve_repository_path(root, normalized, must_exist=False)
+    return display_path(root, target)
+
+
+def materialize_unified_file_change(
+    root: Path,
+    old_path: str,
+    new_path: str,
+    hunks: list[tuple[int, int, list[str], bool]],
+) -> tuple[str, str | None, str | None]:
+    target_path = new_path if new_path != '/dev/null' else old_path
+    if target_path == '/dev/null':
+        raise _EnvelopeError('Unified Diff cannot target /dev/null.')
+    old_target = (
+        None
+        if old_path == '/dev/null'
+        else resolve_repository_path(root, old_path, must_exist=False)
+    )
+    new_target = (
+        None
+        if new_path == '/dev/null'
+        else resolve_repository_path(root, new_path, must_exist=False)
+    )
+    if old_target is not None:
+        if not old_target.is_file():
+            raise _EnvelopeError(
+                f'Patch target does not exist: {old_path!r}.'
+            )
+        before = read_text_preserving_newlines(old_target)
+    else:
+        if new_target is None or new_target.exists():
+            raise _EnvelopeError(
+                f'Cannot add {new_path!r}: path already exists.'
+            )
+        before = ''
+
+    newline = dominant_newline(before)
+    current = before.splitlines()
+    offset = 0
+    final_newline = before.endswith(('\n', '\r'))
+    for old_start, _old_count, body, hunk_final_newline in hunks:
+        old_lines = [line[1:] for line in body if line[0] in {' ', '-'}]
+        new_lines = [line[1:] for line in body if line[0] in {' ', '+'}]
+        position = 0 if old_start == 0 else old_start - 1 + offset
+        if position < 0 or current[position:position + len(old_lines)] != old_lines:
+            raise _EnvelopeError(
+                f'Unified hunk context does not match current content in '
+                f'{target_path!r}.',
+                code='patch_context_not_found',
+                details={'path': target_path},
+            )
+        current[position:position + len(old_lines)] = new_lines
+        offset += len(new_lines) - len(old_lines)
+        final_newline = hunk_final_newline
+
+    after = newline.join(current)
+    if current and final_newline:
+        after += newline
+    if new_target is None:
+        after = None
+    result_path = target_path
+    return result_path, before if old_path != '/dev/null' else None, after
 
 
 def validate_unified_patch_paths(

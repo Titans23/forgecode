@@ -1,4 +1,4 @@
-'''Git-backed working tree tracking for completion evidence.'''
+'''Working tree tracking for completion evidence.'''
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ class WorkspaceTracker:
         self.current = WorkspaceSnapshot()
         self.revision = 0
         self.available = False
+        self.git_available = False
         self._watched_paths: set[str] = set()
         self._carried_paths: set[str] = set()
 
@@ -108,26 +109,77 @@ class WorkspaceTracker:
         # forge.tools exports VerifyTool, which itself references this class.
         from forge.tools.shell import run_process
 
-        result = await run_process(
-            [
-                'git',
-                'status',
-                '--porcelain=v1',
-                '-z',
-                '--untracked-files=all',
-                '--ignored=no',
-            ],
-            cwd=self.root,
-            timeout_seconds=30,
-        )
+        try:
+            result = await run_process(
+                [
+                    'git',
+                    'status',
+                    '--porcelain=v1',
+                    '-z',
+                    '--untracked-files=all',
+                    '--ignored=no',
+                ],
+                cwd=self.root,
+                timeout_seconds=30,
+            )
+        except OSError:
+            self.git_available = False
+            return self._capture_filesystem()
         if result.exit_code != 0:
-            return None
+            self.git_available = False
+            return self._capture_filesystem()
+
+        self.git_available = True
 
         files = {
             path: fingerprint_path(self.root, path)
             for path in parse_porcelain_paths(result.stdout)
             if not is_runtime_state_path(path)
         }
+        for path in self._watched_paths:
+            files[path] = fingerprint_path(self.root, path)
+        return WorkspaceSnapshot(files=files)
+
+    def _capture_filesystem(self) -> WorkspaceSnapshot:
+        '''Track file metadata when Git is absent from a benchmark image.'''
+        files: dict[str, str] = {}
+        try:
+            walker = os.walk(self.root, followlinks=False)
+            for current, directories, names in walker:
+                current_path = Path(current)
+                relative_root = current_path.relative_to(self.root)
+                directories[:] = [
+                    name
+                    for name in directories
+                    if not is_runtime_state_path(
+                        normalize_path(str(relative_root / name)) + '/'
+                    )
+                    and name != '.git'
+                ]
+                for name in names:
+                    relative = normalize_path(str(relative_root / name))
+                    if is_runtime_state_path(relative):
+                        continue
+                    path = current_path / name
+                    try:
+                        stat = path.lstat()
+                        if path.is_symlink():
+                            fingerprint = f'symlink:{os.readlink(path)}'
+                        else:
+                            # Metadata-only fingerprints can miss an in-place
+                            # edit that preserves size and timestamp
+                            # resolution. The fallback is used specifically
+                            # when Git cannot provide changed-path evidence,
+                            # so content hashing is the correctness boundary.
+                            fingerprint = fingerprint_path(
+                                self.root,
+                                relative,
+                            )
+                    except OSError:
+                        continue
+                    files[relative] = fingerprint
+        except OSError:
+            pass
         for path in self._watched_paths:
             files[path] = fingerprint_path(self.root, path)
         return WorkspaceSnapshot(files=files)

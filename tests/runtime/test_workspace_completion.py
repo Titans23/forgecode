@@ -1,6 +1,7 @@
 '''Tests for M2 workspace tracking and deterministic completion checks.'''
 
 import asyncio
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +36,54 @@ def test_workspace_tracker_imports_in_fresh_process() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == 'WorkspaceTracker'
+
+
+def test_workspace_tracker_falls_back_when_git_is_missing(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    sample = tmp_path / 'sample.txt'
+    sample.write_text('old\n', encoding='utf-8')
+    tracker = WorkspaceTracker(tmp_path)
+    monkeypatch.setenv('PATH', str(tmp_path / 'missing-bin'))
+
+    run(tracker.begin_turn())
+    sample.write_text('new content\n', encoding='utf-8')
+    change = run(tracker.refresh())
+    decision = run(
+        CompletionGate(tmp_path).evaluate(
+            tracker,
+            None,
+            mutation_attempted=True,
+        )
+    )
+
+    assert tracker.available is True
+    assert tracker.git_available is False
+    assert change is not None
+    assert change.paths == ('sample.txt',)
+    assert tracker.changed_paths == ('sample.txt',)
+    assert decision.allowed is True
+
+
+def test_filesystem_fallback_detects_same_size_edit_with_same_timestamp(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    sample = tmp_path / 'sample.txt'
+    sample.write_text('old\n', encoding='utf-8')
+    tracker = WorkspaceTracker(tmp_path)
+    monkeypatch.setenv('PATH', str(tmp_path / 'missing-bin'))
+
+    run(tracker.begin_turn())
+    timestamp = sample.stat().st_mtime_ns
+    sample.write_text('new\n', encoding='utf-8')
+    os.utime(sample, ns=(timestamp, timestamp))
+
+    change = run(tracker.refresh())
+
+    assert change is not None
+    assert change.paths == ('sample.txt',)
 
 
 def run(coroutine: object) -> Any:

@@ -104,7 +104,7 @@ class CompletionGate:
                     f'again for workspace revision {tracker.revision}.'
                 )
 
-        if changed_paths and tracker.available:
+        if changed_paths and tracker.git_available:
             reasons.extend(
                 await self._diff_check_reasons(changed_paths)
             )

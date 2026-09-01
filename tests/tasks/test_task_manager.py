@@ -153,14 +153,16 @@ def test_followup_after_stuck_keeps_root_goal_and_latest_directive(
     assert '你直接帮我修复' in suffix
 
 
-def test_plan_without_scope_keeps_inferred_scope(tmp_path: Path) -> None:
+def test_inferred_scope_is_a_soft_repository_hint(tmp_path: Path) -> None:
     manager = TaskManager(tmp_path)
     manager.start('在 play 目录实现复杂游戏', requires_change=True)
 
     task = manager.plan(['分析结构', '实现功能'], scope_hints=[])
 
     assert task.scope_hints == ('play/**',)
-    assert task.scope_source == 'explicit'
+    assert task.scope_source == 'repository'
+    assert manager.outside_scope(('package.json',)) == ()
+    assert 'not a hard write boundary' in manager.system_suffix()
 
 
 def test_literal_directory_scope_includes_descendant_files(
@@ -203,9 +205,7 @@ def test_continuation_after_completed_keeps_goal_and_inferred_scope(
     assert continued.status == 'in_progress'
     assert continued.scope_hints == ('play/**',)
     assert manager.outside_scope(('play/index.html',)) == ()
-    assert manager.outside_scope(('forge/runtime/state.py',)) == (
-        'forge/runtime/state.py',
-    )
+    assert manager.outside_scope(('forge/runtime/state.py',)) == ()
     suffix = manager.system_suffix()
     assert original.goal in suffix
     assert '继续，允许你执行文件写入' in suffix

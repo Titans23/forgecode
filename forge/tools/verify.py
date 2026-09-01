@@ -217,7 +217,53 @@ def verification_command_disallowed_reason(command: str) -> str | None:
     )
     if unsafe_reason is not None:
         return unsafe_reason
+    mutation_reason = verification_mutation_reason(command)
+    if mutation_reason is not None:
+        return mutation_reason
     return non_verification_command_reason(command)
+
+
+VERIFICATION_MUTATION_PATTERNS = (
+    (
+        re.compile(r'(?:^|[;&|]\s*)git(?:\.exe)?\s+clone\b', re.IGNORECASE),
+        'a Git clone command',
+    ),
+    (
+        re.compile(r'(?:^|[;&|]\s*)(?:cp|mv|rm|install)\s+', re.IGNORECASE),
+        'a filesystem mutation command',
+    ),
+    (
+        re.compile(
+            r'(?:^|[;&|]\s*)sed\s+-[^\s;&|]*i(?:\s|$)',
+            re.IGNORECASE,
+        ),
+        'an in-place sed edit',
+    ),
+    (
+        re.compile(
+            r'(?:^|[;&|]\s*)(?:apt(?:-get)?|apk|dnf|yum|pacman)\s+'
+            r'(?:install|remove|purge|source|update|upgrade)\b',
+            re.IGNORECASE,
+        ),
+        'a system package mutation command',
+    ),
+    (
+        re.compile(
+            r'(?:^|[;&|]\s*)(?:python(?:\d+(?:\.\d+)*)?\s+-m\s+)?pip'
+            r'(?:\d+(?:\.\d+)*)?\s+(?:install|uninstall)\b',
+            re.IGNORECASE,
+        ),
+        'a Python package mutation command',
+    ),
+)
+
+
+def verification_mutation_reason(command: str) -> str | None:
+    '''Reject setup and install commands that cannot prove task correctness.'''
+    for pattern, reason in VERIFICATION_MUTATION_PATTERNS:
+        if pattern.search(command):
+            return reason
+    return None
 
 
 PURE_INSPECTION_PATTERNS = (

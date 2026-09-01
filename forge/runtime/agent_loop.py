@@ -20,7 +20,7 @@ from forge.context.manager import (
 )
 from forge.context.working import WorkingState
 from forge.hooks import HookEvent, HookManager, HookOutcome
-from forge.permissions.policy import PermissionManager, PermissionMode
+from forge.permissions.policy import PermissionManager
 from forge.permissions.risk import classify_tool_call
 from forge.runtime.router import IntentRouter, TurnDecision
 from forge.runtime.model_client import (
@@ -1487,12 +1487,13 @@ class Conversation:
                     and verification_fix_checkpoint
                     and tool_call.name == 'verify'
                 ):
-                    phase_rejection = ToolResult.ok(
-                        'Deferred verification because the failing revision has '
-                        'not been corrected yet. Redirecting to a concrete edit.',
+                    phase_rejection = ToolResult.fail(
+                        'verification_requires_correction',
+                        'Verification was not executed because the failing '
+                        'revision has not been corrected yet. Make a focused '
+                        'edit first, then run the exact verification command.',
                         metadata={
-                            'status': 'already_completed',
-                            'verification_retry_deferred': True,
+                            'verification_retry_blocked': True,
                         },
                     )
                 if (
@@ -2495,7 +2496,7 @@ class Conversation:
                     and finish_call.arguments.get('status') == 'blocked'
                     and change_required
                     and not mutation_attempted
-                    and false_blocker_recoveries < 1
+                    and false_blocker_recoveries < 2
                 )
                 if correctable_false_blocker:
                     false_blocker_recoveries += 1
@@ -2945,21 +2946,21 @@ class Conversation:
                 )
                 continue
 
-            verification_retry_deferred = (
+            verification_retry_blocked = (
                 not any(
                     call.name in EDIT_RECOVERY_READ_TOOLS
                     and result.success
                     for call, result in tool_results
                 )
                 and any(
-                    result.success
-                    and result.metadata.get(
-                        'verification_retry_deferred'
-                    ) is True
+                    not result.success
+                    and result.error is not None
+                    and result.error.code == 'verification_requires_correction'
+                    and result.metadata.get('verification_retry_blocked') is True
                     for _, result in tool_results
                 )
             )
-            if verification_retry_deferred:
+            if verification_retry_blocked:
                 verification_fix_checkpoint = False
                 verification_action_checkpoint = False
                 mutation_action_checkpoint = True
@@ -3575,6 +3576,17 @@ class Conversation:
         task_context = self.task_manager.system_suffix()
         self._last_task_context = task_context
         parts = [self.system_prompt]
+        git_available = (
+            self.workspace_tracker is None
+            or getattr(self.workspace_tracker, 'git_available', True)
+        )
+        verification_hint = (
+            'a native build, test, lint, type, syntax, or git diff --check '
+            'command'
+            if git_available
+            else 'a build, test, lint, type, syntax, or task-specific check '
+            '(Git is unavailable in this environment)'
+        )
         if os.name == 'nt':
             parts.append(
                 '[Runtime Environment]\n'
@@ -3582,8 +3594,7 @@ class Conversation:
                 '- process shell for command strings: cmd.exe\n'
                 '- repository inspection: use read_file, list_directory, grep, '
                 'or find_files; do not use ls, POSIX find, cat, or heredocs\n'
-                '- verification: use a native build, test, lint, type, syntax, '
-                'or git diff --check command'
+                f'- verification: use {verification_hint}'
             )
         else:
             parts.append(
@@ -3591,8 +3602,7 @@ class Conversation:
                 '- platform: POSIX\n'
                 '- process shell: platform default shell\n'
                 '- repository inspection: prefer dedicated repository tools\n'
-                '- verification: use a build, test, lint, type, syntax, or '
-                'git diff --check command'
+                f'- verification: use {verification_hint}'
             )
         if task_context:
             parts.append(task_context)
@@ -4758,7 +4768,7 @@ def render_change_contract_context(
     mutation_attempted: bool,
     resumed_existing_change: bool = False,
 ) -> str:
-    paths = ', '.join(changed_paths) if changed_paths else 'none'
+    paths = summarize_changed_paths(changed_paths)
     attempted = 'yes' if mutation_attempted else 'no'
     if resumed_existing_change:
         return (
@@ -5116,7 +5126,7 @@ def render_completion_ready_context(
     decision_limit: int,
 ) -> str:
     '''Expose only objective completion evidence to the model.'''
-    changed = ', '.join(changed_paths)
+    changed = summarize_changed_paths(changed_paths)
     verification_status = (
         f'{verification.command} @ revision {verification.workspace_revision}'
         if verification is not None
@@ -5148,7 +5158,7 @@ def build_finalization_recovery_feedback(
         if verification is not None
         else 'not required / not run'
     )
-    changed = ', '.join(changed_paths)
+    changed = summarize_changed_paths(changed_paths)
     return {
         'role': 'user',
         'content': (
@@ -5164,6 +5174,30 @@ def build_finalization_recovery_feedback(
             'limitation honestly. Do not request another tool call.'
         ),
     }
+
+
+def summarize_changed_paths(
+    changed_paths: tuple[str, ...],
+    *,
+    maximum_paths: int = 30,
+    maximum_characters: int = 4_000,
+) -> str:
+    '''Render bounded workspace evidence for model-visible prompts.'''
+    if not changed_paths:
+        return 'none'
+    visible: list[str] = []
+    used = 0
+    for path in changed_paths[:maximum_paths]:
+        separator = 2 if visible else 0
+        if used + separator + len(path) > maximum_characters:
+            break
+        visible.append(path)
+        used += separator + len(path)
+    omitted = len(changed_paths) - len(visible)
+    rendered = ', '.join(visible) if visible else '(paths omitted)'
+    if omitted:
+        rendered += f' ... (+{omitted} more; {len(changed_paths)} total)'
+    return rendered
 
 
 def mutation_failure_record(
@@ -5301,7 +5335,7 @@ def verification_obligation(command: str) -> str | None:
 
 
 def verification_missing_dependency(result: ToolResult) -> bool:
-    '''Detect verification failures caused by an unavailable declared command.'''
+    '''Detect verification failures caused by an unavailable dependency.'''
     rendered = ' '.join(
         part
         for part in (
@@ -5313,13 +5347,26 @@ def verification_missing_dependency(result: ToolResult) -> bool:
     ).casefold()
     if 'is not recognized as an internal or external command' in rendered:
         return True
-    return bool(
-        re.search(
-            r'\b(?:tsc|vite|eslint|prettier|jest|vitest)\b'
-            r'[^\n]{0,80}\b(?:command\s+not\s+found|not\s+found)\b',
-            rendered,
-        )
-    )
+    if re.search(
+        r'(?:command\s+not\s+found|not\s+found|no\s+such\s+file\s+or\s+directory|'
+        r'executable\s+file\s+not\s+found)\b',
+        rendered,
+    ):
+        return True
+    if re.search(
+        r'\b(?:modulenotfounderror|importerror):?\s*(?:no\s+module\s+named|'
+        r'cannot\s+import)\b',
+        rendered,
+    ):
+        return True
+    if re.search(
+        r'\b(?:cannot\s+open\s+shared\s+object\s+file|'
+        r'could\s+not\s+find\s+\S+\s*\(missing:|'
+        r'no\s+such\s+package)',
+        rendered,
+    ):
+        return True
+    return False
 
 
 def oversized_write_file_result(
@@ -5463,6 +5510,7 @@ def is_tool_protocol_failure(result: ToolResult) -> bool:
             'patch_missing_hunk',
             'patch_no_changes',
             'verification_read_budget_exhausted',
+            'verification_requires_correction',
             'text_no_change',
             'git_diff_path_is_directory',
         }

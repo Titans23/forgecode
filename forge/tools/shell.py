@@ -209,10 +209,11 @@ class RunCommandTool(Tool[RunCommandInput]):
     description = (
         'Run an executable command for exploration, diagnostics, '
         'or development. Do not use it to display source files or directory '
-        'trees; use read_file, grep, find_files, or list_directory. Do not '
-        'create directories or write files through scripts or redirection; '
-        'use create_directory, write_file, or apply_patch. Use verify instead '
-        'when the command is '
+        'trees; use read_file, grep, find_files, or list_directory. In the '
+        'supervised host profile, do not create directories or write files '
+        'through scripts or redirection; use create_directory, write_file, or '
+        'apply_patch. A disposable sandbox profile may explicitly allow setup '
+        'writes. Use verify instead when the command is '
         'intended as formal completion evidence. For multiline scripts, pass '
         'command="python -" or command="node" and put the script in stdin; '
         'do not embed a POSIX heredoc in command. '
@@ -226,16 +227,26 @@ class RunCommandTool(Tool[RunCommandInput]):
     input_model = RunCommandInput
     effect = 'process'
 
+    def __init__(
+        self,
+        root: Path,
+        *,
+        allow_container_writes: bool = False,
+    ) -> None:
+        super().__init__(root)
+        self.allow_container_writes = allow_container_writes
+
     async def execute(self, arguments: RunCommandInput) -> ToolResult:
-        directory_write = shell_directory_write_reason(arguments.command)
-        if directory_write is not None:
-            raise ToolExecutionError(
-                'shell_directory_write_denied',
-                'run_command cannot create repository directories. Use the '
-                'create_directory tool so the directory has a Git marker '
-                'and is visible to completion tracking.',
-                details={'detected': directory_write},
-            )
+        if not self.allow_container_writes:
+            directory_write = shell_directory_write_reason(arguments.command)
+            if directory_write is not None:
+                raise ToolExecutionError(
+                    'shell_directory_write_denied',
+                    'run_command cannot create repository directories. Use the '
+                    'create_directory tool so the directory has a Git marker '
+                    'and is visible to completion tracking.',
+                    details={'detected': directory_write},
+                )
         if os.name == 'nt' and has_unquoted_heredoc(arguments.command):
             raise ToolExecutionError(
                 'unsupported_shell_syntax',
@@ -261,24 +272,25 @@ class RunCommandTool(Tool[RunCommandInput]):
                 'files.',
                 details={'detected': destructive_reason},
             )
-        read_reason = shell_file_read_reason(arguments.command)
-        if read_reason is not None:
-            raise ToolExecutionError(
-                'shell_file_read_denied',
-                'run_command cannot be used as a substitute for repository '
-                'reading tools. Use read_file, list_directory, grep, or '
-                'find_files so ForgeCode can track the evidence.',
-                details={'detected': read_reason},
-            )
-        denied_reason = shell_file_write_reason(arguments.command)
-        if denied_reason is not None:
-            raise ToolExecutionError(
-                'shell_file_write_denied',
-                'run_command cannot be used to write repository files. '
-                'Use write_file or apply_patch instead.',
-                details={'detected': denied_reason},
-            )
-        if arguments.stdin is not None:
+        if not self.allow_container_writes:
+            read_reason = shell_file_read_reason(arguments.command)
+            if read_reason is not None:
+                raise ToolExecutionError(
+                    'shell_file_read_denied',
+                    'run_command cannot be used as a substitute for repository '
+                    'reading tools. Use read_file, list_directory, grep, or '
+                    'find_files so ForgeCode can track the evidence.',
+                    details={'detected': read_reason},
+                )
+            denied_reason = shell_file_write_reason(arguments.command)
+            if denied_reason is not None:
+                raise ToolExecutionError(
+                    'shell_file_write_denied',
+                    'run_command cannot be used to write repository files. '
+                    'Use write_file or apply_patch instead.',
+                    details={'detected': denied_reason},
+                )
+        if arguments.stdin is not None and not self.allow_container_writes:
             stdin_read_reason = shell_file_read_reason(arguments.stdin)
             if stdin_read_reason is not None:
                 raise ToolExecutionError(

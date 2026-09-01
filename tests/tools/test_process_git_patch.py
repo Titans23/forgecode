@@ -8,6 +8,8 @@ import sys
 
 import pytest
 
+import forge.tools.patch as patch_module
+
 from forge.tools.base import ToolResult
 from forge.tools.git import GitDiffTool, GitLogTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
@@ -66,6 +68,33 @@ def test_run_command_returns_stdout_stderr_exit_code_and_duration(
     assert result.metadata['duration_seconds'] >= 0
     assert 'stdout:\nout' in result.content
     assert 'stderr:\nerr' in result.content
+
+
+def test_apply_patch_uses_filesystem_backend_without_git(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sample = tmp_path / 'sample.txt'
+    sample.write_text('old\n', encoding='utf-8')
+
+    async def missing_git(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        raise FileNotFoundError('git')
+
+    monkeypatch.setattr(patch_module, 'run_process', missing_git)
+    patch = (
+        '--- a/sample.txt\n'
+        '+++ b/sample.txt\n'
+        '@@ -1,1 +1,1 @@\n'
+        '-old\n'
+        '+new\n'
+    )
+
+    result = run(ApplyPatchTool(tmp_path).run({'patch': patch}))
+
+    assert result.success is True
+    assert result.metadata['backend'] == 'filesystem'
+    assert sample.read_text(encoding='utf-8') == 'new\n'
 
 
 def test_run_command_returns_nonzero_exit_as_structured_error(
@@ -219,6 +248,26 @@ def test_run_command_stdin_cannot_bypass_write_policy(
     assert not (tmp_path / 'unexpected.txt').exists()
 
 
+def test_run_command_allows_writes_in_disposable_container_mode(
+    tmp_path: Path,
+) -> None:
+    command = subprocess.list2cmdline([sys.executable, '-'])
+    script = (
+        'from pathlib import Path\n'
+        "Path('generated').mkdir()\n"
+        "Path('generated/result.txt').write_text('ok')\n"
+    )
+
+    result = run(
+        RunCommandTool(tmp_path, allow_container_writes=True).run(
+            {'command': command, 'stdin': script}
+        )
+    )
+
+    assert result.success is True
+    assert (tmp_path / 'generated' / 'result.txt').read_text() == 'ok'
+
+
 def test_run_command_allows_stderr_merge_redirection(tmp_path: Path) -> None:
     redirect = '2' + chr(62) + chr(38) + '1'
     result = run(
@@ -319,6 +368,30 @@ def test_verify_rejects_npm_test_without_package_manifest(
     ],
 )
 def test_verify_rejects_file_access_and_directory_mutation(
+    tmp_path: Path,
+    command: str,
+) -> None:
+    tracker = WorkspaceTracker(tmp_path)
+    asyncio.run(tracker.begin_turn())
+
+    result = run(VerifyTool(tmp_path, tracker).run({'command': command}))
+
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.code == 'verification_command_not_allowed'
+
+
+@pytest.mark.parametrize(
+    'command',
+    [
+        'git clone https://example.invalid/repo.git checkout',
+        'cp source.txt result.txt',
+        "sed -i 's/GPU/CPU/' solver.prototxt",
+        'apt-get install -y build-essential',
+        'python -m pip install .',
+    ],
+)
+def test_verify_rejects_setup_and_install_commands(
     tmp_path: Path,
     command: str,
 ) -> None:
