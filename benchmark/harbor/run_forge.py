@@ -12,6 +12,7 @@ from typing import Any
 from forge.cli import create_session_runtime
 from forge.permissions.policy import ApprovalResponse, PermissionRequest
 from forge.runtime.completion import TaskPolicy
+from forge.runtime.profile import ExecutionProfile
 from forge.runtime.state import (
     ModelTextDelta,
     ToolExecutionCompleted,
@@ -63,7 +64,7 @@ async def run_turn(
         project,
         continue_session=resume,
         task_policy=BENCHMARK_TASK_POLICY,
-        allow_container_writes=True,
+        execution_profile=ExecutionProfile.sandbox(),
     )
     conversation.max_iterations = max_model_calls
     conversation.max_tool_calls = max_tool_calls

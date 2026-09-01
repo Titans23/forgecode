@@ -14,6 +14,7 @@ from forge.tools.base import ToolResult
 from forge.tools.git import GitDiffTool, GitLogTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
 from forge.tools.shell import RunCommandTool, run_process
+from forge.runtime.profile import ExecutionProfile
 from forge.tools.verify import VerifyTool
 from forge.runtime.workspace import WorkspaceTracker
 
@@ -266,6 +267,42 @@ def test_run_command_allows_writes_in_disposable_container_mode(
 
     assert result.success is True
     assert (tmp_path / 'generated' / 'result.txt').read_text() == 'ok'
+
+
+def test_run_command_execution_profile_controls_setup_writes(
+    tmp_path: Path,
+) -> None:
+    command = subprocess.list2cmdline([sys.executable, '-'])
+    script = "from pathlib import Path; Path('profile.txt').write_text('ok')\n"
+
+    result = run(
+        RunCommandTool(
+            tmp_path,
+            execution_profile=ExecutionProfile.sandbox(),
+        ).run({'command': command, 'stdin': script})
+    )
+
+    assert result.success is True
+    assert (tmp_path / 'profile.txt').read_text() == 'ok'
+
+
+def test_cancelled_process_is_terminated_and_propagates_cancellation(
+    tmp_path: Path,
+) -> None:
+    async def exercise() -> None:
+        task = asyncio.create_task(
+            run_process(
+                [sys.executable, '-c', 'import time; time.sleep(60)'],
+                cwd=tmp_path,
+                timeout_seconds=120,
+            )
+        )
+        await asyncio.sleep(0.2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=5)
+
+    asyncio.run(exercise())
 
 
 def test_run_command_allows_stderr_merge_redirection(tmp_path: Path) -> None:

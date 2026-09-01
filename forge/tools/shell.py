@@ -19,6 +19,7 @@ from forge.tools.base import (
     display_path,
     resolve_repository_path,
 )
+from forge.runtime.profile import ExecutionProfile
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +97,13 @@ async def run_process(
         await _terminate_process_tree(process)
         await process.wait()
         timed_out = True
+    except asyncio.CancelledError:
+        # A stopped ForgeCode turn must not leave a compiler, test runner, or
+        # shell child alive after the caller has already moved on.
+        await _terminate_process_tree(process)
+        await process.wait()
+        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+        raise
     stdout_bytes, stdout_total, stdout_truncated = await stdout_task
     stderr_bytes, stderr_total, stderr_truncated = await stderr_task
     return ProcessResult(
@@ -231,13 +239,23 @@ class RunCommandTool(Tool[RunCommandInput]):
         self,
         root: Path,
         *,
+        execution_profile: ExecutionProfile | None = None,
         allow_container_writes: bool = False,
     ) -> None:
         super().__init__(root)
-        self.allow_container_writes = allow_container_writes
+        self.execution_profile = execution_profile or (
+            ExecutionProfile.sandbox()
+            if allow_container_writes
+            else ExecutionProfile.host()
+        )
+
+    @property
+    def allow_container_writes(self) -> bool:
+        '''Compatibility view for callers using the pre-profile API.'''
+        return self.execution_profile.allow_command_file_writes
 
     async def execute(self, arguments: RunCommandInput) -> ToolResult:
-        if not self.allow_container_writes:
+        if not self.execution_profile.allow_command_file_writes:
             directory_write = shell_directory_write_reason(arguments.command)
             if directory_write is not None:
                 raise ToolExecutionError(
@@ -272,7 +290,7 @@ class RunCommandTool(Tool[RunCommandInput]):
                 'files.',
                 details={'detected': destructive_reason},
             )
-        if not self.allow_container_writes:
+        if not self.execution_profile.allow_command_file_writes:
             read_reason = shell_file_read_reason(arguments.command)
             if read_reason is not None:
                 raise ToolExecutionError(
@@ -290,7 +308,10 @@ class RunCommandTool(Tool[RunCommandInput]):
                     'Use write_file or apply_patch instead.',
                     details={'detected': denied_reason},
                 )
-        if arguments.stdin is not None and not self.allow_container_writes:
+        if (
+            arguments.stdin is not None
+            and not self.execution_profile.allow_command_file_writes
+        ):
             stdin_read_reason = shell_file_read_reason(arguments.stdin)
             if stdin_read_reason is not None:
                 raise ToolExecutionError(

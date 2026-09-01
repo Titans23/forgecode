@@ -31,6 +31,7 @@ from forge.mcp import MCPClientManager, MCPConfigurationError, load_mcp_servers
 from forge.mcp.config import InternalStdioServerConfig
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy
+from forge.runtime.profile import ExecutionProfile
 from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.router import ModelIntentRouter
 from forge.runtime.state import (
@@ -708,6 +709,7 @@ def create_session_runtime(
     fork_session: bool = False,
     model_override: str | None = None,
     task_policy: TaskPolicy | None = None,
+    execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Create a new conversation or hydrate one from durable history.'''
@@ -719,6 +721,7 @@ def create_session_runtime(
     store = SessionStore(root)
     registry = create_default_registry(
         root,
+        execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
     )
     hook_manager = HookManager.from_root(root)

@@ -19,12 +19,14 @@ from forge.tools.search import FindFilesTool, GrepTool
 from forge.tools.shell import RunCommandTool
 from forge.tools.verify import VerifyTool
 from forge.runtime.workspace import WorkspaceTracker
+from forge.runtime.profile import ExecutionProfile
 from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
 
 
 def create_default_registry(
     root: Path,
     *,
+    execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
 ) -> ToolRegistry:
     '''Create built-in tools sharing one task-local workspace tracker.'''
@@ -49,6 +51,7 @@ def create_default_registry(
             ApplyPatchTool(root),
             RunCommandTool(
                 root,
+                execution_profile=execution_profile,
                 allow_container_writes=allow_container_writes,
             ),
             VerifyTool(root, tracker),
