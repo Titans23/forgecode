@@ -323,17 +323,23 @@ class TaskManager:
     def complete(self) -> ActiveTask | None:
         if self.active is None:
             return None
-        steps = tuple(
-            replace(step, status='completed')
-            if step.status != 'blocked'
-            else step
+        incomplete = tuple(
+            step.id
             for step in self.active.steps
+            if step.status != 'completed'
         )
+        if incomplete:
+            raise ValueError(
+                'Cannot complete a planned task with incomplete steps: '
+                + ', '.join(incomplete)
+            )
+        # Completion validation owns whether a planned task is complete. Do
+        # not manufacture execution evidence by converting pending steps to
+        # completed at the persistence boundary.
         self.active = replace(
             self.active,
             status='completed',
             current_step_id=None,
-            steps=steps,
             blocked_reasons=(),
         )
         if self.active.planned:

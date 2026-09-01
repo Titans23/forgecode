@@ -3668,6 +3668,23 @@ class Conversation:
                 'An inspection task requires repository evidence from '
                 'read_file, list_directory, grep, or find_files.'
             )
+        active_task = self.task_manager.active
+        if (
+            task_kind in {'change', 'inspection'}
+            and active_task is not None
+            and active_task.planned
+            and any(step.status != 'completed' for step in active_task.steps)
+        ):
+            pending = ', '.join(
+                step.id
+                for step in active_task.steps
+                if step.status != 'completed'
+            )
+            reasons.append(
+                'The current task plan still has incomplete steps: '
+                f'{pending}. Advance each step with task_update and attach '
+                'evidence before finishing.'
+            )
         if task_kind != 'change' and changed_paths:
             reasons.append(
                 'The workspace changed during this turn; declare '

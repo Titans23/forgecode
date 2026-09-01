@@ -24,6 +24,7 @@ from forge.runtime.state import (
 BENCHMARK_TASK_POLICY = TaskPolicy(
     require_changes=True,
     require_verification=True,
+    require_task_verification=True,
 )
 MAX_RESULT_CHANGED_PATHS = 100
 

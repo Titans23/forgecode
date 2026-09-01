@@ -11,6 +11,7 @@ from forge.runtime.agent_loop import mutation_target_paths
 from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
+    is_task_verification_command,
     matches_any,
 )
 from forge.runtime.state import ToolCall, VerificationEvidence
@@ -569,6 +570,43 @@ def test_completion_gate_rejects_failed_verification_and_empty_diff(
     assert decision.allowed is False
     assert any('final Diff is empty' in item for item in decision.reasons)
     assert any('verification failed' in item for item in decision.reasons)
+
+
+def test_completion_gate_requires_task_level_verification_and_artifact(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    (tmp_path / 'sample.txt').write_text('changed\n', encoding='utf-8')
+    run(tracker.refresh())
+    gate = CompletionGate(
+        tmp_path,
+        TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+            require_task_verification=True,
+            required_paths=('result.json',),
+            required_verification_commands=('python -m pytest*',),
+        ),
+    )
+    structural = VerificationEvidence(
+        command='git diff --check',
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+
+    rejected = run(gate.evaluate(tracker, structural, mutation_attempted=True))
+
+    assert rejected.allowed is False
+    assert any('task-level' in reason for reason in rejected.reasons)
+    assert any('result.json' in reason for reason in rejected.reasons)
+    assert any('required verification command' in reason for reason in rejected.reasons)
+    assert is_task_verification_command('git diff --check') is False
+    assert is_task_verification_command('python -m pytest tests') is True
 
 
 def test_completion_gate_rejects_forbidden_and_out_of_scope_paths(

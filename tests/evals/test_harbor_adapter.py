@@ -59,6 +59,7 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
 def test_harbor_requires_workspace_change_and_verification() -> None:
     assert BENCHMARK_TASK_POLICY.require_changes is True
     assert BENCHMARK_TASK_POLICY.require_verification is True
+    assert BENCHMARK_TASK_POLICY.require_task_verification is True
 
 
 def test_harbor_result_bounds_changed_path_summary() -> None:

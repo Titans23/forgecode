@@ -130,9 +130,20 @@ def test_completion_and_blocking_are_persisted_for_planned_tasks(
     )
 
     manager.resume(task.id)
+    manager.update_step(
+        'step-1',
+        'completed',
+        evidence=['Implementation completed.'],
+    )
+    manager.update_step(
+        'step-2',
+        'completed',
+        evidence=['Verification completed.'],
+    )
     completed = manager.complete()
 
     assert completed is not None and completed.status == 'completed'
+    assert all(step.status == 'completed' for step in completed.steps)
     assert manager.store.load(task.id).status == 'completed'
 
 

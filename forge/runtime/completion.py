@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
+import re
 
 from forge.runtime.state import VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
@@ -17,7 +18,10 @@ class TaskPolicy:
 
     require_changes: bool = False
     require_verification: bool = False
+    require_task_verification: bool = False
     allowed_paths: tuple[str, ...] = ()
+    required_paths: tuple[str, ...] = ()
+    required_verification_commands: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = (
         'tests/hidden/**',
         '**/tests/hidden/**',
@@ -51,7 +55,10 @@ class CompletionGate:
     ) -> CompletionDecision:
         changed_paths = tracker.changed_paths
         verification_required = (
-            self.policy.require_verification or require_verification
+            self.policy.require_verification
+            or self.policy.require_task_verification
+            or bool(self.policy.required_verification_commands)
+            or require_verification
         )
         code_task = (
             mutation_attempted
@@ -59,6 +66,7 @@ class CompletionGate:
             or verification_required
             or bool(changed_paths)
             or verification is not None
+            or bool(self.policy.required_paths)
         )
         if not code_task:
             return CompletionDecision(allowed=True)
@@ -66,7 +74,7 @@ class CompletionGate:
         reasons: list[str] = []
         if not tracker.available:
             reasons.append(
-                'Git workspace tracking is unavailable for this task.'
+                'Workspace change tracking is unavailable for this task.'
             )
         if (
             self.policy.require_changes
@@ -77,6 +85,7 @@ class CompletionGate:
             )
 
         reasons.extend(self._path_violations(changed_paths))
+        reasons.extend(self._required_path_reasons())
 
         if verification_required:
             if verification is None:
@@ -88,7 +97,35 @@ class CompletionGate:
                     f'The latest verification failed with exit code '
                     f'{verification.exit_code}.'
                 )
-            elif verification.workspace_revision != tracker.revision:
+            elif (
+                self.policy.require_task_verification
+                and not is_task_verification_command(verification.command)
+            ):
+                reasons.append(
+                    'The latest verification is only a structural or no-op '
+                    'check; run a task-level test, build, lint, type-check, '
+                    'syntax check, or other command that exercises the requested '
+                    'behavior.'
+                )
+            if (
+                verification is not None
+                and self.policy.required_verification_commands
+                and not any(
+                    fnmatchcase(
+                        verification.command.strip(),
+                        pattern,
+                    )
+                    for pattern in self.policy.required_verification_commands
+                )
+            ):
+                reasons.append(
+                    'The latest verification command does not match the '
+                    'task-required verification command contract.'
+                )
+            if (
+                verification is not None
+                and verification.workspace_revision != tracker.revision
+            ):
                 reasons.append(
                     'The code changed after verification; run verify again for '
                     f'workspace revision {tracker.revision}.'
@@ -113,6 +150,23 @@ class CompletionGate:
             allowed=not reasons,
             reasons=tuple(dict.fromkeys(reasons)),
         )
+
+    def _required_path_reasons(self) -> list[str]:
+        reasons: list[str] = []
+        for raw_path in self.policy.required_paths:
+            candidate = (self.root / raw_path).resolve(strict=False)
+            try:
+                candidate.relative_to(self.root)
+            except ValueError:
+                reasons.append(
+                    f'Required task artifact is outside the workspace: {raw_path}.'
+                )
+                continue
+            if not candidate.exists():
+                reasons.append(
+                    f'Required task artifact does not exist: {raw_path}.'
+                )
+        return reasons
 
     async def _diff_check_reasons(
         self,
@@ -212,3 +266,19 @@ class CompletionGate:
 def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
     candidate = path.replace('\\', '/')
     return any(fnmatchcase(candidate, pattern) for pattern in patterns)
+
+
+_NON_TASK_VERIFICATION = re.compile(
+    r'^(?:git\s+(?:status|diff(?:\s+--check)?|log)\b|'
+    r'(?:echo|printf|pwd|true|:)\b)',
+    re.IGNORECASE,
+)
+
+
+def is_task_verification_command(command: str) -> bool:
+    '''Return whether a command exercises the requested task, not only plumbing.'''
+    segments = re.split(r'\s*(?:&&|\|\||[;|])\s*', command.strip())
+    return any(
+        segment and not _NON_TASK_VERIFICATION.match(segment.strip())
+        for segment in segments
+    )

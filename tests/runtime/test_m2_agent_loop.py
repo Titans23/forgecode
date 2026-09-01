@@ -2264,7 +2264,7 @@ def test_agent_loop_stops_after_one_completion_rejection(
     assert conversation.task_manager.active.status == 'stuck'
 
 
-def test_verified_revision_can_finish_with_incomplete_plan(
+def test_verified_revision_requires_explicit_plan_step_completion(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -2290,10 +2290,32 @@ def test_verified_revision_can_finish_with_incomplete_plan(
         'verify',
         {'command': 'git diff --check'},
     )
+    complete_edit = ToolCall(
+        0,
+        'toolu_plan_complete_edit',
+        'task_update',
+        {
+            'step_id': 'step-1',
+            'status': 'completed',
+            'evidence': ['sample.txt was changed'],
+        },
+    )
+    complete_verify = ToolCall(
+        0,
+        'toolu_plan_complete_verify',
+        'task_update',
+        {
+            'step_id': 'step-2',
+            'status': 'completed',
+            'evidence': ['git diff --check passed'],
+        },
+    )
     client = FakeModelClient(
         response_with_tool(plan),
         response_with_tool(edit),
+        response_with_tool(complete_edit),
         response_with_tool(verify),
+        response_with_tool(complete_verify),
         finish_response('toolu_plan_finish', task_kind='change'),
     )
     conversation = Conversation(
@@ -2313,7 +2335,7 @@ def test_verified_revision_can_finish_with_incomplete_plan(
     task = conversation.task_manager.active
     assert task is not None
     assert all(step.status == 'completed' for step in task.steps)
-    assert len(client.calls) == 4
+    assert len(client.calls) == 6
 
 
 def test_planned_progress_keeps_targeted_read_and_action_tools(
