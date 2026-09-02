@@ -1608,13 +1608,13 @@ def test_edit_recovery_stops_noop_writes_without_total_call_limit(
     result = next(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
-    assert result.status == 'stuck'
+    assert result.status == 'failed'
     assert '6 workspace-write attempt(s)' in result.text
     assert result.model_calls == 6
     assert len(tool.calls) == 6
     assert 'model calls without new workspace' not in result.text
     assert conversation.task_manager.active is not None
-    assert conversation.task_manager.active.status == 'stuck'
+    assert conversation.task_manager.active.status == 'failed'
 
 
 def test_turn_stops_at_cumulative_input_token_limit(
@@ -1679,7 +1679,7 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
     assert conversation.workspace_tracker is None
-    assert result.status == 'stuck'
+    assert result.status == 'failed'
     assert result.model_calls == 3
     assert 'workspace-write attempt(s)' in result.text
     assert 'Done despite the failed write.' not in result.text

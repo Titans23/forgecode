@@ -31,6 +31,8 @@ from forge.runtime.model_client import (
     ModelProtocolError,
 )
 from forge.runtime.completion import CompletionGate, TaskPolicy
+from forge.runtime.phase import FinalizeMode, PhaseResolution, resolve_phase
+from forge.runtime.recovery import RecoveryState, failure_fingerprint
 from forge.runtime.state import (
     CompletionBlocked,
     ConversationEvent,
@@ -216,6 +218,7 @@ class Conversation:
                 session_journal,
             )
         self.working_state = WorkingState()
+        self.recovery_state = RecoveryState()
         if registry is not None and include_task_tools:
             for task_tool in create_task_tools(
                 resolved_context_root,
@@ -455,9 +458,6 @@ class Conversation:
         mutation_failures: list[dict[str, Any]] = []
         mutation_recovery_cycles = 0
         chunk_fallback_required = False
-        oversized_write_checkpoint = False
-        stale_task_step_checkpoint = False
-        current_step_action_checkpoint = False
         mutation_recovery_context = ''
         mutation_text_recoveries = 0
         required_change_text_recoveries = 0
@@ -465,23 +465,13 @@ class Conversation:
         false_blocker_recoveries = 0
         stagnation_plan_recoveries = 0
         stagnation_action_recoveries = 0
-        planning_checkpoint_recovery = False
-        planned_progress_checkpoint = False
-        idempotent_resolution_checkpoint = False
-        mutation_read_checkpoint = False
-        mutation_action_checkpoint = False
-        action_checkpoint_recovery = False
+        recovery_state = self.recovery_state
+        recovery_state.clear()
         force_synthesis = False
         verification_recovery = False
-        verification_fix_checkpoint = False
-        verification_action_checkpoint = False
-        dependency_recovery_checkpoint = False
-        dependency_verification_checkpoint = False
-        verification_recheck_checkpoint = False
         unresolved_verifications: dict[str, VerificationEvidence] = {}
         tool_protocol_failures = 0
-        finalization_recovery = False
-        task_state_synthesis = False
+        finalize_mode: FinalizeMode = 'none'
         completion_ready_revision: int | None = None
         completion_decision_calls = 0
         completion_ready_context = ''
@@ -552,124 +542,64 @@ class Conversation:
                 )
                 return
 
-            if task_state_synthesis:
-                request_tools = None
-            elif finalization_recovery:
-                # Finalization is a synthesis phase, not another action phase.
-                # Closing tools prevents a second finish_task (or an unrelated
-                # call) after deterministic completion evidence is sufficient.
-                request_tools = None
-            elif (
+            finish_only = bool(
                 completion_ready_context
                 and change_required
                 and self.finish_protocol
                 and finish_declaration_recoveries > 0
+            )
+            read_only_mode = 'none'
+            if turn_decision is not None:
+                if turn_decision.intent == 'task_query':
+                    read_only_mode = 'task_query'
+                elif turn_decision.intent in {
+                    'conversation',
+                    'ambiguous',
+                    'read_only',
+                }:
+                    read_only_mode = 'inspect'
+            phase_resolution = resolve_phase(
+                self._tool_definitions(),
+                (
+                    self.registry.effect
+                    if self.registry is not None
+                    else lambda _name: 'read_only'
+                ),
+                recovery_state,
+                finalize=finalize_mode,
+                read_only=read_only_mode,
+                finish_only=finish_only,
+                preserve_active_task=preserve_active_task,
+            )
+            request_tools = phase_resolution.tools
+            if (
+                chunk_fallback_required
+                and self.registry is not None
+                and request_tools is not None
             ):
-                request_tools = self._finish_task_tools()
-            elif (
-                turn_decision is not None
-                and turn_decision.intent in {'conversation', 'ambiguous'}
-            ):
-                # A conversational-looking question may still require repository
-                # evidence (for example, "can you see the play directory?").
-                # Keep safe inspection tools visible and let the main model decide
-                # whether it needs them instead of treating router labels as a
-                # capability boundary.
-                request_tools = self._read_only_tools()
-            elif (
-                turn_decision is not None
-                and turn_decision.intent == 'task_query'
-            ):
-                request_tools = self._task_query_tools()
-            elif (
-                turn_decision is not None
-                and turn_decision.intent == 'read_only'
-            ):
-                request_tools = self._read_only_tools()
-            elif planning_checkpoint_recovery:
-                request_tools = self._planning_checkpoint_tools()
-            elif idempotent_resolution_checkpoint:
-                request_tools = self._idempotent_resolution_tools()
-            elif oversized_write_checkpoint:
-                request_tools = self._oversized_write_recovery_tools()
-            elif stale_task_step_checkpoint:
-                request_tools = self._stale_task_step_tools()
-            elif current_step_action_checkpoint:
-                request_tools = self._stale_task_step_tools()
-            elif planned_progress_checkpoint:
-                request_tools = self._planned_progress_tools()
-            elif mutation_read_checkpoint:
-                request_tools = self._mutation_read_tools()
-            elif mutation_action_checkpoint:
-                request_tools = self._mutation_action_tools()
-            elif dependency_verification_checkpoint:
-                request_tools = self._dependency_verification_tools()
-            elif dependency_recovery_checkpoint:
-                request_tools = self._dependency_recovery_tools()
-            elif verification_recheck_checkpoint:
-                request_tools = self._dependency_verification_tools()
-            elif verification_fix_checkpoint:
-                request_tools = self._verification_fix_tools()
-            elif verification_action_checkpoint:
-                request_tools = self._verification_fix_tools()
-            elif action_checkpoint_recovery:
-                request_tools = self._action_checkpoint_tools()
-            elif preserve_active_task:
-                request_tools = self._read_only_tools()
-            else:
-                # Keep the model's normal toolset available after recoverable
-                # failures. Structured errors and cached evidence guide the next
-                # decision; the harness does not guess which semantic action is
-                # now correct by hiding unrelated tools.
-                request_tools = self._tool_definitions()
+                chunk_tool = self.registry.definition('write_file_chunk')
                 if (
-                    chunk_fallback_required
-                    and self.registry is not None
-                    and request_tools is not None
+                    chunk_tool is not None
+                    and not any(
+                        str(item.get('name', '')) == 'write_file_chunk'
+                        for item in request_tools
+                    )
                 ):
-                    chunk_tool = self.registry.definition('write_file_chunk')
-                    if (
-                        chunk_tool is not None
-                        and not any(
-                            str(item.get('name', '')) == 'write_file_chunk'
-                            for item in request_tools
-                        )
-                    ):
-                        request_tools = [*request_tools, chunk_tool]
+                    request_tools = [*request_tools, chunk_tool]
             request_tools = self._permission_filtered_tools(request_tools)
             request_tool_names = {
                 str(definition.get('name', ''))
                 for definition in request_tools or ()
             }
-            enforce_declared_tool_phase = bool(
-                planning_checkpoint_recovery
-                or idempotent_resolution_checkpoint
-                or oversized_write_checkpoint
-                or stale_task_step_checkpoint
-                or current_step_action_checkpoint
-                or planned_progress_checkpoint
-                or mutation_read_checkpoint
-                or mutation_action_checkpoint
-                or dependency_recovery_checkpoint
-                or dependency_verification_checkpoint
-                or verification_recheck_checkpoint
-                or verification_fix_checkpoint
-                or verification_action_checkpoint
-                or action_checkpoint_recovery
-                or task_state_synthesis
-                or finalization_recovery
-                or bool(
-                    completion_ready_context
-                    and change_required
-                    and self.finish_protocol
-                    and finish_declaration_recoveries > 0
-                )
+            enforce_declared_tool_phase = (
+                phase_resolution.enforce_declared_tools
             )
             request_system_prompt = self._request_system_prompt(
+                available_tool_names=tuple(sorted(request_tool_names)),
                 force_synthesis=force_synthesis,
                 mutation_recovery_context=mutation_recovery_context,
-                finalization_recovery=finalization_recovery,
-                task_state_synthesis=task_state_synthesis,
+                finalize_mode=finalize_mode,
+                phase_resolution=phase_resolution,
                 completion_ready_context=completion_ready_context,
                 change_required=change_required,
                 mutation_attempted=mutation_attempted,
@@ -1053,7 +983,7 @@ class Conversation:
                 protocol_recoveries = 0
 
             if (
-                finalization_recovery
+                finalize_mode != 'none'
                 and tool_calls
                 and not (
                     change_required
@@ -1140,7 +1070,7 @@ class Conversation:
                         'returned text without correcting the latest edit '
                         'failure.'
                     )
-                    self.task_manager.stuck((reason,))
+                    self.task_manager.fail((reason,))
                     self.messages[:] = request_messages
                     yield TurnCompleted(
                         result=TurnResult(
@@ -1149,7 +1079,7 @@ class Conversation:
                             last_request_usage=request_usage,
                             model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
-                            status='stuck',
+                            status='failed',
                             changed_paths=(
                                 self.workspace_tracker.changed_paths
                                 if self.workspace_tracker is not None
@@ -1193,7 +1123,7 @@ class Conversation:
                     self.finish_protocol
                     and turn_decision is not None
                     and change_required
-                    and not finalization_recovery
+                    and finalize_mode == 'none'
                 ):
                     if finish_declaration_recoveries < 1:
                         finish_declaration_recoveries += 1
@@ -1464,7 +1394,7 @@ class Conversation:
                                 )
                 tool_effect = self.registry.effect(tool_call.name)
                 mutation_refresh_sibling_write = bool(
-                    mutation_read_checkpoint
+                    recovery_state.matches('edit', 'inspect')
                     and tool_call.name
                     in {
                         'apply_patch',
@@ -1498,7 +1428,7 @@ class Conversation:
                 )
                 if (
                     phase_rejection is None
-                    and verification_fix_checkpoint
+                    and recovery_state.matches('verify', 'inspect')
                     and tool_call.name == 'verify'
                 ):
                     phase_rejection = ToolResult.fail(
@@ -1512,7 +1442,7 @@ class Conversation:
                     )
                 if (
                     phase_rejection is None
-                    and verification_action_checkpoint
+                    and recovery_state.matches('verify', 'act')
                     and tool_call.name in {'read_file', 'grep', 'verify'}
                 ):
                     phase_rejection = ToolResult.ok(
@@ -2052,6 +1982,34 @@ class Conversation:
                         terminal_finish_reasons = finish_reasons
                     else:
                         accepted_finish = result
+                if (
+                    tool_effect == 'process'
+                    and tool_call.name != 'verify'
+                    and not result.success
+                    and (
+                        result.error is None
+                        or result.error.code != 'permission_denied'
+                    )
+                ):
+                    recovery_state.activate(
+                        'process',
+                        'inspect',
+                        fingerprint=failure_fingerprint(
+                            'process',
+                            tool_call.name,
+                            str(tool_call.arguments.get('cwd', '.')),
+                            (
+                                result.error.message
+                                if result.error is not None
+                                else result.summary
+                            ),
+                        ),
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                 post_tool = await self._emit_hook(
                     HookEvent(
                         name='PostToolUse',
@@ -2076,7 +2034,27 @@ class Conversation:
                 self._queue_hook_context(post_tool)
                 if oversized_write_file_result(tool_call, result):
                     chunk_fallback_required = True
-                    oversized_write_checkpoint = True
+                    recovery_state.activate(
+                        'edit',
+                        'inspect',
+                        fingerprint=failure_fingerprint(
+                            'edit',
+                            tool_call.name,
+                            ','.join(
+                                mutation_target_paths(tool_call, maximum=None)
+                            ),
+                            (
+                                result.error.message
+                                if result.error is not None
+                                else result.summary
+                            ),
+                        ),
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                 evidence_progressed = (
                     self.working_state.observe(
                         tool_call,
@@ -2386,11 +2364,16 @@ class Conversation:
                 ):
                     finish_declaration_recoveries += 1
                     calls_without_progress = 0
-                    planning_checkpoint_recovery = False
-                    action_checkpoint_recovery = False
-                    mutation_read_checkpoint = False
-                    mutation_action_checkpoint = False
-                    planned_progress_checkpoint = True
+                    recovery_state.activate(
+                        'stagnation',
+                        'act',
+                        fingerprint='stagnation|finish|planned-work|premature',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                     request_messages.append(
                         {
                             'role': 'user',
@@ -2490,11 +2473,18 @@ class Conversation:
                 ):
                     finish_declaration_recoveries += 1
                     calls_without_progress = 0
-                    planning_checkpoint_recovery = False
-                    planned_progress_checkpoint = False
-                    action_checkpoint_recovery = False
-                    mutation_action_checkpoint = True
                     rendered_reasons = '\n'.join(terminal_finish_reasons)
+                    recovery_state.activate(
+                        'edit',
+                        'act',
+                        fingerprint=failure_fingerprint(
+                            'edit',
+                            'finish_task',
+                            ','.join(self.workspace_tracker.changed_paths),
+                            rendered_reasons,
+                        ),
+                        revision=self.workspace_tracker.revision,
+                    )
                     request_messages.append(
                         {
                             'role': 'user',
@@ -2523,11 +2513,16 @@ class Conversation:
                 if correctable_false_blocker:
                     false_blocker_recoveries += 1
                     calls_without_progress = 0
-                    planning_checkpoint_recovery = False
-                    planned_progress_checkpoint = False
-                    mutation_read_checkpoint = False
-                    mutation_action_checkpoint = False
-                    action_checkpoint_recovery = True
+                    recovery_state.activate(
+                        'stagnation',
+                        'act',
+                        fingerprint='stagnation|finish|blocked|false-blocker',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                     request_messages.append(
                         {
                             'role': 'user',
@@ -2643,21 +2638,22 @@ class Conversation:
             )
             verification_edit_progressed = bool(
                 workspace_progressed
-                and (
-                    verification_fix_checkpoint
-                    or verification_action_checkpoint
-                )
+                and recovery_state.matches('verify')
             )
             if workspace_progressed:
                 chunk_fallback_required = False
-                oversized_write_checkpoint = False
-                stale_task_step_checkpoint = False
-                current_step_action_checkpoint = False
-                verification_fix_checkpoint = False
-                verification_action_checkpoint = False
-                dependency_recovery_checkpoint = False
-                dependency_verification_checkpoint = False
-                verification_recheck_checkpoint = verification_edit_progressed
+                recovery_state.clear()
+                if verification_edit_progressed:
+                    recovery_state.activate(
+                        'verify',
+                        'verify',
+                        fingerprint='verify|current-revision|recheck|after-edit',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                 if write_resolves_active_failure:
                     mutation_failure_count = 0
                     mutation_failure_total = 0
@@ -2670,9 +2666,6 @@ class Conversation:
                 completion_ready_revision = None
                 completion_decision_calls = 0
                 completion_ready_context = ''
-                mutation_read_checkpoint = False
-                mutation_action_checkpoint = False
-                idempotent_resolution_checkpoint = False
                 # A real new revision begins a fresh implementation phase. Do
                 # not let exploration consumed before that revision exhaust the
                 # recovery opportunity needed to inspect or correct it.
@@ -2714,10 +2707,16 @@ class Conversation:
                 mutation_recovery_cycles = 0
                 mutation_recovery_context = ''
                 mutation_text_recoveries = 0
-                mutation_read_checkpoint = False
-                mutation_action_checkpoint = False
-                planned_progress_checkpoint = False
-                idempotent_resolution_checkpoint = True
+                recovery_state.activate(
+                    'verify',
+                    'verify',
+                    fingerprint='verify|idempotent-edit|resolved|recheck',
+                    revision=(
+                        self.workspace_tracker.revision
+                        if self.workspace_tracker is not None
+                        else 0
+                    ),
+                )
                 calls_without_progress = 0
                 request_messages.append(
                     build_idempotent_resolution_feedback(
@@ -2755,9 +2754,6 @@ class Conversation:
                 _, last_call, last_result, _ = workspace_write_results[-1]
                 pending_write_results = [(last_call, last_result)]
             if pending_write_results:
-                planned_progress_checkpoint = False
-                mutation_read_checkpoint = False
-                mutation_action_checkpoint = False
                 mutation_text_recoveries = 0
                 current_failure_targets = tuple(
                     sorted(
@@ -2788,6 +2784,30 @@ class Conversation:
                             failed_result,
                         )
                     )
+                    recovery_state.activate(
+                        'edit',
+                        'inspect',
+                        fingerprint=failure_fingerprint(
+                            'edit',
+                            failed_call.name,
+                            ','.join(
+                                mutation_target_paths(
+                                    failed_call,
+                                    maximum=None,
+                                )
+                            ),
+                            (
+                                failed_result.error.message
+                                if failed_result.error is not None
+                                else failed_result.summary
+                            ),
+                        ),
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                 mutation_failures = mutation_failures[-3:]
             recovery_file_targets = tuple(
                 target
@@ -2803,8 +2823,11 @@ class Conversation:
                 recovery_file_targets
                 and refresh_required_failure_count >= 2
             )
-            if pending_write_results and mutation_requires_refreshed_evidence:
-                mutation_read_checkpoint = True
+            if (
+                pending_write_results
+                and not mutation_requires_refreshed_evidence
+            ):
+                recovery_state.transition('act')
             recovery_read_succeeded = any(
                 call.name in EDIT_RECOVERY_READ_TOOLS
                 and result.success
@@ -2864,7 +2887,7 @@ class Conversation:
                             mutation_failure_total,
                         )
                     )
-                    self.task_manager.stuck((reason,))
+                    self.task_manager.fail((reason,))
                     self.messages[:] = request_messages
                     yield TurnCompleted(
                         result=TurnResult(
@@ -2873,7 +2896,7 @@ class Conversation:
                             last_request_usage=request_usage,
                             model_calls=iteration + routing_model_calls,
                             tool_calls=tuple(all_tool_calls),
-                            status='stuck',
+                            status='failed',
                             changed_paths=(
                                 self.workspace_tracker.changed_paths
                                 if self.workspace_tracker is not None
@@ -2887,6 +2910,26 @@ class Conversation:
                     return
             if protocol_failure:
                 tool_protocol_failures += 1
+                failed_call, failed_result = tool_results[-1]
+                recovery_state.activate(
+                    'protocol',
+                    'act',
+                    fingerprint=failure_fingerprint(
+                        'protocol',
+                        failed_call.name,
+                        '',
+                        (
+                            failed_result.error.message
+                            if failed_result.error is not None
+                            else failed_result.summary
+                        ),
+                    ),
+                    revision=(
+                        self.workspace_tracker.revision
+                        if self.workspace_tracker is not None
+                        else 0
+                    ),
+                )
             elif any(result.success for _, result in tool_results):
                 tool_protocol_failures = 0
             if mutation_attempted:
@@ -2895,17 +2938,14 @@ class Conversation:
                 change_exploration_calls += 1
 
             dependency_recovery_succeeded = bool(
-                dependency_recovery_checkpoint
+                recovery_state.matches('dependency', 'act')
                 and any(
                     call.name == 'run_command' and result.success
                     for call, result in tool_results
                 )
             )
             if dependency_recovery_succeeded:
-                dependency_recovery_checkpoint = False
-                dependency_verification_checkpoint = True
-                verification_fix_checkpoint = False
-                verification_action_checkpoint = False
+                recovery_state.transition('verify')
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -2916,14 +2956,14 @@ class Conversation:
                 continue
 
             dependency_verification_succeeded = bool(
-                dependency_verification_checkpoint
+                recovery_state.matches('dependency', 'verify')
                 and any(
                     call.name == 'verify' and result.success
                     for call, result in tool_results
                 )
             )
             if dependency_verification_succeeded:
-                dependency_verification_checkpoint = False
+                recovery_state.clear()
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -2934,14 +2974,17 @@ class Conversation:
                 continue
 
             verification_recheck_succeeded = bool(
-                verification_recheck_checkpoint
+                recovery_state.matches('verify', 'verify')
                 and any(
                     call.name == 'verify' and result.success
                     for call, result in tool_results
                 )
             )
             if verification_recheck_succeeded:
-                verification_recheck_checkpoint = bool(unresolved_verifications)
+                if unresolved_verifications:
+                    recovery_state.transition('verify')
+                else:
+                    recovery_state.clear()
                 calls_without_progress = 0
                 force_synthesis = False
                 unresolved_summary = '; '.join(
@@ -2986,9 +3029,7 @@ class Conversation:
                 )
             )
             if verification_retry_blocked:
-                verification_fix_checkpoint = False
-                verification_action_checkpoint = False
-                mutation_action_checkpoint = True
+                recovery_state.transition('act')
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -3004,8 +3045,7 @@ class Conversation:
                 for _, result in tool_results
             )
             if verification_read_redirected:
-                verification_action_checkpoint = False
-                mutation_action_checkpoint = True
+                recovery_state.transition('act')
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -3022,13 +3062,29 @@ class Conversation:
                 in {'verification_failed', 'verification_timeout'}
             )
             if requires_verification_fix:
-                dependency_verification_checkpoint = False
-                verification_recheck_checkpoint = False
                 missing_dependency = verification_missing_dependency(
                     failed_verification
                 )
-                dependency_recovery_checkpoint = missing_dependency
-                verification_fix_checkpoint = not missing_dependency
+                failure_kind = 'dependency' if missing_dependency else 'verify'
+                recovery_state.activate(
+                    failure_kind,
+                    'act' if missing_dependency else 'inspect',
+                    fingerprint=failure_fingerprint(
+                        failure_kind,
+                        'verify',
+                        str(failed_verification.metadata.get('cwd', '.')),
+                        (
+                            failed_verification.error.message
+                            if failed_verification.error is not None
+                            else failed_verification.summary
+                        ),
+                    ),
+                    revision=(
+                        self.workspace_tracker.revision
+                        if self.workspace_tracker is not None
+                        else 0
+                    ),
+                )
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -3047,12 +3103,7 @@ class Conversation:
                 continue
 
             redirected_read_succeeded = bool(
-                (
-                    stale_task_step_checkpoint
-                    or current_step_action_checkpoint
-                    or verification_fix_checkpoint
-                    or oversized_write_checkpoint
-                )
+                recovery_state.required_next_action == 'inspect'
                 and any(
                     result.success
                     and self.registry is not None
@@ -3061,16 +3112,14 @@ class Conversation:
                 )
             )
             if redirected_read_succeeded:
-                verification_read_completed = verification_fix_checkpoint
-                oversized_read_completed = oversized_write_checkpoint
-                stale_task_step_checkpoint = False
-                current_step_action_checkpoint = False
-                verification_fix_checkpoint = False
+                verification_read_completed = recovery_state.kind == 'verify'
+                oversized_read_completed = bool(
+                    recovery_state.kind == 'edit'
+                    and chunk_fallback_required
+                )
                 if oversized_read_completed:
-                    oversized_write_checkpoint = False
                     chunk_fallback_required = True
-                verification_action_checkpoint = verification_read_completed
-                mutation_action_checkpoint = not verification_read_completed
+                recovery_state.transition('act')
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -3090,7 +3139,7 @@ class Conversation:
                 )
             )
             if task_state_read:
-                task_state_synthesis = True
+                finalize_mode = 'task_state'
                 calls_without_progress = 0
                 force_synthesis = True
                 request_messages.append(
@@ -3113,8 +3162,16 @@ class Conversation:
                 None,
             )
             if current_step_action_result is not None:
-                current_step_action_checkpoint = True
-                planned_progress_checkpoint = False
+                recovery_state.activate(
+                    'stagnation',
+                    'act',
+                    fingerprint='stagnation|task-update|current-step|action',
+                    revision=(
+                        self.workspace_tracker.revision
+                        if self.workspace_tracker is not None
+                        else 0
+                    ),
+                )
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -3141,8 +3198,16 @@ class Conversation:
                 None,
             )
             if stale_step_result is not None:
-                stale_task_step_checkpoint = True
-                planned_progress_checkpoint = False
+                recovery_state.activate(
+                    'stagnation',
+                    'act',
+                    fingerprint='stagnation|task-update|stale-step|action',
+                    revision=(
+                        self.workspace_tracker.revision
+                        if self.workspace_tracker is not None
+                        else 0
+                    ),
+                )
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
@@ -3186,9 +3251,7 @@ class Conversation:
                 for call, result in tool_results
             )
             if successful_plan_transition:
-                idempotent_resolution_checkpoint = False
-                stale_task_step_checkpoint = False
-                current_step_action_checkpoint = False
+                recovery_state.clear()
             successful_current_verification = bool(
                 any(
                     call.name == 'verify' and result.success
@@ -3200,8 +3263,8 @@ class Conversation:
                 and latest_verification.workspace_revision
                 == self.workspace_tracker.revision
             )
-            if successful_current_verification:
-                idempotent_resolution_checkpoint = False
+            if successful_current_verification and not unresolved_verifications:
+                recovery_state.clear()
             needs_planned_progress_checkpoint = bool(
                 planned_work_remaining
                 and (
@@ -3222,8 +3285,16 @@ class Conversation:
                     and stagnation_plan_recoveries < 1
                 ):
                     stagnation_plan_recoveries += 1
-                    planning_checkpoint_recovery = True
-                    action_checkpoint_recovery = False
+                    recovery_state.activate(
+                        'stagnation',
+                        'inspect',
+                        fingerprint='stagnation|exploration|unplanned|plan',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                     request_messages.append(
                         build_planning_checkpoint_feedback(
                             self.task_manager.system_suffix(),
@@ -3233,7 +3304,16 @@ class Conversation:
                     continue
                 if stagnation_action_recoveries < 1:
                     stagnation_action_recoveries += 1
-                    action_checkpoint_recovery = True
+                    recovery_state.activate(
+                        'stagnation',
+                        'act',
+                        fingerprint='stagnation|exploration|no-change|act',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                     request_messages.append(
                         build_action_checkpoint_feedback(
                             self.task_manager.system_suffix(),
@@ -3276,7 +3356,7 @@ class Conversation:
                     completion_decision_calls
                     >= self.completion_decision_limit
                 ):
-                    finalization_recovery = True
+                    finalize_mode = 'completion'
                     force_synthesis = True
                     request_messages.append(
                         build_finalization_recovery_feedback(
@@ -3301,11 +3381,19 @@ class Conversation:
                 )
             ):
                 calls_without_progress = 0
-                planning_checkpoint_recovery = False
-                planned_progress_checkpoint = (
-                    needs_planned_progress_checkpoint
-                )
-                action_checkpoint_recovery = False
+                if needs_planned_progress_checkpoint:
+                    recovery_state.activate(
+                        'stagnation',
+                        'act',
+                        fingerprint='stagnation|plan|progress|next-action',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
+                elif not mutation_failures:
+                    recovery_state.clear()
                 force_synthesis = False
                 if needs_planned_progress_checkpoint:
                     request_messages.append(
@@ -3373,8 +3461,7 @@ class Conversation:
                     or recovery_target_evidence_available
                 ):
                     calls_without_progress = 0
-                    mutation_read_checkpoint = False
-                    mutation_action_checkpoint = True
+                    recovery_state.transition('act')
                     request_messages.append(
                         build_mutation_action_feedback(
                             self.task_manager.system_suffix(),
@@ -3403,9 +3490,9 @@ class Conversation:
                 if (
                     not change_required
                     and not mutation_attempted
-                    and not finalization_recovery
+                    and finalize_mode == 'none'
                 ):
-                    finalization_recovery = True
+                    finalize_mode = 'read_only'
                     force_synthesis = True
                     calls_without_progress = 0
                     request_messages.append(
@@ -3449,8 +3536,16 @@ class Conversation:
                     and stagnation_action_recoveries < 1
                 ):
                     stagnation_action_recoveries += 1
-                    planned_progress_checkpoint = True
-                    action_checkpoint_recovery = False
+                    recovery_state.activate(
+                        'stagnation',
+                        'act',
+                        fingerprint='stagnation|plan|current-step|act',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                     force_synthesis = True
                     calls_without_progress = self.stagnation_limit - 1
                     request_messages.append(
@@ -3467,8 +3562,16 @@ class Conversation:
                     and stagnation_plan_recoveries < 1
                 ):
                     stagnation_plan_recoveries += 1
-                    planning_checkpoint_recovery = True
-                    action_checkpoint_recovery = False
+                    recovery_state.activate(
+                        'stagnation',
+                        'inspect',
+                        fingerprint='stagnation|required-change|unplanned|plan',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                     force_synthesis = True
                     calls_without_progress = self.stagnation_limit - 1
                     request_messages.append(
@@ -3484,7 +3587,16 @@ class Conversation:
                     and stagnation_action_recoveries < 1
                 ):
                     stagnation_action_recoveries += 1
-                    action_checkpoint_recovery = True
+                    recovery_state.activate(
+                        'stagnation',
+                        'act',
+                        fingerprint='stagnation|required-change|no-action|act',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
                     force_synthesis = True
                     # Preserve one final decision turn. Novel evidence or a
                     # workspace mutation resets this counter normally.
@@ -3512,6 +3624,12 @@ class Conversation:
                     and not verification_recovery
                 ):
                     verification_recovery = True
+                    recovery_state.activate(
+                        'verify',
+                        'verify',
+                        fingerprint='verify|current-revision|required|missing',
+                        revision=tracker.revision,
+                    )
                     force_synthesis = False
                     calls_without_progress = 0
                     request_messages.append(
@@ -3533,7 +3651,7 @@ class Conversation:
                     mutation_failures=mutation_failures,
                     verification_required=verification_required,
                 ):
-                    finalization_recovery = True
+                    finalize_mode = 'completion'
                     force_synthesis = True
                     request_messages.append(
                         build_finalization_recovery_feedback(
@@ -3549,7 +3667,16 @@ class Conversation:
                     f'{calls_without_progress} model calls without a workspace '
                     'change or task-state transition.'
                 )
-                self.task_manager.stuck((reason,))
+                terminal_status = (
+                    'failed'
+                    if recovery_state.kind
+                    in {'edit', 'verify', 'dependency', 'process'}
+                    else 'stuck'
+                )
+                if terminal_status == 'failed':
+                    self.task_manager.fail((reason,))
+                else:
+                    self.task_manager.stuck((reason,))
                 self.messages[:] = request_messages
                 yield TurnCompleted(
                     result=TurnResult(
@@ -3558,7 +3685,7 @@ class Conversation:
                         last_request_usage=request_usage,
                         model_calls=iteration + routing_model_calls,
                         tool_calls=tuple(all_tool_calls),
-                        status='stuck',
+                        status=terminal_status,
                         changed_paths=(
                             self.workspace_tracker.changed_paths
                             if self.workspace_tracker is not None
@@ -3729,10 +3856,11 @@ class Conversation:
     def _request_system_prompt(
         self,
         *,
+        available_tool_names: tuple[str, ...],
+        phase_resolution: PhaseResolution,
         force_synthesis: bool = False,
         mutation_recovery_context: str = '',
-        finalization_recovery: bool = False,
-        task_state_synthesis: bool = False,
+        finalize_mode: FinalizeMode = 'none',
         completion_ready_context: str = '',
         change_required: bool = False,
         mutation_attempted: bool = False,
@@ -3741,11 +3869,21 @@ class Conversation:
         resumed_existing_change: bool = False,
     ) -> str:
         prompt = self._system_prompt_with_task(
-            include_tool_availability=not (
-                finalization_recovery or task_state_synthesis
-            ),
+            include_tool_availability=False,
         )
         prompt += '\n\n' + self._permission_system_context()
+        prompt += '\n\n[Runtime Tool Availability]\n'
+        if available_tool_names:
+            prompt += (
+                'Only the following tools are included in this model request: '
+                + ', '.join(available_tool_names)
+                + '.'
+            )
+        else:
+            prompt += (
+                'No tools are included in this model request. Answer from the '
+                'evidence already collected.'
+            )
         if self._last_repository_context:
             prompt += '\n\n' + self._last_repository_context
         if change_required:
@@ -3769,9 +3907,15 @@ class Conversation:
             )
         if mutation_recovery_context:
             prompt += '\n\n' + mutation_recovery_context
+        if phase_resolution.prompt_suffix:
+            prompt += (
+                '\n\n[ForgeCode Loop Phase]\n'
+                f'- phase: {phase_resolution.phase.value}\n'
+                f'- contract: {phase_resolution.prompt_suffix}'
+            )
         if completion_ready_context:
             prompt += '\n\n' + completion_ready_context
-        if task_state_synthesis:
+        if finalize_mode == 'task_state':
             prompt += (
                 '\n\n[ForgeCode Task-State Synthesis]\n'
                 'The current task state was returned successfully. Tools are '
@@ -3790,7 +3934,7 @@ class Conversation:
                 'available: fix a reported failure when necessary, otherwise run '
                 'the appropriate verify command before completing.'
             )
-        elif finalization_recovery:
+        elif finalize_mode != 'none':
             prompt += (
                 '\n\n[ForgeCode Finalization Recovery]\n'
                 'The current workspace revision satisfies the objective '
@@ -3818,244 +3962,6 @@ class Conversation:
                 'paused repository tools.'
             )
         return prompt
-
-    def _finish_task_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only the structured terminal declaration when work is ready.'''
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) == 'finish_task'
-        ]
-        return tools or None
-
-    def _task_query_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only structured task-state inspection to task queries.'''
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) == 'task_get'
-        ]
-        return tools or None
-
-    def _planning_checkpoint_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only task planning or an honest terminal declaration.'''
-        names = {'task_plan', 'finish_task'}
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) in names
-        ]
-        return tools or None
-
-    def _mutation_read_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only fresh targeted evidence gathering after stale edit context.'''
-        if self.registry is None:
-            return self._read_only_tools()
-        names = EDIT_RECOVERY_READ_TOOLS
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) in names
-        ]
-        return tools or None
-
-    def _mutation_action_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only a corrected workspace edit or honest termination.'''
-        tools = self._action_checkpoint_tools()
-        if tools is None or self.registry is None:
-            return tools
-        return [
-            definition
-            for definition in tools
-            if (
-                (
-                    self.registry.effect(str(definition.get('name', '')))
-                    == 'workspace_write'
-                    and str(definition.get('name', ''))
-                    not in {'create_directory', 'remove_directory'}
-                )
-                or str(definition.get('name', '')) == 'finish_task'
-            )
-        ]
-
-    def _dependency_verification_tools(
-        self,
-    ) -> list[dict[str, Any]] | None:
-        '''Expose only verification immediately after dependency installation.'''
-        names = {'verify'}
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) in names
-        ]
-        return tools or None
-
-    def _dependency_recovery_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only the process action needed for a missing declared tool.'''
-        names = {'run_command'}
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) in names
-        ]
-        return tools or None
-
-    def _verification_fix_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only targeted evidence and edits after verification failure.'''
-        names = {
-            'read_file',
-            'grep',
-            'write_file',
-            'write_file_chunk',
-            'replace_text',
-            'apply_patch',
-            'remove_file',
-            'run_command',
-            'verify',
-            'finish_task',
-        }
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) in names
-        ]
-        if self.registry is not None:
-            exposed = {
-                str(definition.get('name', ''))
-                for definition in tools
-            }
-            for name in ('write_file_chunk', 'replace_text'):
-                definition = self.registry.definition(name)
-                if definition is not None and name not in exposed:
-                    tools.append(definition)
-        return tools or None
-
-    def _idempotent_resolution_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose orchestration only after an edit is already satisfied.'''
-        names = {'task_get', 'task_update', 'verify', 'finish_task'}
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) in names
-        ]
-        return tools or None
-
-    def _oversized_write_recovery_tools(
-        self,
-    ) -> list[dict[str, Any]] | None:
-        '''Expose only concrete ways to recover an oversized whole-file write.'''
-        names = {
-            'read_file',
-            'write_file',
-            'write_file_chunk',
-            'apply_patch',
-            'replace_text',
-            'finish_task',
-        }
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) in names
-        ]
-        if (
-            self.registry is not None
-            and not any(
-                str(definition.get('name', '')) == 'write_file_chunk'
-                for definition in tools
-            )
-        ):
-            chunk_definition = self.registry.definition('write_file_chunk')
-            if chunk_definition is not None:
-                tools.append(chunk_definition)
-        return tools or None
-
-    def _stale_task_step_tools(self) -> list[dict[str, Any]] | None:
-        '''Exclude plan updates after the model selected an already-finished step.'''
-        if self.registry is None:
-            return self._tool_definitions()
-        excluded = {
-            'task_plan',
-            'task_update',
-            'create_directory',
-            'remove_directory',
-        }
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if str(definition.get('name', '')) not in excluded
-            and (
-                self.registry.effect(str(definition.get('name', '')))
-                in {'read_only', 'workspace_write'}
-                or str(definition.get('name', '')) in {'verify', 'finish_task'}
-            )
-        ]
-        exposed = {
-            str(definition.get('name', ''))
-            for definition in tools
-        }
-        for name in ('write_file_chunk', 'replace_text'):
-            definition = self.registry.definition(name)
-            if definition is not None and name not in exposed:
-                tools.append(definition)
-        return tools or None
-
-    def _planned_progress_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose evidence, execution, and transition tools after planning.'''
-        combined = [
-            *(self._read_only_tools() or ()),
-            *(self._action_checkpoint_tools() or ()),
-        ]
-        tools_by_name = {
-            str(definition.get('name', '')): definition
-            for definition in combined
-            if str(definition.get('name', '')) != 'task_plan'
-        }
-        return list(tools_by_name.values()) or None
-
-    def _action_checkpoint_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose planning, mutation, verification, and completion actions.'''
-        if self.registry is None:
-            return self._tool_definitions()
-        orchestration = {
-            'task_plan',
-            'task_update',
-            'verify',
-            'finish_task',
-        }
-        tools = [
-            definition
-            for definition in self._tool_definitions() or ()
-            if (
-                self.registry.effect(str(definition.get('name', '')))
-                == 'workspace_write'
-                or str(definition.get('name', '')) in orchestration
-            )
-        ]
-        exposed_names = {
-            str(definition.get('name', ''))
-            for definition in tools
-        }
-        for name in ('write_file_chunk', 'replace_text'):
-            definition = self.registry.definition(name)
-            if definition is not None and name not in exposed_names:
-                tools.append(definition)
-        return tools or None
-
-    def _read_only_tools(self) -> list[dict[str, Any]] | None:
-        '''Expose only tools that cannot mutate the workspace or run processes.'''
-        if self.registry is None:
-            return None
-        task_state_writes = {'finish_task', 'task_plan', 'task_update'}
-        return [
-            definition
-            for definition in self._tool_definitions() or ()
-            if (
-                self.registry.effect(str(definition.get('name', '')))
-                == 'read_only'
-                and str(definition.get('name', ''))
-                not in task_state_writes
-            )
-        ]
 
     def _permission_filtered_tools(
         self,

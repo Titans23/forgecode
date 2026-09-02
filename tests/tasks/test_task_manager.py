@@ -186,6 +186,20 @@ def test_followup_after_stuck_keeps_root_goal_and_latest_directive(
     assert '你直接帮我修复' in suffix
 
 
+def test_local_execution_failure_is_not_an_external_blocker(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    task = manager.start('Compile the project')
+
+    failed = manager.fail(('make exited with code 2',))
+
+    assert failed is not None
+    assert failed.status == 'failed'
+    assert failed.blocked_reasons == ('make exited with code 2',)
+    assert task.id == failed.id
+
+
 def test_inferred_scope_is_a_soft_repository_hint(tmp_path: Path) -> None:
     manager = TaskManager(tmp_path)
     manager.start('在 play 目录实现复杂游戏', requires_change=True)

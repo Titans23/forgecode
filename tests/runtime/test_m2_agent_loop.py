@@ -1112,7 +1112,7 @@ def test_write_then_revert_to_baseline_enters_edit_recovery(
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
+    assert completed.result.status == 'failed'
     assert completed.result.changed_paths == ()
     assert completed.result.model_calls == 3
     assert '[Failed Mutation Recovery]' in client.calls[1]['system']
@@ -1170,7 +1170,7 @@ def test_later_write_failure_in_same_response_remains_in_recovery(
     assert failed_result.error.code == 'text_not_found'
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
+    assert completed.result.status == 'failed'
     assert completed.result.model_calls == 3
     assert completed.result.changed_paths == ('sample.txt',)
     assert '[Failed Mutation Recovery]' in client.calls[1]['system']
@@ -1752,13 +1752,19 @@ def test_failed_verification_enters_bounded_edit_recovery(
     )
     assert stale_verify_result.success is False
     assert stale_verify_result.error is not None
-    assert stale_verify_result.error.code == 'verification_requires_correction'
-    assert stale_verify_result.metadata['verification_retry_blocked'] is True
+    assert stale_verify_result.error.code == 'tool_not_available_in_phase'
     recovery_names = {
         str(definition['name'])
         for definition in client.calls[2]['tools'] or ()
     }
-    assert {'read_file', 'grep', 'apply_patch', 'verify'} <= recovery_names
+    assert {'read_file', 'grep'} <= recovery_names
+    assert 'verify' not in recovery_names
+    availability = (client.calls[2]['system'] or '').split(
+        '[Runtime Tool Availability]\n', 1
+    )[1].split('\n\n', 1)[0]
+    assert 'read_file' in availability
+    assert 'grep' in availability
+    assert 'apply_patch' not in availability
     recovery_messages = client.calls[2]['messages']
     assert 'ForgeCode verification checkpoint' in str(
         recovery_messages[-1]['content']
@@ -1773,7 +1779,9 @@ def test_failed_verification_enters_bounded_edit_recovery(
         str(definition['name'])
         for definition in client.calls[3]['tools'] or ()
     }
-    assert {'apply_patch', 'read_file', 'grep'} <= post_read_names
+    assert 'apply_patch' in post_read_names
+    assert 'read_file' not in post_read_names
+    assert 'grep' not in post_read_names
 
 
 def test_completion_decision_default_is_bounded() -> None:
@@ -1958,8 +1966,9 @@ def test_runtime_tells_model_that_request_tools_are_available(
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
     assert len(client.calls) == 1
-    assert 'tools included with this model request are currently available' in (
-        client.calls[0]['system'] or ''
+    assert (
+        'Only the following tools are included in this model request:'
+        in (client.calls[0]['system'] or '')
     )
 
 
@@ -2320,23 +2329,6 @@ def test_verified_revision_does_not_require_plan_step_bookkeeping(
     assert [step.status for step in task.steps] == ['in_progress', 'pending']
     assert len(completed.result.verification_history) == 1
     assert len(client.calls) == 4
-
-
-def test_planned_progress_keeps_targeted_read_and_action_tools(
-    tmp_path: Path,
-) -> None:
-    conversation = Conversation(
-        client=FakeModelClient(),
-        registry=create_default_registry(tmp_path),
-    )
-
-    names = {
-        str(definition['name'])
-        for definition in conversation._planned_progress_tools() or []
-    }
-
-    assert {'read_file', 'apply_patch', 'task_update', 'verify', 'finish_task'} <= names
-    assert 'task_plan' not in names
 
 
 def test_false_blocker_gets_one_bounded_action_recovery(
@@ -2700,7 +2692,8 @@ def test_directory_patch_failure_recovers_with_remove_directory(
     assert failed_patch.error is not None
     assert failed_patch.error.code == 'directory_patch_target'
     assert failed_patch.error.details['recommended_tool'] == 'remove_directory'
-    assert {'remove_directory', 'read_file', 'list_directory'} <= recovery_tool_names
+    assert 'remove_directory' in recovery_tool_names
+    assert 'task_plan' not in recovery_tool_names
     assert not (tmp_path / 'play' / '.keep').exists()
     assert not (tmp_path / 'play' / '.tmp').exists()
     assert not (tmp_path / 'play' / 'notes.txt').exists()

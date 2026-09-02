@@ -31,7 +31,12 @@ MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='
 
 
-def result_payload(result: TurnResult, *, resumed: bool) -> dict[str, Any]:
+def result_payload(
+    result: TurnResult,
+    *,
+    resumed: bool,
+    recovery: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     changed_paths = list(result.changed_paths[:MAX_RESULT_CHANGED_PATHS])
     return {
         'status': result.status,
@@ -56,6 +61,7 @@ def result_payload(result: TurnResult, *, resumed: bool) -> dict[str, Any]:
             }
             for evidence in result.verification_history
         ],
+        'recovery': recovery,
         'completion_reasons': list(result.completion_reasons),
     }
 
@@ -127,7 +133,14 @@ async def run_turn(
         raise RuntimeError('ForgeCode ended without a TurnCompleted event.')
     print(
         '\nFORGECODE_BENCHMARK_RESULT='
-        + json.dumps(result_payload(final, resumed=resume), ensure_ascii=False),
+        + json.dumps(
+            result_payload(
+                final,
+                resumed=resume,
+                recovery=conversation.recovery_state.to_dict(),
+            ),
+            ensure_ascii=False,
+        ),
         flush=True,
     )
     print(

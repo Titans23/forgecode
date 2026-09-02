@@ -361,6 +361,19 @@ class TaskManager:
             self.store.save(self.active)
         return self.active
 
+    def fail(self, reasons: tuple[str, ...]) -> ActiveTask | None:
+        '''Record an attempted task that ended in a concrete local failure.'''
+        if self.active is None:
+            return None
+        self.active = replace(
+            self.active,
+            status='failed',
+            blocked_reasons=tuple(dict.fromkeys(reasons)),
+        )
+        if self.active.planned:
+            self.store.save(self.active)
+        return self.active
+
     def resume(self, task_id: str) -> ActiveTask:
         task = self.store.load(task_id)
         self.active = replace(

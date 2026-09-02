@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
 
-TaskStatus = Literal['in_progress', 'completed', 'blocked', 'stuck']
+TaskStatus = Literal['in_progress', 'completed', 'blocked', 'stuck', 'failed']
 StepStatus = Literal['pending', 'in_progress', 'completed', 'blocked']
 ScopeSource = Literal[
     'repository',
