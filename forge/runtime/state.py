@@ -73,6 +73,7 @@ class TurnResult:
     status: TaskStatus = 'completed'
     changed_paths: tuple[str, ...] = ()
     verification: VerificationEvidence | None = None
+    verification_history: tuple[VerificationEvidence, ...] = ()
     completion_reasons: tuple[str, ...] = ()
 
 

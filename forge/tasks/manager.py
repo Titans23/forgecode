@@ -323,19 +323,10 @@ class TaskManager:
     def complete(self) -> ActiveTask | None:
         if self.active is None:
             return None
-        incomplete = tuple(
-            step.id
-            for step in self.active.steps
-            if step.status != 'completed'
-        )
-        if incomplete:
-            raise ValueError(
-                'Cannot complete a planned task with incomplete steps: '
-                + ', '.join(incomplete)
-            )
-        # Completion validation owns whether a planned task is complete. Do
-        # not manufacture execution evidence by converting pending steps to
-        # completed at the persistence boundary.
+        # Completion validation owns whether the task outcome is complete.
+        # Plans are navigation and audit records, not execution evidence: keep
+        # their original statuses instead of rejecting a mechanically valid
+        # outcome or manufacturing completed step evidence here.
         self.active = replace(
             self.active,
             status='completed',

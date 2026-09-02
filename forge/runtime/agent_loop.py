@@ -392,6 +392,7 @@ class Conversation:
         completed_usage = routing_usage
         all_tool_calls: list[ToolCall] = []
         latest_verification: VerificationEvidence | None = None
+        verification_history: list[VerificationEvidence] = []
         mutation_attempted = False
         active_task = self.task_manager.active
         if (
@@ -545,6 +546,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=(reason,),
                     )
                 )
@@ -741,6 +743,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=(reason,),
                     )
                 )
@@ -954,6 +957,7 @@ class Conversation:
                             status='stuck',
                             changed_paths=(),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=(reason,),
                         )
                     )
@@ -987,6 +991,7 @@ class Conversation:
                                 else ()
                             ),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=reasons,
                         )
                     )
@@ -1016,6 +1021,7 @@ class Conversation:
                                 else ()
                             ),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=(reason,),
                         )
                     )
@@ -1077,6 +1083,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=(reason,),
                     )
                 )
@@ -1149,6 +1156,7 @@ class Conversation:
                                 else ()
                             ),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=(reason,),
                         )
                     )
@@ -1176,6 +1184,7 @@ class Conversation:
                             status='stuck',
                             changed_paths=(),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=(reason,),
                         )
                     )
@@ -1224,6 +1233,7 @@ class Conversation:
                                 else ()
                             ),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=(reason,),
                         )
                     )
@@ -1245,6 +1255,7 @@ class Conversation:
                     decision = await self.completion_gate.evaluate(
                         self.workspace_tracker,
                         latest_verification,
+                        verification_history=tuple(verification_history),
                         mutation_attempted=(
                             mutation_attempted or change_required
                         ),
@@ -1270,6 +1281,7 @@ class Conversation:
                                     self.workspace_tracker.changed_paths
                                 ),
                                 verification=latest_verification,
+                                verification_history=tuple(verification_history),
                                 completion_reasons=decision.reasons,
                             )
                         )
@@ -1291,6 +1303,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                     )
                 )
                 return
@@ -1324,6 +1337,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=(reason,),
                     )
                 )
@@ -1999,6 +2013,7 @@ class Conversation:
                         mutation_attempted=mutation_attempted,
                         change_required=change_required,
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         verification_required=verification_required,
                     )
                     if unresolved_verifications:
@@ -2093,6 +2108,11 @@ class Conversation:
                 if self.workspace_tracker is not None:
                     change = await self.workspace_tracker.refresh()
                     if change is not None:
+                        # A real workspace revision invalidates prior recovery
+                        # debt. Historical evidence remains available for the
+                        # turn result, but only evidence on the new revision can
+                        # satisfy completion.
+                        unresolved_verifications.clear()
                         tool_changed_workspace = True
                         last_workspace_change_position = tool_position
                         if tool_effect == 'workspace_write' and result.success:
@@ -2155,6 +2175,7 @@ class Conversation:
                     verification_recovery = False
                     if observed_verification is not None:
                         latest_verification = observed_verification
+                        verification_history.append(observed_verification)
                         verification_key = verification_obligation(
                             latest_verification.command
                         )
@@ -2328,6 +2349,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=reasons,
                     )
                 )
@@ -2543,6 +2565,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=terminal_finish_reasons,
                     )
                 )
@@ -2585,6 +2608,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=blocked_reasons,
                     )
                 )
@@ -2856,6 +2880,7 @@ class Conversation:
                                 else ()
                             ),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=(reason,),
                         )
                     )
@@ -3222,6 +3247,7 @@ class Conversation:
                 and await self._can_finalize_after_stagnation(
                     mutation_attempted=mutation_attempted,
                     verification=latest_verification,
+                    verification_history=tuple(verification_history),
                     mutation_failures=mutation_failures,
                     verification_required=verification_required,
                 )
@@ -3322,6 +3348,7 @@ class Conversation:
                                 else ()
                             ),
                             verification=latest_verification,
+                            verification_history=tuple(verification_history),
                             completion_reasons=(reason,),
                         )
                     )
@@ -3502,6 +3529,7 @@ class Conversation:
                 if await self._can_finalize_after_stagnation(
                     mutation_attempted=mutation_attempted,
                     verification=latest_verification,
+                    verification_history=tuple(verification_history),
                     mutation_failures=mutation_failures,
                     verification_required=verification_required,
                 ):
@@ -3537,6 +3565,7 @@ class Conversation:
                             else ()
                         ),
                         verification=latest_verification,
+                        verification_history=tuple(verification_history),
                         completion_reasons=(reason,),
                     )
                 )
@@ -3562,6 +3591,7 @@ class Conversation:
                         else ()
                     ),
                     verification=latest_verification,
+                    verification_history=tuple(verification_history),
                     completion_reasons=(reason,),
                 )
             )
@@ -3637,6 +3667,7 @@ class Conversation:
         mutation_attempted: bool,
         change_required: bool,
         verification: VerificationEvidence | None,
+        verification_history: tuple[VerificationEvidence, ...],
         verification_required: bool,
     ) -> tuple[str, ...]:
         metadata = result.metadata
@@ -3668,23 +3699,6 @@ class Conversation:
                 'An inspection task requires repository evidence from '
                 'read_file, list_directory, grep, or find_files.'
             )
-        active_task = self.task_manager.active
-        if (
-            task_kind in {'change', 'inspection'}
-            and active_task is not None
-            and active_task.planned
-            and any(step.status != 'completed' for step in active_task.steps)
-        ):
-            pending = ', '.join(
-                step.id
-                for step in active_task.steps
-                if step.status != 'completed'
-            )
-            reasons.append(
-                'The current task plan still has incomplete steps: '
-                f'{pending}. Advance each step with task_update and attach '
-                'evidence before finishing.'
-            )
         if task_kind != 'change' and changed_paths:
             reasons.append(
                 'The workspace changed during this turn; declare '
@@ -3700,6 +3714,7 @@ class Conversation:
                 decision = await self.completion_gate.evaluate(
                     self.workspace_tracker,
                     verification,
+                    verification_history=verification_history,
                     mutation_attempted=True,
                     require_verification=verification_required,
                 )
@@ -4102,6 +4117,7 @@ class Conversation:
         *,
         mutation_attempted: bool,
         verification: VerificationEvidence | None,
+        verification_history: tuple[VerificationEvidence, ...],
         mutation_failures: list[dict[str, Any]],
         verification_required: bool,
     ) -> bool:
@@ -4117,6 +4133,7 @@ class Conversation:
         decision = await gate.evaluate(
             tracker,
             verification,
+            verification_history=verification_history,
             mutation_attempted=mutation_attempted,
             require_verification=verification_required,
         )
@@ -5342,13 +5359,9 @@ def protected_task_input_delete(
 
 
 def verification_obligation(command: str) -> str | None:
-    '''Classify verification commands whose evidence must not be weakened.'''
-    normalized = command.casefold()
-    if re.search(r'\b(?:typecheck|tsc)\b', normalized):
-        return 'typecheck'
-    if re.search(r'\bbuild\b', normalized):
-        return 'build'
-    return None
+    '''Identify a verification command whose failure must be resolved exactly.'''
+    normalized = ' '.join(command.casefold().split())
+    return normalized or None
 
 
 def verification_missing_dependency(result: ToolResult) -> bool:

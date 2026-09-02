@@ -443,7 +443,7 @@ def test_completion_gate_blocks_current_optional_verification_failure(
     assert 'latest verification failed' in decision.reasons[0]
 
 
-def test_completion_gate_blocks_stale_optional_verification_failure(
+def test_completion_gate_invalidates_stale_optional_verification_failure(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -470,9 +470,7 @@ def test_completion_gate_blocks_stale_optional_verification_failure(
         )
     )
 
-    assert decision.allowed is False
-    assert any('latest verification failed' in item for item in decision.reasons)
-    assert any('run verify again' in item for item in decision.reasons)
+    assert decision.allowed is True
 
 
 def test_completion_gate_ignores_unrelated_preexisting_whitespace_errors(
@@ -606,7 +604,67 @@ def test_completion_gate_requires_task_level_verification_and_artifact(
     assert any('result.json' in reason for reason in rejected.reasons)
     assert any('required verification command' in reason for reason in rejected.reasons)
     assert is_task_verification_command('git diff --check') is False
+    assert is_task_verification_command('python -m py_compile app.py') is False
     assert is_task_verification_command('python -m pytest tests') is True
+
+
+def test_completion_gate_keeps_unrelated_verification_failure_unresolved(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    (tmp_path / 'sample.txt').write_text('changed\n', encoding='utf-8')
+    run(tracker.refresh())
+    failed = VerificationEvidence(
+        command='python -m pytest tests/test_behavior.py',
+        cwd='.',
+        exit_code=1,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    unrelated = VerificationEvidence(
+        command='git diff --check',
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    gate = CompletionGate(
+        tmp_path,
+        TaskPolicy(require_verification=True),
+    )
+
+    rejected = run(
+        gate.evaluate(
+            tracker,
+            unrelated,
+            verification_history=(failed, unrelated),
+            mutation_attempted=True,
+        )
+    )
+    resolved = VerificationEvidence(
+        command=failed.command,
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    accepted = run(
+        gate.evaluate(
+            tracker,
+            resolved,
+            verification_history=(failed, unrelated, resolved),
+            mutation_attempted=True,
+        )
+    )
+
+    assert rejected.allowed is False
+    assert any('remains unresolved' in reason for reason in rejected.reasons)
+    assert accepted.allowed is True
 
 
 def test_completion_gate_rejects_forbidden_and_out_of_scope_paths(

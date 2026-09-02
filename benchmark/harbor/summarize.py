@@ -16,6 +16,7 @@ _RESULT_PREFIX = 'FORGECODE_BENCHMARK_RESULT='
 @dataclass(frozen=True, slots=True)
 class RunSummary:
     total_trials: int
+    missing_results: tuple[str, ...]
     infrastructure_failures: int
     infrastructure_failure_types: dict[str, int]
     scored_trials: int
@@ -70,13 +71,27 @@ class RunSummary:
 
 
 def summarize_run(run_dir: Path) -> RunSummary:
-    trial_results = tuple(
+    trial_dirs = tuple(
         path
-        for path in run_dir.glob('*/result.json')
-        if path.parent != run_dir
+        for path in run_dir.iterdir()
+        if path.is_dir()
+        and (
+            (path / 'config.json').is_file()
+            or (path / 'result.json').is_file()
+        )
     )
-    infrastructure_failures = 0
-    infrastructure_failure_types: Counter[str] = Counter()
+    trial_results = tuple(
+        path / 'result.json'
+        for path in trial_dirs
+        if (path / 'result.json').is_file()
+    )
+    missing_dirs = tuple(
+        path for path in trial_dirs if not (path / 'result.json').is_file()
+    )
+    infrastructure_failures = len(missing_dirs)
+    infrastructure_failure_types: Counter[str] = Counter(
+        _missing_result_type(path) for path in missing_dirs
+    )
     scored_trials = 0
     pass_at_1 = 0
     pass_at_2 = 0
@@ -170,7 +185,8 @@ def summarize_run(run_dir: Path) -> RunSummary:
                 output_tokens += _safe_int(usage.get('output_tokens'))
 
     return RunSummary(
-        total_trials=len(trial_results),
+        total_trials=len(trial_dirs),
+        missing_results=tuple(path.name for path in missing_dirs),
         infrastructure_failures=infrastructure_failures,
         infrastructure_failure_types=dict(infrastructure_failure_types),
         scored_trials=scored_trials,
@@ -205,6 +221,22 @@ def _exception_type(exception_info: object) -> str:
         if isinstance(value, str) and value:
             return value
     return 'unknown'
+
+
+def _missing_result_type(trial_dir: Path) -> str:
+    status_path = trial_dir / 'agent' / 'forgecode-status.json'
+    if not status_path.is_file():
+        return 'MissingResult'
+    try:
+        status = _read_object(status_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return 'InvalidAgentStatus'
+    if status.get('timed_out') is True:
+        return 'AgentTimeout'
+    exit_code = status.get('exit_code')
+    if isinstance(exit_code, int):
+        return f'AgentExit{exit_code}'
+    return 'MissingResult'
 
 
 def _language_for_result(result: dict[str, Any]) -> str | None:

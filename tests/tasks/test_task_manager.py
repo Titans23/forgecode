@@ -147,6 +147,28 @@ def test_completion_and_blocking_are_persisted_for_planned_tasks(
     assert manager.store.load(task.id).status == 'completed'
 
 
+def test_completion_preserves_incomplete_plan_steps_as_audit_state(
+    tmp_path: Path,
+) -> None:
+    manager = TaskManager(tmp_path)
+    task = manager.start('Implement and verify')
+    manager.plan(['Implement', 'Verify'])
+
+    completed = manager.complete()
+
+    assert completed is not None and completed.status == 'completed'
+    assert [step.status for step in completed.steps] == [
+        'in_progress',
+        'pending',
+    ]
+    persisted = manager.store.load(task.id)
+    assert persisted.status == 'completed'
+    assert [step.status for step in persisted.steps] == [
+        'in_progress',
+        'pending',
+    ]
+
+
 def test_followup_after_stuck_keeps_root_goal_and_latest_directive(
     tmp_path: Path,
 ) -> None:

@@ -30,7 +30,7 @@ from benchmark.harbor.run_forge import (
     MAX_RESULT_CHANGED_PATHS,
     result_payload,
 )
-from forge.runtime.state import TokenUsage, TurnResult
+from forge.runtime.state import TokenUsage, TurnResult, VerificationEvidence
 from harbor.trial.trial import Trial
 
 
@@ -51,6 +51,7 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
     assert 'ANTHROPIC_API_KEY=' in command
     assert 'FORGECODE_BENCHMARK_RESULT' not in command
     assert '/logs/agent/forgecode-repair.txt' in command
+    assert '/logs/agent/forgecode-status.json' in command
     assert 'export FORGE_DATA_DIR=/tmp/forgecode-harbor' in command
     assert '-exec cp {} /logs/agent/' in command
     assert 'git commit --quiet -m "Harbor evaluation baseline"' not in command
@@ -81,6 +82,38 @@ def test_harbor_result_bounds_changed_path_summary() -> None:
     assert len(payload['changed_paths']) == MAX_RESULT_CHANGED_PATHS
     assert payload['changed_path_count'] == len(paths)
     assert payload['changed_paths_truncated'] is True
+
+
+def test_harbor_result_serializes_classified_verification_history() -> None:
+    structural = VerificationEvidence(
+        command='python -m py_compile app.py',
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    behavior = VerificationEvidence(
+        command='python -m pytest tests',
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.2,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    result = TurnResult(
+        text='done',
+        usage=TokenUsage(input_tokens=0, output_tokens=0),
+        verification=behavior,
+        verification_history=(structural, behavior),
+    )
+
+    payload = result_payload(result, resumed=False)
+
+    assert [item['kind'] for item in payload['verification_history']] == [
+        'structural',
+        'behavior',
+    ]
 
 
 def test_adapter_can_run_with_uploaded_message_file(tmp_path: Path) -> None:
@@ -285,6 +318,25 @@ def test_summary_ignores_reward_attached_to_infrastructure_error(
     assert summary.infrastructure_failure_types == {'ApiRateLimitError': 1}
     assert summary.scored_trials == 0
     assert summary.pass_at_2 == 0
+
+
+def test_summary_marks_silent_missing_result_as_infrastructure_failure(
+    tmp_path: Path,
+) -> None:
+    trial = tmp_path / 'build-pov-ray__trial'
+    (trial / 'agent').mkdir(parents=True)
+    (trial / 'config.json').write_text('{}')
+    (trial / 'agent' / 'forgecode-status.json').write_text(
+        json.dumps({'exit_code': 124, 'timed_out': True})
+    )
+
+    summary = summarize_run(tmp_path)
+
+    assert summary.total_trials == 1
+    assert summary.scored_trials == 0
+    assert summary.infrastructure_failures == 1
+    assert summary.infrastructure_failure_types == {'AgentTimeout': 1}
+    assert summary.missing_results == ('build-pov-ray__trial',)
 
 
 def test_summary_counts_cpp_compile_failure_without_reward_as_attempt(

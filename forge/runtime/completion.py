@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
 import re
+from typing import Literal
 
 from forge.runtime.state import VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
@@ -50,6 +51,7 @@ class CompletionGate:
         tracker: WorkspaceTracker,
         verification: VerificationEvidence | None,
         *,
+        verification_history: tuple[VerificationEvidence, ...] = (),
         mutation_attempted: bool,
         require_verification: bool = False,
     ) -> CompletionDecision:
@@ -66,6 +68,7 @@ class CompletionGate:
             or verification_required
             or bool(changed_paths)
             or verification is not None
+            or bool(verification_history)
             or bool(self.policy.required_paths)
         )
         if not code_task:
@@ -87,19 +90,34 @@ class CompletionGate:
         reasons.extend(self._path_violations(changed_paths))
         reasons.extend(self._required_path_reasons())
 
+        evidence_history = list(verification_history)
+        if verification is not None and (
+            not evidence_history or evidence_history[-1] != verification
+        ):
+            evidence_history.append(verification)
+        current_evidence = tuple(
+            item
+            for item in evidence_history
+            if item.workspace_revision == tracker.revision
+        )
+        successful_evidence = tuple(
+            item for item in current_evidence if item.success
+        )
+        unresolved_failures = unresolved_verification_failures(
+            current_evidence
+        )
+
         if verification_required:
-            if verification is None:
+            if not successful_evidence:
                 reasons.append(
                     'The current code has not been verified with the verify tool.'
                 )
-            elif not verification.success:
-                reasons.append(
-                    f'The latest verification failed with exit code '
-                    f'{verification.exit_code}.'
-                )
             elif (
                 self.policy.require_task_verification
-                and not is_task_verification_command(verification.command)
+                and not any(
+                    is_task_verification_command(item.command)
+                    for item in successful_evidence
+                )
             ):
                 reasons.append(
                     'The latest verification is only a structural or no-op '
@@ -108,13 +126,14 @@ class CompletionGate:
                     'behavior.'
                 )
             if (
-                verification is not None
+                successful_evidence
                 and self.policy.required_verification_commands
                 and not any(
                     fnmatchcase(
-                        verification.command.strip(),
+                        item.command.strip(),
                         pattern,
                     )
+                    for item in successful_evidence
                     for pattern in self.policy.required_verification_commands
                 )
             ):
@@ -123,23 +142,22 @@ class CompletionGate:
                     'task-required verification command contract.'
                 )
             if (
-                verification is not None
-                and verification.workspace_revision != tracker.revision
+                evidence_history
+                and not current_evidence
             ):
                 reasons.append(
                     'The code changed after verification; run verify again for '
                     f'workspace revision {tracker.revision}.'
                 )
-        elif verification is not None and not verification.success:
-            reasons.append(
-                f'The latest verification failed with exit code '
-                f'{verification.exit_code}.'
+        if unresolved_failures:
+            rendered = ', '.join(
+                f'{item.command!r} (exit {item.exit_code})'
+                for item in unresolved_failures
             )
-            if verification.workspace_revision != tracker.revision:
-                reasons.append(
-                    'The code changed after the failed verification; run verify '
-                    f'again for workspace revision {tracker.revision}.'
-                )
+            reasons.append(
+                'The latest verification failed and remains unresolved on the '
+                f'current workspace revision: {rendered}.'
+            )
 
         if changed_paths and tracker.git_available:
             reasons.extend(
@@ -270,15 +288,49 @@ def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
 
 _NON_TASK_VERIFICATION = re.compile(
     r'^(?:git\s+(?:status|diff(?:\s+--check)?|log)\b|'
+    r'python(?:\d+(?:\.\d+)?)?\s+-m\s+(?:py_compile|compileall)\b|'
+    r'(?:test\s+-(?:e|f|d)|find|ls|dir|cat|type|head|tail|wc|stat)\b|'
     r'(?:echo|printf|pwd|true|:)\b)',
     re.IGNORECASE,
 )
 
+VerificationKind = Literal['structural', 'behavior']
+
+
+def verification_kind(command: str) -> VerificationKind:
+    '''Classify whether a command exercises behavior or only structure.'''
+    segments = re.split(r'\s*(?:&&|\|\||[;|])\s*', command.strip())
+    return (
+        'behavior'
+        if any(
+            segment and not _NON_TASK_VERIFICATION.match(segment.strip())
+            for segment in segments
+        )
+        else 'structural'
+    )
+
 
 def is_task_verification_command(command: str) -> bool:
     '''Return whether a command exercises the requested task, not only plumbing.'''
-    segments = re.split(r'\s*(?:&&|\|\||[;|])\s*', command.strip())
-    return any(
-        segment and not _NON_TASK_VERIFICATION.match(segment.strip())
-        for segment in segments
-    )
+    return verification_kind(command) == 'behavior'
+
+
+def verification_command_key(command: str, cwd: str) -> str:
+    '''Return a stable identity for retries of one verification obligation.'''
+    normalized = ' '.join(command.casefold().split())
+    normalized_cwd = cwd.strip().replace('\\', '/').casefold() or '.'
+    return f'{normalized_cwd}\0{normalized}'
+
+
+def unresolved_verification_failures(
+    evidence: tuple[VerificationEvidence, ...],
+) -> tuple[VerificationEvidence, ...]:
+    '''Keep failures until the same command succeeds on the same revision.'''
+    unresolved: dict[str, VerificationEvidence] = {}
+    for item in evidence:
+        key = verification_command_key(item.command, item.cwd)
+        if item.success:
+            unresolved.pop(key, None)
+        else:
+            unresolved[key] = item
+    return tuple(unresolved.values())

@@ -2264,7 +2264,7 @@ def test_agent_loop_stops_after_one_completion_rejection(
     assert conversation.task_manager.active.status == 'stuck'
 
 
-def test_verified_revision_requires_explicit_plan_step_completion(
+def test_verified_revision_does_not_require_plan_step_bookkeeping(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -2290,32 +2290,10 @@ def test_verified_revision_requires_explicit_plan_step_completion(
         'verify',
         {'command': 'git diff --check'},
     )
-    complete_edit = ToolCall(
-        0,
-        'toolu_plan_complete_edit',
-        'task_update',
-        {
-            'step_id': 'step-1',
-            'status': 'completed',
-            'evidence': ['sample.txt was changed'],
-        },
-    )
-    complete_verify = ToolCall(
-        0,
-        'toolu_plan_complete_verify',
-        'task_update',
-        {
-            'step_id': 'step-2',
-            'status': 'completed',
-            'evidence': ['git diff --check passed'],
-        },
-    )
     client = FakeModelClient(
         response_with_tool(plan),
         response_with_tool(edit),
-        response_with_tool(complete_edit),
         response_with_tool(verify),
-        response_with_tool(complete_verify),
         finish_response('toolu_plan_finish', task_kind='change'),
     )
     conversation = Conversation(
@@ -2324,6 +2302,11 @@ def test_verified_revision_requires_explicit_plan_step_completion(
         task_policy=TaskPolicy(
             require_changes=True,
             require_verification=True,
+        ),
+        active_task=ActiveTask(
+            id='task-planadvisory',
+            goal='Change and verify sample.txt',
+            requires_change=True,
         ),
     )
 
@@ -2334,8 +2317,9 @@ def test_verified_revision_requires_explicit_plan_step_completion(
     assert completed.result.status == 'completed'
     task = conversation.task_manager.active
     assert task is not None
-    assert all(step.status == 'completed' for step in task.steps)
-    assert len(client.calls) == 6
+    assert [step.status for step in task.steps] == ['in_progress', 'pending']
+    assert len(completed.result.verification_history) == 1
+    assert len(client.calls) == 4
 
 
 def test_planned_progress_keeps_targeted_read_and_action_tools(

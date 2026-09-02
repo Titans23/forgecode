@@ -11,7 +11,7 @@ from typing import Any
 
 from forge.cli import create_session_runtime
 from forge.permissions.policy import ApprovalResponse, PermissionRequest
-from forge.runtime.completion import TaskPolicy
+from forge.runtime.completion import TaskPolicy, verification_kind
 from forge.runtime.profile import ExecutionProfile
 from forge.runtime.state import (
     ModelTextDelta,
@@ -28,6 +28,7 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
     require_task_verification=True,
 )
 MAX_RESULT_CHANGED_PATHS = 100
+_STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='
 
 
 def result_payload(result: TurnResult, *, resumed: bool) -> dict[str, Any]:
@@ -48,6 +49,13 @@ def result_payload(result: TurnResult, *, resumed: bool) -> dict[str, Any]:
             if result.verification is not None
             else None
         ),
+        'verification_history': [
+            {
+                **asdict(evidence),
+                'kind': verification_kind(evidence.command),
+            }
+            for evidence in result.verification_history
+        ],
         'completion_reasons': list(result.completion_reasons),
     }
 
@@ -99,6 +107,19 @@ async def run_turn(
                 )
             elif isinstance(event, TurnCompleted):
                 final = event.result
+    except BaseException as exc:
+        print(
+            '\n' + _STATUS_PREFIX + json.dumps(
+                {
+                    'status': 'failed',
+                    'exception_type': type(exc).__name__,
+                    'message': str(exc)[:2_000],
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
+        raise
     finally:
         journal.record_stopped()
 
@@ -107,6 +128,13 @@ async def run_turn(
     print(
         '\nFORGECODE_BENCHMARK_RESULT='
         + json.dumps(result_payload(final, resumed=resume), ensure_ascii=False),
+        flush=True,
+    )
+    print(
+        _STATUS_PREFIX + json.dumps(
+            {'status': final.status, 'exception_type': None},
+            ensure_ascii=False,
+        ),
         flush=True,
     )
     return final
