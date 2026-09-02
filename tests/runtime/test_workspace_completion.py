@@ -605,6 +605,8 @@ def test_completion_gate_requires_task_level_verification_and_artifact(
     assert any('required verification command' in reason for reason in rejected.reasons)
     assert is_task_verification_command('git diff --check') is False
     assert is_task_verification_command('python -m py_compile app.py') is False
+    assert is_task_verification_command('node --check vm.js') is False
+    assert is_task_verification_command('bash -n deploy.sh') is False
     assert is_task_verification_command('python -m pytest tests') is True
 
 

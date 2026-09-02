@@ -289,6 +289,11 @@ def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
 _NON_TASK_VERIFICATION = re.compile(
     r'^(?:git\s+(?:status|diff(?:\s+--check)?|log)\b|'
     r'python(?:\d+(?:\.\d+)?)?\s+-m\s+(?:py_compile|compileall)\b|'
+    r'(?:node(?:\.exe)?\s+(?:--check|-c)|'
+    r'(?:bash|sh|zsh)(?:\.exe)?\s+-n|'
+    r'ruby(?:\.exe)?\s+-c|'
+    r'perl(?:\.exe)?\s+-c|'
+    r'php(?:\.exe)?\s+-l)\b|'
     r'(?:test\s+-(?:e|f|d)|find|ls|dir|cat|type|head|tail|wc|stat)\b|'
     r'(?:echo|printf|pwd|true|:)\b)',
     re.IGNORECASE,

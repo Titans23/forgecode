@@ -39,7 +39,11 @@ Operating protocol:
    build, lint, or type-check command. Verification applies only to the exact
    workspace revision it tested. Run dependent verification commands one at a
    time; do not batch commands when the next action depends on the prior result.
-   Once the most relevant tests pass on the current revision, finish the task;
+   Syntax checks and compilation checks establish structure only. For a
+   behavior task, execute the relevant program or test with task-relevant inputs
+   and inspect its outputs or assertions; a passing exit code from a syntax
+   check alone is not enough. Once the most relevant behavior checks pass on
+   the current revision, finish the task;
    do not replace that evidence with an unrelated optional lint or build command
    unless the user requested it or the repository clearly configures it. A
    missing optional checker configuration is not evidence that working code is

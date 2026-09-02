@@ -30,7 +30,11 @@ from forge.runtime.model_client import (
     ModelOutputTruncatedError,
     ModelProtocolError,
 )
-from forge.runtime.completion import CompletionGate, TaskPolicy
+from forge.runtime.completion import (
+    CompletionGate,
+    TaskPolicy,
+    is_task_verification_command,
+)
 from forge.runtime.phase import FinalizeMode, PhaseResolution, resolve_phase
 from forge.runtime.recovery import RecoveryState, failure_fingerprint
 from forge.runtime.state import (
@@ -2421,6 +2425,58 @@ class Conversation:
                     )
                     terminal_finish_reasons = ()
                     continue
+                stale_or_structural_verification = bool(
+                    finish_call is not None
+                    and finish_call.arguments.get('task_kind') == 'change'
+                    and change_required
+                    and verification_required
+                    and self.completion_gate is not None
+                    and self.completion_gate.policy.require_task_verification
+                    and self.workspace_tracker is not None
+                    and self.workspace_tracker.changed_paths
+                    and not (
+                        latest_verification is not None
+                        and latest_verification.success
+                        and latest_verification.workspace_revision
+                        == self.workspace_tracker.revision
+                        and (
+                            self.completion_gate is None
+                            or not self.completion_gate.policy.require_task_verification
+                            or is_task_verification_command(
+                                latest_verification.command
+                            )
+                        )
+                    )
+                )
+                if (
+                    stale_or_structural_verification
+                    and finish_declaration_recoveries < 2
+                ):
+                    finish_declaration_recoveries += 1
+                    verification_recovery = True
+                    calls_without_progress = 0
+                    recovery_state.activate(
+                        'verify',
+                        'verify',
+                        fingerprint='verify|finish|current-revision-or-behavior|missing',
+                        revision=self.workspace_tracker.revision,
+                    )
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                'ForgeCode completion correction: the previous '
+                                '`finish_task` declaration was rejected because '
+                                'the final revision has no successful task-level '
+                                'behavior verification. Run one relevant test, '
+                                'build, or executable with task-relevant output '
+                                'assertions now. A syntax-only check or an older '
+                                'revision cannot satisfy this contract.'
+                            ),
+                        }
+                    )
+                    terminal_finish_reasons = ()
+                    continue
                 correctable_read_only_kind = bool(
                     finish_call is not None
                     and finish_call.arguments.get('task_kind') == 'change'
@@ -2507,7 +2563,6 @@ class Conversation:
                     and finish_call.arguments.get('task_kind') == 'change'
                     and finish_call.arguments.get('status') == 'blocked'
                     and change_required
-                    and not mutation_attempted
                     and false_blocker_recoveries < 2
                 )
                 if correctable_false_blocker:
@@ -2532,7 +2587,10 @@ class Conversation:
                                 'external blocker exists. Editing tools are '
                                 'available in this request. Use the repository '
                                 'evidence already collected to make one concrete '
-                                'task-relevant edit now, then verify it. Do not '
+                                'task-relevant edit now, then run a relevant '
+                                'behavior verification. If the original goal is '
+                                'already satisfied, call finish_task with '
+                                'status=completed and blocked_reasons=[]. Do not '
                                 're-read unchanged files or declare the task '
                                 'blocked again unless a new external condition is '
                                 'reported by a tool.'
@@ -2937,6 +2995,21 @@ class Conversation:
             elif change_required and tool_results:
                 change_exploration_calls += 1
 
+            task_verification_current = bool(
+                self.workspace_tracker is not None
+                and latest_verification is not None
+                and latest_verification.success
+                and latest_verification.workspace_revision
+                == self.workspace_tracker.revision
+                and (
+                    self.completion_gate is None
+                    or not self.completion_gate.policy.require_task_verification
+                    or is_task_verification_command(
+                        latest_verification.command
+                    )
+                )
+            )
+
             dependency_recovery_succeeded = bool(
                 recovery_state.matches('dependency', 'act')
                 and any(
@@ -2963,12 +3036,16 @@ class Conversation:
                 )
             )
             if dependency_verification_succeeded:
-                recovery_state.clear()
+                if task_verification_current:
+                    recovery_state.clear()
+                else:
+                    recovery_state.transition('verify')
                 calls_without_progress = 0
                 force_synthesis = False
                 request_messages.append(
                     build_dependency_verification_completed_feedback(
-                        self.task_manager.system_suffix()
+                        self.task_manager.system_suffix(),
+                        require_behavior=not task_verification_current,
                     )
                 )
                 continue
@@ -2981,7 +3058,7 @@ class Conversation:
                 )
             )
             if verification_recheck_succeeded:
-                if unresolved_verifications:
+                if unresolved_verifications or not task_verification_current:
                     recovery_state.transition('verify')
                 else:
                     recovery_state.clear()
@@ -3008,6 +3085,13 @@ class Conversation:
                                 'The corrected revision now passes its verification. '
                                 'Continue with the next concrete requirement, or use '
                                 'finish_task if the complete original goal is satisfied.'
+                                + (
+                                    ' This check is structural only; run a '
+                                    'task-level behavior test, build, or executable '
+                                    'with task-relevant assertions before finishing.'
+                                    if not task_verification_current
+                                    else ''
+                                )
                             )
                         ),
                     }
@@ -3112,7 +3196,6 @@ class Conversation:
                 )
             )
             if redirected_read_succeeded:
-                verification_read_completed = recovery_state.kind == 'verify'
                 oversized_read_completed = bool(
                     recovery_state.kind == 'edit'
                     and chunk_fallback_required
@@ -5016,8 +5099,17 @@ def build_dependency_recovery_completed_feedback(
 
 def build_dependency_verification_completed_feedback(
     task_context: str,
+    *,
+    require_behavior: bool = False,
 ) -> dict[str, Any]:
     '''Return to implementation after the post-install verification passes.'''
+    behavior_note = (
+        ' The current check is structural only; run a task-level behavior '
+        'test, build, or executable with task-relevant assertions before '
+        'finishing.'
+        if require_behavior
+        else ''
+    )
     return {
         'role': 'user',
         'content': (
@@ -5026,6 +5118,7 @@ def build_dependency_verification_completed_feedback(
             'The previously missing project command is installed and the repeated '
             'verification passed. Continue the current plan from the next concrete '
             'implementation step; do not reinstall or rewrite the toolchain.'
+            + behavior_note
         ),
     }
 
@@ -5471,6 +5564,26 @@ def build_tool_protocol_feedback(
         if diagnostics
         else ''
     )
+    finish_schema_failure = any(
+        call.name == 'finish_task'
+        and result.error is not None
+        and result.error.code == 'invalid_arguments'
+        for call, result in tool_results or ()
+    )
+    recovery_instruction = (
+        'This finish_task payload is invalid. A missing or malformed '
+        'blocked_reasons value is a schema error, not an external blocker. '
+        'If the goal is complete, retry finish_task alone with '
+        'status=completed and blocked_reasons=[]. If work remains, use one '
+        'concrete repository action before declaring an outcome; do not send '
+        'another blocked declaration merely because the previous payload was '
+        'rejected. '
+        if finish_schema_failure
+        else
+        'Follow the exact recovery instruction above, change the '
+        'arguments materially, and retry with valid JSON or choose another '
+        'tool. '
+    )
     return {
         'role': 'user',
         'content': (
@@ -5478,9 +5591,7 @@ def build_tool_protocol_feedback(
             'The previous tool request was rejected at the argument/schema '
             'boundary. This does not mean the repository task is blocked. '
             f'{rendered_diagnostics}'
-            'Follow the exact recovery instruction above, change the '
-            'arguments materially, and retry with valid JSON or choose '
-            'another tool. Do not repeat the rejected payload. '
+            f'{recovery_instruction}Do not repeat the rejected payload. '
             f'Protocol recovery count: {failures}.'
         ),
     }

@@ -44,7 +44,9 @@ class VerifyTool(Tool[VerifyInput]):
     name = 'verify'
     description = (
         'Run a test, build, lint, or type-check command as formal completion '
-        'evidence after workspace changes. Choose the most relevant project '
+        'evidence after workspace changes. Syntax-only checks establish '
+        'structure, so behavior tasks also need a task-relevant executable or '
+        'test with output/assertion coverage. Choose the most relevant project '
         'command; use git diff --check only when no more specific validation '
         'exists. A successful result applies only to the exact current '
         'workspace revision, so verify again after later edits. Runtime version '
