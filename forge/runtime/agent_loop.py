@@ -1997,7 +1997,7 @@ class Conversation:
                 ):
                     recovery_state.activate(
                         'process',
-                        'inspect',
+                        'act',
                         fingerprint=failure_fingerprint(
                             'process',
                             tool_call.name,

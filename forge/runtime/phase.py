@@ -95,11 +95,21 @@ def resolve_phase(
                 'Run the exact required verification on the current revision.',
                 True,
             )
-        tools = _recovery_act_tools(available, effect)
+        tools = _recovery_act_tools(
+            available,
+            effect,
+            include_read_only=recovery.kind == 'process',
+        )
         return PhaseResolution(
             LoopPhase.RECOVERY_ACT,
             tools,
-            'Take one concrete corrective action; do not repeat unchanged reads.',
+            (
+                'Use the process failure output to choose a concrete correction. '
+                'Inspect relevant files if needed, then edit, retry an alternative '
+                'command, or verify; do not repeat the failed command unchanged.'
+                if recovery.kind == 'process'
+                else 'Take one concrete corrective action; do not repeat unchanged reads.'
+            ),
             True,
         )
     return PhaseResolution(LoopPhase.NORMAL, available or None, '', False)
@@ -156,8 +166,21 @@ def _recovery_inspect_tools(
 def _recovery_act_tools(
     definitions: list[dict[str, Any]],
     effect: Callable[[str], str],
+    *,
+    include_read_only: bool = False,
 ) -> list[dict[str, Any]] | None:
-    selected = _by_effect(definitions, effect, {'workspace_write'}) or []
+    selected: list[dict[str, Any]] = []
+    if include_read_only:
+        selected.extend(
+            _by_effect(
+                definitions,
+                effect,
+                {'read_only'},
+                exclude={'finish_task', 'task_plan', 'task_update'},
+            )
+            or []
+        )
+    selected.extend(_by_effect(definitions, effect, {'workspace_write'}) or [])
     action_names = {'task_update', 'run_command', 'verify', 'finish_task'}
     selected.extend(
         item for item in definitions

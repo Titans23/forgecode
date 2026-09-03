@@ -74,6 +74,32 @@ def test_phase_resolver_keeps_tools_and_prompt_in_one_decision() -> None:
     }
 
 
+def test_process_recovery_keeps_read_and_action_tools_available() -> None:
+    state = RecoveryState()
+    state.activate(
+        'process',
+        'act',
+        fingerprint='process|run_command|.|command failed',
+        revision=1,
+    )
+
+    resolution = resolve_phase(_definitions(), _effect, state)
+
+    assert resolution.phase == LoopPhase.RECOVERY_ACT
+    assert resolution.enforce_declared_tools is True
+    assert {tool['name'] for tool in resolution.tools or []} == {
+        'read_file',
+        'apply_patch',
+        'run_command',
+        'verify',
+        'finish_task',
+    }
+    assert (
+        'do not repeat the failed command unchanged'
+        in resolution.prompt_suffix
+    )
+
+
 def test_finalize_phase_closes_tools_and_explains_synthesis() -> None:
     resolution = resolve_phase(
         _definitions(),

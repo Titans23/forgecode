@@ -646,6 +646,65 @@ def test_process_workspace_change_clears_prior_edit_failure(
     assert events[-1].result.status == 'completed'
 
 
+def test_failed_process_keeps_tools_available_for_concrete_recovery(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / 'sample.txt').write_text('old\n', encoding='utf-8')
+    _init_test_repository(tmp_path)
+
+    failed_process = ToolCall(
+        index=0,
+        id='failed-process',
+        name='run_command',
+        arguments={'command': 'python -c "raise SystemExit(1)"'},
+    )
+    edit = ToolCall(
+        index=0,
+        id='recovery-edit',
+        name='replace_text',
+        arguments={
+            'path': 'sample.txt',
+            'old_text': 'old\n',
+            'new_text': 'fixed\n',
+        },
+    )
+    finish = ToolCall(
+        index=0,
+        id='recovery-finish',
+        name='finish_task',
+        arguments={
+            'task_kind': 'change',
+            'status': 'completed',
+            'summary': 'Recovered after the failed command.',
+            'blocked_reasons': [],
+        },
+    )
+    conversation = Conversation(
+        client=FakeModelClient(
+            tool_response(failed_process),
+            tool_response(edit),
+            tool_response(finish),
+        ),
+        registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True),
+        intent_router=StaticIntentRouter(
+            routed('change_task', relation='none', requires_change=True)
+        ),
+    )
+
+    events = collect_turn(
+        conversation,
+        'Fix sample.txt after the command fails.',
+    )
+
+    assert isinstance(events[-1], TurnCompleted)
+    assert events[-1].result.status == 'completed'
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'fixed\n'
+    assert 'replace_text' in {
+        str(tool['name']) for tool in conversation.client.calls[1]['tools']
+    }
+
+
 def test_single_target_delete_can_be_allowed_for_session_rule(
     tmp_path: Path,
 ) -> None:
