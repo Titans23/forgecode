@@ -3152,7 +3152,7 @@ class Conversation:
                 failure_kind = 'dependency' if missing_dependency else 'verify'
                 recovery_state.activate(
                     failure_kind,
-                    'act' if missing_dependency else 'inspect',
+                    'act',
                     fingerprint=failure_fingerprint(
                         failure_kind,
                         'verify',

@@ -1676,24 +1676,6 @@ def test_failed_verification_enters_bounded_edit_recovery(
         'verify',
         {'command': 'python -c "raise SystemExit(1)"'},
     )
-    targeted_read = ToolCall(
-        0,
-        'failed-verify-read',
-        'read_file',
-        {'path': 'sample.txt', 'start_line': 1, 'end_line': 1},
-    )
-    redundant_read = ToolCall(
-        1,
-        'failed-verify-redundant-read',
-        'grep',
-        {'path': 'sample.txt', 'pattern': 'broken'},
-    )
-    stale_verify = ToolCall(
-        2,
-        'failed-verify-stale-verify',
-        'verify',
-        {'command': 'python -c "print(1)"'},
-    )
     corrected_edit = ToolCall(
         0,
         'failed-verify-corrected-edit',
@@ -1713,7 +1695,6 @@ def test_failed_verification_enters_bounded_edit_recovery(
     client = FakeModelClient(
         response_with_tool(first_edit),
         response_with_tool(failed_verify),
-        response_with_tools(targeted_read, redundant_read, stale_verify),
         response_with_tool(corrected_edit),
         response_with_tool(passed_verify),
         finish_response(
@@ -1737,51 +1718,20 @@ def test_failed_verification_enters_bounded_edit_recovery(
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
-    redundant_result = next(
-        event.result
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'failed-verify-redundant-read'
-    )
-    assert redundant_result.success is True
-    stale_verify_result = next(
-        event.result
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'failed-verify-stale-verify'
-    )
-    assert stale_verify_result.success is False
-    assert stale_verify_result.error is not None
-    assert stale_verify_result.error.code == 'tool_not_available_in_phase'
     recovery_names = {
         str(definition['name'])
         for definition in client.calls[2]['tools'] or ()
     }
-    assert {'read_file', 'grep'} <= recovery_names
-    assert 'verify' not in recovery_names
+    assert {'read_file', 'grep', 'apply_patch', 'verify'} <= recovery_names
     availability = (client.calls[2]['system'] or '').split(
         '[Runtime Tool Availability]\n', 1
     )[1].split('\n\n', 1)[0]
     assert 'read_file' in availability
     assert 'grep' in availability
-    assert 'apply_patch' not in availability
+    assert 'apply_patch' in availability
     recovery_messages = client.calls[2]['messages']
-    assert 'ForgeCode verification checkpoint' in str(
-        recovery_messages[-1]['content']
-    )
-    assert 'Choose the smallest useful inspection' in str(
-        recovery_messages[-1]['content']
-    )
-    assert 'do not weaken existing tests' in str(
-        recovery_messages[-1]['content']
-    )
-    post_read_names = {
-        str(definition['name'])
-        for definition in client.calls[3]['tools'] or ()
-    }
-    assert 'apply_patch' in post_read_names
-    assert 'read_file' not in post_read_names
-    assert 'grep' not in post_read_names
+    assert 'ForgeCode verification checkpoint' in str(recovery_messages[-1]['content'])
+    assert 'do not weaken existing tests' in str(recovery_messages[-1]['content'])
 
 
 def test_completion_decision_default_is_bounded() -> None:

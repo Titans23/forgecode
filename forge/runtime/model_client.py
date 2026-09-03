@@ -17,6 +17,7 @@ from anthropic import (
     InternalServerError,
     RateLimitError,
 )
+import httpx
 
 from forge.config import DEFAULT_MODEL_MAX_TOKENS, ForgeConfig
 from forge.runtime.state import (
@@ -242,6 +243,7 @@ class AnthropicModelClient:
             except (
                 APIConnectionError,
                 APIStatusError,
+                httpx.TransportError,
             ) as error:
                 reason, retryable = classify_provider_error(error)
                 can_retry = (
@@ -483,6 +485,10 @@ async def final_content_events(
 
 def classify_provider_error(error: Exception) -> tuple[str, bool]:
     '''Map Anthropic transport failures to stable ForgeCode reasons.'''
+    if isinstance(error, httpx.TimeoutException):
+        return 'timeout', True
+    if isinstance(error, httpx.TransportError):
+        return 'connection_error', True
     if isinstance(error, RateLimitError):
         return 'rate_limit', True
     if isinstance(error, APITimeoutError):

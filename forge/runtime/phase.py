@@ -98,7 +98,7 @@ def resolve_phase(
         tools = _recovery_act_tools(
             available,
             effect,
-            include_read_only=recovery.kind == 'process',
+            include_read_only=recovery.kind in {'process', 'verify'},
         )
         return PhaseResolution(
             LoopPhase.RECOVERY_ACT,

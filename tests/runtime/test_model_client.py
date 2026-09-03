@@ -6,6 +6,7 @@ import asyncio
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
 
 from forge.config import ForgeConfig
@@ -691,6 +692,46 @@ def test_stream_retries_connection_error_before_output(
     sdk.messages.errors.append(
         model_client_module.APIConnectionError(request=SimpleNamespace())
     )
+    delays: list[float] = []
+
+    async def record_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    monkeypatch.setattr(model_client_module.asyncio, 'sleep', record_sleep)
+    monkeypatch.setattr(model_client_module.random, 'uniform', lambda *_: 0)
+    client = AnthropicModelClient(
+        model='claude-test',
+        max_retries=1,
+        client=sdk,
+    )
+
+    events = collect_stream(
+        client,
+        messages=[{'role': 'user', 'content': 'Hello'}],
+    )
+
+    assert events[0] == ModelRetryScheduled(
+        attempt=2,
+        reason='connection_error',
+        delay_seconds=0.5,
+    )
+    assert delays == [0.5]
+    assert len(sdk.messages.calls) == 2
+
+
+def test_stream_retries_raw_httpx_transport_error_before_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sdk = FakeAnthropic()
+    sdk.messages.events = [httpx.RemoteProtocolError('incomplete stream')]
+    original_stream = sdk.messages.stream
+
+    def transient_stream(**kwargs: Any) -> FakeStream:
+        stream = original_stream(**kwargs)
+        sdk.messages.events = []
+        return stream
+
+    sdk.messages.stream = transient_stream
     delays: list[float] = []
 
     async def record_sleep(delay: float) -> None:
