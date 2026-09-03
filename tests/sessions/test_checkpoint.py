@@ -117,17 +117,36 @@ def test_checkpoint_accepts_absolute_path_inside_repository(
     assert not target.exists()
 
 
-def test_checkpoint_rejects_absolute_path_outside_repository(
+def test_checkpoint_rejects_relative_path_outside_repository(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / 'project'
     root.mkdir()
-    outside = tmp_path / 'outside.txt'
     store = CheckpointStore(root, tmp_path / 'checkpoints')
     checkpoint_id = store.begin()
 
     with pytest.raises(CheckpointError, match='escapes the repository'):
-        store.capture_before(checkpoint_id, (str(outside),))
+        store.capture_before(checkpoint_id, ('../outside.txt',))
+
+
+def test_checkpoint_restores_explicit_absolute_path_outside_repository(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / 'project'
+    root.mkdir()
+    outside = tmp_path / 'external' / 'output.txt'
+    outside.parent.mkdir()
+    outside.write_text('before', encoding='utf-8')
+    store = CheckpointStore(root, tmp_path / 'checkpoints')
+    checkpoint_id = store.begin()
+
+    captured = store.capture_before(checkpoint_id, (str(outside),))
+    outside.write_text('after', encoding='utf-8')
+    store.record_after(checkpoint_id, (str(outside),))
+
+    assert captured[0].startswith('@external/')
+    assert store.restore(checkpoint_id) == captured
+    assert outside.read_text(encoding='utf-8') == 'before'
 
 
 def test_checkpoint_deduplicates_original_blob(tmp_path: Path) -> None:

@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
+import re
 
 from forge.runtime.state import VerificationEvidence
 from forge.runtime.verification import (
+    completion_summary_has_unresolved_claims,
     is_positive_verification_command,
     is_task_verification_command,
     verification_kind,
@@ -28,6 +30,7 @@ class TaskPolicy:
     allowed_paths: tuple[str, ...] = ()
     required_paths: tuple[str, ...] = ()
     required_verification_commands: tuple[str, ...] = ()
+    forbidden_verification_output_patterns: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = (
         'tests/hidden/**',
         '**/tests/hidden/**',
@@ -143,6 +146,27 @@ class CompletionGate:
                     'end-to-end verification that exits 0 when the requested '
                     'behavior actually works.'
                 )
+            for evidence in successful_evidence:
+                for pattern in self.policy.forbidden_verification_output_patterns:
+                    try:
+                        matched = re.search(
+                            pattern,
+                            evidence.diagnostic,
+                            flags=re.IGNORECASE,
+                        )
+                    except re.error as error:
+                        reasons.append(
+                            'The completion policy contains an invalid '
+                            f'verification output pattern {pattern!r}: {error}.'
+                        )
+                        continue
+                    if matched is not None:
+                        reasons.append(
+                            'Verification exited 0 but its output contains '
+                            f'the unresolved failure marker {pattern!r}; '
+                            'resolve that marker and verify the final revision '
+                            'again.'
+                        )
             if (
                 successful_evidence
                 and self.policy.required_verification_commands

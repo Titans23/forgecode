@@ -33,6 +33,7 @@ from forge.runtime.model_client import (
 from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
+    completion_summary_has_unresolved_claims,
     is_task_verification_command,
 )
 from forge.runtime.phase import FinalizeMode, PhaseResolution, resolve_phase
@@ -2393,6 +2394,47 @@ class Conversation:
                     )
                     terminal_finish_reasons = ()
                     continue
+                contradictory_completion = bool(
+                    finish_call is not None
+                    and finish_call.arguments.get('status') == 'completed'
+                    and completion_summary_has_unresolved_claims(
+                        str(finish_call.arguments.get('summary', ''))
+                    )
+                )
+                if (
+                    contradictory_completion
+                    and finish_declaration_recoveries < 2
+                ):
+                    finish_declaration_recoveries += 1
+                    calls_without_progress = 0
+                    recovery_state.activate(
+                        'stagnation',
+                        'act',
+                        fingerprint='stagnation|finish|summary|unresolved',
+                        revision=(
+                            self.workspace_tracker.revision
+                            if self.workspace_tracker is not None
+                            else 0
+                        ),
+                    )
+                    request_messages.append(
+                        {
+                            'role': 'user',
+                            'content': (
+                                'ForgeCode completion correction: the previous '
+                                'status=completed summary explicitly admits an '
+                                'unresolved warning, failure, or verification '
+                                'gap. Treat that admission as a live defect. Use '
+                                'the available evidence to make the smallest '
+                                'task-relevant correction and run a positive '
+                                'verification on the final revision. Do not '
+                                'declare completed again until the contradiction '
+                                'is resolved.'
+                            ),
+                        }
+                    )
+                    terminal_finish_reasons = ()
+                    continue
                 correctable_kind_mismatch = bool(
                     finish_call is not None
                     and finish_call.arguments.get('task_kind') != 'change'
@@ -3893,6 +3935,17 @@ class Conversation:
             )
         task_kind = str(metadata.get('task_kind', ''))
         reasons: list[str] = []
+        if (
+            metadata.get('status') == 'completed'
+            and completion_summary_has_unresolved_claims(
+                str(metadata.get('summary', ''))
+            )
+        ):
+            reasons.append(
+                'The completion summary admits that a defect, warning, '
+                'failure, or verification gap remains. Resolve that issue '
+                'before declaring status=completed.'
+            )
         changed_paths = (
             self.workspace_tracker.changed_paths
             if self.workspace_tracker is not None
@@ -4691,6 +4744,7 @@ def verification_from_result(
                 if workspace_revision is not None
                 else int(metadata['workspace_revision'])
             ),
+            diagnostic=str(result.content)[-8_000:],
         )
     except (KeyError, TypeError, ValueError):
         return None

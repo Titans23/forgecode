@@ -52,6 +52,7 @@ class VerificationEvidence:
     duration_seconds: float
     timed_out: bool
     workspace_revision: int
+    diagnostic: str = ''
 
     @property
     def success(self) -> bool:

@@ -109,7 +109,7 @@ class CheckpointStore:
         for relative, raw_entry in manifest['files'].items():
             if not isinstance(raw_entry, dict) or raw_entry.get('skipped'):
                 continue
-            _, target = self._resolve(relative)
+            target = self._resolve_manifest_target(relative, raw_entry)
             current = file_identity(target)
             expected_exists = raw_entry.get(
                 'after_exists',
@@ -248,6 +248,11 @@ class CheckpointStore:
         return {
             'before_exists': identity['exists'],
             'before_sha256': identity['sha256'],
+            **(
+                {'target_path': target.as_posix()}
+                if not self._is_inside_root(target)
+                else {}
+            ),
         }
 
     def _resolve(self, value: str) -> tuple[str, Path]:
@@ -257,13 +262,42 @@ class CheckpointStore:
             if raw.is_absolute()
             else (self.root / raw).resolve(strict=False)
         )
-        try:
-            relative = target.relative_to(self.root).as_posix()
-        except ValueError as error:
+        if not raw.is_absolute() and not self._is_inside_root(target):
             raise CheckpointError(
                 f'Checkpoint path escapes the repository: {value}'
-            ) from error
-        return relative, target
+            )
+        if self._is_inside_root(target):
+            return target.relative_to(self.root).as_posix(), target
+        return self._external_key(target), target
+
+    def _resolve_manifest_target(
+        self,
+        storage_key: str,
+        entry: dict[str, Any],
+    ) -> Path:
+        raw_target = entry.get('target_path')
+        if raw_target is not None:
+            target = Path(str(raw_target))
+            if not target.is_absolute():
+                raise CheckpointError(
+                    f'Invalid external checkpoint target: {raw_target}'
+                )
+            return target.resolve(strict=False)
+        return self._resolve(storage_key)[1]
+
+    def _is_inside_root(self, target: Path) -> bool:
+        try:
+            target.relative_to(self.root)
+        except ValueError:
+            return False
+        return True
+
+    @staticmethod
+    def _external_key(target: Path) -> str:
+        digest = hashlib.sha256(
+            target.as_posix().encode('utf-8')
+        ).hexdigest()[:32]
+        return f'@external/{digest}/{target.name}'
 
     def _manifest_path(self, checkpoint_id: str) -> Path:
         if CHECKPOINT_PATTERN.fullmatch(checkpoint_id) is None:

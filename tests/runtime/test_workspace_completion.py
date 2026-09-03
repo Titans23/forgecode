@@ -11,6 +11,7 @@ from forge.runtime.agent_loop import mutation_target_paths
 from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
+    completion_summary_has_unresolved_claims,
     is_positive_verification_command,
     is_task_verification_command,
     matches_any,
@@ -648,6 +649,53 @@ def test_completion_gate_rejects_negative_verification_when_required(
     assert any('positive' in reason for reason in decision.reasons)
     assert verification_quality(command) == 'negative'
     assert is_positive_verification_command(command) is False
+
+
+def test_completion_summary_cannot_admit_an_unresolved_defect() -> None:
+    assert completion_summary_has_unresolved_claims(
+        'Compilation succeeded, but warnings remain unresolved.'
+    )
+    assert not completion_summary_has_unresolved_claims(
+        'Implemented the change and verified the final behavior.'
+    )
+    assert not completion_summary_has_unresolved_claims(
+        'Cleared the remaining file.'
+    )
+
+
+def test_completion_gate_rejects_forbidden_verification_output(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    (tmp_path / 'sample.txt').write_text('changed\n', encoding='utf-8')
+    run(tracker.refresh())
+    evidence = VerificationEvidence(
+        command='pdflatex main.tex',
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+        diagnostic='Overfull \\hbox (18.0pt too wide)',
+    )
+    gate = CompletionGate(
+        tmp_path,
+        TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+            require_positive_verification=True,
+            forbidden_verification_output_patterns=(r'Overfull\s+\\hbox',),
+        ),
+    )
+
+    decision = run(
+        gate.evaluate(tracker, evidence, mutation_attempted=True)
+    )
+
+    assert decision.allowed is False
+    assert any('failure marker' in reason for reason in decision.reasons)
 
 
 def test_completion_gate_keeps_unrelated_verification_failure_unresolved(

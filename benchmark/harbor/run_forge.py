@@ -31,6 +31,7 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
     require_verification=True,
     require_task_verification=True,
     require_positive_verification=True,
+    forbidden_verification_output_patterns=(r'Overfull\s+\\hbox',),
 )
 MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='

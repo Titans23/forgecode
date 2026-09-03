@@ -545,6 +545,8 @@ def normalize_step_id(step_id: str) -> str:
 def task_path_matches(path: str, pattern: str) -> bool:
     candidate = normalize_task_path(path)
     normalized_pattern = pattern.strip().replace('\\', '/')
+    if normalized_pattern in {'', '.', './'}:
+        return True
     if normalized_pattern.endswith('/**'):
         prefix = normalized_pattern[:-3].rstrip('/')
         return candidate == prefix or candidate.startswith(prefix + '/')

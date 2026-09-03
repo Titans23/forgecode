@@ -31,6 +31,18 @@ _NEGATIVE_VERIFICATION = re.compile(
 VerificationKind = Literal['structural', 'behavior']
 VerificationQuality = Literal['structural', 'behavior', 'negative']
 
+_UNRESOLVED_COMPLETION_SUMMARY = re.compile(
+    r'(?:\b(?:not|never)\s+(?:fully\s+)?(?:verified|complete|fixed|satisfied)\b|'
+    r'\b(?:still|unresolved)\b|'
+    r'\b(?:remain(?:s|ing)?)\s+(?:unresolved|unfixed|a\s+defect|a\s+warning|'
+    r'a\s+failure|an?\s+error|an?\s+issue|a\s+problem|a\s+gap)\b|'
+    r'\bnot\s+(?:yet\s+)?(?:working|passing|resolved)\b|'
+    r'\b(?:cannot|can\s*not|unable|couldn\s*not)\s+(?:verify|confirm|complete|'
+    r'fix|resolve|satisfy|pass|finish)\b|'
+    r'\b(?:warning|error)s?\s+(?:remain|still|persist))',
+    re.IGNORECASE,
+)
+
 
 def verification_kind(command: str) -> VerificationKind:
     '''Classify whether a command exercises behavior or only structure.'''
@@ -60,3 +72,8 @@ def is_task_verification_command(command: str) -> bool:
 def is_positive_verification_command(command: str) -> bool:
     '''Return whether a command can positively establish task correctness.'''
     return verification_quality(command) == 'behavior'
+
+
+def completion_summary_has_unresolved_claims(summary: str) -> bool:
+    '''Detect a completed declaration that admits its own unresolved defect.'''
+    return bool(_UNRESOLVED_COMPLETION_SUMMARY.search(summary))

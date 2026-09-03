@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from forge.tasks.manager import TaskManager
+from forge.tasks.manager import TaskManager, task_path_matches
 
 
 def test_simple_task_stays_in_memory_without_creating_files(
@@ -336,3 +336,8 @@ def test_observed_workspace_paths_are_limited_to_task_scope(
 
     assert manager.active is not None
     assert manager.active.workspace_paths == ('play/src/main.js',)
+
+
+def test_root_scope_hint_matches_every_repository_path() -> None:
+    assert task_path_matches('solve_distribution.py', '.')
+    assert task_path_matches('src/main.py', './')
