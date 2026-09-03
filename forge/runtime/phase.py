@@ -82,10 +82,26 @@ def resolve_phase(
         action = recovery.required_next_action
         if action == 'inspect':
             tools = _recovery_inspect_tools(available, effect)
+            prompt = 'Inspect the exact failure once, then choose a corrected action.'
+            if recovery.kind == 'edit':
+                # A failed edit often already includes the closest current text
+                # and target path. Keep correction tools available so a model
+                # can repair the payload immediately instead of getting stuck
+                # behind an inspect-only phase.
+                tools = _recovery_act_tools(
+                    available,
+                    effect,
+                    include_read_only=True,
+                )
+                prompt = (
+                    'Use the edit failure details to inspect the current target '
+                    'if needed, then make one concrete corrected edit or retry '
+                    'the appropriate command; do not repeat the rejected payload.'
+                )
             return PhaseResolution(
                 LoopPhase.RECOVERY_INSPECT,
                 tools,
-                'Inspect the exact failure once, then choose a corrected action.',
+                prompt,
                 True,
             )
         if action == 'verify':

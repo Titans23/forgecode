@@ -121,6 +121,28 @@ def test_verification_recovery_keeps_read_and_action_tools_available() -> None:
     }
 
 
+def test_edit_recovery_keeps_read_and_action_tools_available() -> None:
+    state = RecoveryState()
+    state.activate(
+        'edit',
+        'inspect',
+        fingerprint='edit|replace_text|target|old text missing',
+        revision=1,
+    )
+
+    resolution = resolve_phase(_definitions(), _effect, state)
+
+    assert resolution.phase == LoopPhase.RECOVERY_INSPECT
+    assert {tool['name'] for tool in resolution.tools or []} == {
+        'read_file',
+        'apply_patch',
+        'run_command',
+        'verify',
+        'finish_task',
+    }
+    assert 'corrected edit' in resolution.prompt_suffix
+
+
 def test_finalize_phase_closes_tools_and_explains_synthesis() -> None:
     resolution = resolve_phase(
         _definitions(),
