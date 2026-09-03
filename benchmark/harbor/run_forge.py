@@ -11,7 +11,11 @@ from typing import Any
 
 from forge.cli import create_session_runtime
 from forge.permissions.policy import ApprovalResponse, PermissionRequest
-from forge.runtime.completion import TaskPolicy, verification_kind
+from forge.runtime.completion import (
+    TaskPolicy,
+    verification_kind,
+    verification_quality,
+)
 from forge.runtime.profile import ExecutionProfile
 from forge.runtime.state import (
     ModelTextDelta,
@@ -26,6 +30,7 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
     require_changes=True,
     require_verification=True,
     require_task_verification=True,
+    require_positive_verification=True,
 )
 MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='
@@ -58,6 +63,7 @@ def result_payload(
             {
                 **asdict(evidence),
                 'kind': verification_kind(evidence.command),
+                'quality': verification_quality(evidence.command),
             }
             for evidence in result.verification_history
         ],

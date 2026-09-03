@@ -99,7 +99,11 @@ def resolve_phase(
                     'the appropriate command; do not repeat the rejected payload.'
                 )
             return PhaseResolution(
-                LoopPhase.RECOVERY_INSPECT,
+                (
+                    LoopPhase.RECOVERY_ACT
+                    if recovery.kind == 'edit'
+                    else LoopPhase.RECOVERY_INSPECT
+                ),
                 tools,
                 prompt,
                 True,

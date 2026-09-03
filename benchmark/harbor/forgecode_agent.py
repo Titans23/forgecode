@@ -19,6 +19,30 @@ _CACHE_DIR: Final = '/opt/forgecode-cache'
 _INSTRUCTION_PATH: Final = '/tmp/forgecode-benchmark-instruction.txt'
 
 
+_BENCHMARK_EXECUTION_GUIDANCE: Final = '''
+
+[Terminal-Bench Acceptance Discipline]
+Treat the task specification as the acceptance contract, not the example
+sanity command. Before declaring completion:
+- preserve supplied inputs, harnesses, and tests unless the task explicitly
+  permits editing them; create the exact requested artifact at the exact path;
+- use a positive end-to-end check on the final artifact and current revision;
+  never make a command pass by expecting a failure, masking an error with
+  `true`, or changing a checker to return success;
+- exercise the requested behavior and important constraints, not only syntax,
+  file existence, output shape, one sample, or a successful build process;
+- if a task provides a local test script or reference input, inspect its
+  contract and run the strongest available check. A command that only proves
+  compilation or a weak sanity condition is not completion evidence;
+- after a failed command, group failures by root cause and change the
+  strategy. Do not spend the turn trying many equivalent URLs, arguments, or
+  rewrites that produce the same diagnostic;
+- do not claim success when an external dependency or build step is still
+  missing. Keep the original source and task contract intact while trying a
+  materially different, evidence-backed recovery.
+'''
+
+
 class ForgeCodeHarborAgent(BaseInstalledAgent):
     '''Install ForgeCode in each task and run one non-interactive turn.'''
 
@@ -105,7 +129,10 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             'The tests are correct. Do not modify the tests.'
         )
         instruction_file = self.logs_dir / 'forgecode-benchmark-instruction.txt'
-        instruction_file.write_text(instruction, encoding='utf-8')
+        instruction_file.write_text(
+            instruction.rstrip() + _BENCHMARK_EXECUTION_GUIDANCE,
+            encoding='utf-8',
+        )
         await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
         await self.exec_as_agent(
             environment,

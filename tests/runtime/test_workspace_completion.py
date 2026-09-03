@@ -11,8 +11,10 @@ from forge.runtime.agent_loop import mutation_target_paths
 from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
+    is_positive_verification_command,
     is_task_verification_command,
     matches_any,
+    verification_quality,
 )
 from forge.runtime.state import ToolCall, VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
@@ -608,6 +610,44 @@ def test_completion_gate_requires_task_level_verification_and_artifact(
     assert is_task_verification_command('node --check vm.js') is False
     assert is_task_verification_command('bash -n deploy.sh') is False
     assert is_task_verification_command('python -m pytest tests') is True
+
+
+def test_completion_gate_rejects_negative_verification_when_required(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    (tmp_path / 'sample.txt').write_text('changed\n', encoding='utf-8')
+    run(tracker.refresh())
+    command = (
+        "sh -c 'set +e; ./build.sh; status=$?; test \"$status\" -eq 2'"
+    )
+    evidence = VerificationEvidence(
+        command=command,
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    gate = CompletionGate(
+        tmp_path,
+        TaskPolicy(
+            require_changes=True,
+            require_verification=True,
+            require_positive_verification=True,
+        ),
+    )
+
+    decision = run(
+        gate.evaluate(tracker, evidence, mutation_attempted=True)
+    )
+
+    assert decision.allowed is False
+    assert any('positive' in reason for reason in decision.reasons)
+    assert verification_quality(command) == 'negative'
+    assert is_positive_verification_command(command) is False
 
 
 def test_completion_gate_keeps_unrelated_verification_failure_unresolved(

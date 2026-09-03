@@ -132,7 +132,7 @@ def test_edit_recovery_keeps_read_and_action_tools_available() -> None:
 
     resolution = resolve_phase(_definitions(), _effect, state)
 
-    assert resolution.phase == LoopPhase.RECOVERY_INSPECT
+    assert resolution.phase == LoopPhase.RECOVERY_ACT
     assert {tool['name'] for tool in resolution.tools or []} == {
         'read_file',
         'apply_patch',

@@ -5,10 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
-import re
-from typing import Literal
 
 from forge.runtime.state import VerificationEvidence
+from forge.runtime.verification import (
+    is_positive_verification_command,
+    is_task_verification_command,
+    verification_kind,
+    verification_quality,
+)
 from forge.runtime.workspace import WorkspaceTracker
 from forge.tools.shell import run_process
 
@@ -20,6 +24,7 @@ class TaskPolicy:
     require_changes: bool = False
     require_verification: bool = False
     require_task_verification: bool = False
+    require_positive_verification: bool = False
     allowed_paths: tuple[str, ...] = ()
     required_paths: tuple[str, ...] = ()
     required_verification_commands: tuple[str, ...] = ()
@@ -124,6 +129,19 @@ class CompletionGate:
                     'check; run a task-level test, build, lint, type-check, '
                     'syntax check, or other command that exercises the requested '
                     'behavior.'
+                )
+            if (
+                self.policy.require_positive_verification
+                and not any(
+                    is_positive_verification_command(item.command)
+                    for item in successful_evidence
+                )
+            ):
+                reasons.append(
+                    'The successful verification only asserts an expected '
+                    'failure or masks a failing command; run a positive '
+                    'end-to-end verification that exits 0 when the requested '
+                    'behavior actually works.'
                 )
             if (
                 successful_evidence
@@ -284,40 +302,6 @@ class CompletionGate:
 def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
     candidate = path.replace('\\', '/')
     return any(fnmatchcase(candidate, pattern) for pattern in patterns)
-
-
-_NON_TASK_VERIFICATION = re.compile(
-    r'^(?:git\s+(?:status|diff(?:\s+--check)?|log)\b|'
-    r'python(?:\d+(?:\.\d+)?)?\s+-m\s+(?:py_compile|compileall)\b|'
-    r'(?:node(?:\.exe)?\s+(?:--check|-c)|'
-    r'(?:bash|sh|zsh)(?:\.exe)?\s+-n|'
-    r'ruby(?:\.exe)?\s+-c|'
-    r'perl(?:\.exe)?\s+-c|'
-    r'php(?:\.exe)?\s+-l)\b|'
-    r'(?:test\s+-(?:e|f|d)|find|ls|dir|cat|type|head|tail|wc|stat)\b|'
-    r'(?:echo|printf|pwd|true|:)\b)',
-    re.IGNORECASE,
-)
-
-VerificationKind = Literal['structural', 'behavior']
-
-
-def verification_kind(command: str) -> VerificationKind:
-    '''Classify whether a command exercises behavior or only structure.'''
-    segments = re.split(r'\s*(?:&&|\|\||[;|])\s*', command.strip())
-    return (
-        'behavior'
-        if any(
-            segment and not _NON_TASK_VERIFICATION.match(segment.strip())
-            for segment in segments
-        )
-        else 'structural'
-    )
-
-
-def is_task_verification_command(command: str) -> bool:
-    '''Return whether a command exercises the requested task, not only plumbing.'''
-    return verification_kind(command) == 'behavior'
 
 
 def verification_command_key(command: str, cwd: str) -> str:

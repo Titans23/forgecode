@@ -9,6 +9,7 @@ import re
 from pydantic import Field
 
 from forge.runtime.workspace import WorkspaceTracker
+from forge.runtime.verification import verification_quality
 from forge.tools.base import (
     Tool,
     ToolExecutionError,
@@ -105,6 +106,7 @@ class VerifyTool(Tool[VerifyInput]):
                 'command': arguments.command,
                 'cwd': display_path(self.root, cwd),
                 'workspace_revision': revision,
+                'verification_quality': verification_quality(arguments.command),
                 'verification': False,
                 'status': 'inspection_only',
                 'inspection_reason': inspection_reason,
@@ -184,6 +186,7 @@ class VerifyTool(Tool[VerifyInput]):
             'command': arguments.command,
             'cwd': display_path(self.root, cwd),
             'workspace_revision': revision,
+            'verification_quality': verification_quality(arguments.command),
             'verification': True,
         }
         content = render_process_output(result)
