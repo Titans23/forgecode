@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import json
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,9 @@ class RunSummary:
     input_tokens: int
     output_tokens: int
     language_stats: dict[str, dict[str, int | float]]
+    unfinished_trials: tuple[str, ...] = ()
+    job_finished: bool | None = None
+    raw_rewards: dict[str, float] = field(default_factory=dict)
 
     @property
     def pass_at_1_rate(self) -> float:
@@ -75,6 +78,9 @@ class RunSummary:
 
 
 def summarize_run(run_dir: Path) -> RunSummary:
+    job_path = run_dir / 'result.json'
+    job = _read_object(job_path) if job_path.is_file() else {}
+    job_finished = bool(job.get('finished_at')) if 'finished_at' in job else None
     trial_dirs = tuple(
         path
         for path in run_dir.iterdir()
@@ -92,9 +98,14 @@ def summarize_run(run_dir: Path) -> RunSummary:
     missing_dirs = tuple(
         path for path in trial_dirs if not (path / 'result.json').is_file()
     )
-    infrastructure_failures = len(missing_dirs)
+    unfinished = tuple(
+        path for path in missing_dirs
+        if job_finished is False and _missing_result_type(path) == 'MissingResult'
+    )
+    failed_missing = tuple(path for path in missing_dirs if path not in unfinished)
+    infrastructure_failures = len(failed_missing)
     infrastructure_failure_types: Counter[str] = Counter(
-        _missing_result_type(path) for path in missing_dirs
+        _missing_result_type(path) for path in failed_missing
     )
     scored_trials = 0
     pass_at_1 = 0
@@ -106,7 +117,8 @@ def summarize_run(run_dir: Path) -> RunSummary:
     agent_timeouts = 0
     model_service_failures = 0
     verifier_environment_failures = 0
-    for path in missing_dirs:
+    raw_rewards: dict[str, float] = {}
+    for path in failed_missing:
         if _missing_result_type(path) == 'AgentTimeout':
             agent_timeouts += 1
         else:
@@ -136,6 +148,8 @@ def summarize_run(run_dir: Path) -> RunSummary:
         verifier = result.get('verifier_result')
         rewards = verifier.get('rewards') if isinstance(verifier, dict) else None
         final_reward = rewards.get('reward') if isinstance(rewards, dict) else None
+        if isinstance(final_reward, int | float):
+            raw_rewards[result_path.parent.name] = float(final_reward)
         verifier_environment_type = _verifier_environment_failure(
             result_path.parent
         )
@@ -157,6 +171,7 @@ def summarize_run(run_dir: Path) -> RunSummary:
         ):
             scored_trials += 1
             pass_at_2 += int(final_reward == 1)
+            agent_failures += int(final_reward != 1)
             if language is not None:
                 stats = language_stats[language]
                 stats['scored_trials'] += 1
@@ -248,6 +263,9 @@ def summarize_run(run_dir: Path) -> RunSummary:
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         language_stats=language_stats,
+        unfinished_trials=tuple(path.name for path in unfinished),
+        job_finished=job_finished,
+        raw_rewards=raw_rewards,
     )
 
 

@@ -1,69 +1,45 @@
-'''Command verification that produces completion evidence.'''
+'''Command execution with revision-bound verification evidence, not a second gate.'''
 
 from __future__ import annotations
 
 import os
+from hashlib import sha256
 from pathlib import Path
 import re
+
 from pydantic import Field
 
 from forge.runtime.workspace import WorkspaceTracker
 from forge.runtime.verification import verification_quality
-from forge.tools.base import (
-    Tool,
-    ToolExecutionError,
-    ToolInput,
-    ToolResult,
-    display_path,
-    resolve_repository_path,
-)
-from forge.tools.shell import (
-    process_metadata,
-    render_process_output,
-    run_process,
-    has_unquoted_heredoc,
-)
+from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult, display_path, resolve_repository_path
+from forge.tools.shell import has_unquoted_heredoc, process_metadata, render_process_output, run_process
 
 
 class VerifyInput(ToolInput):
     command: str = Field(min_length=1)
-    cwd: str = Field(
-        default='.',
-        description=(
-            "Repository-relative directory; omit to verify the repository root. "
-            "Absolute paths and '..' are forbidden."
-        ),
-    )
+    cwd: str = Field(default='.', description='Working directory, resolved and authorized like other command paths.')
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+    stdin: str | None = Field(default=None, max_length=200_000)
     covers: list[str] = Field(
         default_factory=list, max_length=20,
-        description=(
-            'Concrete user requirements this command directly exercises. '
-            'Do not list properties inferred only from exit code or file existence.'
-        ),
+        description='Concrete user requirements directly exercised, not properties inferred from file existence or exit code alone.',
     )
     limitations: list[str] = Field(
         default_factory=list, max_length=20,
-        description='Important requested behavior this command does not establish.',
+        description='Requested behavior or constraints this command does not establish.',
     )
 
 
 class VerifyTool(Tool[VerifyInput]):
     name = 'verify'
     description = (
-        'Run a test, build, lint, or type-check command as formal completion '
-        'evidence after workspace changes. Syntax-only checks establish '
-        'structure, so behavior tasks also need a task-relevant executable or '
-        'test with output/assertion coverage. Choose the most relevant project '
-        'command; use git diff --check only when no more specific validation '
-        'exists. A successful result applies only to the exact current '
-        'workspace revision, so verify again after later edits. Runtime version '
-        'queries, read-only Git inspection, and native directory listings are '
-        'tolerated as inspection-only commands, but never count as verification '
-        'evidence. Other repository inspection remains rejected. On Windows, '
-        'POSIX heredocs and commands '
-        'such as ls are invalid; use dedicated repository tools for inspection '
-        'and a native test/build/check command for verification.'
+        'Run an authorized command and register its actual result as verification '
+        'evidence. Uses the same subprocess capability as run_command; accepts '
+        'stdin for scripts. State concrete requirement coverage with covers and '
+        'remaining limits with limitations. A zero exit code is execution success, '
+        'not proof that all user requirements are met. Pure version or directory '
+        'queries are inspection-only. Evidence applies to the resulting workspace '
+        'revision and environment generation; rerun after relevant changes.'
     )
     input_model = VerifyInput
     effect = 'process'
@@ -75,206 +51,51 @@ class VerifyTool(Tool[VerifyInput]):
     async def execute(self, arguments: VerifyInput) -> ToolResult:
         cwd = resolve_repository_path(self.root, arguments.cwd)
         if os.name == 'nt' and has_unquoted_heredoc(arguments.command):
-            return ToolResult.fail(
+            raise ToolExecutionError(
                 'unsupported_shell_syntax',
-                'Windows cmd.exe does not support POSIX << heredocs. Use a '
-                'dedicated repository tool for inspection or a single-line '
-                'native verification command such as node --check <path>.',
-                metadata={
-                    'command': arguments.command,
-                    'cwd': arguments.cwd,
-                    'workspace_revision': self.tracker.revision,
-                    'verification': True,
-                },
+                'Windows cmd.exe does not support POSIX << heredocs. Pass the program in stdin instead.',
             )
         if not cwd.is_dir():
-            raise ToolExecutionError(
-                'not_a_directory',
-                f'Verification cwd is not a directory: {arguments.cwd}',
-            )
-        revision = self.tracker.revision
-        inspection_reason = non_verification_command_reason(
-            arguments.command
-        )
-        if inspection_reason in {
-            'a runtime or tool version query',
-            'a read-only Git inspection command',
-            'a shell directory inspection command',
-            'an executable lookup command',
-        }:
-            result = await run_process(
-                arguments.command,
-                cwd=cwd,
-                timeout_seconds=arguments.timeout_seconds,
-                shell=True,
-            )
-            metadata = {
-                **process_metadata(result),
-                'command': arguments.command,
-                'cwd': display_path(self.root, cwd),
-                'workspace_revision': revision,
-                'environment_epoch': getattr(
-                    self.tracker,
-                    'environment_epoch',
-                    0,
-                ),
-                'verification_quality': verification_quality(arguments.command),
-                'verification_coverage': verification_quality(arguments.command),
-                'covers': arguments.covers,
-                'limitations': arguments.limitations,
-                'verification': False,
-                'status': 'inspection_only',
-                'inspection_reason': inspection_reason,
-            }
-            content = render_process_output(result)
-            if result.timed_out:
-                return ToolResult.fail(
-                    'inspection_timeout',
-                    f'Inspection command timed out after '
-                    f'{arguments.timeout_seconds:g}s.',
-                    content=content,
-                    metadata=metadata,
-                )
-            if result.exit_code != 0:
-                return ToolResult.fail(
-                    'inspection_failed',
-                    f'Inspection command exited with code {result.exit_code}.',
-                    content=content,
-                    metadata=metadata,
-                )
-            return ToolResult.ok(
-                'Inspection command completed successfully; this result does '
-                'not count as verification evidence.',
-                content=content,
-                metadata=metadata,
-            )
-        missing_manifest = missing_verification_manifest(
-            arguments.command,
-            cwd,
-        )
-        if missing_manifest is not None:
-            return ToolResult.fail(
-                'verification_command_not_applicable',
-                f'Cannot run {arguments.command!r}: {missing_manifest.name} '
-                f'does not exist in {display_path(self.root, cwd)}.',
-                content=(
-                    'Choose a verification command supported by the current '
-                    'project. For a standalone JavaScript file, prefer '
-                    '`node --check <path>`.'
-                ),
-                metadata={
-                    'command': arguments.command,
-                    'cwd': display_path(self.root, cwd),
-                    'workspace_revision': revision,
-                    'environment_epoch': getattr(
-                        self.tracker,
-                        'environment_epoch',
-                        0,
-                    ),
-                    'verification': True,
-                    'required_manifest': missing_manifest.name,
-                },
-            )
+            raise ToolExecutionError('not_a_directory', f'Command cwd is not a directory: {arguments.cwd}')
         result = await run_process(
-            arguments.command,
-            cwd=cwd,
-            timeout_seconds=arguments.timeout_seconds,
-            shell=True,
+            arguments.command, cwd=cwd, timeout_seconds=arguments.timeout_seconds,
+            input_text=arguments.stdin, shell=True,
         )
+        inspection = non_verification_command_reason(arguments.command)
         metadata = {
             **process_metadata(result),
             'command': arguments.command,
             'cwd': display_path(self.root, cwd),
-            'workspace_revision': revision,
-            'environment_epoch': getattr(
-                self.tracker,
-                'environment_epoch',
-                0,
-            ),
+            'workspace_revision': self.tracker.revision,
+            'environment_epoch': getattr(self.tracker, 'environment_epoch', 0),
             'verification_quality': verification_quality(arguments.command),
-            'verification_coverage': verification_quality(arguments.command),
+            'verification_coverage': list(arguments.covers),
             'covers': arguments.covers,
             'limitations': arguments.limitations,
-            'verification': True,
+            'verification': inspection is None,
+            'inspection_reason': inspection,
+            'stdin_characters': len(arguments.stdin or ''),
+            'stdin_sha256': sha256(arguments.stdin.encode()).hexdigest() if arguments.stdin is not None else '',
         }
         content = render_process_output(result)
         if result.timed_out:
-            return ToolResult.fail(
-                'verification_timeout',
-                f'Verification timed out after '
-                f'{arguments.timeout_seconds:g}s.',
-                content=content,
-                metadata=metadata,
-            )
+            return ToolResult.fail('verification_timeout', f'Command timed out after {arguments.timeout_seconds:g}s.', content=content, metadata=metadata)
         if result.exit_code != 0:
-            return ToolResult.fail(
-                'verification_failed',
-                f'Verification exited with code {result.exit_code}.',
-                content=content,
-                metadata=metadata,
-            )
+            return ToolResult.fail('verification_failed', f'Command exited with code {result.exit_code}.', content=content, metadata=metadata)
         return ToolResult.ok(
-            f'Verification passed in {result.duration_seconds:.3f}s.',
-            content=content,
-            metadata=metadata,
+            ('Inspection completed; no verification evidence registered.' if inspection else
+             f'Verification command exited 0 in {result.duration_seconds:.3f}s; coverage is declared, not independently proven.'),
+            content=content, metadata=metadata,
         )
-
-PURE_INSPECTION_PATTERNS = (
-    (
-        re.compile(
-            r'(?:^|[;&|]\s*)(?:ls|dir|tree|pwd|cd)(?:\s|$)',
-            re.IGNORECASE,
-        ),
-        'a shell directory inspection command',
-    ),
-    (
-        re.compile(
-            r'(?:^|[;&|]\s*)(?:where|which)(?:\.exe)?(?:\s|$)',
-            re.IGNORECASE,
-        ),
-        'an executable lookup command',
-    ),
-    (
-        re.compile(
-            r'(?:^|[;&|]\s*)find(?:\.exe)?(?:\s|$)',
-            re.IGNORECASE,
-        ),
-        'a shell file or text inspection command',
-    ),
-    (
-        re.compile(
-            r'^\s*(?:node|python(?:\d+(?:\.\d+)*)?|npm|pnpm|yarn|bun|'
-            r'git|java|javac|go|cargo|rustc|dotnet)(?:\.exe|\.cmd)?\s+'
-            r'(?:-v|--version|version)\s*$',
-            re.IGNORECASE,
-        ),
-        'a runtime or tool version query',
-    ),
-    (
-        re.compile(
-            r'^\s*git(?:\.exe)?\s+'
-            r'(?:status|log|show|branch|rev-parse|diff(?![^\r\n]*--check))\b',
-            re.IGNORECASE,
-        ),
-        'a read-only Git inspection command',
-    ),
-)
 
 
 def non_verification_command_reason(command: str) -> str | None:
-    '''Return a reason for commands that can never validate repository behavior.'''
-    normalized = ' '.join(command.split())
-    for pattern, reason in PURE_INSPECTION_PATTERNS:
-        if pattern.search(normalized):
-            return reason
-    return None
-
-
-def missing_verification_manifest(command: str, cwd: Path) -> Path | None:
-    '''Return a required project manifest missing for a known test command.'''
-    normalized = ' '.join(command.casefold().split())
-    if re.match(r'^(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test(?:\s|$)', normalized):
-        manifest = cwd / 'package.json'
-        if not manifest.is_file():
-            return manifest
+    '''Classify only complete standalone probes; never deny command execution.'''
+    # Embedded directory commands must not turn a subsequent real test into a probe.
+    if re.fullmatch(r'\s*(?:ls|dir|pwd|where|which)(?:\s+[^;&|\r\n]+)?\s*', command, re.I):
+        return 'a standalone inspection command'
+    if re.fullmatch(r'\s*\S+\s+(?:--version|-v|version)\s*', command, re.I):
+        return 'a runtime or tool version query'
+    if re.fullmatch(r'\s*git\s+(?:status|log|show|branch|rev-parse)(?:\s+[^;&|\r\n]+)?\s*', command, re.I):
+        return 'a read-only Git inspection command'
     return None

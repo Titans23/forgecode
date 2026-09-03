@@ -47,6 +47,8 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
     assert '--resume' in command
     assert '--max-model-calls 77' in command
     assert '--max-tool-calls 155' in command
+    assert '--max-turn-seconds 1800' in command
+    assert 'timeout --kill-after=10s 1815 ' in command
     assert 'FORGECODE_API_KEY' in command
     assert 'ANTHROPIC_API_KEY=' in command
     assert 'FORGECODE_BENCHMARK_RESULT' not in command

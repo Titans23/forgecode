@@ -222,6 +222,9 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         resume_arg = '--resume ' if resume else ''
         log_name = 'forgecode-repair.txt' if resume else 'forgecode.txt'
         timeout = format(self._max_turn_seconds, 'g')
+        # The kernel owns the task deadline. The outer guard leaves only a
+        # bounded cleanup/logging grace period, with no extra model/tool work.
+        watchdog_timeout = format(self._max_turn_seconds + 15, 'g')
         baseline = '' if resume else _git_baseline_command()
         message_arg = (
             f'--message-file {shlex.quote(message_file)}'
@@ -237,12 +240,13 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             'export ANTHROPIC_BASE_URL="${FORGECODE_BASE_URL}"; '
             'export MODEL_MAX_TOKENS="${FORGECODE_MODEL_MAX_TOKENS:-16384}"; '
             'export MODEL_CONTEXT_WINDOW="${FORGECODE_CONTEXT_WINDOW:-128000}"; '
-            f'timeout {shlex.quote(timeout)} '
+            f'timeout --kill-after=10s {shlex.quote(watchdog_timeout)} '
             f'{shlex.quote(_venv_python())} -m benchmark.harbor.run_forge '
             '--project . '
             f'{resume_arg}'
             f'--max-model-calls {self._max_model_calls} '
             f'--max-tool-calls {self._max_tool_calls} '
+            f'--max-turn-seconds {shlex.quote(timeout)} '
             f'{message_arg} '
             f'2>&1 | tee /logs/agent/{log_name}; '
             'FORGECODE_EXIT="${PIPESTATUS[0]}"; '

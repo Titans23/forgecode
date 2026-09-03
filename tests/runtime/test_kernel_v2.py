@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 from pathlib import Path
 import subprocess
+import shlex
 import sys
 
 import pytest
@@ -22,6 +23,9 @@ from forge.runtime.workspace import WorkspaceTracker
 from forge.sessions.checkpoint import CheckpointStore
 from forge.sessions.store import SessionStore
 from forge.tools import create_default_registry
+
+
+shell_join = subprocess.list2cmdline if sys.platform == 'win32' else shlex.join
 
 
 def run(coroutine: object):
@@ -102,7 +106,7 @@ def test_process_and_verify_are_never_repeat_cached(tmp_path: Path) -> None:
             ),
             workspace_tracker=tracker,
         )
-        command = subprocess.list2cmdline(
+        command = shell_join(
             [sys.executable, '-c', 'print("ok")']
         )
         first = await executor.execute(
@@ -234,6 +238,8 @@ def test_large_tool_results_use_bounded_artifact_reads(tmp_path: Path) -> None:
     bounded = manager.read_artifact(digest, max_characters=100)
     assert bounded.startswith('head\n')
     assert bounded.endswith('tail\n')
+    assert manager.read_artifact(digest, max_characters=500, offset=15000) == original[15000:15500]
+    assert manager.read_artifact(digest, max_characters=500, offset=len(original)) == ''
     with pytest.raises(ValueError):
         manager.read_artifact('../secret')
 
@@ -264,7 +270,7 @@ def test_verification_evidence_is_invalidated_by_environment_epoch(
             ),
             workspace_tracker=tracker,
         )
-        command = subprocess.list2cmdline(
+        command = shell_join(
             [sys.executable, '-c', 'print("verified")']
         )
         outcome = await executor.execute(

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import Field
 
-from forge.tools.base import Tool, ToolInput, ToolResult
+from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
 
 if TYPE_CHECKING:
     from forge.context.manager import ContextManager
@@ -19,13 +19,15 @@ class ReadContextArtifactInput(ToolInput):
         description='The sha256 artifact ID shown in a truncated tool result.',
     )
     max_characters: int = Field(default=20_000, ge=1, le=100_000)
+    offset: int = Field(default=0, ge=0, description='Zero-based character offset for paging through the artifact.')
 
 
 class ReadContextArtifactTool(Tool[ReadContextArtifactInput]):
     name = 'read_context_artifact'
     description = (
-        'Read a bounded head/tail view of a large tool result by its sha256 '
-        'artifact ID. This cannot access arbitrary .forge files or workspace paths.'
+        'Read a page of a large tool result by its sha256 artifact ID. Increase '
+        'offset to recover middle diagnostics or later pages. This cannot access '
+        'arbitrary .forge files or workspace paths.'
     )
     input_model = ReadContextArtifactInput
 
@@ -34,10 +36,19 @@ class ReadContextArtifactTool(Tool[ReadContextArtifactInput]):
         self.manager = manager
 
     async def execute(self, arguments: ReadContextArtifactInput) -> ToolResult:
-        content = self.manager.read_artifact(
-            arguments.artifact_id, max_characters=arguments.max_characters,
-        )
+        try:
+            content = self.manager.read_artifact(
+                arguments.artifact_id, max_characters=arguments.max_characters,
+                offset=arguments.offset,
+            )
+        except (ValueError, FileNotFoundError) as error:
+            raise ToolExecutionError('invalid_context_artifact', str(error)) from error
         return ToolResult.ok(
             'Read the bounded context artifact.', content=content,
-            metadata={'artifact_id': arguments.artifact_id},
+            metadata={
+                'artifact_id': arguments.artifact_id,
+                'offset': arguments.offset,
+                'characters_returned': len(content),
+                'next_offset': arguments.offset + len(content),
+            },
         )

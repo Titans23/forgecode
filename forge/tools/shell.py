@@ -86,12 +86,21 @@ async def run_process(
     stderr_task = asyncio.create_task(
         _read_bounded(process.stderr, max_output_bytes)
     )
-    if input_text is not None and process.stdin is not None:
-        process.stdin.write(input_text.encode('utf-8'))
-        await process.stdin.drain()
-        process.stdin.close()
     try:
-        await asyncio.wait_for(process.wait(), timeout=timeout_seconds)
+        # The timeout covers stdin backpressure AND inherited output pipes,
+        # not just the parent process wait. A child may never consume stdin,
+        # or may keep stdout open after its parent has exited.
+        async with asyncio.timeout(timeout_seconds):
+            if input_text is not None and process.stdin is not None:
+                try:
+                    process.stdin.write(input_text.encode('utf-8'))
+                    await process.stdin.drain()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+                finally:
+                    process.stdin.close()
+            await process.wait()
+            await asyncio.shield(asyncio.gather(stdout_task, stderr_task))
         timed_out = False
     except TimeoutError:
         await _terminate_process_tree(process)
@@ -139,9 +148,9 @@ async def _read_bounded(
 
 
 async def _terminate_process_tree(process: asyncio.subprocess.Process) -> None:
-    if process.returncode is not None:
-        return
     if os.name == 'nt':
+        if process.returncode is not None:
+            return
         killer = await asyncio.create_subprocess_exec(
             'taskkill',
             '/PID',

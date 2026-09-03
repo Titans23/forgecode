@@ -82,3 +82,29 @@
 Windows 完整回归为 **536 passed**，另有飞书依赖弃用警告；`compileall` 和 `git diff --check` 通过。此结果仅证明本阶段已测执行契约，不代表 Linux 门槛、完整重构计划或 benchmark 目标达成。下一阶段仍需审计进程树清理、验证执行/覆盖分类、压缩预算、摘要和 artifact 恢复，以及源码冻结和异常汇总。
 
 首轮现场更新：compile-compcert 重试的 `forgecode-status.json` 在 19:42:13 记录 exit_code=124、timed_out=true。Docker 容器仅剩 sh/sleep 保活进程，没有 Agent；job 仍缺最终收尾结果。不能把它描述为正常运行，也不能编造第十题 reward。该重试复制的 `agent_loop.py` Git blob 为 `e2acf6dedbd6f20522b6e87409dce87645a5c65a`，与 e1787de 一致，未混入本次新内核。但评测适配器是在每次安装时复制源码，下一轮必须使用统一冻结快照。
+
+### 本轮九个最终 payload 的成本快照
+
+| 任务 | 内部状态 | 模型请求字段 | 工具请求字段 | 含缓存输入 token | 输出 token |
+| --- | --- | ---: | ---: | ---: | ---: |
+| break-filter-js-from-html | completed | 5 | 7 | 31,251 | 957 |
+| build-pov-ray | blocked | 38 | 67 | 1,238,486 | 9,296 |
+| circuit-fibsqrt | stuck | 17 | 17 | 232,144 | 17,229 |
+| distribution-search | completed | 9 | 11 | 65,098 | 3,309 |
+| make-mips-interpreter | completed | 84 | 97 | 4,028,756 | 24,218 |
+| overfull-hbox | completed | 51 | 54 | 966,566 | 8,558 |
+| path-tracing | failed | 77 | 84 | 3,324,175 | 24,083 |
+| protein-assembly | stuck | 49 | 53 | 2,354,553 | 77,013 |
+| video-processing | completed | 12 | 13 | 155,454 | 5,067 |
+
+合计 342 / 403 次、12,396,483 输入 token、169,730 输出 token。以上是旧候选最终 payload 的字段合计，不是完整账单；不含 CompCert 两次超时的消耗，也不应假定旧计数器计入了每个 HTTP 重试。MIPS、path-tracing、protein 三题占这些输入 token 约 78.3%，成本集中于长轨迹及反复携带历史，不应增加预算掩盖问题。
+
+官方原始结果仍是九个 trial 中一个 reward=1；八个可判定代码表现的评分中一个通过，七个失败；另有一个 verifier 环境失败及一个已观察到 Agent 超时但缺正式 trial 结果的任务。本轮不满足有效完整轮次条件。
+
+### 第二批修复与尚未封闭的门槛
+
+新增统一源码快照、原始 reward 保留与未收尾状态区分；verify 不再猜测缺失 package.json 而拦截实际执行，支持 stdin 和独立的 covers/limitations；artifact 支持按偏移取回中间内容。修正多目标权限规则的部分匹配放行、嵌套 shell 宽泛删除检测、嵌套 shell 退出码掩盖和不同 stdin 检查互相覆盖的问题。进程 deadline 现在包含 stdin 回压和输出排空；POSIX 子进程继承管道由进程组终止测试覆盖。
+
+这些修复不等于自动证明语义正确：covers 仍是模型提供的解释；自然语言中的允许变换和不可修改输入尚需建立更完整、来源明确的验收关系。Windows 父进程先退出时的后代清理、多次压缩后目标约 60% 的预算、未执行日志的跨 turn 身份等边界仍需进一步审计。在这些门槛封闭及固定配置对照完成前，不宣称通过率提升，不启动新的付费十题评测。
+
+本批最终验证：Windows / Python 3.12 全集 **552 passed, 1 skipped**（POSIX 进程组测试）；Linux / Python 3.13.7 全集 **553 passed**。两端仅有飞书依赖同一条弃用警告。Linux 使用本地 `alexgshaw/build-cython-ext:20251031` 镜像，独立临时容器和只读源码挂载，第二次安装之后可离线复用 D 盘缓存；完整脚本位于 `scripts/test-runtime-linux.ps1`。首次 Linux 尝试的挂载缺失和 Windows 引号测试缺陷已修正，未跳过 MCP 真进程集成测试。此 Linux 结果是跨平台契约验证，不是固定评测的 Python 3.12 生产环境等价对照。

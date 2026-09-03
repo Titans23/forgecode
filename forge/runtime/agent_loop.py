@@ -993,6 +993,7 @@ def verification_from_result(
                 str(item) for item in metadata.get('limitations', ())
                 if str(item).strip()
             ),
+            stdin_sha256=str(metadata.get('stdin_sha256', '')),
         )
     except (KeyError, TypeError, ValueError):
         return None

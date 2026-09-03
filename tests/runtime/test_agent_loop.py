@@ -1102,7 +1102,7 @@ def test_system_prompt_defines_forgecode_identity() -> None:
     assert 'Do not run destructive commands' in prompt
     assert 'call `verify`' in prompt
     assert 'Run dependent verification commands one at a' in prompt
-    assert 'prefer the smallest relevant verification' in prompt
+    assert 'choose the next check based on the goal and risk' in prompt
 
 
 def test_conversation_accepts_an_explicit_system_prompt() -> None:

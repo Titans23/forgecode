@@ -400,10 +400,13 @@ class ContextManager:
         artifact_id: str,
         *,
         max_characters: int = 20_000,
+        offset: int | None = None,
     ) -> str:
         '''Read a stored tool result through a constrained artifact interface.'''
         if max_characters < 1:
             raise ValueError('max_characters must be positive')
+        if offset is not None and offset < 0:
+            raise ValueError('offset must be non-negative')
         candidate_id = Path(artifact_id).name
         if candidate_id != artifact_id or not re.fullmatch(
             r'[0-9a-f]{64}(?:\.txt)?',
@@ -424,6 +427,8 @@ class ContextManager:
             content = path.read_text(encoding='utf-8')
         except OSError as error:
             raise FileNotFoundError(f'Unknown tool-result artifact: {artifact_id}') from error
+        if offset is not None:
+            return content[offset:offset + max_characters]
         if len(content) <= max_characters:
             return content
         tail = max(1, max_characters // 3)

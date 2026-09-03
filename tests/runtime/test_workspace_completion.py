@@ -683,8 +683,8 @@ def test_completion_gate_rejects_shell_chain_that_masks_a_failure(
     assert is_positive_verification_command(command) is False
 
 
-def test_completion_summary_cannot_admit_an_unresolved_defect() -> None:
-    assert completion_summary_has_unresolved_claims(
+def test_completion_summary_keywords_are_not_an_execution_gate() -> None:
+    assert not completion_summary_has_unresolved_claims(
         'Compilation succeeded, but warnings remain unresolved.'
     )
     assert not completion_summary_has_unresolved_claims(
@@ -693,6 +693,58 @@ def test_completion_summary_cannot_admit_an_unresolved_defect() -> None:
     assert not completion_summary_has_unresolved_claims(
         'Cleared the remaining file.'
     )
+
+
+def test_verification_detects_nested_shell_exit_masking_but_not_program_punctuation() -> None:
+    from forge.runtime.verification import has_unsafe_shell_chain
+
+    assert has_unsafe_shell_chain("sh -c 'false; echo done'")
+    assert has_unsafe_shell_chain('cmd /c "exit /b 2 & echo done"')
+    assert has_unsafe_shell_chain('false\necho done')
+    assert has_unsafe_shell_chain('false & echo done')
+    assert not has_unsafe_shell_chain('node -e "let x = 1; if (x !== 1) throw Error()"')
+    assert not has_unsafe_shell_chain('python -c "x = 1; assert x == 1"')
+    assert not has_unsafe_shell_chain('test -f output && python check.py')
+
+
+def test_coverage_explanation_is_separate_from_successful_execution(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    gate = CompletionGate(tmp_path, TaskPolicy(require_verification_coverage=True))
+    evidence = VerificationEvidence('python check.py', '.', 0, 0.1, False, 0)
+    missing = run(gate.evaluate(tracker, evidence, mutation_attempted=False))
+    assert not missing.allowed
+    assert any('no declared requirement coverage' in reason for reason in missing.reasons)
+    explained = replace(evidence, coverage=('CLI output matches the documented format on fixture inputs',), limitations=('Stress limits were not exercised',))
+    accepted = run(gate.evaluate(tracker, explained, mutation_attempted=False))
+    assert accepted.allowed
+    assert explained.limitations == ('Stress limits were not exercised',)
+
+
+def test_direct_check_can_replace_uncertain_chain_without_dummy_edit(tmp_path: Path) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    gate = CompletionGate(tmp_path, TaskPolicy(require_verification=True))
+    chain = VerificationEvidence('python check.py; echo done', '.', 0, 0.1, False, 0)
+    direct = VerificationEvidence('python check.py', '.', 0, 0.1, False, 0)
+    assert not run(gate.evaluate(tracker, chain, mutation_attempted=False)).allowed
+    assert run(gate.evaluate(tracker, direct, verification_history=(chain, direct), mutation_attempted=False)).allowed
+
+
+def test_different_stdin_and_case_sensitive_commands_do_not_erase_failed_check() -> None:
+    from dataclasses import replace
+    from forge.runtime.completion import unresolved_verification_failures
+
+    failed = VerificationEvidence('python -', '.', 3, .1, False, 0, stdin_sha256='script-a')
+    other_script = replace(failed, exit_code=0, stdin_sha256='script-b')
+    assert unresolved_verification_failures((failed, other_script)) == (failed,)
+    case_sensitive = replace(failed, command='python check_A.py', stdin_sha256='')
+    unrelated = replace(case_sensitive, command='python check_a.py', exit_code=0)
+    assert unresolved_verification_failures((case_sensitive, unrelated)) == (case_sensitive,)
 
 
 def test_completion_gate_rejects_forbidden_verification_output(

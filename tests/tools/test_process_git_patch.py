@@ -4,6 +4,7 @@ import asyncio
 import os
 from pathlib import Path
 import subprocess
+import shlex
 import sys
 
 import pytest
@@ -17,6 +18,9 @@ from forge.tools.shell import RunCommandTool, run_process
 from forge.runtime.profile import ExecutionProfile
 from forge.tools.verify import VerifyTool
 from forge.runtime.workspace import WorkspaceTracker
+
+
+shell_join = subprocess.list2cmdline if sys.platform == 'win32' else shlex.join
 
 
 def run(coroutine: object) -> ToolResult:
@@ -52,7 +56,7 @@ def initialize_git_repository(root: Path) -> None:
 def test_run_command_returns_stdout_stderr_exit_code_and_duration(
     tmp_path: Path,
 ) -> None:
-    command = subprocess.list2cmdline(
+    command = shell_join(
         [
             sys.executable,
             '-c',
@@ -101,7 +105,7 @@ def test_apply_patch_uses_filesystem_backend_without_git(
 def test_run_command_returns_nonzero_exit_as_structured_error(
     tmp_path: Path,
 ) -> None:
-    command = subprocess.list2cmdline(
+    command = shell_join(
         [sys.executable, '-c', 'raise SystemExit(7)']
     )
 
@@ -116,7 +120,7 @@ def test_run_command_returns_nonzero_exit_as_structured_error(
 def test_run_command_accepts_multiline_script_through_stdin(
     tmp_path: Path,
 ) -> None:
-    command = subprocess.list2cmdline([sys.executable, '-'])
+    command = shell_join([sys.executable, '-'])
     script = 'values = [1, 2, 3]\nprint(sum(values))\n'
 
     result = run(
@@ -133,7 +137,7 @@ def test_run_command_accepts_multiline_script_through_stdin(
 def test_run_command_does_not_treat_quoted_bit_shift_as_heredoc(
     tmp_path: Path,
 ) -> None:
-    command = subprocess.list2cmdline(
+    command = shell_join(
         [sys.executable, '-c', 'print(1 << 2)']
     )
 
@@ -183,9 +187,10 @@ def test_run_command_rejects_destructive_git_commands(
 def test_run_command_rejects_directory_creation(tmp_path: Path) -> None:
     commands = (
         'mkdir -p play',
-        'md play',
         'New-Item -ItemType Directory play',
     )
+    if sys.platform == 'win32':
+        commands += ('md play',)
 
     for command in commands:
         result = run(RunCommandTool(tmp_path).run({'command': command}))
@@ -231,7 +236,7 @@ def test_run_process_sanitizes_credentials_and_bounds_output(
 def test_run_command_stdin_cannot_bypass_write_policy(
     tmp_path: Path,
 ) -> None:
-    command = subprocess.list2cmdline([sys.executable, '-'])
+    command = shell_join([sys.executable, '-'])
     script = (
         'from pathlib import Path\n'
         "Path('unexpected.txt').write_text('bad')\n"
@@ -252,7 +257,7 @@ def test_run_command_stdin_cannot_bypass_write_policy(
 def test_run_command_allows_writes_in_disposable_container_mode(
     tmp_path: Path,
 ) -> None:
-    command = subprocess.list2cmdline([sys.executable, '-'])
+    command = shell_join([sys.executable, '-'])
     script = (
         'from pathlib import Path\n'
         "Path('generated').mkdir()\n"
@@ -272,7 +277,7 @@ def test_run_command_allows_writes_in_disposable_container_mode(
 def test_run_command_execution_profile_controls_setup_writes(
     tmp_path: Path,
 ) -> None:
-    command = subprocess.list2cmdline([sys.executable, '-'])
+    command = shell_join([sys.executable, '-'])
     script = "from pathlib import Path; Path('profile.txt').write_text('ok')\n"
 
     result = run(
@@ -302,6 +307,38 @@ def test_cancelled_process_is_terminated_and_propagates_cancellation(
         with pytest.raises(asyncio.CancelledError):
             await asyncio.wait_for(task, timeout=5)
 
+    asyncio.run(exercise())
+
+
+def test_command_timeout_covers_blocked_stdin(tmp_path: Path) -> None:
+    async def exercise() -> None:
+        result = await asyncio.wait_for(
+            run_process(
+                [sys.executable, '-c', 'import time; time.sleep(3)'],
+                cwd=tmp_path, timeout_seconds=0.2,
+                input_text='x' * 2_000_000,
+            ),
+            timeout=2,
+        )
+        assert result.timed_out is True
+        assert result.duration_seconds < 2
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX process-group contract')
+def test_timeout_closes_inherited_pipes_after_parent_exit(tmp_path: Path) -> None:
+    script = (
+        'import subprocess, sys; '
+        'subprocess.Popen([sys.executable, "-c", "import time; time.sleep(3)"])'
+    )
+    async def exercise() -> None:
+        result = await asyncio.wait_for(
+            run_process([sys.executable, '-c', script], cwd=tmp_path, timeout_seconds=0.2),
+            timeout=2,
+        )
+        assert result.timed_out is True
+        assert result.duration_seconds < 2
     asyncio.run(exercise())
 
 
@@ -352,7 +389,7 @@ def test_verify_returns_revision_bound_evidence(tmp_path: Path) -> None:
     tracker = WorkspaceTracker(tmp_path)
     asyncio.run(tracker.begin_turn())
     script = 'print(' + repr('verified') + ')'
-    command = subprocess.list2cmdline([sys.executable, '-c', script])
+    command = shell_join([sys.executable, '-c', script])
 
     result = run(VerifyTool(tmp_path, tracker).run({'command': command}))
 
@@ -366,7 +403,7 @@ def test_verify_returns_revision_bound_evidence(tmp_path: Path) -> None:
 def test_verify_failure_is_structured(tmp_path: Path) -> None:
     tracker = WorkspaceTracker(tmp_path)
     asyncio.run(tracker.begin_turn())
-    command = subprocess.list2cmdline(
+    command = shell_join(
         [sys.executable, '-c', 'raise SystemExit(3)']
     )
 
@@ -378,21 +415,25 @@ def test_verify_failure_is_structured(tmp_path: Path) -> None:
     assert result.metadata['exit_code'] == 3
 
 
-def test_verify_rejects_npm_test_without_package_manifest(
-    tmp_path: Path,
+def test_verify_executes_without_guessing_missing_package_manifest(
+    tmp_path: Path, monkeypatch,
 ) -> None:
+    from unittest.mock import AsyncMock
+    from forge.tools.shell import ProcessResult
+
     tracker = WorkspaceTracker(tmp_path)
     asyncio.run(tracker.begin_turn())
+    execute = AsyncMock(return_value=ProcessResult(0, 'workspace tests passed', '', 0.01))
+    monkeypatch.setattr('forge.tools.verify.run_process', execute)
 
     result = run(
         VerifyTool(tmp_path, tracker).run({'command': 'npm test --silent'})
     )
 
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'verification_command_not_applicable'
-    assert result.metadata['required_manifest'] == 'package.json'
-    assert 'node --check' in result.content
+    assert result.success is True
+    execute.assert_awaited_once()
+    assert result.metadata['verification'] is True
+    assert 'workspace tests passed' in result.content
 
 
 def test_verify_shares_command_execution_capability(
@@ -405,7 +446,7 @@ def test_verify_shares_command_execution_capability(
     tracker = WorkspaceTracker(tmp_path)
     asyncio.run(tracker.begin_turn())
 
-    read_command = subprocess.list2cmdline(
+    read_command = shell_join(
         [
             sys.executable,
             '-c',
@@ -420,7 +461,7 @@ def test_verify_shares_command_execution_capability(
     assert read_result.metadata['verification'] is True
     assert 'before' in read_result.content
 
-    write_command = subprocess.list2cmdline(
+    write_command = shell_join(
         [
             sys.executable,
             '-c',

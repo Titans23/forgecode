@@ -6,6 +6,7 @@ from pathlib import Path
 from benchmark.harbor.run_dataset import build_command, container_base_url
 import benchmark.harbor.run_terminal as terminal_runner
 from benchmark.harbor.summarize import summarize_run
+from benchmark.harbor.snapshot import freeze_source
 
 
 def test_generic_harbor_command_uses_dataset_and_safe_env_mapping(
@@ -92,3 +93,68 @@ def test_summary_counts_single_attempt_benchmark_results(tmp_path: Path) -> None
     assert summary.pass_at_1 == 1
     assert summary.pass_at_2 == 1
     assert summary.to_dict()['final_pass_rate'] == 1.0
+
+
+def test_unfinished_job_does_not_label_pending_trial_an_agent_failure(tmp_path: Path) -> None:
+    (tmp_path / 'result.json').write_text(json.dumps({'finished_at': None}), encoding='utf-8')
+    trial = tmp_path / 'pending-trial'
+    trial.mkdir()
+    (trial / 'config.json').write_text('{}', encoding='utf-8')
+
+    summary = summarize_run(tmp_path)
+
+    assert summary.missing_results == ('pending-trial',)
+    assert summary.unfinished_trials == ('pending-trial',)
+    assert summary.job_finished is False
+    assert summary.agent_failures == summary.infrastructure_failures == 0
+
+
+def test_unfinished_job_still_reports_observed_agent_timeout(tmp_path: Path) -> None:
+    (tmp_path / 'result.json').write_text(json.dumps({'finished_at': None}), encoding='utf-8')
+    trial = tmp_path / 'timeout-trial'
+    (trial / 'agent').mkdir(parents=True)
+    (trial / 'config.json').write_text('{}', encoding='utf-8')
+    (trial / 'agent' / 'forgecode-status.json').write_text(
+        json.dumps({'exit_code': 124, 'timed_out': True}), encoding='utf-8',
+    )
+    summary = summarize_run(tmp_path)
+    assert summary.unfinished_trials == ()
+    assert summary.agent_timeouts == 1
+    assert summary.job_finished is False
+
+
+def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: Path) -> None:
+    source = tmp_path / 'repo'
+    for relative, content in {
+        'pyproject.toml': '[project]\nname="probe"',
+        'README.md': 'probe',
+        'forge/runner.py': 'VERSION = 1',
+        'benchmark/__init__.py': '',
+        'benchmark/harbor/entry.py': 'VERSION = 1',
+        '.env': 'DO_NOT_COPY_SECRET=value',
+        'benchmark/runs/private.txt': 'excluded',
+        'forge/__pycache__/probe.pyc': 'excluded',
+    }.items():
+        path = source / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding='utf-8')
+
+    frozen = freeze_source(source, tmp_path / 'snapshots')
+    (source / 'forge/runner.py').write_text('VERSION = 2', encoding='utf-8')
+
+    assert (frozen / 'forge/runner.py').read_text() == 'VERSION = 1'
+    assert not (frozen / '.env').exists()
+    assert not (frozen / 'benchmark/runs').exists()
+    assert not (frozen / 'forge/__pycache__').exists()
+    manifest = json.loads((frozen.parent / 'manifest.json').read_text())
+    assert 'forge/runner.py' in manifest['files']
+    assert len(manifest['content_sha256']) == 64
+
+
+def test_command_passes_frozen_source_to_every_harbor_trial(tmp_path: Path) -> None:
+    command = build_command(
+        harbor='harbor', dataset='probe', env_file=tmp_path / '.env',
+        output_dir=tmp_path / 'runs', cache_dir=tmp_path / 'cache',
+        model='probe', base_url='http://example.test', source_dir=tmp_path / 'frozen',
+    )
+    assert f'source_dir={(tmp_path / "frozen").resolve()}' in command

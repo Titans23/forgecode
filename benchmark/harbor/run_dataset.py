@@ -69,6 +69,7 @@ def build_command(
     timeout_multiplier: float | None = None,
     environment: str | None = None,
     force_build: bool = False,
+    source_dir: Path | None = None,
 ) -> list[str]:
     '''Build a Harbor command without exposing credentials in argv.'''
     mounts = json.dumps(
@@ -134,6 +135,8 @@ def build_command(
         command.extend(['-l', str(n_tasks)])
     if force_build:
         command.append('--force-build')
+    if source_dir is not None:
+        command.extend(['--ak', f'source_dir={source_dir.resolve()}'])
     return command
 
 
@@ -263,6 +266,12 @@ def main(
     if args.dry_run:
         print(json.dumps(command, ensure_ascii=False, indent=2))
         return 0
+    from benchmark.harbor.snapshot import freeze_source
+
+    # All trials, including Harbor retries, must install these same bytes.
+    source_snapshot = freeze_source(PROJECT_ROOT, args.output_dir / '.source-snapshots')
+    command.extend(['--ak', f'source_dir={source_snapshot}'])
+    print(f'Frozen ForgeCode source: {source_snapshot}', flush=True)
     args.cache_dir.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     docker_bin = (
@@ -273,7 +282,7 @@ def main(
         item for item in (str(docker_bin), env.get('PATH', '')) if item
     )
     env['PYTHONPATH'] = os.pathsep.join(
-        item for item in (str(PROJECT_ROOT), env.get('PYTHONPATH', '')) if item
+        item for item in (str(source_snapshot), env.get('PYTHONPATH', '')) if item
     )
     env['PYTHONIOENCODING'] = 'utf-8'
     env['PYTHONUTF8'] = '1'

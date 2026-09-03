@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
+import os
 import re
 
 from forge.runtime.state import VerificationEvidence
@@ -27,6 +28,7 @@ class TaskPolicy:
     require_verification: bool = False
     require_task_verification: bool = False
     require_positive_verification: bool = False
+    require_verification_coverage: bool = False
     allowed_paths: tuple[str, ...] = ()
     required_paths: tuple[str, ...] = ()
     required_verification_commands: tuple[str, ...] = ()
@@ -67,6 +69,7 @@ class CompletionGate:
         verification_required = (
             self.policy.require_verification
             or self.policy.require_task_verification
+            or self.policy.require_verification_coverage
             or bool(self.policy.required_verification_commands)
             or require_verification
         )
@@ -124,7 +127,7 @@ class CompletionGate:
                 reasons.append(
                     'The current code has not been verified with the verify tool.'
                 )
-            elif any(
+            elif all(
                 verification_quality(item.command) == 'unknown'
                 for item in successful_evidence
             ):
@@ -160,6 +163,16 @@ class CompletionGate:
                     'end-to-end verification that exits 0 when the requested '
                     'behavior actually works.'
                 )
+            if self.policy.require_verification_coverage and not any(
+                item.coverage and is_positive_verification_command(item.command)
+                for item in successful_evidence
+            ):
+                reasons.append(
+                    'Successful execution has no declared requirement coverage. '
+                    'Use verify.covers to state the concrete user requirements '
+                    'exercised, and verify.limitations for what remains untested. '
+                    'Coverage is a model explanation, not an independent proof.'
+                )
             for evidence in successful_evidence:
                 for pattern in self.policy.forbidden_verification_output_patterns:
                     try:
@@ -187,6 +200,7 @@ class CompletionGate:
                         item.command.strip(),
                         pattern,
                     )
+                    and verification_quality(item.command) != 'unknown'
                     for item in successful_evidence
                 ):
                     reasons.append(
@@ -340,8 +354,9 @@ def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
 
 def verification_command_key(command: str, cwd: str) -> str:
     '''Return a stable identity for retries of one verification obligation.'''
-    normalized = ' '.join(command.casefold().split())
-    normalized_cwd = cwd.strip().replace('\\', '/').casefold() or '.'
+    # Command values are case/whitespace sensitive; do not merge distinct checks.
+    normalized = command.strip()
+    normalized_cwd = os.path.normcase(cwd.strip()).replace('\\', '/') or '.'
     return f'{normalized_cwd}\0{normalized}'
 
 
@@ -352,7 +367,7 @@ def verification_obligation_key(evidence: VerificationEvidence) -> str:
             sorted(' '.join(item.casefold().split()) for item in evidence.coverage)
         )
         return f'coverage\0{normalized}'
-    return verification_command_key(evidence.command, evidence.cwd)
+    return verification_command_key(evidence.command, evidence.cwd) + '\0' + evidence.stdin_sha256
 
 
 def unresolved_verification_failures(

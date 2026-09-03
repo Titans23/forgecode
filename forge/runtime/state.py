@@ -60,6 +60,7 @@ class VerificationEvidence:
     environment_epoch: int = 0
     coverage: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
+    stdin_sha256: str = ''
 
     @property
     def success(self) -> bool:

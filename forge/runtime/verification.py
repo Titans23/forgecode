@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 from typing import Literal
 
 
@@ -36,19 +37,6 @@ VerificationQuality = Literal[
     'unknown',
 ]
 
-_UNRESOLVED_COMPLETION_SUMMARY = re.compile(
-    r'(?:\b(?:not|never)\s+(?:fully\s+)?(?:verified|complete|fixed|satisfied)\b|'
-    r'\b(?:still|unresolved)\b|'
-    r'\b(?:remain(?:s|ing)?)\s+(?:unresolved|unfixed|a\s+defect|a\s+warning|'
-    r'a\s+failure|an?\s+error|an?\s+issue|a\s+problem|a\s+gap)\b|'
-    r'\bnot\s+(?:yet\s+)?(?:working|passing|resolved)\b|'
-    r'\b(?:cannot|can\s*not|unable|couldn\s*not)\s+(?:verify|confirm|complete|'
-    r'fix|resolve|satisfy|pass|finish)\b|'
-    r'\b(?:warning|error)s?\s+(?:remain|still|persist))',
-    re.IGNORECASE,
-)
-
-
 def verification_kind(command: str) -> VerificationKind:
     '''Classify whether a command exercises behavior or only structure.'''
     segments = re.split(r'\s*(?:&&|\|\||[;|])\s*', command.strip())
@@ -77,6 +65,20 @@ def verification_quality(command: str) -> VerificationQuality:
 
 def has_unsafe_shell_chain(command: str) -> bool:
     '''Detect exit-masking operators outside quoted program source.'''
+    # Quoting hides program punctuation, but not the semantics of a shell
+    # interpreter's command argument: sh -c 'false; true' still masks failure.
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return True
+    if words:
+        executable = words[0].replace('\\', '/').rsplit('/', 1)[-1].lower()
+        if executable in {'sh', 'bash', 'zsh', 'dash', 'cmd', 'cmd.exe', 'powershell', 'powershell.exe', 'pwsh', 'pwsh.exe'}:
+            for index, word in enumerate(words[1:], start=1):
+                if word.lower() in {'-c', '/c', '-command'} and index + 1 < len(words):
+                    if has_unsafe_shell_chain(' '.join(words[index + 1:])):
+                        return True
+                    break
     quote: str | None = None
     escaped = False
     index = 0
@@ -100,7 +102,7 @@ def has_unsafe_shell_chain(command: str) -> bool:
             index += 1
             continue
         pair = command[index:index + 2]
-        if pair == '||' or char == ';' or (char == '|' and pair != '||'):
+        if char in {';', '\n', '\r', '|'} or (char == '&' and pair != '&&'):
             return True
         index += 2 if pair == '&&' else 1
     return False
@@ -117,5 +119,5 @@ def is_positive_verification_command(command: str) -> bool:
 
 
 def completion_summary_has_unresolved_claims(summary: str) -> bool:
-    '''Detect a completed declaration that admits its own unresolved defect.'''
-    return bool(_UNRESOLVED_COMPLETION_SUMMARY.search(summary))
+    '''Deprecated compatibility helper: prose is never a completion gate.'''
+    return False

@@ -31,6 +31,7 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
     require_verification=True,
     require_task_verification=True,
     require_positive_verification=True,
+    require_verification_coverage=True,
 )
 MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='
@@ -81,6 +82,7 @@ async def run_turn(
     resume: bool,
     max_model_calls: int,
     max_tool_calls: int,
+    max_turn_seconds: float = 1800,
 ) -> TurnResult:
     conversation, journal, _ = create_runtime(
         project,
@@ -90,7 +92,7 @@ async def run_turn(
     )
     conversation.max_iterations = max_model_calls
     conversation.max_tool_calls = max_tool_calls
-    conversation.max_turn_seconds = 1800
+    conversation.max_turn_seconds = max_turn_seconds
 
     async def approve_isolated_benchmark_operation(
         request: PermissionRequest,
@@ -171,6 +173,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--max-model-calls', type=int, default=120)
     parser.add_argument('--max-tool-calls', type=int, default=240)
+    parser.add_argument('--max-turn-seconds', type=float, default=1800)
     return parser
 
 
@@ -178,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.max_model_calls < 1 or args.max_tool_calls < 1:
         raise SystemExit('Model and tool call limits must be positive.')
+    if args.max_turn_seconds <= 0:
+        raise SystemExit('Turn time limit must be positive.')
     instruction = args.message
     if args.message_file is not None:
         try:
@@ -197,6 +202,7 @@ def main(argv: list[str] | None = None) -> int:
             resume=args.resume,
             max_model_calls=args.max_model_calls,
             max_tool_calls=args.max_tool_calls,
+            max_turn_seconds=args.max_turn_seconds,
         )
     )
     return 0

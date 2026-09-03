@@ -38,6 +38,21 @@ checkout, and `--force-build` is not added automatically. Record the exact
 dataset revision, code commit, raw reward, verifier execution status, and
 infrastructure classification for every comparison round.
 
+The generic dataset runner freezes package bytes once under
+`<output-dir>/.source-snapshots/candidate-*/source` before starting Harbor.
+The adjacent manifest records the Git revision and per-file/content hashes;
+every trial and retry receives the same `source_dir`. Do not edit that snapshot.
+A dirty worktree is identified by its content hash, not by the commit alone.
+The kernel enforces the configured task deadline. The outer watchdog allows
+15 seconds only for cancellation and journal cleanup, then forces termination
+after a further 10 seconds if cleanup itself hangs.
+
+`summarize` preserves official values in `raw_rewards` while separating valid
+scored trials, observed timeouts, verifier bootstrap failures, and unfinished
+trials. `job_finished=false` is not proof of a live Agent: inspect processes and
+timestamp freshness before reporting a stalled job as running. A partial or
+verifier-invalid job cannot qualify as either final acceptance round.
+
 ## Prerequisites
 
 ```powershell

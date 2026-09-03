@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import posixpath
 import re
 import shlex
 from typing import Any
@@ -189,11 +190,20 @@ def _command_delete_targets(command: str) -> tuple[tuple[str, ...], bool]:
     targets: list[str] = []
     broad = False
     try:
-        tokens = shlex.split(command, posix=True)
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=';&|')
+        lexer.whitespace_split = True
+        tokens = list(lexer)
     except ValueError:
         return (), bool(re.search(r'\brm\b', command, re.IGNORECASE))
+    if tokens and Path(tokens[0]).name.casefold() in {'sh', 'bash', 'dash', 'zsh', 'cmd', 'cmd.exe', 'powershell', 'pwsh'}:
+        for offset, value in enumerate(tokens[1:], start=1):
+            if value.casefold() in {'-c', '/c', '-command'} and offset + 1 < len(tokens):
+                nested_targets, nested_broad = _command_delete_targets(' '.join(tokens[offset + 1:]))
+                targets.extend(nested_targets)
+                broad = broad or nested_broad
+                break
     index = 0
-    separators = {';', '&&', '||', '|'}
+    separators = {';', '&&', '||', '|', '&'}
     while index < len(tokens):
         token = tokens[index]
         if Path(token).name.casefold() != 'rm':
@@ -201,20 +211,18 @@ def _command_delete_targets(command: str) -> tuple[tuple[str, ...], bool]:
             continue
         index += 1
         recursive = False
-        force = False
         current: list[str] = []
         while index < len(tokens) and tokens[index] not in separators:
             value = tokens[index]
             if value.startswith('-'):
                 recursive = recursive or 'r' in value.casefold()
-                force = force or 'f' in value.casefold()
             else:
                 current.append(value.replace('\\', '/'))
             index += 1
         targets.extend(current)
-        if recursive and force:
+        if recursive:
             if not current or any(
-                value in {'/', '.', '..', './', '../'}
+                posixpath.normpath(value) in {'/', '.', '..'}
                 or any(marker in value for marker in ('*', '?', '$', '%', '~'))
                 for value in current
             ):

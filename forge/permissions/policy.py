@@ -55,7 +55,10 @@ class PermissionRule:
         if not fnmatch(request.capability, self.capability):
             return False
         targets = request.targets or ('',)
-        return any(fnmatch(target, self.target) for target in targets)
+        # A deny/ask applies if any target requires it; an allow grants only
+        # the targets it covers, never unrelated files in the same batch.
+        matches = (fnmatch(target, self.target) for target in targets)
+        return all(matches) if self.action == 'allow' else any(matches)
 
     @property
     def specificity(self) -> tuple[int, int]:
