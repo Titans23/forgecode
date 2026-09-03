@@ -111,6 +111,37 @@ def test_failed_process_cancels_tail_but_allows_replanning(tmp_path: Path) -> No
     assert results['retry'].success
 
 
+def test_permission_denial_returns_evidence_and_model_can_replan(tmp_path: Path) -> None:
+    client = ScriptedClient(
+        request(ToolCall(0, 'denied-write', 'write_file', {
+            'path': 'value.txt', 'content': 'not authorized',
+        })),
+        request(ToolCall(0, 'blocked', 'finish_task', {
+            'task_kind': 'change', 'status': 'blocked',
+            'summary': 'The requested write was not authorized.',
+            'blocked_reasons': ['Approval is unavailable.'],
+        })),
+    )
+    registry = create_default_registry(tmp_path)
+    conversation = Conversation(
+        client=client, registry=registry, context_root=tmp_path,
+        permission_manager=PermissionManager(
+            tmp_path, mode='supervised',
+            user_path=tmp_path / 'user-permissions.json',
+        ),
+    )
+
+    async def collect():
+        return [event async for event in conversation.stream('Write value.txt.')]
+
+    events = asyncio.run(collect())
+    assert len(client.calls) == 2
+    assert tool_results(events)['denied-write'].error.code == 'permission_denied'
+    final = next(event.result for event in events if isinstance(event, TurnCompleted))
+    assert final.status == 'blocked'
+    assert not (tmp_path / 'value.txt').exists()
+
+
 def test_kernel_persists_final_statistics_without_event_consumer(tmp_path: Path) -> None:
     store = SessionStore(tmp_path, data_root=tmp_path / '.forge-data')
     journal = store.create(model='contract-test')
@@ -176,6 +207,37 @@ def test_completion_requires_every_explicit_check(tmp_path: Path) -> None:
             tracker, second, verification_history=(first, second), mutation_attempted=False,
         )
         assert complete.allowed
+
+    asyncio.run(check())
+
+
+def test_corrected_check_resolves_same_coverage_not_unrelated_failure(tmp_path: Path) -> None:
+    async def check():
+        tracker = create_default_registry(tmp_path).workspace_tracker
+        await tracker.begin_turn()
+        failed = VerificationEvidence(
+            'python weak_check.py', '.', 1, .01, False, 0,
+            coverage=('rendered output matches reference',),
+        )
+        corrected = VerificationEvidence(
+            'python corrected_check.py', '.', 0, .01, False, 0,
+            coverage=('rendered output matches reference',),
+        )
+        unrelated = VerificationEvidence(
+            'python syntax_check.py', '.', 0, .01, False, 0,
+            coverage=('program parses',),
+        )
+        gate = CompletionGate(tmp_path, TaskPolicy(require_verification=True))
+        still_failed = await gate.evaluate(
+            tracker, unrelated, verification_history=(failed, unrelated),
+            mutation_attempted=False,
+        )
+        assert not still_failed.allowed
+        resolved = await gate.evaluate(
+            tracker, corrected, verification_history=(failed, unrelated, corrected),
+            mutation_attempted=False,
+        )
+        assert resolved.allowed
 
     asyncio.run(check())
 

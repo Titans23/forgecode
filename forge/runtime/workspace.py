@@ -101,13 +101,57 @@ class WorkspaceTracker:
         self.revision += 1
         return WorkspaceChange(revision=self.revision, paths=paths)
 
+    async def refresh_paths(self, paths: tuple[str, ...]) -> WorkspaceChange | None:
+        '''Observe known edit targets without rescanning unrelated content.'''
+        files = dict(self.current.files)
+        for path in paths:
+            resolved = (self.root / path).resolve(strict=False)
+            try:
+                normalized = resolved.relative_to(self.root).as_posix()
+            except ValueError:
+                normalized = resolved.as_posix()
+            files[normalized] = fingerprint_path(self.root, normalized)
+        snapshot = WorkspaceSnapshot(files)
+        changed = changed_paths(self.current, snapshot)
+        if not changed:
+            return None
+        changed = tuple(
+            item for item in changed
+            if not any(
+                item.startswith(parent.rstrip('/') + '/')
+                for parent in paths
+            )
+        ) or tuple(dict.fromkeys(paths))
+        self.current = snapshot
+        self.revision += 1
+        return WorkspaceChange(self.revision, changed)
+
     @property
     def changed_paths(self) -> tuple[str, ...]:
         '''Return only paths whose content differs from the turn baseline.'''
+        paths = set(changed_paths(self.baseline, self.current)) | self._carried_paths
+        changed_watched_directories = {
+            path
+            for path in self._watched_paths
+            if self.baseline.files.get(path) != self.current.files.get(path)
+            and (
+                self.baseline.files.get(path, '').startswith('directory:')
+                or self.current.files.get(path, '').startswith('directory:')
+                or any(item.startswith(path.rstrip('/') + '/') for item in paths)
+            )
+        }
+        # A directory mutation is one logical target. Git reports every removed
+        # descendant separately on a later full refresh, but exposing those as
+        # independent task changes makes evidence unstable depending on whether
+        # the next tool happened to trigger a workspace-wide observation.
         return tuple(
             sorted(
-                set(changed_paths(self.baseline, self.current))
-                | self._carried_paths
+                path
+                for path in paths
+                if not any(
+                    path != parent and path.startswith(parent.rstrip('/') + '/')
+                    for parent in changed_watched_directories
+                )
             )
         )
 

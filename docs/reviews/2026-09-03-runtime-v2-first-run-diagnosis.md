@@ -68,3 +68,17 @@
 其中前两项使用真实 Python 子进程，其他项通过真实 Conversation/SessionJournal/CompletionGate/ToolExecutor 入口断言。没有把旧版的错误输出设为预期成功。
 
 本轮现有 9 个正式结果，仍只有 1 个 reward=1。新完成的 path-tracing 是 renderer 精度未达到用户目标，Agent 最后声明 failed；protein-assembly 的序列身份/融合组件不符合目标，Agent 本地只验证了通用 DNA 结构、长度、GC 和标记条件，旧完成门禁又将其终止为 stuck。编译任务还在运行，暂不写成失败。生物任务官方诊断中的具体序列不进入提示词或解题规则。
+
+### 已删除的旧行为测试及理由
+
+删除 `test_phase_recovery.py` 以及 15 个只断言旧恢复阶段的测试：临时工具白名单、完成倒计时、重复工具封锁、失败编辑次数上限、停滞强制合成、占位写入门禁和超大写入后的阶段性工具暴露。这些断言正是方案要求移除的重复控制机制，继续保留会迫使新内核重新实现旧缺陷。
+
+对应的用户可见边界没有一并删除：`test_turn_contract.py` 已覆盖顺序批次、失败尾部取消后重新规划、统一预算、完整必做检查、日志统计和只读观察；另补权限拒绝后由模型重新规划、明确失败/阻塞、真实小进程、受控 artifact 读取和精确/宽泛递归删除的权限测试。模型协议纠正、上下文压缩、checkpoint、Hooks、会话恢复和回退冲突测试仍保留在原测试集中。
+
+## 内核切换后的验证与未完成项
+
+本次实际删除 `_stream_impl`，`Conversation.stream` 现在调用独立的 `runtime/runner.py`。阶段恢复模块已退出源码；真实模型请求（含路由和压缩）通过共享预算记录。成功编辑不再取消批次尾部，失败后未执行调用有明确状态；最终统计由内核持久化。旧测试更新为新契约：预算耗尽返回 failed，完成拒绝后可继续诊断，读取返回真实内容，用户消息在协议失败后仍保留。
+
+Windows 完整回归为 **536 passed**，另有飞书依赖弃用警告；`compileall` 和 `git diff --check` 通过。此结果仅证明本阶段已测执行契约，不代表 Linux 门槛、完整重构计划或 benchmark 目标达成。下一阶段仍需审计进程树清理、验证执行/覆盖分类、压缩预算、摘要和 artifact 恢复，以及源码冻结和异常汇总。
+
+首轮现场更新：compile-compcert 重试的 `forgecode-status.json` 在 19:42:13 记录 exit_code=124、timed_out=true。Docker 容器仅剩 sh/sleep 保活进程，没有 Agent；job 仍缺最终收尾结果。不能把它描述为正常运行，也不能编造第十题 reward。该重试复制的 `agent_loop.py` Git blob 为 `e2acf6dedbd6f20522b6e87409dce87645a5c65a`，与 e1787de 一致，未混入本次新内核。但评测适配器是在每次安装时复制源码，下一轮必须使用统一冻结快照。

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import shlex
 from typing import Any
 
 from forge.permissions.policy import PermissionRequest
@@ -33,7 +34,7 @@ PRIVILEGE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 DESTRUCTIVE_PATTERN = re.compile(
-    r'\bgit\s+(?:checkout|restore|reset|clean)\b|\brm\s+-[^\n]*r[^\n]*f\b',
+    r'\bgit\s+(?:checkout|restore|reset|clean)\b',
     re.IGNORECASE,
 )
 PATCH_PATH_PATTERN = re.compile(
@@ -107,7 +108,15 @@ def _classify_process(
     command = str(tool_call.arguments.get('command', ''))
     stdin = str(tool_call.arguments.get('stdin', ''))
     process_input = f'{command}\n{stdin}'
+    delete_targets, broad_delete = _command_delete_targets(command)
+    targets = tuple(dict.fromkeys((*targets, *delete_targets)))
     preview = process_input[:500]
+    path_denial = _unsafe_target_reason(targets)
+    if path_denial:
+        return PermissionRequest(
+            tool_call.name, 'file.delete', 'critical', targets,
+            path_denial, preview, hard_deny=True,
+        )
     if PRIVILEGE_PATTERN.search(process_input):
         return PermissionRequest(
             tool_call.name,
@@ -125,6 +134,16 @@ def _classify_process(
             'critical',
             targets,
             'The command can discard repository or filesystem state.',
+            preview,
+            hard_deny=True,
+        )
+    if broad_delete:
+        return PermissionRequest(
+            tool_call.name,
+            'file.delete',
+            'critical',
+            targets,
+            'The command contains a broad or unresolved recursive deletion target.',
             preview,
             hard_deny=True,
         )
@@ -163,6 +182,44 @@ def _classify_process(
         'Local repository command.',
         preview,
     )
+
+
+def _command_delete_targets(command: str) -> tuple[tuple[str, ...], bool]:
+    '''Extract explicit rm targets; broad/unresolved recursion stays denied.'''
+    targets: list[str] = []
+    broad = False
+    try:
+        tokens = shlex.split(command, posix=True)
+    except ValueError:
+        return (), bool(re.search(r'\brm\b', command, re.IGNORECASE))
+    index = 0
+    separators = {';', '&&', '||', '|'}
+    while index < len(tokens):
+        token = tokens[index]
+        if Path(token).name.casefold() != 'rm':
+            index += 1
+            continue
+        index += 1
+        recursive = False
+        force = False
+        current: list[str] = []
+        while index < len(tokens) and tokens[index] not in separators:
+            value = tokens[index]
+            if value.startswith('-'):
+                recursive = recursive or 'r' in value.casefold()
+                force = force or 'f' in value.casefold()
+            else:
+                current.append(value.replace('\\', '/'))
+            index += 1
+        targets.extend(current)
+        if recursive and force:
+            if not current or any(
+                value in {'/', '.', '..', './', '../'}
+                or any(marker in value for marker in ('*', '?', '$', '%', '~'))
+                for value in current
+            ):
+                broad = True
+    return tuple(dict.fromkeys(targets)), broad
 
 
 def _patch_deletes_content(value: object) -> bool:

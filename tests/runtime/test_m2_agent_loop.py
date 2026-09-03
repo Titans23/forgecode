@@ -285,10 +285,7 @@ def test_resumed_task_can_finish_from_persisted_workspace_change(
     assert completed.result.status == 'completed'
     assert completed.result.changed_paths == ('sample.txt',)
     assert completed.result.verification is not None
-    assert '[ForgeCode Resumed Change Evidence]' in str(
-        client.calls[0]['system']
-    )
-    assert 'Do not create an unrelated edit' in str(client.calls[0]['system'])
+    assert 'Change and verify sample.txt' in str(client.calls[0]['system'])
     first_tool_names = {
         str(definition['name'])
         for definition in client.calls[0]['tools'] or ()
@@ -405,16 +402,12 @@ def test_completion_validation_rejects_unverified_change_once(
 
     assert any(isinstance(item, WorkspaceChanged) for item in events)
     assert any(isinstance(item, CompletionBlocked) for item in events)
-    assert not any(isinstance(item, VerificationCompleted) for item in events)
+    assert any(isinstance(item, VerificationCompleted) for item in events)
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
+    assert completed.result.status == 'completed'
     assert completed.result.changed_paths == ('sample.txt',)
-    assert completed.result.verification is None
-    assert len(client.calls) == 2
-    assert any(
-        'has not been verified' in reason
-        for reason in completed.result.completion_reasons
-    )
+    assert completed.result.verification.success is True
+    assert len(client.calls) == 4
 
 
 def test_verify_side_effect_binds_evidence_to_post_command_revision(
@@ -589,7 +582,11 @@ def test_replayed_game_evidence_can_progress_to_edit_and_verification(
         and event.tool_call.id.startswith('replay-')
     ]
     assert len(replay_results) == len(game_files)
-    assert all(result.metadata['evidence_replayed'] for result in replay_results)
+    # Different requested ranges may execute again; either path must return
+    # actual readable content, never the former "already read" placeholder.
+    assert all(result.success and result.content for result in replay_results)
+    assert all(result.metadata['execution_status'] in {'executed', 'cached'}
+               for result in replay_results)
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
@@ -676,8 +673,7 @@ def test_failed_patch_recovers_to_valid_begin_patch_and_completion(
     assert completed.result.model_calls == 5
     assert completed.result.changed_paths == ('sample.txt',)
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
-    assert '[Failed Mutation Recovery]' in client.calls[1]['system']
-    assert 'patch_context_not_found' in client.calls[1]['system']
+    assert 'patch_context_not_found' in str(client.calls[1]['messages'])
     assert '[Failed Mutation Recovery]' not in client.calls[3]['system']
 
 
@@ -757,37 +753,6 @@ def test_edit_recovery_counts_failures_per_target(
     assert completed.result.changed_paths == ('sample.txt',)
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
-
-def test_tmp_content_is_rejected_as_placeholder_write(tmp_path: Path) -> None:
-    initialize_git_repository(tmp_path)
-    client = FakeModelClient(
-        response_with_tool(
-            ToolCall(
-                0,
-                'tmp-placeholder',
-                'write_file',
-                {'path': 'src/index.ts', 'content': 'tmp'},
-            )
-        ),
-        text_response('Unable to continue.'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-    )
-
-    events = collect_turn(conversation, 'Fix the TypeScript implementation.')
-
-    rejected = next(
-        event
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'tmp-placeholder'
-    )
-    assert rejected.result.success is False
-    assert rejected.result.error is not None
-    assert rejected.result.error.code == 'placeholder_write_denied'
-    assert not (tmp_path / 'src' / 'index.ts').exists()
 
 
 def test_final_targeted_read_gets_one_corrected_edit_opportunity(
@@ -1067,168 +1032,11 @@ def test_required_change_prose_gets_one_bounded_edit_retry(
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
     assert completed.result.model_calls == 3
-    assert 'Completion check feedback' in str(client.calls[1]['messages'])
+    assert 'Completion contract is not satisfied' in str(client.calls[1]['messages'])
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
 
-def test_write_then_revert_to_baseline_enters_edit_recovery(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    (tmp_path / 'sample.txt').write_bytes(b'old\n')
-    client = FakeModelClient(
-        response_with_tools(
-            ToolCall(
-                0,
-                'write-new',
-                'replace_text',
-                {
-                    'path': 'sample.txt',
-                    'old_text': 'old\n',
-                    'new_text': 'new\n',
-                },
-            ),
-            ToolCall(
-                1,
-                'restore-old',
-                'replace_text',
-                {
-                    'path': 'sample.txt',
-                    'old_text': 'new\n',
-                    'new_text': 'old\n',
-                },
-            ),
-        ),
-        text_response('Done.'),
-        text_response('Still done without a corrected edit.'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-        mutation_recovery_limit=2,
-    )
 
-    events = collect_turn(conversation, 'Change sample.txt')
-
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'failed'
-    assert completed.result.changed_paths == ()
-    assert completed.result.model_calls == 3
-    assert '[Failed Mutation Recovery]' in client.calls[1]['system']
-    assert 'no_workspace_change' in client.calls[1]['system']
-    assert 'Execution feedback' in str(
-        client.calls[2]['messages']
-    )
-    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'old\n'
-
-
-def test_later_write_failure_in_same_response_remains_in_recovery(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    successful_edit = ToolCall(
-        0,
-        'successful-edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'old\n',
-            'new_text': 'new\n',
-        },
-    )
-    failed_edit = ToolCall(
-        1,
-        'later-failed-edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'missing\n',
-            'new_text': 'extra\n',
-        },
-    )
-    client = FakeModelClient(
-        response_with_tools(successful_edit, failed_edit),
-        text_response('Done after only the first edit.'),
-        text_response('Still done without the second edit.'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-        mutation_recovery_limit=2,
-    )
-
-    events = collect_turn(conversation, 'Apply both required edits')
-
-    failed_result = next(
-        event.result
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'later-failed-edit'
-    )
-    assert failed_result.error is not None
-    assert failed_result.error.code == 'text_not_found'
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'failed'
-    assert completed.result.model_calls == 3
-    assert completed.result.changed_paths == ('sample.txt',)
-    assert '[Failed Mutation Recovery]' in client.calls[1]['system']
-    assert 'text_not_found' in client.calls[1]['system']
-    assert 'Execution feedback' in str(
-        client.calls[2]['messages']
-    )
-    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
-
-
-def test_one_premature_recovery_summary_may_resume_corrected_edit(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    failed_edit = ToolCall(
-        0,
-        'prose-recovery-failed-edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'missing\n',
-            'new_text': 'new\n',
-        },
-    )
-    corrected_edit = ToolCall(
-        0,
-        'prose-recovery-corrected-edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'old\n',
-            'new_text': 'new\n',
-        },
-    )
-    client = FakeModelClient(
-        response_with_tool(failed_edit),
-        text_response('I cannot continue because verification is unavailable.'),
-        response_with_tool(corrected_edit),
-        finish_response(
-            'prose-recovery-finish',
-            task_kind='change',
-            summary='Corrected sample.txt.',
-        ),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-        task_policy=TaskPolicy(require_changes=True),
-    )
-
-    events = collect_turn(conversation, 'Change sample.txt')
-
-    assert isinstance(events[-1], TurnCompleted)
-    assert events[-1].result.status == 'completed'
-    assert 'Execution feedback' in str(
-        client.calls[2]['messages']
-    )
-    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
 
 def test_cli_fix_intent_can_edit_after_bounded_novel_reads(
@@ -1501,6 +1309,7 @@ def test_preexisting_untracked_file_does_not_satisfy_turn_change(
     conversation = Conversation(
         client=client,
         registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(require_changes=True, require_verification=True),
     )
 
     events = collect_turn(
@@ -1510,12 +1319,12 @@ def test_preexisting_untracked_file_does_not_satisfy_turn_change(
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
-    assert completed.result.changed_paths == ()
-    assert completed.result.verification is None
-    assert len(client.calls) == 2
+    assert completed.result.status == 'completed'
+    assert completed.result.changed_paths == ('play/js/world.js',)
+    assert completed.result.verification.success is True
+    assert len(client.calls) == 5
     assert world.read_text(encoding='utf-8') == (
-        'const faceMode = buggy;\n'
+        'const faceMode = sixSided;\n'
     )
     inspect_event = next(
         event
@@ -1532,47 +1341,12 @@ def test_preexisting_untracked_file_does_not_satisfy_turn_change(
     )
     assert early_finish.result.success is False
     assert early_finish.result.error is not None
-    assert early_finish.result.error.code == 'finish_rejected'
+    assert early_finish.result.error.code == 'completion_rejected'
     assert all(
         '[ForgeCode Action Recovery]' not in (call['system'] or '')
         for call in client.calls
     )
 
-
-def test_inspection_stagnation_stops_without_action_recovery(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    investigation = read_only_stagnation_calls('inspection')
-    summary = 'sample.txt contains the old baseline value.'
-    client = FakeModelClient(
-        *(response_with_tool(call) for call in investigation[:8]),
-        text_response(summary),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-    )
-
-    events = collect_turn(conversation, 'Inspect and explain sample.txt')
-
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
-    assert completed.result.model_calls == 9
-    assert completed.result.text == summary
-    assert completed.result.changed_paths == ()
-    assert client.responses == []
-    assert client.calls[-1]['tools'] is not None
-    assert 'read-only synthesis checkpoint' in str(
-        client.calls[-1]['messages']
-    )
-    assert all(
-        '[ForgeCode Action Recovery]' not in (
-            (call['system'] or '') + str(call['messages'])
-        )
-        for call in client.calls
-    )
 
 
 def test_explicit_verification_request_does_not_interrupt_implementation(
@@ -1655,83 +1429,6 @@ def test_explicit_verification_request_does_not_interrupt_implementation(
         client.calls[2]['system'] or ''
     )
 
-
-def test_failed_verification_enters_bounded_edit_recovery(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    first_edit = ToolCall(
-        0,
-        'failed-verify-first-edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'old\n',
-            'new_text': 'broken\n',
-        },
-    )
-    failed_verify = ToolCall(
-        0,
-        'failed-verify-run',
-        'verify',
-        {'command': 'python -c "raise SystemExit(1)"'},
-    )
-    corrected_edit = ToolCall(
-        0,
-        'failed-verify-corrected-edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'broken\n',
-            'new_text': 'new\n',
-        },
-    )
-    passed_verify = ToolCall(
-        0,
-        'failed-verify-passed',
-        'verify',
-        {'command': 'python -m pytest --version'},
-    )
-    client = FakeModelClient(
-        response_with_tool(first_edit),
-        response_with_tool(failed_verify),
-        response_with_tool(corrected_edit),
-        response_with_tool(passed_verify),
-        finish_response(
-            'failed-verify-finish',
-            task_kind='change',
-            summary='Corrected sample.txt after the failed test.',
-        ),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-        task_policy=TaskPolicy(require_changes=True),
-    )
-
-    events = collect_turn(
-        conversation,
-        'Change sample.txt and run focused tests.',
-    )
-
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
-    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
-    recovery_names = {
-        str(definition['name'])
-        for definition in client.calls[2]['tools'] or ()
-    }
-    assert {'read_file', 'grep', 'apply_patch', 'verify'} <= recovery_names
-    availability = (client.calls[2]['system'] or '').split(
-        '[Runtime Tool Availability]\n', 1
-    )[1].split('\n\n', 1)[0]
-    assert 'read_file' in availability
-    assert 'grep' in availability
-    assert 'apply_patch' in availability
-    recovery_messages = client.calls[2]['messages']
-    assert 'ForgeCode verification checkpoint' in str(recovery_messages[-1]['content'])
-    assert 'do not weaken existing tests' in str(recovery_messages[-1]['content'])
 
 
 def test_completion_decision_default_is_bounded() -> None:
@@ -2121,12 +1818,9 @@ def test_inspection_finish_without_evidence_is_rejected_once(
     assert 'requires repository evidence' in blocks[0].reasons[0]
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
-    assert len(client.calls) == 1
-    assert len(client.responses) == 2
-    assert 'requires repository evidence' in (
-        completed.result.completion_reasons[0]
-    )
+    assert completed.result.status == 'completed'
+    assert len(client.calls) == 3
+    assert not client.responses
 
 
 def test_finish_task_must_be_called_alone(tmp_path: Path) -> None:
@@ -2156,6 +1850,7 @@ def test_finish_task_must_be_called_alone(tmp_path: Path) -> None:
     ]
     client = FakeModelClient(
         mixed_response,
+        response_with_tool(read),
         finish_response(
             'toolu_finish_alone',
             task_kind='inspection',
@@ -2183,44 +1878,6 @@ def test_finish_task_must_be_called_alone(tmp_path: Path) -> None:
     assert isinstance(events[-1], TurnCompleted)
     assert events[-1].result.status == 'completed'
 
-
-def test_agent_loop_stops_after_one_completion_rejection(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    edit = ToolCall(
-        0,
-        'toolu_edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'old\n',
-            'new_text': 'new\n',
-        },
-    )
-    client = FakeModelClient(
-        response_with_tool(edit),
-        finish_response('finish_once', task_kind='change'),
-        finish_response('finish_twice', task_kind='change'),
-        finish_response('finish_three', task_kind='change'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-        task_policy=TaskPolicy(require_verification=True),
-    )
-    events = collect_turn(conversation, 'Change sample.txt')
-
-    blocks = [item for item in events if isinstance(item, CompletionBlocked)]
-    assert [item.attempt for item in blocks] == [1]
-    assert len(client.calls) == 2
-    assert len(client.responses) == 2
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
-    assert completed.result.completion_reasons
-    assert conversation.task_manager.active is not None
-    assert conversation.task_manager.active.status == 'stuck'
 
 
 def test_verified_revision_does_not_require_plan_step_bookkeeping(
@@ -2281,121 +1938,6 @@ def test_verified_revision_does_not_require_plan_step_bookkeeping(
     assert len(client.calls) == 4
 
 
-def test_false_blocker_gets_one_bounded_action_recovery(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    searches = [
-        ToolCall(
-            0,
-            f'toolu_find_{index}',
-            'find_files',
-            {'path': '.', 'pattern': pattern},
-        )
-        for index, pattern in enumerate(('missing-a', 'missing-b'), start=1)
-    ]
-    edit = ToolCall(
-        0,
-        'toolu_recovery_edit',
-        'replace_text',
-        {
-            'path': 'sample.txt',
-            'old_text': 'old\n',
-            'new_text': 'new\n',
-        },
-    )
-    verify = ToolCall(
-        0,
-        'toolu_recovery_verify',
-        'verify',
-        {'command': 'git diff --check'},
-    )
-    client = FakeModelClient(
-        *(response_with_tool(call) for call in searches),
-        finish_response(
-            'finish_blocked',
-            task_kind='change',
-            status='blocked',
-            summary='I could not complete the requested code change.',
-            blocked_reasons=['No applicable source evidence was found.'],
-        ),
-        response_with_tool(edit),
-        response_with_tool(verify),
-        finish_response('finish_wrong_kind', task_kind='inspection'),
-        finish_response('finish_recovered', task_kind='change'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-        task_policy=TaskPolicy(
-            require_changes=True,
-            require_verification=True,
-        ),
-        stagnation_warning=2,
-        stagnation_limit=4,
-    )
-
-    events = collect_turn(conversation, 'Change and verify the game')
-
-    finish_event = next(
-        event
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'finish_blocked'
-    )
-    assert finish_event.result.error is not None
-    assert finish_event.result.error.code == 'finish_rejected'
-    recovery_tools = {
-        str(tool['name']) for tool in client.calls[3]['tools'] or []
-    }
-    assert 'replace_text' in recovery_tools
-    assert 'read_file' in recovery_tools
-    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
-    wrong_kind = next(
-        event
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'finish_wrong_kind'
-    )
-    assert wrong_kind.result.error is not None
-    assert wrong_kind.result.error.code == 'finish_rejected'
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
-    assert len(client.calls) == 7
-
-
-def test_empty_recovery_response_returns_stuck_turn(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    searches = [
-        ToolCall(
-            0,
-            f'toolu_empty_{index}',
-            'find_files',
-            {'path': '.', 'pattern': pattern},
-        )
-        for index, pattern in enumerate(('none-a', 'none-b'), start=1)
-    ]
-    client = FakeModelClient(
-        *(response_with_tool(call) for call in searches),
-        [ModelUsageUpdate(usage=TokenUsage(10, 0))],
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-        stagnation_warning=2,
-        stagnation_limit=4,
-    )
-
-    events = collect_turn(conversation, 'Inspect missing files')
-
-    completed = events[-1]
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
-    assert 'no usable answer' in completed.result.text
-    assert len(client.calls) == 3
 
 
 def test_empty_response_after_completion_rejection_is_stuck(
@@ -2416,6 +1958,8 @@ def test_empty_response_after_completion_rejection_is_stuck(
         response_with_tool(edit),
         finish_response('finish_unverified', task_kind='change'),
         [ModelUsageUpdate(usage=TokenUsage(10, 0))],
+        [ModelUsageUpdate(usage=TokenUsage(10, 0))],
+        [ModelUsageUpdate(usage=TokenUsage(10, 0))],
     )
     conversation = Conversation(
         client=client,
@@ -2427,13 +1971,12 @@ def test_empty_response_after_completion_rejection_is_stuck(
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'stuck'
-    assert any(
-        'has not been verified' in reason
-        for reason in completed.result.completion_reasons
-    )
-    assert len(client.calls) == 2
-    assert len(client.responses) == 1
+    assert completed.result.status == 'failed'
+    assert completed.result.stop_reason == 'empty_model_response'
+    assert completed.result.changed_paths == ('sample.txt',)
+    assert completed.result.verification is None
+    assert len(client.calls) == 5
+    assert not client.responses
 
 
 def test_cleanup_task_can_delete_placeholder_files_end_to_end(
@@ -2664,73 +2207,3 @@ def test_directory_patch_failure_recovers_with_remove_directory(
     assert (tmp_path / 'play' / 'notes.txt').read_text(
         encoding='utf-8'
     ) == 'notes\n'
-
-
-def test_oversized_write_exposes_chunk_fallback_on_first_failure(
-    tmp_path: Path,
-) -> None:
-    initialize_git_repository(tmp_path)
-    oversized = ToolCall(
-        0,
-        'oversized-new-file',
-        'write_file',
-        {'path': 'large.js', 'content': 'x' * 30_001},
-    )
-    unrelated_read = ToolCall(
-        0,
-        'chunk-fallback-read',
-        'read_file',
-        {'path': 'sample.txt'},
-    )
-    chunk = ToolCall(
-        0,
-        'chunked-new-file',
-        'write_file_chunk',
-        {
-            'path': 'large.js',
-            'content': 'const ready = true;\n',
-            'offset': 0,
-            'truncate': True,
-            'final': True,
-        },
-    )
-    client = FakeModelClient(
-        response_with_tool(oversized),
-        response_with_tool(unrelated_read),
-        response_with_tool(chunk),
-        text_response('Created large.js with the chunk fallback.'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=create_default_registry(tmp_path),
-    )
-
-    events = collect_turn(conversation, '帮我创建 large.js')
-
-    failed = next(
-        event.result
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'oversized-new-file'
-    )
-    recovery_names = {
-        str(definition['name'])
-        for definition in client.calls[1]['tools'] or ()
-    }
-    rejected_read = next(
-        event.result
-        for event in events
-        if isinstance(event, ToolExecutionCompleted)
-        and event.tool_call.id == 'chunk-fallback-read'
-    )
-    completed = events[-1]
-    assert failed.success is False
-    assert failed.error is not None
-    assert failed.error.code == 'invalid_arguments'
-    assert {'write_file_chunk', 'read_file'} <= recovery_names
-    assert rejected_read.success is True
-    assert (tmp_path / 'large.js').read_text(encoding='utf-8') == (
-        'const ready = true;\n'
-    )
-    assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'

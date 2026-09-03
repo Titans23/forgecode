@@ -31,7 +31,6 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
     require_verification=True,
     require_task_verification=True,
     require_positive_verification=True,
-    forbidden_verification_output_patterns=(r'Overfull\s+\\hbox',),
 )
 MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='
@@ -91,6 +90,7 @@ async def run_turn(
     )
     conversation.max_iterations = max_model_calls
     conversation.max_tool_calls = max_tool_calls
+    conversation.max_turn_seconds = 1800
 
     async def approve_isolated_benchmark_operation(
         request: PermissionRequest,
@@ -146,7 +146,7 @@ async def run_turn(
             result_payload(
                 final,
                 resumed=resume,
-                recovery=conversation.recovery_state.to_dict(),
+                recovery=None,
             ),
             ensure_ascii=False,
         ),

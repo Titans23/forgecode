@@ -58,6 +58,8 @@ class VerificationEvidence:
     # the end with a default so old JSONL sessions and positional callers stay
     # readable.
     environment_epoch: int = 0
+    coverage: tuple[str, ...] = ()
+    limitations: tuple[str, ...] = ()
 
     @property
     def success(self) -> bool:
@@ -82,7 +84,7 @@ class TurnResult:
     verification_history: tuple[VerificationEvidence, ...] = ()
     completion_reasons: tuple[str, ...] = ()
     stop_reason: str = field(default='', compare=False)
-    statistics: dict[str, int] = field(default_factory=dict, compare=False)
+    statistics: dict[str, int | float] = field(default_factory=dict, compare=False)
 
 
 @dataclass(frozen=True, slots=True)

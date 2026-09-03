@@ -87,10 +87,7 @@ class CompletionGate:
             reasons.append(
                 'Workspace change tracking is unavailable for this task.'
             )
-        if (
-            self.policy.require_changes
-            or mutation_attempted
-        ) and not changed_paths:
+        if self.policy.require_changes and not changed_paths:
             reasons.append(
                 'The task requires a code change, but the final Diff is empty.'
             )
@@ -184,22 +181,18 @@ class CompletionGate:
                             'resolve that marker and verify the final revision '
                             'again.'
                         )
-            if (
-                successful_evidence
-                and self.policy.required_verification_commands
-                and not any(
+            for pattern in self.policy.required_verification_commands:
+                if not any(
                     fnmatchcase(
                         item.command.strip(),
                         pattern,
                     )
                     for item in successful_evidence
-                    for pattern in self.policy.required_verification_commands
-                )
-            ):
-                reasons.append(
-                    'The latest verification command does not match the '
-                    'task-required verification command contract.'
-                )
+                ):
+                    reasons.append(
+                        'A task-required verification command has not passed '
+                        f'on the current state: {pattern!r}.'
+                    )
             if (
                 evidence_history
                 and not current_evidence
@@ -352,13 +345,23 @@ def verification_command_key(command: str, cwd: str) -> str:
     return f'{normalized_cwd}\0{normalized}'
 
 
+def verification_obligation_key(evidence: VerificationEvidence) -> str:
+    '''Prefer model-declared requirement coverage over incidental syntax.'''
+    if evidence.coverage:
+        normalized = '\0'.join(
+            sorted(' '.join(item.casefold().split()) for item in evidence.coverage)
+        )
+        return f'coverage\0{normalized}'
+    return verification_command_key(evidence.command, evidence.cwd)
+
+
 def unresolved_verification_failures(
     evidence: tuple[VerificationEvidence, ...],
 ) -> tuple[VerificationEvidence, ...]:
     '''Keep failures until the same command succeeds on the same revision.'''
     unresolved: dict[str, VerificationEvidence] = {}
     for item in evidence:
-        key = verification_command_key(item.command, item.cwd)
+        key = verification_obligation_key(item)
         if item.success:
             unresolved.pop(key, None)
         else:

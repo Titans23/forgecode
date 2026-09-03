@@ -98,8 +98,16 @@ class TurnState:
     max_model_calls: int | None = None
     max_tool_calls: int | None = None
     max_input_tokens: int | None = None
+    max_seconds: float | None = None
     model_calls: int = 0
     tool_requests: int = 0
+    usage: TokenUsage = field(default_factory=lambda: TokenUsage(0, 0))
+    last_request_usage: TokenUsage | None = None
+    timings: dict[str, float] = field(default_factory=dict)
+    request_counts: dict[str, int] = field(default_factory=dict)
+    protocol_errors: int = 0
+    failure_counts: dict[str, int] = field(default_factory=dict)
+    feedback_count: int = 0
     execution_records: list[ExecutionRecord] = field(default_factory=list)
     evidence: EvidenceLedger = field(default_factory=EvidenceLedger)
     workspace_revision: int = 0
@@ -108,10 +116,16 @@ class TurnState:
     started_at: float = field(default_factory=monotonic)
 
     def can_request_model(self) -> bool:
-        return (
-            self.max_model_calls is None
-            or self.model_calls < self.max_model_calls
-        )
+        return self.budget_reason() is None
+
+    def budget_reason(self, *, include_model: bool = True) -> str | None:
+        if self.max_seconds is not None and monotonic() - self.started_at >= self.max_seconds:
+            return 'time_budget_exhausted'
+        if self.max_input_tokens is not None and self.usage.total_input_tokens >= self.max_input_tokens:
+            return 'token_budget_exhausted'
+        if include_model and self.max_model_calls is not None and self.model_calls >= self.max_model_calls:
+            return 'model_budget_exhausted'
+        return None
 
     def can_request_tool_batch(self, count: int) -> bool:
         return (
@@ -122,9 +136,18 @@ class TurnState:
             )
         )
 
-    def record_model_request(self, usage: TokenUsage | None = None) -> None:
-        del usage
+    def record_model_request(self, usage: TokenUsage | None = None, *, stage: str = 'model') -> None:
         self.model_calls += 1
+        self.request_counts[stage] = self.request_counts.get(stage, 0) + 1
+        if usage is not None:
+            self.record_usage(usage)
+
+    def record_usage(self, usage: TokenUsage) -> None:
+        self.usage = add_usage(self.usage, usage)
+        self.last_request_usage = usage
+
+    def add_time(self, stage: str, seconds: float) -> None:
+        self.timings[stage] = self.timings.get(stage, 0.0) + max(0.0, seconds)
 
     def record_tool_request(self) -> None:
         self.tool_requests += 1
@@ -141,7 +164,7 @@ class TurnState:
         if environment_epoch is not None:
             self.environment_epoch = environment_epoch
 
-    def statistics(self) -> dict[str, int]:
+    def statistics(self) -> dict[str, int | float]:
         counts = {
             'executed': 0,
             'cached': 0,
@@ -155,9 +178,30 @@ class TurnState:
             {
                 'model_requests': self.model_calls,
                 'tool_requests': self.tool_requests,
+                'recovery_feedback': self.feedback_count,
             }
         )
+        counts.update({f'{key}_stage_requests': value for key, value in self.request_counts.items()})
+        counts.update({f'{key}_seconds': round(value, 6) for key, value in self.timings.items()})
+        counts['elapsed_seconds'] = round(monotonic() - self.started_at, 6)
         return counts
+
+
+class BudgetExhausted(RuntimeError):
+    '''A terminal budget condition, never an external user blocker.'''
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+def add_usage(left: TokenUsage, right: TokenUsage) -> TokenUsage:
+    return TokenUsage(
+        left.input_tokens + right.input_tokens,
+        left.output_tokens + right.output_tokens,
+        left.cache_creation_input_tokens + right.cache_creation_input_tokens,
+        left.cache_read_input_tokens + right.cache_read_input_tokens,
+    )
 
 
 def execution_record_from_result(

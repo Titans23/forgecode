@@ -375,6 +375,24 @@ def test_python_stdin_delete_requires_high_risk_approval() -> None:
     assert "os.remove('play/a.txt')" in request.preview
 
 
+def test_explicit_recursive_delete_is_approvable_but_broad_delete_is_denied() -> None:
+    exact = classify_tool_call(
+        ToolCall(0, 'exact-delete', 'run_command', {
+            'command': 'rm -rf /app/build-cache && mkdir -p /app/build-cache',
+        }),
+        'process',
+    )
+    broad = classify_tool_call(
+        ToolCall(0, 'broad-delete', 'run_command', {'command': 'rm -rf /'}),
+        'process',
+    )
+
+    assert exact.capability == 'file.delete'
+    assert exact.targets == ('/app/build-cache',)
+    assert exact.risk == 'high' and exact.hard_deny is False
+    assert broad.risk == 'critical' and broad.hard_deny is True
+
+
 def test_delete_approval_is_never_persisted_as_wildcard(
     tmp_path: Path,
 ) -> None:
@@ -785,40 +803,6 @@ def test_plan_mode_hides_effectful_tools_and_explains_mode(
     assert conversation.task_manager.active is None
 
 
-def test_permission_denial_stops_turn_without_model_recovery(
-    tmp_path: Path,
-) -> None:
-    write_tool = NoOpWriteTool(tmp_path)
-    registry = ToolRegistry([write_tool])
-    denied_call = ToolCall(
-        index=0,
-        id='call-denied',
-        name='no_op_write',
-        arguments={'path': 'app.py'},
-    )
-    client = FakeModelClient(
-        tool_response(denied_call),
-        streamed_response('不应执行第二次模型调用'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=registry,
-        permission_manager=PermissionManager(tmp_path, mode='plan'),
-    )
-
-    events = collect_turn(conversation, '修改 app.py')
-
-    completed = [
-        event for event in events if isinstance(event, ToolExecutionCompleted)
-    ]
-    assert len(client.calls) == 1
-    assert write_tool.calls == []
-    assert completed[0].result.error is not None
-    assert completed[0].result.error.code == 'permission_denied'
-    assert isinstance(events[-1], TurnCompleted)
-    assert events[-1].result.status == 'blocked'
-    assert '/permission supervised' in events[-1].result.text
-
 
 def test_orphan_continuation_is_answered_by_the_model() -> None:
     client = FakeModelClient(streamed_response('请告诉我需要继续哪项工作。'))
@@ -1166,10 +1150,14 @@ def test_conversation_executes_tool_and_continues_until_final_text(
     events = collect_turn(conversation, 'Read the README')
 
     assert ToolExecutionStarted(tool_call=tool_call) in events
-    assert ToolExecutionCompleted(
-        tool_call=tool_call,
-        result=tool.result,
-    ) in events
+    completed_tool = next(
+        event for event in events
+        if isinstance(event, ToolExecutionCompleted)
+    )
+    assert completed_tool.tool_call == tool_call
+    assert completed_tool.result.success is True
+    assert completed_tool.result.content == tool.result.content
+    assert completed_tool.result.metadata['execution_status'] == 'executed'
     assert events[-1] == TurnCompleted(
         result=TurnResult(
             text='Finished',
@@ -1206,13 +1194,11 @@ def test_conversation_executes_tool_and_continues_until_final_text(
     assert result_block['tool_use_id'] == 'toolu_read'
     assert result_block['is_error'] is False
     payload = json.loads(result_block['content'])
-    assert payload == {
-        'success': True,
-        'summary': 'Read file.',
-        'content': 'file contents',
-        'error': None,
-        'metadata': {},
-    }
+    assert payload['success'] is True
+    assert payload['summary'] == 'Read file.'
+    assert payload['content'] == 'file contents'
+    assert payload['error'] is None
+    assert payload['metadata']['execution_status'] == 'executed'
     assert conversation.messages == [
         {'role': 'user', 'content': 'Read the README'},
         {
@@ -1323,8 +1309,8 @@ def test_agent_loop_stops_at_model_call_limit(tmp_path: Path) -> None:
 
     assert len(client.calls) == 2
     assert isinstance(events[-1], TurnCompleted)
-    assert events[-1].result.status == 'stuck'
-    assert 'limit of 2 model calls' in events[-1].result.text
+    assert events[-1].result.status == 'failed'
+    assert events[-1].result.stop_reason == 'model_budget_exhausted'
 
 
 def test_agent_loop_stops_before_exceeding_tool_call_limit(
@@ -1349,8 +1335,8 @@ def test_agent_loop_stops_before_exceeding_tool_call_limit(
     events = collect_turn(conversation, 'Inspect many files')
 
     assert isinstance(events[-1], TurnCompleted)
-    assert events[-1].result.status == 'stuck'
-    assert 'more than 2 tool calls' in events[-1].result.text
+    assert events[-1].result.status == 'failed'
+    assert events[-1].result.stop_reason == 'tool_budget_exhausted'
     assert tool.calls == []
 
 
@@ -1397,7 +1383,6 @@ def test_invalid_tool_json_is_retried_without_executing_partial_calls(
     feedback = client.calls[1]['messages'][-1]['content']
     assert 'No tool was executed' in feedback
     assert 'Available tools: read_file' in feedback
-    assert 'write_file with at most 4000 characters' in feedback
     assert 'Recovery attempt 1 of 2' in feedback
 
 
@@ -1416,8 +1401,7 @@ def test_max_tokens_truncation_retries_with_small_patch_feedback() -> None:
     assert events[-1].result.text == 'Retried in smaller steps.'
     feedback = client.calls[1]['messages'][-1]['content']
     assert 'reached the max_tokens limit' in feedback
-    assert 'apply_patch with at most 4000 characters' in feedback
-    assert 'Modify only one function or one file section' in feedback
+    assert 'Split the operation into smaller tool calls' in feedback
 
 
 def test_plain_text_truncation_preserves_and_continues_response() -> None:
@@ -1474,13 +1458,12 @@ def test_plain_text_continuation_stops_after_configured_limit() -> None:
         max_output_continuations=1,
     )
 
-    with pytest.raises(
-        ModelOutputTruncatedError,
-        match='max_tokens limit',
-    ):
-        collect_turn(conversation, 'Explain at length')
+    events = collect_turn(conversation, 'Explain at length')
 
     assert len(client.calls) == 2
+    assert events[-1].result.status == 'failed'
+    assert events[-1].result.stop_reason == 'output_continuation_exhausted'
+    assert events[-1].result.text == 'partialpartial'
 
 
 def test_protocol_recovery_stops_after_configured_limit() -> None:
@@ -1495,10 +1478,11 @@ def test_protocol_recovery_stops_after_configured_limit() -> None:
         max_protocol_recoveries=1,
     )
 
-    with pytest.raises(ModelProtocolError, match='invalid arguments'):
-        collect_turn(conversation, 'Build a page')
+    events = collect_turn(conversation, 'Build a page')
 
     assert len(client.calls) == 2
+    assert events[-1].result.status == 'failed'
+    assert events[-1].result.stop_reason == 'invalid_tool_arguments'
 
 
 def test_empty_model_response_is_retried_as_protocol_recovery() -> None:
@@ -1520,23 +1504,6 @@ def test_empty_model_response_is_retried_as_protocol_recovery() -> None:
     feedback = str(client.calls[1]['messages'][-1]['content'])
     assert 'stop_reason=end_turn' in feedback
 
-
-def test_second_protocol_recovery_requests_minimal_skeleton() -> None:
-    error = ModelOutputTruncatedError(('apply_patch',))
-    client = FakeModelClient(
-        [error],
-        [error],
-        streamed_response('Recovered with a skeleton.'),
-    )
-    conversation = Conversation(client=client)
-
-    events = collect_turn(conversation, 'Build a game')
-
-    assert events[-1].result.text == 'Recovered with a skeleton.'
-    feedback = client.calls[2]['messages'][-1]['content']
-    assert 'at most 2000 characters' in feedback
-    assert 'Create only a minimal skeleton' in feedback
-    assert 'HTML, CSS, and JavaScript in separate tool calls' in feedback
 
 
 def test_conversation_sends_previous_turns_as_context() -> None:
@@ -1606,77 +1573,6 @@ def test_current_goal_survives_many_tool_calls_and_message_snipping(
     )
 
 
-def test_exact_tool_repeat_is_skipped_after_limit(tmp_path: Path) -> None:
-    call = lambda index: ToolCall(
-        index=0,
-        id=f'toolu_{index}',
-        name='read_file',
-        arguments={'path': 'sample.txt'},
-    )
-    tool = RecordingReadFileTool(tmp_path)
-    client = FakeModelClient(
-        tool_response(call(1)),
-        tool_response(call(2)),
-        tool_response(call(3)),
-        streamed_response('Used the existing result.'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=ToolRegistry([tool]),
-    )
-
-    events = collect_turn(conversation, 'Read the sample once')
-
-    assert tool.calls == ['sample.txt']
-    completed = [
-        event for event in events
-        if isinstance(event, ToolExecutionCompleted)
-    ]
-    assert completed[1].result.success is True
-    assert completed[1].result.metadata['cache_hit'] is True
-    assert completed[1].result.content == 'file contents'
-    assert completed[1].result.metadata['cache_content_omitted'] is False
-    assert completed[2].result.success is False
-    assert completed[2].result.error is not None
-    assert completed[2].result.error.code == 'repeated_tool_call'
-
-
-def test_edit_recovery_stops_noop_writes_without_total_call_limit(
-    tmp_path: Path,
-) -> None:
-    tool = NoOpWriteTool(tmp_path)
-    tracker = NoChangeWorkspaceTracker(tmp_path)
-    responses = [
-        tool_response(
-            ToolCall(
-                index=0,
-                id=f'toolu_{index}',
-                name='no_op_write',
-                arguments={'path': f'file-{index}.txt'},
-            )
-        )
-        for index in range(1, 7)
-    ]
-    conversation = Conversation(
-        client=FakeModelClient(*responses),
-        registry=ToolRegistry([tool], workspace_tracker=tracker),
-        stagnation_warning=2,
-        stagnation_limit=3,
-        mutation_recovery_limit=3,
-    )
-
-    events = collect_turn(conversation, 'Make a real code change')
-
-    result = next(
-        event.result for event in events if isinstance(event, TurnCompleted)
-    )
-    assert result.status == 'failed'
-    assert '6 workspace-write attempt(s)' in result.text
-    assert result.model_calls == 6
-    assert len(tool.calls) == 6
-    assert 'model calls without new workspace' not in result.text
-    assert conversation.task_manager.active is not None
-    assert conversation.task_manager.active.status == 'failed'
 
 
 def test_turn_stops_at_cumulative_input_token_limit(
@@ -1706,10 +1602,10 @@ def test_turn_stops_at_cumulative_input_token_limit(
     result = next(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
-    assert result.status == 'stuck'
+    assert result.status == 'failed'
     assert result.model_calls == 2
     assert result.usage.input_tokens == 120
-    assert 'cumulative input-token limit of 100' in result.text
+    assert result.stop_reason == 'token_budget_exhausted'
     assert len(client.calls) == 2
 
 
@@ -1732,7 +1628,7 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
     conversation = Conversation(
         client=client,
         registry=ToolRegistry([write]),
-        mutation_recovery_limit=2,
+        max_iterations=3,
     )
 
     events = collect_turn(conversation, 'Fix the rendering bug')
@@ -1742,10 +1638,9 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
     )
     assert conversation.workspace_tracker is None
     assert result.status == 'failed'
-    assert result.model_calls == 2
-    assert 'no workspace tracker' in result.text
+    assert result.model_calls == 3
+    assert result.stop_reason == 'model_budget_exhausted'
     assert 'Done despite the failed write.' not in result.text
-    assert 'no workspace tracker' in result.text
 
 
 def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:
@@ -1770,15 +1665,15 @@ def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:
     result = next(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
-    assert result.status == 'stuck'
-    assert 'schema-invalid tool requests' in result.text
+    assert result.status == 'failed'
+    assert result.stop_reason == 'tool_protocol_exhausted'
     first_recovery = client.calls[1]['messages'][-1]
     assert first_recovery['role'] == 'user'
-    assert 'Exact rejection(s):' in first_recovery['content']
+    assert 'Invalid arguments for tool read_file' in first_recovery['content']
     assert '`unexpected` is not an allowed argument' in (
         first_recovery['content']
     )
-    assert 'Do not repeat the rejected payload.' in (
+    assert 'Correct the tool parameters before retrying.' in (
         first_recovery['content']
     )
 
@@ -1811,8 +1706,8 @@ def test_invalid_write_arguments_do_not_enter_mutation_recovery(
     result = next(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
-    assert result.status == 'stuck'
-    assert 'schema-invalid tool requests' in result.text
+    assert result.status == 'failed'
+    assert result.stop_reason == 'tool_protocol_exhausted'
     assert 'workspace-write attempt(s)' not in result.text
     assert all(
         '[Failed Mutation Recovery]' not in call['system']
@@ -1890,49 +1785,25 @@ def test_changing_grep_patterns_cannot_extend_a_completed_file_read(
     assert client.calls[-1]['tools'] is not None
 
 
-def test_compaction_is_checked_before_every_model_call(
-    tmp_path: Path,
-) -> None:
+
+def test_conversation_persists_user_message_when_model_repeatedly_returns_no_text() -> None:
+    empty = [
+        ModelUsageUpdate(
+            usage=TokenUsage(input_tokens=10, output_tokens=0)
+        )
+    ]
     client = FakeModelClient(
-        tool_response(
-            ToolCall(
-                index=0,
-                id='toolu_read',
-                name='read_file',
-                arguments={'path': 'sample.txt'},
-            )
-        ),
-        streamed_response('Finished.'),
-    )
-    conversation = Conversation(
-        client=client,
-        registry=ToolRegistry([RecordingReadFileTool(tmp_path)]),
-    )
-    compact = AsyncMock(return_value=None)
-    conversation.context.compact_history = compact
-
-    collect_turn(conversation, 'Read sample.txt')
-
-    assert compact.await_count == 2
-
-
-def test_conversation_does_not_commit_stream_without_text() -> None:
-    client = FakeModelClient(
-        [
-            ModelUsageUpdate(
-                usage=TokenUsage(input_tokens=10, output_tokens=0)
-            )
-        ]
+        empty,
+        empty,
+        empty,
     )
     conversation = Conversation(client=client)
 
-    with pytest.raises(
-        ModelResponseError,
-        match='did not contain any text',
-    ):
-        collect_turn(conversation, 'Hello')
+    events = collect_turn(conversation, 'Hello')
 
-    assert conversation.messages == []
+    assert events[-1].result.status == 'failed'
+    assert events[-1].result.stop_reason == 'empty_model_response'
+    assert conversation.messages[0] == {'role': 'user', 'content': 'Hello'}
 
 
 def test_relevant_repository_memory_is_injected_only_for_current_query(
@@ -1966,7 +1837,7 @@ def test_conversation_does_not_commit_stream_without_usage() -> None:
     ):
         collect_turn(conversation, 'Hello')
 
-    assert conversation.messages == []
+    assert conversation.messages == [{'role': 'user', 'content': 'Hello'}]
 
 
 def test_conversation_rejects_empty_prompt() -> None:

@@ -35,6 +35,17 @@ class VerifyInput(ToolInput):
         ),
     )
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+    covers: list[str] = Field(
+        default_factory=list, max_length=20,
+        description=(
+            'Concrete user requirements this command directly exercises. '
+            'Do not list properties inferred only from exit code or file existence.'
+        ),
+    )
+    limitations: list[str] = Field(
+        default_factory=list, max_length=20,
+        description='Important requested behavior this command does not establish.',
+    )
 
 
 class VerifyTool(Tool[VerifyInput]):
@@ -109,6 +120,8 @@ class VerifyTool(Tool[VerifyInput]):
                 ),
                 'verification_quality': verification_quality(arguments.command),
                 'verification_coverage': verification_quality(arguments.command),
+                'covers': arguments.covers,
+                'limitations': arguments.limitations,
                 'verification': False,
                 'status': 'inspection_only',
                 'inspection_reason': inspection_reason,
@@ -180,6 +193,8 @@ class VerifyTool(Tool[VerifyInput]):
             ),
             'verification_quality': verification_quality(arguments.command),
             'verification_coverage': verification_quality(arguments.command),
+            'covers': arguments.covers,
+            'limitations': arguments.limitations,
             'verification': True,
         }
         content = render_process_output(result)

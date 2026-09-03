@@ -36,8 +36,6 @@ VerificationQuality = Literal[
     'unknown',
 ]
 
-_SHELL_CHAIN = re.compile(r'(?:;|\|\||(?<!\|)\|(?!\|))')
-
 _UNRESOLVED_COMPLETION_SUMMARY = re.compile(
     r'(?:\b(?:not|never)\s+(?:fully\s+)?(?:verified|complete|fixed|satisfied)\b|'
     r'\b(?:still|unresolved)\b|'
@@ -72,9 +70,40 @@ def verification_quality(command: str) -> VerificationQuality:
     # contract.  In particular, ``failing-test; echo OK`` exits zero while the
     # substantive command failed.  Keep such evidence visible, but do not let
     # the final exit code claim positive task coverage automatically.
-    if _SHELL_CHAIN.search(command):
+    if has_unsafe_shell_chain(command):
         return 'unknown'
     return verification_kind(command)
+
+
+def has_unsafe_shell_chain(command: str) -> bool:
+    '''Detect exit-masking operators outside quoted program source.'''
+    quote: str | None = None
+    escaped = False
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if escaped:
+            escaped = False
+            index += 1
+            continue
+        if char == '\\' and quote != "'":
+            escaped = True
+            index += 1
+            continue
+        if quote is not None:
+            if char == quote:
+                quote = None
+            index += 1
+            continue
+        if char in {'\"', "'"}:
+            quote = char
+            index += 1
+            continue
+        pair = command[index:index + 2]
+        if pair == '||' or char == ';' or (char == '|' and pair != '||'):
+            return True
+        index += 2 if pair == '&&' else 1
+    return False
 
 
 def is_task_verification_command(command: str) -> bool:

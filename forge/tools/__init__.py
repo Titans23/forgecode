@@ -61,6 +61,9 @@ def create_default_registry(
             FinishTaskTool(root),
         ],
         workspace_tracker=tracker,
+        # Chunked whole-file writes remain an internal compatibility primitive.
+        # apply_patch is the single model-visible large-edit path; no recovery
+        # phase temporarily changes the schema set.
         hidden_tools={'write_file_chunk'},
     )
 

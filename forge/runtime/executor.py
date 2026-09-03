@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from time import monotonic
@@ -17,7 +18,7 @@ from forge.runtime.turn_state import (
     ExecutionStatus,
     execution_record_from_result,
 )
-from forge.runtime.workspace import WorkspaceChange, WorkspaceTracker
+from forge.runtime.workspace import WorkspaceChange, WorkspaceTracker, fingerprint_path
 from forge.sessions.checkpoint import CheckpointError, CheckpointStore
 from forge.tools.base import ToolRegistry, ToolResult
 
@@ -62,6 +63,7 @@ class ToolExecutor:
         self.checkpoint_store = checkpoint_store
         self.path_resolver = path_resolver or default_tool_paths
         self.hook_context_sink = hook_context_sink
+        self._read_cache: dict[str, ToolResult] = {}
 
     async def execute(
         self,
@@ -180,6 +182,17 @@ class ToolExecutor:
             )
 
         checkpoint_paths = self._checkpoint_paths(effective_call, effect)
+        cache_key = self._cache_key(effective_call) if effect == 'read_only' else None
+        if cache_key is not None and cache_key in self._read_cache:
+            cached = replace(self._read_cache[cache_key], metadata={
+                **self._read_cache[cache_key].metadata, 'cache_hit': True,
+            })
+            await self._hook('PostToolUse', effective_call, arguments, result=cached)
+            return self._outcome(call, cached, 'cached', started, arguments, *self._state())
+        if effect != 'read_only':
+            self._read_cache.clear()
+        if self.workspace_tracker is not None and effect == 'workspace_write':
+            self.workspace_tracker.watch_paths(checkpoint_paths)
         try:
             if checkpoint_id is not None and checkpoint_paths:
                 if self.checkpoint_store is None:
@@ -246,13 +259,18 @@ class ToolExecutor:
 
         if (
             effect == 'process'
+            and call.name != 'verify'
             and self.workspace_tracker is not None
             and hasattr(self.workspace_tracker, 'mark_environment_change')
         ):
             self.workspace_tracker.mark_environment_change()
         change = (
-            await self.workspace_tracker.refresh()
-            if self.workspace_tracker is not None
+            (
+                await self.workspace_tracker.refresh_paths(checkpoint_paths)
+                if effect == 'workspace_write' and hasattr(self.workspace_tracker, 'refresh_paths')
+                else await self.workspace_tracker.refresh()
+            )
+            if self.workspace_tracker is not None and effect != 'read_only'
             else None
         )
         if effect == 'process':
@@ -266,6 +284,13 @@ class ToolExecutor:
         await self._hook('PostToolUse', effective_call, arguments, result=result)
         if result_transformer is not None:
             result = await result_transformer(result)
+        if cache_key is not None and result.success:
+            # Hooks and the read itself may have changed the target; only cache
+            # if the same content fingerprint is still valid after execution.
+            if self._cache_key(effective_call) == cache_key:
+                if len(self._read_cache) >= 128:
+                    self._read_cache.clear()
+                self._read_cache[cache_key] = result
         return self._outcome(
             call,
             result,
@@ -373,16 +398,12 @@ class ToolExecutor:
         *,
         workspace_change: WorkspaceChange | None = None,
     ) -> ExecutionOutcome:
-        if status != 'executed':
-            result = replace(
-                result,
-                metadata={
-                    **result.metadata,
-                    'execution_status': status,
-                    'workspace_revision': revision,
-                    'environment_epoch': epoch,
-                },
-            )
+        result = replace(result, metadata={
+            **result.metadata,
+            'execution_status': status,
+            'workspace_revision': revision,
+            'environment_epoch': epoch,
+        })
         record = execution_record_from_result(
             call,
             result,
@@ -403,6 +424,24 @@ class ToolExecutor:
                 environment_epoch=record.environment_epoch,
             )
         return ExecutionOutcome(result, record, arguments, workspace_change)
+
+    def _cache_key(self, call: ToolCall) -> str | None:
+        # Only a local file read has a cheap, exact validity proof. Searches,
+        # directory listings, commands, task state and MCP reads are not cached.
+        if call.name != 'read_file' or self.workspace_tracker is None:
+            return None
+        path = call.arguments.get('path')
+        if not isinstance(path, str):
+            return None
+        from forge.tools.base import resolve_repository_path, ToolExecutionError
+        try:
+            resolved = resolve_repository_path(self.workspace_tracker.root, path)
+            if not resolved.is_file():
+                return None
+            fingerprint = fingerprint_path(self.workspace_tracker.root, str(resolved))
+        except (OSError, ValueError, ToolExecutionError):
+            return None
+        return json.dumps(call.arguments, sort_keys=True, ensure_ascii=False) + fingerprint
 
 
 def default_tool_paths(call: ToolCall) -> tuple[str, ...]:

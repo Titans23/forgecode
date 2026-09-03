@@ -128,7 +128,9 @@ def test_process_and_verify_are_never_repeat_cached(tmp_path: Path) -> None:
         assert verify_second.record.status == 'executed'
         assert verify_first.result.metadata.get('cache_hit') is None
         assert verify_second.result.metadata.get('cache_hit') is None
-        assert tracker.environment_epoch == 4
+        # Formal verification observes the current environment; it does not
+        # itself mutate that environment and invalidate its own evidence.
+        assert tracker.environment_epoch == 2
 
     run(exercise())
 
@@ -234,6 +236,16 @@ def test_large_tool_results_use_bounded_artifact_reads(tmp_path: Path) -> None:
     assert bounded.endswith('tail\n')
     with pytest.raises(ValueError):
         manager.read_artifact('../secret')
+
+
+def test_conversation_exposes_only_controlled_artifact_reader(tmp_path: Path) -> None:
+    from forge.runtime.agent_loop import Conversation
+
+    registry = create_default_registry(tmp_path)
+    conversation = Conversation(client=object(), registry=registry, context_root=tmp_path)
+    assert 'read_context_artifact' in registry.names
+    tool = registry.implementation('read_context_artifact')
+    assert tool is not None and tool.manager is conversation.context
 
 
 def test_verification_evidence_is_invalidated_by_environment_epoch(

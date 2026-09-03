@@ -106,6 +106,7 @@ class ModelClient(Protocol):
 
 
 class AnthropicModelClient:
+    observes_request_budget = True
     '''Thin adapter around Anthropic AsyncAnthropic.messages.stream.'''
 
     provider = DEFAULT_MODEL_PROVIDER
@@ -190,6 +191,13 @@ class AnthropicModelClient:
             sdk_arguments['system'] = system
 
         for attempt in range(1, self.max_retries + 2):
+            # Count and authorize the actual request, including retries. The
+            # observer is turn-local, so independent Conversations do not share
+            # counters and route/summary calls cannot bypass the same budget.
+            from forge.runtime.model_budget import request_observer
+            observer = request_observer.get()
+            if observer is not None:
+                observer()
             response_started = False
             try:
                 stream = self._stream_once(sdk_arguments).__aiter__()
