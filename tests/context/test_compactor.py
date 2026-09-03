@@ -83,12 +83,13 @@ def test_old_tool_results_are_shortened_but_recent_results_stay() -> None:
 
     assert result.shortened_tool_results == 3
     assert outputs[0].startswith(
-        '[Old replayable tool result content cleared'
+        '[Old tool result preview; complete content may be in the session artifact]'
     )
+    assert '0' * 10 in outputs[0]
     assert outputs[-2:] == ['3' * 30, '4' * 30]
 
 
-def test_old_read_file_result_is_cleared_because_it_can_be_replayed() -> None:
+def test_old_read_file_result_keeps_a_bounded_preview() -> None:
     read_result = json.dumps(
         {
             'success': True,
@@ -113,9 +114,11 @@ def test_old_read_file_result_is_cleared_because_it_can_be_replayed() -> None:
 
     result = cheap_compact(messages, Path('.unused'), config)
 
-    assert result.messages[1]['content'][0]['content'].startswith(
-        '[Old replayable tool result content cleared'
+    compacted = result.messages[1]['content'][0]['content']
+    assert compacted.startswith(
+        '[Old tool result preview; complete content may be in the session artifact]'
     )
+    assert 'source code' in compacted
 
 
 def test_middle_snip_never_splits_tool_use_and_result_pair(
@@ -188,7 +191,7 @@ def test_twenty_tool_rounds_remain_protocol_valid_and_bounded(
     assert result.shortened_tool_results > 0
 
 
-def test_default_compaction_does_not_preserve_earliest_chat_message(
+def test_default_compaction_does_not_drop_earliest_chat_message(
     tmp_path: Path,
 ) -> None:
     messages = [
@@ -202,10 +205,10 @@ def test_default_compaction_does_not_preserve_earliest_chat_message(
     result = cheap_compact(messages, tmp_path)
     visible = [str(message['content']) for message in result.messages]
 
-    assert 'message-0' not in visible
-    assert 'message-1' not in visible
+    assert 'message-0' in visible
+    assert 'message-1' in visible
     assert 'message-29' in visible
-    assert any('omitted' in content for content in visible)
+    assert visible == [f'message-{index}' for index in range(30)]
 
 
 def test_compaction_drops_file_evidence_outside_active_scope(

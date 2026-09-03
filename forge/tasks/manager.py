@@ -307,7 +307,11 @@ class TaskManager:
             return ()
         if self.active.scope_source == 'unresolved':
             return paths
-        if self.active.scope_source == 'repository':
+        # Inferred and model-authored plan hints are context for navigation,
+        # not a user authorization boundary.  Only an explicit scope supplied
+        # by the caller may reject a write here; policy.allowed_paths remains
+        # the independent enforcement boundary.
+        if self.active.scope_source != 'explicit':
             return ()
         if not self.active.scope_hints:
             return ()

@@ -50,13 +50,22 @@ def resolve_phase(
                 'Answer directly from the repository evidence already collected.'
             ),
         }[finalize]
-        return PhaseResolution(LoopPhase.FINALIZE, None, reason, True)
+        # Finalization is a prompt hint, not a tool or authorization phase.
+        # Closing tools here used to strand a model that discovered one last
+        # necessary correction while synthesizing its answer.
+        return PhaseResolution(
+            LoopPhase.FINALIZE,
+            available or None,
+            reason,
+            False,
+        )
     if finish_only:
         return PhaseResolution(
             LoopPhase.FINALIZE,
-            _named(available, {'finish_task'}),
-            'Declare the evidence-backed task outcome now; do not do more work.',
-            True,
+            available or None,
+            'The current evidence satisfies the completion contract; return the '
+            'final outcome or make a necessary final correction.',
+            False,
         )
     if read_only != 'none' or preserve_active_task:
         names = {'task_get'} if read_only == 'task_query' else None
@@ -81,18 +90,18 @@ def resolve_phase(
             )
         action = recovery.required_next_action
         if action == 'inspect':
-            tools = _recovery_inspect_tools(available, effect)
+            # Recovery is guidance, not an authorization boundary.  Keeping a
+            # second recovery allow-list caused legitimate reads and retries to
+            # be hidden after a failure.  The executor remains responsible for
+            # validation and authorization.
+            tools = available or None
             prompt = 'Inspect the exact failure once, then choose a corrected action.'
             if recovery.kind == 'edit':
                 # A failed edit often already includes the closest current text
                 # and target path. Keep correction tools available so a model
                 # can repair the payload immediately instead of getting stuck
                 # behind an inspect-only phase.
-                tools = _recovery_act_tools(
-                    available,
-                    effect,
-                    include_read_only=True,
-                )
+                tools = available or None
                 prompt = (
                     'Use the edit failure details to inspect the current target '
                     'if needed, then make one concrete corrected edit or retry '
@@ -106,20 +115,16 @@ def resolve_phase(
                 ),
                 tools,
                 prompt,
-                True,
+                False,
             )
         if action == 'verify':
             return PhaseResolution(
                 LoopPhase.RECOVERY_VERIFY,
-                _named(available, {'verify'}),
+                available or None,
                 'Run the exact required verification on the current revision.',
-                True,
+                False,
             )
-        tools = _recovery_act_tools(
-            available,
-            effect,
-            include_read_only=recovery.kind in {'process', 'verify'},
-        )
+        tools = available or None
         return PhaseResolution(
             LoopPhase.RECOVERY_ACT,
             tools,
@@ -130,7 +135,7 @@ def resolve_phase(
                 if recovery.kind == 'process'
                 else 'Take one concrete corrective action; do not repeat unchanged reads.'
             ),
-            True,
+            False,
         )
     return PhaseResolution(LoopPhase.NORMAL, available or None, '', False)
 
@@ -149,7 +154,6 @@ def _named(
     selected = [item for item in definitions if _name(item) in names]
     return selected or None
 
-
 def _by_effect(
     definitions: list[dict[str, Any]],
     effect: Callable[[str], str],
@@ -163,47 +167,4 @@ def _by_effect(
         for item in definitions
         if _name(item) not in excluded and effect(_name(item)) in effects
     ]
-    return selected or None
-
-
-def _recovery_inspect_tools(
-    definitions: list[dict[str, Any]],
-    effect: Callable[[str], str],
-) -> list[dict[str, Any]] | None:
-    selected = _by_effect(
-        definitions,
-        effect,
-        {'read_only'},
-        exclude={'finish_task', 'task_update'},
-    ) or []
-    selected.extend(
-        item for item in definitions
-        if _name(item) in {'task_plan'} and item not in selected
-    )
-    return selected or None
-
-
-def _recovery_act_tools(
-    definitions: list[dict[str, Any]],
-    effect: Callable[[str], str],
-    *,
-    include_read_only: bool = False,
-) -> list[dict[str, Any]] | None:
-    selected: list[dict[str, Any]] = []
-    if include_read_only:
-        selected.extend(
-            _by_effect(
-                definitions,
-                effect,
-                {'read_only'},
-                exclude={'finish_task', 'task_plan', 'task_update'},
-            )
-            or []
-        )
-    selected.extend(_by_effect(definitions, effect, {'workspace_write'}) or [])
-    action_names = {'task_update', 'run_command', 'verify', 'finish_task'}
-    selected.extend(
-        item for item in definitions
-        if _name(item) in action_names and item not in selected
-    )
     return selected or None

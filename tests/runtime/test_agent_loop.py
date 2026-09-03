@@ -427,7 +427,7 @@ class RecordingApprovalHandler:
         return ApprovalResponse('allow_once')
 
 
-def test_identical_successful_delete_is_not_prompted_or_executed_twice(
+def test_identical_delete_is_rechecked_against_current_workspace(
     tmp_path: Path,
 ) -> None:
     play = tmp_path / 'play'
@@ -497,14 +497,16 @@ def test_identical_successful_delete_is_not_prompted_or_executed_twice(
     completed = [
         event for event in events if isinstance(event, ToolExecutionCompleted)
     ]
-    assert len(approvals.requests) == 2
+    assert len(approvals.requests) == 3
     assert [item.capability for item in approvals.requests] == [
+        'file.delete',
         'file.delete',
         'file.delete',
     ]
     assert completed[0].result.success is True
-    assert completed[1].result.success is True
-    assert completed[1].result.metadata['status'] == 'already_completed'
+    assert completed[1].result.success is False
+    assert completed[1].result.error is not None
+    assert completed[1].result.error.code != 'repeated_tool_call'
     assert not (play / '.touch').exists()
     assert not (play / 'keep.txt').exists()
     assert isinstance(events[-1], TurnCompleted)
@@ -1595,7 +1597,9 @@ def test_current_goal_survives_many_tool_calls_and_message_snipping(
 
     collect_turn(conversation, 'Keep this exact active goal')
 
-    assert len(client.calls) <= 9
+    # A fixed message-count cutoff is no longer allowed to terminate or
+    # discard the turn; the explicit read cache may still bound execution.
+    assert len(client.calls) > 9
     assert all(
         'Goal:\nKeep this exact active goal' in call['system']
         for call in client.calls
@@ -1630,9 +1634,8 @@ def test_exact_tool_repeat_is_skipped_after_limit(tmp_path: Path) -> None:
     ]
     assert completed[1].result.success is True
     assert completed[1].result.metadata['cache_hit'] is True
-    assert completed[1].result.content.startswith(
-        '[Identical cached tool result omitted.'
-    )
+    assert completed[1].result.content == 'file contents'
+    assert completed[1].result.metadata['cache_content_omitted'] is False
     assert completed[2].result.success is False
     assert completed[2].result.error is not None
     assert completed[2].result.error.code == 'repeated_tool_call'
@@ -1739,10 +1742,10 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
     )
     assert conversation.workspace_tracker is None
     assert result.status == 'failed'
-    assert result.model_calls == 3
-    assert 'workspace-write attempt(s)' in result.text
+    assert result.model_calls == 2
+    assert 'no workspace tracker' in result.text
     assert 'Done despite the failed write.' not in result.text
-    assert '[Failed Mutation Recovery]' in client.calls[1]['system']
+    assert 'no workspace tracker' in result.text
 
 
 def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:

@@ -232,9 +232,11 @@ def test_literal_directory_scope_includes_descendant_files(
             'src/test/java/io/forgecode/orders/OrderServiceTest.java',
         )
     ) == ()
+    # Model-authored plan hints guide navigation; they are not an implicit
+    # authorization boundary. Explicit TaskPolicy paths remain enforceable.
     assert manager.outside_scope(
         ('src/main/java/io/forgecode/payments/PaymentService.java',)
-    ) == ('src/main/java/io/forgecode/payments/PaymentService.java',)
+    ) == ()
 
 
 def test_continuation_after_completed_keeps_goal_and_inferred_scope(

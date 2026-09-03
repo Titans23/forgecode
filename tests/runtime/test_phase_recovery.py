@@ -66,10 +66,14 @@ def test_phase_resolver_keeps_tools_and_prompt_in_one_decision() -> None:
     resolution = resolve_phase(_definitions(), _effect, state)
 
     assert resolution.phase == LoopPhase.RECOVERY_INSPECT
-    assert resolution.enforce_declared_tools is True
+    assert resolution.enforce_declared_tools is False
     assert 'Inspect the exact failure' in resolution.prompt_suffix
     assert {tool['name'] for tool in resolution.tools or []} == {
         'read_file',
+        'apply_patch',
+        'run_command',
+        'verify',
+        'finish_task',
         'task_plan',
     }
 
@@ -86,13 +90,14 @@ def test_process_recovery_keeps_read_and_action_tools_available() -> None:
     resolution = resolve_phase(_definitions(), _effect, state)
 
     assert resolution.phase == LoopPhase.RECOVERY_ACT
-    assert resolution.enforce_declared_tools is True
+    assert resolution.enforce_declared_tools is False
     assert {tool['name'] for tool in resolution.tools or []} == {
         'read_file',
         'apply_patch',
         'run_command',
         'verify',
         'finish_task',
+        'task_plan',
     }
     assert (
         'do not repeat the failed command unchanged'
@@ -118,6 +123,7 @@ def test_verification_recovery_keeps_read_and_action_tools_available() -> None:
         'run_command',
         'verify',
         'finish_task',
+        'task_plan',
     }
 
 
@@ -139,6 +145,7 @@ def test_edit_recovery_keeps_read_and_action_tools_available() -> None:
         'run_command',
         'verify',
         'finish_task',
+        'task_plan',
     }
     assert 'corrected edit' in resolution.prompt_suffix
 
@@ -152,5 +159,12 @@ def test_finalize_phase_closes_tools_and_explains_synthesis() -> None:
     )
 
     assert resolution.phase == LoopPhase.FINALIZE
-    assert resolution.tools is None
+    assert {tool['name'] for tool in resolution.tools or []} == {
+        'read_file',
+        'apply_patch',
+        'run_command',
+        'verify',
+        'finish_task',
+        'task_plan',
+    }
     assert 'final outcome' in resolution.prompt_suffix

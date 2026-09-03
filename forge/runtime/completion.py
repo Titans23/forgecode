@@ -106,7 +106,14 @@ class CompletionGate:
         current_evidence = tuple(
             item
             for item in evidence_history
-            if item.workspace_revision == tracker.revision
+            if (
+                item.workspace_revision == tracker.revision
+                and item.environment_epoch == getattr(
+                    tracker,
+                    'environment_epoch',
+                    0,
+                )
+            )
         )
         successful_evidence = tuple(
             item for item in current_evidence if item.success
@@ -119,6 +126,16 @@ class CompletionGate:
             if not successful_evidence:
                 reasons.append(
                     'The current code has not been verified with the verify tool.'
+                )
+            elif any(
+                verification_quality(item.command) == 'unknown'
+                for item in successful_evidence
+            ):
+                reasons.append(
+                    'A successful verification command uses a shell chain whose '
+                    'failure coverage is unknown; do not treat its final exit '
+                    'code as sufficient evidence. Run the substantive check '
+                    'directly or explain and validate each branch explicitly.'
                 )
             elif (
                 self.policy.require_task_verification

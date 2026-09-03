@@ -395,51 +395,45 @@ def test_verify_rejects_npm_test_without_package_manifest(
     assert 'node --check' in result.content
 
 
-@pytest.mark.parametrize(
-    'command',
-    [
-        "sed -n '1,20p' play/index.html",
-        'Get-Content play/index.html',
-        'echo changed > play/index.html',
-        'mkdir generated',
-    ],
-)
-def test_verify_rejects_file_access_and_directory_mutation(
+def test_verify_shares_command_execution_capability(
     tmp_path: Path,
-    command: str,
 ) -> None:
+    play = tmp_path / 'play'
+    play.mkdir()
+    target = play / 'index.html'
+    target.write_text('before\n', encoding='utf-8')
     tracker = WorkspaceTracker(tmp_path)
     asyncio.run(tracker.begin_turn())
 
-    result = run(VerifyTool(tmp_path, tracker).run({'command': command}))
+    read_command = subprocess.list2cmdline(
+        [
+            sys.executable,
+            '-c',
+            "from pathlib import Path; print(Path('play/index.html').read_text())",
+        ]
+    )
+    read_result = run(
+        VerifyTool(tmp_path, tracker).run({'command': read_command})
+    )
 
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'verification_command_not_allowed'
+    assert read_result.success is True
+    assert read_result.metadata['verification'] is True
+    assert 'before' in read_result.content
 
+    write_command = subprocess.list2cmdline(
+        [
+            sys.executable,
+            '-c',
+            "from pathlib import Path; Path('play/index.html').write_text('after\\n')",
+        ]
+    )
+    write_result = run(
+        VerifyTool(tmp_path, tracker).run({'command': write_command})
+    )
 
-@pytest.mark.parametrize(
-    'command',
-    [
-        'git clone https://example.invalid/repo.git checkout',
-        'cp source.txt result.txt',
-        "sed -i 's/GPU/CPU/' solver.prototxt",
-        'apt-get install -y build-essential',
-        'python -m pip install .',
-    ],
-)
-def test_verify_rejects_setup_and_install_commands(
-    tmp_path: Path,
-    command: str,
-) -> None:
-    tracker = WorkspaceTracker(tmp_path)
-    asyncio.run(tracker.begin_turn())
-
-    result = run(VerifyTool(tmp_path, tracker).run({'command': command}))
-
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'verification_command_not_allowed'
+    assert write_result.success is True
+    assert write_result.metadata['verification'] is True
+    assert target.read_text(encoding='utf-8') == 'after\n'
 
 
 def test_git_log_returns_bounded_history_and_supports_path(

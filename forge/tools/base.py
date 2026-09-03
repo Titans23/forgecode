@@ -184,6 +184,52 @@ def _validation_recovery_hint(
     return 'Correct the listed values before retrying.'
 
 
+def _invalid_arguments_result(
+    tool_name: str,
+    input_model: type[ToolInput],
+    arguments: Mapping[str, Any],
+    error: ValidationError,
+) -> ToolResult:
+    '''Build one detailed schema diagnostic for both validation boundaries.'''
+    schema = input_model.model_json_schema()
+    properties = schema.get('properties', {})
+    allowed = sorted(properties)
+    required = sorted(schema.get('required', []))
+    unknown = sorted(set(arguments) - set(properties))
+    validation_errors = error.errors(
+        include_url=False,
+        include_input=False,
+    )
+    problems = '; '.join(
+        _validation_problem(item, arguments)
+        for item in validation_errors[:5]
+    )
+    if len(validation_errors) > 5:
+        problems += f'; and {len(validation_errors) - 5} more problem(s)'
+    recovery_hint = _validation_recovery_hint(
+        tool_name,
+        validation_errors,
+    )
+    separator = ', '
+    empty = 'none'
+    return ToolResult.fail(
+        'invalid_arguments',
+        (
+            f'Invalid arguments for tool {tool_name}. '
+            f'Allowed arguments: {separator.join(allowed) or empty}. '
+            f'Required arguments: {separator.join(required) or empty}. '
+            f'Problems: {problems}. Recovery: {recovery_hint}'
+        ),
+        details={
+            'allowed_arguments': allowed,
+            'required_arguments': required,
+            'unknown_arguments': unknown,
+            'validation_errors': validation_errors,
+            'recovery_hint': recovery_hint,
+        },
+    )
+
+
 class Tool(ABC, Generic[InputT]):
     '''Validate model input and convert all failures to ToolResult.'''
 
@@ -231,45 +277,11 @@ class Tool(ABC, Generic[InputT]):
         try:
             validated = self.input_model.model_validate(dict(arguments))
         except ValidationError as error:
-            schema = self.input_model.model_json_schema()
-            properties = schema.get('properties', {})
-            allowed = sorted(properties)
-            required = sorted(schema.get('required', []))
-            unknown = sorted(set(arguments) - set(properties))
-            validation_errors = error.errors(
-                include_url=False,
-                include_input=False,
-            )
-            problems = '; '.join(
-                _validation_problem(item, arguments)
-                for item in validation_errors[:5]
-            )
-            if len(validation_errors) > 5:
-                problems += (
-                    f'; and {len(validation_errors) - 5} more problem(s)'
-                )
-            recovery_hint = _validation_recovery_hint(
+            return _invalid_arguments_result(
                 self.name,
-                validation_errors,
-            )
-            separator = ', '
-            empty = 'none'
-            return ToolResult.fail(
-                'invalid_arguments',
-                (
-                    f'Invalid arguments for tool {self.name}. '
-                    f'Allowed arguments: {separator.join(allowed) or empty}. '
-                    f'Required arguments: '
-                    f'{separator.join(required) or empty}. '
-                    f'Problems: {problems}. Recovery: {recovery_hint}'
-                ),
-                details={
-                    'allowed_arguments': allowed,
-                    'required_arguments': required,
-                    'unknown_arguments': unknown,
-                    'validation_errors': validation_errors,
-                    'recovery_hint': recovery_hint,
-                },
+                self.input_model,
+                arguments,
+                error,
             )
 
         try:
@@ -377,6 +389,35 @@ class ToolRegistry:
                 details={'available_tools': list(self._tools)},
             )
         return await tool.run(arguments)
+
+    def validate(
+        self,
+        name: str,
+        arguments: Mapping[str, Any],
+    ) -> ToolResult | None:
+        '''Validate a request without executing it.
+
+        The runtime uses this before hooks and authorization so a hook cannot
+        turn an invalid request into an opaque permission side effect.  The
+        concrete tool still validates again at its execution boundary.
+        '''
+        tool = self._tools.get(name)
+        if tool is None:
+            return ToolResult.fail(
+                'unknown_tool',
+                f'Unknown tool: {name}',
+                details={'available_tools': list(self._tools)},
+            )
+        try:
+            tool.input_model.model_validate(dict(arguments))
+        except ValidationError as error:
+            return _invalid_arguments_result(
+                name,
+                tool.input_model,
+                arguments,
+                error,
+            )
+        return None
 
 
 ToolEffect = Literal['read_only', 'workspace_write', 'process']

@@ -2,7 +2,6 @@
 
 import asyncio
 from contextlib import suppress
-from dataclasses import replace
 from datetime import datetime
 import os
 from pathlib import Path
@@ -26,14 +25,12 @@ from forge.channels import (
 from forge.channels.feishu import FeishuChannelAdapter, FeishuChannelUnavailable
 from forge.channels.gateway import ChannelGateway
 from forge.config import ConfigurationError, ForgeConfig
-from forge.hooks import HookConfigurationError, HookManager
-from forge.mcp import MCPClientManager, MCPConfigurationError, load_mcp_servers
-from forge.mcp.config import InternalStdioServerConfig
+from forge.hooks import HookConfigurationError
+from forge.mcp import MCPConfigurationError
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy
+from forge.runtime.factory import create_runtime, load_runtime_mcp_servers
 from forge.runtime.profile import ExecutionProfile
-from forge.runtime.model_client import AnthropicModelClient
-from forge.runtime.router import ModelIntentRouter
 from forge.runtime.state import (
     CompletionBlocked,
     ModelTextDelta,
@@ -55,7 +52,6 @@ from forge.terminal import (
     StreamingResponseView,
     TerminalUI,
 )
-from forge.tools import create_default_registry
 from forge.tools.base import is_repository_path_protected
 
 
@@ -712,135 +708,18 @@ def create_session_runtime(
     execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
-    '''Create a new conversation or hydrate one from durable history.'''
-    if model_override is not None and not fork_session:
-        raise ValueError('model_override requires fork_session=True.')
-    resolved_model_override = (
-        model_override.strip() if model_override is not None else ''
-    )
-    store = SessionStore(root)
-    registry = create_default_registry(
+    '''Compatibility wrapper; runtime assembly lives in forge.runtime.factory.'''
+    return create_runtime(
         root,
+        continue_session=continue_session,
+        resume_identifier=resume_identifier,
+        fork_session=fork_session,
+        model_override=model_override,
+        task_policy=task_policy,
         execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
+        conversation_factory=Conversation,
     )
-    hook_manager = HookManager.from_root(root)
-    mcp_manager = MCPClientManager(
-        root,
-        registry,
-        load_runtime_mcp_servers(root),
-    )
-    if continue_session or resume_identifier is not None:
-        state, journal = store.open(resume_identifier)
-        checkpoint_store = CheckpointStore.for_session(
-            root,
-            journal.path,
-            journal.session_id,
-        )
-        if fork_session:
-            source = state
-            journal = store.fork(
-                source,
-                messages=list(state.messages),
-                task=state.active_task,
-                model=resolved_model_override or state.info.model,
-            )
-            checkpoint_store = CheckpointStore.for_session(
-                root,
-                journal.path,
-                journal.session_id,
-            )
-            state = store.load(journal.session_id)
-        config = ForgeConfig.from_env()
-        resumed_model = resolved_model_override or state.info.model
-        resumed_config = (
-            replace(config, model_id=resumed_model)
-            if resumed_model
-            else config
-        )
-        model_client = AnthropicModelClient.from_config(resumed_config)
-        conversation = Conversation(
-            client=model_client,
-            intent_router=ModelIntentRouter(
-                AnthropicModelClient.from_config(
-                    resumed_config,
-                    max_tokens=600,
-                )
-            ),
-            registry=registry,
-            initial_messages=list(state.messages),
-            active_task=state.active_task,
-            session_journal=journal,
-            checkpoint_store=checkpoint_store,
-            session_store=store,
-            hook_manager=hook_manager,
-            mcp_manager=mcp_manager,
-            task_policy=task_policy,
-        )
-        if not fork_session:
-            journal.record_resumed()
-        return conversation, journal, state
-
-    config = ForgeConfig.from_env()
-    model_client = AnthropicModelClient.from_config(config)
-    conversation = Conversation(
-        client=model_client,
-        intent_router=ModelIntentRouter(
-            AnthropicModelClient.from_config(
-                config,
-                max_tokens=600,
-            )
-        ),
-        registry=registry,
-        mcp_manager=mcp_manager,
-        task_policy=task_policy,
-    )
-    client = getattr(conversation, 'client', None)
-    journal = store.create(model=str(getattr(client, 'model', '')))
-    conversation.session_journal = journal
-    conversation.session_store = store
-    conversation.checkpoint_store = CheckpointStore.for_session(
-        root,
-        journal.path,
-        journal.session_id,
-    )
-    conversation.hook_manager = hook_manager
-    permission_manager = getattr(conversation, 'permission_manager', None)
-    if permission_manager is not None:
-        mcp_manager.bind(permission_manager, journal)
-    return conversation, journal, None
-
-
-def load_runtime_mcp_servers(root: Path) -> dict[str, Any]:
-    '''Merge explicit MCP servers with enabled built-in office sidecars.'''
-    servers: dict[str, Any] = dict(load_mcp_servers(root))
-    settings = load_channel_settings(root)
-    policies = {
-        'feishu_document_read': 'read',
-        'feishu_document_create': 'write',
-        'feishu_document_update': 'write',
-        'feishu_message_send': 'write',
-    }
-    for name, config in settings.channels.items():
-        if not config.enabled or config.platform != 'feishu':
-            continue
-        ready, _ = config.credential_status()
-        if not ready:
-            continue
-        server_name = f'office-{name}'
-        servers.setdefault(
-            server_name,
-            InternalStdioServerConfig(
-                command=sys.executable,
-                args=('-m', 'forge.office.mcp_server'),
-                env={
-                    'APP_ID': os.environ[config.app_id_env],
-                    'APP_SECRET': os.environ[config.app_secret_env],
-                },
-                toolPolicies=policies,
-            ),
-        )
-    return servers
 
 
 async def read_terminal_prompt(terminal: Any) -> str:

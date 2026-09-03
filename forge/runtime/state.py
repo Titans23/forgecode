@@ -44,7 +44,7 @@ class TokenUsage:
 
 @dataclass(frozen=True, slots=True)
 class VerificationEvidence:
-    '''One verify result tied to an exact workspace revision.'''
+    '''One verify result tied to an exact workspace and environment state.'''
 
     command: str
     cwd: str
@@ -53,6 +53,11 @@ class VerificationEvidence:
     timed_out: bool
     workspace_revision: int
     diagnostic: str = ''
+    # Environment changes (for example dependency installation) can invalidate
+    # a successful command even when no tracked file changed.  Keep this at
+    # the end with a default so old JSONL sessions and positional callers stay
+    # readable.
+    environment_epoch: int = 0
 
     @property
     def success(self) -> bool:
@@ -76,6 +81,8 @@ class TurnResult:
     verification: VerificationEvidence | None = None
     verification_history: tuple[VerificationEvidence, ...] = ()
     completion_reasons: tuple[str, ...] = ()
+    stop_reason: str = field(default='', compare=False)
+    statistics: dict[str, int] = field(default_factory=dict, compare=False)
 
 
 @dataclass(frozen=True, slots=True)

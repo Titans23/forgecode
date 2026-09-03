@@ -45,7 +45,11 @@ class CompactionConfig:
     tool_result_inline_limit: int = 30_000
     keep_recent_tool_results: int = 3
     old_tool_result_limit: int = 120
-    message_limit: int = 24
+    # Message count is not a context budget.  A fixed 24-message cutoff used
+    # to discard the only diagnostic explaining a failed attempt.  Automatic
+    # compaction is now driven by model-window accounting in ContextManager;
+    # zero disables this legacy count-based snip.
+    message_limit: int = 0
     keep_first_messages: int = 0
     keep_recent_messages: int = 16
     keep_file_evidence_units: int = 4
@@ -380,12 +384,14 @@ def snip_middle_messages(
     scope_hints: tuple[str, ...] = (),
 ) -> list[dict[str, Any]]:
     '''Remove middle history while treating tool-use/result pairs atomically.'''
-    if len(messages) <= config.message_limit:
+    if config.message_limit <= 0 or len(messages) <= config.message_limit:
         return messages
     units = atomic_message_units(messages)
+    anchor_units = [unit for unit in units if is_durable_anchor(unit)]
+    anchor_ids = {id(unit) for unit in anchor_units}
     first = take_units_from_start(units, config.keep_first_messages)
     recent = take_units_from_end(units, config.keep_recent_messages)
-    first_ids = {id(unit) for unit in first}
+    first_ids = {id(unit) for unit in first} | anchor_ids
     recent = [unit for unit in recent if id(unit) not in first_ids]
     selected_ids = first_ids | {id(unit) for unit in recent}
     evidence = select_file_evidence_units(
@@ -412,6 +418,16 @@ def snip_middle_messages(
         marker,
         *(message for unit in suffix for message in unit),
     ]
+
+
+def is_durable_anchor(unit: list[dict[str, Any]]) -> bool:
+    '''Identify structured summaries that ordinary pruning must never remove.'''
+    return any(
+        message.get('role') == 'user'
+        and isinstance(message.get('content'), str)
+        and message['content'].startswith('[ForgeCode structured task summary]')
+        for message in unit
+    )
 
 
 def select_file_evidence_units(
@@ -635,9 +651,18 @@ def shorten_old_tool_results(
             continue
         if content.startswith('[ForgeCode stored a large tool result]'):
             continue
+        # Keep a bounded head and tail rather than erasing diagnostics.  Large
+        # results already have an artifact reference from
+        # persist_large_tool_results; smaller failures still retain the error
+        # context needed for the next model request.
         block['content'] = (
-            '[Old replayable tool result content cleared; '
-            f'original characters: {len(content)}]'
+            '[Old tool result preview; complete content may be in the '
+            'session artifact]\n'
+            + tool_result_preview(
+                content,
+                head_characters=1_500,
+                tail_characters=4_000,
+            )
         )
         shortened += 1
     return shortened

@@ -19,6 +19,10 @@ class RunSummary:
     missing_results: tuple[str, ...]
     infrastructure_failures: int
     infrastructure_failure_types: dict[str, int]
+    agent_failures: int
+    agent_timeouts: int
+    model_service_failures: int
+    verifier_environment_failures: int
     scored_trials: int
     pass_at_1: int
     pass_at_2: int
@@ -98,6 +102,15 @@ def summarize_run(run_dir: Path) -> RunSummary:
     repaired = 0
     first_attempt_known = 0
     statuses: Counter[str] = Counter()
+    agent_failures = 0
+    agent_timeouts = 0
+    model_service_failures = 0
+    verifier_environment_failures = 0
+    for path in missing_dirs:
+        if _missing_result_type(path) == 'AgentTimeout':
+            agent_timeouts += 1
+        else:
+            agent_failures += 1
     model_calls = tool_calls = input_tokens = output_tokens = 0
     language_stats: dict[str, dict[str, int | float]] = {}
 
@@ -110,15 +123,38 @@ def summarize_run(run_dir: Path) -> RunSummary:
         exception_info = result.get('exception_info')
         if exception_info is not None:
             infrastructure_failures += 1
-            infrastructure_failure_types[_exception_type(exception_info)] += 1
+            exception_type = _exception_type(exception_info)
+            infrastructure_failure_types[exception_type] += 1
+            if _is_agent_timeout(exception_info):
+                agent_timeouts += 1
+            elif _is_model_service_failure(exception_info):
+                model_service_failures += 1
+            else:
+                agent_failures += 1
             if language is not None:
                 language_stats[language]['infrastructure_failures'] += 1
         verifier = result.get('verifier_result')
         rewards = verifier.get('rewards') if isinstance(verifier, dict) else None
         final_reward = rewards.get('reward') if isinstance(rewards, dict) else None
+        verifier_environment_type = _verifier_environment_failure(
+            result_path.parent
+        )
+        if exception_info is None and verifier_environment_type is not None:
+            # Harbor can report a reward even when the verifier never reached
+            # the task assertion (for example, its dependency bootstrap
+            # failed). Such a trial must not be scored as a code result.
+            infrastructure_failures += 1
+            infrastructure_failure_types[verifier_environment_type] += 1
+            verifier_environment_failures += 1
+            if language is not None:
+                language_stats[language]['infrastructure_failures'] += 1
         # A verifier reward can coexist with a provider/setup exception;
         # such a record is not a scored code result.
-        if exception_info is None and isinstance(final_reward, int | float):
+        if (
+            exception_info is None
+            and verifier_environment_type is None
+            and isinstance(final_reward, int | float)
+        ):
             scored_trials += 1
             pass_at_2 += int(final_reward == 1)
             if language is not None:
@@ -133,9 +169,13 @@ def summarize_run(run_dir: Path) -> RunSummary:
             compile_failure_without_reward = bool(
                 attempt.get('missing_reward_compile_failure')
             )
-            if exception_info is None and (
-                isinstance(first_reward, int | float)
-                or compile_failure_without_reward
+            if (
+                exception_info is None
+                and verifier_environment_type is None
+                and (
+                    isinstance(first_reward, int | float)
+                    or compile_failure_without_reward
+                )
             ):
                 first_attempt_known += 1
                 if language is not None:
@@ -159,7 +199,11 @@ def summarize_run(run_dir: Path) -> RunSummary:
                         and final_reward == 1
                         and bool(attempt.get('feedback_requested'))
                     )
-        elif exception_info is None and isinstance(final_reward, int | float):
+        elif (
+            exception_info is None
+            and verifier_environment_type is None
+            and isinstance(final_reward, int | float)
+        ):
             # Terminal-Bench and SWE-bench do not use the Aider feedback
             # plugin.  Their final verifier result is therefore also their
             # first-attempt result; counting it here keeps pass@1 meaningful
@@ -189,6 +233,10 @@ def summarize_run(run_dir: Path) -> RunSummary:
         missing_results=tuple(path.name for path in missing_dirs),
         infrastructure_failures=infrastructure_failures,
         infrastructure_failure_types=dict(infrastructure_failure_types),
+        agent_failures=agent_failures,
+        agent_timeouts=agent_timeouts,
+        model_service_failures=model_service_failures,
+        verifier_environment_failures=verifier_environment_failures,
         scored_trials=scored_trials,
         pass_at_1=pass_at_1,
         pass_at_2=pass_at_2,
@@ -221,6 +269,65 @@ def _exception_type(exception_info: object) -> str:
         if isinstance(value, str) and value:
             return value
     return 'unknown'
+
+
+def _is_agent_timeout(exception_info: object) -> bool:
+    exception_type = _exception_type(exception_info).casefold()
+    return 'timeout' in exception_type
+
+
+def _is_model_service_failure(exception_info: object) -> bool:
+    if not isinstance(exception_info, dict):
+        return False
+    text = ' '.join(
+        str(exception_info.get(key) or '')
+        for key in ('exception_type', 'exception_message')
+    ).casefold()
+    markers = (
+        'api',
+        'anthropic',
+        'model',
+        'provider',
+        'rate limit',
+        'ratelimit',
+        'connection refused',
+        'connection reset',
+        'service unavailable',
+        'http 5',
+    )
+    return any(marker in text for marker in markers)
+
+
+_VERIFIER_ENVIRONMENT_MARKERS: tuple[tuple[str, str], ...] = (
+    ('/root/.local/bin/env: no such file or directory', 'uv_bootstrap'),
+    ('uvx: command not found', 'uv_bootstrap'),
+    ('command not found: uvx', 'uv_bootstrap'),
+    ('curl: (35) openssl ssl_connect', 'network_bootstrap'),
+    ('temporary failure resolving', 'network_bootstrap'),
+    ('network is unreachable', 'network_bootstrap'),
+)
+
+
+def _verifier_environment_failure(trial_dir: Path) -> str | None:
+    '''Classify only strong verifier bootstrap signals, not task failures.'''
+    candidates = (
+        trial_dir / 'verifier' / 'test-stdout.txt',
+        trial_dir / 'verifier' / 'test-stderr.txt',
+        trial_dir / 'verifier' / 'verifier.log',
+    )
+    text_parts: list[str] = []
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            text_parts.append(path.read_text(encoding='utf-8', errors='replace'))
+        except OSError:
+            continue
+    text = '\n'.join(text_parts).casefold()
+    for marker, kind in _VERIFIER_ENVIRONMENT_MARKERS:
+        if marker in text:
+            return f'VerifierEnvironment:{kind}'
+    return None
 
 
 def _missing_result_type(trial_dir: Path) -> str:

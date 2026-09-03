@@ -144,15 +144,15 @@ class WorkingState:
             cached = self.cached_results[signature]
             return ToolResult.ok(
                 f'Cache hit: {cached.summary}',
-                content=(
-                    '[Identical cached tool result omitted. Reuse the existing '
-                    'working evidence or change the query to request a '
-                    'different fact.]'
-                ),
+                # A cache hit is still an execution result from the model's
+                # point of view.  Returning an empty placeholder made recovery
+                # believe it had inspected a failure while providing no facts.
+                # Safe read caches must replay the actual bounded content.
+                content=cached.content,
                 metadata={
                     **cached.metadata,
                     'cache_hit': True,
-                    'cache_content_omitted': True,
+                    'cache_content_omitted': False,
                 },
             )
         return None
@@ -284,6 +284,13 @@ class WorkingState:
         # is safer than replaying stale content after any repository change.
         self.cached_results.clear()
         self.latest_failure_code = None
+
+    def invalidate_process_caches(self) -> None:
+        '''Drop broad search caches while retaining verified file contents.'''
+        self.directories.clear()
+        self.search_hits.clear()
+        self.discovered_files.clear()
+        self.cached_results.clear()
 
     def system_suffix(self) -> str:
         if (

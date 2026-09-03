@@ -77,6 +77,34 @@ class SessionJournal:
         self.parent_uuid = parent_uuid
         self.inline_payload_bytes = inline_payload_bytes
         self.artifact_directory = path.parent / 'artifacts' / session_id
+        self._tool_started_ids: set[str] = set()
+        self._tool_completed_ids: set[str] = set()
+        self._hydrate_tool_event_ids()
+
+    def _hydrate_tool_event_ids(self) -> None:
+        '''Load prior tool ids so resumed compatibility events stay idempotent.'''
+        if not self.path.is_file():
+            return
+        try:
+            lines = self.path.read_text(encoding='utf-8').splitlines()
+        except OSError:
+            return
+        for line in lines:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            event_type = record.get('type')
+            payload = record.get('payload')
+            if not isinstance(payload, dict):
+                continue
+            tool_call_id = payload.get('tool_call_id')
+            if not isinstance(tool_call_id, str) or not tool_call_id:
+                continue
+            if event_type == 'tool_started':
+                self._tool_started_ids.add(tool_call_id)
+            elif event_type == 'tool_completed':
+                self._tool_completed_ids.add(tool_call_id)
 
     def record_user_message(
         self,
@@ -112,6 +140,24 @@ class SessionJournal:
         self.append('tool_result_message', {'message': message})
         self.record_task_state(task)
 
+    def record_turn_started(
+        self,
+        prompt: str,
+        task: ActiveTask | None,
+    ) -> None:
+        '''Persist the start of a turn before model or tool side effects.'''
+        self.append(
+            'turn_started',
+            {
+                'prompt': prompt,
+                'task': task.as_dict() if task is not None else None,
+            },
+        )
+
+    def record_turn_cancelled(self, reason: str = '') -> None:
+        '''Persist cancellation without implying that a side effect completed.'''
+        self.append('turn_cancelled', {'reason': reason})
+
     def record_context_compacted(
         self,
         messages: list[dict[str, Any]],
@@ -126,6 +172,9 @@ class SessionJournal:
         *,
         provenance: dict[str, Any] | None = None,
     ) -> None:
+        if tool_call_id in self._tool_started_ids:
+            return
+        self._tool_started_ids.add(tool_call_id)
         self.append(
             'tool_started',
             {
@@ -143,15 +192,29 @@ class SessionJournal:
         success: bool,
         *,
         provenance: dict[str, Any] | None = None,
+        status: str = 'executed',
+        error_code: str | None = None,
+        workspace_revision: int | None = None,
+        environment_epoch: int | None = None,
     ) -> None:
+        if tool_call_id in self._tool_completed_ids:
+            return
+        self._tool_completed_ids.add(tool_call_id)
+        execution = {
+            'tool_call_id': tool_call_id,
+            'name': name,
+            'success': success,
+            'status': status,
+            'error_code': error_code,
+            **(provenance or {}),
+        }
+        if workspace_revision is not None:
+            execution['workspace_revision'] = workspace_revision
+        if environment_epoch is not None:
+            execution['environment_epoch'] = environment_epoch
         self.append(
             'tool_completed',
-            {
-                'tool_call_id': tool_call_id,
-                'name': name,
-                'success': success,
-                **(provenance or {}),
-            },
+            execution,
         )
 
     def record_task_state(self, task: ActiveTask | None) -> None:
@@ -182,7 +245,12 @@ class SessionJournal:
                     if result.verification is not None
                     else None
                 ),
+                'verification_history': [
+                    asdict(item) for item in result.verification_history
+                ],
                 'completion_reasons': result.completion_reasons,
+                'stop_reason': result.stop_reason,
+                'statistics': result.statistics,
             },
         )
 
@@ -605,6 +673,7 @@ class SessionStore:
         name = optional_string(first_payload.get('name'))
         first_prompt = ''
         status = 'active'
+        indeterminate_records: dict[str, dict[str, Any]] = {}
 
         for record in records[1:]:
             payload = self._payload(record, path)
@@ -652,7 +721,10 @@ class SessionStore:
                 if tool_id:
                     started_tools[tool_id] = payload
             elif event_type == 'tool_completed':
-                completed_tools.add(str(payload.get('tool_call_id', '')))
+                tool_id = str(payload.get('tool_call_id', ''))
+                completed_tools.add(tool_id)
+                if payload.get('status') == 'indeterminate' and tool_id:
+                    indeterminate_records[tool_id] = payload
             elif event_type == 'session_renamed':
                 name = optional_string(payload.get('name'))
             elif event_type == 'turn_completed':
@@ -705,14 +777,33 @@ class SessionStore:
             sequence=int(records[-1]['sequence']),
             message_count=len(messages),
         )
+        indeterminate_tools: list[dict[str, Any]] = []
+        for tool_id, payload in started_tools.items():
+            if tool_id in completed_tools:
+                continue
+            indeterminate_tools.append(
+                {
+                    **payload,
+                    'status': 'indeterminate',
+                    'resolution_required': True,
+                }
+            )
+        for tool_id, payload in indeterminate_records.items():
+            if tool_id not in {
+                str(item.get('tool_call_id', ''))
+                for item in indeterminate_tools
+            }:
+                indeterminate_tools.append(
+                    {
+                        **payload,
+                        'resolution_required': True,
+                    }
+                )
         return SessionState(
             info=info,
             messages=tuple(messages),
             active_task=task,
-            indeterminate_tools=tuple(
-                started_tools[key]
-                for key in started_tools.keys() - completed_tools
-            ),
+            indeterminate_tools=tuple(indeterminate_tools),
         )
 
     def _read_records(self, path: Path) -> list[dict[str, Any]]:

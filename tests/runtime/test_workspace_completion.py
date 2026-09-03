@@ -651,6 +651,38 @@ def test_completion_gate_rejects_negative_verification_when_required(
     assert is_positive_verification_command(command) is False
 
 
+def test_completion_gate_rejects_shell_chain_that_masks_a_failure(
+    tmp_path: Path,
+) -> None:
+    initialize_git_repository(tmp_path)
+    tracker = WorkspaceTracker(tmp_path)
+    run(tracker.begin_turn())
+    (tmp_path / 'sample.txt').write_text('changed\n', encoding='utf-8')
+    run(tracker.refresh())
+    command = 'python -c "raise SystemExit(3)"; printf OK'
+    evidence = VerificationEvidence(
+        command=command,
+        cwd='.',
+        exit_code=0,
+        duration_seconds=0.1,
+        timed_out=False,
+        workspace_revision=1,
+    )
+    gate = CompletionGate(
+        tmp_path,
+        TaskPolicy(require_changes=True, require_verification=True),
+    )
+
+    decision = run(
+        gate.evaluate(tracker, evidence, mutation_attempted=True)
+    )
+
+    assert decision.allowed is False
+    assert any('failure coverage is unknown' in reason for reason in decision.reasons)
+    assert verification_quality(command) == 'unknown'
+    assert is_positive_verification_command(command) is False
+
+
 def test_completion_summary_cannot_admit_an_unresolved_defect() -> None:
     assert completion_summary_has_unresolved_claims(
         'Compilation succeeded, but warnings remain unresolved.'

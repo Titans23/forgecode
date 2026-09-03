@@ -43,78 +43,6 @@ sanity command. Before declaring completion:
 '''
 
 
-def benchmark_task_guidance(instruction: str) -> str:
-    '''Add task-specific acceptance traps without embedding a solution.'''
-    lowered = instruction.casefold()
-    advice: list[str] = []
-    if 'filter.py' in lowered and 'alert' in lowered:
-        advice.append(
-            'For the HTML filter task, preserve filter.py and validate the '
-            'filtered file in a real browser-like execution path; the supplied '
-            'sanity script may not cover the alert requirement.'
-        )
-    elif 'pov-ray 2.2' in lowered:
-        advice.append(
-            'For POV-Ray, the deliverable is the real source build and '
-            'installed executable. Do not replace the renderer with a fake '
-            'success path or edit the supplied scene; verify an actual render.'
-        )
-    elif 'logic-gate simulator' in lowered:
-        advice.append(
-            'For the circuit task, keep the provided simulator semantics intact '
-            'and create the required gates.txt. Test many inputs, including '
-            'values beyond the two examples; changing sim.c is not a substitute '
-            'for constructing the gate circuit. Because the circuit is large, '
-            'use write_file_chunk or another bounded construction strategy rather '
-            'than trying to replace a huge repetitive block with one fragile '
-            'replace_text call.'
-        )
-    elif 'compcert' in lowered:
-        advice.append(
-            'For CompCert, an expected build failure is not success. Preserve '
-            'the source build contract and positively verify that the real '
-            '/tmp/CompCert/ccomp executable exists and compiles a small input.'
-        )
-    elif 'probability distribution' in lowered:
-        advice.append(
-            'For the distribution task, validate shape, positivity, normalization, '
-            'and both KL divergences at the required tolerance before finishing.'
-        )
-    elif 'mips interpreter' in lowered:
-        advice.append(
-            'For the MIPS task, the acceptance artifact is a working node vm.js '
-            'that boots the supplied binary, handles its required syscalls, and '
-            'actually writes the first rendered frame; do not stop at syntax.'
-        )
-    elif 'overfull hbox' in lowered:
-        advice.append(
-            'For the LaTeX task, only synonym substitutions in input.tex are '
-            'allowed. Any Overfull \\hbox line in the final log is a failure, '
-            'even when pdflatex exits 0.'
-        )
-    elif 'path-tracing' in lowered or 'reconstructed.ppm' in lowered:
-        advice.append(
-            'For the image task, run the compiled program and measure the '
-            'required similarity and compressed-size constraints; do not read '
-            'or embed image.ppm.'
-        )
-    elif 'gblock' in lowered or 'fusion protein' in lowered:
-        advice.append(
-            'For the protein task, research the supplied records and validate '
-            'the final sequence against every stated order, linker, length, GC, '
-            'and spectral constraint; notes are not the requested gBlock.'
-        )
-    elif 'jump_analyzer.py' in lowered:
-        advice.append(
-            'For the video task, a valid TOML shape and one plausible sample '
-            'are insufficient. Validate the frame-detection logic against the '
-            'actual jump timing and preserve the exact two integer fields.'
-        )
-    if not advice:
-        return ''
-    return '\n\n[Task-Specific Acceptance Trap]\n- ' + '\n- '.join(advice)
-
-
 class ForgeCodeHarborAgent(BaseInstalledAgent):
     '''Install ForgeCode in each task and run one non-interactive turn.'''
 
@@ -203,8 +131,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         instruction_file = self.logs_dir / 'forgecode-benchmark-instruction.txt'
         instruction_file.write_text(
             instruction.rstrip()
-            + _BENCHMARK_EXECUTION_GUIDANCE
-            + benchmark_task_guidance(instruction),
+            + _BENCHMARK_EXECUTION_GUIDANCE,
             encoding='utf-8',
         )
         await environment.upload_file(instruction_file, _INSTRUCTION_PATH)

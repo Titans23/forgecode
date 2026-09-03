@@ -30,6 +30,7 @@ class WorkspaceTracker:
         self.baseline = WorkspaceSnapshot()
         self.current = WorkspaceSnapshot()
         self.revision = 0
+        self.environment_epoch = 0
         self.available = False
         self.git_available = False
         self._watched_paths: set[str] = set()
@@ -45,6 +46,12 @@ class WorkspaceTracker:
         self.baseline = resolved
         self.current = resolved
         self.revision = 0
+        self.environment_epoch = 0
+
+    def mark_environment_change(self) -> int:
+        '''Invalidate process-derived evidence without fabricating a file diff.'''
+        self.environment_epoch += 1
+        return self.environment_epoch
 
     def carry_existing_changes(self, paths: tuple[str, ...]) -> None:
         '''Restore only persisted task paths still dirty relative to Git HEAD.'''

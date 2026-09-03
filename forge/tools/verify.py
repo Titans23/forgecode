@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import re
-
 from pydantic import Field
 
 from forge.runtime.workspace import WorkspaceTracker
@@ -22,9 +21,6 @@ from forge.tools.shell import (
     process_metadata,
     render_process_output,
     run_process,
-    shell_directory_write_reason,
-    shell_file_read_reason,
-    shell_file_write_reason,
     has_unquoted_heredoc,
 )
 
@@ -106,7 +102,13 @@ class VerifyTool(Tool[VerifyInput]):
                 'command': arguments.command,
                 'cwd': display_path(self.root, cwd),
                 'workspace_revision': revision,
+                'environment_epoch': getattr(
+                    self.tracker,
+                    'environment_epoch',
+                    0,
+                ),
                 'verification_quality': verification_quality(arguments.command),
+                'verification_coverage': verification_quality(arguments.command),
                 'verification': False,
                 'status': 'inspection_only',
                 'inspection_reason': inspection_reason,
@@ -133,26 +135,6 @@ class VerifyTool(Tool[VerifyInput]):
                 content=content,
                 metadata=metadata,
             )
-        disallowed_reason = verification_command_disallowed_reason(
-            arguments.command
-        )
-        if disallowed_reason is not None:
-            return ToolResult.fail(
-                'verification_command_not_allowed',
-                'Verification commands must run tests, builds, lint, type '
-                'checks, syntax checks, or Git diff validation; they cannot '
-                'read or modify repository files.',
-                content=(
-                    f'Detected {disallowed_reason}. Use the dedicated '
-                    'repository tools for file access.'
-                ),
-                metadata={
-                    'command': arguments.command,
-                    'cwd': display_path(self.root, cwd),
-                    'workspace_revision': revision,
-                    'verification': True,
-                },
-            )
         missing_manifest = missing_verification_manifest(
             arguments.command,
             cwd,
@@ -171,6 +153,11 @@ class VerifyTool(Tool[VerifyInput]):
                     'command': arguments.command,
                     'cwd': display_path(self.root, cwd),
                     'workspace_revision': revision,
+                    'environment_epoch': getattr(
+                        self.tracker,
+                        'environment_epoch',
+                        0,
+                    ),
                     'verification': True,
                     'required_manifest': missing_manifest.name,
                 },
@@ -186,7 +173,13 @@ class VerifyTool(Tool[VerifyInput]):
             'command': arguments.command,
             'cwd': display_path(self.root, cwd),
             'workspace_revision': revision,
+            'environment_epoch': getattr(
+                self.tracker,
+                'environment_epoch',
+                0,
+            ),
             'verification_quality': verification_quality(arguments.command),
+            'verification_coverage': verification_quality(arguments.command),
             'verification': True,
         }
         content = render_process_output(result)
@@ -210,66 +203,6 @@ class VerifyTool(Tool[VerifyInput]):
             content=content,
             metadata=metadata,
         )
-
-
-
-def verification_command_disallowed_reason(command: str) -> str | None:
-    '''Prevent verify from bypassing tools or recording pure inspection as proof.'''
-    unsafe_reason = (
-        shell_file_read_reason(command)
-        or shell_file_write_reason(command)
-        or shell_directory_write_reason(command)
-    )
-    if unsafe_reason is not None:
-        return unsafe_reason
-    mutation_reason = verification_mutation_reason(command)
-    if mutation_reason is not None:
-        return mutation_reason
-    return non_verification_command_reason(command)
-
-
-VERIFICATION_MUTATION_PATTERNS = (
-    (
-        re.compile(r'(?:^|[;&|]\s*)git(?:\.exe)?\s+clone\b', re.IGNORECASE),
-        'a Git clone command',
-    ),
-    (
-        re.compile(r'(?:^|[;&|]\s*)(?:cp|mv|rm|install)\s+', re.IGNORECASE),
-        'a filesystem mutation command',
-    ),
-    (
-        re.compile(
-            r'(?:^|[;&|]\s*)sed\s+-[^\s;&|]*i(?:\s|$)',
-            re.IGNORECASE,
-        ),
-        'an in-place sed edit',
-    ),
-    (
-        re.compile(
-            r'(?:^|[;&|]\s*)(?:apt(?:-get)?|apk|dnf|yum|pacman)\s+'
-            r'(?:install|remove|purge|source|update|upgrade)\b',
-            re.IGNORECASE,
-        ),
-        'a system package mutation command',
-    ),
-    (
-        re.compile(
-            r'(?:^|[;&|]\s*)(?:python(?:\d+(?:\.\d+)*)?\s+-m\s+)?pip'
-            r'(?:\d+(?:\.\d+)*)?\s+(?:install|uninstall)\b',
-            re.IGNORECASE,
-        ),
-        'a Python package mutation command',
-    ),
-)
-
-
-def verification_mutation_reason(command: str) -> str | None:
-    '''Reject setup and install commands that cannot prove task correctness.'''
-    for pattern, reason in VERIFICATION_MUTATION_PATTERNS:
-        if pattern.search(command):
-            return reason
-    return None
-
 
 PURE_INSPECTION_PATTERNS = (
     (

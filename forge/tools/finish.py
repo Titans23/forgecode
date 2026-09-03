@@ -11,7 +11,7 @@ from forge.tools.base import Tool, ToolInput, ToolResult
 
 
 TaskKind = Literal['answer', 'inspection', 'change']
-FinishStatus = Literal['completed', 'blocked']
+FinishStatus = Literal['completed', 'blocked', 'failed']
 
 
 class FinishTaskInput(ToolInput):
@@ -30,6 +30,10 @@ class FinishTaskInput(ToolInput):
         if self.status == 'completed' and self.blocked_reasons:
             raise ValueError(
                 'blocked_reasons must be empty when status is completed'
+            )
+        if self.status == 'failed' and not self.blocked_reasons:
+            raise ValueError(
+                'blocked_reasons must explain the failure when status is failed'
             )
         return self
 

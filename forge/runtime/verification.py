@@ -29,7 +29,14 @@ _NEGATIVE_VERIFICATION = re.compile(
 )
 
 VerificationKind = Literal['structural', 'behavior']
-VerificationQuality = Literal['structural', 'behavior', 'negative']
+VerificationQuality = Literal[
+    'structural',
+    'behavior',
+    'negative',
+    'unknown',
+]
+
+_SHELL_CHAIN = re.compile(r'(?:;|\|\||(?<!\|)\|(?!\|))')
 
 _UNRESOLVED_COMPLETION_SUMMARY = re.compile(
     r'(?:\b(?:not|never)\s+(?:fully\s+)?(?:verified|complete|fixed|satisfied)\b|'
@@ -58,15 +65,21 @@ def verification_kind(command: str) -> VerificationKind:
 
 
 def verification_quality(command: str) -> VerificationQuality:
-    '''Classify evidence strength, including intentionally inverted checks.'''
+    '''Classify evidence strength without trusting shell-chain exit masking.'''
     if _NEGATIVE_VERIFICATION.search(command):
         return 'negative'
+    # A compound shell command has a provider- and shell-dependent exit-status
+    # contract.  In particular, ``failing-test; echo OK`` exits zero while the
+    # substantive command failed.  Keep such evidence visible, but do not let
+    # the final exit code claim positive task coverage automatically.
+    if _SHELL_CHAIN.search(command):
+        return 'unknown'
     return verification_kind(command)
 
 
 def is_task_verification_command(command: str) -> bool:
     '''Return whether a command exercises the requested task.'''
-    return verification_kind(command) == 'behavior'
+    return verification_quality(command) == 'behavior'
 
 
 def is_positive_verification_command(command: str) -> bool:

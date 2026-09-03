@@ -13,12 +13,15 @@ from typing import Any
 from forge.context.compactor import (
     CheapCompactionResult,
     CompactionConfig,
+    TaskSummary,
     cheap_compact,
+    is_durable_anchor,
     persist_large_tool_results,
     shorten_old_tool_results,
     summarize_history,
 )
 from forge.context.repository import MemoryRecord, RepositoryContext
+from forge.runtime.state import TokenUsage
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +192,7 @@ class ContextManager:
         self.last_compaction: CheapCompactionResult | None = None
         self.summary_failures = 0
         self.last_report: CompactionReport | None = None
+        self.durable_summary: TaskSummary | None = None
         self.repository = RepositoryContext(self.root)
 
     @property
@@ -229,7 +233,24 @@ class ContextManager:
             self.config,
             scope_hints=scope_hints,
         )
-        return self.last_compaction.messages
+        prepared = self.last_compaction.messages
+        if self.durable_summary is not None and not any(
+            is_durable_anchor([message]) for message in prepared
+        ):
+            summary_text = json.dumps(
+                self.durable_summary.as_dict(),
+                ensure_ascii=False,
+                indent=2,
+            )
+            prepared.insert(
+                0,
+                {
+                    'role': 'user',
+                    'content': '[ForgeCode structured task summary]\n'
+                    + summary_text,
+                },
+            )
+        return prepared
 
     def persist_tool_result_message(
         self,
@@ -361,6 +382,7 @@ class ContextManager:
                 reason=str(error),
             )
         messages[:] = result.messages
+        self.durable_summary = result.summary
         self.summary_failures = 0
         after = context_stats(messages)
         self.last_report = CompactionReport(
@@ -369,9 +391,48 @@ class ContextManager:
             before_characters=before_stats.estimated_characters,
             after_characters=after.estimated_characters,
             transcript_path=transcript_path,
+            usage=result.usage,
         )
         return self.last_report
 
+    def read_artifact(
+        self,
+        artifact_id: str,
+        *,
+        max_characters: int = 20_000,
+    ) -> str:
+        '''Read a stored tool result through a constrained artifact interface.'''
+        if max_characters < 1:
+            raise ValueError('max_characters must be positive')
+        candidate_id = Path(artifact_id).name
+        if candidate_id != artifact_id or not re.fullmatch(
+            r'[0-9a-f]{64}(?:\.txt)?',
+            candidate_id,
+            flags=re.IGNORECASE,
+        ):
+            raise ValueError('Invalid tool-result artifact id.')
+        filename = (
+            candidate_id if candidate_id.endswith('.txt') else candidate_id + '.txt'
+        )
+        directory = (self.root / '.forge' / 'context' / 'tool-results').resolve()
+        path = (directory / filename).resolve(strict=False)
+        try:
+            path.relative_to(directory)
+        except ValueError as error:
+            raise ValueError('Artifact path is outside the context store.') from error
+        try:
+            content = path.read_text(encoding='utf-8')
+        except OSError as error:
+            raise FileNotFoundError(f'Unknown tool-result artifact: {artifact_id}') from error
+        if len(content) <= max_characters:
+            return content
+        tail = max(1, max_characters // 3)
+        head = max(1, max_characters - tail)
+        return (
+            content[:head]
+            + f'\n\n[artifact truncated: {len(content) - max_characters} characters]\n\n'
+            + content[-tail:]
+        )
     def compaction_required(
         self,
         messages: list[dict[str, Any]],
@@ -415,19 +476,23 @@ class ContextManager:
                 )
                 > self.config.auto_compact_characters
             )
-        visible_projected_tokens = (
-            stats.estimated_tokens + reserved_output_tokens
-        )
-        stored_projected_tokens = (
-            stats.stored_tokens
-            + stats.system_tokens
-            + stats.repository_tokens
-            + stats.tool_schema_tokens
-            + reserved_output_tokens
+        # The output reservation is not available to the input.  Account for
+        # the complete request envelope (system, repository, and schemas) and
+        # trigger at 80% of the remaining input window.
+        input_budget = max(1, context_window_tokens - reserved_output_tokens)
+        # ContextStats.estimated_tokens already includes the full visible
+        # request envelope.  Adding the envelope a second time made normal
+        # turns compact prematurely and inflated model cost.
+        visible_projected_tokens = stats.estimated_tokens
+        stored_projected_tokens = estimate_tokens(
+            stats.stored_characters
+            + stats.system_characters
+            + stats.repository_characters
+            + stats.tool_schema_characters
         )
         return (
             max(visible_projected_tokens, stored_projected_tokens)
-            >= context_window_tokens * self.config.auto_compact_ratio
+            >= input_budget * self.config.auto_compact_ratio
         )
 
     def persist_transcript(
@@ -455,3 +520,4 @@ class CompactionReport:
     after_characters: int
     transcript_path: str | None
     reason: str = ''
+    usage: TokenUsage | None = None

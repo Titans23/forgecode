@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from forge.cli import create_session_runtime
+from forge.runtime.factory import create_runtime
 from forge.permissions.policy import ApprovalResponse, PermissionRequest
 from forge.runtime.completion import (
     TaskPolicy,
@@ -54,6 +54,8 @@ def result_payload(
         ),
         'model_calls': result.model_calls,
         'tool_calls': len(result.tool_calls),
+        'stop_reason': result.stop_reason,
+        'statistics': dict(result.statistics),
         'usage': asdict(result.usage),
         'verification': (
             asdict(result.verification)
@@ -81,7 +83,7 @@ async def run_turn(
     max_model_calls: int,
     max_tool_calls: int,
 ) -> TurnResult:
-    conversation, journal, _ = create_session_runtime(
+    conversation, journal, _ = create_runtime(
         project,
         continue_session=resume,
         task_policy=BENCHMARK_TASK_POLICY,

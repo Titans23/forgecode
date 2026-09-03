@@ -185,6 +185,8 @@ def test_incomplete_tool_pair_is_not_restored_or_replayed(
             'tool_call_id': 'toolu_write',
             'name': 'write_file',
             'arguments': {'path': 'a.py', 'content': 'x = 1'},
+            'status': 'indeterminate',
+            'resolution_required': True,
         },
     )
 

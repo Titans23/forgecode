@@ -1067,7 +1067,7 @@ def test_required_change_prose_gets_one_bounded_edit_retry(
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
     assert completed.result.model_calls == 3
-    assert 'Do not ask for confirmation' in str(client.calls[1]['messages'])
+    assert 'Completion check feedback' in str(client.calls[1]['messages'])
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
 
@@ -1117,7 +1117,7 @@ def test_write_then_revert_to_baseline_enters_edit_recovery(
     assert completed.result.model_calls == 3
     assert '[Failed Mutation Recovery]' in client.calls[1]['system']
     assert 'no_workspace_change' in client.calls[1]['system']
-    assert 'Edit Recovery rejected the prose response' in str(
+    assert 'Execution feedback' in str(
         client.calls[2]['messages']
     )
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'old\n'
@@ -1175,7 +1175,7 @@ def test_later_write_failure_in_same_response_remains_in_recovery(
     assert completed.result.changed_paths == ('sample.txt',)
     assert '[Failed Mutation Recovery]' in client.calls[1]['system']
     assert 'text_not_found' in client.calls[1]['system']
-    assert 'Edit Recovery rejected the prose response' in str(
+    assert 'Execution feedback' in str(
         client.calls[2]['messages']
     )
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
@@ -1225,7 +1225,7 @@ def test_one_premature_recovery_summary_may_resume_corrected_edit(
 
     assert isinstance(events[-1], TurnCompleted)
     assert events[-1].result.status == 'completed'
-    assert 'Edit Recovery rejected the prose response' in str(
+    assert 'Execution feedback' in str(
         client.calls[2]['messages']
     )
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
@@ -1563,7 +1563,7 @@ def test_inspection_stagnation_stops_without_action_recovery(
     assert completed.result.text == summary
     assert completed.result.changed_paths == ()
     assert client.responses == []
-    assert client.calls[-1]['tools'] is None
+    assert client.calls[-1]['tools'] is not None
     assert 'read-only synthesis checkpoint' in str(
         client.calls[-1]['messages']
     )
@@ -2349,7 +2349,7 @@ def test_false_blocker_gets_one_bounded_action_recovery(
         str(tool['name']) for tool in client.calls[3]['tools'] or []
     }
     assert 'replace_text' in recovery_tools
-    assert 'read_file' not in recovery_tools
+    assert 'read_file' in recovery_tools
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
     wrong_kind = next(
         event
@@ -2643,7 +2643,7 @@ def test_directory_patch_failure_recovers_with_remove_directory(
     assert failed_patch.error.code == 'directory_patch_target'
     assert failed_patch.error.details['recommended_tool'] == 'remove_directory'
     assert 'remove_directory' in recovery_tool_names
-    assert 'task_plan' not in recovery_tool_names
+    assert 'task_plan' in recovery_tool_names
     assert not (tmp_path / 'play' / '.keep').exists()
     assert not (tmp_path / 'play' / '.tmp').exists()
     assert not (tmp_path / 'play' / 'notes.txt').exists()

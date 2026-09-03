@@ -337,6 +337,87 @@ def test_summary_marks_silent_missing_result_as_infrastructure_failure(
     assert summary.infrastructure_failures == 1
     assert summary.infrastructure_failure_types == {'AgentTimeout': 1}
     assert summary.missing_results == ('build-pov-ray__trial',)
+    assert summary.agent_timeouts == 1
+    assert summary.agent_failures == 0
+
+
+def test_summary_excludes_verifier_bootstrap_failure_from_code_score(
+    tmp_path: Path,
+) -> None:
+    trial = tmp_path / 'path-tracing__trial'
+    (trial / 'verifier').mkdir(parents=True)
+    (trial / 'result.json').write_text(
+        json.dumps(
+            {
+                'exception_info': None,
+                'verifier_result': {'rewards': {'reward': 0.0}},
+            }
+        )
+    )
+    (trial / 'verifier' / 'test-stdout.txt').write_text(
+        'curl: (35) OpenSSL SSL_connect: SSL_ERROR_SYSCALL from astral.sh\n'
+        '/tests/test.sh: line 19: uvx: command not found\n'
+    )
+
+    summary = summarize_run(tmp_path)
+
+    assert summary.infrastructure_failures == 1
+    assert summary.verifier_environment_failures == 1
+    assert summary.infrastructure_failure_types == {
+        'VerifierEnvironment:uv_bootstrap': 1
+    }
+    assert summary.scored_trials == 0
+    assert summary.pass_at_1 == 0
+
+
+def test_summary_keeps_missing_task_artifact_as_a_scored_verifier_failure(
+    tmp_path: Path,
+) -> None:
+    trial = tmp_path / 'build-pov-ray__trial'
+    (trial / 'verifier').mkdir(parents=True)
+    (trial / 'result.json').write_text(
+        json.dumps(
+            {
+                'exception_info': None,
+                'verifier_result': {'rewards': {'reward': 0.0}},
+            }
+        )
+    )
+    (trial / 'verifier' / 'test-stdout.txt').write_text(
+        'FileNotFoundError: /usr/local/bin/povray\n'
+        'Expected POV-Ray 2.2 source directory not found\n'
+    )
+
+    summary = summarize_run(tmp_path)
+
+    assert summary.infrastructure_failures == 0
+    assert summary.verifier_environment_failures == 0
+    assert summary.scored_trials == 1
+    assert summary.pass_at_2 == 0
+
+
+def test_summary_separates_model_service_exception_from_agent_failure(
+    tmp_path: Path,
+) -> None:
+    trial = tmp_path / 'rate-limited'
+    trial.mkdir()
+    (trial / 'result.json').write_text(
+        json.dumps(
+            {
+                'exception_info': {
+                    'exception_type': 'ApiRateLimitError',
+                    'exception_message': 'model provider rate limit',
+                },
+                'verifier_result': None,
+            }
+        )
+    )
+
+    summary = summarize_run(tmp_path)
+
+    assert summary.model_service_failures == 1
+    assert summary.agent_failures == 0
+    assert summary.agent_timeouts == 0
 
 
 def test_summary_counts_cpp_compile_failure_without_reward_as_attempt(

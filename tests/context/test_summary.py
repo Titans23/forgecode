@@ -166,7 +166,7 @@ def test_configured_window_replaces_character_fallback(tmp_path: Path) -> None:
 def test_auto_compaction_counts_full_request_at_eighty_percent(
     tmp_path: Path,
 ) -> None:
-    messages = [{'role': 'user', 'content': 'h' * 400}]
+    messages = [{'role': 'user', 'content': 'h' * 800}]
     manager = ContextManager(messages, tmp_path)
     client = SummaryClient(valid_summary())
 
