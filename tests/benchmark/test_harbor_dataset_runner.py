@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from benchmark.harbor.run_dataset import build_command, container_base_url
+import benchmark.harbor.run_terminal as terminal_runner
 from benchmark.harbor.summarize import summarize_run
 
 
@@ -42,6 +43,32 @@ def test_loopback_provider_is_rewritten_only_for_containers() -> None:
     assert container_base_url('http://localhost:1234/v1') == (
         'http://host.docker.internal:1234/v1'
     )
+
+
+def test_terminal_entrypoint_uses_full_fixed_task_ids_and_concurrency(
+    monkeypatch,
+) -> None:
+    received: list[str] = []
+
+    def fake_run_dataset(argv, **kwargs) -> int:
+        received.extend(argv)
+        assert kwargs['default_dataset'] == 'terminal-bench/terminal-bench-2'
+        return 0
+
+    monkeypatch.setattr(terminal_runner, 'run_dataset', fake_run_dataset)
+
+    assert terminal_runner.main(()) == 0
+
+    task_values = [
+        received[index + 1]
+        for index, value in enumerate(received[:-1])
+        if value == '--task'
+    ]
+    assert task_values == list(terminal_runner.FIXED_TERMINAL_TASKS)
+    assert '--concurrency' in received
+    assert received[received.index('--concurrency') + 1] == '6'
+    assert received[received.index('--max-retries') + 1] == '3'
+    assert received[received.index('--model') + 1] == 'gpt-5.6-luna'
     assert container_base_url('https://api.example/v1') == (
         'https://api.example/v1'
     )

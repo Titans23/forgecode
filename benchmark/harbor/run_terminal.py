@@ -9,16 +9,16 @@ from benchmark.harbor.run_dataset import PROJECT_ROOT, main as run_dataset
 
 
 FIXED_TERMINAL_TASKS: tuple[str, ...] = (
-    'break-filter-js-from-html',
-    'build-pov-ray',
-    'circuit-fibsqrt',
-    'compile-compcert',
-    'distribution-search',
-    'make-mips-interpreter',
-    'overfull-hbox',
-    'path-tracing',
-    'protein-assembly',
-    'video-processing',
+    'terminal-bench/break-filter-js-from-html',
+    'terminal-bench/build-pov-ray',
+    'terminal-bench/circuit-fibsqrt',
+    'terminal-bench/compile-compcert',
+    'terminal-bench/distribution-search',
+    'terminal-bench/make-mips-interpreter',
+    'terminal-bench/overfull-hbox',
+    'terminal-bench/path-tracing',
+    'terminal-bench/protein-assembly',
+    'terminal-bench/video-processing',
 )
 
 
