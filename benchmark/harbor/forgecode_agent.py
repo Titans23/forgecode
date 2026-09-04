@@ -241,6 +241,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             'export MODEL_MAX_TOKENS="${FORGECODE_MODEL_MAX_TOKENS:-16384}"; '
             'export MODEL_CONTEXT_WINDOW="${FORGECODE_CONTEXT_WINDOW:-128000}"; '
             f'timeout --kill-after=10s {shlex.quote(watchdog_timeout)} '
+            f'{shlex.quote(_venv_python())} -m benchmark.harbor.process_supervisor -- '
             f'{shlex.quote(_venv_python())} -m benchmark.harbor.run_forge '
             '--project . '
             f'{resume_arg}'
@@ -279,6 +280,8 @@ class LegacyBaselineHarborAgent(ForgeCodeHarborAgent):
         staged = super()._stage_local_source()
         lock = Path(__file__).with_name('runtime-requirements.txt')
         shutil.copy2(lock, staged / 'benchmark' / 'harbor' / lock.name)
+        supervisor = Path(__file__).with_name('process_supervisor.py')
+        shutil.copy2(supervisor, staged / 'benchmark' / 'harbor' / supervisor.name)
         return staged
 
     def _run_command(self, *args, **kwargs) -> str:

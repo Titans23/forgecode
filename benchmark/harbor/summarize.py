@@ -350,6 +350,12 @@ def _verifier_environment_failure(trial_dir: Path) -> str | None:
         except OSError:
             continue
     text = '\n'.join(text_parts).casefold()
+    # uv can write reward=0 after failing before pytest even starts. Require
+    # the paired installer diagnostics, not an arbitrary task timeout string.
+    if ('failed to download `' in text
+            and 'failed to download distribution due to network timeout' in text
+            and 'short test summary info' not in text):
+        return 'VerifierEnvironment:dependency_download_timeout'
     for marker, kind in _VERIFIER_ENVIRONMENT_MARKERS:
         if marker in text:
             return f'VerifierEnvironment:{kind}'

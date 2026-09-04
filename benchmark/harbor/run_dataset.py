@@ -129,6 +129,8 @@ def build_command(
         command.extend(['--timeout-multiplier', str(timeout_multiplier)])
     if environment is not None:
         command.extend(['--env', environment])
+    else:
+        command.extend(['--env', 'benchmark.harbor.bounded_docker:BoundedDockerEnvironment'])
     for task in tasks:
         command.extend(['-i', task])
     if n_tasks is not None:
