@@ -62,10 +62,13 @@ class VerificationEvidence:
     coverage: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
     stdin_sha256: str = ''
+    evidence_valid: bool = True
+    evidence_issues: tuple[str, ...] = ()
+    check_signature: str = ''
 
     @property
     def success(self) -> bool:
-        return not self.timed_out and self.exit_code == 0
+        return not self.timed_out and self.exit_code == 0 and self.evidence_valid
 
 
 TaskStatus = Literal['completed', 'blocked', 'stuck', 'failed']

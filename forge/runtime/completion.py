@@ -234,7 +234,8 @@ class CompletionGate:
                 )
         if unresolved_failures:
             rendered = ', '.join(
-                f'{item.command!r} (exit {item.exit_code})'
+                f'{item.command!r} (exit {item.exit_code}; '
+                f'{"; ".join(item.evidence_issues) or "process failed"})'
                 for item in unresolved_failures
             )
             reasons.append(
@@ -378,13 +379,9 @@ def verification_command_key(command: str, cwd: str) -> str:
 
 
 def verification_obligation_key(evidence: VerificationEvidence) -> str:
-    '''Prefer model-declared requirement coverage over incidental syntax.'''
-    if evidence.coverage:
-        normalized = '\0'.join(
-            sorted(' '.join(item.casefold().split()) for item in evidence.coverage)
-        )
-        return f'coverage\0{normalized}'
-    return verification_command_key(evidence.command, evidence.cwd) + '\0' + evidence.stdin_sha256
+    '''Coverage labels do not make different checks interchangeable.'''
+    return '\0'.join((verification_command_key(evidence.command, evidence.cwd),
+                      evidence.stdin_sha256, evidence.check_signature))
 
 
 def unresolved_verification_failures(

@@ -40,6 +40,24 @@ sanity command. Before declaring completion:
 - do not claim success when an external dependency or build step is still
   missing. Keep the original source and task contract intact while trying a
   materially different, evidence-backed recovery.
+- for each explicit requirement, identify the observable result that would
+  falsify your implementation. A property asserted only from your own design
+  choices is circular evidence: compare against the supplied input, contract,
+  independently established component identity or independently labeled data.
+- turn measured acceptance thresholds into failing assertions, not just printed
+  numbers. verify.output_checks can compare the final stdout JSON object against
+  explicit expectations; alternatively assert them in the executed test itself.
+  Passing file-format checks cannot replace missing behavioral or edit-constraint
+  checks. A required target below threshold is failed, not completed with caveats.
+- confirm the test entrypoint actually invokes its tests. Importing a module or
+  running a script that only defines test functions is not running the tests.
+  If a supplied check has unavailable paths/dependencies, report that diagnostic
+  and reproduce its public contract locally without changing protected inputs.
+- before a completed declaration, reconcile every original requirement with
+  actual evidence, including input-to-output transformation constraints and
+  component identities. Clearly state which required checks are missing; do not
+  silently downgrade them to optional limitations. Plans remain organizational,
+  and neither a plan nor these instructions grants additional file permissions.
 '''
 
 

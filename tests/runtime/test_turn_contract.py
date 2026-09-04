@@ -211,7 +211,7 @@ def test_completion_requires_every_explicit_check(tmp_path: Path) -> None:
     asyncio.run(check())
 
 
-def test_corrected_check_resolves_same_coverage_not_unrelated_failure(tmp_path: Path) -> None:
+def test_coverage_label_alone_cannot_resolve_a_different_failed_check(tmp_path: Path) -> None:
     async def check():
         tracker = create_default_registry(tmp_path).workspace_tracker
         await tracker.begin_turn()
@@ -235,6 +235,17 @@ def test_corrected_check_resolves_same_coverage_not_unrelated_failure(tmp_path: 
         assert not still_failed.allowed
         resolved = await gate.evaluate(
             tracker, corrected, verification_history=(failed, unrelated, corrected),
+            mutation_attempted=False,
+        )
+        # Same natural-language label is not proof of an equivalent check.
+        # A real script edit is handled by workspace revision invalidation.
+        assert not resolved.allowed
+        rerun = VerificationEvidence(
+            'python weak_check.py', '.', 0, .01, False, 0,
+            coverage=('rendered output matches reference',),
+        )
+        resolved = await gate.evaluate(
+            tracker, rerun, verification_history=(failed, unrelated, corrected, rerun),
             mutation_attempted=False,
         )
         assert resolved.allowed

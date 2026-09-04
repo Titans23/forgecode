@@ -998,6 +998,9 @@ def verification_from_result(
                 if str(item).strip()
             ),
             stdin_sha256=str(metadata.get('stdin_sha256', '')),
+            evidence_valid=bool(metadata.get('evidence_valid', True)),
+            evidence_issues=tuple(str(item) for item in metadata.get('evidence_issues', ())),
+            check_signature=str(metadata.get('check_signature', '')),
         )
     except (KeyError, TypeError, ValueError):
         return None

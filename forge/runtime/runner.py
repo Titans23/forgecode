@@ -200,6 +200,13 @@ class TurnRunner:
             'what remains untested; a zero exit code alone does not prove the user goal. '
             'Either a final answer or finish_task submits the same completion request. '
             'Use failed for an unsuccessful attempt, blocked only for a specific external dependency.',
+            '[Remaining turn budget]\n'
+            + f'Model requests used: {self.state.model_calls}/{self.state.max_model_calls}; '
+            + f'tool requests used: {self.state.tool_requests}/{self.state.max_tool_calls}; '
+            + (f'time remaining: {max(0, int(self.state.max_seconds - (monotonic() - self.state.started_at)))} seconds. '
+               if self.state.max_seconds is not None else 'No turn time limit. ')
+            + 'Choose command timeouts within this remaining budget. Reserve time to validate '
+              'the actual deliverable. Repeated dependency downloads/builds consume this same budget.',
         ) if part)
 
     async def _compact(self, system: str, tools, *, force: bool = False) -> None:
