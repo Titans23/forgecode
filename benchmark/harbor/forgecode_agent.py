@@ -268,6 +268,28 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
 
 
+class LegacyBaselineHarborAgent(ForgeCodeHarborAgent):
+    '''Evaluation-only bootstrap for the frozen eff5909 API, never a product kernel.
+
+    The old source runs unchanged. Only installation constraints and its older
+    command-line deadline interface are adapted for a controlled comparison.
+    '''
+
+    def _stage_local_source(self) -> Path:
+        staged = super()._stage_local_source()
+        lock = Path(__file__).with_name('runtime-requirements.txt')
+        shutil.copy2(lock, staged / 'benchmark' / 'harbor' / lock.name)
+        return staged
+
+    def _run_command(self, *args, **kwargs) -> str:
+        command = super()._run_command(*args, **kwargs)
+        command = command.replace(f'--max-turn-seconds {self._max_turn_seconds:g} ', '')
+        return command.replace(
+            f'timeout --kill-after=10s {self._max_turn_seconds + 15:g} ',
+            f'timeout --kill-after=10s {self._max_turn_seconds:g} ',
+        )
+
+
 def _git_baseline_command() -> str:
     return (
         "find . -type f \\( -name '*.sh' -o -name gradlew \\) "
@@ -297,6 +319,7 @@ def _install_command(
         'set -euo pipefail; '
         f'AGENT_ROOT={shlex.quote(_AGENT_ROOT)}; '
         f'CACHE_DIR={shlex.quote(_CACHE_DIR)}; '
+        'export UV_PYTHON_INSTALL_DIR="$CACHE_DIR/python"; '
         'UV_BIN="$AGENT_ROOT/bin/uv"; '
         'attempt=1; '
         'while true; do '
@@ -311,14 +334,21 @@ def _install_command(
         '        UV_UNMANAGED_INSTALL="$AGENT_ROOT/bin" sh; then :; fi; '
         '    else echo "ForgeCode setup requires cached uv, curl, or wget." >&2; exit 64; fi; '
         '  fi; '
-        '  if "$UV_BIN" python install 3.12 && '
-        '    PYTHON_BIN="$("$UV_BIN" python find 3.12)"; then '
+        '  if "$UV_BIN" python install 3.12.11 && '
+        '    PYTHON_BIN="$("$UV_BIN" python find 3.12.11)"; then '
         '    if "$UV_BIN" venv "$AGENT_ROOT/.venv" '
         '      --python "$PYTHON_BIN" --clear && '
-        '      "$UV_BIN" pip install '
+        f'      if [ -f {shlex.quote(install_spec + "/benchmark/harbor/runtime-requirements.txt")} ]; then '
+        '        "$UV_BIN" pip install --require-hashes '
+        '        --python "$AGENT_ROOT/.venv/bin/python" --cache-dir "$CACHE_DIR" '
+        f'        -r {shlex.quote(install_spec + "/benchmark/harbor/runtime-requirements.txt")} && '
+        '        "$UV_BIN" pip install --no-deps '
+        '        --python "$AGENT_ROOT/.venv/bin/python" --cache-dir "$CACHE_DIR" '
+        f'        {shlex.quote(install_spec)}; '
+        '      else "$UV_BIN" pip install '
         '      --python "$AGENT_ROOT/.venv/bin/python" '
         '      --cache-dir "$CACHE_DIR" '
-        f'      {shlex.quote(install_spec)}; then break; fi; '
+        f'      {shlex.quote(install_spec)}; fi; then break; fi; '
         '  fi; '
         f'  if [ "$attempt" -ge {retries} ]; then exit 1; fi; '
         f'  sleep "$((attempt * {retry_delay_seconds:g}))"; '

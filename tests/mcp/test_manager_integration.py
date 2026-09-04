@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 import socket
 import sys
+from time import monotonic
 
 from forge.mcp.config import (
     HTTPServerConfig,
@@ -107,11 +108,19 @@ def test_real_streamable_http_server_lists_and_calls_tools(
             '--port',
             str(port),
             stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
         )
         manager = None
         try:
-            await wait_for_port(port)
+            try:
+                startup = monotonic()
+                await wait_for_port(port, process=process)
+                print(f'MCP HTTP readiness: {monotonic() - startup:.3f}s')
+            except AssertionError as error:
+                if process.returncode is None:
+                    process.terminate()
+                _, diagnostic = await asyncio.wait_for(process.communicate(), timeout=5)
+                raise AssertionError(f'{error}\nServer stderr: {diagnostic.decode(errors="replace")}') from error
             registry = ToolRegistry()
             manager = MCPClientManager(
                 tmp_path,
@@ -152,8 +161,12 @@ def available_port() -> int:
         return int(listener.getsockname()[1])
 
 
-async def wait_for_port(port: int) -> None:
-    for _ in range(100):
+async def wait_for_port(port: int, *, process=None) -> None:
+    # Use the same startup allowance as the public MCP connection contract.
+    deadline = monotonic() + HTTPServerConfig(type='http', url=f'http://127.0.0.1:{port}/mcp').connect_timeout_seconds
+    while monotonic() < deadline:
+        if process is not None and process.returncode is not None:
+            raise AssertionError(f'MCP HTTP server exited before readiness: {process.returncode}')
         try:
             reader, writer = await asyncio.open_connection(
                 '127.0.0.1',

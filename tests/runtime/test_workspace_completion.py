@@ -530,7 +530,7 @@ def test_completion_gate_checks_task_local_change_to_untracked_file(
     )
 
     decision = run(
-        CompletionGate(tmp_path).evaluate(
+        CompletionGate(tmp_path, TaskPolicy(require_diff_check=True)).evaluate(
             tracker,
             evidence,
             mutation_attempted=True,

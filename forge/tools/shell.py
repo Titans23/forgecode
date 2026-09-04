@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from hashlib import sha256
 import os
 from pathlib import Path
 import re
+import tempfile
 from time import perf_counter
 
 from pydantic import Field
@@ -33,6 +35,8 @@ class ProcessResult:
     stderr_truncated: bool = False
     stdout_bytes: int = 0
     stderr_bytes: int = 0
+    stdout_artifact: str | None = None
+    stderr_artifact: str | None = None
 
 
 MAX_PROCESS_OUTPUT_BYTES = 1_000_000
@@ -54,8 +58,28 @@ async def run_process(
     input_text: str | None = None,
     shell: bool = False,
     max_output_bytes: int = MAX_PROCESS_OUTPUT_BYTES,
+    artifact_root: Path | None = None,
 ) -> ProcessResult:
     '''Run one sanitized subprocess with bounded output and tree termination.'''
+    if max_output_bytes < 1:
+        raise ValueError('max_output_bytes must be positive')
+    job = None
+    if os.name == 'nt':
+        from forge.tools.windows_job import WindowsJob
+        job = WindowsJob()
+    try:
+        return await _run_process(command, cwd=cwd, timeout_seconds=timeout_seconds,
+                                  input_text=input_text, shell=shell,
+                                  max_output_bytes=max_output_bytes, process_job=job,
+                                  artifact_root=artifact_root or cwd)
+    finally:
+        if job is not None:
+            job.close()
+
+
+async def _run_process(
+    command, *, cwd, timeout_seconds, input_text, shell, max_output_bytes, process_job, artifact_root,
+) -> ProcessResult:
     started = perf_counter()
     stdin = asyncio.subprocess.PIPE if input_text is not None else None
     process_options: dict[str, object] = {
@@ -67,8 +91,15 @@ async def run_process(
     }
     if os.name == 'nt':
         import subprocess
-
-        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+        import sys
+        import json
+        from forge.tools.windows_job import GATED_WORKER
+        if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
+            raise TypeError('Shell commands must be strings; executable commands must be lists.')
+        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        process_options['stdin'] = asyncio.subprocess.PIPE
+        command = [sys.executable, '-c', GATED_WORKER, json.dumps(command), '1' if shell else '0']
+        shell = False
     else:
         process_options['start_new_session'] = True
     if shell:
@@ -79,21 +110,29 @@ async def run_process(
         if isinstance(command, str):
             raise TypeError('Executable commands must be argument lists.')
         process = await asyncio.create_subprocess_exec(*command, **process_options)
+    if process_job is not None:
+        try:
+            process_job.assign(process.pid)
+        except BaseException:
+            process.kill()  # Only the gated worker exists; no command has run.
+            await process.communicate()
+            raise
 
     stdout_task = asyncio.create_task(
-        _read_bounded(process.stdout, max_output_bytes)
+        _read_bounded(process.stdout, max_output_bytes, artifact_root)
     )
     stderr_task = asyncio.create_task(
-        _read_bounded(process.stderr, max_output_bytes)
+        _read_bounded(process.stderr, max_output_bytes, artifact_root)
     )
     try:
         # The timeout covers stdin backpressure AND inherited output pipes,
         # not just the parent process wait. A child may never consume stdin,
         # or may keep stdout open after its parent has exited.
         async with asyncio.timeout(timeout_seconds):
-            if input_text is not None and process.stdin is not None:
+            if process.stdin is not None:
                 try:
-                    process.stdin.write(input_text.encode('utf-8'))
+                    process.stdin.write((b'!' if process_job is not None else b'')
+                                        + (input_text or '').encode('utf-8'))
                     await process.stdin.drain()
                 except (BrokenPipeError, ConnectionResetError):
                     pass
@@ -103,18 +142,18 @@ async def run_process(
             await asyncio.shield(asyncio.gather(stdout_task, stderr_task))
         timed_out = False
     except TimeoutError:
-        await _terminate_process_tree(process)
+        await _terminate_process_tree(process, process_job)
         await process.wait()
         timed_out = True
     except asyncio.CancelledError:
         # A stopped ForgeCode turn must not leave a compiler, test runner, or
         # shell child alive after the caller has already moved on.
-        await _terminate_process_tree(process)
+        await _terminate_process_tree(process, process_job)
         await process.wait()
         await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
         raise
-    stdout_bytes, stdout_total, stdout_truncated = await stdout_task
-    stderr_bytes, stderr_total, stderr_truncated = await stderr_task
+    stdout_bytes, stdout_total, stdout_truncated, stdout_artifact = await stdout_task
+    stderr_bytes, stderr_total, stderr_truncated, stderr_artifact = await stderr_task
     return ProcessResult(
         exit_code=process.returncode if process.returncode is not None else -1,
         stdout=stdout_bytes.decode('utf-8', errors='replace'),
@@ -125,29 +164,58 @@ async def run_process(
         stderr_truncated=stderr_truncated,
         stdout_bytes=stdout_total,
         stderr_bytes=stderr_total,
+        stdout_artifact=stdout_artifact,
+        stderr_artifact=stderr_artifact,
     )
 
 
 async def _read_bounded(
     stream: asyncio.StreamReader | None,
     maximum: int,
-) -> tuple[bytes, int, bool]:
+    artifact_root: Path,
+) -> tuple[bytes, int, bool, str | None]:
     if stream is None:
-        return b'', 0, False
+        return b'', 0, False, None
     kept = bytearray()
+    tail = bytearray()
     total = 0
-    while True:
-        chunk = await stream.read(65_536)
-        if not chunk:
-            break
-        total += len(chunk)
-        remaining = maximum - len(kept)
-        if remaining > 0:
-            kept.extend(chunk[:remaining])
-    return bytes(kept), total, total > len(kept)
+    digest = sha256()
+    archive = None
+    directory = artifact_root / '.forge' / 'context' / 'tool-results'
+    try:
+        while True:
+            chunk = await stream.read(65_536)
+            if not chunk:
+                break
+            if archive is None and total + len(chunk) > maximum:
+                directory.mkdir(parents=True, exist_ok=True)
+                archive = tempfile.NamedTemporaryFile(dir=directory, suffix='.partial', delete=False)
+                archive.write(kept)
+            if archive is not None:
+                archive.write(chunk)
+            digest.update(chunk)
+            total += len(chunk)
+            remaining = maximum - len(kept)
+            if remaining > 0:
+                kept.extend(chunk[:remaining])
+            tail.extend(chunk)
+            if len(tail) > maximum // 2:
+                del tail[:len(tail) - maximum // 2]
+    finally:
+        if archive is not None:
+            archive.close()
+    artifact_id = None
+    if archive is not None:
+        artifact_id = digest.hexdigest()
+        Path(archive.name).replace(directory / f'{artifact_id}.txt')
+        kept = kept[:maximum - len(tail)] + tail
+    return bytes(kept), total, total > len(kept), artifact_id
 
 
-async def _terminate_process_tree(process: asyncio.subprocess.Process) -> None:
+async def _terminate_process_tree(process: asyncio.subprocess.Process, process_job=None) -> None:
+    if process_job is not None:
+        process_job.close()
+        return
     if os.name == 'nt':
         if process.returncode is not None:
             return
@@ -192,6 +260,8 @@ def process_metadata(result: ProcessResult) -> dict[str, object]:
         'stderr_truncated': result.stderr_truncated,
         'stdout_bytes': result.stdout_bytes,
         'stderr_bytes': result.stderr_bytes,
+        'stdout_artifact': result.stdout_artifact,
+        'stderr_artifact': result.stderr_artifact,
     }
 
 
@@ -199,14 +269,16 @@ def render_process_output(result: ProcessResult) -> str:
     sections: list[str] = []
     if result.stdout:
         suffix = (
-            f'\n[stdout truncated; {result.stdout_bytes} bytes total]'
+            f'\n[stdout head/tail preview; {result.stdout_bytes} bytes total; '
+            f'read_context_artifact artifact_id={result.stdout_artifact}]'
             if result.stdout_truncated
             else ''
         )
         sections.append(f'stdout:\n{result.stdout.rstrip()}{suffix}')
     if result.stderr:
         suffix = (
-            f'\n[stderr truncated; {result.stderr_bytes} bytes total]'
+            f'\n[stderr head/tail preview; {result.stderr_bytes} bytes total; '
+            f'read_context_artifact artifact_id={result.stderr_artifact}]'
             if result.stderr_truncated
             else ''
         )
@@ -349,6 +421,7 @@ class RunCommandTool(Tool[RunCommandInput]):
             timeout_seconds=arguments.timeout_seconds,
             input_text=arguments.stdin,
             shell=True,
+            artifact_root=self.root,
         )
         metadata = {
             **process_metadata(result),

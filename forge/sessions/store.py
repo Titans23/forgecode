@@ -77,6 +77,7 @@ class SessionJournal:
         self.parent_uuid = parent_uuid
         self.inline_payload_bytes = inline_payload_bytes
         self.artifact_directory = path.parent / 'artifacts' / session_id
+        self.turn_id = ''
         self._tool_started_ids: set[str] = set()
         self._tool_completed_ids: set[str] = set()
         self._hydrate_tool_event_ids()
@@ -95,10 +96,14 @@ class SessionJournal:
             except json.JSONDecodeError:
                 continue
             event_type = record.get('type')
+            if event_type == 'turn_started':
+                self.turn_id = str(record.get('turn_id') or record.get('uuid', ''))
+                self._tool_started_ids.clear()
+                self._tool_completed_ids.clear()
             payload = record.get('payload')
-            if not isinstance(payload, dict):
-                continue
-            tool_call_id = payload.get('tool_call_id')
+            tool_call_id = record.get('tool_call_id') or (
+                payload.get('tool_call_id') if isinstance(payload, dict) else None
+            )
             if not isinstance(tool_call_id, str) or not tool_call_id:
                 continue
             if event_type == 'tool_started':
@@ -146,6 +151,9 @@ class SessionJournal:
         task: ActiveTask | None,
     ) -> None:
         '''Persist the start of a turn before model or tool side effects.'''
+        self.turn_id = uuid4().hex
+        self._tool_started_ids.clear()
+        self._tool_completed_ids.clear()
         self.append(
             'turn_started',
             {
@@ -311,6 +319,7 @@ class SessionJournal:
         )
 
     def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        payload = {**payload, **({'turn_id': self.turn_id} if self.turn_id else {})}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._assert_append_head()
         event_uuid = str(uuid4())
@@ -329,7 +338,10 @@ class SessionJournal:
             'sequence': self.sequence,
             'timestamp': now_iso(),
             'type': event_type,
+            'turn_id': self.turn_id,
         }
+        if 'tool_call_id' in payload:
+            record['tool_call_id'] = payload['tool_call_id']
         if len(encoded_payload) > self.inline_payload_bytes:
             record['payload_ref'] = self._write_artifact(
                 event_uuid,
@@ -668,16 +680,22 @@ class SessionStore:
         messages: list[dict[str, Any]] = []
         pending_assistant: dict[str, Any] | None = None
         task: ActiveTask | None = None
-        started_tools: dict[str, dict[str, Any]] = {}
-        completed_tools: set[str] = set()
+        started_tools: dict[tuple[str, str], dict[str, Any]] = {}
+        completed_tools: set[tuple[str, str]] = set()
         name = optional_string(first_payload.get('name'))
         first_prompt = ''
         status = 'active'
-        indeterminate_records: dict[str, dict[str, Any]] = {}
+        indeterminate_records: dict[tuple[str, str], dict[str, Any]] = {}
+        replay_turn = ''
 
         for record in records[1:]:
             payload = self._payload(record, path)
             event_type = record['type']
+            if event_type == 'turn_started':
+                replay_turn = str(record.get('turn_id') or record.get('uuid', ''))
+                status = 'active'
+            tool_key = (str(payload.get('turn_id') or replay_turn),
+                        str(payload.get('tool_call_id', '')))
             if event_type == 'user_message':
                 message = message_from(payload)
                 messages.append(message)
@@ -719,12 +737,12 @@ class SessionStore:
             elif event_type == 'tool_started':
                 tool_id = str(payload.get('tool_call_id', ''))
                 if tool_id:
-                    started_tools[tool_id] = payload
+                    started_tools[tool_key] = {**payload, **({'turn_id': tool_key[0]} if tool_key[0] else {})}
             elif event_type == 'tool_completed':
                 tool_id = str(payload.get('tool_call_id', ''))
-                completed_tools.add(tool_id)
+                completed_tools.add(tool_key)
                 if payload.get('status') == 'indeterminate' and tool_id:
-                    indeterminate_records[tool_id] = payload
+                    indeterminate_records[tool_key] = {**payload, **({'turn_id': tool_key[0]} if tool_key[0] else {})}
             elif event_type == 'session_renamed':
                 name = optional_string(payload.get('name'))
             elif event_type == 'turn_completed':
@@ -790,7 +808,7 @@ class SessionStore:
             )
         for tool_id, payload in indeterminate_records.items():
             if tool_id not in {
-                str(item.get('tool_call_id', ''))
+                (str(item.get('turn_id', '')), str(item.get('tool_call_id', '')))
                 for item in indeterminate_tools
             }:
                 indeterminate_tools.append(

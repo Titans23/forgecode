@@ -96,7 +96,7 @@ def test_compaction_uses_authoritative_task_goal_and_scope(
     assert report is not None and report.success
     summary = json.loads(str(messages[0]['content']).split('\n', 1)[1])
     assert summary['goal'] == '在 play 目录实现高级雷霆战机'
-    assert 'Active write scope: play/**' in summary['constraints']
+    assert 'Organizational scope hint: play/**' in summary['constraints']
     summary_prompt = str(client.calls[0]['messages'][0]['content'])
     assert '在 play 目录实现高级雷霆战机' in summary_prompt
     assert 'play/**' in summary_prompt

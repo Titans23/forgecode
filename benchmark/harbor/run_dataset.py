@@ -190,6 +190,8 @@ def build_parser(
         help='Harbor/uv cache directory (defaults to an ignored project path).',
     )
     parser.add_argument('--agent', default='benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent')
+    parser.add_argument('--source-dir', type=Path, default=PROJECT_ROOT,
+                        help='Source checkout to freeze for a controlled baseline/candidate comparison.')
     parser.add_argument('--max-model-calls', type=int, default=120)
     parser.add_argument('--max-tool-calls', type=int, default=240)
     parser.add_argument('--max-turn-seconds', type=int, default=1800)
@@ -269,7 +271,10 @@ def main(
     from benchmark.harbor.snapshot import freeze_source
 
     # All trials, including Harbor retries, must install these same bytes.
-    source_snapshot = freeze_source(PROJECT_ROOT, args.output_dir / '.source-snapshots')
+    source_snapshot = freeze_source(args.source_dir, args.output_dir / '.source-snapshots')
+    driver_snapshot = source_snapshot if args.source_dir.resolve() == PROJECT_ROOT.resolve() else freeze_source(
+        PROJECT_ROOT, args.output_dir / '.driver-snapshots',
+    )
     command.extend(['--ak', f'source_dir={source_snapshot}'])
     print(f'Frozen ForgeCode source: {source_snapshot}', flush=True)
     args.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -282,7 +287,7 @@ def main(
         item for item in (str(docker_bin), env.get('PATH', '')) if item
     )
     env['PYTHONPATH'] = os.pathsep.join(
-        item for item in (str(source_snapshot), env.get('PYTHONPATH', '')) if item
+        item for item in (str(driver_snapshot), env.get('PYTHONPATH', '')) if item
     )
     env['PYTHONIOENCODING'] = 'utf-8'
     env['PYTHONUTF8'] = '1'

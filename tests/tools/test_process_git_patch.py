@@ -326,7 +326,6 @@ def test_command_timeout_covers_blocked_stdin(tmp_path: Path) -> None:
     asyncio.run(exercise())
 
 
-@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX process-group contract')
 def test_timeout_closes_inherited_pipes_after_parent_exit(tmp_path: Path) -> None:
     script = (
         'import subprocess, sys; '

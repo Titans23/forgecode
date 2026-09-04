@@ -48,6 +48,8 @@ class ActiveTask:
     scope_source: ScopeSource = 'repository'
     workspace_paths: tuple[str, ...] = ()
     blocked_reasons: tuple[str, ...] = ()
+    acceptance_criteria: tuple[dict[str, str], ...] = ()
+    user_directives: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -88,6 +90,11 @@ class ActiveTask:
             blocked_reasons=tuple(
                 str(item) for item in data.get('blocked_reasons', [])
             ),
+            acceptance_criteria=tuple(
+                {str(key): str(value) for key, value in item.items()}
+                for item in data.get('acceptance_criteria', []) if isinstance(item, dict)
+            ),
+            user_directives=tuple(str(item) for item in data.get('user_directives', [])),
         )
 
     @property

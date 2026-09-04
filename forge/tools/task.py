@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 from typing import Literal
 
 from pydantic import Field
@@ -37,6 +36,12 @@ class TaskGetTool(Tool[TaskGetInput]):
         )
 
 
+class AcceptanceCriterion(ToolInput):
+    source_quote: str = Field(min_length=1, max_length=2000, description='Exact quote from the original user goal, not a guessed requirement.')
+    condition: str = Field(min_length=1, max_length=2000, description='Observable output, interface, preservation or allowed-transformation condition.')
+    check: str = Field(min_length=1, max_length=2000, description='How to test the condition with expectations independent of this implementation; note unavailable checks.')
+
+
 class TaskPlanInput(ToolInput):
     steps: list[str] = Field(min_length=2, max_length=20)
     constraints: list[str] = Field(default_factory=list, max_length=20)
@@ -49,6 +54,7 @@ class TaskPlanInput(ToolInput):
         ),
     )
     replace: bool = False
+    acceptance_criteria: list[AcceptanceCriterion] = Field(default_factory=list, max_length=20)
 
 
 class TaskPlanTool(Tool[TaskPlanInput]):
@@ -87,6 +93,7 @@ class TaskPlanTool(Tool[TaskPlanInput]):
                 constraints=arguments.constraints,
                 scope_hints=arguments.scope_hints,
                 replace_existing=arguments.replace,
+                acceptance_criteria=[item.model_dump() for item in arguments.acceptance_criteria],
             )
         except ValueError as error:
             details = {}
@@ -124,32 +131,9 @@ class TaskPlanTool(Tool[TaskPlanInput]):
         )
 
 
-_UNRESOLVED_COMPLETION_EVIDENCE = re.compile(
-    r'(?:失败|未完成|未实现|尚未|接下来|下一步|准备(?:去|中|做|创建|实现|修改)?|'
-    r'将(?:要|会|以)?|待(?:办|完成|实现|处理)|'
-    r'\bfailed\b|\bfailure\b|\bcannot\b|\bcould not\b|'
-    r'\bnot (?:completed|implemented|created|fixed)\b|'
-    r'\bnext(?: step)?\b|\bwill\b|\bplanning to\b|'
-    r'\bprepar(?:e|ed|ing) to\b)',
-    re.IGNORECASE,
-)
-_RESOLVED_COMPLETION_EVIDENCE = re.compile(
-    r'(?:已(?:完成|实现|创建|修改|修复|解决|通过)|'
-    r'成功(?:完成|创建|修改|修复|通过)?|'
-    r'(?:失败|错误|问题).{0,24}(?:已)?(?:修复|解决|通过)|'
-    r'\b(?:completed|implemented|created|updated|fixed|resolved|passed)\b)',
-    re.IGNORECASE,
-)
-
-
 def invalid_completion_evidence(evidence: list[str]) -> bool:
-    '''Reject evidence that describes only failure or intended future work.'''
-    rendered = '；'.join(item.strip() for item in evidence if item.strip())
-    return bool(
-        rendered
-        and _UNRESOLVED_COMPLETION_EVIDENCE.search(rendered)
-        and not _RESOLVED_COMPLETION_EVIDENCE.search(rendered)
-    )
+    '''Compatibility shim: plan wording is not an execution or completion gate.'''
+    return False
 
 
 class TaskUpdateInput(ToolInput):
@@ -196,23 +180,6 @@ class TaskUpdateTool(Tool[TaskUpdateInput]):
             if active is not None and active.planned
             else None
         )
-        if (
-            arguments.status == 'completed'
-            and invalid_completion_evidence(arguments.evidence)
-        ):
-            raise ToolExecutionError(
-                'task_completion_evidence_invalid',
-                'A step cannot be completed with evidence that only reports '
-                'failure, preparation, or future work. Perform the current '
-                'step action, then provide evidence of the result.',
-                details={
-                    'step_id': canonical_step_id,
-                    'current_step_id': (
-                        active.current_step_id if active is not None else None
-                    ),
-                    'recommended_action': 'execute_current_step',
-                },
-            )
         idempotent_repeat = bool(
             target is not None
             and (

@@ -38,6 +38,7 @@ def create_runtime(
     execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
     conversation_factory: Callable[..., Conversation] | None = None,
+    task_relation: str | None = None,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Create a Conversation and all dependencies for any product surface.'''
     if model_override is not None and not fork_session:
@@ -92,6 +93,7 @@ def create_runtime(
             hook_manager=hooks,
             mcp_manager=mcp,
             task_policy=task_policy,
+            **({'task_relation': task_relation} if task_relation is not None else {}),
         )
         if not fork_session:
             journal.record_resumed()
@@ -107,6 +109,7 @@ def create_runtime(
         registry=registry,
         mcp_manager=mcp,
         task_policy=task_policy,
+        **({'task_relation': task_relation} if task_relation is not None else {}),
     )
     journal = store.create(model=str(getattr(model, 'model', '')))
     conversation.session_journal = journal

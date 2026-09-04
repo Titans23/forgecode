@@ -53,6 +53,7 @@ class TaskManager:
             status='in_progress',
             requires_change=(self.active.requires_change or requires_change),
             blocked_reasons=(),
+            user_directives=tuple(dict.fromkeys((*self.active.user_directives, directive.strip()))),
         )
         if self.active.planned:
             self.store.save(self.active)
@@ -117,8 +118,14 @@ class TaskManager:
         constraints: list[str] | None = None,
         scope_hints: list[str] | None = None,
         replace_existing: bool = False,
+        acceptance_criteria: list[dict[str, str]] | None = None,
     ) -> ActiveTask:
         task = self._require_active()
+        criteria = acceptance_criteria or []
+        for criterion in criteria:
+            quote = criterion.get('source_quote', '').strip()
+            if not quote or not any(quote in source for source in (task.goal, *task.user_directives)):
+                raise ValueError('Acceptance source_quote must quote the original user goal exactly; assumptions are not user requirements.')
         if task.planned and not replace_existing:
             raise ValueError(
                 'The current task already has a plan. Update its steps instead.'
@@ -159,6 +166,7 @@ class TaskManager:
             scope_hints=resolved_scope_hints,
             scope_source=resolved_scope_source,
             blocked_reasons=(),
+            acceptance_criteria=tuple(criteria),
         )
         self.store.save(self.active)
         return self.active
@@ -420,7 +428,7 @@ class TaskManager:
             lines.extend(
                 ['', 'Focus paths:', *[f'- {item}' for item in task.scope_hints]]
             )
-            if task.scope_source in {'explicit', 'planned'}:
+            if task.scope_source == 'explicit':
                 lines.append(
                     'All workspace writes must remain inside these paths unless '
                     'the user explicitly changes the scope.'
@@ -439,6 +447,14 @@ class TaskManager:
                     'resolved from the user or prior task context.',
                 ]
             )
+        if task.acceptance_criteria:
+            lines.extend(['', 'Acceptance map (model interpretation, not permission or proof):'])
+            for item in task.acceptance_criteria:
+                lines.extend([
+                    f'- User wording: {item.get("source_quote", "")}',
+                    f'  Observable condition: {item.get("condition", "")}',
+                    f'  Independent check: {item.get("check", "")}',
+                ])
         if self._latest_directive:
             lines.extend(
                 [

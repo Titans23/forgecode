@@ -56,6 +56,7 @@ class CompactionConfig:
     file_evidence_character_budget: int = 100_000
     auto_compact_characters: int = 120_000
     auto_compact_ratio: float = 0.8
+    target_compact_ratio: float = 0.6
     summary_keep_recent_messages: int = 6
     post_compact_max_files: int = 5
     post_compact_file_budget: int = 100_000
@@ -147,7 +148,7 @@ async def summarize_history(
         'and next_action. Every field except goal and next_action is a list '
         'of strings. Preserve user restrictions and failed approaches.\n\n'
         f'AUTHORITATIVE ACTIVE GOAL:\n{task_goal or "not provided"}\n'
-        f'AUTHORITATIVE WRITE SCOPE:\n'
+        f'ORGANIZATIONAL SCOPE HINTS (not authorization):\n'
         f'{json.dumps(scope_hints, ensure_ascii=False)}\n\n'
         f'HISTORY:\n{transcript}'
     )
@@ -172,7 +173,7 @@ async def summarize_history(
     summary = TaskSummary.from_json(''.join(text_parts))
     if task_goal:
         scope_constraints = tuple(
-            f'Active write scope: {scope}' for scope in scope_hints
+            f'Organizational scope hint: {scope}' for scope in scope_hints
         )
         summary = TaskSummary(
             goal=task_goal,
@@ -271,6 +272,7 @@ def cheap_compact(
         compacted,
         resolved,
         protected_result_ids=protected_file_results,
+        artifact_dir=artifact_dir,
     )
     return CheapCompactionResult(
         messages=compacted,
@@ -425,7 +427,9 @@ def is_durable_anchor(unit: list[dict[str, Any]]) -> bool:
     return any(
         message.get('role') == 'user'
         and isinstance(message.get('content'), str)
-        and message['content'].startswith('[ForgeCode structured task summary]')
+        and message['content'].startswith((
+            '[ForgeCode structured task summary]', '[ForgeCode original user instructions]',
+        ))
         for message in unit
     )
 
@@ -620,6 +624,7 @@ def shorten_old_tool_results(
     config: CompactionConfig,
     *,
     protected_result_ids: set[str] | None = None,
+    artifact_dir: Path | None = None,
 ) -> int:
     '''Clear old replayable tool results while preserving durable task outputs.'''
     tool_names: dict[str, str] = {}
@@ -650,6 +655,20 @@ def shorten_old_tool_results(
         if len(content) <= config.old_tool_result_limit:
             continue
         if content.startswith('[ForgeCode stored a large tool result]'):
+            continue
+        if len(content) > 5500:
+            if artifact_dir is None:
+                continue  # Never discard content without a recoverable reference.
+            digest = hashlib.sha256(content.encode('utf-8')).hexdigest()
+            artifact_dir.mkdir(parents=True, exist_ok=True)
+            (artifact_dir / f'{digest}.txt').write_text(content, encoding='utf-8')
+            block['content'] = (
+                '[ForgeCode stored a large tool result]\n'
+                f'sha256: {digest}\ncharacters: {len(content)}\n'
+                'Read complete content with read_context_artifact using this sha256.\n'
+                + tool_result_preview(content)
+            )
+            shortened += 1
             continue
         # Keep a bounded head and tail rather than erasing diagnostics.  Large
         # results already have an artifact reference from

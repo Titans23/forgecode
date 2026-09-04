@@ -108,9 +108,19 @@ class TurnRunner:
         await c.session_start(source='stream')
         if self.journal is not None:
             self.journal.record_turn_started(prompt, c.task_manager.active)
+        c._persisted_event_keys.clear()
         decision = None
         router = c.intent_router
-        if router is not None:
+        if c.task_relation is not None:
+            from forge.runtime.router import TurnDecision
+            continuing = c.task_relation == 'active' and c.task_manager.active is not None
+            decision = TurnDecision(
+                intent='continue_task' if continuing else 'new_task',
+                task_relation='active' if continuing else 'new',
+                requires_workspace_change=False, confidence=1,
+                reason='Explicit task contract supplied by the caller.',
+            )
+        elif router is not None:
             original_client = getattr(router, 'client', None)
             if original_client is not None:
                 router.client = BudgetedModelClient(original_client, self.state, 'routing')
@@ -138,6 +148,7 @@ class TurnRunner:
                 self.owns_task = True
                 if decision.task_relation == 'active' and previous is not None:
                     c.task_manager.continue_active(prompt, requires_change=previous.requires_change)
+                    self.state.goal = previous.goal
                 else:
                     c.task_manager.start(prompt, requires_change=False)
         if c.mcp_manager is not None:

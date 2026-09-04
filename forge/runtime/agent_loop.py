@@ -105,9 +105,13 @@ class Conversation:
         skill_manager: SkillManager | None = None,
         intent_router: IntentRouter | None = None,
         include_task_tools: bool = True,
+        task_relation: str | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
+        if task_relation not in {None, 'new', 'active'}:
+            raise ValueError('Explicit task_relation must be new or active.')
+        self.task_relation = task_relation
         if max_iterations is not None and max_iterations < 1:
             raise ValueError('max_iterations must be positive')
         if max_protocol_recoveries < 0:
@@ -154,7 +158,7 @@ class Conversation:
         self._hooks_started = False
         self._pending_hook_context: list[str] = []
         self._persisted_event_keys: set[tuple[str, str]] = set()
-        self._persisted_turn_events: set[int] = set()
+        self._persisted_turn_events: set[str] = set()
         self._kernel_owns_events = False
         self.registry = registry
         self.max_iterations = max_iterations
@@ -584,7 +588,7 @@ class Conversation:
                 ),
             )
         elif isinstance(event, TurnCompleted):
-            event_key = id(event)
+            event_key = event.event_id
             if event_key in self._persisted_turn_events:
                 return
             self._persisted_turn_events.add(event_key)

@@ -89,6 +89,7 @@ async def run_turn(
         continue_session=resume,
         task_policy=BENCHMARK_TASK_POLICY,
         execution_profile=ExecutionProfile.sandbox(),
+        task_relation='active' if resume else 'new',
     )
     conversation.max_iterations = max_model_calls
     conversation.max_tool_calls = max_tool_calls

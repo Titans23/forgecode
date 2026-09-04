@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Literal
+from uuid import uuid4
 
 from forge.tools.base import ToolResult
 
@@ -237,6 +238,7 @@ class TurnCompleted:
     '''Final validated result for one streamed conversation turn.'''
 
     result: TurnResult
+    event_id: str = field(default_factory=lambda: uuid4().hex, compare=False)
 
 
 type ModelStreamEvent = (

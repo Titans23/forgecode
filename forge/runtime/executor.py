@@ -193,6 +193,7 @@ class ToolExecutor:
             self._read_cache.clear()
         if self.workspace_tracker is not None and effect == 'workspace_write':
             self.workspace_tracker.watch_paths(checkpoint_paths)
+        execution_started = False
         try:
             if checkpoint_id is not None and checkpoint_paths:
                 if self.checkpoint_store is None:
@@ -202,6 +203,7 @@ class ToolExecutor:
                     checkpoint_paths,
                 )
             self._journal_started(effective_call)
+            execution_started = True
             result = (
                 await operation(effective_call)
                 if operation is not None
@@ -231,13 +233,15 @@ class ToolExecutor:
         except CheckpointError as error:
             result = ToolResult.fail(
                 'checkpoint_failed',
-                'Workspace execution was refused because its checkpoint could not be created.',
+                ('The operation ran but its checkpoint result could not be recorded. Inspect current files before any retry.'
+                 if execution_started else
+                 'Workspace execution was refused because its checkpoint could not be created.'),
                 content=str(error),
             )
             return self._outcome(
                 call,
                 result,
-                'rejected',
+                'indeterminate' if execution_started else 'rejected',
                 started,
                 arguments,
                 revision,

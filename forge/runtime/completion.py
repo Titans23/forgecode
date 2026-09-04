@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
+from hashlib import sha256
 import os
 import re
 
@@ -29,9 +30,12 @@ class TaskPolicy:
     require_task_verification: bool = False
     require_positive_verification: bool = False
     require_verification_coverage: bool = False
+    require_diff_check: bool = False
     allowed_paths: tuple[str, ...] = ()
     required_paths: tuple[str, ...] = ()
     required_verification_commands: tuple[str, ...] = ()
+    required_file_hashes: tuple[tuple[str, str], ...] = ()
+    required_coverage: tuple[str, ...] = ()
     forbidden_verification_output_patterns: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = (
         'tests/hidden/**',
@@ -71,6 +75,7 @@ class CompletionGate:
             or self.policy.require_task_verification
             or self.policy.require_verification_coverage
             or bool(self.policy.required_verification_commands)
+            or bool(self.policy.required_coverage)
             or require_verification
         )
         code_task = (
@@ -81,6 +86,7 @@ class CompletionGate:
             or verification is not None
             or bool(verification_history)
             or bool(self.policy.required_paths)
+            or bool(self.policy.required_file_hashes)
         )
         if not code_task:
             return CompletionDecision(allowed=True)
@@ -97,6 +103,12 @@ class CompletionGate:
 
         reasons.extend(self._path_violations(changed_paths))
         reasons.extend(self._required_path_reasons())
+        for raw_path, expected in self.policy.required_file_hashes:
+            candidate = (self.root / raw_path).resolve(strict=False)
+            if not candidate.is_relative_to(self.root):
+                reasons.append(f'Contract input is outside workspace: {raw_path}.')
+            elif not candidate.is_file() or sha256(candidate.read_bytes()).hexdigest() != expected:
+                reasons.append(f'Caller-required input content was changed or removed: {raw_path}.')
 
         evidence_history = list(verification_history)
         if verification is not None and (
@@ -123,6 +135,11 @@ class CompletionGate:
         )
 
         if verification_required:
+            declared = {coverage for item in successful_evidence for coverage in item.coverage
+                        if verification_quality(item.command) != 'unknown'}
+            for requirement in self.policy.required_coverage:
+                if requirement not in declared:
+                    reasons.append(f'Caller-required coverage has no current successful evidence: {requirement}.')
             if not successful_evidence:
                 reasons.append(
                     'The current code has not been verified with the verify tool.'
@@ -225,7 +242,7 @@ class CompletionGate:
                 f'current workspace revision: {rendered}.'
             )
 
-        if changed_paths and tracker.git_available:
+        if self.policy.require_diff_check and changed_paths and tracker.git_available:
             reasons.extend(
                 await self._diff_check_reasons(changed_paths)
             )

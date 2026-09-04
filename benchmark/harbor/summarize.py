@@ -139,6 +139,8 @@ def summarize_run(run_dir: Path) -> RunSummary:
             infrastructure_failure_types[exception_type] += 1
             if _is_agent_timeout(exception_info):
                 agent_timeouts += 1
+            elif 'verifier' in exception_type.casefold():
+                verifier_environment_failures += 1
             elif _is_model_service_failure(exception_info):
                 model_service_failures += 1
             else:
@@ -227,10 +229,12 @@ def summarize_run(run_dir: Path) -> RunSummary:
             first_passed = final_reward == 1
             pass_at_1 += int(first_passed)
 
+        observed_timeout = _missing_result_type(result_path.parent) == 'AgentTimeout'
         for log in sorted((result_path.parent / 'agent').glob('forgecode*.txt')):
             payload = _last_forgecode_result(log)
             if payload is None:
                 continue
+            observed_timeout = observed_timeout or payload.get('stop_reason') == 'time_budget_exhausted'
             statuses[str(payload.get('status') or 'unknown')] += 1
             model_calls += _safe_int(payload.get('model_calls'))
             tool_calls += _safe_int(payload.get('tool_calls'))
@@ -242,6 +246,10 @@ def summarize_run(run_dir: Path) -> RunSummary:
                 )
                 input_tokens += _safe_int(usage.get('cache_read_input_tokens'))
                 output_tokens += _safe_int(usage.get('output_tokens'))
+        if observed_timeout and not _is_agent_timeout(exception_info):
+            agent_timeouts += 1
+            if exception_info is None and verifier_environment_type is None and isinstance(final_reward, int | float) and final_reward != 1:
+                agent_failures -= 1
 
     return RunSummary(
         total_trials=len(trial_dirs),
@@ -291,7 +299,7 @@ def _exception_type(exception_info: object) -> str:
 
 def _is_agent_timeout(exception_info: object) -> bool:
     exception_type = _exception_type(exception_info).casefold()
-    return 'timeout' in exception_type
+    return 'agent' in exception_type and 'timeout' in exception_type
 
 
 def _is_model_service_failure(exception_info: object) -> bool:

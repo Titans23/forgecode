@@ -60,6 +60,7 @@ class VerifyTool(Tool[VerifyInput]):
         result = await run_process(
             arguments.command, cwd=cwd, timeout_seconds=arguments.timeout_seconds,
             input_text=arguments.stdin, shell=True,
+            artifact_root=self.root,
         )
         inspection = non_verification_command_reason(arguments.command)
         metadata = {

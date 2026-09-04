@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
@@ -19,6 +19,7 @@ from forge.context.compactor import (
     persist_large_tool_results,
     shorten_old_tool_results,
     summarize_history,
+    atomic_message_units,
 )
 from forge.context.repository import MemoryRecord, RepositoryContext
 from forge.runtime.state import TokenUsage
@@ -235,7 +236,9 @@ class ContextManager:
         )
         prepared = self.last_compaction.messages
         if self.durable_summary is not None and not any(
-            is_durable_anchor([message]) for message in prepared
+            isinstance(message.get('content'), str)
+            and message['content'].startswith('[ForgeCode structured task summary]')
+            for message in prepared
         ):
             summary_text = json.dumps(
                 self.durable_summary.as_dict(),
@@ -356,8 +359,10 @@ class ContextManager:
             self.root / '.forge' / 'context' / 'tool-results',
             self.config,
         )
+        # Summarize the diagnostics before shortening old results. The original
+        # user wording is a separate durable anchor, not a model reconstruction.
         summary_messages = deepcopy(restoration_messages)
-        shorten_old_tool_results(summary_messages, self.config)
+        instructions = original_user_instructions(messages)
         try:
             result = await summarize_history(
                 client,
@@ -381,7 +386,32 @@ class ContextManager:
                 transcript_path=transcript_path,
                 reason=str(error),
             )
-        messages[:] = result.messages
+        compacted = result.messages
+        if instructions:
+            compacted.insert(1, {
+                'role': 'user',
+                'content': '[ForgeCode original user instructions]\n'
+                + json.dumps(instructions, ensure_ascii=False),
+            })
+        if context_window_tokens is not None:
+            envelope = (before_stats.system_characters + before_stats.repository_characters
+                        + before_stats.tool_schema_characters)
+            target = max(0, int((context_window_tokens - reserved_output_tokens)
+                                * self.config.target_compact_ratio * 4) - envelope)
+            # Archive recent large outputs first, then drop only whole summarized
+            # tool/result units. Never trim the original instructions or summary.
+            persist_large_tool_results(
+                compacted, self.root / '.forge' / 'context' / 'tool-results',
+                replace(self.config, tool_result_inline_limit=min(5500, self.config.tool_result_inline_limit)),
+            )
+            units = atomic_message_units(compacted)
+            while measure_messages([m for u in units for m in u])[0] > target:
+                index = next((i for i, unit in enumerate(units) if not is_durable_anchor(unit)), None)
+                if index is None:
+                    break  # Explicit constraints alone may exceed the soft target.
+                units.pop(index)
+            compacted = [message for unit in units for message in unit]
+        messages[:] = compacted
         self.durable_summary = result.summary
         self.summary_failures = 0
         after = context_stats(messages)
@@ -424,7 +454,7 @@ class ContextManager:
         except ValueError as error:
             raise ValueError('Artifact path is outside the context store.') from error
         try:
-            content = path.read_text(encoding='utf-8')
+            content = path.read_text(encoding='utf-8', errors='replace')
         except OSError as error:
             raise FileNotFoundError(f'Unknown tool-result artifact: {artifact_id}') from error
         if offset is not None:
@@ -515,6 +545,26 @@ class ContextManager:
         path = directory / f'{digest}.jsonl'
         path.write_text(serialized + '\n', encoding='utf-8')
         return path.as_posix()
+
+
+def original_user_instructions(messages: list[dict[str, Any]]) -> list[str]:
+    '''Preserve exact user wording across repeated model summaries and resumes.'''
+    collected: list[str] = []
+    prefix = '[ForgeCode original user instructions]\n'
+    for message in messages:
+        content = message.get('content')
+        if message.get('role') != 'user' or not isinstance(content, str):
+            continue
+        if content.startswith(prefix):
+            try:
+                prior = json.loads(content[len(prefix):])
+                if isinstance(prior, list):
+                    collected.extend(item for item in prior if isinstance(item, str))
+            except json.JSONDecodeError:
+                collected.append(content)
+        elif not content.startswith(('[ForgeCode ', '[Runtime feedback]')):
+            collected.append(content)
+    return list(dict.fromkeys(collected))
 
 
 @dataclass(frozen=True, slots=True)

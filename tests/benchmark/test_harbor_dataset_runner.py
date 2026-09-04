@@ -158,3 +158,21 @@ def test_command_passes_frozen_source_to_every_harbor_trial(tmp_path: Path) -> N
         model='probe', base_url='http://example.test', source_dir=tmp_path / 'frozen',
     )
     assert f'source_dir={(tmp_path / "frozen").resolve()}' in command
+
+
+def test_summary_distinguishes_kernel_deadline_and_verifier_timeout(tmp_path: Path):
+    for name, exception in [('kernel', None), ('verifier', {'exception_type': 'VerifierTimeoutError'})]:
+        trial = tmp_path / name
+        (trial / 'agent').mkdir(parents=True)
+        (trial / 'result.json').write_text(json.dumps({
+            'exception_info': exception, 'verifier_result': {'rewards': {'reward': 0}},
+        }), encoding='utf-8')
+    (tmp_path / 'kernel/agent/forgecode.txt').write_text(
+        'FORGECODE_BENCHMARK_RESULT=' + json.dumps({'status': 'failed', 'stop_reason': 'time_budget_exhausted'}),
+        encoding='utf-8',
+    )
+    summary = summarize_run(tmp_path)
+    assert summary.agent_timeouts == 1
+    assert summary.verifier_environment_failures == 1
+    assert summary.agent_failures == 0
+    assert summary.raw_rewards == {'kernel': 0.0, 'verifier': 0.0}
