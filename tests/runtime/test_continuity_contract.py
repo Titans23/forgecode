@@ -107,8 +107,10 @@ def test_acceptance_map_quotes_user_and_never_grants_write_scope(tmp_path: Path)
     criterion = {'source_quote': 'Return one integer.', 'condition': 'scalar not list',
                  'check': 'compare known fixture result and output type'}
     task = manager.plan(['implement', 'test'], acceptance_criteria=[criterion], scope_hints=['src/**'])
-    assert task.acceptance_criteria == (criterion,)
-    assert ActiveTask.from_dict(task.as_dict()).acceptance_criteria == (criterion,)
+    assert all(task.acceptance_criteria[0][key] == value for key, value in criterion.items())
+    assert task.acceptance_criteria[0]['id'].startswith('req-')
+    assert task.acceptance_criteria[0]['origin'] == 'model_proposal'
+    assert ActiveTask.from_dict(task.as_dict()).acceptance_criteria == task.acceptance_criteria
     assert 'not a hard write boundary' in manager.system_suffix()
     assert manager.outside_scope(('other/file.txt',)) == ()
     with pytest.raises(ValueError, match='original user goal'):

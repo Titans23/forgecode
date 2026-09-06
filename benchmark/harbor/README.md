@@ -30,7 +30,7 @@ set used for ForgeCode kernel comparisons: `break-filter-js-from-html`,
 `build-pov-ray`, `circuit-fibsqrt`, `compile-compcert`,
 `distribution-search`, `make-mips-interpreter`, `overfull-hbox`,
 `path-tracing`, `protein-assembly`, and `video-processing`. The default is
-concurrency 6, Harbor retry 3, model `gpt-5.6-luna`, context window 128000,
+concurrency 10, Harbor retry 3, model `gpt-5.6-luna`, context window 128000,
 maximum output 16384, 120 model calls, 240 tool calls, 1800 seconds per task,
 setup multiplier 12, and 8 installation retries with a 30-second interval.
 The cache defaults to `benchmark/.cache/harbor` on the same drive as this

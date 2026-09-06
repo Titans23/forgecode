@@ -54,7 +54,7 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
     assert 'FORGECODE_BENCHMARK_RESULT' not in command
     assert '/logs/agent/forgecode-repair.txt' in command
     assert '/logs/agent/forgecode-status.json' in command
-    assert 'export FORGE_DATA_DIR=/tmp/forgecode-harbor' in command
+    assert 'export FORGE_DATA_DIR=/logs/agent/forgecode-state' in command
     assert '-exec cp {} /logs/agent/' in command
     assert 'git commit --quiet -m "Harbor evaluation baseline"' not in command
 
@@ -322,7 +322,7 @@ def test_summary_ignores_reward_attached_to_infrastructure_error(
     assert summary.pass_at_2 == 0
 
 
-def test_summary_marks_silent_missing_result_as_infrastructure_failure(
+def test_summary_marks_observed_deadline_without_result_as_agent_timeout(
     tmp_path: Path,
 ) -> None:
     trial = tmp_path / 'build-pov-ray__trial'
@@ -336,8 +336,8 @@ def test_summary_marks_silent_missing_result_as_infrastructure_failure(
 
     assert summary.total_trials == 1
     assert summary.scored_trials == 0
-    assert summary.infrastructure_failures == 1
-    assert summary.infrastructure_failure_types == {'AgentTimeout': 1}
+    assert summary.infrastructure_failures == 0
+    assert summary.infrastructure_failure_types == {}
     assert summary.missing_results == ('build-pov-ray__trial',)
     assert summary.agent_timeouts == 1
     assert summary.agent_failures == 0

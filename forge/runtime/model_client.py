@@ -309,6 +309,9 @@ class AnthropicModelClient:
         '''Perform one provider request without retry policy.'''
         current_usage: TokenUsage | None = None
         semantic_output = False
+        text_blocks: dict[int, str] = {}
+        completed_blocks: dict[int, ToolCall] = {}
+        tool_ids: set[str] = set()
         pending_tool_calls: dict[int, _PendingToolCall] = {}
         protocol_error: ModelProtocolError | None = None
         allowed_tool_names = {
@@ -323,6 +326,7 @@ class AnthropicModelClient:
                 ):
                     if event.delta.text:
                         semantic_output = True
+                    text_blocks[event.index] = text_blocks.get(event.index, '') + event.delta.text
                     yield ModelTextDelta(
                         text=event.delta.text,
                         index=event.index,
@@ -332,6 +336,11 @@ class AnthropicModelClient:
                     and event.content_block.type == 'tool_use'
                 ):
                     block = event.content_block
+                    if not block.id or block.id in tool_ids:
+                        raise ModelProtocolError('Missing or duplicate tool ID.', reason='conflicting_model_content')
+                    tool_ids.add(block.id)
+                    if event.index in pending_tool_calls or event.index in completed_blocks or event.index in text_blocks:
+                        raise ModelProtocolError('Duplicate content block index.', reason='conflicting_model_content')
                     available = block.name in allowed_tool_names
                     pending_tool_calls[event.index] = _PendingToolCall(
                         id=block.id,
@@ -345,12 +354,9 @@ class AnthropicModelClient:
                             reason='unavailable_tool',
                             tool_name=block.name,
                         )
-                    else:
-                        yield ModelToolCallStarted(
-                            index=event.index,
-                            id=block.id,
-                            name=block.name,
-                        )
+                    # Even an unavailable tool is partial semantic output:
+                    # it must close the transparent retry boundary.
+                    yield ModelToolCallStarted(index=event.index, id=block.id, name=block.name)
                 elif (
                     event.type == 'content_block_delta'
                     and event.delta.type == 'input_json_delta'
@@ -362,11 +368,7 @@ class AnthropicModelClient:
                             f'at content block {event.index}.'
                         )
                     pending.json_parts.append(event.delta.partial_json)
-                    if pending.available:
-                        yield ModelToolCallArgumentsDelta(
-                            index=event.index,
-                            partial_json=event.delta.partial_json,
-                        )
+                    yield ModelToolCallArgumentsDelta(index=event.index, partial_json=event.delta.partial_json)
                 elif (
                     event.type == 'content_block_stop'
                     and event.index in pending_tool_calls
@@ -383,6 +385,7 @@ class AnthropicModelClient:
                         protocol_error = protocol_error or error
                     else:
                         semantic_output = True
+                        completed_blocks[event.index] = ToolCall(event.index, pending.id, pending.name, arguments)
                         yield ModelToolCallCompleted(
                             tool_call=ToolCall(
                                 index=event.index,
@@ -407,6 +410,9 @@ class AnthropicModelClient:
             final_message = await stream.get_final_message()
 
         stop_reason = getattr(final_message, 'stop_reason', None)
+        final_usage = merge_usage(final_message.usage, current_usage)
+        if final_usage != current_usage:
+            yield ModelUsageUpdate(usage=final_usage)
         if stop_reason == 'max_tokens':
             names = tuple(
                 pending.name for pending in pending_tool_calls.values()
@@ -426,18 +432,35 @@ class AnthropicModelClient:
                 f'Tool calls did not finish at content blocks: {indexes}.',
                 reason='incomplete_tool_call',
             )
+        if semantic_output and not stop_reason:
+            raise ModelProtocolError('Stream content has no response termination reason.', reason='stream_termination_missing')
 
-        if not semantic_output:
-            async for fallback_event in final_content_events(
-                final_message,
-                allowed_tool_names,
-            ):
-                semantic_output = True
-                yield fallback_event
-
-        final_usage = merge_usage(final_message.usage, current_usage)
-        if final_usage != current_usage:
-            yield ModelUsageUpdate(usage=final_usage)
+        # Reconcile each block, not the response-wide presence of any text.
+        # Pending blocks above are never guessed complete from an SDK snapshot.
+        final_content = getattr(final_message, 'content', None)
+        if isinstance(final_content, list):
+            for index, block in enumerate(final_content):
+                block_type = getattr(block, 'type', None)
+                if index in text_blocks:
+                    if block_type != 'text' or str(getattr(block, 'text', '')) != text_blocks[index]:
+                        raise ModelProtocolError('Final text conflicts with streamed content.', reason='conflicting_model_content')
+                    continue
+                if index in completed_blocks:
+                    call = completed_blocks[index]
+                    if (block_type != 'tool_use' or getattr(block, 'id', None) != call.id
+                            or getattr(block, 'name', None) != call.name or getattr(block, 'input', None) != call.arguments):
+                        raise ModelProtocolError('Final tool conflicts with streamed content.', reason='conflicting_model_content')
+                    continue
+                if not stop_reason:
+                    raise ModelProtocolError('Final content has no response termination reason.', reason='stream_termination_missing')
+                # Keep original indices and reject IDs already emitted elsewhere.
+                if block_type == 'tool_use' and any(c.id == getattr(block, 'id', None) for c in completed_blocks.values()):
+                    raise ModelProtocolError('Duplicate final tool ID.', reason='conflicting_model_content')
+                async for fallback_event in final_content_events(final_message, allowed_tool_names, only_index=index):
+                    semantic_output = True
+                    if isinstance(fallback_event, ModelToolCallCompleted):
+                        completed_blocks[index] = fallback_event.tool_call
+                    yield fallback_event
 
         if not semantic_output:
             raise ModelProtocolError(
@@ -451,12 +474,15 @@ class AnthropicModelClient:
 async def final_content_events(
     final_message: Any,
     allowed_tool_names: set[str],
+    *, only_index: int | None = None,
 ) -> AsyncIterator[ModelStreamEvent]:
     '''Recover semantic blocks when a compatible provider omits deltas.'''
     content = getattr(final_message, 'content', None)
     if not isinstance(content, list):
         return
     for index, block in enumerate(content):
+        if only_index is not None and index != only_index:
+            continue
         block_type = getattr(block, 'type', None)
         if block_type == 'text':
             text = str(getattr(block, 'text', ''))

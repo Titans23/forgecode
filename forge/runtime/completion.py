@@ -8,6 +8,7 @@ from pathlib import Path
 from hashlib import sha256
 import os
 import re
+import json
 
 from forge.runtime.state import VerificationEvidence
 from forge.runtime.verification import (
@@ -30,6 +31,7 @@ class TaskPolicy:
     require_task_verification: bool = False
     require_positive_verification: bool = False
     require_verification_coverage: bool = False
+    require_acceptance_reconciliation: bool = False
     require_diff_check: bool = False
     allowed_paths: tuple[str, ...] = ()
     required_paths: tuple[str, ...] = ()
@@ -68,6 +70,7 @@ class CompletionGate:
         verification_history: tuple[VerificationEvidence, ...] = (),
         mutation_attempted: bool,
         require_verification: bool = False,
+        acceptance_criteria: tuple[dict[str, str], ...] = (),
     ) -> CompletionDecision:
         changed_paths = tracker.changed_paths
         verification_required = (
@@ -77,6 +80,7 @@ class CompletionGate:
             or bool(self.policy.required_verification_commands)
             or bool(self.policy.required_coverage)
             or require_verification
+            or self.policy.require_acceptance_reconciliation
         )
         code_task = (
             mutation_attempted
@@ -133,6 +137,32 @@ class CompletionGate:
         unresolved_failures = unresolved_verification_failures(
             current_evidence
         )
+        # An expired result is not current proof, but an explicitly linked
+        # acceptance failure remains an obligation. Exploratory failures are
+        # not promoted to permanent requirements.
+        current_keys = {verification_obligation_key(item) for item in successful_evidence}
+        stale_obligations = tuple(item for item in unresolved_verification_failures(tuple(evidence_history))
+            if item.requirement_ids and item not in current_evidence
+            and verification_obligation_key(item) not in current_keys)
+        for item in stale_obligations:
+            reasons.append('Acceptance check is stale and must be revalidated: ' + ', '.join(item.requirement_ids)
+                           + f'. Verification ID: {item.verification_id or "legacy"}. '
+                           'For a corrected checker, use supersedes with revision_reason and preserve all output assertions.')
+        if self.policy.require_acceptance_reconciliation:
+            if not acceptance_criteria:
+                reasons.append('The caller requires acceptance reconciliation, but no source-anchored criteria were registered. '
+                               'Provide finish_task.acceptance_criteria quoting the original requirements (a plan is optional), '
+                               'then bind executed output assertions to the returned req IDs. Use failed for an unsuccessful attempt.')
+            for criterion in acceptance_criteria:
+                requirement_id = criterion.get('id', '')
+                if not requirement_id or not any(
+                    requirement_id in item.asserted_requirement_ids and item.check_signature
+                    and is_positive_verification_command(item.command)
+                    for item in successful_evidence
+                ):
+                    reasons.append(f'Acceptance requirement {requirement_id or "legacy/unidentified"} has no current executed output assertion: '
+                                   + criterion.get('source_quote', '') + '. Bind output_checks.requirement_id and expected_source; '
+                                   'if unverified, report failed instead of completed.')
 
         if verification_required:
             declared = {coverage for item in successful_evidence for coverage in item.coverage
@@ -234,13 +264,15 @@ class CompletionGate:
                 )
         if unresolved_failures:
             rendered = ', '.join(
-                f'{item.command!r} (exit {item.exit_code}; '
-                f'{"; ".join(item.evidence_issues) or "process failed"})'
+                f'{item.command[:160]!r} (verification ID {item.verification_id or "legacy"}; exit {item.exit_code}; '
+                f'{("; ".join(item.evidence_issues) or "process failed")[:500]})'
                 for item in unresolved_failures
             )
             reasons.append(
                 'The latest verification failed and remains unresolved on the '
-                f'current workspace revision: {rendered}.'
+                f'current workspace revision: {rendered}. '
+                'To repair a checker, reference its verification ID in supersedes, explain revision_reason, '
+                'and preserve all prior output assertions; a weaker check cannot resolve it.'
             )
 
         if self.policy.require_diff_check and changed_paths and tracker.git_available:
@@ -393,6 +425,26 @@ def unresolved_verification_failures(
         key = verification_obligation_key(item)
         if item.success:
             unresolved.pop(key, None)
+            for old_key, old in tuple(unresolved.items()):
+                if checker_revision_covers(old, item):
+                    unresolved.pop(old_key)
         else:
             unresolved[key] = item
     return tuple(unresolved.values())
+
+
+def checker_revision_covers(old: VerificationEvidence, new: VerificationEvidence) -> bool:
+    '''Allow explicit checker repair, never implicit replacement by a weaker check.
+
+    Execution semantics remain a declared limitation: this verifies preservation
+    of observable assertion contracts, not equivalence of arbitrary programs.
+    '''
+    if not (new.success and old.verification_id and old.verification_id in new.supersedes
+            and new.revision_reason.strip() and old.cwd == new.cwd and old.output_checks):
+        return False
+    if not set(old.requirement_ids).issubset(new.asserted_requirement_ids):
+        return False
+    def contracts(checks):
+        return {json.dumps({k: c.get(k) for k in ('key', 'operator', 'expected', 'requirement_id', 'expected_source')},
+                           sort_keys=True) for c in checks}
+    return contracts(old.output_checks).issubset(contracts(new.output_checks))

@@ -293,7 +293,13 @@ def main(
     )
     env['PYTHONIOENCODING'] = 'utf-8'
     env['PYTHONUTF8'] = '1'
-    return subprocess.run(command, cwd=PROJECT_ROOT, env=env, check=False).returncode
+    from benchmark.harbor.controller import run_controller
+    return run_controller(command, cwd=PROJECT_ROOT, env=env, output_dir=args.output_dir,
+                          metadata={'source_snapshot': str(source_snapshot), 'concurrency': args.concurrency,
+                                    'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
+                                    'kernel_max_seconds': args.max_turn_seconds,
+                                    'outer_timeout': 'dataset agent timeout scaled by Harbor timeout_multiplier',
+                                    'timeout_multiplier': args.timeout_multiplier or 1.0})
 
 
 if __name__ == '__main__':

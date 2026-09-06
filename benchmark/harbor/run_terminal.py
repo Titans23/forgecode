@@ -35,7 +35,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for item in ('--task', task)
         )
     if '--concurrency' not in values:
-        values.extend(('--concurrency', '6'))
+        values.extend(('--concurrency', '10'))
     if '--max-retries' not in values:
         values.extend(('--max-retries', '3'))
     if '--model' not in values:

@@ -92,6 +92,45 @@ class FakeAnthropic:
         self.messages = FakeMessages()
 
 
+def test_mixed_stream_final_content_does_not_drop_tool_block():
+    sdk = FakeAnthropic()
+    sdk.messages.events = [SimpleNamespace(
+        type='content_block_delta', index=0,
+        delta=SimpleNamespace(type='text_delta', text='Inspecting.'),
+    )]
+    sdk.messages.final_message = SimpleNamespace(
+        usage=usage(input_tokens=10, output_tokens=4), stop_reason='tool_use',
+        content=[SimpleNamespace(type='text', text='Inspecting.'),
+                 SimpleNamespace(type='tool_use', id='mixed', name='read_file', input={'path': 'a'})],
+    )
+    events = collect_stream(AnthropicModelClient(model='test', client=sdk),
+                            messages=[{'role': 'user', 'content': 'read'}], tools=[{'name': 'read_file'}])
+    calls = [e.tool_call for e in events if isinstance(e, ModelToolCallCompleted)]
+    assert len(calls) == 1 and calls[0].id == 'mixed'
+    assert len([e for e in events if isinstance(e, ModelTextDelta)]) == 1
+
+
+def test_conflicting_final_text_is_not_silently_accepted():
+    sdk = FakeAnthropic()
+    sdk.messages.events = [SimpleNamespace(type='content_block_delta', index=0,
+        delta=SimpleNamespace(type='text_delta', text='original'))]
+    sdk.messages.final_message = SimpleNamespace(usage=usage(input_tokens=1, output_tokens=1),
+        stop_reason='end_turn', content=[SimpleNamespace(type='text', text='different')])
+    with pytest.raises(ModelProtocolError, match='conflict'):
+        collect_stream(AnthropicModelClient(model='test', client=sdk), messages=[])
+
+
+def test_streamed_text_without_termination_is_not_a_final_answer():
+    sdk = FakeAnthropic()
+    sdk.messages.events = [SimpleNamespace(type='content_block_delta', index=0,
+        delta=SimpleNamespace(type='text_delta', text='unfinished'))]
+    sdk.messages.final_message = SimpleNamespace(usage=usage(input_tokens=1, output_tokens=1),
+        stop_reason=None, content=[SimpleNamespace(type='text', text='unfinished')])
+    with pytest.raises(ModelProtocolError) as captured:
+        collect_stream(AnthropicModelClient(model='test', client=sdk), messages=[])
+    assert captured.value.reason == 'stream_termination_missing'
+
+
 def test_client_passes_explicit_config_to_anthropic_sdk(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -202,7 +241,7 @@ def test_stream_delegates_events_and_merges_usage() -> None:
         ),
     ]
     sdk.messages.final_message = SimpleNamespace(
-        usage=usage(input_tokens=100, output_tokens=2)
+        usage=usage(input_tokens=100, output_tokens=2), stop_reason='end_turn',
     )
     client = AnthropicModelClient(
         model='claude-test',
@@ -238,7 +277,7 @@ def test_stream_delegates_events_and_merges_usage() -> None:
         ModelUsageUpdate(
             usage=TokenUsage(input_tokens=100, output_tokens=2)
         ),
-        ModelResponseCompleted(stop_reason=None),
+        ModelResponseCompleted(stop_reason='end_turn'),
     ]
     assert sdk.messages.calls == [
         {
@@ -432,7 +471,7 @@ def test_stream_emits_multiple_completed_tool_calls() -> None:
         ),
     ]
     sdk.messages.final_message = SimpleNamespace(
-        usage=usage(input_tokens=80, output_tokens=24)
+        usage=usage(input_tokens=80, output_tokens=24), stop_reason='tool_use',
     )
     client = AnthropicModelClient(model='claude-test', client=sdk)
 
@@ -497,7 +536,7 @@ def test_stream_emits_multiple_completed_tool_calls() -> None:
         ModelUsageUpdate(
             usage=TokenUsage(input_tokens=80, output_tokens=24)
         ),
-        ModelResponseCompleted(stop_reason=None),
+        ModelResponseCompleted(stop_reason='tool_use'),
     ]
 
 

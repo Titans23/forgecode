@@ -343,3 +343,14 @@ def test_observed_workspace_paths_are_limited_to_task_scope(
 def test_root_scope_hint_matches_every_repository_path() -> None:
     assert task_path_matches('solve_distribution.py', '.')
     assert task_path_matches('src/main.py', './')
+def test_plan_replacement_cannot_drop_source_anchored_requirements(tmp_path):
+    from forge.tasks.manager import TaskManager
+    manager = TaskManager(tmp_path)
+    manager.start('Preserve input. Produce output.', requires_change=False)
+    first = manager.plan(['inspect', 'implement'], acceptance_criteria=[{
+        'source_quote': 'Preserve input.', 'condition': 'input bytes unchanged', 'check': 'compare hashes',
+    }])
+    requirement_id = first.acceptance_criteria[0]['id']
+    second = manager.plan(['inspect again', 'implement'], replace_existing=True)
+    assert second.acceptance_criteria[0]['id'] == requirement_id
+    assert second.acceptance_criteria[0]['source_quote'] == 'Preserve input.'

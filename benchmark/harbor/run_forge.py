@@ -32,6 +32,7 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
     require_task_verification=True,
     require_positive_verification=True,
     require_verification_coverage=True,
+    require_acceptance_reconciliation=True,
 )
 MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='

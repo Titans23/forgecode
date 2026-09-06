@@ -111,6 +111,36 @@ class TaskManager:
             self.store.save(self.active)
         return self.active
 
+    def _merge_acceptance(self, criteria: list[dict[str, str]]) -> tuple[dict[str, str], ...]:
+        from forge.tasks.state import anchored_criterion
+        task = self._require_active()
+        for criterion in criteria:
+            quote = criterion.get('source_quote', '').strip()
+            if not quote or not any(quote in source for source in (task.goal, *task.user_directives)):
+                raise ValueError('Acceptance source_quote must quote the original user goal exactly; assumptions are not user requirements.')
+        anchored = {item['id']: item for item in task.acceptance_criteria}
+        sources = {(item['source_quote'].strip(), item.get('clause_id', '')) for item in anchored.values()}
+        for criterion in criteria:
+            source = (criterion['source_quote'].strip(), criterion.get('clause_id', ''))
+            if source in sources:
+                continue  # Rephrasing never replaces or weakens the original obligation.
+            item = anchored_criterion(criterion, task.id)
+            anchored[item['id']] = item
+            sources.add(source)
+        if len(anchored) > 64:
+            raise ValueError('At most 64 distinct acceptance interpretations may be retained per task.')
+        return tuple(anchored.values())
+
+    def register_acceptance(self, criteria: list[dict[str, str]]) -> ActiveTask:
+        '''Record source-anchored interpretations without requiring a plan.'''
+        retained = self._merge_acceptance(criteria)
+        self.active = replace(self._require_active(), acceptance_criteria=retained)
+        if self.active.planned:
+            self.store.save(self.active)
+        # Unplanned tasks are persisted by the session journal, like other
+        # task state; registering requirements must not manufacture a plan.
+        return self.active
+
     def plan(
         self,
         steps: list[str],
@@ -121,11 +151,9 @@ class TaskManager:
         acceptance_criteria: list[dict[str, str]] | None = None,
     ) -> ActiveTask:
         task = self._require_active()
-        criteria = acceptance_criteria or []
-        for criterion in criteria:
-            quote = criterion.get('source_quote', '').strip()
-            if not quote or not any(quote in source for source in (task.goal, *task.user_directives)):
-                raise ValueError('Acceptance source_quote must quote the original user goal exactly; assumptions are not user requirements.')
+        # Replanning changes steps, not the existence of previously identified
+        # requirements. Preserve original interpretations for explicit review.
+        anchored = self._merge_acceptance(acceptance_criteria or [])
         if task.planned and not replace_existing:
             raise ValueError(
                 'The current task already has a plan. Update its steps instead.'
@@ -166,7 +194,7 @@ class TaskManager:
             scope_hints=resolved_scope_hints,
             scope_source=resolved_scope_source,
             blocked_reasons=(),
-            acceptance_criteria=tuple(criteria),
+            acceptance_criteria=anchored,
         )
         self.store.save(self.active)
         return self.active
@@ -451,7 +479,7 @@ class TaskManager:
             lines.extend(['', 'Acceptance map (model interpretation, not permission or proof):'])
             for item in task.acceptance_criteria:
                 lines.extend([
-                    f'- User wording: {item.get("source_quote", "")}',
+                    f'- {item.get("id", "legacy")}: User wording: {item.get("source_quote", "")}',
                     f'  Observable condition: {item.get("condition", "")}',
                     f'  Independent check: {item.get("check", "")}',
                 ])

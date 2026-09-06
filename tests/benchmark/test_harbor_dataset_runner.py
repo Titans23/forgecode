@@ -67,7 +67,7 @@ def test_terminal_entrypoint_uses_full_fixed_task_ids_and_concurrency(
     ]
     assert task_values == list(terminal_runner.FIXED_TERMINAL_TASKS)
     assert '--concurrency' in received
-    assert received[received.index('--concurrency') + 1] == '6'
+    assert received[received.index('--concurrency') + 1] == '10'
     assert received[received.index('--max-retries') + 1] == '3'
     assert received[received.index('--model') + 1] == 'gpt-5.6-luna'
     assert container_base_url('https://api.example/v1') == (

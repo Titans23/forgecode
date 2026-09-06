@@ -1348,7 +1348,7 @@ def test_agent_loop_has_bounded_calls_but_no_input_token_limit_by_default() -> N
     assert conversation.max_turn_input_tokens is None
 
 
-def test_invalid_tool_json_is_retried_without_executing_partial_calls(
+def test_invalid_tool_json_after_partial_response_stops_without_replay(
     tmp_path: Path,
 ) -> None:
     partial_call = ToolCall(
@@ -1378,12 +1378,12 @@ def test_invalid_tool_json_is_retried_without_executing_partial_calls(
     events = collect_turn(conversation, 'Build a page')
 
     assert tool.calls == []
-    assert events[-1].result.text == 'Recovered safely.'
-    assert events[-1].result.usage.input_tokens == 22
-    feedback = client.calls[1]['messages'][-1]['content']
-    assert 'No tool was executed' in feedback
-    assert 'Available tools: read_file' in feedback
-    assert 'Recovery attempt 1 of 2' in feedback
+    assert len(client.calls) == 1
+    assert events[-1].result.stop_reason == 'invalid_tool_arguments'
+    assert events[-1].result.usage.input_tokens == 10
+    results = conversation.messages[-1]['content']
+    assert results[0]['tool_use_id'] == 'toolu_partial'
+    assert 'incomplete_model_response' in results[0]['content']
 
 
 def test_max_tokens_truncation_retries_with_small_patch_feedback() -> None:

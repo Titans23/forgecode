@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from forge.tools.base import Tool, ToolInput, ToolResult
+from forge.tools.task import AcceptanceCriterion
 
 
 TaskKind = Literal['answer', 'inspection', 'change']
@@ -19,6 +20,9 @@ class FinishTaskInput(ToolInput):
     status: FinishStatus
     summary: str = Field(min_length=1, max_length=20_000)
     blocked_reasons: list[str] = Field(default_factory=list, max_length=20)
+    acceptance_criteria: list[AcceptanceCriterion] = Field(default_factory=list, max_length=20,
+        description='For an explicit reconciliation contract, register original requirements without creating a plan. '
+        'Used only if no criteria exist; later completion is read-only. Use task_plan to add distinct clauses; omit for failed.')
 
     @model_validator(mode='after')
     def validate_status(self) -> FinishTaskInput:
@@ -32,9 +36,7 @@ class FinishTaskInput(ToolInput):
                 'blocked_reasons must be empty when status is completed'
             )
         if self.status == 'failed' and not self.blocked_reasons:
-            raise ValueError(
-                'blocked_reasons must explain the failure when status is failed'
-            )
+            self.blocked_reasons = [self.summary]
         return self
 
 
@@ -46,7 +48,9 @@ class FinishTaskTool(Tool[FinishTaskInput]):
         'Choose task_kind=answer for a direct response, inspection after '
         'collecting repository evidence, or change after creating a real Diff '
         'and verifying the latest workspace revision. Use status=blocked with '
-        'specific blocked_reasons when the goal cannot be completed. The '
+        'specific blocked_reasons for an observed external dependency. Use '
+        'status=failed for unmet requirements or an unsuccessful attempt; failed '
+        'does not require a successful verification or a completed artifact. The '
         'runtime validates the declaration against objective evidence.'
     )
     input_model = FinishTaskInput
@@ -63,5 +67,6 @@ class FinishTaskTool(Tool[FinishTaskInput]):
                 'status': arguments.status,
                 'summary': arguments.summary,
                 'blocked_reasons': arguments.blocked_reasons,
+                'acceptance_criteria': [item.model_dump() for item in arguments.acceptance_criteria],
             },
         )

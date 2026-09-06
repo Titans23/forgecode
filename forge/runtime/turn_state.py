@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any, Literal
+from collections.abc import Callable
 
 from forge.runtime.state import TokenUsage, ToolCall, VerificationEvidence
 from forge.tools.base import ToolResult
@@ -106,6 +107,9 @@ class TurnState:
     timings: dict[str, float] = field(default_factory=dict)
     request_counts: dict[str, int] = field(default_factory=dict)
     protocol_errors: int = 0
+    response_errors: int = 0
+    tool_protocol_errors: int = 0
+    request_event_sink: Callable[[str, dict[str, Any]], None] | None = None
     failure_counts: dict[str, int] = field(default_factory=dict)
     feedback_count: int = 0
     execution_records: list[ExecutionRecord] = field(default_factory=list)

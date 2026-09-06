@@ -4,7 +4,29 @@ import asyncio
 from pathlib import Path
 
 from forge.tools import create_default_registry
-from forge.tools.base import ToolResult
+from forge.tools.base import ToolResult, _compact_schema
+
+
+def test_compact_schema_preserves_title_properties_and_instance_data() -> None:
+    schema = {
+        'title': 'Input', 'type': 'object', 'required': ['title'],
+        'additionalProperties': False,
+        'properties': {
+            'title': {'title': 'Title', 'type': 'string', 'minLength': 1},
+            'data': {'anyOf': [{'title': 'Variant', 'type': 'object'}],
+                     'default': {'title': 'User value'},
+                     'examples': [{'title': 'Example value'}]},
+        },
+    }
+    compact = _compact_schema(schema)
+    assert 'title' not in compact
+    assert compact['required'] == ['title']
+    assert compact['additionalProperties'] is False
+    assert compact['properties']['title'] == {'type': 'string', 'minLength': 1}
+    assert compact['properties']['data'] == {
+        'anyOf': [{'type': 'object'}], 'default': {'title': 'User value'},
+        'examples': [{'title': 'Example value'}],
+    }
 
 
 def run(coroutine: object) -> ToolResult:

@@ -4,6 +4,19 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
+from hashlib import sha256
+import json
+
+
+def anchored_criterion(criterion: dict[str, str], task_id: str) -> dict[str, str]:
+    '''Stable identity for a proposal, never an authorization grant.'''
+    value = {key: str(criterion.get(key, '')) for key in ('source_quote', 'condition', 'check')}
+    clause = str(criterion.get('clause_id', ''))
+    identity = json.dumps([task_id, value['source_quote'].strip(), clause], ensure_ascii=False)
+    # Preserve legacy IDs so already persisted evidence remains attributable.
+    return {**value, 'clause_id': clause,
+            'id': criterion.get('id') or 'req-' + sha256(identity.encode()).hexdigest()[:20],
+            'origin': 'model_proposal'}
 
 
 TaskStatus = Literal['in_progress', 'completed', 'blocked', 'stuck', 'failed']
@@ -91,7 +104,7 @@ class ActiveTask:
                 str(item) for item in data.get('blocked_reasons', [])
             ),
             acceptance_criteria=tuple(
-                {str(key): str(value) for key, value in item.items()}
+                anchored_criterion(item, str(data['id']))
                 for item in data.get('acceptance_criteria', []) if isinstance(item, dict)
             ),
             user_directives=tuple(str(item) for item in data.get('user_directives', [])),

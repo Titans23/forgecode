@@ -7,6 +7,7 @@ import json
 from hashlib import sha256
 from pathlib import Path
 import re
+from uuid import uuid4
 
 from pydantic import Field
 
@@ -18,6 +19,10 @@ from forge.tools.verification_checks import OutputCheck, dormant_python_tests, e
 
 
 class VerifyInput(ToolInput):
+    supersedes: list[str] = Field(default_factory=list, max_length=20, description='Prior verification IDs whose checker is repaired by this run; preserve every prior output assertion and cwd.')
+    revision_reason: str = Field(default='', max_length=2000, description='Explain checker correction and unchanged expectations when supersedes is used.')
+    requirement_ids: list[str] = Field(default_factory=list, max_length=20,
+        description='Stable req IDs this check attempts. A label alone does not establish coverage: bind executed output_checks to each ID and give expected_source.')
     output_checks: list[OutputCheck] = Field(
         default_factory=list, max_length=20,
         description='Optional deterministic assertions on the final stdout JSON object. '
@@ -74,6 +79,9 @@ class VerifyTool(Tool[VerifyInput]):
         dormant = dormant_python_tests(arguments.command, cwd, self.root)
         assertion_failures = evaluate_output_checks(result.stdout, arguments.output_checks)
         metadata = {
+            'verification_id': uuid4().hex,
+            'supersedes': arguments.supersedes,
+            'revision_reason': arguments.revision_reason,
             **process_metadata(result),
             'command': arguments.command,
             'cwd': display_path(self.root, cwd),
@@ -83,6 +91,11 @@ class VerifyTool(Tool[VerifyInput]):
             'verification_coverage': list(arguments.covers),
             'covers': arguments.covers,
             'limitations': arguments.limitations,
+            'requirement_ids': sorted(set(arguments.requirement_ids) | {
+                check.requirement_id for check in arguments.output_checks if check.requirement_id
+            }),
+            'asserted_requirement_ids': sorted({check.requirement_id for check in arguments.output_checks
+                if check.requirement_id and check.expected_source.strip()}),
             'verification': inspection is None and dormant is None,
             'inspection_reason': inspection,
             'stdin_characters': len(arguments.stdin or ''),

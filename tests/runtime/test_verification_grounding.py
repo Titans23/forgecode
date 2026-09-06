@@ -75,3 +75,85 @@ def test_output_assertions_fail_closed_without_matching_values():
     for output in ('', '{}', '{"quality":true}', '{"quality":"0.99"}', '{"quality":NaN}'):
         assert evaluate_output_checks(output, [check])
     assert evaluate_output_checks('{"quality":0.97}', [check]) == []
+
+
+def test_acceptance_failure_becomes_stale_obligation_after_environment_change(tmp_path):
+    async def run():
+        tracker = WorkspaceTracker(tmp_path)
+        await tracker.begin_turn()
+        failed = VerificationEvidence('python check.py', '.', 1, .1, False, 0,
+                                      coverage=('required behavior',), requirement_ids=('r1',))
+        tracker.mark_environment_change()
+        weak = VerificationEvidence('python weak.py', '.', 0, .1, False, 0,
+                                    environment_epoch=1, coverage=('format',))
+        gate = CompletionGate(tmp_path, TaskPolicy(require_verification=True))
+        result = await gate.evaluate(tracker, weak, verification_history=(failed, weak), mutation_attempted=False)
+        assert not result.allowed
+        strong = replace(failed, exit_code=0, environment_epoch=1)
+        result = await gate.evaluate(tracker, strong, verification_history=(failed, strong), mutation_attempted=False)
+        assert result.allowed
+    asyncio.run(run())
+
+
+def test_each_source_anchored_criterion_needs_executed_assertion(tmp_path):
+    async def run():
+        tracker = WorkspaceTracker(tmp_path)
+        await tracker.begin_turn()
+        criteria = ({'id': 'r1', 'source_quote': 'preserve words', 'condition': 'allowed replacements'},)
+        gate = CompletionGate(tmp_path, TaskPolicy(require_acceptance_reconciliation=True))
+        weak = VerificationEvidence('python check.py', '.', 0, .1, False, 0,
+                                    coverage=('preserve words',), requirement_ids=('r1',))
+        result = await gate.evaluate(tracker, weak, mutation_attempted=False, acceptance_criteria=criteria)
+        assert not result.allowed
+        strong = replace(weak, asserted_requirement_ids=('r1',), check_signature='actual-assertion')
+        result = await gate.evaluate(tracker, strong, mutation_attempted=False, acceptance_criteria=criteria)
+        assert result.allowed
+    asyncio.run(run())
+
+
+def test_explicit_reconciliation_cannot_be_bypassed_by_omitting_a_plan(tmp_path):
+    async def run():
+        tracker = WorkspaceTracker(tmp_path)
+        await tracker.begin_turn()
+        evidence = VerificationEvidence('python -c "print(1)"', '.', 0, .1, False, 0,
+                                        coverage=('format',))
+        result = await CompletionGate(tmp_path, TaskPolicy(require_acceptance_reconciliation=True)).evaluate(
+            tracker, evidence, mutation_attempted=False)
+        assert not result.allowed
+        assert 'no source-anchored criteria' in ' '.join(result.reasons)
+    asyncio.run(run())
+
+
+def test_real_output_assertions_reconcile_each_requirement_without_plan(tmp_path):
+    from forge.tasks.manager import TaskManager
+    manager = TaskManager(tmp_path)
+    manager.start('Return two records. Preserve the supplied input.')
+    task = manager.register_acceptance([
+        {'source_quote': 'Return two records.', 'condition': 'count is two', 'check': 'count the result'},
+        {'source_quote': 'Preserve the supplied input.', 'condition': 'input unchanged', 'check': 'compare bytes'},
+    ])
+    assert not task.planned
+    first, second = [item['id'] for item in task.acceptance_criteria]
+
+    async def run():
+        tracker = WorkspaceTracker(tmp_path)
+        await tracker.begin_turn()
+        tool = VerifyTool(tmp_path, tracker)
+        gate = CompletionGate(tmp_path, TaskPolicy(require_acceptance_reconciliation=True))
+        (tmp_path / 'input').write_text('original', encoding='utf-8')
+        script = 'import json\nfrom pathlib import Path\nprint(json.dumps({"count":len([1,2]),"preserved":Path("input").read_text()=="original"}))'
+        checks = [OutputCheck(key='count', expected=2, requirement='two records',
+                              requirement_id=first, expected_source='Return two records.')]
+        args = dict(command=f'"{sys.executable}" -', stdin=script)
+        result = await tool.execute(VerifyInput(**args, output_checks=checks))
+        evidence = verification_from_result(result)
+        decision = await gate.evaluate(tracker, evidence, mutation_attempted=False, acceptance_criteria=task.acceptance_criteria)
+        assert not decision.allowed and second in ' '.join(decision.reasons)
+        checks.append(OutputCheck(key='preserved', expected=True, requirement='preserve input',
+                                  requirement_id=second, expected_source='initial fixture bytes: original'))
+        result = await tool.execute(VerifyInput(**args, output_checks=checks))
+        evidence = verification_from_result(result)
+        assert evidence.asserted_requirement_ids == tuple(sorted((first, second)))
+        decision = await gate.evaluate(tracker, evidence, mutation_attempted=False, acceptance_criteria=task.acceptance_criteria)
+        assert decision.allowed
+    asyncio.run(run())

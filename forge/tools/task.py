@@ -37,6 +37,7 @@ class TaskGetTool(Tool[TaskGetInput]):
 
 
 class AcceptanceCriterion(ToolInput):
+    clause_id: str = Field(default='', max_length=100, description='Stable subclause name when one quote contains distinct requirements; reuse it on retries.')
     source_quote: str = Field(min_length=1, max_length=2000, description='Exact quote from the original user goal, not a guessed requirement.')
     condition: str = Field(min_length=1, max_length=2000, description='Observable output, interface, preservation or allowed-transformation condition.')
     check: str = Field(min_length=1, max_length=2000, description='How to test the condition with expectations independent of this implementation; note unavailable checks.')
@@ -127,6 +128,7 @@ class TaskPlanTool(Tool[TaskPlanInput]):
                 'task_id': task.id,
                 'step_count': len(task.steps),
                 'steps': step_refs,
+                'acceptance_criteria': task.acceptance_criteria,
             },
         )
 

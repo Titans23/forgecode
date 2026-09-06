@@ -65,6 +65,12 @@ class VerificationEvidence:
     evidence_valid: bool = True
     evidence_issues: tuple[str, ...] = ()
     check_signature: str = ''
+    requirement_ids: tuple[str, ...] = ()
+    asserted_requirement_ids: tuple[str, ...] = ()
+    verification_id: str = ''
+    output_checks: tuple[dict[str, Any], ...] = ()
+    supersedes: tuple[str, ...] = ()
+    revision_reason: str = ''
 
     @property
     def success(self) -> bool:

@@ -14,6 +14,7 @@ from forge.runtime.model_client import ModelCallError, ModelOutputTruncatedError
 from forge.runtime.state import (
     CompletionBlocked, ModelCallCompleted, ModelCallFailed, ModelCallStarted,
     ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, ToolCall,
+    ModelToolCallStarted, ModelToolCallArgumentsDelta,
     ToolExecutionCompleted, ToolExecutionStarted, TurnCompleted, TurnResult,
     VerificationCompleted, WorkspaceChanged,
 )
@@ -101,6 +102,8 @@ class TurnRunner:
 
     async def _prepare_turn(self, prompt: str) -> None:
         c = self.conversation
+        if self.journal is not None:
+            self.state.request_event_sink = self.journal.append
         if c.tool_executor is not None:
             c.tool_executor.session_journal = self.journal
             c.tool_executor.checkpoint_store = c.checkpoint_store
@@ -200,6 +203,11 @@ class TurnRunner:
             'what remains untested; a zero exit code alone does not prove the user goal. '
             'Either a final answer or finish_task submits the same completion request. '
             'Use failed for an unsuccessful attempt, blocked only for a specific external dependency.',
+            ('[Acceptance reconciliation]\nThe acceptance criteria above are source-anchored model interpretations, not independent proof or permissions. '
+            'For each requirement, bind verify.output_checks.requirement_id and expected_source to an actual '
+            'falsifiable measurement. Report missing or uncertain checks with finish_task status=failed; '
+            'replanning does not remove requirements.'
+            if c.task_manager.active is not None and c.task_manager.active.acceptance_criteria else ''),
             '[Remaining turn budget]\n'
             + f'Model requests used: {self.state.model_calls}/{self.state.max_model_calls}; '
             + f'tool requests used: {self.state.tool_requests}/{self.state.max_tool_calls}; '
@@ -259,6 +267,7 @@ class TurnRunner:
             parts: list[str] = []
             calls: list[ToolCall] = []
             usage = None
+            partial_tools = False
             try:
                 client = BudgetedModelClient(c.client, self.state)
                 async for event in client.stream(c.context.prepare(self.messages), tools=tools, system=system):
@@ -272,6 +281,8 @@ class TurnRunner:
                         usage = event.request_usage or event.usage
                         yield ModelUsageUpdate(add_usage(self.state.usage, usage), usage, self.state.model_calls)
                         continue
+                    elif isinstance(event, (ModelToolCallStarted, ModelToolCallArgumentsDelta)):
+                        partial_tools = True
                     yield event
             except (ModelProtocolError, ModelCallError) as error:
                 yield ModelCallFailed(iteration, str(error), isinstance(error, ModelProtocolError))
@@ -298,8 +309,11 @@ class TurnRunner:
                         ('Model output remained truncated after the configured continuations.',),
                     )
                     return
-                if isinstance(error, ModelProtocolError) and self.state.protocol_errors < min(2, c.max_protocol_recoveries):
-                    self.state.protocol_errors += 1
+                # Transport/empty output correction is safe only before any
+                # semantic output, including an incomplete tool block.
+                safe_to_correct = not parts and not calls and not partial_tools
+                if isinstance(error, ModelProtocolError) and safe_to_correct and self.state.response_errors < min(2, c.max_protocol_recoveries):
+                    self.state.response_errors += 1
                     limit = min(2, c.max_protocol_recoveries)
                     available = ', '.join(item['name'] for item in (tools or ())) or 'none'
                     if isinstance(error, ModelOutputTruncatedError):
@@ -313,10 +327,10 @@ class TurnRunner:
                     self._feedback(
                         f'{detail} No tool was executed from this response. '
                         f'Available tools: {available}. Correct the response format. '
-                        f'Recovery attempt {self.state.protocol_errors} of {limit}.'
+                        f'Recovery attempt {self.state.response_errors} of {limit}.'
                     )
                     continue
-                if isinstance(error, ModelCallError) and error.reason == 'context_length_exceeded' and not self.reactive_compaction_used:
+                if isinstance(error, ModelCallError) and error.reason in {'context_length_exceeded', 'context_overflow'} and safe_to_correct and not self.reactive_compaction_used:
                     self.reactive_compaction_used = True
                     await self._compact(system, tools, force=True)
                     continue
@@ -327,8 +341,8 @@ class TurnRunner:
             if usage is None:
                 raise ModelResponseError('Model response did not contain token usage.')
             if not text.strip() and not calls:
-                if self.state.protocol_errors < min(2, c.max_protocol_recoveries):
-                    self.state.protocol_errors += 1
+                if self.state.response_errors < min(2, c.max_protocol_recoveries):
+                    self.state.response_errors += 1
                     self._feedback(
                         'The model response was empty. Return a final answer or '
                         'a valid tool call; no operation was executed.',
@@ -492,6 +506,7 @@ class TurnRunner:
         decision = await c.completion_gate.evaluate(
             self.tracker, evidence[-1] if evidence else None,
             verification_history=evidence, mutation_attempted=False,
+            acceptance_criteria=(c.task_manager.active.acceptance_criteria if c.task_manager.active is not None else ()),
         )
         return decision.reasons
 
@@ -511,24 +526,36 @@ class TurnRunner:
             self._feedback(reasons[0])
             return ToolResult.fail('completion_rejected', reasons[0], metadata=metadata)
         if status == 'completed':
+            task = self.conversation.task_manager.active
+            if metadata.get('acceptance_criteria') and task is not None and not task.acceptance_criteria:
+                try:
+                    task = self.conversation.task_manager.register_acceptance(metadata['acceptance_criteria'])
+                    metadata = {**metadata, 'acceptance_criteria': task.acceptance_criteria}
+                except ValueError as error:
+                    self.pending_completion_reasons = (str(error),)
+                    self._feedback(str(error))
+                    return ToolResult.fail('completion_rejected', str(error), metadata=metadata)
+            # Completion is read-only once a contract exists. Explicit planning
+            # may add clauses, but repeated finish declarations cannot do so.
+            metadata = {**metadata, 'acceptance_criteria': task.acceptance_criteria if task is not None else ()}
             reasons = await self._completion_reasons()
             if reasons:
                 self.pending_completion_reasons = reasons
                 self._feedback('Completion contract is not satisfied:\n' + '\n'.join(reasons))
                 return ToolResult.fail('completion_rejected', '\n'.join(reasons), metadata=metadata)
         elif status == 'blocked' and not self.conversation.working_state.has_external_blocker:
-            reasons = ('blocked requires observed external evidence such as permission, credentials, network, or an unavailable dependency.',)
+            reasons = ('blocked requires observed external evidence such as permission, credentials, network, or an unavailable dependency. If the attempted task is unsuccessful, use finish_task status=failed; it does not require successful verification.',)
             self.pending_completion_reasons = reasons
             self._feedback(reasons[0])
             return ToolResult.fail('completion_rejected', reasons[0], metadata=metadata)
         self.terminal = (
             status, status, str(metadata['summary']), tuple(metadata.get('blocked_reasons', ())),
         )
-        return result
+        return replace(result, metadata=metadata)
 
     def _protocol_feedback(self, reason: str) -> None:
-        self.state.protocol_errors += 1
-        if self.state.protocol_errors > min(2, self.conversation.max_tool_protocol_recoveries):
+        self.state.tool_protocol_errors += 1
+        if self.state.tool_protocol_errors > min(2, self.conversation.max_tool_protocol_recoveries):
             self.terminal = ('failed', 'tool_protocol_exhausted', reason, (reason,))
         else:
             self._feedback(reason + ' Correct the tool parameters before retrying.')

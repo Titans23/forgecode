@@ -1001,6 +1001,12 @@ def verification_from_result(
             evidence_valid=bool(metadata.get('evidence_valid', True)),
             evidence_issues=tuple(str(item) for item in metadata.get('evidence_issues', ())),
             check_signature=str(metadata.get('check_signature', '')),
+            requirement_ids=tuple(str(item) for item in metadata.get('requirement_ids', ())),
+            asserted_requirement_ids=tuple(str(item) for item in metadata.get('asserted_requirement_ids', ())),
+            verification_id=str(metadata.get('verification_id', '')),
+            output_checks=tuple(metadata.get('output_checks', ())),
+            supersedes=tuple(str(item) for item in metadata.get('supersedes', ())),
+            revision_reason=str(metadata.get('revision_reason', '')),
         )
     except (KeyError, TypeError, ValueError):
         return None

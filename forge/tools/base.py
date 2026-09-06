@@ -230,6 +230,24 @@ def _invalid_arguments_result(
     )
 
 
+def _compact_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    '''Remove redundant titles from schema nodes, preserving instance data.'''
+    schema.pop('title', None)
+    for keyword in ('properties', '$defs', 'definitions', 'patternProperties', 'dependentSchemas'):
+        for child in schema.get(keyword, {}).values():
+            if isinstance(child, dict):
+                _compact_schema(child)
+    for keyword in ('items', 'additionalProperties', 'contains', 'not', 'if', 'then', 'else', 'propertyNames', 'unevaluatedProperties', 'unevaluatedItems'):
+        child = schema.get(keyword)
+        if isinstance(child, dict):
+            _compact_schema(child)
+    for keyword in ('anyOf', 'allOf', 'oneOf', 'prefixItems'):
+        for child in schema.get(keyword, []):
+            if isinstance(child, dict):
+                _compact_schema(child)
+    return schema
+
+
 class Tool(ABC, Generic[InputT]):
     '''Validate model input and convert all failures to ToolResult.'''
 
@@ -254,7 +272,7 @@ class Tool(ABC, Generic[InputT]):
         return {
             'name': self.name,
             'description': self.description,
-            'input_schema': self.input_model.model_json_schema(),
+            'input_schema': _compact_schema(self.input_model.model_json_schema()),
         }
 
     def permission_request(

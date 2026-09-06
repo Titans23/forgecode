@@ -21,6 +21,8 @@ class OutputCheck(BaseModel):
     operator: Literal['eq', 'ge', 'le'] = 'eq'
     expected: bool | int | float | str
     requirement: str = Field(min_length=1, description='User requirement this assertion checks; not an authority grant.')
+    requirement_id: str = Field(default='', description='Stable req ID from the current acceptance criteria, if this is an acceptance check.')
+    expected_source: str = Field(default='', description='Original task quote or independent reference artifact establishing the expectation; never derive it only from implementation choices.')
 
 
 def evaluate_output_checks(stdout: str, checks: list[OutputCheck]) -> list[str]:
