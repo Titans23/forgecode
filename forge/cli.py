@@ -113,9 +113,28 @@ def main(
             help='Fork the resumed session under a new session ID.',
         ),
     ] = False,
+    provider: Annotated[str | None, typer.Option('--provider', help='anthropic, openai_responses, or deepseek')] = None,
+    model: Annotated[str | None, typer.Option('--model', help='Model identifier for the configured provider')] = None,
+    base_url: Annotated[str | None, typer.Option('--base-url', help='Native provider or explicit gateway URL')] = None,
 ) -> None:
     '''Start the ForgeCode command-line interface.'''
     if ctx.invoked_subcommand is None:
+        previous_overrides = {key: os.environ.get(key) for key in ('FORGE_PROVIDER', 'FORGE_MODEL', 'FORGE_BASE_URL')}
+        def restore_overrides():
+            for key, value in previous_overrides.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+        ctx.call_on_close(restore_overrides)
+        if provider is not None:
+            if provider not in {'anthropic', 'openai_responses', 'deepseek'}:
+                raise typer.BadParameter('Unsupported provider')
+            os.environ['FORGE_PROVIDER'] = provider
+        if model is not None:
+            os.environ['FORGE_MODEL'] = model
+        if base_url is not None:
+            os.environ['FORGE_BASE_URL'] = base_url
         if continue_session and resume is not None:
             raise typer.BadParameter(
                 'Use --continue or --resume, not both.'

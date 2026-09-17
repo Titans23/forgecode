@@ -170,9 +170,9 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
     def _create_client(self) -> ModelClient:
         if self._client_factory is not None:
             return self._client_factory()
-        from forge.runtime.model_client import AnthropicModelClient
+        from forge.runtime.providers import create_model_client
 
-        return AnthropicModelClient.from_config()
+        return create_model_client()
 
     async def execute(
         self,
@@ -203,9 +203,12 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
             include_task_tools=False,
         )
         completed = None
-        async for event in conversation.stream(prompt):
-            if isinstance(event, TurnCompleted):
-                completed = event.result
+        try:
+            async for event in conversation.stream(prompt):
+                if isinstance(event, TurnCompleted):
+                    completed = event.result
+        finally:
+            await conversation.runtime_close(reason='subagent_finished')
         if completed is None:
             return ToolResult.fail(
                 'explore_incomplete',

@@ -1,0 +1,145 @@
+{
+  "total_trials": 10,
+  "missing_results": [],
+  "infrastructure_failures": 0,
+  "infrastructure_failure_types": {},
+  "agent_failures": 6,
+  "agent_timeouts": 0,
+  "model_service_failures": 0,
+  "verifier_environment_failures": 0,
+  "scored_trials": 10,
+  "pass_at_1": 4,
+  "pass_at_2": 4,
+  "repaired": 0,
+  "first_attempt_known": 10,
+  "internal_statuses": {
+    "partial": 7,
+    "failed": 3
+  },
+  "model_calls": 462,
+  "tool_calls": 690,
+  "input_tokens": 22039945,
+  "output_tokens": 218347,
+  "language_stats": {},
+  "unfinished_trials": [],
+  "job_finished": true,
+  "raw_rewards": {
+    "break-filter-js-from-html__zqLTTEr": 1.0,
+    "build-pov-ray__A7BykmL": 1.0,
+    "circuit-fibsqrt__Zta7hFa": 0.0,
+    "compile-compcert__qDoMEQ7": 1.0,
+    "distribution-search__VMayreD": 1.0,
+    "make-mips-interpreter__qvopHNY": 0.0,
+    "overfull-hbox__UgQqpjr": 0.0,
+    "path-tracing__LAAMPSL": 0.0,
+    "protein-assembly__Xpk2LfA": 0.0,
+    "video-processing__zoRR8BE": 0.0
+  },
+  "trial_assessments": {
+    "break-filter-js-from-html__zqLTTEr": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "build-pov-ray__A7BykmL": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "circuit-fibsqrt__Zta7hFa": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "compile-compcert__qDoMEQ7": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "distribution-search__VMayreD": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "make-mips-interpreter__qvopHNY": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "overfull-hbox__UgQqpjr": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "path-tracing__LAAMPSL": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "protein-assembly__Xpk2LfA": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "video-processing__zoRR8BE": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    }
+  },
+  "telemetry_missing": [],
+  "controller": {
+    "status": "exited",
+    "controller_pid": 9296,
+    "started_at": "2026-09-15T09:34:29.062461+00:00",
+    "metadata": {
+      "source_snapshot": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c5-evidence-repair-20260915-173425\\.source-snapshots\\candidate-tmu09dxz\\source",
+      "concurrency": 5,
+      "provider": "anthropic",
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": null,
+      "reasoning_configuration": "provider_default_unknown",
+      "max_model_calls": 120,
+      "max_tool_calls": 240,
+      "kernel_max_seconds": 1800,
+      "outer_timeout": "dataset agent timeout scaled by Harbor timeout_multiplier",
+      "timeout_multiplier": 1.0
+    },
+    "child_pid": 9328,
+    "heartbeat_at": "2026-09-15T10:23:50.005706+00:00",
+    "exit_code": 0,
+    "finished_at": "2026-09-15T10:23:51.605085+00:00"
+  },
+  "pass_at_1_rate": 0.4,
+  "pass_at_2_rate": 0.4,
+  "final_pass_count": 4,
+  "final_pass_rate": 0.4,
+  "raw_pass_count": 4,
+  "verifier_scored_count": 10,
+  "eligible_trial_count": 10,
+  "primary_outcome_counts": {
+    "pass": 4,
+    "agent_failure": 6
+  },
+  "infrastructure_failures_semantics": "Legacy aggregate of model, verifier, infrastructure and unknown failures; do not add it to subcategories."
+}

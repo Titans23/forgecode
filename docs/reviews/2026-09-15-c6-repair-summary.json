@@ -1,0 +1,154 @@
+{
+  "total_trials": 10,
+  "missing_results": [],
+  "infrastructure_failures": 3,
+  "infrastructure_failure_types": {
+    "server_error": 3
+  },
+  "agent_failures": 4,
+  "agent_timeouts": 0,
+  "model_service_failures": 3,
+  "verifier_environment_failures": 0,
+  "scored_trials": 7,
+  "pass_at_1": 3,
+  "pass_at_2": 3,
+  "repaired": 0,
+  "first_attempt_known": 7,
+  "internal_statuses": {
+    "partial": 7,
+    "failed": 3
+  },
+  "model_calls": 445,
+  "tool_calls": 552,
+  "input_tokens": 18483924,
+  "output_tokens": 204977,
+  "language_stats": {},
+  "unfinished_trials": [],
+  "job_finished": true,
+  "raw_rewards": {
+    "break-filter-js-from-html__vWmCT26": 1.0,
+    "build-pov-ray__6wMKBnZ": 0.0,
+    "circuit-fibsqrt__yTbYbiY": 0.0,
+    "compile-compcert__Q5c2238": 0.0,
+    "distribution-search__WZaNvFU": 1.0,
+    "make-mips-interpreter__K8hBKQY": 0.0,
+    "overfull-hbox__8eFLvyb": 1.0,
+    "path-tracing__wKaHcqd": 0.0,
+    "protein-assembly__ydmkrJo": 0.0,
+    "video-processing__wpPqcuK": 0.0
+  },
+  "trial_assessments": {
+    "break-filter-js-from-html__vWmCT26": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "build-pov-ray__6wMKBnZ": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "circuit-fibsqrt__yTbYbiY": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "compile-compcert__Q5c2238": {
+      "primary_outcome": "model_protocol_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": false,
+      "failure_type": "server_error",
+      "observed_faults": [
+        "server_error"
+      ]
+    },
+    "distribution-search__WZaNvFU": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "make-mips-interpreter__K8hBKQY": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "overfull-hbox__8eFLvyb": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "path-tracing__wKaHcqd": {
+      "primary_outcome": "model_protocol_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": false,
+      "failure_type": "server_error",
+      "observed_faults": [
+        "server_error"
+      ]
+    },
+    "protein-assembly__ydmkrJo": {
+      "primary_outcome": "model_protocol_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": false,
+      "failure_type": "server_error",
+      "observed_faults": [
+        "server_error"
+      ]
+    },
+    "video-processing__wpPqcuK": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    }
+  },
+  "telemetry_missing": [],
+  "controller": {
+    "status": "exited",
+    "controller_pid": 18448,
+    "started_at": "2026-09-15T08:30:00.474043+00:00",
+    "metadata": {
+      "source_snapshot": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c6-repair-20260915-162956\\.source-snapshots\\candidate-sk3324bt\\source",
+      "concurrency": 6,
+      "provider": "anthropic",
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": null,
+      "reasoning_configuration": "provider_default_unknown",
+      "max_model_calls": 120,
+      "max_tool_calls": 240,
+      "kernel_max_seconds": 1800,
+      "outer_timeout": "dataset agent timeout scaled by Harbor timeout_multiplier",
+      "timeout_multiplier": 1.0
+    },
+    "child_pid": 13380,
+    "heartbeat_at": "2026-09-15T09:04:13.190136+00:00",
+    "exit_code": 0,
+    "finished_at": "2026-09-15T09:04:16.779051+00:00"
+  },
+  "pass_at_1_rate": 0.42857142857142855,
+  "pass_at_2_rate": 0.42857142857142855,
+  "final_pass_count": 3,
+  "final_pass_rate": 0.42857142857142855,
+  "raw_pass_count": 3,
+  "verifier_scored_count": 10,
+  "eligible_trial_count": 7,
+  "primary_outcome_counts": {
+    "pass": 3,
+    "agent_failure": 4,
+    "model_protocol_failure": 3
+  },
+  "infrastructure_failures_semantics": "Legacy aggregate of model, verifier, infrastructure and unknown failures; do not add it to subcategories."
+}

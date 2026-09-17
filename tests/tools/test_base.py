@@ -55,6 +55,7 @@ def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> 
         'git_diff',
         'explore_repository',
         'finish_task',
+        'review_delivery',
     )
     exposed = [definition['name'] for definition in registry.definitions]
     assert exposed == [

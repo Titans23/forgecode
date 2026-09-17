@@ -28,7 +28,9 @@ def test_completion_retries_cannot_mutate_existing_contract(tmp_path):
                 'finish_task': True, 'status': 'completed', 'task_kind': 'change', 'summary': 'Done',
                 'acceptance_criteria': [dict(source_quote='Produce output.', condition=f'output {i}', check='check')],
             }))
-            assert not result.success  # Still lacks real evidence; no bypass.
+            assert result.success  # Submission accepted, acceptance still unmet.
+            assert result.metadata['status'] == 'partial'
+            assert runner.terminal[:2] == ('partial', 'acceptance_unmet')
             assert conversation.task_manager.active.acceptance_criteria == initial.acceptance_criteria
     asyncio.run(run())
 

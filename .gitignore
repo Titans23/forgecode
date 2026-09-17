@@ -1,6 +1,9 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-*/
+_pytest-*/
+.test-*.log
 .tmp-pytest-*/
 .pytest_tmp/
 .pytest_verify_targeted/
@@ -20,6 +23,5 @@ fixtures/
 .local/
 benchmark/runs/
 benchmark/.cache/
-# game/
-# keep static demo in play/
-!play/
+# Raw evaluation trajectories may contain credentials captured from tool output.
+docs/reviews/*-trajectories.json

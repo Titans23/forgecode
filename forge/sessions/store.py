@@ -12,13 +12,14 @@ import re
 from typing import Any
 from uuid import uuid4
 
-from forge.runtime.state import TurnResult
+from forge.runtime.state import TurnResult, VerificationEvidence
 from forge.tasks.manager import task_path_matches
 from forge.tasks.state import ActiveTask
+from forge.sessions.locking import exclusive_append
 
 
 SESSION_ID_PATTERN = re.compile(r'session-[0-9a-f]{24}')
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFAULT_INLINE_PAYLOAD_BYTES = 256_000
 
 
@@ -47,6 +48,7 @@ class SessionInfo:
     status: str
     sequence: int
     message_count: int
+    provider: str = ''
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +57,7 @@ class SessionState:
     messages: tuple[dict[str, Any], ...]
     active_task: ActiveTask | None
     indeterminate_tools: tuple[dict[str, Any], ...]
+    verification_history: tuple[VerificationEvidence, ...] = ()
 
 
 class SessionJournal:
@@ -80,6 +83,7 @@ class SessionJournal:
         self.turn_id = ''
         self._tool_started_ids: set[str] = set()
         self._tool_completed_ids: set[str] = set()
+        self.read_only = False
         self._hydrate_tool_event_ids()
 
     def _hydrate_tool_event_ids(self) -> None:
@@ -96,6 +100,8 @@ class SessionJournal:
             except json.JSONDecodeError:
                 continue
             event_type = record.get('type')
+            if event_type == 'session_started':
+                self.read_only = record.get('schema_version', 1) != SCHEMA_VERSION
             if event_type == 'turn_started':
                 self.turn_id = str(record.get('turn_id') or record.get('uuid', ''))
                 self._tool_started_ids.clear()
@@ -259,6 +265,7 @@ class SessionJournal:
                 'completion_reasons': result.completion_reasons,
                 'stop_reason': result.stop_reason,
                 'statistics': result.statistics,
+                'completion_report': asdict(result.completion_report) if result.completion_report else None,
             },
         )
 
@@ -319,6 +326,15 @@ class SessionJournal:
         )
 
     def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if self.read_only:
+            raise SessionError('Legacy sessions are read-only. Fork this session to continue in the new format.')
+        try:
+            with exclusive_append(self.path):
+                return self._append_locked(event_type, payload)
+        except BlockingIOError as error:
+            raise SessionError('Session is being written by another process.') from error
+
+    def _append_locked(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         payload = {**payload, **({'turn_id': self.turn_id} if self.turn_id else {})}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._assert_append_head()
@@ -370,10 +386,29 @@ class SessionJournal:
                 raise SessionError('Session journal disappeared before append.')
             return
         try:
-            lines = self.path.read_text(encoding='utf-8').splitlines()
-            last_line = next(line for line in reversed(lines) if line.strip())
+            # Validate under the append lock without rereading the whole ledger.
+            with self.path.open('rb') as file:
+                file.seek(0, os.SEEK_END)
+                position = file.tell()
+                if position:
+                    file.seek(-1, os.SEEK_END)
+                    if file.read(1) != b'\n':
+                        raise ValueError('Journal ends with an unterminated record')
+                tail = b''
+                last_line = b''
+                while position:
+                    size = min(position, 65536)
+                    position -= size
+                    file.seek(position)
+                    tail = file.read(size) + tail
+                    stripped = tail.rstrip(b' \t\r\n')
+                    if b'\n' in stripped or position == 0:
+                        last_line = stripped.rsplit(b'\n', 1)[-1]
+                        break
             durable = json.loads(last_line)
-        except (OSError, StopIteration, json.JSONDecodeError) as error:
+            if not isinstance(durable, dict):
+                raise ValueError('Journal head must be an object')
+        except (OSError, ValueError) as error:
             raise SessionError(
                 f'Cannot validate session append head: {self.path}'
             ) from error
@@ -432,6 +467,7 @@ class SessionStore:
         *,
         model: str,
         name: str | None = None,
+        provider: str = '',
     ) -> SessionJournal:
         if self.index_path.exists():
             self.index_path.unlink()
@@ -447,6 +483,7 @@ class SessionStore:
             {
                 'cwd': str(self.project_root),
                 'model': model,
+                'provider': provider,
                 'name': clean_session_name(name),
                 'project_key': self.project_key,
             },
@@ -461,14 +498,20 @@ class SessionStore:
         task: ActiveTask | None,
         model: str,
         name: str | None = None,
+        provider: str | None = None,
     ) -> SessionJournal:
-        journal = self.create(model=model, name=name)
+        journal = self.create(model=model, name=name, provider=provider or source.info.provider)
         journal.append(
             'session_forked',
             {'source_session_id': source.info.session_id},
         )
         journal.append('message_checkpoint', {'messages': messages})
         journal.record_task_state(task)
+        for evidence in source.verification_history:
+            journal.append('verification_recorded', {
+                'evidence': asdict(replace(evidence, freshness='unknown')),
+                'source_session_id': source.info.session_id,
+            })
         return journal
 
     def open(
@@ -687,10 +730,29 @@ class SessionStore:
         status = 'active'
         indeterminate_records: dict[tuple[str, str], dict[str, Any]] = {}
         replay_turn = ''
+        verification_history: dict[str, VerificationEvidence] = {}
 
         for record in records[1:]:
             payload = self._payload(record, path)
             event_type = record['type']
+            observations = []
+            if event_type == 'verification_recorded':
+                observations = [payload.get('evidence')]
+            elif event_type == 'turn_completed':
+                observations = payload.get('verification_history') or [payload.get('verification')]
+            for observation in observations:
+                if not isinstance(observation, dict):
+                    continue
+                try:
+                    evidence = VerificationEvidence.from_dict(observation)
+                except (TypeError, ValueError):
+                    raise SessionCorruptError(f'Invalid verification evidence in {path}')
+                evidence = replace(evidence, task_id=evidence.task_id or (task.id if task else ''),
+                                   turn_id=evidence.turn_id or replay_turn)
+                # Legacy observations may have no ID; retain their provenance.
+                identity = evidence.verification_id or replay_turn + ':' + hashlib.sha256(
+                    json.dumps(observation, sort_keys=True).encode()).hexdigest()
+                verification_history[f'{evidence.task_id}:{identity}'] = evidence
             if event_type == 'turn_started':
                 replay_turn = str(record.get('turn_id') or record.get('uuid', ''))
                 status = 'active'
@@ -767,6 +829,7 @@ class SessionStore:
             elif event_type == 'session_resumed':
                 status = 'active'
             elif event_type == 'conversation_rewound':
+                verification_history.clear()
                 candidate = payload.get('messages')
                 if isinstance(candidate, list) and all(
                     isinstance(item, dict) for item in candidate
@@ -794,6 +857,7 @@ class SessionStore:
             status=status,
             sequence=int(records[-1]['sequence']),
             message_count=len(messages),
+            provider=str(first_payload.get('provider', '')),
         )
         indeterminate_tools: list[dict[str, Any]] = []
         for tool_id, payload in started_tools.items():
@@ -822,6 +886,7 @@ class SessionStore:
             messages=tuple(messages),
             active_task=task,
             indeterminate_tools=tuple(indeterminate_tools),
+            verification_history=tuple(verification_history.values()),
         )
 
     def _read_records(self, path: Path) -> list[dict[str, Any]]:

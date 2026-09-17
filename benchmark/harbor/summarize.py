@@ -52,19 +52,21 @@ class RunSummary:
 
     @property
     def final_pass_rate(self) -> float:
-        '''Final verifier success rate for both one- and two-attempt jobs.'''
-        return self.pass_at_2_rate
+        '''Observed official successes divided by all trials, including failures.'''
+        return sum(reward == 1 for reward in self.raw_rewards.values()) / self.total_trials if self.total_trials else 0.0
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value['pass_at_1_rate'] = self.pass_at_1_rate
         value['pass_at_2_rate'] = self.pass_at_2_rate
         # ``pass_at_2`` is the historical field used by the Aider adapter.
-        # For benchmarks without a repair protocol it is simply the final
-        # (and only) verifier result.  The explicit aliases make that fact
-        # clear to downstream dashboards.
-        value['final_pass_count'] = self.pass_at_2
+        # It remains a diagnostic over eligible trials. The official aggregate
+        # uses every observed reward and the complete trial denominator.
+        value['final_pass_count'] = sum(reward == 1 for reward in self.raw_rewards.values())
         value['final_pass_rate'] = self.final_pass_rate
+        value['final_pass_denominator'] = self.total_trials
+        value['eligible_final_pass_count'] = self.pass_at_2
+        value['eligible_final_pass_rate'] = self.pass_at_2_rate
         value['raw_pass_count'] = sum(reward == 1 for reward in self.raw_rewards.values())
         value['verifier_scored_count'] = sum(
             item['verifier_state'] in {'passed', 'failed'} for item in self.trial_assessments.values()
@@ -374,7 +376,7 @@ def assess_trial(trial_dir: Path, result: dict[str, Any], payloads: tuple[dict[s
                                sorted(model_reasons)[0] if model_reasons else exception_type, tuple(faults))
     if timeout:
         # A deadline is an agent outcome; a contradictory reward remains raw.
-        return TrialAssessment('agent_timeout', verifier_state, _valid_reward(reward) and reward != 1,
+        return TrialAssessment('agent_timeout', verifier_state, _valid_reward(reward),
                                'AgentTimeout', tuple(faults))
     if exception is not None:
         return TrialAssessment('infrastructure_failure', 'unknown', False, exception_type, tuple(faults))

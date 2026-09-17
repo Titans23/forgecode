@@ -27,18 +27,27 @@ class ForgeConfig:
 
     api_key: str
     model_id: str
-    base_url: str = DEFAULT_ANTHROPIC_BASE_URL
+    base_url: str | None = None
     max_tokens: int = DEFAULT_MODEL_MAX_TOKENS
     context_window: int | None = None
     request_timeout_seconds: float = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
+    provider: str = 'anthropic'
+    reasoning_effort: str | None = None
 
     def __post_init__(self) -> None:
+        if self.provider not in {'anthropic', 'openai_responses', 'deepseek'}:
+            raise ConfigurationError('provider must be anthropic, openai_responses, or deepseek')
         api_key = self.api_key.strip()
         model_id = self.model_id.strip()
-        base_url = self.base_url.strip().rstrip('/')
+        default_url = {'anthropic': DEFAULT_ANTHROPIC_BASE_URL,
+                       'openai_responses': 'https://api.openai.com/v1',
+                       'deepseek': 'https://api.deepseek.com'}[self.provider]
+        base_url = (default_url if self.base_url is None else self.base_url).strip().rstrip('/')
 
         if not api_key:
-            raise ConfigurationError('ANTHROPIC_API_KEY is not set.')
+            key_name = {'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
+                        'deepseek': 'DEEPSEEK_API_KEY'}[self.provider]
+            raise ConfigurationError(f'{key_name} is not set.')
         if not model_id:
             raise ConfigurationError('MODEL_ID is not set.')
         if not 1_024 <= self.max_tokens <= 32_768:
@@ -116,12 +125,17 @@ class ForgeConfig:
             ) from error
 
         return cls(
-            api_key=source.get('ANTHROPIC_API_KEY', ''),
-            model_id=source.get('MODEL_ID', ''),
-            base_url=source.get(
-                'ANTHROPIC_BASE_URL',
-                DEFAULT_ANTHROPIC_BASE_URL,
-            ),
+            provider=(provider := source.get('FORGE_PROVIDER', 'anthropic')),
+            api_key=source.get('FORGE_API_KEY') or source.get({
+                'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
+                'deepseek': 'DEEPSEEK_API_KEY'}.get(provider, ''), ''),
+            model_id=source.get('FORGE_MODEL') or source.get('MODEL_ID', ''),
+            base_url=source.get('FORGE_BASE_URL') or source.get({
+                'anthropic': 'ANTHROPIC_BASE_URL', 'openai_responses': 'OPENAI_BASE_URL',
+                'deepseek': 'DEEPSEEK_BASE_URL'}.get(provider, ''), {
+                'anthropic': DEFAULT_ANTHROPIC_BASE_URL, 'openai_responses': 'https://api.openai.com/v1',
+                'deepseek': 'https://api.deepseek.com'}.get(provider, '')),
+            reasoning_effort=source.get('FORGE_REASONING_EFFORT') or None,
             max_tokens=max_tokens,
             context_window=context_window,
             request_timeout_seconds=request_timeout_seconds,

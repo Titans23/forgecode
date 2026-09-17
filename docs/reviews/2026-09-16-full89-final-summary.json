@@ -1,0 +1,1502 @@
+{
+  "total": 89,
+  "passed": 27,
+  "failed": 61,
+  "missing_reward": 1,
+  "pass_rate": 0.30337078651685395,
+  "segments": [
+    {
+      "job": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53",
+      "completed": 36,
+      "passed": 16
+    },
+    {
+      "job": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26",
+      "completed": 3,
+      "passed": 2
+    },
+    {
+      "job": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29",
+      "completed": 50,
+      "passed": 9
+    }
+  ],
+  "primary_outcomes": {
+    "pass": 23,
+    "agent_timeout": 11,
+    "agent_failure": 14,
+    "model_protocol_failure": 35,
+    "infrastructure_failure": 1,
+    "verifier_environment_failure": 5
+  },
+  "stop_reasons": {
+    "completed": 15,
+    "time_budget_exhausted": 12,
+    "partial": 6,
+    "acceptance_unmet": 14,
+    "failed": 3,
+    "server_error": 38
+  },
+  "ignored_interrupted_attempts": [
+    "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\extract-moves-from-video__tCk44dg",
+    "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\git-multibranch__krZzWFx",
+    "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\kv-store-grpc__K3P63Ah",
+    "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\mailman__GReaVo6",
+    "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\rstan-to-pystan__9hKd8u8"
+  ],
+  "rows": [
+    {
+      "task": "break-filter-js-from-html",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\break-filter-js-from-html__rQYK7bs\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "build-cython-ext",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\build-cython-ext__U7Qat85\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "build-pov-ray",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\build-pov-ray__C6nDdHj\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "caffe-cifar-10",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\caffe-cifar-10__crwZeR7\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "cancel-async-tasks",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\cancel-async-tasks__nq8DYFk\\result.json",
+      "stop_reasons": [
+        "partial"
+      ]
+    },
+    {
+      "task": "chess-best-move",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\chess-best-move__LW4yNXQ\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "circuit-fibsqrt",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\circuit-fibsqrt__ACPPhc6\\result.json",
+      "stop_reasons": [
+        "failed"
+      ]
+    },
+    {
+      "task": "compile-compcert",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\compile-compcert__aE3E7yd\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "constraints-scheduling",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\constraints-scheduling__AGG6i9G\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "crack-7z-hash",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\crack-7z-hash__aLecZLh\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "custom-memory-heap-crash",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\custom-memory-heap-crash__6PJiy4d\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "db-wal-recovery",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\db-wal-recovery__oHDUxnB\\result.json",
+      "stop_reasons": [
+        "partial"
+      ]
+    },
+    {
+      "task": "distribution-search",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\distribution-search__RSwZkVk\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "dna-assembly",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\dna-assembly__QcN2v5c\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "dna-insert",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\dna-insert__o5q9XPV\\result.json",
+      "stop_reasons": [
+        "partial"
+      ]
+    },
+    {
+      "task": "extract-elf",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\extract-elf__sUzx7Y6\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "feal-linear-cryptanalysis",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\feal-linear-cryptanalysis__rdtqmPP\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "fix-git",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\fix-git__FXM9gVy\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "git-leak-recovery",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\git-leak-recovery__6KaSMmQ\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "headless-terminal",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\headless-terminal__6HzpsqR\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "install-windows-3-11",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\install-windows-3-11__FTSmxcn\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "log-summary-date-ranges",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\log-summary-date-ranges__6j4A9ef\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "make-mips-interpreter",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\make-mips-interpreter__9LVQy9A\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "mteb-leaderboard",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\mteb-leaderboard__UJS8rpA\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "openssl-selfsigned-cert",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\openssl-selfsigned-cert__7NqDKCh\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "overfull-hbox",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\overfull-hbox__6CTDVAk\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "path-tracing",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\path-tracing__U5Pv2fv\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "polyglot-rust-c",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\polyglot-rust-c__DF2Qjx5\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "protein-assembly",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\protein-assembly__iSBd7ff\\result.json",
+      "stop_reasons": [
+        "failed"
+      ]
+    },
+    {
+      "task": "prove-plus-comm",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\prove-plus-comm__AJWwAJi\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "pytorch-model-recovery",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\pytorch-model-recovery__g42MeaJ\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "regex-chess",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\regex-chess__BfK6vgh\\result.json",
+      "stop_reasons": [
+        "partial"
+      ]
+    },
+    {
+      "task": "video-processing",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\video-processing__PbCPM6U\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "vulnerable-secret",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\vulnerable-secret__b6mykzy\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "winning-avg-corewars",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\winning-avg-corewars__QtQbWug\\result.json",
+      "stop_reasons": [
+        "failed"
+      ]
+    },
+    {
+      "task": "write-compressor",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\write-compressor__CrveGxD\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "gcode-to-text",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\gcode-to-text__ScjeZ6B\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "merge-diff-arc-agi-task",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "agent_timeout",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "AgentTimeout",
+        "observed_faults": [
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\merge-diff-arc-agi-task__4s9Z4G7\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    },
+    {
+      "task": "multi-source-data-merger",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\multi-source-data-merger__hCvqe3j\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "adaptive-rejection-sampler",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\adaptive-rejection-sampler__iqtZpmn\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "bn-fit-modify",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\bn-fit-modify__XKFZ3Ex\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "build-pmars",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\build-pmars__ozaSwu3\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "cobol-modernization",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\cobol-modernization__vTT5PyD\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "code-from-image",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\code-from-image__Aq8MyVH\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "configure-git-webserver",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\configure-git-webserver__FKwEW6Y\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "count-dataset-tokens",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\count-dataset-tokens__ED8CFWM\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "extract-moves-from-video",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\extract-moves-from-video__mEEDuWM\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "feal-differential-cryptanalysis",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\feal-differential-cryptanalysis__gW9BMkE\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "filter-js-from-html",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\filter-js-from-html__RfzncbS\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "financial-document-processor",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\financial-document-processor__ggYm9qA\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "fix-code-vulnerability",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\fix-code-vulnerability__H3ieECH\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "fix-ocaml-gc",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\fix-ocaml-gc__QmpV2Ux\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "git-multibranch",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\git-multibranch__9iRacYp\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "gpt2-codegolf",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\gpt2-codegolf__A7rcnx4\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "hf-model-inference",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\hf-model-inference__QTnGcD9\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "kv-store-grpc",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\kv-store-grpc__2A7tutW\\result.json",
+      "stop_reasons": [
+        "acceptance_unmet"
+      ]
+    },
+    {
+      "task": "large-scale-text-editing",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\large-scale-text-editing__RXKeaMp\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "largest-eigenval",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\largest-eigenval__oez24sn\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "llm-inference-batching-scheduler",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\llm-inference-batching-scheduler__UAwnZhT\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "mailman",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\mailman__ShD4w3k\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "make-doom-for-mips",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\make-doom-for-mips__bh2kWhW\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "mcmc-sampling-stan",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\mcmc-sampling-stan__cmowQ5o\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "model-extraction-relu-logits",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\model-extraction-relu-logits__pRPAbS6\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "modernize-scientific-stack",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\modernize-scientific-stack__zSqeQcc\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "mteb-retrieve",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\mteb-retrieve__fPtbUzy\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "nginx-request-logging",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\nginx-request-logging__K8kg4o9\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "password-recovery",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\password-recovery__EZfJ7AC\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "path-tracing-reverse",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\path-tracing-reverse__wujoZ2a\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "polyglot-c-py",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\polyglot-c-py__aWjJjX6\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "portfolio-optimization",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "infrastructure_failure",
+        "verifier_state": "unknown",
+        "evaluation_eligible": false,
+        "failure_type": "NonZeroAgentExitCodeError",
+        "observed_faults": [
+          "NonZeroAgentExitCodeError"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\portfolio-optimization__VW4NoNY\\result.json",
+      "stop_reasons": []
+    },
+    {
+      "task": "pypi-server",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\pypi-server__j5R7Yzc\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "pytorch-model-cli",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\pytorch-model-cli__XE2ZBqT\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "qemu-alpine-ssh",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "verifier_environment_failure",
+        "verifier_state": "environment_failed",
+        "evaluation_eligible": false,
+        "failure_type": "VerifierEnvironment:uv_bootstrap",
+        "observed_faults": [
+          "VerifierEnvironment:uv_bootstrap"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\qemu-alpine-ssh__zPTXnak\\result.json",
+      "stop_reasons": [
+        "partial"
+      ]
+    },
+    {
+      "task": "qemu-startup",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "verifier_environment_failure",
+        "verifier_state": "environment_failed",
+        "evaluation_eligible": false,
+        "failure_type": "VerifierEnvironment:uv_bootstrap",
+        "observed_faults": [
+          "VerifierEnvironment:uv_bootstrap",
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\qemu-startup__WJm65Zf\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "query-optimize",
+      "reward": null,
+      "assessment": {
+        "primary_outcome": "verifier_environment_failure",
+        "verifier_state": "environment_failed",
+        "evaluation_eligible": false,
+        "failure_type": "VerifierTimeoutError",
+        "observed_faults": [
+          "VerifierTimeoutError",
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\query-optimize__pvGoMxK\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "raman-fitting",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\raman-fitting__5FtPDkw\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "regex-log",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "pass",
+        "verifier_state": "passed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\regex-log__zdoUtAC\\result.json",
+      "stop_reasons": [
+        "partial"
+      ]
+    },
+    {
+      "task": "reshard-c4-data",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\reshard-c4-data__BcUsV8q\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "rstan-to-pystan",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\rstan-to-pystan__fA5LZR9\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "sam-cell-seg",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\sam-cell-seg__7QuwCK6\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "sanitize-git-repo",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "passed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\sanitize-git-repo__48x398m\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "schemelike-metacircular-eval",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\schemelike-metacircular-eval__pnHBTsD\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "sparql-university",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\sparql-university__EuoJrUE\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "sqlite-db-truncate",
+      "reward": 1.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "passed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\sqlite-db-truncate__WDRARiP\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "sqlite-with-gcov",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "agent_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": true,
+        "failure_type": "",
+        "observed_faults": []
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\sqlite-with-gcov__N8KW4Cg\\result.json",
+      "stop_reasons": [
+        "completed"
+      ]
+    },
+    {
+      "task": "torch-pipeline-parallelism",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\torch-pipeline-parallelism__3jfqudc\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "torch-tensor-parallelism",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "verifier_environment_failure",
+        "verifier_state": "environment_failed",
+        "evaluation_eligible": false,
+        "failure_type": "VerifierEnvironment:dependency_download_timeout",
+        "observed_faults": [
+          "VerifierEnvironment:dependency_download_timeout",
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\torch-tensor-parallelism__rrUFex9\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "train-fasttext",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "model_protocol_failure",
+        "verifier_state": "failed",
+        "evaluation_eligible": false,
+        "failure_type": "server_error",
+        "observed_faults": [
+          "server_error"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\train-fasttext__iGxHoy9\\result.json",
+      "stop_reasons": [
+        "server_error"
+      ]
+    },
+    {
+      "task": "tune-mjcf",
+      "reward": 0.0,
+      "assessment": {
+        "primary_outcome": "verifier_environment_failure",
+        "verifier_state": "environment_failed",
+        "evaluation_eligible": false,
+        "failure_type": "VerifierEnvironment:uv_bootstrap",
+        "observed_faults": [
+          "VerifierEnvironment:uv_bootstrap",
+          "agent_timeout",
+          "time_budget_exhausted"
+        ]
+      },
+      "result_path": "\\\\?\\D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\tune-mjcf__APzKu9p\\result.json",
+      "stop_reasons": [
+        "time_budget_exhausted"
+      ]
+    }
+  ]
+}

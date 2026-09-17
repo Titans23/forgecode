@@ -12,17 +12,45 @@ import re
 import shlex
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator, model_serializer
+
+
+def finite_number(value):
+    return type(value) is int or (type(value) is float and math.isfinite(value))
 
 
 class OutputCheck(BaseModel):
     model_config = ConfigDict(extra='forbid')
     key: str = Field(min_length=1, description='Top-level key in the final JSON object printed to stdout.')
-    operator: Literal['eq', 'ge', 'le'] = 'eq'
+    operator: Literal['eq', 'ge', 'le', 'delta_eq'] = 'eq'
     expected: bool | int | float | str
+    reference_key: str = Field(default='', description='For delta_eq, another measured JSON key. Assert key minus reference_key equals expected within tolerance; use to test input transformations.')
+    tolerance: float = Field(default=0.0, ge=0, allow_inf_nan=False,
+                             description='Absolute tolerance for delta_eq, derived from the requirement or independent reference.')
     requirement: str = Field(min_length=1, description='User requirement this assertion checks; not an authority grant.')
     requirement_id: str = Field(default='', description='Stable req ID from the current acceptance criteria, if this is an acceptance check.')
     expected_source: str = Field(default='', description='Original task quote or independent reference artifact establishing the expectation; never derive it only from implementation choices.')
+    source_ref: str = Field(default='', description='Stable identity of the expectation source, such as a requirement ID or reference artifact with hash. Keep unchanged across checker revisions; expected_source explains this reference.')
+
+    @model_validator(mode='after')
+    def validate_relation(self):
+        if self.operator == 'delta_eq':
+            if not self.reference_key or self.reference_key == self.key:
+                raise ValueError('delta_eq requires a distinct measured reference_key')
+            if not finite_number(self.expected):
+                raise ValueError('delta_eq requires a finite numeric expected difference')
+        elif self.reference_key or self.tolerance:
+            raise ValueError('reference_key and tolerance are only supported by delta_eq')
+        return self
+
+    @model_serializer(mode='wrap')
+    def stable_legacy_record(self, handler):
+        record = handler(self)
+        if self.operator != 'delta_eq':
+            # New optional fields must not change old check identities on replay.
+            record.pop('reference_key', None)
+            record.pop('tolerance', None)
+        return record
 
 
 def evaluate_output_checks(stdout: str, checks: list[OutputCheck]) -> list[str]:
@@ -41,6 +69,20 @@ def evaluate_output_checks(stdout: str, checks: list[OutputCheck]) -> list[str]:
             continue
         value = actual[check.key]
         expected = check.expected
+        if check.operator == 'delta_eq':
+            reference = actual.get(check.reference_key)
+            if not all(finite_number(item) for item in (value, reference)):
+                failures.append(f'{check.key} and {check.reference_key}: delta_eq requires two finite numeric observations')
+                continue
+            try:
+                difference = value - reference
+                passed = finite_number(difference) and abs(difference - expected) <= check.tolerance
+            except OverflowError:
+                failures.append(f'{check.key} - {check.reference_key}: numeric range exceeded')
+                continue
+            if not passed:
+                failures.append(f'{check.key} - {check.reference_key}: observed {difference!r}, required {expected!r} +/- {check.tolerance}; {check.requirement}')
+            continue
         numeric = all(type(item) is int or (type(item) is float and math.isfinite(item))
                       for item in (value, expected))
         if check.operator == 'eq':

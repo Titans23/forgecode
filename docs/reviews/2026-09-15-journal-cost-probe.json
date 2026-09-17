@@ -1,0 +1,22 @@
+[
+  {
+    "arm": "SessionJournal",
+    "events": 500,
+    "journal_bytes": 10148748,
+    "head_bytes_read": 2532059634,
+    "seconds": 17.693041899969103,
+    "first_20_median_ms": 13.572999996540602,
+    "last_20_median_ms": 49.21434999414487,
+    "stale_writer_refused": true
+  },
+  {
+    "arm": "TailHeadJournal",
+    "events": 500,
+    "journal_bytes": 10148748,
+    "head_bytes_read": 32627518,
+    "seconds": 8.417371200004709,
+    "first_20_median_ms": 13.202899994212203,
+    "last_20_median_ms": 14.600750000681728,
+    "stale_writer_refused": true
+  }
+]

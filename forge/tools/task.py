@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from dataclasses import asdict
+import json
 from typing import Literal
 
 from pydantic import Field
@@ -32,7 +34,10 @@ class TaskGetTool(Tool[TaskGetInput]):
         del arguments
         return ToolResult.ok(
             'Read the current task.',
-            content=self.manager.describe(),
+            content=self.manager.describe() + (
+                '\n\nExecuted check history (historical success is not current acceptance):\n' +
+                json.dumps([asdict(item) for item in self.manager.evidence_provider()], ensure_ascii=False)
+                if self.manager.evidence_provider is not None else ''),
         )
 
 
@@ -257,12 +262,41 @@ class TaskUpdateTool(Tool[TaskUpdateInput]):
         )
 
 
+class TaskReviseInput(ToolInput):
+    requirement_id: str = Field(min_length=1)
+    replacement: AcceptanceCriterion | None = None
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class TaskReviseTool(Tool[TaskReviseInput]):
+    name = 'task_revise_requirement'
+    description = ('Correct or retract a model-proposed interpretation using its exact requirement ID. '
+                   'Quote the user instruction for a replacement; omit replacement to retract a hypothesis. '
+                   'The original user instructions and caller contracts remain authoritative. Changes are audited.')
+    input_model = TaskReviseInput
+
+    def __init__(self, root: Path, manager: TaskManager):
+        super().__init__(root)
+        self.manager = manager
+
+    async def execute(self, arguments: TaskReviseInput) -> ToolResult:
+        try:
+            task = self.manager.revise_acceptance(arguments.requirement_id,
+                arguments.replacement.model_dump() if arguments.replacement else None, arguments.reason)
+        except ValueError as error:
+            return ToolResult.fail('invalid_requirement_revision', str(error))
+        return ToolResult.ok('Updated the model interpretation; prior evidence was not transferred.',
+            metadata={'task_id': task.id, 'acceptance_criteria': task.acceptance_criteria,
+                      'acceptance_history': task.acceptance_history})
+
+
 def create_task_tools(
     root: Path,
     manager: TaskManager,
-) -> tuple[TaskGetTool, TaskPlanTool, TaskUpdateTool]:
+) -> tuple[Tool, ...]:
     return (
         TaskGetTool(root, manager),
         TaskPlanTool(root, manager),
         TaskUpdateTool(root, manager),
+        TaskReviseTool(root, manager),
     )

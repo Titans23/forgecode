@@ -20,7 +20,7 @@ def _children():
     ).read_text().split()]
 
 
-def supervise(argv):
+def supervise(argv, *, preserve_on_success=False):
     if not sys.platform.startswith('linux'):
         raise RuntimeError('Benchmark process supervision requires Linux')
     libc = ctypes.CDLL(None, use_errno=True)
@@ -43,9 +43,12 @@ def supervise(argv):
     finally:
         # Killing an adopted parent causes its own children to be adopted by
         # us. Repeat until the owned tree is empty, bounded below GNU timeout's
-        # ten-second kill-after grace. Do this on success as well as timeout.
+        # ten-second kill-after grace. The benchmark may explicitly hand off
+        # successful services to its verifier; failures always clean up.
+        preserve = preserve_on_success and not interrupted and exit_code == 0
+        # 成功交付的后台服务留给 verifier；异常或取消仍必须清理所属进程。
         deadline = time.monotonic() + 5
-        while _children() and time.monotonic() < deadline:
+        while not preserve and _children() and time.monotonic() < deadline:
             for pid in _children():
                 try:
                     os.kill(pid, signal.SIGKILL)
@@ -59,7 +62,7 @@ def supervise(argv):
                 if not pid:
                     break
             time.sleep(0.01)
-        if _children():
+        if not preserve and _children():
             print('FORGECODE_SUPERVISOR_CLEANUP_INCOMPLETE', file=sys.stderr)
             exit_code = 125
         if process is not None:
@@ -71,8 +74,11 @@ def supervise(argv):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
+    preserve = args[:1] == ['--preserve-on-success']
+    if preserve:
+        args = args[1:]
     if args[:1] == ['--']:
         args = args[1:]
     if not args:
         raise SystemExit('Missing supervised command')
-    raise SystemExit(supervise(args))
+    raise SystemExit(supervise(args, preserve_on_success=preserve))

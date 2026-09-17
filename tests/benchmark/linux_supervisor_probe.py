@@ -10,7 +10,7 @@ import time
 
 
 with tempfile.TemporaryDirectory() as directory:
-    for mode in ('success', 'cancel', 'timeout'):
+    for mode in ('success', 'failure', 'cancel', 'timeout'):
         pid_file = Path(directory) / mode
         child_code = (
             'import os,time; from pathlib import Path; '
@@ -19,9 +19,11 @@ with tempfile.TemporaryDirectory() as directory:
         parent_code = (
             'import subprocess,sys,time; '
             f'subprocess.Popen([sys.executable,"-c",{child_code!r}], start_new_session=True); '
-            + ('time.sleep(0.3)' if mode == 'success' else 'time.sleep(60)')
+            + ('time.sleep(0.3); sys.exit(7)' if mode == 'failure'
+               else 'time.sleep(0.3)' if mode == 'success' else 'time.sleep(60)')
         )
-        argv = [sys.executable, '-m', 'benchmark.harbor.process_supervisor', '--',
+        argv = [sys.executable, '-m', 'benchmark.harbor.process_supervisor',
+                *(['--preserve-on-success'] if mode != 'success' else []), '--',
                 sys.executable, '-c', parent_code]
         if mode == 'timeout':
             argv = ['timeout', '--kill-after=10s', '1', *argv]
@@ -33,6 +35,6 @@ with tempfile.TemporaryDirectory() as directory:
         if mode == 'cancel':
             process.send_signal(signal.SIGTERM)
         stdout, stderr = process.communicate(timeout=8)
-        assert process.returncode == {'success': 0, 'cancel': 143, 'timeout': 124}[mode], stderr
+        assert process.returncode == {'success': 0, 'failure': 7, 'cancel': 143, 'timeout': 124}[mode], stderr
         assert not Path(f'/proc/{pid_file.read_text()}').exists(), mode
         print(f'{mode}: detached descendant reaped, inherited pipes closed')

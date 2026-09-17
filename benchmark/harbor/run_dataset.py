@@ -70,8 +70,18 @@ def build_command(
     environment: str | None = None,
     force_build: bool = False,
     source_dir: Path | None = None,
+    provider: str = 'anthropic',
+    api_key_env: str | None = None,
+    reasoning_effort: str | None = None,
 ) -> list[str]:
     '''Build a Harbor command without exposing credentials in argv.'''
+    credential_names = {'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
+                        'deepseek': 'DEEPSEEK_API_KEY'}
+    if provider not in credential_names:
+        raise ValueError('Unsupported model provider')
+    credential = api_key_env or credential_names[provider]
+    if credential not in {*credential_names.values(), 'FORGE_API_KEY'}:
+        raise ValueError('Unsupported credential environment variable')
     mounts = json.dumps(
         [{
             'type': 'bind',
@@ -110,7 +120,7 @@ def build_command(
         '--env-file',
         str(env_file.resolve()),
         '--ae',
-        'FORGECODE_API_KEY=${ANTHROPIC_API_KEY}',
+        'FORGECODE_API_KEY=${' + credential + '}',
         '--ae',
         f'FORGECODE_MODEL={model}',
         '--ae',
@@ -125,8 +135,13 @@ def build_command(
         str(output_dir.resolve()),
         '-y',
     ]
+    command.extend(['--ae', f'FORGECODE_PROVIDER={provider}'])
+    if reasoning_effort:
+        command.extend(['--ae', f'FORGECODE_REASONING_EFFORT={reasoning_effort}'])
     if timeout_multiplier is not None:
         command.extend(['--timeout-multiplier', str(timeout_multiplier)])
+    if agent == 'benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent':
+        command.extend(['--plugin', 'benchmark.harbor.deadline_plugin:ForgeCodeDeadlinePlugin'])
     if environment is not None:
         command.extend(['--env', environment])
     else:
@@ -149,7 +164,9 @@ def configured_values(env_file: Path) -> dict[str, str]:
         for key, value in dotenv_values(env_file).items()
         if value is not None
     }
-    for key in ('MODEL_ID', 'ANTHROPIC_BASE_URL'):
+    for key in ('FORGE_REASONING_EFFORT', 'MODEL_ID', 'ANTHROPIC_BASE_URL', 'FORGE_MODEL', 'FORGE_BASE_URL',
+                'FORGE_PROVIDER', 'OPENAI_BASE_URL', 'DEEPSEEK_BASE_URL',
+                'FORGE_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY'):
         if os.environ.get(key):
             values[key] = os.environ[key]
     return values
@@ -179,6 +196,8 @@ def build_parser(
     parser.add_argument('--concurrency', type=int, default=1)
     parser.add_argument('--max-retries', type=int, default=1)
     parser.add_argument('--model')
+    parser.add_argument('--reasoning-effort')
+    parser.add_argument('--provider', choices=['anthropic', 'openai_responses', 'deepseek'])
     parser.add_argument('--base-url')
     parser.add_argument('--env-file', type=Path, default=PROJECT_ROOT / '.env')
     parser.add_argument(
@@ -235,8 +254,14 @@ def main(
         parser.error('--timeout-multiplier must be positive')
 
     values = configured_values(args.env_file)
-    model = args.model or values.get('MODEL_ID')
-    base_url = args.base_url or values.get('ANTHROPIC_BASE_URL')
+    provider = args.provider or values.get('FORGE_PROVIDER', 'anthropic')
+    model = args.model or values.get('FORGE_MODEL') or values.get('MODEL_ID')
+    endpoint_key = {'anthropic': 'ANTHROPIC_BASE_URL', 'openai_responses': 'OPENAI_BASE_URL',
+                    'deepseek': 'DEEPSEEK_BASE_URL'}.get(provider)
+    base_url = args.base_url or values.get('FORGE_BASE_URL') or values.get(endpoint_key or '')
+    if base_url is None:
+        base_url = {'openai_responses': 'https://api.openai.com/v1',
+                    'deepseek': 'https://api.deepseek.com'}.get(provider)
     if not model or not base_url:
         parser.error('MODEL_ID and ANTHROPIC_BASE_URL must be configured')
     if not args.dry_run and not local_provider_available(base_url):
@@ -252,6 +277,9 @@ def main(
         cache_dir=args.cache_dir,
         model=model,
         base_url=container_base_url(base_url),
+        provider=provider,
+        reasoning_effort=args.reasoning_effort or values.get('FORGE_REASONING_EFFORT'),
+        api_key_env='FORGE_API_KEY' if values.get('FORGE_API_KEY') else None,
         agent=args.agent,
         tasks=tuple(args.task),
         n_tasks=args.n_tasks,
@@ -296,6 +324,9 @@ def main(
     from benchmark.harbor.controller import run_controller
     return run_controller(command, cwd=PROJECT_ROOT, env=env, output_dir=args.output_dir,
                           metadata={'source_snapshot': str(source_snapshot), 'concurrency': args.concurrency,
+                                    'provider': provider, 'model': model,
+                                    'reasoning_effort': args.reasoning_effort or values.get('FORGE_REASONING_EFFORT'),
+                                    'reasoning_configuration': 'explicit' if args.reasoning_effort or values.get('FORGE_REASONING_EFFORT') else 'provider_default_unknown',
                                     'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
                                     'kernel_max_seconds': args.max_turn_seconds,
                                     'outer_timeout': 'dataset agent timeout scaled by Harbor timeout_multiplier',

@@ -69,6 +69,21 @@ def test_one_deadline_has_one_primary_outcome(tmp_path):
     assert summary.agent_failures == summary.infrastructure_failures == 0
 
 
+def test_timeout_does_not_erase_official_pass_and_missing_trial_counts(tmp_path):
+    trial(tmp_path, reason='time_budget_exhausted', reward=1, timed_out=True)
+    missing = tmp_path / 'missing'
+    missing.mkdir()
+    (missing / 'config.json').write_text('{}')
+    summary = summarize_run(tmp_path)
+    data = summary.to_dict()
+    assert summary.agent_timeouts == 1
+    assert summary.pass_at_2 == 1
+    assert data['final_pass_count'] == 1
+    assert data['final_pass_denominator'] == 2
+    assert data['final_pass_rate'] == .5
+    assert data['eligible_final_pass_rate'] == 1
+
+
 def test_agent_timeout_exception_is_not_infrastructure(tmp_path):
     trial(tmp_path, reason='time_budget_exhausted', timed_out=True,
           exception={'exception_type': 'AgentTimeoutError'})

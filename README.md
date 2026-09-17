@@ -14,7 +14,7 @@ ForgeCode 是一个运行在终端中的 Agent Harness，用于可靠地执行�
   → Completion Gate 判断是否允许完成
 ```
 
-当前发行版本以 [`pyproject.toml`](pyproject.toml) 为准，目前是 `0.1.2`。详细源码审阅见 [`report.md`](report.md)；本文只保留安装、使用、架构和评测入口，避免重复维护实现细节与历史 Benchmark 数字。
+当前发行版本以 [`pyproject.toml`](pyproject.toml) 为准，目前是 `0.1.2`。详细源码审阅见 [`report.md`](docs/architecture/report.md)，最新分析和目录约定见[文档导航](docs/README.md)；本文只保留安装、使用、架构和评测入口，避免重复维护实现细节与历史 Benchmark 数字。
 
 ## 快速开始
 
@@ -457,8 +457,8 @@ Terminal-Bench 不使用 Aider 专用的 feedback repair；Aider Polyglot 仍按
 
 当前 BFCL V4（工具调用）和 OSWorld（桌面/多模态）已列入能力目录，但分别
 需要外部工具状态适配器和 computer-use/vision backend，尚未伪装成可运行的
-ForgeCode 分数。版本化的既有评测数字和运行边界见 [`report.md`](report.md)
-与 [`EVALUATION_SUMMARY_20260813.md`](EVALUATION_SUMMARY_20260813.md)。
+ForgeCode 分数。版本化的既有评测数字和运行边界见 [`report.md`](docs/architecture/report.md)
+与 [`EVALUATION_SUMMARY_20260813.md`](docs/reviews/2026-08-13-evaluation-summary.md)。
 
 ## 安全边界和已知限制
 
@@ -471,8 +471,8 @@ ForgeCode 分数。版本化的既有评测数字和运行边界见 [`report.md`
 
 ## 进一步阅读
 
-- [`study.md`](study.md)：按运行链路组织的源码学习路线；
-- [`report.md`](report.md)：当前源码、测试、评测和设计取舍的详细审阅；
+- [`study.md`](docs/architecture/study.md)：按运行链路组织的源码学习路线；
+- [`report.md`](docs/architecture/report.md)：当前源码、测试、评测和设计取舍的详细审阅；
 - [`forge/cli.py`](forge/cli.py)：CLI 生命周期和运行时装配；
 - [`forge/runtime/agent_loop.py`](forge/runtime/agent_loop.py)：主 Agent Loop；
 - [`forge/tools/base.py`](forge/tools/base.py)：统一工具协议和注册表；

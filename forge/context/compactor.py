@@ -8,6 +8,7 @@ from fnmatch import fnmatchcase
 import hashlib
 import json
 from pathlib import Path
+from contextlib import aclosing
 from typing import Any
 
 from forge.runtime.state import (
@@ -154,20 +155,21 @@ async def summarize_history(
     )
     text_parts: list[str] = []
     usage: TokenUsage | None = None
-    async for event in client.stream(
+    async with aclosing(client.stream(
         messages=[{'role': 'user', 'content': prompt}],
         tools=None,
         system=(
             'You compress coding-agent history. Do not call tools. '
             'Do not invent facts. Return valid JSON only.'
         ),
-    ):
-        if isinstance(event, ModelTextDelta):
-            text_parts.append(event.text)
-        elif isinstance(event, ModelUsageUpdate):
-            usage = event.usage
-        elif isinstance(event, ModelToolCallCompleted):
-            raise ValueError('Summary request unexpectedly called a tool.')
+    )) as stream:
+        async for event in stream:
+            if isinstance(event, ModelTextDelta):
+                text_parts.append(event.text)
+            elif isinstance(event, ModelUsageUpdate):
+                usage = event.usage
+            elif isinstance(event, ModelToolCallCompleted):
+                raise ValueError('Summary request unexpectedly called a tool.')
     if usage is None:
         raise ValueError('Summary response did not contain token usage.')
     summary = TaskSummary.from_json(''.join(text_parts))

@@ -1,0 +1,171 @@
+{
+  "total_trials": 11,
+  "missing_results": [
+    "mailman__QTmGBpW",
+    "mteb-leaderboard__RTZGyLY",
+    "reshard-c4-data__eZxBiVY",
+    "sqlite-with-gcov__ctJfWcD",
+    "tune-mjcf__g6qbHCm"
+  ],
+  "infrastructure_failures": 2,
+  "infrastructure_failure_types": {
+    "server_error": 1,
+    "timeout": 1
+  },
+  "agent_failures": 3,
+  "agent_timeouts": 0,
+  "model_service_failures": 2,
+  "verifier_environment_failures": 0,
+  "scored_trials": 4,
+  "pass_at_1": 1,
+  "pass_at_2": 1,
+  "repaired": 0,
+  "first_attempt_known": 4,
+  "internal_statuses": {
+    "partial": 4,
+    "failed": 2,
+    "unknown": 3
+  },
+  "model_calls": 129,
+  "tool_calls": 216,
+  "input_tokens": 3351246,
+  "output_tokens": 55351,
+  "language_stats": {},
+  "unfinished_trials": [
+    "mailman__QTmGBpW",
+    "mteb-leaderboard__RTZGyLY",
+    "reshard-c4-data__eZxBiVY",
+    "sqlite-with-gcov__ctJfWcD",
+    "tune-mjcf__g6qbHCm"
+  ],
+  "job_finished": false,
+  "raw_rewards": {
+    "db-wal-recovery__nDzkkzq": 0.0,
+    "extract-elf__eLbVT4T": 0.0,
+    "headless-terminal__xCg2vGo": 0.0,
+    "kv-store-grpc__dysokQ2": 0.0,
+    "openssl-selfsigned-cert__36EKJF2": 1.0,
+    "regex-chess__PLauXHf": 0.0
+  },
+  "trial_assessments": {
+    "mailman__QTmGBpW": {
+      "primary_outcome": "unfinished",
+      "verifier_state": "not_run",
+      "evaluation_eligible": false,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "mteb-leaderboard__RTZGyLY": {
+      "primary_outcome": "unfinished",
+      "verifier_state": "not_run",
+      "evaluation_eligible": false,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "reshard-c4-data__eZxBiVY": {
+      "primary_outcome": "unfinished",
+      "verifier_state": "not_run",
+      "evaluation_eligible": false,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "sqlite-with-gcov__ctJfWcD": {
+      "primary_outcome": "unfinished",
+      "verifier_state": "not_run",
+      "evaluation_eligible": false,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "tune-mjcf__g6qbHCm": {
+      "primary_outcome": "unfinished",
+      "verifier_state": "not_run",
+      "evaluation_eligible": false,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "db-wal-recovery__nDzkkzq": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "extract-elf__eLbVT4T": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "headless-terminal__xCg2vGo": {
+      "primary_outcome": "model_protocol_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": false,
+      "failure_type": "server_error",
+      "observed_faults": [
+        "server_error"
+      ]
+    },
+    "kv-store-grpc__dysokQ2": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "openssl-selfsigned-cert__36EKJF2": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "regex-chess__PLauXHf": {
+      "primary_outcome": "model_protocol_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": false,
+      "failure_type": "timeout",
+      "observed_faults": [
+        "timeout"
+      ]
+    }
+  },
+  "telemetry_missing": [
+    "mteb-leaderboard__RTZGyLY",
+    "reshard-c4-data__eZxBiVY"
+  ],
+  "controller": {
+    "status": "running",
+    "controller_pid": 19480,
+    "started_at": "2026-09-15T11:00:12.046748+00:00",
+    "metadata": {
+      "source_snapshot": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-unseen20-luna-c5-20260915-185937\\.source-snapshots\\candidate-h6jhhie5\\source",
+      "concurrency": 5,
+      "provider": "anthropic",
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": null,
+      "reasoning_configuration": "provider_default_unknown",
+      "max_model_calls": 120,
+      "max_tool_calls": 240,
+      "kernel_max_seconds": 1800,
+      "outer_timeout": "dataset agent timeout scaled by Harbor timeout_multiplier",
+      "timeout_multiplier": 1.0
+    },
+    "child_pid": 36636,
+    "heartbeat_at": "2026-09-15T11:26:25.660531+00:00"
+  },
+  "pass_at_1_rate": 0.25,
+  "pass_at_2_rate": 0.25,
+  "final_pass_count": 1,
+  "final_pass_rate": 0.25,
+  "raw_pass_count": 1,
+  "verifier_scored_count": 6,
+  "eligible_trial_count": 4,
+  "primary_outcome_counts": {
+    "unfinished": 5,
+    "agent_failure": 3,
+    "model_protocol_failure": 2,
+    "pass": 1
+  },
+  "infrastructure_failures_semantics": "Legacy aggregate of model, verifier, infrastructure and unknown failures; do not add it to subcategories."
+}

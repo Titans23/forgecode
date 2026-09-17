@@ -3,22 +3,24 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import replace
+from contextlib import aclosing
+from dataclasses import asdict, replace
 from time import monotonic
 from typing import TYPE_CHECKING
 
 from forge.context.working import WorkingState
 from forge.hooks import HookEvent
 from forge.runtime.model_budget import BudgetedModelClient
+from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import ModelCallError, ModelOutputTruncatedError, ModelProtocolError
 from forge.runtime.state import (
-    CompletionBlocked, ModelCallCompleted, ModelCallFailed, ModelCallStarted,
-    ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, ToolCall,
+    ModelCallCompleted, ModelCallFailed, ModelCallStarted,
+    ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, ToolCall, ModelProviderState, ModelResponseCompleted,
     ModelToolCallStarted, ModelToolCallArgumentsDelta,
     ToolExecutionCompleted, ToolExecutionStarted, TurnCompleted, TurnResult,
     VerificationCompleted, WorkspaceChanged,
 )
-from forge.runtime.turn_state import BudgetExhausted, TurnState, add_usage
+from forge.runtime.turn_state import BudgetExhausted, TurnState, add_usage, parent_budget
 from forge.tools.base import ToolResult
 
 if TYPE_CHECKING:
@@ -39,7 +41,10 @@ class TurnRunner:
             max_tool_calls=conversation.max_tool_calls,
             max_input_tokens=conversation.max_turn_input_tokens,
             max_seconds=conversation.max_turn_seconds,
+            parent=parent_budget.get(),
         )
+        if self.state.parent is not None:
+            self.state.request_event_sink = self.state.parent.request_event_sink
         self.calls: list[ToolCall] = []
         self.messages: list[dict] = []
         self.checkpoint_id: str | None = None
@@ -47,15 +52,16 @@ class TurnRunner:
         self.owns_task = False
         self.terminal: tuple[str, str, str, tuple[str, ...]] | None = None
         self.finished = False
-        self.completion_attempts = 0
         self.output_continuations = 0
         self.continued_text = ''
         self.reactive_compaction_used = False
         self.batch_active = False
         self.pending_feedback: list[str] = []
-        self.pending_completion_reasons: tuple[str, ...] = ()
         self.mutation_attempted = False
         self.mutation_failed = False
+        self.consecutive_tool_protocol_errors = 0
+        self.declared_status: str | None = None
+        self.delivery_repair_reasons: set[tuple[str, ...]] = set()
 
     @property
     def tracker(self):
@@ -154,6 +160,13 @@ class TurnRunner:
                     self.state.goal = previous.goal
                 else:
                     c.task_manager.start(prompt, requires_change=False)
+        task_id = c.task_manager.active.id if c.task_manager.active else ''
+        # A new turn is a new observation epoch. Old run IDs remain addressable
+        # for checker inheritance, but numerical revision=0 never refreshes them.
+        c.verification_history[:] = [replace(item, freshness='unknown')
+                                     for item in c.verification_history]
+        self.state.evidence.verification.extend(
+            item for item in c.verification_history if item.task_id == task_id)
         if c.mcp_manager is not None:
             await c.mcp_manager.ensure_connected()
         if c.checkpoint_store is not None:
@@ -181,11 +194,14 @@ class TurnRunner:
     def _tools(self):
         c = self.conversation
         definitions = c._permission_filtered_tools(c._tool_definitions())
+        task = c.task_manager.active
+        if definitions is not None and (task is None or not task.acceptance_criteria):
+            definitions = [item for item in definitions if item['name'] != 'task_revise_requirement']
         if self.read_only and c.registry is not None and definitions is not None:
             definitions = [
                 item for item in definitions
                 if c.registry.effect(item['name']) == 'read_only'
-                and item['name'] not in {'task_plan', 'task_update', 'finish_task'}
+                and item['name'] not in {'task_plan', 'task_update', 'task_revise_requirement', 'finish_task'}
             ]
         return definitions
 
@@ -197,12 +213,19 @@ class TurnRunner:
             c._permission_system_context(),
             '[Current turn contract]\n' + self.state.goal,
             '[Runtime request tools]\nOnly the following tools are included in this model request: ' + available,
+            self._evidence_context(),
             'Task plans and scope hints organize work; they do not grant permissions. '
             'Tool batches execute sequentially and stop after a failure. Failed checks '
             'remain diagnostic evidence. Explain what verification actually covers and '
             'what remains untested; a zero exit code alone does not prove the user goal. '
             'Either a final answer or finish_task submits the same completion request. '
-            'Use failed for an unsuccessful attempt, blocked only for a specific external dependency.',
+            'Submission ends the turn; caller acceptance is reported separately. '
+            'When review_delivery is available, use it before submission to inspect gaps '
+            'while there is budget to repair. Choose independent checks: unseen algorithm inputs, '
+            'exact requested source components, observed sample values, and delivery in a clean '
+            'directory without reference programs. Do not weaken expectations to match output. '
+            'Use partial for incomplete delivery, failed for an unsuccessful attempt, '
+            'blocked only for a specific external dependency.',
             ('[Acceptance reconciliation]\nThe acceptance criteria above are source-anchored model interpretations, not independent proof or permissions. '
             'For each requirement, bind verify.output_checks.requirement_id and expected_source to an actual '
             'falsifiable measurement. Report missing or uncertain checks with finish_task status=failed; '
@@ -216,6 +239,26 @@ class TurnRunner:
             + 'Choose command timeouts within this remaining budget. Reserve time to validate '
               'the actual deliverable. Repeated dependency downloads/builds consume this same budget.',
         ) if part)
+
+    def _evidence_context(self) -> str:
+        '''Deterministic projection survives model summaries and context trimming.'''
+        import json
+        latest = {}
+        for item in self.state.evidence.verification:
+            latest[item.check_id or (item.command, item.cwd, item.check_signature)] = item
+        if not latest:
+            return ''
+        rows = []
+        for item in list(latest.values())[-8:]:
+            current = (item.freshness == 'current' and item.workspace_revision == self.state.workspace_revision
+                       and item.environment_epoch == self.state.environment_epoch)
+            rows.append({'check_id': item.check_id, 'run_id': item.verification_id,
+                         'command': item.command[:160], 'observed_success': item.success,
+                         'freshness': 'current' if current else 'unknown',
+                         'requirements': item.requirement_ids})
+        return ('[Executed check state]\nHistorical success is not current proof. '
+                'Use verify.check_id to rerun a definition; task_get contains full history.\n'
+                + json.dumps(rows, ensure_ascii=False))
 
     async def _compact(self, system: str, tools, *, force: bool = False) -> None:
         c = self.conversation
@@ -268,22 +311,30 @@ class TurnRunner:
             calls: list[ToolCall] = []
             usage = None
             partial_tools = False
+            provider_state = None
+            provider_completed = False
             try:
                 client = BudgetedModelClient(c.client, self.state)
-                async for event in client.stream(c.context.prepare(self.messages), tools=tools, system=system):
-                    if isinstance(event, ModelTextDelta):
-                        parts.append(event.text)
-                    elif isinstance(event, ModelToolCallCompleted):
-                        calls.append(event.tool_call)
-                        self.calls.append(event.tool_call)
-                        self.state.record_tool_request()
-                    elif isinstance(event, ModelUsageUpdate):
-                        usage = event.request_usage or event.usage
-                        yield ModelUsageUpdate(add_usage(self.state.usage, usage), usage, self.state.model_calls)
-                        continue
-                    elif isinstance(event, (ModelToolCallStarted, ModelToolCallArgumentsDelta)):
-                        partial_tools = True
-                    yield event
+                async with aclosing(client.stream(c.context.prepare(self.messages), tools=tools, system=system)) as stream:
+                    async for event in stream:
+                        if isinstance(event, ModelProviderState):
+                            provider_state = {'provider': event.provider, 'data': event.data}
+                            continue
+                        if isinstance(event, ModelResponseCompleted):
+                            provider_completed = True
+                        if isinstance(event, ModelTextDelta):
+                            parts.append(event.text)
+                        elif isinstance(event, ModelToolCallCompleted):
+                            calls.append(event.tool_call)
+                            self.calls.append(event.tool_call)
+                            self.state.record_tool_request()
+                        elif isinstance(event, ModelUsageUpdate):
+                            usage = event.request_usage or event.usage
+                            yield ModelUsageUpdate(add_usage(self.state.usage, usage), usage, self.state.model_calls)
+                            continue
+                        elif isinstance(event, (ModelToolCallStarted, ModelToolCallArgumentsDelta)):
+                            partial_tools = True
+                        yield event
             except (ModelProtocolError, ModelCallError) as error:
                 yield ModelCallFailed(iteration, str(error), isinstance(error, ModelProtocolError))
                 partial = ''.join(parts)
@@ -338,7 +389,7 @@ class TurnRunner:
                 return
             yield ModelCallCompleted(iteration)
             text = ''.join(parts)
-            if usage is None:
+            if usage is None and not provider_completed:
                 raise ModelResponseError('Model response did not contain token usage.')
             if not text.strip() and not calls:
                 if self.state.response_errors < min(2, c.max_protocol_recoveries):
@@ -354,26 +405,24 @@ class TurnRunner:
                     ('empty_model_response',),
                 )
                 return
-            self._append_assistant(build_assistant_message(text, calls))
+            message = build_assistant_message(text, calls)
+            if provider_state is not None:
+                message['provider_state'] = provider_state
+            self._append_assistant(message)
             if calls and c.registry is not None:
                 async for event in self._batch(calls):
                     yield event
-                if self.pending_completion_reasons:
-                    self.completion_attempts += 1
-                    yield CompletionBlocked(
-                        self.completion_attempts, self.pending_completion_reasons,
-                    )
-                    self.pending_completion_reasons = ()
                 if self.terminal is not None:
                     yield await self._finish(*self.terminal)
                     return
                 continue
             reasons = await self._completion_reasons()
             if reasons:
-                self.completion_attempts += 1
-                yield CompletionBlocked(self.completion_attempts, reasons)
-                self._feedback('Completion contract is not satisfied:\n' + '\n'.join(reasons))
-                continue
+                self.declared_status = 'completed'
+                if self._offer_delivery_repair(reasons):
+                    continue
+                yield await self._finish('partial', 'acceptance_unmet', self.continued_text + text, reasons)
+                return
             yield await self._finish('completed', 'completed', self.continued_text + text, ())
             return
 
@@ -385,16 +434,20 @@ class TurnRunner:
         results: list[tuple[ToolCall, ToolResult]] = []
         ordered = sorted(calls, key=lambda call: call.index)
         batch_reason = None
-        if self.state.max_tool_calls is not None and self.state.tool_requests > self.state.max_tool_calls:
+        if not self.state.can_request_tool_batch(0):
             batch_reason = 'tool_budget_exhausted'
             self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))
         mixed_finish = len(calls) > 1 and any(call.name == 'finish_task' for call in calls)
+        # 完成声明必须单独处理，防止同批后续工具改动产物后仍沿用旧验收结论。
         if mixed_finish:
             batch_reason = 'finish_must_be_alone'
         interrupted = False
         self.batch_active = True
         try:
             for call in ordered:
+                if not self.state.can_request_tool_batch(0):
+                    batch_reason = 'tool_budget_exhausted'
+                    self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))
                 if batch_reason:
                     outcome = executor.record_result(call, ToolResult.fail(
                         batch_reason, 'This tool did not execute. Replan using the preceding results.',
@@ -403,11 +456,30 @@ class TurnRunner:
                     if self.state.budget_reason(include_model=False):
                         raise BudgetExhausted(self.state.budget_reason(include_model=False))
                     yield ToolExecutionStarted(call)
-                    outcome = await executor.execute(
-                        call, checkpoint_id=self.checkpoint_id,
-                        scope_checker=self._scope_error,
-                        result_transformer=(self._finish_declaration if call.name == 'finish_task' else None),
-                    )
+                    if call.name == 'verify' and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id')):
+                        # 先展开已存检查，再交给统一执行器校验和授权；不能用引用绕过权限边界。
+                        from forge.runtime.check_contracts import inherit_check_arguments, resolve_stored_check
+                        try:
+                            arguments = resolve_stored_check(call.arguments, self.state.evidence.verification)
+                            call = replace(call, arguments=inherit_check_arguments(arguments, self.state.evidence.verification)
+                                           if arguments.get('inherit_checks_from') else arguments)
+                        except ValueError as error:
+                            outcome = executor.record_result(call, ToolResult.fail('check_contract_conflict', str(error)), status='rejected')
+                            results.append((call, outcome.result))
+                            self.state.record_execution(outcome.record)
+                            yield ToolExecutionCompleted(call, outcome.result)
+                            batch_reason = 'not_executed_after_failure'
+                            continue
+                    budget_token = parent_budget.set(self.state)
+                    try:
+                        outcome = await executor.execute(
+                            call, checkpoint_id=self.checkpoint_id,
+                            scope_checker=self._scope_error,
+                            result_transformer=(self._finish_declaration if call.name == 'finish_task'
+                                                else self._review_delivery if call.name == 'review_delivery' else None),
+                        )
+                    finally:
+                        parent_budget.reset(budget_token)
                 effective = ToolCall(call.index, call.id, call.name, outcome.arguments)
                 results.append((effective, outcome.result))
                 self.state.record_execution(outcome.record)
@@ -427,6 +499,13 @@ class TurnRunner:
                 if c.registry.effect(call.name) != 'read_only':
                     c.working_state.invalidate_process_caches()
                 evidence = verification_from_result(outcome.result)
+                if evidence is not None and outcome.record.status == 'executed':
+                    task = c.task_manager.active
+                    evidence = replace(evidence, task_id=task.id if task else '',
+                                       turn_id=self.journal.turn_id if self.journal else '')
+                    c.verification_history.append(evidence)
+                    if self.journal is not None:
+                        self.journal.append('verification_recorded', {'evidence': asdict(evidence)})
                 if evidence is not None and outcome.record.status == 'executed':
                     self.state.evidence.add(evidence)
                     yield VerificationCompleted(evidence)
@@ -454,6 +533,11 @@ class TurnRunner:
                     if batch_reason is None:
                         batch_reason = 'not_executed_after_failure'
                     self._diagnose(effective, outcome.result)
+                    if (outcome.record.status == 'executed' and outcome.result.error
+                            and outcome.result.error.code not in {'invalid_arguments', 'unknown_tool', 'unsupported_shell_syntax'}):
+                        self.consecutive_tool_protocol_errors = 0
+                elif outcome.record.status == 'executed':
+                    self.consecutive_tool_protocol_errors = 0
             if mixed_finish:
                 self._protocol_feedback('finish_task must be submitted alone.')
         finally:
@@ -503,6 +587,10 @@ class TurnRunner:
             self.tracker.revision, getattr(self.tracker, 'environment_epoch', 0),
         )
         evidence = tuple(self.state.evidence.verification)
+        task = c.task_manager.active
+        retired = {item['id'] for item in task.acceptance_history} if task is not None else set()
+        evidence = tuple(item for item in evidence if not item.requirement_ids
+                         or not set(item.requirement_ids).issubset(retired))
         decision = await c.completion_gate.evaluate(
             self.tracker, evidence[-1] if evidence else None,
             verification_history=evidence, mutation_attempted=False,
@@ -510,11 +598,58 @@ class TurnRunner:
         )
         return decision.reasons
 
+    async def _review_delivery(self, result: ToolResult) -> ToolResult:
+        if not result.success or not result.metadata.get('review_delivery'):
+            return result
+        from forge.runtime.delivery import completion_report
+        from forge.runtime.acceptance import requirement_observation
+        import json
+        reasons = await self._completion_reasons()
+        report = completion_report(
+            status='completed', evidence=tuple(self.state.evidence.verification),
+            workspace_revision=self.tracker.revision if self.tracker else 0,
+            environment_epoch=getattr(self.tracker, 'environment_epoch', 0),
+            reasons=reasons, has_contract=self.conversation.completion_gate is not None,
+            usage_complete=self.state.unknown_usage_requests == 0,
+        )
+        content = report.summary()
+        if reasons:
+            content += '\nCurrent gaps:\n' + '\n'.join('- ' + reason[:700] for reason in reasons[:12])
+        task = self.conversation.task_manager.active
+        observations = [requirement_observation(criterion, self.state.evidence.verification,
+            self.tracker.revision if self.tracker else 0, getattr(self.tracker, 'environment_epoch', 0))
+            for criterion in (task.acceptance_criteria if task else ())]
+        # Bound diagnostic context; IDs allow retrieving full stored checks with task_get.
+        selected, remaining = [], 24000
+        for item in sorted(observations, key=lambda item: item['state'] == 'recorded_assertion_passed'):
+            size = len(json.dumps(item, ensure_ascii=False))
+            if size <= remaining and len(selected) < 12:
+                selected.append(item)
+                remaining -= size
+        omitted = len(observations) - len(selected)
+        if selected:
+            content += '\nSee metadata.requirement_observations for linked checks, failure diagnostics and next actions.'
+        if omitted:
+            content += f'\n{omitted} requirement details omitted for context budget; task_get retains the full ledger.'
+        content += '\nThis review did not run tests or establish independent correctness. Repair concrete gaps, or submit partial with limitations.'
+        report_payload = asdict(report)
+        report_payload['unmet_requirements'] = tuple(reason[:700] for reason in reasons[:12])
+        for key in ('passed_checks', 'failed_checks', 'historical_checks'):
+            report_payload[key] = report_payload[key][:20]
+        return ToolResult.ok(report.summary(), content=content, metadata={
+            'review_delivery': True, 'completion_report': report_payload,
+            'requirement_observations': selected, 'observations_omitted': omitted,
+            'detail_limits': 'Up to 12 requirements, 3 runs and 8 assertions per run; strings are excerpts. Use task_get for complete stored definitions.',
+            'gap_count': len(reasons),
+        })
+
     async def _finish_declaration(self, result: ToolResult) -> ToolResult:
         if not result.success or not result.metadata.get('finish_task'):
             return result
         metadata = result.metadata
         status = metadata['status']
+        self.declared_status = status
+        observations: list[str] = []
         task_kind = metadata.get('task_kind')
         if (
             status == 'completed'
@@ -522,9 +657,7 @@ class TurnRunner:
             and not self.conversation.working_state.evidence_paths
         ):
             reasons = ('An inspection completion requires repository evidence from a read or search tool.',)
-            self.pending_completion_reasons = reasons
-            self._feedback(reasons[0])
-            return ToolResult.fail('completion_rejected', reasons[0], metadata=metadata)
+            observations.extend(reasons)
         if status == 'completed':
             task = self.conversation.task_manager.active
             if metadata.get('acceptance_criteria') and task is not None and not task.acceptance_criteria:
@@ -532,30 +665,50 @@ class TurnRunner:
                     task = self.conversation.task_manager.register_acceptance(metadata['acceptance_criteria'])
                     metadata = {**metadata, 'acceptance_criteria': task.acceptance_criteria}
                 except ValueError as error:
-                    self.pending_completion_reasons = (str(error),)
-                    self._feedback(str(error))
-                    return ToolResult.fail('completion_rejected', str(error), metadata=metadata)
+                    observations.append(str(error))
             # Completion is read-only once a contract exists. Explicit planning
             # may add clauses, but repeated finish declarations cannot do so.
             metadata = {**metadata, 'acceptance_criteria': task.acceptance_criteria if task is not None else ()}
             reasons = await self._completion_reasons()
-            if reasons:
-                self.pending_completion_reasons = reasons
-                self._feedback('Completion contract is not satisfied:\n' + '\n'.join(reasons))
-                return ToolResult.fail('completion_rejected', '\n'.join(reasons), metadata=metadata)
+            observations.extend(reasons)
         elif status == 'blocked' and not self.conversation.working_state.has_external_blocker:
             reasons = ('blocked requires observed external evidence such as permission, credentials, network, or an unavailable dependency. If the attempted task is unsuccessful, use finish_task status=failed; it does not require successful verification.',)
-            self.pending_completion_reasons = reasons
-            self._feedback(reasons[0])
-            return ToolResult.fail('completion_rejected', reasons[0], metadata=metadata)
+            observations.extend(reasons)
+        if observations and status == 'completed' and self._offer_delivery_repair(observations):
+            return ToolResult.fail('delivery_repair_required',
+                                   'Completion checks failed. Repair the observed gaps within the remaining budget, or submit an honest partial/failed result.',
+                                   metadata={'acceptance_reasons': tuple(observations)})
+        if observations:
+            status = 'partial'
+        metadata = {**metadata, 'agent_assessment': self.declared_status,
+                    'status': status, 'acceptance_reasons': tuple(observations)}
         self.terminal = (
-            status, status, str(metadata['summary']), tuple(metadata.get('blocked_reasons', ())),
+            status, 'acceptance_unmet' if observations else status, str(metadata['summary']),
+            tuple(dict.fromkeys((*observations, *metadata.get('blocked_reasons', ())))),
         )
         return replace(result, metadata=metadata)
 
+    def _offer_delivery_repair(self, reasons) -> bool:
+        gate = self.conversation.completion_gate
+        limit = max(0, min(2, gate.policy.max_delivery_repairs)) if gate else 0
+        signature = tuple(sorted(set(reasons)))
+        if (len(self.delivery_repair_reasons) >= limit
+                or signature in self.delivery_repair_reasons
+                or not self.state.can_request_model()):
+            return False
+        self.delivery_repair_reasons.add(signature)
+        self._feedback('Completion was not accepted. Fix the implementation or supply missing evidence; '
+                       'do not weaken acceptance checks. The original budget still applies. '
+                       'If the gaps cannot be repaired, finish with partial or failed.\n'
+                       + '\n'.join(reason[:1000] for reason in signature[:8]))
+        return True
+
     def _protocol_feedback(self, reason: str) -> None:
         self.state.tool_protocol_errors += 1
-        if self.state.tool_protocol_errors > min(2, self.conversation.max_tool_protocol_recoveries):
+        self.consecutive_tool_protocol_errors += 1
+        recovery_limit = self.conversation.max_tool_protocol_recoveries
+        if (self.consecutive_tool_protocol_errors >= recovery_limit
+                or self.state.tool_protocol_errors > max(6, recovery_limit * 3)):
             self.terminal = ('failed', 'tool_protocol_exhausted', reason, (reason,))
         else:
             self._feedback(reason + ' Correct the tool parameters before retrying.')
@@ -615,17 +768,31 @@ class TurnRunner:
         self.conversation.messages[:] = self.messages
 
     async def _finish(self, status: str, reason: str, text: str, reasons: tuple[str, ...]):
+        from dataclasses import fields
+        from forge.runtime.delivery import completion_report
         c = self.conversation
         self.state.stop_reason = reason
         if self.owns_task:
             if status == 'completed':
                 c.task_manager.complete()
+            elif status == 'partial':
+                c.task_manager.partial(reasons)
             elif status == 'blocked':
                 c.task_manager.block(reasons)
             else:
                 c.task_manager.fail(reasons)
         self._commit_messages()
         evidence = tuple(self.state.evidence.verification)
+        policy = c.completion_gate.policy if c.completion_gate is not None else None
+        has_contract = policy is not None and any(
+            bool(getattr(policy, field.name)) for field in fields(policy)
+            if field.name not in {'forbidden_paths', 'max_delivery_repairs'})
+        has_contract = has_contract or bool(policy and policy.forbidden_paths != TaskPolicy().forbidden_paths)
+        report = completion_report(status=status, evidence=evidence,
+            workspace_revision=self.state.workspace_revision,
+            environment_epoch=self.state.environment_epoch, reasons=reasons,
+            has_contract=has_contract, agent_assessment=self.declared_status,
+            usage_complete=self.state.unknown_usage_requests == 0)
         event = TurnCompleted(TurnResult(
             text=text, status=status, stop_reason=reason,
             usage=self.state.usage, last_request_usage=self.state.last_request_usage,
@@ -633,6 +800,7 @@ class TurnRunner:
             changed_paths=self.tracker.changed_paths if self.tracker is not None else (),
             verification=evidence[-1] if evidence else None, verification_history=evidence,
             completion_reasons=reasons, statistics=self.state.statistics(),
+            completion_report=report,
         ))
         # Persist the fully populated result before a CLI/channel sees it.
         c.record_session_event(event)

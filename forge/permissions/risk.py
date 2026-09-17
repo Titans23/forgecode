@@ -118,7 +118,7 @@ def _classify_process(
             tool_call.name, 'file.delete', 'critical', targets,
             path_denial, preview, hard_deny=True,
         )
-    if PRIVILEGE_PATTERN.search(process_input):
+    if _contains_privilege_command(command) or PRIVILEGE_PATTERN.search(stdin):
         return PermissionRequest(
             tool_call.name,
             'process.privileged',
@@ -185,12 +185,54 @@ def _classify_process(
     )
 
 
+def _contains_privilege_command(command: str) -> bool:
+    '''Exempt only simple queries/literal output; unknown execution stays denied.
+
+    Preserve quotes and statement boundaries so interpreter arguments and command
+    substitutions cannot acquire the exemption of a harmless neighbouring query.
+    Script stdin is deliberately checked separately by the caller.
+    '''
+    # 只豁免能明确识别的查询和字面输出，未知脚本语义继续保守处理。
+    if not PRIVILEGE_PATTERN.search(command):
+        return False
+    # Literal/query output can become executable input downstream (printf ...
+    # | sh, command -v sudo | xargs). Do not exempt pipeline programs.
+    if re.search(r'(?<!\|)\|(?!\|)', command) or any(char in command for char in '$`'):
+        return True
+    try:
+        lexer = shlex.shlex(command, posix=False, punctuation_chars=';&|\n')
+        lexer.whitespace = ' \t\r'
+        lexer.whitespace_split = True
+        statements: list[list[str]] = [[]]
+        for token in lexer:
+            if token and all(char in ';&|\n' for char in token):
+                statements.append([])
+            else:
+                statements[-1].append(token)
+    except ValueError:
+        return True
+    for words in statements:
+        text = ' '.join(words)
+        if not PRIVILEGE_PATTERN.search(text):
+            continue
+        # Unknown expansion/redirection may execute code or change semantics.
+        if any(char in text for char in '$`<>\\'):
+            return True
+        query = (len(words) >= 3 and words[:2] in (['command', '-v'], ['command', '-V']))
+        literal_output = bool(words and words[0] in {'echo', 'printf'})
+        if not (query or literal_output):
+            return True
+    return False
+
+
 def _command_delete_targets(command: str) -> tuple[tuple[str, ...], bool]:
     '''Extract explicit rm targets; broad/unresolved recursion stays denied.'''
     targets: list[str] = []
     broad = False
     try:
-        lexer = shlex.shlex(command, posix=True, punctuation_chars=';&|')
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=';&|\n')
+        # 换行必须保留为语句边界，否则下一条命令会被误当成 rm 的目标。
+        lexer.whitespace = ' \t\r'
         lexer.whitespace_split = True
         tokens = list(lexer)
     except ValueError:
@@ -203,7 +245,6 @@ def _command_delete_targets(command: str) -> tuple[tuple[str, ...], bool]:
                 broad = broad or nested_broad
                 break
     index = 0
-    separators = {';', '&&', '||', '|', '&'}
     while index < len(tokens):
         token = tokens[index]
         if Path(token).name.casefold() != 'rm':
@@ -212,7 +253,9 @@ def _command_delete_targets(command: str) -> tuple[tuple[str, ...], bool]:
         index += 1
         recursive = False
         current: list[str] = []
-        while index < len(tokens) and tokens[index] not in separators:
+        while index < len(tokens) and not (
+            tokens[index] and all(char in ';&|\n' for char in tokens[index])
+        ):
             value = tokens[index]
             if value.startswith('-'):
                 recursive = recursive or 'r' in value.casefold()

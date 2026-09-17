@@ -1,0 +1,32 @@
+{
+  "shell_source_sha256": "581e6d24a2bc0dce662260801a4de72ece83e61164181ddd2a54dfc1b024d266",
+  "ordinary_child": {
+    "requested_timeout_seconds": 0.3,
+    "elapsed_seconds": 0.304,
+    "timed_out": true,
+    "exit_code": -9
+  },
+  "detached_child_inherits_pipes": {
+    "requested_timeout_seconds": 0.3,
+    "elapsed_seconds": 2.066,
+    "timed_out": true,
+    "exit_code": 0
+  },
+  "supervisor_service": {
+    "source_sha256": "7da5f5bbe7c01621981aa6fe83ce68d2ef6377384429b89d7e8c36314856e6e0",
+    "supervisor_exit_code": 0,
+    "child_result": {
+      "ready_before_exit": true,
+      "server_pid": 12
+    },
+    "alive_after_successful_exit": false,
+    "stderr": ""
+  },
+  "find_files_result_limit": {
+    "max_results": 1,
+    "matched": 1,
+    "directories_visited": 101,
+    "total_directories": 101,
+    "truncated": true
+  }
+}

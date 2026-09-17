@@ -1,0 +1,53 @@
+{
+  "cwd_module_shadow": {
+    "ordinary_exit": 1,
+    "ordinary_error": "ModuleNotFoundError: No module named 'benchmark.harbor'; 'benchmark' is not a package",
+    "safe_path_control_exit": 0
+  },
+  "permission_classification": [
+    {
+      "command": "command -v sudo",
+      "hard_deny": true,
+      "capability": "process.privileged"
+    },
+    {
+      "command": "printf \"sudo is unavailable\\n\"",
+      "hard_deny": true,
+      "capability": "process.privileged"
+    },
+    {
+      "command": "sudo id",
+      "hard_deny": true,
+      "capability": "process.privileged"
+    }
+  ],
+  "newline_delete_targets": [
+    {
+      "command": "rm -rf build_mips",
+      "hard_deny": false,
+      "targets": [
+        "build_mips"
+      ]
+    },
+    {
+      "command": "rm -rf build_mips\nSRC=$(printf hello)",
+      "hard_deny": true,
+      "targets": [
+        "build_mips",
+        "SRC=$(printf",
+        "hello)"
+      ]
+    }
+  ],
+  "checker_without_output_checks": {
+    "inherit_error": "Unknown verification or no recorded assertions: old.",
+    "old_failure_remains_after_explicit_repair": true,
+    "same_command_success_clears": true
+  },
+  "shell_quality": {
+    "python -": "behavior",
+    "set -eu\npython check.py": "unknown",
+    "python check.py && python second_check.py": "behavior",
+    "false; echo OK": "unknown"
+  }
+}

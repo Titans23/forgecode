@@ -152,6 +152,10 @@ def test_client_passes_explicit_config_to_anthropic_sdk(
         ),
     )
 
+    transport = constructor_calls[0].pop('http_client')
+    from forge.runtime.model_budget import observe_wire_request
+    assert transport.event_hooks['request'] == [observe_wire_request]
+    asyncio.run(transport.aclose())
     assert constructor_calls == [
         {
             'api_key': 'test-api-key',

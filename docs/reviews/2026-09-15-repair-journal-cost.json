@@ -1,0 +1,22 @@
+[
+  {
+    "arm": "LegacyHeadJournal",
+    "events": 500,
+    "journal_bytes": 10148748,
+    "head_bytes_read": 2532059634,
+    "seconds": 20.195277099948726,
+    "first_20_median_ms": 16.371999998227693,
+    "last_20_median_ms": 56.3622999979998,
+    "stale_writer_refused": true
+  },
+  {
+    "arm": "SessionJournal",
+    "events": 500,
+    "journal_bytes": 10148748,
+    "head_bytes_read": 32628017,
+    "seconds": 9.507412699938868,
+    "first_20_median_ms": 15.038149998872541,
+    "last_20_median_ms": 14.766950000193901,
+    "stale_writer_refused": true
+  }
+]

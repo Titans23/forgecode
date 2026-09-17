@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from forge.runtime.workspace import WorkspaceTracker
 from forge.runtime.verification import verification_quality
@@ -19,17 +19,20 @@ from forge.tools.verification_checks import OutputCheck, dormant_python_tests, e
 
 
 class VerifyInput(ToolInput):
+    check_id: str | None = Field(default=None, description='Rerun a stored check definition by ID; command and assertions need not be repeated.')
+    inherit_checks_from: list[str] = Field(default_factory=list, max_length=20,
+        description='Reuse exact output assertions from these verification IDs when repairing a checker. Omit rewritten old output_checks; add only new checks. Without recorded output assertions, command, stdin and cwd must remain unchanged. Requires revision_reason and unchanged cwd. Automatically adds supersedes.')
     supersedes: list[str] = Field(default_factory=list, max_length=20, description='Prior verification IDs whose checker is repaired by this run; preserve every prior output assertion and cwd.')
     revision_reason: str = Field(default='', max_length=2000, description='Explain checker correction and unchanged expectations when supersedes is used.')
     requirement_ids: list[str] = Field(default_factory=list, max_length=20,
         description='Stable req IDs this check attempts. A label alone does not establish coverage: bind executed output_checks to each ID and give expected_source.')
     output_checks: list[OutputCheck] = Field(
-        default_factory=list, max_length=20,
+        default_factory=list, max_length=128,
         description='Optional deterministic assertions on the final stdout JSON object. '
                     'Use for measured thresholds, required components or constraint predicates. '
                     'Failed assertions invalidate verification even when the process exits 0.',
     )
-    command: str = Field(min_length=1)
+    command: str = ''
     cwd: str = Field(default='.', description='Working directory, resolved and authorized like other command paths.')
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
     stdin: str | None = Field(default=None, max_length=200_000)
@@ -42,6 +45,12 @@ class VerifyInput(ToolInput):
         description='Requested behavior or constraints this command does not establish.',
     )
 
+    @model_validator(mode='after')
+    def require_command_or_reference(self):
+        if not self.command.strip() and not self.check_id:
+            raise ValueError('Provide command or check_id')
+        return self
+
 
 class VerifyTool(Tool[VerifyInput]):
     name = 'verify'
@@ -53,6 +62,12 @@ class VerifyTool(Tool[VerifyInput]):
         'not proof that all user requirements are met. Pure version or directory '
         'queries are inspection-only. Evidence applies to the resulting workspace '
         'revision and environment generation; rerun after relevant changes.'
+        ' To repair an earlier checker, use inherit_checks_from and revision_reason '
+        'instead of rewriting its output assertions. Independently validate behavioral '
+        'accuracy; valid output shape alone does not establish it. Use delta_eq with '
+        'reference_key to compare two measured outputs after an input transformation. '
+        'For exact components or source identity, compare measured digests with an independent '
+        'reference using eq; version labels and file existence are insufficient.'
     )
     input_model = VerifyInput
     effect = 'process'
@@ -62,6 +77,10 @@ class VerifyTool(Tool[VerifyInput]):
         self.tracker = tracker
 
     async def execute(self, arguments: VerifyInput) -> ToolResult:
+        if not arguments.command.strip():
+            raise ToolExecutionError('unresolved_check', 'Stored checks must be resolved by the task runtime.')
+        if arguments.inherit_checks_from:
+            raise ToolExecutionError('unresolved_check_reference', 'Recorded checks must be resolved by the turn evidence ledger before execution.')
         cwd = resolve_repository_path(self.root, arguments.cwd)
         if os.name == 'nt' and has_unquoted_heredoc(arguments.command):
             raise ToolExecutionError(
@@ -107,7 +126,18 @@ class VerifyTool(Tool[VerifyInput]):
                 [check.model_dump() for check in arguments.output_checks], sort_keys=True,
             ).encode()).hexdigest() if arguments.output_checks else '',
         }
+        specification = arguments.model_dump(exclude={'check_id', 'inherit_checks_from', 'supersedes', 'revision_reason'})
+        identity = {key: value for key, value in specification.items() if key != 'timeout_seconds'}
+        metadata['check_id'] = 'check-' + sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()[:24]
+        metadata['check_spec'] = specification
         content = render_process_output(result)
+        quality = metadata['verification_quality']
+        if quality == 'unknown':
+            content += ('\nEvidence classification: unknown command exit semantics. Existing assertions are retained, '
+                        'but this run cannot establish positive behavioral coverage. Run the substantive checker '
+                        'directly with stdin when needed; do not merely add coverage labels.')
+        elif quality in {'structural', 'negative'}:
+            content += f'\nEvidence classification: {quality}; this run does not establish positive task behavior.'
         if result.timed_out:
             return ToolResult.fail('verification_timeout', f'Command timed out after {arguments.timeout_seconds:g}s.', content=content, metadata=metadata)
         if result.exit_code != 0:

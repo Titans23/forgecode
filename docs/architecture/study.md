@@ -795,8 +795,8 @@ uv run python -m evals.runner --case python-calculator-001
 
 外部评测不应只看 Aider Polyglot。先阅读：
 
-- [`benchmark/README.md`](benchmark/README.md)
-- [`benchmark/harbor/README.md`](benchmark/harbor/README.md)
+- [`benchmark/README.md`](../../benchmark/README.md)
+- [`benchmark/harbor/README.md`](../../benchmark/harbor/README.md)
 - `benchmark/catalog.py`
 - `benchmark/cli.py`
 - `benchmark/harbor/forgecode_agent.py`

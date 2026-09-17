@@ -401,13 +401,14 @@ def test_completion_validation_rejects_unverified_change_once(
     completed = events[-1]
 
     assert any(isinstance(item, WorkspaceChanged) for item in events)
-    assert any(isinstance(item, CompletionBlocked) for item in events)
-    assert any(isinstance(item, VerificationCompleted) for item in events)
+    assert not any(isinstance(item, CompletionBlocked) for item in events)
+    assert not any(isinstance(item, VerificationCompleted) for item in events)
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
+    assert completed.result.status == 'partial'
     assert completed.result.changed_paths == ('sample.txt',)
-    assert completed.result.verification.success is True
-    assert len(client.calls) == 4
+    assert completed.result.verification is None
+    assert completed.result.completion_report.acceptance_status == 'unmet'
+    assert len(client.calls) == 2
 
 
 def test_verify_side_effect_binds_evidence_to_post_command_revision(
@@ -994,7 +995,7 @@ def test_existing_directory_noop_does_not_create_recovery_debt(
     assert 'apply_patch' in recovery_names
 
 
-def test_required_change_prose_gets_one_bounded_edit_retry(
+def test_required_change_prose_submits_partial_without_forced_retry(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -1030,10 +1031,10 @@ def test_required_change_prose_gets_one_bounded_edit_retry(
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
-    assert completed.result.model_calls == 3
-    assert 'Completion contract is not satisfied' in str(client.calls[1]['messages'])
-    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
+    assert completed.result.status == 'partial'
+    assert completed.result.model_calls == 1
+    assert completed.result.completion_report.acceptance_status == 'unmet'
+    assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'old\n'
 
 
 
@@ -1319,12 +1320,12 @@ def test_preexisting_untracked_file_does_not_satisfy_turn_change(
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
-    assert completed.result.changed_paths == ('play/js/world.js',)
-    assert completed.result.verification.success is True
-    assert len(client.calls) == 5
+    assert completed.result.status == 'partial'
+    assert completed.result.changed_paths == ()
+    assert completed.result.verification is None
+    assert len(client.calls) == 2
     assert world.read_text(encoding='utf-8') == (
-        'const faceMode = sixSided;\n'
+        'const faceMode = buggy;\n'
     )
     inspect_event = next(
         event
@@ -1339,9 +1340,9 @@ def test_preexisting_untracked_file_does_not_satisfy_turn_change(
         if isinstance(event, ToolExecutionCompleted)
         and event.tool_call.id == 'untracked-early-finish'
     )
-    assert early_finish.result.success is False
-    assert early_finish.result.error is not None
-    assert early_finish.result.error.code == 'completion_rejected'
+    assert early_finish.result.success is True
+    assert early_finish.result.metadata['status'] == 'partial'
+    assert completed.result.completion_report.acceptance_status == 'unmet'
     assert all(
         '[ForgeCode Action Recovery]' not in (call['system'] or '')
         for call in client.calls
@@ -1814,13 +1815,13 @@ def test_inspection_finish_without_evidence_is_rejected_once(
     events = collect_turn(conversation, 'Inspect sample.txt')
 
     blocks = [event for event in events if isinstance(event, CompletionBlocked)]
-    assert len(blocks) == 1
-    assert 'requires repository evidence' in blocks[0].reasons[0]
+    assert not blocks
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'completed'
-    assert len(client.calls) == 3
-    assert not client.responses
+    assert completed.result.status == 'partial'
+    assert 'requires repository evidence' in completed.result.completion_reasons[0]
+    assert len(client.calls) == 1
+    assert client.responses  # No hidden model requests after a submission.
 
 
 def test_finish_task_must_be_called_alone(tmp_path: Path) -> None:
@@ -1971,12 +1972,12 @@ def test_empty_response_after_completion_rejection_is_stuck(
 
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert completed.result.status == 'failed'
-    assert completed.result.stop_reason == 'empty_model_response'
+    assert completed.result.status == 'partial'
+    assert completed.result.stop_reason == 'acceptance_unmet'
     assert completed.result.changed_paths == ('sample.txt',)
     assert completed.result.verification is None
-    assert len(client.calls) == 5
-    assert not client.responses
+    assert len(client.calls) == 2
+    assert client.responses
 
 
 def test_cleanup_task_can_delete_placeholder_files_end_to_end(

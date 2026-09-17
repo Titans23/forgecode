@@ -16,10 +16,12 @@ def anchored_criterion(criterion: dict[str, str], task_id: str) -> dict[str, str
     # Preserve legacy IDs so already persisted evidence remains attributable.
     return {**value, 'clause_id': clause,
             'id': criterion.get('id') or 'req-' + sha256(identity.encode()).hexdigest()[:20],
-            'origin': 'model_proposal'}
+            'origin': criterion.get('origin', 'model_proposal'),
+            'source_ref': f'task:{task_id}:quote:' + sha256(value['source_quote'].encode()).hexdigest(),
+            'revision': criterion.get('revision', '1')}
 
 
-TaskStatus = Literal['in_progress', 'completed', 'blocked', 'stuck', 'failed']
+TaskStatus = Literal['in_progress', 'completed', 'partial', 'blocked', 'stuck', 'failed']
 StepStatus = Literal['pending', 'in_progress', 'completed', 'blocked']
 ScopeSource = Literal[
     'repository',
@@ -63,6 +65,7 @@ class ActiveTask:
     blocked_reasons: tuple[str, ...] = ()
     acceptance_criteria: tuple[dict[str, str], ...] = ()
     user_directives: tuple[str, ...] = ()
+    acceptance_history: tuple[dict[str, str], ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -108,6 +111,7 @@ class ActiveTask:
                 for item in data.get('acceptance_criteria', []) if isinstance(item, dict)
             ),
             user_directives=tuple(str(item) for item in data.get('user_directives', [])),
+            acceptance_history=tuple(dict(item) for item in data.get('acceptance_history', [])),
         )
 
     @property

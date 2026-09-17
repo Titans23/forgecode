@@ -20,6 +20,7 @@ from forge.mcp.config import InternalStdioServerConfig
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import AnthropicModelClient
+from forge.runtime.providers import create_model_client
 from forge.runtime.profile import ExecutionProfile
 from forge.runtime.router import ModelIntentRouter
 from forge.sessions.checkpoint import CheckpointStore
@@ -44,11 +45,13 @@ def create_runtime(
     if model_override is not None and not fork_session:
         raise ValueError('model_override requires fork_session=True.')
     resolved_override = model_override.strip() if model_override else ''
+    config = ForgeConfig.from_env()
     store = SessionStore(root)
     registry = create_default_registry(
         root,
         execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
+        model_client_factory=lambda: create_model_client(replace(config, model_id=model.model)),
     )
     hooks = HookManager.from_root(root)
     mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root))
@@ -56,6 +59,15 @@ def create_runtime(
 
     if continue_session or resume_identifier is not None:
         state, journal = store.open(resume_identifier)
+        if journal.read_only and not fork_session:
+            from forge.sessions.store import SessionError
+            raise SessionError('Legacy sessions are read-only; use --fork-session with --resume to continue.')
+        if state.info.provider and state.info.provider != config.provider and not fork_session:
+            from forge.config import ConfigurationError
+            raise ConfigurationError('Changing the provider of a stored session requires fork_session=True.')
+        if fork_session and not resolved_override:
+            resolved_override = os.environ.get('FORGE_MODEL', '') or (
+                config.model_id if state.info.provider and state.info.provider != config.provider else '')
         checkpoint = CheckpointStore.for_session(
             root,
             journal.path,
@@ -67,6 +79,7 @@ def create_runtime(
                 messages=list(state.messages),
                 task=state.active_task,
                 model=resolved_override or state.info.model,
+                provider=config.provider,
             )
             checkpoint = CheckpointStore.for_session(
                 root,
@@ -74,15 +87,14 @@ def create_runtime(
                 journal.session_id,
             )
             state = store.load(journal.session_id)
-        config = ForgeConfig.from_env()
         resumed_model = resolved_override or state.info.model
         if resumed_model:
             config = replace(config, model_id=resumed_model)
-        model = AnthropicModelClient.from_config(config)
+        model = create_model_client(config)
         conversation = conversation_type(
             client=model,
             intent_router=ModelIntentRouter(
-                AnthropicModelClient.from_config(config, max_tokens=600)
+                create_model_client(config, max_tokens=600)
             ),
             registry=registry,
             initial_messages=list(state.messages),
@@ -95,23 +107,23 @@ def create_runtime(
             task_policy=task_policy,
             **({'task_relation': task_relation} if task_relation is not None else {}),
         )
+        conversation.verification_history = list(state.verification_history)
         if not fork_session:
             journal.record_resumed()
         return conversation, journal, state
 
-    config = ForgeConfig.from_env()
-    model = AnthropicModelClient.from_config(config)
+    model = create_model_client(config)
     conversation = conversation_type(
         client=model,
         intent_router=ModelIntentRouter(
-            AnthropicModelClient.from_config(config, max_tokens=600)
+            create_model_client(config, max_tokens=600)
         ),
         registry=registry,
         mcp_manager=mcp,
         task_policy=task_policy,
         **({'task_relation': task_relation} if task_relation is not None else {}),
     )
-    journal = store.create(model=str(getattr(model, 'model', '')))
+    journal = store.create(model=str(getattr(model, 'model', '')), provider=config.provider)
     conversation.session_journal = journal
     conversation.session_store = store
     conversation.checkpoint_store = CheckpointStore.for_session(

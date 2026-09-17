@@ -1,0 +1,226 @@
+{
+  "temporary_dirs": [
+    {
+      "name": ".pytest-entry-final-b9d0915629de44968cae9072260935b0",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "name": ".pytest-final-all-20260916",
+      "files": 3002,
+      "bytes": 3748647
+    },
+    {
+      "name": ".pytest-final-focused-20260916",
+      "files": 28,
+      "bytes": 1587
+    },
+    {
+      "name": ".pytest-framework-2731ef72b7cc4a2b816f8cf1cb8f6f04",
+      "files": 30,
+      "bytes": 1675
+    },
+    {
+      "name": ".pytest-framework-final-7d1e94d4eb4d456ab30aee5fefe47964",
+      "files": 30,
+      "bytes": 1675
+    },
+    {
+      "name": ".pytest-framework-full-7fdbc8f437ed4656826170cc80c8f191",
+      "files": 3003,
+      "bytes": 3750128
+    },
+    {
+      "name": ".pytest-full-repair-20260916",
+      "files": 3002,
+      "bytes": 3748737
+    },
+    {
+      "name": ".pytest-known-fixes-20260916",
+      "files": 861,
+      "bytes": 1037809
+    },
+    {
+      "name": ".pytest-repair-integration-20260916",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "name": ".pytest-repair-integration2-20260916",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "name": ".pytest-repair-new-20260916",
+      "files": 119,
+      "bytes": 4838
+    },
+    {
+      "name": ".pytest_cache",
+      "files": 5,
+      "bytes": 75020
+    },
+    {
+      "name": ".tmp-pytest-651a",
+      "files": 113,
+      "bytes": 108939
+    },
+    {
+      "name": ".tmp-pytest-acdd27",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "name": ".tmp-pytest-c6d9",
+      "files": 3,
+      "bytes": 156
+    },
+    {
+      "name": ".tmp-pytest-e76a",
+      "files": 2868,
+      "bytes": 3281901
+    },
+    {
+      "name": ".tmp-pytest-fd77",
+      "files": 3,
+      "bytes": 156
+    },
+    {
+      "name": ".tmp-pytest-repair-d79def1f52ec42b6b954b695ff63f243",
+      "files": 2867,
+      "bytes": 3283609
+    },
+    {
+      "name": "_pytest-repair-a5da907b588c4ff6b154b73b1c0e6be0",
+      "files": 23,
+      "bytes": 1232
+    }
+  ],
+  "logs": [
+    {
+      "name": ".test-design-export.log",
+      "bytes": 119455,
+      "sha256": "7baa6e158658da985ece8d0f16a78b040b1f361656e51c6761f222294e1b74cd"
+    },
+    {
+      "name": ".test-design-final-confirmed.log",
+      "bytes": 854,
+      "sha256": "4523a65000203e24b6d0a20e71c8b14de29c93ccb9a14decf366b8c94a78b852"
+    },
+    {
+      "name": ".test-design-final.log",
+      "bytes": 2725,
+      "sha256": "fc0328fceaff148da263a4b1d2336c26cb2b8e79f70528b22d1149a0ea87398a"
+    },
+    {
+      "name": ".test-design-full.log",
+      "bytes": 1881,
+      "sha256": "774d4e7a36530c61170994764fdb685955c2f47c5246cfbe54ff6a15200f3f45"
+    },
+    {
+      "name": ".test-design-health.log",
+      "bytes": 101,
+      "sha256": "93e6bf3e7b4f783ee0f160108aa4fe62faa8d2fe925d6935510133ccf98a369c"
+    },
+    {
+      "name": ".test-design-integration.log",
+      "bytes": 183,
+      "sha256": "92250680e2fa2fb73eb364b7f3aa98128f84faacbbfd2e03f9b815693a282778"
+    },
+    {
+      "name": ".test-design-linux-confirmed.log",
+      "bytes": 6765,
+      "sha256": "9cf9e4a5f21c541773926001fe41442c87bca4b1457494169890f7500c728055"
+    },
+    {
+      "name": ".test-design-linux-final.log",
+      "bytes": 946,
+      "sha256": "13c84967ca53ee5780c5584e7154a515fb73ef23aecef1ae87a0568f3fd47539"
+    },
+    {
+      "name": ".test-design-linux-install.log",
+      "bytes": 3331,
+      "sha256": "d3d500b9ecb6a6cacb7e6d7710c6009d09fbbd4f39fda8cfc8e43fcb5e25c924"
+    },
+    {
+      "name": ".test-design-linux-local.log",
+      "bytes": 3497,
+      "sha256": "e494dd577d513ec5ab26791655ab239f95e67d399ef5e4f91f58f5a2be2ce20e"
+    },
+    {
+      "name": ".test-design-linux-ready.log",
+      "bytes": 4722,
+      "sha256": "a4405c0f1d4809598f335eba4856fcb35ce742b62d47f4bd4a6213223669dc54"
+    },
+    {
+      "name": ".test-design-linux.log",
+      "bytes": 603,
+      "sha256": "87874fae573c2fe318daedf579c81cf800db22fa8ffde036f50b175e78f4dab2"
+    },
+    {
+      "name": ".test-design-lock.log",
+      "bytes": 30,
+      "sha256": "2cdf12f603db0d4d90d51901feac5d917e5ceaa259a58c53ee70a1a7199e662a"
+    },
+    {
+      "name": ".test-design-migration.log",
+      "bytes": 183,
+      "sha256": "aae1a886f148798ee04039abbe4a7a0017b7da20a41d76b081f54cb92b6df65c"
+    },
+    {
+      "name": ".test-design-protocols.log",
+      "bytes": 1039,
+      "sha256": "320cabf1b757c2c23634f0a1227d85f53d3228bc3e8a032673da5a126b4573fa"
+    },
+    {
+      "name": ".test-design-runtime.log",
+      "bytes": 6680,
+      "sha256": "e3ed75d43f6d933f84205fe3638c11166d842272d48a58bdb71301fab2282d9e"
+    },
+    {
+      "name": ".test-design-turns.log",
+      "bytes": 193,
+      "sha256": "b9c575cfb4566574c05fb9fd53616f14bf01fc3e57f131ef2f91cab29541baed"
+    },
+    {
+      "name": ".test-design-whitespace.log",
+      "bytes": 3922,
+      "sha256": "8e167c50a3ea7628912616052f68666aa3d3746a064d85ecb314fa681d50cc8f"
+    },
+    {
+      "name": ".test-luna-c2-repair-dispatch.log",
+      "bytes": 102,
+      "sha256": "b81a70349f96a4845f5332b4bbfe79a70cc8b921595cfaef9f6e238df6ce2a46"
+    },
+    {
+      "name": ".test-luna-c2-repair-linux-final.log",
+      "bytes": 794441,
+      "sha256": "386192922294e5eafd472867eed4866966b161d2d69b659eab02efdb9aa26042"
+    },
+    {
+      "name": ".test-luna-c2-repair-linux-ready.log",
+      "bytes": 4030,
+      "sha256": "6b7f88f7347b6028865dcf352a6ef2d683aa6e7974ff6665481d51133e4191a3"
+    },
+    {
+      "name": ".test-luna-c2-repair-linux.log",
+      "bytes": 4522,
+      "sha256": "cc405a1f0fd9677c0edef93164ced6faf6739fa722da9181c47b36a77abc613b"
+    },
+    {
+      "name": ".test-luna-c2-repair-targeted-final.log",
+      "bytes": 102,
+      "sha256": "555e7c3d107f6d7bcf2239b0cddeecca9b4dfdcb18a16011fcbee1da35630972"
+    },
+    {
+      "name": ".test-luna-c2-repair-windows-final.log",
+      "bytes": 1447,
+      "sha256": "db498d12d2d94fcc8876e340747fa53afba88411f2c972d027572e7d23333f5a"
+    },
+    {
+      "name": ".test-luna-c2-repair-windows.log",
+      "bytes": 4628,
+      "sha256": "f3bfd950260b715623e8509ba69703cf5434ab652c76dddbcb59715798f3bbbb"
+    }
+  ]
+}

@@ -8,9 +8,10 @@ from pathlib import Path
 from hashlib import sha256
 import os
 import re
-import json
 
 from forge.runtime.state import VerificationEvidence
+from forge.runtime.check_contracts import assertion_contract
+from forge.runtime.acceptance import requirement_observation, requirement_reason
 from forge.runtime.verification import (
     completion_summary_has_unresolved_claims,
     is_positive_verification_command,
@@ -33,6 +34,7 @@ class TaskPolicy:
     require_verification_coverage: bool = False
     require_acceptance_reconciliation: bool = False
     require_diff_check: bool = False
+    max_delivery_repairs: int = 0
     allowed_paths: tuple[str, ...] = ()
     required_paths: tuple[str, ...] = ()
     required_verification_commands: tuple[str, ...] = ()
@@ -123,7 +125,8 @@ class CompletionGate:
             item
             for item in evidence_history
             if (
-                item.workspace_revision == tracker.revision
+                item.freshness == 'current'
+                and item.workspace_revision == tracker.revision
                 and item.environment_epoch == getattr(
                     tracker,
                     'environment_epoch',
@@ -145,24 +148,21 @@ class CompletionGate:
             if item.requirement_ids and item not in current_evidence
             and verification_obligation_key(item) not in current_keys)
         for item in stale_obligations:
+            from forge.runtime.check_contracts import checker_repair_guidance
             reasons.append('Acceptance check is stale and must be revalidated: ' + ', '.join(item.requirement_ids)
                            + f'. Verification ID: {item.verification_id or "legacy"}. '
-                           'For a corrected checker, use supersedes with revision_reason and preserve all output assertions.')
+                           + checker_repair_guidance(item))
         if self.policy.require_acceptance_reconciliation:
             if not acceptance_criteria:
                 reasons.append('The caller requires acceptance reconciliation, but no source-anchored criteria were registered. '
                                'Provide finish_task.acceptance_criteria quoting the original requirements (a plan is optional), '
                                'then bind executed output assertions to the returned req IDs. Use failed for an unsuccessful attempt.')
             for criterion in acceptance_criteria:
-                requirement_id = criterion.get('id', '')
-                if not requirement_id or not any(
-                    requirement_id in item.asserted_requirement_ids and item.check_signature
-                    and is_positive_verification_command(item.command)
-                    for item in successful_evidence
-                ):
-                    reasons.append(f'Acceptance requirement {requirement_id or "legacy/unidentified"} has no current executed output assertion: '
-                                   + criterion.get('source_quote', '') + '. Bind output_checks.requirement_id and expected_source; '
-                                   'if unverified, report failed instead of completed.')
+                observation = requirement_observation(criterion, evidence_history, tracker.revision,
+                    getattr(tracker, 'environment_epoch', 0))
+                reason = requirement_reason(observation)
+                if reason:
+                    reasons.append(reason)
 
         if verification_required:
             declared = {coverage for item in successful_evidence for coverage in item.coverage
@@ -263,6 +263,7 @@ class CompletionGate:
                     f'workspace revision {tracker.revision}.'
                 )
         if unresolved_failures:
+            from forge.runtime.check_contracts import checker_repair_guidance
             rendered = ', '.join(
                 f'{item.command[:160]!r} (verification ID {item.verification_id or "legacy"}; exit {item.exit_code}; '
                 f'{("; ".join(item.evidence_issues) or "process failed")[:500]})'
@@ -271,9 +272,20 @@ class CompletionGate:
             reasons.append(
                 'The latest verification failed and remains unresolved on the '
                 f'current workspace revision: {rendered}. '
-                'To repair a checker, reference its verification ID in supersedes, explain revision_reason, '
-                'and preserve all prior output assertions; a weaker check cannot resolve it.'
+                + ' '.join(dict.fromkeys(checker_repair_guidance(item) for item in unresolved_failures))
             )
+
+        for new in successful_evidence:
+            for old in evidence_history:
+                if old.verification_id and old.verification_id in new.supersedes and not checker_revision_covers(old, new):
+                    missing = [check['key'] for check in old.output_checks
+                               if assertion_contract(check) not in {assertion_contract(c) for c in new.output_checks}]
+                    # Actionable diagnostics, not an additional acceptance obligation.
+                    if any(old.verification_id in reason for reason in reasons):
+                        reasons.append(f'checker_contract_mismatch: {old.verification_id}; '
+                                       f'missing or changed assertions={missing}; cwd_matches={old.cwd == new.cwd}; '
+                                       f'requirement_bindings_preserved={set(old.requirement_ids).issubset(new.asserted_requirement_ids)}. '
+                                       'Use inherit_checks_from to retain the recorded contract; do not change thresholds or requirement bindings.')
 
         if self.policy.require_diff_check and changed_paths and tracker.git_available:
             reasons.extend(
@@ -421,6 +433,7 @@ def unresolved_verification_failures(
 ) -> tuple[VerificationEvidence, ...]:
     '''Keep failures until the same command succeeds on the same revision.'''
     unresolved: dict[str, VerificationEvidence] = {}
+    # 成功只能消除同一检查或显式保留契约的修订，不能覆盖无关的历史失败。
     for item in evidence:
         key = verification_obligation_key(item)
         if item.success:
@@ -440,11 +453,17 @@ def checker_revision_covers(old: VerificationEvidence, new: VerificationEvidence
     of observable assertion contracts, not equivalence of arbitrary programs.
     '''
     if not (new.success and old.verification_id and old.verification_id in new.supersedes
-            and new.revision_reason.strip() and old.cwd == new.cwd and old.output_checks):
+            and new.revision_reason.strip() and old.cwd == new.cwd):
         return False
+    if not old.output_checks:
+        # Without serialized assertions we cannot establish equivalence of a
+        # rewritten program. Only retrying the original invocation is supported.
+        return (verification_command_key(old.command, old.cwd)
+                == verification_command_key(new.command, new.cwd)
+                and old.stdin_sha256 == new.stdin_sha256
+                and set(old.requirement_ids).issubset(new.requirement_ids))
     if not set(old.requirement_ids).issubset(new.asserted_requirement_ids):
         return False
     def contracts(checks):
-        return {json.dumps({k: c.get(k) for k in ('key', 'operator', 'expected', 'requirement_id', 'expected_source')},
-                           sort_keys=True) for c in checks}
+        return {assertion_contract(c) for c in checks}
     return contracts(old.output_checks).issubset(contracts(new.output_checks))

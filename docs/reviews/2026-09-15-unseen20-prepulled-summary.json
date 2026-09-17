@@ -1,0 +1,240 @@
+{
+  "total_trials": 20,
+  "missing_results": [],
+  "infrastructure_failures": 1,
+  "infrastructure_failure_types": {
+    "VerifierEnvironment:uv_bootstrap": 1
+  },
+  "agent_failures": 8,
+  "agent_timeouts": 3,
+  "model_service_failures": 0,
+  "verifier_environment_failures": 1,
+  "scored_trials": 18,
+  "pass_at_1": 8,
+  "pass_at_2": 8,
+  "repaired": 0,
+  "first_attempt_known": 18,
+  "internal_statuses": {
+    "partial": 16,
+    "failed": 4
+  },
+  "model_calls": 539,
+  "tool_calls": 831,
+  "input_tokens": 20124142,
+  "output_tokens": 295282,
+  "language_stats": {},
+  "unfinished_trials": [],
+  "job_finished": true,
+  "raw_rewards": {
+    "db-wal-recovery__f53otDc": 0.0,
+    "extract-elf__9Sc7gpk": 0.0,
+    "fix-code-vulnerability__3S4sFqz": 1.0,
+    "fix-ocaml-gc__xZT5eFv": 1.0,
+    "headless-terminal__VFfciQm": 0.0,
+    "kv-store-grpc__Hgnkr4P": 0.0,
+    "llm-inference-batching-scheduler__FriUMyN": 1.0,
+    "mailman__j96PruG": 0.0,
+    "mcmc-sampling-stan__YHhX3ks": 0.0,
+    "modernize-scientific-stack__5QkTinn": 1.0,
+    "mteb-leaderboard__ewP2zKu": 0.0,
+    "openssl-selfsigned-cert__a9tTGDb": 1.0,
+    "path-tracing-reverse__tT7LgCs": 0.0,
+    "qemu-startup__nN5SHGH": 0.0,
+    "raman-fitting__LJKJ3Nb": 0.0,
+    "regex-chess__bsmFJKv": 0.0,
+    "reshard-c4-data__h8G3FVz": 1.0,
+    "schemelike-metacircular-eval__MbeonhS": 1.0,
+    "sqlite-with-gcov__R9WCPbR": 1.0,
+    "tune-mjcf__57vi3MM": 1.0
+  },
+  "trial_assessments": {
+    "db-wal-recovery__f53otDc": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "extract-elf__9Sc7gpk": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "fix-code-vulnerability__3S4sFqz": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "fix-ocaml-gc__xZT5eFv": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "headless-terminal__VFfciQm": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "kv-store-grpc__Hgnkr4P": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "llm-inference-batching-scheduler__FriUMyN": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "mailman__j96PruG": {
+      "primary_outcome": "agent_timeout",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "AgentTimeout",
+      "observed_faults": [
+        "agent_timeout",
+        "time_budget_exhausted"
+      ]
+    },
+    "mcmc-sampling-stan__YHhX3ks": {
+      "primary_outcome": "agent_timeout",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "AgentTimeout",
+      "observed_faults": [
+        "agent_timeout",
+        "time_budget_exhausted"
+      ]
+    },
+    "modernize-scientific-stack__5QkTinn": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "mteb-leaderboard__ewP2zKu": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "openssl-selfsigned-cert__a9tTGDb": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "path-tracing-reverse__tT7LgCs": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "qemu-startup__nN5SHGH": {
+      "primary_outcome": "verifier_environment_failure",
+      "verifier_state": "environment_failed",
+      "evaluation_eligible": false,
+      "failure_type": "VerifierEnvironment:uv_bootstrap",
+      "observed_faults": [
+        "VerifierEnvironment:uv_bootstrap"
+      ]
+    },
+    "raman-fitting__LJKJ3Nb": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "regex-chess__bsmFJKv": {
+      "primary_outcome": "agent_failure",
+      "verifier_state": "failed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "reshard-c4-data__h8G3FVz": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "schemelike-metacircular-eval__MbeonhS": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    },
+    "sqlite-with-gcov__R9WCPbR": {
+      "primary_outcome": "agent_timeout",
+      "verifier_state": "passed",
+      "evaluation_eligible": false,
+      "failure_type": "AgentTimeout",
+      "observed_faults": [
+        "agent_timeout",
+        "time_budget_exhausted"
+      ]
+    },
+    "tune-mjcf__57vi3MM": {
+      "primary_outcome": "pass",
+      "verifier_state": "passed",
+      "evaluation_eligible": true,
+      "failure_type": "",
+      "observed_faults": []
+    }
+  },
+  "telemetry_missing": [],
+  "controller": {
+    "status": "exited",
+    "controller_pid": 15700,
+    "started_at": "2026-09-15T11:39:02.988835+00:00",
+    "metadata": {
+      "source_snapshot": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-unseen20-luna-c5-prepulled-20260915-193858\\.source-snapshots\\candidate-rdcusom2\\source",
+      "concurrency": 5,
+      "provider": "anthropic",
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": null,
+      "reasoning_configuration": "provider_default_unknown",
+      "max_model_calls": 120,
+      "max_tool_calls": 240,
+      "kernel_max_seconds": 1800,
+      "outer_timeout": "dataset agent timeout scaled by Harbor timeout_multiplier",
+      "timeout_multiplier": 1.0
+    },
+    "child_pid": 3136,
+    "heartbeat_at": "2026-09-15T12:58:59.833563+00:00",
+    "exit_code": 0,
+    "finished_at": "2026-09-15T12:59:04.555635+00:00"
+  },
+  "pass_at_1_rate": 0.4444444444444444,
+  "pass_at_2_rate": 0.4444444444444444,
+  "final_pass_count": 8,
+  "final_pass_rate": 0.4444444444444444,
+  "raw_pass_count": 9,
+  "verifier_scored_count": 19,
+  "eligible_trial_count": 18,
+  "primary_outcome_counts": {
+    "agent_failure": 8,
+    "pass": 8,
+    "agent_timeout": 3,
+    "verifier_environment_failure": 1
+  },
+  "infrastructure_failures_semantics": "Legacy aggregate of model, verifier, infrastructure and unknown failures; do not add it to subcategories."
+}

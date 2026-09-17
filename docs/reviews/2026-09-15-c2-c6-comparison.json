@@ -1,0 +1,249 @@
+{
+  "all_tasks": {
+    "old": {
+      "tasks": 10,
+      "passes": 4,
+      "agent_seconds": 9573.417754,
+      "model_requests": 419,
+      "tool_requests": 563,
+      "input_tokens_including_cache": 16864284,
+      "output_tokens": 220624,
+      "unknown_usage_requests": 3,
+      "journal_bytes": 104006990,
+      "adjacent_bookkeeping_gap_seconds": 470.763,
+      "verify_calls": 35,
+      "review_delivery_calls": 0
+    },
+    "new": {
+      "tasks": 10,
+      "passes": 3,
+      "agent_seconds": 8730.022955,
+      "model_requests": 445,
+      "tool_requests": 552,
+      "input_tokens_including_cache": 18483924,
+      "output_tokens": 204977,
+      "unknown_usage_requests": 10,
+      "journal_bytes": 122043585,
+      "adjacent_bookkeeping_gap_seconds": 168.899,
+      "verify_calls": 46,
+      "review_delivery_calls": 2
+    }
+  },
+  "common_without_terminal_server_error": {
+    "tasks": [
+      "break-filter-js-from-html",
+      "build-pov-ray",
+      "circuit-fibsqrt",
+      "distribution-search",
+      "make-mips-interpreter",
+      "overfull-hbox",
+      "video-processing"
+    ],
+    "old": {
+      "tasks": 7,
+      "passes": 4,
+      "agent_seconds": 6405.160905,
+      "model_requests": 315,
+      "tool_requests": 416,
+      "input_tokens_including_cache": 13045874,
+      "output_tokens": 165291,
+      "unknown_usage_requests": 0,
+      "journal_bytes": 75243035,
+      "adjacent_bookkeeping_gap_seconds": 394.322,
+      "verify_calls": 30,
+      "review_delivery_calls": 0
+    },
+    "new": {
+      "tasks": 7,
+      "passes": 3,
+      "agent_seconds": 6410.863909,
+      "model_requests": 354,
+      "tool_requests": 425,
+      "input_tokens_including_cache": 15474079,
+      "output_tokens": 164075,
+      "unknown_usage_requests": 0,
+      "journal_bytes": 96385520,
+      "adjacent_bookkeeping_gap_seconds": 142.116,
+      "verify_calls": 43,
+      "review_delivery_calls": 2
+    },
+    "note": "Diagnostic paired subset only; does not replace the raw 10-task denominator."
+  },
+  "per_task": [
+    {
+      "task": "break-filter-js-from-html",
+      "old": {
+        "reward": 1.0,
+        "seconds": 1056.691907,
+        "model_requests": 31,
+        "tool_requests": 36,
+        "stop_reason": "acceptance_unmet"
+      },
+      "new": {
+        "reward": 1.0,
+        "seconds": 552.436752,
+        "model_requests": 22,
+        "tool_requests": 26,
+        "stop_reason": "acceptance_unmet"
+      }
+    },
+    {
+      "task": "build-pov-ray",
+      "old": {
+        "reward": 1.0,
+        "seconds": 1264.701315,
+        "model_requests": 69,
+        "tool_requests": 72,
+        "stop_reason": "acceptance_unmet"
+      },
+      "new": {
+        "reward": 0.0,
+        "seconds": 1094.248565,
+        "model_requests": 57,
+        "tool_requests": 80,
+        "stop_reason": "acceptance_unmet"
+      }
+    },
+    {
+      "task": "circuit-fibsqrt",
+      "old": {
+        "reward": 0.0,
+        "seconds": 1232.348581,
+        "model_requests": 55,
+        "tool_requests": 60,
+        "stop_reason": "acceptance_unmet"
+      },
+      "new": {
+        "reward": 0.0,
+        "seconds": 1426.908535,
+        "model_requests": 101,
+        "tool_requests": 106,
+        "stop_reason": "partial"
+      }
+    },
+    {
+      "task": "compile-compcert",
+      "old": {
+        "reward": 0.0,
+        "seconds": 1484.819191,
+        "model_requests": 36,
+        "tool_requests": 58,
+        "stop_reason": "server_error"
+      },
+      "new": {
+        "reward": 0.0,
+        "seconds": 682.704341,
+        "model_requests": 14,
+        "tool_requests": 19,
+        "stop_reason": "server_error"
+      }
+    },
+    {
+      "task": "distribution-search",
+      "old": {
+        "reward": 1.0,
+        "seconds": 269.823484,
+        "model_requests": 17,
+        "tool_requests": 20,
+        "stop_reason": "acceptance_unmet"
+      },
+      "new": {
+        "reward": 1.0,
+        "seconds": 244.169446,
+        "model_requests": 15,
+        "tool_requests": 16,
+        "stop_reason": "acceptance_unmet"
+      }
+    },
+    {
+      "task": "make-mips-interpreter",
+      "old": {
+        "reward": 0.0,
+        "seconds": 1771.958678,
+        "model_requests": 98,
+        "tool_requests": 159,
+        "stop_reason": "time_budget_exhausted"
+      },
+      "new": {
+        "reward": 0.0,
+        "seconds": 1635.626311,
+        "model_requests": 99,
+        "tool_requests": 131,
+        "stop_reason": "partial"
+      }
+    },
+    {
+      "task": "overfull-hbox",
+      "old": {
+        "reward": 1.0,
+        "seconds": 424.573878,
+        "model_requests": 23,
+        "tool_requests": 44,
+        "stop_reason": "acceptance_unmet"
+      },
+      "new": {
+        "reward": 1.0,
+        "seconds": 679.141024,
+        "model_requests": 36,
+        "tool_requests": 41,
+        "stop_reason": "acceptance_unmet"
+      }
+    },
+    {
+      "task": "path-tracing",
+      "old": {
+        "reward": 0.0,
+        "seconds": 313.387783,
+        "model_requests": 20,
+        "tool_requests": 36,
+        "stop_reason": "acceptance_unmet"
+      },
+      "new": {
+        "reward": 0.0,
+        "seconds": 777.162918,
+        "model_requests": 49,
+        "tool_requests": 80,
+        "stop_reason": "server_error"
+      }
+    },
+    {
+      "task": "protein-assembly",
+      "old": {
+        "reward": 0.0,
+        "seconds": 1370.049875,
+        "model_requests": 48,
+        "tool_requests": 53,
+        "stop_reason": "partial"
+      },
+      "new": {
+        "reward": 0.0,
+        "seconds": 859.291787,
+        "model_requests": 28,
+        "tool_requests": 28,
+        "stop_reason": "server_error"
+      }
+    },
+    {
+      "task": "video-processing",
+      "old": {
+        "reward": 0.0,
+        "seconds": 385.063062,
+        "model_requests": 22,
+        "tool_requests": 25,
+        "stop_reason": "acceptance_unmet"
+      },
+      "new": {
+        "reward": 0.0,
+        "seconds": 778.333276,
+        "model_requests": 24,
+        "tool_requests": 25,
+        "stop_reason": "acceptance_unmet"
+      }
+    }
+  ],
+  "limitations": [
+    "Code and concurrency changed together; one trial per task cannot identify causality.",
+    "Request token totals omit unknown usage; cached tokens are not equivalent to uncached cost.",
+    "Adjacent event gaps include scheduling and runtime work, not exclusively journal I/O."
+  ]
+}

@@ -52,6 +52,13 @@ def verification_kind(command: str) -> VerificationKind:
 
 def verification_quality(command: str) -> VerificationQuality:
     '''Classify evidence strength without trusting shell-chain exit masking.'''
+    # A quoted Python heredoc is one program; its source is not shell syntax.
+    # Restrict recognition to literal delimiters and a final closing line.
+    lines = command.strip().splitlines()
+    if len(lines) >= 3:
+        header = re.fullmatch(r"(python(?:3(?:\.\d+)?)? -)\s*<<\s*(['\"])([A-Za-z_][A-Za-z_0-9]*)\2", lines[0])
+        if header and lines[-1] == header[3] and header[3] not in lines[1:-1]:
+            return 'behavior'
     if _NEGATIVE_VERIFICATION.search(command):
         return 'negative'
     # A compound shell command has a provider- and shell-dependent exit-status

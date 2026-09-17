@@ -1,0 +1,461 @@
+{
+  "run": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c2-core-redesign-20260915-133329\\2026-09-15__13-33-35",
+  "mode": "read_only_static_analysis",
+  "tasks": {
+    "video-processing": {
+      "journal": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c2-core-redesign-20260915-133329\\2026-09-15__13-33-35\\video-processing__X2E6baX\\agent\\session-14a084b6f2c4487e8113124d.jsonl",
+      "terminal_line": 263,
+      "status": "partial",
+      "completion_report": {
+        "run_status": "completed",
+        "agent_assessment": "completed",
+        "acceptance_status": "unmet",
+        "verification_status": "failed_checks",
+        "passed_checks": [
+          "39287b59c352415b88e5be22d22b34f4",
+          "42ddcefbc20648ab96de8e37b218d070"
+        ],
+        "failed_checks": [
+          "62a91cb9875f4a09ad1a6e686ab558e0"
+        ],
+        "historical_checks": [
+          "eeedbed68df64341acda43d3d58e8b2e"
+        ],
+        "unmet_requirements": [
+          "Acceptance check is stale and must be revalidated: req-5327d4ec9f346d7d2f2d, req-94f8470b2d2e388d1d2a, req-c4bf91d6a7e18d726545. Verification ID: eeedbed68df64341acda43d3d58e8b2e. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+          "The latest verification failed and remains unresolved on the current workspace revision: 'python -m py_compile /app/jump_analyzer.py && python -c \"import ast\\np=\\'/app/jump_analyzer.py\\'; tree=ast.parse(open(p,encoding=\\'utf-8\\').read()); allowed={\\'cv2\\',\\'' (verification ID 62a91cb9875f4a09ad1a6e686ab558e0; exit 1; Output assertions require a JSON object on the final stdout line.). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+        ],
+        "usage_complete": true
+      },
+      "statistics": {
+        "executed": 23,
+        "cached": 0,
+        "rejected": 2,
+        "cancelled": 0,
+        "indeterminate": 0,
+        "model_requests": 22,
+        "tool_requests": 25,
+        "recovery_feedback": 3,
+        "unknown_usage_requests": 0,
+        "model_stage_requests": 22,
+        "model_seconds": 345.089132,
+        "tools_seconds": 24.491592,
+        "workspace_seconds": 0.003749,
+        "elapsed_seconds": 385.063062
+      },
+      "usage": {
+        "input_tokens": 570884,
+        "output_tokens": 14463,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 112128
+      },
+      "tool_counts": {
+        "task_plan": 2,
+        "list_directory": 1,
+        "find_files": 1,
+        "run_command": 6,
+        "task_update": 3,
+        "write_file": 1,
+        "verify": 5,
+        "replace_text": 4,
+        "grep": 1,
+        "finish_task": 1
+      },
+      "external_payload_events": [],
+      "official_failure_lines": [
+        {
+          "line": 252,
+          "text": "E       AssertionError: Takeoff frame 94 not within inclusive range [50, 54]"
+        },
+        {
+          "line": 253,
+          "text": "E       assert 94 <= 54"
+        },
+        {
+          "line": 332,
+          "text": "E       AssertionError: Takeoff frame 309 not within inclusive range [219, 223]"
+        },
+        {
+          "line": 333,
+          "text": "E       assert 309 <= 223"
+        },
+        {
+          "line": 343,
+          "text": "========================= 2 failed, 3 passed in 6.46s =========================="
+        }
+      ],
+      "static_artifact_check": {
+        "scene_observation_line": 89,
+        "end_to_end_result_line": 214,
+        "scene_observation_interval": [
+          49,
+          65
+        ],
+        "result": {
+          "keys_exact": true,
+          "ordered": true,
+          "frame_count": 120,
+          "takeoff": 94,
+          "landing": 109
+        },
+        "assertion": "The accepted ordered/bounded result contradicts the agent's own earlier jump interval observation."
+      }
+    },
+    "protein-assembly": {
+      "journal": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c2-core-redesign-20260915-133329\\2026-09-15__13-33-35\\protein-assembly__ZMHnUsS\\agent\\session-a84ab31daa474b6f8d64f581.jsonl",
+      "terminal_line": 559,
+      "status": "partial",
+      "completion_report": {
+        "run_status": "completed",
+        "agent_assessment": "partial",
+        "acceptance_status": "unknown",
+        "verification_status": "failed_checks",
+        "passed_checks": [
+          "69fb857db2b541209fd53a01a6f34d28"
+        ],
+        "failed_checks": [
+          "2e8dc9d253cb4f03a24ad078dad16e3b"
+        ],
+        "historical_checks": [],
+        "unmet_requirements": [],
+        "usage_complete": true
+      },
+      "statistics": {
+        "executed": 53,
+        "cached": 0,
+        "rejected": 0,
+        "cancelled": 0,
+        "indeterminate": 0,
+        "model_requests": 48,
+        "tool_requests": 53,
+        "recovery_feedback": 1,
+        "unknown_usage_requests": 0,
+        "model_stage_requests": 48,
+        "model_seconds": 926.733064,
+        "tools_seconds": 392.45635,
+        "elapsed_seconds": 1370.049875
+      },
+      "usage": {
+        "input_tokens": 1913394,
+        "output_tokens": 38773,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 295936
+      },
+      "tool_counts": {
+        "task_plan": 2,
+        "list_directory": 1,
+        "find_files": 1,
+        "read_file": 3,
+        "run_command": 41,
+        "read_context_artifact": 1,
+        "write_file": 1,
+        "verify": 2,
+        "finish_task": 1
+      },
+      "external_payload_events": [
+        480,
+        491,
+        502,
+        511,
+        513,
+        522,
+        524,
+        534,
+        536,
+        546,
+        548,
+        557
+      ],
+      "official_failure_lines": [
+        {
+          "line": 213,
+          "text": "E       AssertionError: Fusion protein must be in the order flag - donor - dhfr - acceptor - snap"
+        },
+        {
+          "line": 214,
+          "text": "E       assert 0 < -1"
+        }
+      ],
+      "static_artifact_check": {
+        "source_write_line": 516,
+        "dna_length": 2583,
+        "protein_length": 861,
+        "components": [
+          {
+            "component": "flag",
+            "expected_length": 8,
+            "actual_length": 8,
+            "reference_position_in_artifact": 0,
+            "differences": []
+          },
+          {
+            "component": "donor",
+            "expected_length": 259,
+            "actual_length": 238,
+            "reference_position_in_artifact": -1,
+            "differences": [
+              {
+                "operation": "delete",
+                "reference_span": [
+                  0,
+                  21
+                ],
+                "actual_span": [
+                  0,
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "component": "dhfr",
+            "expected_length": 158,
+            "actual_length": 158,
+            "reference_position_in_artifact": 266,
+            "differences": []
+          },
+          {
+            "component": "acceptor",
+            "expected_length": 235,
+            "actual_length": 235,
+            "reference_position_in_artifact": 434,
+            "differences": []
+          },
+          {
+            "component": "snap",
+            "expected_length": 182,
+            "actual_length": 182,
+            "reference_position_in_artifact": 679,
+            "differences": []
+          }
+        ],
+        "assertion": "Only the donor differs: its first 21 reference residues are absent."
+      }
+    },
+    "path-tracing": {
+      "journal": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c2-core-redesign-20260915-133329\\2026-09-15__13-33-35\\path-tracing__JWkBJWH\\agent\\session-77ed8dad05344bc9a661f0c8.jsonl",
+      "terminal_line": 283,
+      "status": "partial",
+      "completion_report": {
+        "run_status": "completed",
+        "agent_assessment": "completed",
+        "acceptance_status": "unmet",
+        "verification_status": "unverified",
+        "passed_checks": [],
+        "failed_checks": [],
+        "historical_checks": [
+          "aeb1d6ffa1b9495bafc02f02aac8a17d"
+        ],
+        "unmet_requirements": [
+          "Acceptance requirement req-c125a44903efaf458df5 has no current executed output assertion: Write a c program image.c. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "Acceptance requirement req-894ec28e77cc1748bf0d has no current executed output assertion: Your output should be to a new file reconstructed.ppm in the cwd.. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "Acceptance requirement req-431a22f30da1821243b8 has no current executed output assertion: yours must match with 0.99 similarity. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "Acceptance requirement req-2e0ae8455e5c9b0a88db has no current executed output assertion: Your image.c file should not read image.ppm.. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "Acceptance requirement req-d1f6b4a4fca6a1670623 has no current executed output assertion: Your c program must be <2k when compressed. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "The current code has not been verified with the verify tool.",
+          "The successful verification only asserts an expected failure or masks a failing command; run a positive end-to-end verification that exits 0 when the requested behavior actually works.",
+          "Successful execution has no declared requirement coverage. Use verify.covers to state the concrete user requirements exercised, and verify.limitations for what remains untested. Coverage is a model explanation, not an independent proof.",
+          "The code changed after verification; run verify again for workspace revision 2."
+        ],
+        "usage_complete": true
+      },
+      "statistics": {
+        "executed": 31,
+        "cached": 0,
+        "rejected": 1,
+        "cancelled": 4,
+        "indeterminate": 0,
+        "model_requests": 20,
+        "tool_requests": 36,
+        "recovery_feedback": 1,
+        "unknown_usage_requests": 0,
+        "model_stage_requests": 20,
+        "model_seconds": 267.388561,
+        "tools_seconds": 32.419588,
+        "workspace_seconds": 0.300855,
+        "elapsed_seconds": 313.387783
+      },
+      "usage": {
+        "input_tokens": 488929,
+        "output_tokens": 10078,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 104448
+      },
+      "tool_counts": {
+        "task_plan": 1,
+        "list_directory": 3,
+        "find_files": 1,
+        "run_command": 24,
+        "task_update": 3,
+        "write_file": 1,
+        "verify": 2,
+        "finish_task": 1
+      },
+      "external_payload_events": [],
+      "official_failure_lines": [
+        {
+          "line": 110,
+          "text": "E       AssertionError: Program execution failed:"
+        },
+        {
+          "line": 111,
+          "text": "E       assert 1 == 0"
+        },
+        {
+          "line": 112,
+          "text": "E        +  where 1 = CompletedProcess(args=['sh', '-c', 'mkdir /jail; cp /app/image /jail; chroot /jail /image'], returncode=1, stdout='', stderr='').returncode"
+        },
+        {
+          "line": 205,
+          "text": "E           FileNotFoundError: [Errno 2] No such file or directory: '/jail/reconstructed.ppm'"
+        },
+        {
+          "line": 215,
+          "text": "========================= 2 failed, 3 passed in 2.27s =========================="
+        }
+      ],
+      "static_artifact_check": {
+        "source_write_line": 146,
+        "source_characters": 193,
+        "external_renderer": "/app/orig",
+        "requires_system_shell": true,
+        "literal_filename_check_passes": true,
+        "assertion": "Source delegates rendering to an external executable; substring absence does not prove no input dependency."
+      }
+    },
+    "build-pov-ray": {
+      "journal": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c2-core-redesign-20260915-133329\\2026-09-15__13-33-35\\build-pov-ray__BbH3erp\\agent\\session-e1ec7652824649c6be2e347d.jsonl",
+      "terminal_line": 808,
+      "status": "partial",
+      "completion_report": {
+        "run_status": "completed",
+        "agent_assessment": "completed",
+        "acceptance_status": "unmet",
+        "verification_status": "failed_checks",
+        "passed_checks": [
+          "5f681511a6f844879787c413b2609395"
+        ],
+        "failed_checks": [
+          "8375e5cbe9784c15910195eef6724b33"
+        ],
+        "historical_checks": [
+          "718114661cfd4512922e9d90425a4200"
+        ],
+        "unmet_requirements": [
+          "Acceptance check is stale and must be revalidated: req-3e8ccaed2793bab0c6d8, req-5dbfc777aeef2fc72a35, req-9d8c5dc73fb4363aaa1d, req-c0329175c1a4486f6bb5. Verification ID: 718114661cfd4512922e9d90425a4200. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+          "Acceptance requirement req-c0329175c1a4486f6bb5 has no current executed output assertion: Find and download the source archives, extract them to `/app/povray-2.2`. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "Acceptance requirement req-9d8c5dc73fb4363aaa1d has no current executed output assertion: then compile and install to `/usr/local/bin/povray`. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "Acceptance requirement req-3e8ccaed2793bab0c6d8 has no current executed output assertion: We will test your build by rendering `/app/deps/illum1.pov` and comparing against a reference image.. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "Acceptance requirement req-5dbfc777aeef2fc72a35 has no current executed output assertion: Do not modify `/app/deps/illum1.pov`.. Bind output_checks.requirement_id and expected_source; if unverified, report failed instead of completed.",
+          "The latest verification is only a structural or no-op check; run a task-level test, build, lint, type-check, syntax check, or other command that exercises the requested behavior.",
+          "The successful verification only asserts an expected failure or masks a failing command; run a positive end-to-end verification that exits 0 when the requested behavior actually works.",
+          "Successful execution has no declared requirement coverage. Use verify.covers to state the concrete user requirements exercised, and verify.limitations for what remains untested. Coverage is a model explanation, not an independent proof.",
+          "The latest verification failed and remains unresolved on the current workspace revision: \"set -eu\\nbefore=$(sha256sum /app/deps/illum1.pov | awk '{print $1}')\\ntest -x /usr/local/bin/povray\\ntest -d /app/povray-2.2/povdoc/include\\ntest -f /app/povray-2.2\" (verification ID 8375e5cbe9784c15910195eef6724b33; exit 127; Output assertions require a JSON object on the final stdout line.). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+        ],
+        "usage_complete": true
+      },
+      "statistics": {
+        "executed": 72,
+        "cached": 0,
+        "rejected": 0,
+        "cancelled": 0,
+        "indeterminate": 0,
+        "model_requests": 69,
+        "tool_requests": 72,
+        "recovery_feedback": 1,
+        "unknown_usage_requests": 0,
+        "model_stage_requests": 68,
+        "compaction_stage_requests": 1,
+        "model_seconds": 560.336434,
+        "tools_seconds": 572.758363,
+        "compaction_seconds": 26.655417,
+        "workspace_seconds": 0.789729,
+        "elapsed_seconds": 1264.701315
+      },
+      "usage": {
+        "input_tokens": 2243064,
+        "output_tokens": 14408,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 336384
+      },
+      "tool_counts": {
+        "task_plan": 1,
+        "list_directory": 2,
+        "find_files": 3,
+        "task_update": 2,
+        "run_command": 48,
+        "create_directory": 1,
+        "replace_text": 4,
+        "verify": 3,
+        "read_file": 5,
+        "grep": 2,
+        "finish_task": 1
+      },
+      "external_payload_events": [
+        536,
+        547,
+        558,
+        567,
+        569
+      ],
+      "official_failure_lines": []
+    },
+    "distribution-search": {
+      "journal": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-luna-c2-core-redesign-20260915-133329\\2026-09-15__13-33-35\\distribution-search__mTqCyFe\\agent\\session-2ce0141048e3471da189b0dd.jsonl",
+      "terminal_line": 208,
+      "status": "partial",
+      "completion_report": {
+        "run_status": "completed",
+        "agent_assessment": "completed",
+        "acceptance_status": "unmet",
+        "verification_status": "failed_checks",
+        "passed_checks": [
+          "c0deac4bd12a454b894cdd678769b9e8",
+          "ce8545301d304a14b7f5bfd59925e55a"
+        ],
+        "failed_checks": [
+          "34c3dc07222f4019afcbb4e3db48ec76"
+        ],
+        "historical_checks": [],
+        "unmet_requirements": [
+          "Acceptance source_quote must quote the original user goal exactly; assumptions are not user requirements.",
+          "The caller requires acceptance reconciliation, but no source-anchored criteria were registered. Provide finish_task.acceptance_criteria quoting the original requirements (a plan is optional), then bind executed output assertions to the returned req IDs. Use failed for an unsuccessful attempt.",
+          "The latest verification failed and remains unresolved on the current workspace revision: \"python - <<'PY'\\nimport json\\nimport numpy as np\\np = np.load('/app/dist.npy')\\nn = 150000\\nu = 1.0 / n\\nforward = float(np.sum(p * np.log(p / u)))\\nbackward = float(n\" (verification ID 34c3dc07222f4019afcbb4e3db48ec76; exit 0; sum: observed 0.9999999999999996, required ge 1.0; The saved probabilities sum to one within numerical precision.). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+        ],
+        "usage_complete": true
+      },
+      "statistics": {
+        "executed": 19,
+        "cached": 0,
+        "rejected": 1,
+        "cancelled": 0,
+        "indeterminate": 0,
+        "model_requests": 17,
+        "tool_requests": 20,
+        "recovery_feedback": 1,
+        "unknown_usage_requests": 0,
+        "model_stage_requests": 17,
+        "model_seconds": 230.23132,
+        "tools_seconds": 29.408577,
+        "workspace_seconds": 0.008649,
+        "elapsed_seconds": 269.823484
+      },
+      "usage": {
+        "input_tokens": 210246,
+        "output_tokens": 9156,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 94208
+      },
+      "tool_counts": {
+        "list_directory": 2,
+        "find_files": 1,
+        "run_command": 11,
+        "write_file": 1,
+        "verify": 4,
+        "finish_task": 1
+      },
+      "external_payload_events": [],
+      "official_failure_lines": []
+    }
+  }
+}

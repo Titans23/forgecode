@@ -140,9 +140,10 @@ class Conversation:
             raise ValueError('max_tool_calls must be positive')
         if max_turn_input_tokens is not None and max_turn_input_tokens < 1:
             raise ValueError('max_turn_input_tokens must be positive')
-        self.client = (
-            client if client is not None else AnthropicModelClient.from_config()
-        )
+        if client is None:
+            from forge.runtime.providers import create_model_client
+            client = create_model_client()
+        self.client = client
         self.system_prompt = (
             system_prompt
             if system_prompt is not None
@@ -226,6 +227,12 @@ class Conversation:
         ):
             registry.register(ReadContextArtifactTool(resolved_context_root, self.context))
         self.turn_state: TurnState | None = None
+        # Task evidence outlives an individual TurnRunner. Recovery populates
+        # this collection from durable observations, never from model summaries.
+        self.verification_history: list[VerificationEvidence] = []
+        self.task_manager.evidence_provider = lambda: tuple(
+            item for item in self.verification_history
+            if item.task_id == (self.task_manager.active.id if self.task_manager.active else ''))
         self.tool_executor = (
             ToolExecutor(
                 registry,
@@ -672,9 +679,18 @@ class Conversation:
         return self.skill_manager.show(name)
 
     async def runtime_close(self, *, reason: str = 'exit') -> None:
-        await self.session_end(reason=reason)
-        if self.mcp_manager is not None:
-            await self.mcp_manager.close()
+        try:
+            await self.session_end(reason=reason)
+            if self.mcp_manager is not None:
+                await self.mcp_manager.close()
+        finally:
+            seen = set()
+            for client in (self.client, getattr(self.intent_router, 'client', None)):
+                if client is not None and id(client) not in seen:
+                    seen.add(id(client))
+                    close = getattr(client, 'aclose', None)
+                    if close is not None:
+                        await close()
 
     def checkpoint_undo(self) -> str:
         if self.checkpoint_store is None:
@@ -727,6 +743,7 @@ class Conversation:
             if self.workspace_tracker is not None:
                 self.workspace_tracker.watch_paths(restored)
         if restored_messages is not None:
+            self.verification_history.clear()
             self.messages[:] = restored_messages
             self.task_manager.restore(restored_task)
             self._last_task_context = self.task_manager.system_suffix()
@@ -808,6 +825,10 @@ class Conversation:
         if self.session_store is None:
             raise ValueError('Session persistence is unavailable.')
         state, journal = self.session_store.open(identifier)
+        if journal.read_only:
+            raise ValueError('Legacy sessions are read-only; fork one before continuing.')
+        if state.info.provider and state.info.provider != getattr(self.client, 'provider', ''):
+            raise ValueError('This session uses a different provider; open it with its profile or fork it.')
         if (
             self.session_journal is not None
             and state.info.session_id == self.session_journal.session_id
@@ -821,6 +842,7 @@ class Conversation:
         if self.session_journal is not None:
             self.session_journal.record_stopped()
         self.messages[:] = list(state.messages)
+        self.verification_history[:] = state.verification_history
         self.task_manager.restore(state.active_task)
         self._last_task_context = self.task_manager.system_suffix()
         if state.info.model and hasattr(self.client, 'model'):
@@ -873,6 +895,7 @@ class Conversation:
         )
 
     def session_clear(self) -> str:
+        self.verification_history.clear()
         if self.session_store is None or self.session_journal is None:
             self.messages.clear()
             self.task_manager.restore(None)
@@ -880,7 +903,7 @@ class Conversation:
         previous_id = self.session_journal.session_id
         self.session_journal.record_stopped()
         model = str(getattr(self.client, 'model', ''))
-        journal = self.session_store.create(model=model)
+        journal = self.session_store.create(model=model, provider=str(getattr(self.client, 'provider', '')))
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
         if self.mcp_manager is not None:
@@ -1007,6 +1030,8 @@ def verification_from_result(
             output_checks=tuple(metadata.get('output_checks', ())),
             supersedes=tuple(str(item) for item in metadata.get('supersedes', ())),
             revision_reason=str(metadata.get('revision_reason', '')),
+            check_id=str(metadata.get('check_id', '')),
+            check_spec=dict(metadata.get('check_spec', {})),
         )
     except (KeyError, TypeError, ValueError):
         return None
@@ -1020,6 +1045,7 @@ def verification_is_current(
     return bool(
         evidence is not None
         and evidence.success
+        and evidence.freshness == 'current'
         and evidence.workspace_revision == tracker.revision
         and evidence.environment_epoch == getattr(
             tracker,

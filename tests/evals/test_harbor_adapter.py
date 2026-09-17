@@ -44,6 +44,8 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
     command = agent._run_command('Fix it.\nRun tests.', resume=True)
 
     assert '-m benchmark.harbor.run_forge' in command
+    assert ' -I -m benchmark.harbor.process_supervisor' in command
+    assert ' -I -m benchmark.harbor.run_forge' in command
     assert '--resume' in command
     assert '--max-model-calls 77' in command
     assert '--max-tool-calls 155' in command
@@ -55,14 +57,17 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
     assert '/logs/agent/forgecode-repair.txt' in command
     assert '/logs/agent/forgecode-status.json' in command
     assert 'export FORGE_DATA_DIR=/logs/agent/forgecode-state' in command
+    assert 'process_supervisor --preserve-on-success --' in command
     assert '-exec cp {} /logs/agent/' in command
     assert 'git commit --quiet -m "Harbor evaluation baseline"' not in command
 
 
-def test_harbor_requires_workspace_change_and_verification() -> None:
-    assert BENCHMARK_TASK_POLICY.require_changes is True
+def test_harbor_allows_service_delivery_but_requires_verification() -> None:
+    assert BENCHMARK_TASK_POLICY.require_changes is False
     assert BENCHMARK_TASK_POLICY.require_verification is True
     assert BENCHMARK_TASK_POLICY.require_task_verification is True
+    assert BENCHMARK_TASK_POLICY.require_acceptance_reconciliation is True
+    assert BENCHMARK_TASK_POLICY.max_delivery_repairs == 2
 
 
 def test_harbor_result_bounds_changed_path_summary() -> None:

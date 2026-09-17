@@ -11,9 +11,13 @@ from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any, Literal
 from collections.abc import Callable
+from contextvars import ContextVar
 
 from forge.runtime.state import TokenUsage, ToolCall, VerificationEvidence
 from forge.tools.base import ToolResult
+
+
+parent_budget: ContextVar[TurnState | None] = ContextVar('forge_parent_budget', default=None)
 
 
 ExecutionStatus = Literal[
@@ -71,7 +75,8 @@ class EvidenceLedger:
         return tuple(
             item
             for item in self.verification
-            if item.workspace_revision == workspace_revision
+            if item.freshness == 'current'
+            and item.workspace_revision == workspace_revision
             and item.environment_epoch == environment_epoch
         )
 
@@ -83,7 +88,8 @@ class EvidenceLedger:
     ) -> VerificationEvidence | None:
         for item in reversed(self.verification):
             if (
-                item.workspace_revision == workspace_revision
+                item.freshness == 'current'
+                and item.workspace_revision == workspace_revision
                 and item.environment_epoch == environment_epoch
             ):
                 return item
@@ -118,11 +124,22 @@ class TurnState:
     environment_epoch: int = 0
     stop_reason: str = ''
     started_at: float = field(default_factory=monotonic)
+    parent: TurnState | None = field(default=None, repr=False)
+    unknown_usage_requests: int = 0
+
+    def record_unknown_usage(self) -> None:
+        self.unknown_usage_requests += 1
+        if self.parent is not None:
+            self.parent.record_unknown_usage()
 
     def can_request_model(self) -> bool:
         return self.budget_reason() is None
 
     def budget_reason(self, *, include_model: bool = True) -> str | None:
+        if self.parent is not None:
+            inherited = self.parent.budget_reason(include_model=include_model)
+            if inherited:
+                return inherited
         if self.max_seconds is not None and monotonic() - self.started_at >= self.max_seconds:
             return 'time_budget_exhausted'
         if self.max_input_tokens is not None and self.usage.total_input_tokens >= self.max_input_tokens:
@@ -134,6 +151,7 @@ class TurnState:
     def can_request_tool_batch(self, count: int) -> bool:
         return (
             count >= 0
+            and (self.parent is None or self.parent.can_request_tool_batch(count))
             and (
                 self.max_tool_calls is None
                 or self.tool_requests + count <= self.max_tool_calls
@@ -141,12 +159,16 @@ class TurnState:
         )
 
     def record_model_request(self, usage: TokenUsage | None = None, *, stage: str = 'model') -> None:
+        if self.parent is not None:
+            self.parent.record_model_request(stage='subagent/' + stage)
         self.model_calls += 1
         self.request_counts[stage] = self.request_counts.get(stage, 0) + 1
         if usage is not None:
             self.record_usage(usage)
 
     def record_usage(self, usage: TokenUsage) -> None:
+        if self.parent is not None:
+            self.parent.record_usage(usage)
         self.usage = add_usage(self.usage, usage)
         self.last_request_usage = usage
 
@@ -154,6 +176,8 @@ class TurnState:
         self.timings[stage] = self.timings.get(stage, 0.0) + max(0.0, seconds)
 
     def record_tool_request(self) -> None:
+        if self.parent is not None:
+            self.parent.record_tool_request()
         self.tool_requests += 1
 
     def record_execution(self, record: ExecutionRecord) -> None:
@@ -183,6 +207,7 @@ class TurnState:
                 'model_requests': self.model_calls,
                 'tool_requests': self.tool_requests,
                 'recovery_feedback': self.feedback_count,
+                'unknown_usage_requests': self.unknown_usage_requests,
             }
         )
         counts.update({f'{key}_stage_requests': value for key, value in self.request_counts.items()})

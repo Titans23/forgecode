@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any, Literal
 from uuid import uuid4
 
 from forge.tools.base import ToolResult
+from forge.runtime.delivery import CompletionReport
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,13 +72,29 @@ class VerificationEvidence:
     output_checks: tuple[dict[str, Any], ...] = ()
     supersedes: tuple[str, ...] = ()
     revision_reason: str = ''
+    task_id: str = ''
+    turn_id: str = ''
+    freshness: Literal['current', 'unknown'] = 'current'
+    check_id: str = ''
+    check_spec: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> VerificationEvidence:
+        '''Read persisted observations without granting current validity.'''
+        data = {item.name: value[item.name] for item in fields(cls) if item.name in value}
+        for name in ('coverage', 'limitations', 'evidence_issues', 'requirement_ids',
+                     'asserted_requirement_ids', 'output_checks', 'supersedes'):
+            if name in data:
+                data[name] = tuple(data[name])
+        data['freshness'] = 'unknown'
+        return cls(**data)
 
     @property
     def success(self) -> bool:
         return not self.timed_out and self.exit_code == 0 and self.evidence_valid
 
 
-TaskStatus = Literal['completed', 'blocked', 'stuck', 'failed']
+TaskStatus = Literal['completed', 'partial', 'blocked', 'stuck', 'failed']
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +113,7 @@ class TurnResult:
     completion_reasons: tuple[str, ...] = ()
     stop_reason: str = field(default='', compare=False)
     statistics: dict[str, int | float] = field(default_factory=dict, compare=False)
+    completion_report: CompletionReport | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +188,14 @@ class ModelResponseCompleted:
     '''Provider-level completion metadata for one streamed response.'''
 
     stop_reason: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ModelProviderState:
+    '''Opaque continuation data; only the owning adapter interprets it.'''
+
+    provider: str
+    data: dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -251,6 +277,7 @@ class TurnCompleted:
 
 
 type ModelStreamEvent = (
+    ModelProviderState |
     ModelTextDelta
     | ModelToolCallStarted
     | ModelToolCallArgumentsDelta

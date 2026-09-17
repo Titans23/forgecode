@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import sys
+import json
 from time import perf_counter
 
 from pydantic import Field
@@ -37,9 +39,11 @@ class ProcessResult:
     stderr_bytes: int = 0
     stdout_artifact: str | None = None
     stderr_artifact: str | None = None
+    output_incomplete: bool = False
 
 
 MAX_PROCESS_OUTPUT_BYTES = 1_000_000
+PROCESS_CLEANUP_SECONDS = 2.0
 SENSITIVE_ENV_MARKERS = (
     'API_KEY',
     'TOKEN',
@@ -91,8 +95,6 @@ async def _run_process(
     }
     if os.name == 'nt':
         import subprocess
-        import sys
-        import json
         from forge.tools.windows_job import GATED_WORKER
         if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
             raise TypeError('Shell commands must be strings; executable commands must be lists.')
@@ -102,6 +104,12 @@ async def _run_process(
         shell = False
     else:
         process_options['start_new_session'] = True
+        if sys.platform.startswith('linux'):
+            if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
+                raise TypeError('Shell commands must be strings; executable commands must be lists.')
+            command = [sys.executable, str(Path(__file__).with_name('linux_process_worker.py')),
+                       json.dumps(command), '1' if shell else '0']
+            shell = False
     if shell:
         if not isinstance(command, str):
             raise TypeError('Shell commands must be strings.')
@@ -124,8 +132,10 @@ async def _run_process(
     stderr_task = asyncio.create_task(
         _read_bounded(process.stderr, max_output_bytes, artifact_root)
     )
+    output_incomplete = False
     try:
         # The timeout covers stdin backpressure AND inherited output pipes,
+        # 超时覆盖完整输入输出过程；父进程退出后，子进程仍可能占着输出管道。
         # not just the parent process wait. A child may never consume stdin,
         # or may keep stdout open after its parent has exited.
         async with asyncio.timeout(timeout_seconds):
@@ -142,15 +152,12 @@ async def _run_process(
             await asyncio.shield(asyncio.gather(stdout_task, stderr_task))
         timed_out = False
     except TimeoutError:
-        await _terminate_process_tree(process, process_job)
-        await process.wait()
+        output_incomplete = await _stop_and_collect(process, process_job, stdout_task, stderr_task)
         timed_out = True
     except asyncio.CancelledError:
         # A stopped ForgeCode turn must not leave a compiler, test runner, or
         # shell child alive after the caller has already moved on.
-        await _terminate_process_tree(process, process_job)
-        await process.wait()
-        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+        await _stop_and_collect(process, process_job, stdout_task, stderr_task)
         raise
     stdout_bytes, stdout_total, stdout_truncated, stdout_artifact = await stdout_task
     stderr_bytes, stderr_total, stderr_truncated, stderr_artifact = await stderr_task
@@ -166,7 +173,37 @@ async def _run_process(
         stderr_bytes=stderr_total,
         stdout_artifact=stdout_artifact,
         stderr_artifact=stderr_artifact,
+        output_incomplete=output_incomplete,
     )
+
+
+async def _stop_and_collect(process, process_job, *readers) -> bool:
+    '''Bound cleanup even if an inherited descriptor or OS process will not exit.'''
+    incomplete = False
+    # 清理也有截止时间；保留“不完整输出”标记，不能把清理卡住当作正常完成。
+    try:
+        async with asyncio.timeout(PROCESS_CLEANUP_SECONDS):
+            await _terminate_process_tree(process, process_job)
+            await process.wait()
+            await asyncio.shield(asyncio.gather(*readers))
+    except TimeoutError:
+        incomplete = True
+        if os.name != 'nt':
+            import signal
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        # asyncio exposes no public method to close subprocess output pipes.
+        # Closing the transport stops pipe holders from extending this deadline.
+        transport = getattr(process, '_transport', None)
+        if transport is not None:
+            transport.close()
+        for reader in readers:
+            if not reader.done():
+                reader.cancel()
+        await asyncio.gather(*readers, return_exceptions=True)
+    return incomplete
 
 
 async def _read_bounded(
@@ -201,6 +238,9 @@ async def _read_bounded(
             tail.extend(chunk)
             if len(tail) > maximum // 2:
                 del tail[:len(tail) - maximum // 2]
+    except asyncio.CancelledError:
+        # Preserve the prefix/tail and archive collected before a cleanup bound.
+        pass
     finally:
         if archive is not None:
             archive.close()
@@ -235,7 +275,11 @@ async def _terminate_process_tree(process: asyncio.subprocess.Process, process_j
     import signal
 
     try:
-        os.killpg(process.pid, signal.SIGKILL)
+        if sys.platform.startswith('linux'):
+            # The worker owns detached descendants; let it reap them first.
+            os.kill(process.pid, signal.SIGTERM)
+        else:
+            os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
 
@@ -262,6 +306,7 @@ def process_metadata(result: ProcessResult) -> dict[str, object]:
         'stderr_bytes': result.stderr_bytes,
         'stdout_artifact': result.stdout_artifact,
         'stderr_artifact': result.stderr_artifact,
+        'output_incomplete': result.output_incomplete,
     }
 
 

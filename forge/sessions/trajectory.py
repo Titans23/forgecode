@@ -190,6 +190,7 @@ class TrajectoryRecorder:
                         else None
                     ),
                     'completion_reasons': result.completion_reasons,
+                    'completion_report': asdict(result.completion_report) if result.completion_report else None,
                 },
             )
 

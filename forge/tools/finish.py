@@ -12,7 +12,7 @@ from forge.tools.task import AcceptanceCriterion
 
 
 TaskKind = Literal['answer', 'inspection', 'change']
-FinishStatus = Literal['completed', 'blocked', 'failed']
+FinishStatus = Literal['completed', 'partial', 'blocked', 'failed']
 
 
 class FinishTaskInput(ToolInput):
@@ -43,15 +43,12 @@ class FinishTaskInput(ToolInput):
 class FinishTaskTool(Tool[FinishTaskInput]):
     name = 'finish_task'
     description = (
-        'Declare the model-chosen outcome and finish the current user turn. '
-        'Call this tool alone, only after all necessary repository actions. '
-        'Choose task_kind=answer for a direct response, inspection after '
-        'collecting repository evidence, or change after creating a real Diff '
-        'and verifying the latest workspace revision. Use status=blocked with '
-        'specific blocked_reasons for an observed external dependency. Use '
-        'status=failed for unmet requirements or an unsuccessful attempt; failed '
-        'does not require a successful verification or a completed artifact. The '
-        'runtime validates the declaration against objective evidence.'
+        'Submit a result for completion. Call alone after necessary actions. '
+        'Use partial for incomplete work, blocked for an observed external dependency, '
+        'or failed for an unsuccessful attempt. Explain checks and limitations. '
+        'Caller acceptance is assessed separately; unmet requirements downgrade '
+        'completed to partial, or return bounded repair feedback when enabled '
+        'by the caller. Submission does not certify correctness.'
     )
     input_model = FinishTaskInput
 
@@ -70,3 +67,19 @@ class FinishTaskTool(Tool[FinishTaskInput]):
                 'acceptance_criteria': [item.model_dump() for item in arguments.acceptance_criteria],
             },
         )
+
+
+class ReviewDeliveryTool(Tool[ToolInput]):
+    name = 'review_delivery'
+    description = (
+        'Inspect current acceptance gaps before submitting, without ending the turn. '
+        'Returns recorded evidence and unmet requirements; does not run new tests. '
+        'Use the findings to repair or explicitly submit partial. A clear report '
+        'does not prove correctness: use independent inputs, exact source comparisons, '
+        'and clean-directory delivery checks where relevant.'
+    )
+    input_model = ToolInput
+
+    async def execute(self, arguments: ToolInput) -> ToolResult:
+        # The turn runner supplies its current evidence after workspace refresh.
+        return ToolResult.ok('Delivery review requested.', metadata={'review_delivery': True})

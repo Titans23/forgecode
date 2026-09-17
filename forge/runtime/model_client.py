@@ -116,7 +116,7 @@ class AnthropicModelClient:
         cls,
         config: ForgeConfig | None = None,
         max_tokens: int | None = None,
-        max_retries: int = 6,
+        max_retries: int = 2,
         client: AsyncAnthropic | None = None,
     ) -> AnthropicModelClient:
         '''Create a model client from .env or an explicit ForgeConfig.'''
@@ -141,7 +141,7 @@ class AnthropicModelClient:
         self,
         model: str,
         max_tokens: int = DEFAULT_MODEL_MAX_TOKENS,
-        max_retries: int = 6,
+        max_retries: int = 2,
         context_window: int | None = None,
         request_timeout_seconds: float = 120.0,
         config: ForgeConfig | None = None,
@@ -161,18 +161,28 @@ class AnthropicModelClient:
         self.context_window = context_window
         self.max_retries = max_retries
         self.request_timeout_seconds = request_timeout_seconds
+        from forge.runtime.service_health import profile_health
+        self.health = profile_health(config)
+        self.reasoning_effort = config.reasoning_effort if config is not None else None
         if client is not None:
-            self._client = client
+            self._client = client.with_options(max_retries=0) if hasattr(client, 'with_options') else client
         else:
             resolved_config = (
                 config if config is not None else ForgeConfig.from_env()
             )
+            from forge.runtime.model_budget import observe_wire_request
             self._client = AsyncAnthropic(
                 api_key=resolved_config.api_key,
                 base_url=resolved_config.base_url,
                 timeout=resolved_config.request_timeout_seconds,
                 max_retries=0,
+                http_client=httpx.AsyncClient(event_hooks={'request': [observe_wire_request]}),
             )
+
+    async def aclose(self):
+        close = getattr(self._client, 'close', None)
+        if close is not None:
+            await close()
 
     async def stream(
         self,
@@ -183,23 +193,28 @@ class AnthropicModelClient:
         sdk_arguments: dict[str, Any] = {
             'model': self.model,
             'max_tokens': self.max_tokens,
-            'messages': messages,
+            'messages': [{key: value for key, value in message.items() if key != 'provider_state'}
+                         for message in messages],
         }
+        if self.reasoning_effort:
+            sdk_arguments['output_config'] = {'effort': self.reasoning_effort}
         if tools:
             sdk_arguments['tools'] = tools
         if system is not None:
             sdk_arguments['system'] = system
 
         for attempt in range(1, self.max_retries + 2):
+            self.health.before_request()
             # Count and authorize the actual request, including retries. The
             # observer is turn-local, so independent Conversations do not share
             # counters and route/summary calls cannot bypass the same budget.
             from forge.runtime.model_budget import request_observer
             observer = request_observer.get()
-            if observer is not None:
-                observer()
             response_started = False
+            stream = None
             try:
+                if observer is not None:
+                    observer()
                 stream = self._stream_once(sdk_arguments).__aiter__()
                 while True:
                     try:
@@ -220,8 +235,10 @@ class AnthropicModelClient:
                     ):
                         response_started = True
                     yield event
+                self.health.succeeded()
                 return
             except TimeoutError as error:
+                self.health.failed()
                 reason = 'stream_interrupted' if response_started else 'timeout'
                 can_retry = (
                     not response_started and attempt <= self.max_retries
@@ -254,6 +271,8 @@ class AnthropicModelClient:
                 httpx.TransportError,
             ) as error:
                 reason, retryable = classify_provider_error(error)
+                if retryable:
+                    self.health.failed()
                 can_retry = (
                     retryable
                     and not response_started
@@ -276,6 +295,7 @@ class AnthropicModelClient:
                 )
                 await asyncio.sleep(delay)
             except AssertionError as error:
+                self.health.failed()
                 # Anthropic-compatible proxies can terminate a malformed
                 # stream through an SDK assertion before emitting content.
                 # Treat that boundary failure like a transient provider
@@ -299,6 +319,11 @@ class AnthropicModelClient:
                     delay_seconds=delay,
                 )
                 await asyncio.sleep(delay)
+
+            finally:
+                self.health.probe_inflight = False
+                if stream is not None:
+                    await stream.aclose()
 
         raise AssertionError('model retry loop ended unexpectedly')
 

@@ -1,0 +1,585 @@
+{
+  "tasks": 20,
+  "raw_passed": 9,
+  "internal_status": {
+    "partial": 16,
+    "failed": 4
+  },
+  "stop_reasons": {
+    "acceptance_unmet": 15,
+    "time_budget_exhausted": 3,
+    "failed": 1,
+    "partial": 1
+  },
+  "statistics": {
+    "model_requests": 539,
+    "tool_requests": 831,
+    "model_seconds": 8017.294,
+    "tools_seconds": 6198.597,
+    "elapsed_seconds": 14592.41
+  },
+  "usage": {
+    "input_tokens": 17235438,
+    "output_tokens": 295282,
+    "cache_read_input_tokens": 2888704,
+    "cache_creation_input_tokens": 0
+  },
+  "reviews": {
+    "calls": 7,
+    "task_count": 6,
+    "after_review_file_edit_tool_calls": 0,
+    "after_review_verify_calls": 8
+  },
+  "verification": {
+    "requested": 71,
+    "recorded": 69,
+    "valid_evidence": 44,
+    "invalid_evidence": 25,
+    "missing_final_json": 19,
+    "inherit_checks_requests": 5,
+    "delta_eq_assertions": 0,
+    "qualities": {
+      "behavior": 43,
+      "unknown": 23,
+      "null": 2
+    }
+  },
+  "journal": {
+    "bytes": 152597697,
+    "adjacent_gap_seconds": 171.254,
+    "algorithm_estimated_head_read_bytes": 574502265,
+    "counterfactual_legacy_head_read_bytes": 43564307603
+  },
+  "table": [
+    {
+      "task": "db-wal-recovery",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 28,
+      "tools": 48,
+      "agent_seconds": 428.287639,
+      "model_seconds": 381.133335,
+      "tool_seconds": 39.076533,
+      "input_plus_cache": 824061
+    },
+    {
+      "task": "extract-elf",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 13,
+      "tools": 18,
+      "agent_seconds": 214.453996,
+      "model_seconds": 208.770693,
+      "tool_seconds": 2.16367,
+      "input_plus_cache": 235225
+    },
+    {
+      "task": "fix-code-vulnerability",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 18,
+      "tools": 30,
+      "agent_seconds": 197.861477,
+      "model_seconds": 186.247106,
+      "tool_seconds": 6.069308,
+      "input_plus_cache": 550599
+    },
+    {
+      "task": "fix-ocaml-gc",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 25,
+      "tools": 55,
+      "agent_seconds": 1297.166517,
+      "model_seconds": 257.016108,
+      "tool_seconds": 1028.839586,
+      "input_plus_cache": 1036023
+    },
+    {
+      "task": "headless-terminal",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 18,
+      "tools": 21,
+      "agent_seconds": 266.272617,
+      "model_seconds": 256.098091,
+      "tool_seconds": 4.894894,
+      "input_plus_cache": 363326
+    },
+    {
+      "task": "kv-store-grpc",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 13,
+      "tools": 17,
+      "agent_seconds": 202.962299,
+      "model_seconds": 183.938083,
+      "tool_seconds": 15.24486,
+      "input_plus_cache": 233459
+    },
+    {
+      "task": "llm-inference-batching-scheduler",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 39,
+      "tools": 46,
+      "agent_seconds": 1395.445812,
+      "model_seconds": 776.65919,
+      "tool_seconds": 594.105288,
+      "input_plus_cache": 2023111
+    },
+    {
+      "task": "mailman",
+      "reward": 0.0,
+      "internal_status": "failed",
+      "stop_reason": "time_budget_exhausted",
+      "requests": 27,
+      "tools": 56,
+      "agent_seconds": 1769.831413,
+      "model_seconds": 307.504999,
+      "tool_seconds": 1453.181843,
+      "input_plus_cache": 1269218
+    },
+    {
+      "task": "mcmc-sampling-stan",
+      "reward": 0.0,
+      "internal_status": "failed",
+      "stop_reason": "time_budget_exhausted",
+      "requests": 15,
+      "tools": 27,
+      "agent_seconds": 1769.85487,
+      "model_seconds": 111.546563,
+      "tool_seconds": 1653.046655,
+      "input_plus_cache": 255858
+    },
+    {
+      "task": "modernize-scientific-stack",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 11,
+      "tools": 18,
+      "agent_seconds": 161.773779,
+      "model_seconds": 153.009756,
+      "tool_seconds": 5.453013,
+      "input_plus_cache": 195768
+    },
+    {
+      "task": "mteb-leaderboard",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 24,
+      "tools": 62,
+      "agent_seconds": 542.462863,
+      "model_seconds": 295.377049,
+      "tool_seconds": 212.88657,
+      "input_plus_cache": 894219
+    },
+    {
+      "task": "openssl-selfsigned-cert",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 12,
+      "tools": 15,
+      "agent_seconds": 182.972266,
+      "model_seconds": 176.223424,
+      "tool_seconds": 3.304767,
+      "input_plus_cache": 170333
+    },
+    {
+      "task": "path-tracing-reverse",
+      "reward": 0.0,
+      "internal_status": "failed",
+      "stop_reason": "failed",
+      "requests": 104,
+      "tools": 182,
+      "agent_seconds": 1731.187936,
+      "model_seconds": 1539.75169,
+      "tool_seconds": 25.456985,
+      "input_plus_cache": 6212776
+    },
+    {
+      "task": "qemu-startup",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 10,
+      "tools": 13,
+      "agent_seconds": 300.719109,
+      "model_seconds": 106.271618,
+      "tool_seconds": 184.629581,
+      "input_plus_cache": 119974
+    },
+    {
+      "task": "raman-fitting",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 17,
+      "tools": 20,
+      "agent_seconds": 336.354608,
+      "model_seconds": 308.131634,
+      "tool_seconds": 18.514565,
+      "input_plus_cache": 362262
+    },
+    {
+      "task": "regex-chess",
+      "reward": 0.0,
+      "internal_status": "partial",
+      "stop_reason": "partial",
+      "requests": 20,
+      "tools": 21,
+      "agent_seconds": 779.562865,
+      "model_seconds": 770.700071,
+      "tool_seconds": 3.804829,
+      "input_plus_cache": 473827
+    },
+    {
+      "task": "reshard-c4-data",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 45,
+      "tools": 48,
+      "agent_seconds": 784.582859,
+      "model_seconds": 502.547385,
+      "tool_seconds": 261.913751,
+      "input_plus_cache": 1382841
+    },
+    {
+      "task": "schemelike-metacircular-eval",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 42,
+      "tools": 56,
+      "agent_seconds": 626.115025,
+      "model_seconds": 550.214075,
+      "tool_seconds": 52.142834,
+      "input_plus_cache": 1975066
+    },
+    {
+      "task": "sqlite-with-gcov",
+      "reward": 1.0,
+      "internal_status": "failed",
+      "stop_reason": "time_budget_exhausted",
+      "requests": 21,
+      "tools": 35,
+      "agent_seconds": 869.70762,
+      "model_seconds": 560.973654,
+      "tool_seconds": 298.542177,
+      "input_plus_cache": 545686
+    },
+    {
+      "task": "tune-mjcf",
+      "reward": 1.0,
+      "internal_status": "partial",
+      "stop_reason": "acceptance_unmet",
+      "requests": 37,
+      "tools": 43,
+      "agent_seconds": 734.834089,
+      "model_seconds": 385.179307,
+      "tool_seconds": 335.325048,
+      "input_plus_cache": 1000510
+    }
+  ],
+  "probe_source_identity": {
+    "forge\\tools\\shell.py": {
+      "workspace": "581e6d24a2bc0dce662260801a4de72ece83e61164181ddd2a54dfc1b024d266",
+      "frozen_run": "581e6d24a2bc0dce662260801a4de72ece83e61164181ddd2a54dfc1b024d266"
+    },
+    "forge\\tools\\search.py": {
+      "workspace": "445201cc91457ed2aebc8d9afec5444be42a641ac6b8d44df20ee79ae1764d8c",
+      "frozen_run": "445201cc91457ed2aebc8d9afec5444be42a641ac6b8d44df20ee79ae1764d8c"
+    },
+    "benchmark\\harbor\\process_supervisor.py": {
+      "workspace": "7da5f5bbe7c01621981aa6fe83ce68d2ef6377384429b89d7e8c36314856e6e0",
+      "frozen_run": "7da5f5bbe7c01621981aa6fe83ce68d2ef6377384429b89d7e8c36314856e6e0"
+    }
+  },
+  "harbor_phases": {
+    "environment_setup": {
+      "total_seconds": 86.35,
+      "median_seconds": 3.77,
+      "max": {
+        "task": "terminal-bench/schemelike-metacircular-eval",
+        "seconds": 7.733982
+      }
+    },
+    "agent_setup": {
+      "total_seconds": 1727.96,
+      "median_seconds": 65.62,
+      "max": {
+        "task": "terminal-bench/headless-terminal",
+        "seconds": 212.868882
+      }
+    },
+    "agent_execution": {
+      "total_seconds": 14826.94,
+      "median_seconds": 596.13,
+      "max": {
+        "task": "terminal-bench/mailman",
+        "seconds": 1781.440442
+      }
+    },
+    "verifier": {
+      "total_seconds": 3201.28,
+      "median_seconds": 78.99,
+      "max": {
+        "task": "terminal-bench/fix-ocaml-gc",
+        "seconds": 1575.662696
+      }
+    }
+  },
+  "wire_context_characters_not_tokens": [
+    {
+      "task": "db-wal-recovery",
+      "requests": 28,
+      "last": {
+        "message_characters": 153754,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 20914
+      },
+      "total_acceptance_discipline_copies": 55,
+      "total_message_characters": 2178809
+    },
+    {
+      "task": "extract-elf",
+      "requests": 13,
+      "last": {
+        "message_characters": 60340,
+        "acceptance_discipline_copies": 1,
+        "tool_schema_characters": 22342,
+        "system_characters": 17597
+      },
+      "total_acceptance_discipline_copies": 13,
+      "total_message_characters": 429308
+    },
+    {
+      "task": "fix-code-vulnerability",
+      "requests": 18,
+      "last": {
+        "message_characters": 131545,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 27111
+      },
+      "total_acceptance_discipline_copies": 34,
+      "total_message_characters": 1430086
+    },
+    {
+      "task": "fix-ocaml-gc",
+      "requests": 25,
+      "last": {
+        "message_characters": 188375,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 20909
+      },
+      "total_acceptance_discipline_copies": 42,
+      "total_message_characters": 3004458
+    },
+    {
+      "task": "headless-terminal",
+      "requests": 18,
+      "last": {
+        "message_characters": 112711,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 23073
+      },
+      "total_acceptance_discipline_copies": 35,
+      "total_message_characters": 882386
+    },
+    {
+      "task": "kv-store-grpc",
+      "requests": 13,
+      "last": {
+        "message_characters": 91819,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 22374
+      },
+      "total_acceptance_discipline_copies": 23,
+      "total_message_characters": 485667
+    },
+    {
+      "task": "llm-inference-batching-scheduler",
+      "requests": 39,
+      "last": {
+        "message_characters": 235869,
+        "acceptance_discipline_copies": 1,
+        "tool_schema_characters": 22342,
+        "system_characters": 25989
+      },
+      "total_acceptance_discipline_copies": 39,
+      "total_message_characters": 4760975
+    },
+    {
+      "task": "mailman",
+      "requests": 27,
+      "last": {
+        "message_characters": 220882,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 22560
+      },
+      "total_acceptance_discipline_copies": 53,
+      "total_message_characters": 4029412
+    },
+    {
+      "task": "mcmc-sampling-stan",
+      "requests": 15,
+      "last": {
+        "message_characters": 62076,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 20247
+      },
+      "total_acceptance_discipline_copies": 27,
+      "total_message_characters": 528736
+    },
+    {
+      "task": "modernize-scientific-stack",
+      "requests": 11,
+      "last": {
+        "message_characters": 75659,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 21263
+      },
+      "total_acceptance_discipline_copies": 21,
+      "total_message_characters": 425704
+    },
+    {
+      "task": "mteb-leaderboard",
+      "requests": 24,
+      "last": {
+        "message_characters": 137638,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 22342,
+        "system_characters": 16903
+      },
+      "total_acceptance_discipline_copies": 35,
+      "total_message_characters": 2461481
+    },
+    {
+      "task": "openssl-selfsigned-cert",
+      "requests": 12,
+      "last": {
+        "message_characters": 61690,
+        "acceptance_discipline_copies": 1,
+        "tool_schema_characters": 22342,
+        "system_characters": 19474
+      },
+      "total_acceptance_discipline_copies": 12,
+      "total_message_characters": 328243
+    },
+    {
+      "task": "path-tracing-reverse",
+      "requests": 104,
+      "last": {
+        "message_characters": 137543,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 20818
+      },
+      "total_acceptance_discipline_copies": 207,
+      "total_message_characters": 13905546
+    },
+    {
+      "task": "qemu-startup",
+      "requests": 10,
+      "last": {
+        "message_characters": 40724,
+        "acceptance_discipline_copies": 1,
+        "tool_schema_characters": 22342,
+        "system_characters": 17615
+      },
+      "total_acceptance_discipline_copies": 10,
+      "total_message_characters": 184268
+    },
+    {
+      "task": "raman-fitting",
+      "requests": 17,
+      "last": {
+        "message_characters": 69204,
+        "acceptance_discipline_copies": 1,
+        "tool_schema_characters": 22342,
+        "system_characters": 17351
+      },
+      "total_acceptance_discipline_copies": 17,
+      "total_message_characters": 632328
+    },
+    {
+      "task": "regex-chess",
+      "requests": 20,
+      "last": {
+        "message_characters": 97300,
+        "acceptance_discipline_copies": 3,
+        "tool_schema_characters": 23848,
+        "system_characters": 22464
+      },
+      "total_acceptance_discipline_copies": 40,
+      "total_message_characters": 909751
+    },
+    {
+      "task": "reshard-c4-data",
+      "requests": 45,
+      "last": {
+        "message_characters": 181477,
+        "acceptance_discipline_copies": 1,
+        "tool_schema_characters": 22342,
+        "system_characters": 21529
+      },
+      "total_acceptance_discipline_copies": 45,
+      "total_message_characters": 4240677
+    },
+    {
+      "task": "schemelike-metacircular-eval",
+      "requests": 42,
+      "last": {
+        "message_characters": 225807,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 23629
+      },
+      "total_acceptance_discipline_copies": 83,
+      "total_message_characters": 5740423
+    },
+    {
+      "task": "sqlite-with-gcov",
+      "requests": 21,
+      "last": {
+        "message_characters": 113064,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 22342,
+        "system_characters": 17865
+      },
+      "total_acceptance_discipline_copies": 41,
+      "total_message_characters": 1365283
+    },
+    {
+      "task": "tune-mjcf",
+      "requests": 37,
+      "last": {
+        "message_characters": 128385,
+        "acceptance_discipline_copies": 2,
+        "tool_schema_characters": 23848,
+        "system_characters": 23145
+      },
+      "total_acceptance_discipline_copies": 72,
+      "total_message_characters": 2660699
+    }
+  ]
+}

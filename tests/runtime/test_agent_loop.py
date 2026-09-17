@@ -1171,7 +1171,8 @@ def test_conversation_executes_tool_and_continues_until_final_text(
         )
     )
     assert tool.calls == ['README.md']
-    assert client.calls[0]['tools'] == registry.definitions
+    assert client.calls[0]['tools'] == [definition for definition in registry.definitions
+        if definition['name'] != 'task_revise_requirement']
     second_request = client.calls[1]
     assert second_request['messages'][:2] == [
         {'role': 'user', 'content': 'Read the README'},
@@ -1637,10 +1638,12 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
     assert conversation.workspace_tracker is None
-    assert result.status == 'failed'
-    assert result.model_calls == 3
-    assert result.stop_reason == 'model_budget_exhausted'
-    assert 'Done despite the failed write.' not in result.text
+    assert result.status == 'partial'
+    assert result.model_calls == 2
+    assert result.stop_reason == 'acceptance_unmet'
+    assert result.completion_report.agent_assessment == 'completed'
+    assert result.completion_report.verification_status == 'unverified'
+    assert result.completion_reasons
 
 
 def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:

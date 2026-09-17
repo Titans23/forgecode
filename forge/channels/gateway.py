@@ -355,6 +355,8 @@ class ChannelGateway:
                         )
                     elif isinstance(event, TurnCompleted):
                         result_text = event.result.text
+                        if event.result.completion_report is not None:
+                            result_text += '\n\n' + event.result.completion_report.summary()
                         self._report(
                             f'[Turn] completed status={event.result.status} '
                             f'model_calls={event.result.model_calls} '

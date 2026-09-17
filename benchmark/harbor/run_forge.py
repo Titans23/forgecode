@@ -27,12 +27,15 @@ from forge.runtime.state import (
 
 
 BENCHMARK_TASK_POLICY = TaskPolicy(
-    require_changes=True,
+    # Terminal-Bench includes services, inspection and environment tasks.
+    # Their delivery need not modify a tracked workspace file.
+    require_changes=False,
     require_verification=True,
     require_task_verification=True,
     require_positive_verification=True,
     require_verification_coverage=True,
     require_acceptance_reconciliation=True,
+    max_delivery_repairs=2,
 )
 MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='

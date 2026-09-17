@@ -1,0 +1,64 @@
+{
+  "算法、数值或输出语义错误": {
+    "chess-best-move": "输出走法不正确",
+    "circuit-fibsqrt": "电路功能检查失败",
+    "db-wal-recovery": "WAL 更新值没有正确恢复",
+    "dna-assembly": "引物缺少要求的识别位点",
+    "dna-insert": "正反引物熔解温度差超过限制",
+    "extract-elf": "预期提取值覆盖率为 0%",
+    "mteb-leaderboard": "提交的数据答案错误",
+    "gcode-to-text": "G-code 解码文字错误",
+    "count-dataset-tokens": "token 计数错误",
+    "filter-js-from-html": "过滤恶意内容与保留干净 HTML 的行为检查失败",
+    "gpt2-codegolf": "程序生成的文本不符合要求",
+    "mcmc-sampling-stan": "后验参数数值错误",
+    "model-extraction-relu-logits": "提取矩阵多个行不匹配",
+    "mteb-retrieve": "检索结果对应内容错误",
+    "raman-fitting": "峰位置等拟合参数错误",
+    "rstan-to-pystan": "要求三个参数值，输出只有一个",
+    "regex-chess": "输出棋局变化不属于合法走法",
+    "torch-tensor-parallelism": "分片计算/梯度结果不匹配",
+    "video-processing": "起跳帧定位错误"
+  },
+  "构建、依赖或执行未完成，缺少可用产物": {
+    "build-pov-ray": "没有完成要求的构建产物",
+    "caffe-cifar-10": "模型及训练产物缺失",
+    "compile-compcert": "缺少 ccomp 可执行程序",
+    "crack-7z-hash": "未生成 solution.txt",
+    "make-mips-interpreter": "VM 执行和帧产物检查失败",
+    "protein-assembly": "未生成 gblock.txt",
+    "extract-moves-from-video": "未生成 solution.txt",
+    "adaptive-rejection-sampler": "Rscript 未安装完成，无法执行验证",
+    "make-doom-for-mips": "运行失败，帧文件为空",
+    "sam-cell-seg": "脚本运行失败，要求的 CSV 未生成"
+  },
+  "性能、精度或质量指标不达标": {
+    "largest-eigenval": "多项加速测试未达到要求",
+    "train-fasttext": "准确率未达标且模型大小超限",
+    "path-tracing": "图像相似度约 0.7735，要求 0.99",
+    "path-tracing-reverse": "图像相似度约 0.9541，要求 0.995",
+    "winning-avg-corewars": "对测试对手胜率 12%，要求至少 33%"
+  },
+  "文件交付或修改范围不符合约束": {
+    "overfull-hbox": "输入修改超出允许的词语替换范围",
+    "polyglot-rust-c": "指定目录遗留额外编译文件",
+    "polyglot-c-py": "指定目录遗留 cmain；会话另有计算错误",
+    "sqlite-with-gcov": "缺少要求的 .gcda 覆盖率数据"
+  },
+  "服务没有以要求的状态交付": {
+    "install-windows-3-11": "QEMU 运行参数/monitor socket 不满足验证需求",
+    "configure-git-webserver": "部署后的 HTTP 请求返回 404",
+    "pypi-server": "本地索引服务未常驻交付，官方 pip 安装连接失败"
+  },
+  "验证阶段故障，尚不能正常判定产物": {
+    "code-from-image": "验证器 uv bootstrap 故障",
+    "qemu-alpine-ssh": "验证器 uv bootstrap 故障",
+    "qemu-startup": "验证器 uv bootstrap 故障",
+    "tune-mjcf": "验证器 uv bootstrap 故障",
+    "query-optimize": "VerifierTimeoutError，无 reward",
+    "torch-pipeline-parallelism": "VerifierTimeoutError，无 reward"
+  },
+  "ForgeCode 入口故障，任务没有开始执行": {
+    "portfolio-optimization": "任务 benchmark.py 遮蔽 benchmark.harbor 入口包"
+  }
+}

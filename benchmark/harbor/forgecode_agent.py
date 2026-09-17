@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 import shlex
 import shutil
+from time import monotonic
 from typing import Final, override
 
 from harbor.agents.installed.base import BaseInstalledAgent, with_prompt_template
@@ -96,6 +97,21 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             else _default_source_dir()
         )
         self._package = package
+        self._phase_deadline: float | None = None
+
+    def set_phase_timeout(self, seconds: float | None) -> None:
+        self._phase_deadline = None if seconds is None else monotonic() + _positive_float(seconds, 'phase_timeout')
+
+    def effective_turn_seconds(self) -> float:
+        # 实际预算取 kernel 上限与 Harbor 剩余期限的较小值，并留出日志清理时间。
+        if self._phase_deadline is None:
+            return self._max_turn_seconds
+        remaining = self._phase_deadline - monotonic()
+        if remaining <= 0:
+            raise TimeoutError('Harbor phase deadline expired before agent launch.')
+        # Leave time for interpreter startup, supervisor shutdown and log export.
+        reserve = min(30.0, remaining / 2)
+        return min(self._max_turn_seconds, remaining - reserve)
 
     @staticmethod
     @override
@@ -142,7 +158,9 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         environment: BaseEnvironment,
         context: AgentContext,
     ) -> None:
-        del context
+        context.metadata = {**(context.metadata or {}), 'configured_kernel_seconds': self._max_turn_seconds,
+                            'effective_kernel_seconds': self.effective_turn_seconds(),
+                            'outer_deadline_bound': self._phase_deadline is not None}
         resume = instruction.startswith(
             'The tests are correct. Do not modify the tests.'
         )
@@ -239,10 +257,11 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             )
         resume_arg = '--resume ' if resume else ''
         log_name = 'forgecode-repair.txt' if resume else 'forgecode.txt'
-        timeout = format(self._max_turn_seconds, 'g')
+        effective_seconds = self.effective_turn_seconds()
+        timeout = format(effective_seconds, 'g')
         # The kernel owns the task deadline. The outer guard leaves only a
         # bounded cleanup/logging grace period, with no extra model/tool work.
-        watchdog_timeout = format(self._max_turn_seconds + 15, 'g')
+        watchdog_timeout = format(effective_seconds + 15, 'g')
         baseline = '' if resume else _git_baseline_command()
         message_arg = (
             f'--message-file {shlex.quote(message_file)}'
@@ -251,16 +270,21 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
         return (
             'set -o pipefail; '
+            # 两层 Python 都隔离导入路径，任务中的 benchmark.py 不得遮蔽已安装包。
             f'{baseline}'
             'export FORGE_DATA_DIR=/logs/agent/forgecode-state; '
             'export ANTHROPIC_API_KEY="${FORGECODE_API_KEY}"; '
+            'export FORGE_API_KEY="${FORGECODE_API_KEY}"; '
+            'export FORGE_PROVIDER="${FORGECODE_PROVIDER:-anthropic}"; '
+            'export FORGE_REASONING_EFFORT="${FORGECODE_REASONING_EFFORT:-}"; '
             'export MODEL_ID="${FORGECODE_MODEL}"; '
             'export ANTHROPIC_BASE_URL="${FORGECODE_BASE_URL}"; '
+            'export FORGE_BASE_URL="${FORGECODE_BASE_URL}"; '
             'export MODEL_MAX_TOKENS="${FORGECODE_MODEL_MAX_TOKENS:-16384}"; '
             'export MODEL_CONTEXT_WINDOW="${FORGECODE_CONTEXT_WINDOW:-128000}"; '
             f'timeout --kill-after=10s {shlex.quote(watchdog_timeout)} '
-            f'{shlex.quote(_venv_python())} -m benchmark.harbor.process_supervisor -- '
-            f'{shlex.quote(_venv_python())} -m benchmark.harbor.run_forge '
+            f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.process_supervisor --preserve-on-success -- '
+            f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.run_forge '
             '--project . '
             f'{resume_arg}'
             f'--max-model-calls {self._max_model_calls} '

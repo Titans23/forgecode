@@ -17,6 +17,18 @@ from forge.tasks.state import (
 from forge.tasks.store import TaskStore
 
 
+def anchored_source_quote(quote: str, sources: tuple[str, ...]) -> str:
+    """Allow whitespace reflow only, and retain the exact original source span."""
+    words = quote.split()
+    if words:
+        pattern = r'\s+'.join(re.escape(word) for word in words)
+        for source in sources:
+            match = re.search(pattern, source)
+            if match:
+                return match.group(0)
+    raise ValueError('Acceptance source_quote must quote the original user goal or directive exactly (whitespace may differ)')
+
+
 class TaskManager:
     '''Keep every turn anchored while persisting only explicit plans.'''
 
@@ -25,6 +37,7 @@ class TaskManager:
         self.store = store or TaskStore(self.root)
         self.active: ActiveTask | None = None
         self._latest_directive = ''
+        self.evidence_provider = None
 
     def begin_turn(
         self,
@@ -114,10 +127,9 @@ class TaskManager:
     def _merge_acceptance(self, criteria: list[dict[str, str]]) -> tuple[dict[str, str], ...]:
         from forge.tasks.state import anchored_criterion
         task = self._require_active()
-        for criterion in criteria:
-            quote = criterion.get('source_quote', '').strip()
-            if not quote or not any(quote in source for source in (task.goal, *task.user_directives)):
-                raise ValueError('Acceptance source_quote must quote the original user goal exactly; assumptions are not user requirements.')
+        criteria = [{**criterion, 'source_quote': anchored_source_quote(
+            criterion.get('source_quote', ''), (task.goal, *task.user_directives))}
+            for criterion in criteria]
         anchored = {item['id']: item for item in task.acceptance_criteria}
         sources = {(item['source_quote'].strip(), item.get('clause_id', '')) for item in anchored.values()}
         for criterion in criteria:
@@ -385,6 +397,43 @@ class TaskManager:
             status='blocked',
             blocked_reasons=tuple(dict.fromkeys(reasons)),
         )
+        if self.active.planned:
+            self.store.save(self.active)
+        return self.active
+
+    def revise_acceptance(self, requirement_id: str, replacement: dict[str, str] | None,
+                          reason: str) -> ActiveTask:
+        '''Explicitly revise a model interpretation; caller contracts are immutable here.'''
+        from forge.tasks.state import anchored_criterion
+        task = self._require_active()
+        old = next((item for item in task.acceptance_criteria if item['id'] == requirement_id), None)
+        if old is None:
+            raise ValueError('Unknown active requirement ID')
+        if old.get('origin') != 'model_proposal':
+            raise ValueError('Caller requirements cannot be revised by the model')
+        if not reason.strip():
+            raise ValueError('A revision reason is required')
+        current = [item for item in task.acceptance_criteria if item['id'] != requirement_id]
+        if replacement is not None:
+            replacement = {**replacement, 'source_quote': anchored_source_quote(
+                replacement.get('source_quote', ''), (task.goal, *task.user_directives))}
+            new = anchored_criterion(replacement, task.id)
+            # A changed interpretation never inherits old successful runs by ID.
+            new['id'] = 'req-' + uuid4().hex[:20]
+            new['revision'] = str(int(old.get('revision', '1')) + 1)
+            current.append(new)
+        history = (*task.acceptance_history, {**old, 'status': 'superseded' if replacement else 'retracted',
+                                             'revision_reason': reason.strip()})
+        self.active = replace(task, acceptance_criteria=tuple(current), acceptance_history=history)
+        if self.active.planned:
+            self.store.save(self.active)
+        return self.active
+
+    def partial(self, reasons: tuple[str, ...]) -> ActiveTask | None:
+        '''Preserve a resumable delivery whose acceptance remains incomplete.'''
+        if self.active is None:
+            return None
+        self.active = replace(self.active, status='partial', blocked_reasons=tuple(dict.fromkeys(reasons)))
         if self.active.planned:
             self.store.save(self.active)
         return self.active

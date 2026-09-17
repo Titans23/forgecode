@@ -12,7 +12,7 @@ from forge.tools.filesystem import (
     WriteFileChunkTool,
     WriteFileTool,
 )
-from forge.tools.finish import FinishTaskTool
+from forge.tools.finish import FinishTaskTool, ReviewDeliveryTool
 from forge.tools.git import GitDiffTool, GitLogTool, GitStatusTool
 from forge.tools.patch import ApplyPatchTool
 from forge.tools.search import FindFilesTool, GrepTool
@@ -28,6 +28,7 @@ def create_default_registry(
     *,
     execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
+    model_client_factory=None,
 ) -> ToolRegistry:
     '''Create built-in tools sharing one task-local workspace tracker.'''
     # Delayed import prevents runtime.state -> forge.tools package cycles.
@@ -57,8 +58,9 @@ def create_default_registry(
             VerifyTool(root, tracker),
             GitStatusTool(root),
             GitDiffTool(root),
-            ExploreRepositoryTool(root),
+            ExploreRepositoryTool(root, client_factory=model_client_factory),
             FinishTaskTool(root),
+            ReviewDeliveryTool(root),
         ],
         workspace_tracker=tracker,
         # Chunked whole-file writes remain an internal compatibility primitive.

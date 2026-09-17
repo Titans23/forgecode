@@ -1,0 +1,740 @@
+[
+  {
+    "task": "build-pov-ray",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {
+      "command_failed": 6,
+      "not_executed_after_failure": 5,
+      "invalid_arguments": 1,
+      "command_timeout": 3,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\build-pov-ray__C6nDdHj"
+  },
+  {
+    "task": "caffe-cifar-10",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {
+      "command_failed": 1,
+      "not_executed_after_failure": 1,
+      "command_timeout": 1,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\caffe-cifar-10__crwZeR7"
+  },
+  {
+    "task": "chess-best-move",
+    "verify_calls": 3,
+    "finish_requests": 3,
+    "errors": {
+      "command_failed": 1,
+      "invalid_arguments": 1,
+      "verification_not_established": 1,
+      "delivery_repair_required": 2,
+      "check_contract_conflict": 1
+    },
+    "reasons": [
+      "The latest verification failed and remains unresolved on the current workspace revision: \"python3 - <<'PY'\\nfrom pathlib import Path\\np=Path('/app/move.txt')\\nlines=p.read_text().splitlines()\\nassert lines and all(len(x)==4 and x[0] in 'abcdefgh' and x[2\" (verification ID fe3f045a2e1b438eb3420a58089b5b7a; exit 0; Output assertions require a JSON object on the final stdout line.). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\chess-best-move__LW4yNXQ"
+  },
+  {
+    "task": "circuit-fibsqrt",
+    "verify_calls": 0,
+    "finish_requests": 1,
+    "errors": {
+      "patch_rejected": 1,
+      "text_not_found": 1
+    },
+    "reasons": [
+      "The generated netlist's stateful simulation does not propagate the computed Fibonacci result to the final 32 signals correctly; further implementation/debugging is required."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\circuit-fibsqrt__ACPPhc6"
+  },
+  {
+    "task": "compile-compcert",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {
+      "path_not_found": 2,
+      "not_executed_after_failure": 4,
+      "permission_denied": 1,
+      "command_failed": 5,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\compile-compcert__aE3E7yd"
+  },
+  {
+    "task": "crack-7z-hash",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {
+      "command_failed": 6,
+      "command_timeout": 4
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\crack-7z-hash__aLecZLh"
+  },
+  {
+    "task": "db-wal-recovery",
+    "verify_calls": 1,
+    "finish_requests": 2,
+    "errors": {
+      "command_failed": 3,
+      "not_executed_after_failure": 6,
+      "permission_denied": 1,
+      "invalid_arguments": 1
+    },
+    "reasons": [
+      "The original malformed WAL file disappeared from /app after the first normal SQLite open, and no alternate copy or checker is available; direct WAL repair validation is therefore unavailable without an external source."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\db-wal-recovery__oHDUxnB"
+  },
+  {
+    "task": "dna-assembly",
+    "verify_calls": 9,
+    "finish_requests": 0,
+    "errors": {
+      "task_plan_rejected": 1,
+      "command_failed": 6,
+      "not_executed_after_failure": 4,
+      "command_timeout": 2,
+      "verification_failed": 9,
+      "invalid_arguments": 1,
+      "file_already_exists": 1,
+      "patch_rejected": 2,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\dna-assembly__QcN2v5c"
+  },
+  {
+    "task": "dna-insert",
+    "verify_calls": 2,
+    "finish_requests": 1,
+    "errors": {
+      "command_failed": 5,
+      "command_timeout": 2,
+      "not_executed_after_failure": 1,
+      "verification_failed": 1
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\dna-insert__o5q9XPV"
+  },
+  {
+    "task": "extract-elf",
+    "verify_calls": 5,
+    "finish_requests": 4,
+    "errors": {
+      "command_failed": 1,
+      "not_executed_after_failure": 1,
+      "verification_failed": 1,
+      "invalid_arguments": 2,
+      "delivery_repair_required": 2,
+      "check_contract_conflict": 1
+    },
+    "reasons": [
+      "Acceptance check is stale and must be revalidated: integer-values, memory-values. Verification ID: 2262cd7257004799948db8625c9d5fcb. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\extract-elf__sUzx7Y6"
+  },
+  {
+    "task": "install-windows-3-11",
+    "verify_calls": 14,
+    "finish_requests": 3,
+    "errors": {
+      "verification_failed": 6,
+      "check_contract_conflict": 9,
+      "delivery_repair_required": 2,
+      "verification_not_established": 2
+    },
+    "reasons": [
+      "Acceptance check is stale and must be revalidated: nginx-web, programmatic-keyboard, qemu-background, snapshot-immutable, vnc-1-5901. Verification ID: 512183e357134819929e77e779514b57. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance check is stale and must be revalidated: nginx-web, programmatic-keyboard, qemu-background, snapshot-immutable, vnc-1-5901. Verification ID: 6f26f3df7bea4bdf8df7fe47a961a915. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance check is stale and must be revalidated: req-0b74b5715234c780f953, req-6cc718a9ca2953fc3744, req-b6d4fe624a76f6a4b9b1, req-c6431654d03421e8c1dd, req-cf3615850693d3f986dd, req-edb3ba8397441621a91e, req-ee1a0c91f7dd7b9e3481. Verification ID: ebfaa3626e9640b0a35f325e12b99195. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance check is stale and must be revalidated: nginx-web, programmatic-keyboard, qemu-background, snapshot-immutable, vnc-1-5901. Verification ID: 3da044ec07224a69b4aa607d7b4d04fc. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance check is stale and must be revalidated: nginx-web, programmatic-keyboard, qemu-background, snapshot-immutable, vnc-1-5901. Verification ID: 4cc6dcc6ec6e4d5799aa957c4f7c298f. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance check is stale and must be revalidated: nginx-web, programmatic-keyboard, qemu-background, snapshot-immutable, vnc-1-5901. Verification ID: 26c5df4509a94abd9929494d3bd47aba. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "The latest verification failed and remains unresolved on the current workspace revision: \"python3 - <<'PY'\\nimport hashlib,json,os,socket,subprocess,urllib.request\\nimg='/app/isos/win311.img'\\ndef fail(m):raise RuntimeError(m)\\ndef fp():\\n st=os.stat(img)\" (verification ID 6f13e488b57d4d9588e735257dd1ae76; exit 1; Output assertions require a JSON object on the final stdout line.). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\install-windows-3-11__FTSmxcn"
+  },
+  {
+    "task": "make-mips-interpreter",
+    "verify_calls": 9,
+    "finish_requests": 0,
+    "errors": {
+      "command_failed": 2,
+      "not_executed_after_failure": 12,
+      "invalid_arguments": 7,
+      "verification_failed": 3,
+      "verification_not_established": 1,
+      "patch_context_not_found": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\make-mips-interpreter__9LVQy9A"
+  },
+  {
+    "task": "mteb-leaderboard",
+    "verify_calls": 2,
+    "finish_requests": 3,
+    "errors": {
+      "command_failed": 2,
+      "not_executed_after_failure": 2,
+      "invalid_arguments": 2,
+      "delivery_repair_required": 1
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\mteb-leaderboard__UJS8rpA"
+  },
+  {
+    "task": "overfull-hbox",
+    "verify_calls": 11,
+    "finish_requests": 2,
+    "errors": {
+      "invalid_arguments": 2,
+      "git_status_failed": 1,
+      "not_executed_after_failure": 9,
+      "command_failed": 1,
+      "path_not_found": 1,
+      "verification_not_established": 2,
+      "text_not_found": 2,
+      "verification_failed": 1,
+      "delivery_repair_required": 2,
+      "check_contract_conflict": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\overfull-hbox__6CTDVAk"
+  },
+  {
+    "task": "path-tracing",
+    "verify_calls": 4,
+    "finish_requests": 0,
+    "errors": {
+      "not_a_directory": 1,
+      "not_executed_after_failure": 2,
+      "command_failed": 4,
+      "file_already_exists": 1,
+      "patch_rejected": 2,
+      "text_not_found": 2,
+      "verification_failed": 4
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\path-tracing__U5Pv2fv"
+  },
+  {
+    "task": "polyglot-rust-c",
+    "verify_calls": 6,
+    "finish_requests": 0,
+    "errors": {
+      "verification_failed": 6,
+      "command_failed": 2,
+      "file_already_exists": 1,
+      "invalid_arguments": 2
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\polyglot-rust-c__DF2Qjx5"
+  },
+  {
+    "task": "protein-assembly",
+    "verify_calls": 0,
+    "finish_requests": 1,
+    "errors": {
+      "command_failed": 2,
+      "not_executed_after_failure": 2,
+      "invalid_arguments": 1
+    },
+    "reasons": [
+      "The task requires all five protein components, four GS linkers of at least 5 aa each, and a gBlock of at most 3000 nt; the minimum feasible construct is 3207 nt before considering any additional sequence constraints."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\protein-assembly__iSBd7ff"
+  },
+  {
+    "task": "regex-chess",
+    "verify_calls": 5,
+    "finish_requests": 1,
+    "errors": {
+      "command_failed": 6,
+      "text_not_found": 3,
+      "invalid_arguments": 3,
+      "verification_not_established": 2,
+      "file_already_exists": 1,
+      "verification_failed": 2
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\regex-chess__BfK6vgh"
+  },
+  {
+    "task": "video-processing",
+    "verify_calls": 8,
+    "finish_requests": 3,
+    "errors": {
+      "invalid_arguments": 3,
+      "verification_failed": 2,
+      "verification_not_established": 2,
+      "command_failed": 1,
+      "delivery_repair_required": 2,
+      "check_contract_conflict": 1
+    },
+    "reasons": [
+      "Acceptance check is stale and must be revalidated: req-01f36735987b7edd9287, req-1c1232f3ccdd73a5aef7, req-736ea3effa46b35595b0, req-96e34968f979d33377ac. Verification ID: d4405eedb51c4001b834ca9ed43c9987. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance check is stale and must be revalidated: req-01f36735987b7edd9287, req-1c1232f3ccdd73a5aef7, req-736ea3effa46b35595b0, req-96e34968f979d33377ac. Verification ID: d8f351a43ff948d59f43e95a1dccf09e. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance requirement req-01f36735987b7edd9287: assertion_binding_missing. Write a script, named jump_analyzer.py, and place it in `/app/jump_analyzer.py` .. A check exists, but no executed output assertion is bound to this requirement with expected_source. Preserve actual measurements and bind the correct requirement ID.",
+      "Acceptance requirement req-736ea3effa46b35595b0: assertion_binding_missing. The script analyzes MP4 videos of hurdle jumpers and extracts performance metrics.. A check exists, but no executed output assertion is bound to this requirement with expected_source. Preserve actual measurements and bind the correct requirement ID.",
+      "Acceptance requirement req-1c1232f3ccdd73a5aef7: assertion_binding_missing. You can only use these libraries.. A check exists, but no executed output assertion is bound to this requirement with expected_source. Preserve actual measurements and bind the correct requirement ID.",
+      "The latest verification failed and remains unresolved on the current workspace revision: 'python -' (verification ID da71c8a27b894cc9acd8e289cebf625e; exit 0; Missing output key 'output_keys': Output contains exactly the two required fields.; Missing output key 'takeoff': Takeoff is a valid frame number.; Missing output key 'landing': Landing is a valid frame number.). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it.",
+      "checker_contract_mismatch: da71c8a27b894cc9acd8e289cebf625e; missing or changed assertions=[]; cwd_matches=True; requirement_bindings_preserved=False. Use inherit_checks_from to retain the recorded contract; do not change thresholds or requirement bindings."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\video-processing__PbCPM6U"
+  },
+  {
+    "task": "winning-avg-corewars",
+    "verify_calls": 3,
+    "finish_requests": 1,
+    "errors": {
+      "command_failed": 3,
+      "not_executed_after_failure": 4,
+      "verification_not_established": 2,
+      "patch_rejected": 2,
+      "file_already_exists": 1,
+      "verification_failed": 1,
+      "invalid_arguments": 1
+    },
+    "reasons": [
+      "Created my_warrior.red and preserved all supplied opponent files, but the final validated artifact does not satisfy the complete acceptance contract. Exact pMARS runs report 90 wins vs stone, 95 vs vampire, 87 vs paper, 12 vs snake, and 25 vs g2-clear. Thus the 75-win thresholds pass, while the required 33-win thresholds for snake.red and g2-clear.red fail. The runtime diagnostics were resolved: the initial run failure was an undefined label (`scanner`), and later failures were instruction-length/label issues; these were distinguished by pMARS assembly diagnostics rather than masked. No opponent files were modified."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\2026-09-16__11-06-53\\winning-avg-corewars__QtQbWug"
+  },
+  {
+    "task": "gcode-to-text",
+    "verify_calls": 3,
+    "finish_requests": 3,
+    "errors": {
+      "command_failed": 1,
+      "verification_not_established": 1,
+      "delivery_repair_required": 2
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\terminal-bench-2-full89-luna-c5-20260916-110647\\resume-20260916-150000\\2026-09-16__15-02-26\\gcode-to-text__ScjeZ6B"
+  },
+  {
+    "task": "adaptive-rejection-sampler",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {
+      "command_timeout": 1,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\adaptive-rejection-sampler__TgEe9Cz"
+  },
+  {
+    "task": "code-from-image",
+    "verify_calls": 4,
+    "finish_requests": 2,
+    "errors": {
+      "command_failed": 3,
+      "not_executed_after_failure": 1,
+      "command_timeout": 1,
+      "verification_not_established": 2,
+      "check_contract_conflict": 3,
+      "delivery_repair_required": 1
+    },
+    "reasons": [
+      "Acceptance check is stale and must be revalidated: final-output, hint-prefix. Verification ID: 196257ae3092475bb03f3ad603d1d0ba. For a corrected checker, use verify.inherit_checks_from with this ID and revision_reason; omit rewritten old output_checks. The runtime copies the original assertions exactly.",
+      "Acceptance requirement req-c9a74c715948c5c5d7b6: unverified. produce the same final value it would print. Write the result to `/app/output.txt`.. Run an independent check of the quoted requirement; use actual values, exact source identity or a behavioral comparison rather than output shape alone.",
+      "Acceptance requirement req-3b83c0e797bc51f13f23: unverified. the correct answer starts with `bee26a`. Run an independent check of the quoted requirement; use actual values, exact source identity or a behavioral comparison rather than output shape alone.",
+      "The latest verification failed and remains unresolved on the current workspace revision: \"python - <<'PY'\\nimport hashlib, json\\nfrom pathlib import Path\\nraw=Path('/app/code.png').read_bytes(); h=hashlib.sha256(raw).digest(); actual=hashlib.sha256(h+h[\" (verification ID 8a86b24297284db0a70ee7a8fa035b5e; exit 0; output: observed 'bee26a133f103b9ecda444c70ec22cafef6e31a3de7af6d047974dc90ce3defe', required eq 'bee26a133f103b9ecda444c70ec22cafefef6e31a3de7af6d047974dc90ce3defe'; The output file contains the same final value as the snippet). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se9-c4-0917-095024\\2026-09-17__09-50-41\\code-from-image__5d5w6or"
+  },
+  {
+    "task": "configure-git-webserver",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {
+      "command_failed": 2,
+      "not_executed_after_failure": 2,
+      "directory_already_exists": 1,
+      "permission_denied": 1,
+      "file_already_exists": 2
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se9-c4-0917-095024\\2026-09-17__09-50-41\\configure-git-webserver__j5WHq7C"
+  },
+  {
+    "task": "count-dataset-tokens",
+    "verify_calls": 4,
+    "finish_requests": 4,
+    "errors": {
+      "verification_not_established": 1,
+      "invalid_arguments": 1,
+      "delivery_repair_required": 2,
+      "check_contract_conflict": 2
+    },
+    "reasons": [
+      "The latest verification failed and remains unresolved on the current workspace revision: \"python - <<'PY'\\nfrom pathlib import Path\\nimport pyarrow.parquet as pq\\nfrom transformers import AutoTokenizer\\nanswer=Path('/app/answer.txt').read_text()\\nassert a\" (verification ID 6b2c37e2776c4d978983f70b13e9a84b; exit 0; Output assertions require a JSON object on the final stdout line.). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\count-dataset-tokens__bWjkHYX"
+  },
+  {
+    "task": "extract-moves-from-video",
+    "verify_calls": 0,
+    "finish_requests": 1,
+    "errors": {
+      "command_failed": 3,
+      "command_timeout": 6,
+      "not_executed_after_failure": 4
+    },
+    "reasons": [
+      "blocked requires observed external evidence such as permission, credentials, network, or an unavailable dependency. If the attempted task is unsuccessful, use finish_task status=failed; it does not require successful verification.",
+      "The exact YouTube source cannot be retrieved or directly inspected in this environment: youtube.com resolves to 127.0.0.1 and connections are refused; yt-dlp confirms failure to establish a network connection. The Jina mirror exposes only metadata (title and 2:53 duration) and returns a YouTube 401, not the video frames or downloadable media.",
+      "The video-processing dependencies were not available initially; installing ffmpeg/tesseract repeatedly timed out while downloading large apt packages. Although yt-dlp was installed, it cannot access the source without network connectivity.",
+      "Without the video frames/media, producing /app/solution.txt would require guessing the moves, which would violate the requirement to transcribe the entire video."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\extract-moves-from-video__mEEDuWM"
+  },
+  {
+    "task": "filter-js-from-html",
+    "verify_calls": 3,
+    "finish_requests": 3,
+    "errors": {
+      "verification_failed": 1,
+      "invalid_arguments": 1,
+      "delivery_repair_required": 1,
+      "check_contract_conflict": 1
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\filter-js-from-html__EUjMX5m"
+  },
+  {
+    "task": "gpt2-codegolf",
+    "verify_calls": 3,
+    "finish_requests": 1,
+    "errors": {
+      "command_failed": 2,
+      "not_executed_after_failure": 5,
+      "verification_failed": 1,
+      "verification_not_established": 1
+    },
+    "reasons": [
+      "The source-size and compilation requirements pass, but the model/inference/tokenizer requirements do not. The supplied checkpoint is a 497,759,232-byte raw float32 blob without a TensorFlow container header or metadata, so the variable ordering and tensor mapping needed for correct GPT-2 inference could not be independently established from the available files.",
+      "The final end-to-end run did execute and produced exactly 20 generated characters/tokens, but its output is not independently validated as GPT-2 output; the repeated exclamation marks are evidence of an incorrect implementation, not success."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\gpt2-codegolf__DMY7fn7"
+  },
+  {
+    "task": "largest-eigenval",
+    "verify_calls": 3,
+    "finish_requests": 1,
+    "errors": {
+      "patch_no_changes": 1,
+      "verification_failed": 2
+    },
+    "reasons": [
+      "The current NumPy environment's np.linalg.eig baseline is faster than the implemented general path; the speed requirement therefore remains unmet despite correctness passing."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\largest-eigenval__sXPZZLY"
+  },
+  {
+    "task": "make-doom-for-mips",
+    "verify_calls": 6,
+    "finish_requests": 0,
+    "errors": {
+      "task_plan_rejected": 2,
+      "command_failed": 3,
+      "path_not_found": 3,
+      "not_executed_after_failure": 11,
+      "invalid_arguments": 2,
+      "verification_not_established": 1,
+      "verification_failed": 5,
+      "permission_denied": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\make-doom-for-mips__6FC9QZJ"
+  },
+  {
+    "task": "mcmc-sampling-stan",
+    "verify_calls": 1,
+    "finish_requests": 0,
+    "errors": {
+      "invalid_arguments": 1,
+      "task_plan_rejected": 1,
+      "command_timeout": 1,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se9-c4-0917-095024\\2026-09-17__09-50-41\\mcmc-sampling-stan__hhphCUG"
+  },
+  {
+    "task": "model-extraction-relu-logits",
+    "verify_calls": 4,
+    "finish_requests": 2,
+    "errors": {
+      "verification_not_established": 1,
+      "file_already_exists": 1,
+      "patch_rejected": 1,
+      "delivery_repair_required": 1
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\model-extraction-relu-logits__AUggVNM"
+  },
+  {
+    "task": "mteb-retrieve",
+    "verify_calls": 4,
+    "finish_requests": 3,
+    "errors": {
+      "delivery_repair_required": 2,
+      "verification_failed": 1,
+      "check_contract_conflict": 1
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se9-c4-0917-095024\\2026-09-17__09-50-41\\mteb-retrieve__jfXXQW7"
+  },
+  {
+    "task": "path-tracing-reverse",
+    "verify_calls": 4,
+    "finish_requests": 1,
+    "errors": {
+      "invalid_arguments": 1,
+      "command_failed": 6,
+      "not_executed_after_failure": 8,
+      "path_not_found": 1,
+      "verification_not_established": 1
+    },
+    "reasons": [
+      "The reconstructed rendering algorithm is incomplete, so byte-for-byte equivalence of image.ppm and exact stderr behavior was not established."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se9-c4-0917-095024\\2026-09-17__09-50-41\\path-tracing-reverse__xdyaGx6"
+  },
+  {
+    "task": "polyglot-c-py",
+    "verify_calls": 12,
+    "finish_requests": 1,
+    "errors": {
+      "verification_failed": 12,
+      "command_failed": 2,
+      "text_not_found": 1,
+      "not_a_file": 1
+    },
+    "reasons": [
+      "Python 3.12.3 is not installed in the current environment, so Python-mode execution could not be end-to-end verified. GCC emits intentional missing-terminating-string warnings for the polyglot delimiters; normal compilation succeeds, but -Werror is incompatible with this delimiter technique."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\polyglot-c-py__Vu42yvq"
+  },
+  {
+    "task": "portfolio-optimization",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {},
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\portfolio-optimization__VW4NoNY"
+  },
+  {
+    "task": "pypi-server",
+    "verify_calls": 8,
+    "finish_requests": 3,
+    "errors": {
+      "task_plan_rejected": 1,
+      "verification_failed": 2,
+      "delivery_repair_required": 2,
+      "check_contract_conflict": 3
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\pypi-server__DUZ2hnt"
+  },
+  {
+    "task": "qemu-alpine-ssh",
+    "verify_calls": 0,
+    "finish_requests": 1,
+    "errors": {
+      "command_timeout": 1,
+      "command_failed": 3,
+      "not_executed_after_failure": 2
+    },
+    "reasons": [
+      "The supplied Alpine ISO did not reach a usable login/console state in the available run; SSH service configuration could not be applied inside the guest."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\qemu-alpine-ssh__zPTXnak"
+  },
+  {
+    "task": "qemu-startup",
+    "verify_calls": 3,
+    "finish_requests": 2,
+    "errors": {
+      "command_failed": 1,
+      "not_executed_after_failure": 2,
+      "command_timeout": 2,
+      "verification_failed": 1,
+      "delivery_repair_required": 2
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se9-c4-0917-095024\\2026-09-17__09-50-41\\qemu-startup__nY8NhX9"
+  },
+  {
+    "task": "query-optimize",
+    "verify_calls": 2,
+    "finish_requests": 0,
+    "errors": {
+      "command_failed": 3,
+      "not_executed_after_failure": 4,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\query-optimize__nMhCPWj"
+  },
+  {
+    "task": "raman-fitting",
+    "verify_calls": 4,
+    "finish_requests": 4,
+    "errors": {
+      "command_failed": 1,
+      "verification_not_established": 1,
+      "invalid_arguments": 1,
+      "delivery_repair_required": 2,
+      "check_contract_conflict": 1
+    },
+    "reasons": [
+      "The latest verification failed and remains unresolved on the current workspace revision: 'python -' (verification ID 66fddd57b40046969fe71de525f15264; exit 0; Missing output key 'G.x0': G peak x0 is the fitted center; Missing output key '2D.x0': 2D peak x0 is the fitted center; Missing output key 'valid': results.json has the requested two peak objects and numeric finite parameters). To repair a checker, reference its verification ID in inherit_checks_from, explain revision_reason, and omit rewritten old output_checks. All original assertions will execute again; a weaker check cannot resolve it."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\raman-fitting__TefMQLU"
+  },
+  {
+    "task": "rstan-to-pystan",
+    "verify_calls": 4,
+    "finish_requests": 0,
+    "errors": {
+      "invalid_arguments": 1,
+      "command_failed": 5,
+      "verification_failed": 3,
+      "not_executed_after_failure": 1,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\rstan-to-pystan__AH9xddd"
+  },
+  {
+    "task": "sam-cell-seg",
+    "verify_calls": 4,
+    "finish_requests": 1,
+    "errors": {
+      "verification_failed": 1,
+      "text_not_found": 1
+    },
+    "reasons": [
+      "The current execution environment does not contain the required runtime dependencies or a MobileSAM checkpoint, so a positive end-to-end demo run and rasterized geometry assertions cannot be performed here."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\sam-cell-seg__GeQ7sYL"
+  },
+  {
+    "task": "sqlite-with-gcov",
+    "verify_calls": 5,
+    "finish_requests": 2,
+    "errors": {
+      "command_timeout": 1,
+      "not_executed_after_failure": 1,
+      "verification_failed": 1,
+      "delivery_repair_required": 1
+    },
+    "reasons": [],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\sqlite-with-gcov__N8KW4Cg"
+  },
+  {
+    "task": "torch-pipeline-parallelism",
+    "verify_calls": 3,
+    "finish_requests": 1,
+    "errors": {
+      "path_not_found": 1,
+      "not_executed_after_failure": 4,
+      "command_failed": 3,
+      "verification_failed": 1,
+      "check_contract_conflict": 1
+    },
+    "reasons": [
+      "The environment lacks torch and supplied distributed LLaMA test fixtures, so world-size 1/2 activation and gradient comparisons remain unverified."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\torch-pipeline-parallelism__WQ5WcUD"
+  },
+  {
+    "task": "torch-tensor-parallelism",
+    "verify_calls": 6,
+    "finish_requests": 1,
+    "errors": {
+      "verification_failed": 3,
+      "path_not_found": 1,
+      "command_timeout": 1,
+      "git_diff_failed": 1,
+      "command_failed": 1
+    },
+    "reasons": [
+      "PyTorch is not installed in the available runtime, so end-to-end tensor and distributed collective tests cannot be executed here."
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\torch-tensor-parallelism__cw47QrR"
+  },
+  {
+    "task": "train-fasttext",
+    "verify_calls": 0,
+    "finish_requests": 0,
+    "errors": {
+      "command_failed": 3,
+      "not_executed_after_failure": 1,
+      "invalid_arguments": 1,
+      "command_timeout": 1,
+      "execution_cancelled": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-se38-c4-0916-173742\\2026-09-16__17-37-48\\train-fasttext__oLJSqHx"
+  },
+  {
+    "task": "tune-mjcf",
+    "verify_calls": 14,
+    "finish_requests": 1,
+    "errors": {
+      "verification_failed": 13,
+      "delivery_repair_required": 1
+    },
+    "reasons": [
+      "time_budget_exhausted"
+    ],
+    "path": "D:\\projects\\forgecode\\benchmark\\runs\\harbor\\tb2-r2-0916-155118\\2026-09-16__15-52-29\\tune-mjcf__APzKu9p"
+  }
+]

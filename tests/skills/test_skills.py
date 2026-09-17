@@ -259,8 +259,11 @@ def test_conversation_injects_catalog_and_explicit_body(tmp_path: Path) -> None:
 
     collect(conversation, 'Use $explain-system now')
 
-    system = str(client.calls[0]['system'])
-    raw_tools = client.calls[0]['tools']
+    # A small model window may require a summarization request first. Assert
+    # the actual tool-enabled request, rather than its position in the stream.
+    request = next(call for call in client.calls if call['tools'] is not None)
+    system = str(request['system'])
+    raw_tools = request['tools']
     assert isinstance(raw_tools, list)
     tool_names = {str(item['name']) for item in raw_tools}
     assert '[ForgeCode Skills]' in system
@@ -270,6 +273,10 @@ def test_conversation_injects_catalog_and_explicit_body(tmp_path: Path) -> None:
 
 
 class SkillLoadingClient(CapturingClient):
+    # This scenario exercises skill loading, not summarization. Leave room for
+    # the complete tool schemas; compaction has its own small-window tests.
+    context_window = 32_000
+
     def __init__(self) -> None:
         super().__init__()
         self.request_index = 0

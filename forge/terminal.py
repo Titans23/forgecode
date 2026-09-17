@@ -975,4 +975,6 @@ def completion_evidence_summary(result: TurnResult) -> Text:
         )
     for reason in result.completion_reasons:
         rendered.append(f'\n  × {reason}', style='red')
+    if result.completion_report is not None:
+        rendered.append('\n  ' + result.completion_report.summary(), style='dim')
     return rendered
