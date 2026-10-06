@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00—F05；下一任务 F06（已阅读任务卡和规范第 3、21 章）。
+- 当前完成 F00—F06；下一任务 F07（已阅读任务卡、第 10—12 章和 SRT 锁定源码）。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -82,5 +82,16 @@
   20261006T111751Z-a64edfea / 20261006T111756Z-f5819b93 / 20261006T111902Z-ff8046cd。
   contracts --check pass。早期测试误用已注册 F05 作为失败样例，递归启动验收；
   已停止本任务进程，改用隔离空 registry 的单元断言并重跑。中断运行不计通过。
-- F06 下一步：版本化/限步 ScriptedModel、六个公开 fixture 基础结构、真实读改测
+- F06 已完成版本化/限步 ScriptedModel、六个公开 fixture 基础结构、真实读改测
   RPC demo；只能显式 local-trusted，OS 隔离验收仍 blocked，不能导出真实模型成绩。
+- F05 已推送 cb724ac5cbd2b874f9d4fdd2f7501905d44c53d5。
+- F06 已实现 forge.testing.demo / RpcClient、版本化限步脚本、精确 test 审批、六个实际
+  fixture 基础结构。verify --task F06 unit 54 / portable 49 pass、0 skip；证据
+  20261006T113646Z-1cb5c7d9 / 20261006T113651Z-324b93bb。完整回归 843 pass、0 skip，
+  20261006T113811Z-54d4f9dd；contracts --check pass。验收后提交/push F06。
+  早期报告查询/视图和旧脚本兼容失败已修复，失败索引保留。
+- 演示 python -m forge.testing.demo [--output-dir 新目录]；真实文件/进程、修复前后
+  unittest 结果及 native Journal/SQLite 哈希。scripted/local-trusted，不能作为真实榜单。
+  断开响应后 drain，再开启 Engine 用 action.get 和同 ID 重试，确认只有一个 turn/Journal。
+- F07 已阅读任务卡、第 10—12 章和锁定 SRT 的 config/schema 类型。allowRead 是 deny
+  例外，不能伪装严格读取白名单；需要路径身份/链接/特殊路径拒绝及独立能力要求检查。

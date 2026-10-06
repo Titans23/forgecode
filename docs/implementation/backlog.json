@@ -303,8 +303,8 @@
         "portable"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": ["20261006T113646Z-1cb5c7d9", "20261006T113651Z-324b93bb", "20261006T113811Z-54d4f9dd"],
       "case_ids": []
     },
     {

@@ -1,0 +1,19 @@
+{
+  "schema_version": "forge.fixture.v1",
+  "fixture_id": "stale-evidence",
+  "origin": "synthetic-fixture",
+  "inputs": [
+    "project/calculator.py",
+    "project/test_calculator.py",
+    "project/invalidate.py"
+  ],
+  "acceptance_tasks": [
+    "F17",
+    "F30"
+  ],
+  "assertions": [
+    "test passes",
+    "external mutation advances revision",
+    "old evidence cannot authorize completion"
+  ]
+}

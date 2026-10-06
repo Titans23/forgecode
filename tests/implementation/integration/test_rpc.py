@@ -61,7 +61,9 @@ def test_cursor_rejects_wrong_scope_forgery_and_unpublished_ack(tmp_path):
 def seed(tmp_path, *, wait=False):
     service, store, vault, _, params, turn = setup(tmp_path)
     fixture = tmp_path / 'scripted.json'
-    fixture.write_text(json.dumps({'credentials': vault.keys, 'responses': [
+    fixture.write_text(json.dumps({'schema_version': 'forge.scripted-model.v1', 'origin': 'scripted', 'max_steps': 2,
+        'allowed_tools': ['read_file', 'finish_task'], 'approve_scripted_calls': False,
+        'credentials': vault.keys, 'responses': [
         {'delay_seconds': 30 if wait else 0, 'usage': {'input_tokens': 11, 'output_tokens': 3},
          'tool_calls': [{'id': 'read', 'name': 'read_file', 'arguments': {'path': 'value.txt'}}]},
         {'usage': {'input_tokens': 12, 'output_tokens': 4}, 'tool_calls': [{'id': 'finish', 'name': 'finish_task',
@@ -231,7 +233,8 @@ def test_slow_reader_still_accepts_cancel_and_durable_action_query(tmp_path):
         journal.append('transport_test_record', {'index': i})
     JournalProjector(store).project(journal.path, turn['session_id'])
     fixture = tmp_path / 'scripted.json'
-    fixture.write_text(json.dumps({'credentials': vault.keys, 'responses': [
+    fixture.write_text(json.dumps({'schema_version': 'forge.scripted-model.v1', 'origin': 'scripted', 'max_steps': 1,
+        'allowed_tools': [], 'approve_scripted_calls': False, 'credentials': vault.keys, 'responses': [
         {'delay_seconds': 30, 'usage': {'input_tokens': 11, 'output_tokens': 3}, 'text_chunks': ['Waiting test model']}]}))
     store.close()
 
@@ -283,10 +286,10 @@ def test_restarted_child_does_not_dispatch_before_handshake(tmp_path):
     from forge.application.services import ApplicationServices
     from forge.application.harness_adapter import LocalTrustedBackend
     from forge.engine.test_profile import load_scripted_profile
-    credentials, factory = load_scripted_profile(fixture)
+    profile = load_scripted_profile(fixture)
     with Store(tmp_path / 'data') as store:
-        service = ApplicationServices(store, profile_id='test-profile', credentials=credentials,
-            mode='local-trusted', backend=LocalTrustedBackend(), model_client_factory=factory)
+        service = ApplicationServices(store, profile_id='test-profile', credentials=profile.credentials,
+            mode='local-trusted', backend=LocalTrustedBackend(), model_client_factory=profile.model_client_factory)
         accepted = service.start_turn(turn)
 
     async def run():

@@ -22,6 +22,12 @@ target/
 **/.forge/context/
 **/.forge/tasks/
 fixtures/
+!tests/implementation/fixtures/
+!tests/implementation/fixtures/**/
+!tests/implementation/fixtures/**/*.py
+!tests/implementation/fixtures/**/*.json
+!tests/implementation/fixtures/README.md
+!tests/implementation/fixtures/restricted-path/sensitive/.env
 .local/
 benchmark/runs/
 benchmark/.cache/

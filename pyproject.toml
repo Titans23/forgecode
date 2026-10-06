@@ -34,6 +34,7 @@ forge = ['prompts/*.md', 'application/_generated_contracts.json', 'engine/migrat
 
 [tool.pytest.ini_options]
 testpaths = ['tests']
+norecursedirs = ['fixtures']
 cache_dir = '.local/cache/pytest'
 
 [dependency-groups]

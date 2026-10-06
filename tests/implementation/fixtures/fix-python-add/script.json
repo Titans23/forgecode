@@ -1,0 +1,107 @@
+{
+  "schema_version": "forge.scripted-model.v1",
+  "origin": "scripted",
+  "max_steps": 5,
+  "allowed_tools": [
+    "read_file",
+    "apply_patch",
+    "verify",
+    "finish_task"
+  ],
+  "credentials": {},
+  "approve_scripted_calls": true,
+  "responses": [
+    {
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 4
+      },
+      "tool_calls": [
+        {
+          "id": "read-code",
+          "name": "read_file",
+          "arguments": {
+            "path": "calculator.py"
+          }
+        },
+        {
+          "id": "read-tests",
+          "name": "read_file",
+          "arguments": {
+            "path": "test_calculator.py"
+          }
+        }
+      ]
+    },
+    {
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 4
+      },
+      "tool_calls": [
+        {
+          "id": "before",
+          "name": "verify",
+          "arguments": {
+            "command": "${PYTHON} -m unittest -v",
+            "cwd": ".",
+            "covers": [
+              "integer addition including negative inputs"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 4
+      },
+      "tool_calls": [
+        {
+          "id": "repair",
+          "name": "apply_patch",
+          "arguments": {
+            "patch": "*** Begin Patch\n*** Update File: calculator.py\n@@\n-    return left - right\n+    return left + right\n*** End Patch"
+          }
+        }
+      ]
+    },
+    {
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 4
+      },
+      "tool_calls": [
+        {
+          "id": "after",
+          "name": "verify",
+          "arguments": {
+            "command": "${PYTHON} -m unittest -v",
+            "cwd": ".",
+            "covers": [
+              "integer addition including negative inputs"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 4
+      },
+      "tool_calls": [
+        {
+          "id": "finish",
+          "name": "finish_task",
+          "arguments": {
+            "task_kind": "change",
+            "status": "completed",
+            "summary": "Addition now passes the unchanged standard-library tests at the current workspace revision."
+          }
+        }
+      ]
+    }
+  ]
+}

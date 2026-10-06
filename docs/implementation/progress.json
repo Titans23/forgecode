@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "980e77be6ac093aef25baebcde316b468a5f07b0",
-  "next_recommended_task": "F06",
-  "current_task": "F06",
+  "actual_repository_head": "cb724ac5cbd2b874f9d4fdd2f7501905d44c53d5",
+  "next_recommended_task": "F07",
+  "current_task": "F07",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -53,15 +53,13 @@
       "blocked_reasons": ["Windows 11 and Ubuntu native runners unavailable; real Engine subprocess tests ran on Windows 10. UI reducer acceptance awaits desktop implementation. No paid model authorization; scripted model results are not benchmark grades."]
     },
     "F06": {
-      "implementation_status": "in_progress",
-      "verification": {
-        "portable": "not_run"
-      },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "implementation_status": "implemented",
+      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked", "desktop": "not_run", "live_model": "blocked"},
+      "evidence_ids": ["20261006T113646Z-1cb5c7d9", "20261006T113651Z-324b93bb", "20261006T113811Z-54d4f9dd"],
+      "blocked_reasons": ["Demo uses real host tools with explicit local-trusted mode and scripted model origin. No OS sandbox/desktop/native acceptance or paid-model grades claimed. Remaining five fixture scenarios await their owning tasks."]
     },
     "F07": {
-      "implementation_status": "todo",
+      "implementation_status": "in_progress",
       "verification": {
         "unit": "not_run",
         "portable": "not_run"

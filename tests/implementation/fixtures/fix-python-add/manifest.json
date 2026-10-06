@@ -1,0 +1,20 @@
+{
+  "schema_version": "forge.fixture.v1",
+  "fixture_id": "fix-python-add",
+  "origin": "synthetic-fixture",
+  "inputs": [
+    "project/calculator.py",
+    "project/test_calculator.py",
+    "script.json"
+  ],
+  "acceptance_tasks": [
+    "F06"
+  ],
+  "assertions": [
+    "read original code",
+    "unchanged unittest fails before repair",
+    "real patch changes calculator only",
+    "unchanged unittest passes after repair",
+    "completion evidence matches current revision"
+  ]
+}

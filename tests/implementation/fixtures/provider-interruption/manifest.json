@@ -1,0 +1,17 @@
+{
+  "schema_version": "forge.fixture.v1",
+  "fixture_id": "provider-interruption",
+  "origin": "synthetic-fixture",
+  "inputs": [
+    "script.json"
+  ],
+  "acceptance_tasks": [
+    "F18",
+    "F25"
+  ],
+  "assertions": [
+    "partial output preserved",
+    "missing usage remains unknown",
+    "bounded retries preserve attempt identity"
+  ]
+}

@@ -37,11 +37,13 @@ def main(argv=None):
             from forge.engine.persistence import Store
             from forge.engine.rpc import RpcServer
             from forge.engine.test_profile import MemoryCredentials, load_scripted_profile
-            credentials, factory = load_scripted_profile(args.scripted_fixture) if args.scripted_fixture else (MemoryCredentials(), None)
+            scripted = load_scripted_profile(args.scripted_fixture) if args.scripted_fixture else None
+            credentials, factory = (scripted.credentials, scripted.model_client_factory) if scripted else (MemoryCredentials(), None)
             with Store(args.data_dir) as store:
                 service = ApplicationServices(store, profile_id=args.profile_id or args.profile + '-profile', credentials=credentials,
                     mode=args.execution_mode, backend=LocalTrustedBackend() if args.execution_mode == 'local-trusted' else None,
-                    model_client_factory=factory, task_relation='new' if factory else None)
+                    model_client_factory=factory, task_relation='new' if factory else None,
+                    approval_handler=scripted.approval_handler if scripted else None)
                 return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile), principal=args.principal).run(input_descriptor, output_descriptor))
     except Exception as error:
         print(json.dumps({'status': 'blocked', 'exception_type': type(error).__name__,
