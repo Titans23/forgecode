@@ -924,8 +924,10 @@
       "title": "SSE 重连补齐轨迹，不重复发起任务",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "pass",
       "owner_task": "F05",
       "required_platforms": [
         "portable"
@@ -933,8 +935,10 @@
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T111756Z-f5819b93"
+          ]
         }
       }
     },
@@ -1062,8 +1066,10 @@
       "title": "UI／Engine／协议主版本或 schema 不兼容",
       "source": "V3",
       "baseline_expectation": "拒绝新写入，显示可操作诊断",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F05",
       "required_platforms": [
         "windows",
@@ -1072,12 +1078,20 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T111756Z-f5819b93"
+          ]
         }
       }
     },
@@ -1134,8 +1148,10 @@
       "title": "start_turn 响应丢失后重复提交同一 action ID",
       "source": "V3",
       "baseline_expectation": "返回原 turn；参数改变则冲突",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F05",
       "required_platforms": [
         "windows",
@@ -1144,12 +1160,20 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T111756Z-f5819b93"
+          ]
         }
       }
     },
@@ -1182,8 +1206,10 @@
       "title": "订阅断开、乱序／重复通知和重新订阅",
       "source": "V3",
       "baseline_expectation": "按身份去重，无状态倒退或持久事件空洞",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F05",
       "required_platforms": [
         "windows",
@@ -1192,12 +1218,20 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T111756Z-f5819b93"
+          ]
         }
       }
     },
@@ -1206,8 +1240,10 @@
       "title": "事件游标已过保留期",
       "source": "V3",
       "baseline_expectation": "明确历史缺口，快照恢复不伪装完整回放",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F05",
       "required_platforms": [
         "windows",
@@ -1216,12 +1252,20 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T111756Z-f5819b93"
+          ]
         }
       }
     },
@@ -1933,13 +1977,17 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T111756Z-f5819b93"
+          ]
         }
       }
     },
@@ -1969,13 +2017,17 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T111756Z-f5819b93"
+          ]
         }
       }
     },

@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "4e851013f2dfc3021787f9dce35d0bc7346cb7de",
-  "next_recommended_task": "F05",
-  "current_task": "F05",
+  "actual_repository_head": "980e77be6ac093aef25baebcde316b468a5f07b0",
+  "next_recommended_task": "F06",
+  "current_task": "F06",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -47,16 +47,13 @@
       "blocked_reasons": ["Windows 11/Ubuntu native runners unavailable; tests exercised real tools with scripted models on Windows 10. Paid API experiments lack authorization/budget; no real model results claimed."]
     },
     "F05": {
-      "implementation_status": "in_progress",
-      "verification": {
-        "unit": "not_run",
-        "portable": "not_run"
-      },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "implementation_status": "implemented",
+      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked", "desktop": "not_run", "live_model": "blocked"},
+      "evidence_ids": ["20261006T111751Z-a64edfea", "20261006T111756Z-f5819b93", "20261006T111902Z-ff8046cd"],
+      "blocked_reasons": ["Windows 11 and Ubuntu native runners unavailable; real Engine subprocess tests ran on Windows 10. UI reducer acceptance awaits desktop implementation. No paid model authorization; scripted model results are not benchmark grades."]
     },
     "F06": {
-      "implementation_status": "todo",
+      "implementation_status": "in_progress",
       "verification": {
         "portable": "not_run"
       },

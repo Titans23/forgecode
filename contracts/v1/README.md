@@ -9,3 +9,5 @@
 examples.manifest.json 保留原四种 seed 正反例并新增 envelope/Bundle/error 样本；method-fixtures.json 和 additional-fixtures.json 包含 312 个 Engine、Bridge、事件与快照结构样本。两端运行同一组输入，不运行模型或项目命令。
 
 这些是契约和真实校验器。登记项的 implementation_status=contract_only 不表示业务 handler 可调用。F04/F05/F08/F17/F19 分别接入实际服务、传输、Bridge、事件记录和快照解析；能力列表必须由已实现 handler 生成。origin 字段没有授权效果，资源所属、文件身份、快照解析、审批与预算仍由受信服务验证。示例 scripted_mock 仅用于测试结构，不能形成真实 benchmark 成绩或授权花费。
+
+F05 接入 17 个实际 Engine handler；其余方法继续 contract_only。session.get 增加可选 cursor/limit，按真实 turn rowid 分页。私有通道握手核验生成契约 manifest（统一 LF 的 UTF-8 文本哈希），发布资产清单仍由 release-lock 独立校验。

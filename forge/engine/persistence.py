@@ -200,6 +200,12 @@ class Store:
         self.close()
 
     def register_workspace(self, path):
+        with self.transaction():
+            return self._register_workspace(path)
+
+    def _register_workspace(self, path):
+        if not self.connection.in_transaction:
+            raise RuntimeError('Workspace registration needs a write transaction')
         canonical = Path(path).resolve(strict=True)
         if not canonical.is_dir():
             raise ContractError('Workspace must be a directory')
@@ -207,12 +213,11 @@ class Store:
         if not identity.st_ino:
             raise ContractError('Filesystem does not expose workspace identity')
         file_identity = f'{identity.st_dev}:{identity.st_ino}'
-        with self.transaction():
-            existing = self.connection.execute('SELECT * FROM workspaces WHERE file_identity=?', (file_identity,)).fetchone()
-            if existing:
-                return dict(existing)
-            self.connection.execute('INSERT INTO workspaces VALUES(?,?,?,?,?)', (new_id('ws'), str(canonical), file_identity, 'inspect_only', 0))
-            return dict(self.connection.execute('SELECT * FROM workspaces WHERE file_identity=?', (file_identity,)).fetchone())
+        existing = self.connection.execute('SELECT * FROM workspaces WHERE file_identity=?', (file_identity,)).fetchone()
+        if existing:
+            return dict(existing)
+        self.connection.execute('INSERT INTO workspaces VALUES(?,?,?,?,?)', (new_id('ws'), str(canonical), file_identity, 'inspect_only', 0))
+        return dict(self.connection.execute('SELECT * FROM workspaces WHERE file_identity=?', (file_identity,)).fetchone())
 
     def create_session(self, workspace_id, *, legacy_ref=None):
         with self.transaction():
@@ -269,6 +274,15 @@ class Store:
             'monotonic_ns': None, 'attributes': attributes, 'artifact_refs': [], 'redaction_version': 'metadata-v1'}
         body.update({key: identities.get(key) for key in ('workspace_id', 'session_id', 'turn_id', 'run_id', 'trial_id', 'attempt_id', 'execution_id', 'trace_id', 'span_id', 'parent_span_id')})
         return body
+
+    def _turn_event(self, event_type, turn_id, attributes):
+        turn = self.connection.execute('SELECT t.*,s.workspace_id FROM turns t JOIN sessions s ON s.id=t.session_id WHERE t.id=?', (turn_id,)).fetchone()
+        if turn is None:
+            raise ContractError('Turn not found', kind='NOT_FOUND', code=-32010)
+        producer = self.connection.execute("SELECT value FROM store_meta WHERE key='producer_id'").fetchone()[0]
+        sequence = self.connection.execute('SELECT COALESCE(MAX(source_seq),0)+1 FROM events WHERE source_id=?', (producer,)).fetchone()[0]
+        return self._insert_event(self.event_body(event_type, producer, sequence, attributes,
+            workspace_id=turn['workspace_id'], session_id=turn['session_id'], turn_id=turn_id), producer, sequence)
 
     def _insert_event(self, body, source_id, source_seq):
         if not self.connection.in_transaction:
@@ -329,7 +343,7 @@ class Store:
             self.connection.execute('INSERT INTO event_conflicts VALUES(?,?,?,?,?,?,?)',
                 (new_id('conflict'), body['event_id'], source_id, source_seq, row[0] if row else 'missing', incoming, utc_now()))
 
-    def claim_work_item(self, work_item_id, *, expected_version):
+    def claim_work_item(self, work_item_id, *, expected_version, emit_turn_event=False):
         with self.transaction():
             if self.connection.execute("SELECT 1 FROM work_items WHERE state='reconciling' LIMIT 1").fetchone():
                 raise ContractError('Previous execution requires reconciliation', kind='INDETERMINATE', code=-32010)
@@ -340,6 +354,10 @@ class Store:
             row = self.connection.execute('SELECT * FROM work_items WHERE id=?', (work_item_id,)).fetchone()
             if row['kind'] == 'turn':
                 self.connection.execute("UPDATE turns SET state='running' WHERE id=? AND state='queued'", (row['business_id'],))
+                if emit_turn_event:
+                    reference = json.loads(self.connection.execute('SELECT config_json FROM turns WHERE id=?', (row['business_id'],)).fetchone()[0])
+                    self._turn_event('turn.started', row['business_id'], {'configuration': reference, 'budget_summary': {
+                        'model_calls_remaining': None, 'tool_calls_remaining': None, 'wall_seconds_remaining': None}})
             return dict(row)
 
     def mark_indeterminate(self, work_item_id, *, expected_version):

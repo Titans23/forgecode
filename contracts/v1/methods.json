@@ -9,7 +9,9 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -17,10 +19,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "system.health": {
@@ -31,7 +34,9 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -39,10 +44,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "system.capabilities": {
@@ -53,7 +59,9 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -61,10 +69,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "system.shutdown": {
@@ -77,7 +86,9 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "service_transaction_before_response",
       "idempotency_key": "client_action_id",
@@ -85,10 +96,11 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "workspace.register": {
@@ -101,7 +113,9 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "service_transaction_before_response",
       "idempotency_key": "client_action_id",
@@ -109,10 +123,11 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "workspace.list": {
@@ -123,7 +138,10 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -131,10 +149,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "workspace.inspect": {
@@ -145,7 +164,9 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -153,10 +174,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "workspace.authorize": {
@@ -261,7 +283,10 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
       ],
       "commit_point": "service_transaction_before_response",
       "idempotency_key": "client_action_id",
@@ -269,10 +294,11 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "session.list": {
@@ -283,7 +309,10 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -291,10 +320,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "session.get": {
@@ -305,7 +335,10 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -313,10 +346,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "session.start_turn": {
@@ -333,7 +367,12 @@
         "CONNECTION_UNAVAILABLE",
         "BUDGET_EXHAUSTED",
         "SETUP_REQUIRED",
-        "CAPABILITY_UNSATISFIED"
+        "CAPABILITY_UNSATISFIED",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "SANDBOX_UNAVAILABLE",
+        "CONNECTION_UNAVAILABLE",
+        "INDETERMINATE"
       ],
       "commit_point": "service_transaction_before_response",
       "idempotency_key": "client_action_id",
@@ -341,10 +380,11 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "session.cancel_turn": {
@@ -357,7 +397,9 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "service_transaction_before_response",
       "idempotency_key": "client_action_id",
@@ -365,10 +407,11 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "approval.list": {
@@ -448,7 +491,9 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -456,10 +501,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "events.subscribe": {
@@ -470,7 +516,10 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -478,10 +527,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "events.ack": {
@@ -492,7 +542,10 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -500,10 +553,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "events.unsubscribe": {
@@ -514,7 +568,10 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -522,10 +579,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "observability.events": {
@@ -536,7 +594,10 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -544,10 +605,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ]
     },
     "observability.spans": {

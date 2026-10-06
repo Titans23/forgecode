@@ -184,6 +184,17 @@ class ApplicationServices:
             elif turn['state'] in ('running', 'awaiting_approval'):
                 self.store.connection.execute("UPDATE turns SET state='cancel_requested' WHERE id=?", (params['turn_id'],))
                 self.store.connection.execute("UPDATE work_items SET state='cancel_requested' WHERE id=?", (work['id'],))
+            if turn['state'] in ('queued', 'running', 'awaiting_approval'):
+                attributes = {'original_turn_id': params['turn_id'], 'original_attempt_id': None,
+                    'unknown_side_effects': turn['state'] != 'queued', 'reason': params['reason'],
+                    'cleanup_state': 'clean' if turn['state'] == 'queued' else 'pending'}
+                self.store._turn_event('cancellation.requested', params['turn_id'], attributes)
+                if turn['state'] == 'queued':
+                    self.store._turn_event('cancellation.confirmed', params['turn_id'], attributes)
+                    self.store._turn_event('turn.finished', params['turn_id'], {
+                        'configuration': turn['configuration'], 'outcome': 'cancelled', 'native_outcome': None,
+                        'reason': 'cancelled_before_dispatch', 'budget_summary': {
+                            'model_calls_remaining': None, 'tool_calls_remaining': None, 'wall_seconds_remaining': None}})
             now = turn_view(self.store, params['turn_id'])
             result = {'turn_id': params['turn_id'], 'state': now['state'], 'outcome': now['outcome'],
                       'accepted': True, 'reused_existing_action': False}
@@ -212,7 +223,7 @@ class ApplicationServices:
         work = self.store.connection.execute('SELECT * FROM work_items WHERE business_id=?', (turn_id,)).fetchone()
         if turn is None or work is None:
             raise ContractError('Turn not found', kind='NOT_FOUND', code=-32010)
-        claimed = self.store.claim_work_item(work['id'], expected_version=work['version'])
+        claimed = self.store.claim_work_item(work['id'], expected_version=work['version'], emit_turn_event=True)
         self.running[turn_id] = asyncio.current_task()
         adapter = None
         result = None
@@ -287,10 +298,6 @@ class ApplicationServices:
                 raise ContractError('Execution ownership changed', kind='INDETERMINATE', code=-32010)
             self.store.connection.execute("UPDATE turns SET state='finished',outcome=? WHERE id=?", (outcome, turn['id']))
             self.store.connection.execute('INSERT INTO turn_results VALUES(?,?)', (turn['id'], encoded(native)))
-            producer = self.store.connection.execute("SELECT value FROM store_meta WHERE key='producer_id'").fetchone()[0]
-            seq = self.store.connection.execute('SELECT COALESCE(MAX(source_seq),0)+1 FROM events WHERE source_id=?', (producer,)).fetchone()[0]
-            session = self.store.connection.execute('SELECT * FROM sessions WHERE id=?', (turn['session_id'],)).fetchone()
-            self.store._insert_event(self.store.event_body('turn.finished', producer, seq,
+            self.store._turn_event('turn.finished', turn['id'],
                 {'configuration': json.loads(turn['config_json']), 'outcome': outcome, 'native_outcome': result.status if result else None,
-                 'reason': reason, 'budget_summary': {'model_calls_remaining': None, 'tool_calls_remaining': None, 'wall_seconds_remaining': None}},
-                workspace_id=session['workspace_id'], session_id=session['id'], turn_id=turn['id']), producer, seq)
+                 'reason': reason, 'budget_summary': {'model_calls_remaining': None, 'tool_calls_remaining': None, 'wall_seconds_remaining': None}})

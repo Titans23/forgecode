@@ -305,10 +305,12 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -316,7 +318,8 @@
       "result_schema": "action.get.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -792,10 +795,13 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -803,7 +809,8 @@
       "result_schema": "events.ack.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -814,10 +821,13 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -825,7 +835,8 @@
       "result_schema": "events.subscribe.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -836,10 +847,13 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -847,7 +861,8 @@
       "result_schema": "events.unsubscribe.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -880,10 +895,13 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -891,7 +909,8 @@
       "result_schema": "observability.events.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1038,10 +1057,12 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -1049,7 +1070,8 @@
       "result_schema": "session.cancel_turn.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "action.get"
     },
@@ -1062,10 +1084,13 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -1073,7 +1098,8 @@
       "result_schema": "session.create.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "action.get"
     },
@@ -1084,10 +1110,13 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1095,7 +1124,8 @@
       "result_schema": "session.get.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1106,10 +1136,13 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1117,7 +1150,8 @@
       "result_schema": "session.list.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1134,10 +1168,15 @@
         "CONNECTION_UNAVAILABLE",
         "BUDGET_EXHAUSTED",
         "SETUP_REQUIRED",
-        "CAPABILITY_UNSATISFIED"
+        "CAPABILITY_UNSATISFIED",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "SANDBOX_UNAVAILABLE",
+        "CONNECTION_UNAVAILABLE",
+        "INDETERMINATE"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -1145,7 +1184,8 @@
       "result_schema": "session.start_turn.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "action.get"
     },
@@ -1156,10 +1196,12 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1167,7 +1209,8 @@
       "result_schema": "system.capabilities.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1178,10 +1221,12 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1189,7 +1234,8 @@
       "result_schema": "system.health.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1200,10 +1246,12 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1211,7 +1259,8 @@
       "result_schema": "system.initialize.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1224,10 +1273,12 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -1235,7 +1286,8 @@
       "result_schema": "system.shutdown.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "action.get"
     },
@@ -1314,10 +1366,12 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1325,7 +1379,8 @@
       "result_schema": "workspace.inspect.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1336,10 +1391,13 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1347,7 +1405,8 @@
       "result_schema": "workspace.list.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1384,10 +1443,12 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -1395,7 +1456,8 @@
       "result_schema": "workspace.register.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
       ],
       "timeout_query": "action.get"
     }
@@ -8270,6 +8332,16 @@
         "session.get.request": {
           "additionalProperties": false,
           "properties": {
+            "cursor": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "limit": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
             "session_id": {
               "maxLength": 64,
               "minLength": 1,

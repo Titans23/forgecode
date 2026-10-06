@@ -907,7 +907,9 @@
           "minLength": 1,
           "maxLength": 64,
           "pattern": "^ses-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-        }
+        },
+        "cursor": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100}
       },
       "required": [
         "session_id"

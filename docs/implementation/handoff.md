@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00—F04；下一任务 F05（已阅读 tasks/F05.md、第 8 章和对应 RPC schema）。
+- 当前完成 F00—F05；下一任务 F06（已阅读任务卡和规范第 3、21 章）。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -71,3 +71,16 @@
   20261006T105304Z-1b46b663 / 20261006T105310Z-27975238。
   全量回归 806 pass、0 skip，20261006T105339Z-c4dd0804。
   strict 未就绪明确拒绝。原生 Windows 11/Ubuntu 和真实模型实验仍未验收。
+- F04 已推送 980e77be6ac093aef25baebcde316b468a5f07b0。
+- F05 实现 python -m forge.engine、17 个真实 RPC handler、Main ACL、严格 JSONL、
+  32 项 batch、stderr 隔离、控制/数据有界队列、真实工作调度；握手前不派发任务。
+  契约 manifest hash 与发布资产 manifest 分开；scripted fixture 仅 test profile。
+  持久 HMAC 游标绑定 store/profile/scope，snapshot 高水位、ACK 后补读、保留期缺口，
+  turn.started / cancellation.requested / turn.finished 在真实事务中写入。
+  slow-reader 测试实际填满管道后仍受理 start/cancel，不声称大帧可抢占或已完成 UI 验收。
+- F05 最新 unit 32 / portable 44 / regression 816 pass，0 skip；证据
+  20261006T111751Z-a64edfea / 20261006T111756Z-f5819b93 / 20261006T111902Z-ff8046cd。
+  contracts --check pass。早期测试误用已注册 F05 作为失败样例，递归启动验收；
+  已停止本任务进程，改用隔离空 registry 的单元断言并重跑。中断运行不计通过。
+- F06 下一步：版本化/限步 ScriptedModel、六个公开 fixture 基础结构、真实读改测
+  RPC demo；只能显式 local-trusted，OS 隔离验收仍 blocked，不能导出真实模型成绩。

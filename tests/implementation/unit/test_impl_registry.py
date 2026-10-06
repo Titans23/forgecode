@@ -13,12 +13,17 @@ def test_case_registry_references_real_tests():
         assert all((impl.ROOT / ref).is_file() for ref in references)
 
 
-def test_unknown_and_unimplemented_task_commands_cannot_pass():
+def test_unknown_and_unimplemented_task_commands_cannot_pass(monkeypatch, capsys):
     impl = load_impl()
-    for arguments, code in [(['verify', '--task', 'F05'], 1), (['verify', '--task', 'F99'], 3)]:
-        result = subprocess.run([sys.executable, str(impl.ROOT / 'scripts/impl.py'), *arguments],
-                                cwd=impl.ROOT, capture_output=True, text=True)
-        assert result.returncode == code
+    # Isolate the binding registry so registering the next task cannot recursively
+    # launch this same suite. The unknown-ID check still exercises the real CLI.
+    monkeypatch.setattr(impl, 'TASK_SUITES', {})
+    monkeypatch.setattr(sys, 'argv', ['impl.py', 'verify', '--task', 'F32'])
+    assert impl.main() == 1
+    assert 'bindings are not implemented' in capsys.readouterr().out
+    result = subprocess.run([sys.executable, str(impl.ROOT / 'scripts/impl.py'), 'verify', '--task', 'F99'],
+                            cwd=impl.ROOT, capture_output=True, text=True, timeout=15)
+    assert result.returncode == 3
 
 
 def test_implementation_gate_requires_all_tasks_and_untampered_evidence(tmp_path, monkeypatch):
