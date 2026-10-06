@@ -1995,8 +1995,12 @@
       "title": "打开不可信项目含 Hook／MCP／任务配置",
       "source": "V3",
       "baseline_expectation": "不会自动运行或扩大权限",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_workspace_views.py",
+        "tests/implementation/unit/test_workspace_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F16",
       "required_platforms": [
         "windows",
@@ -2005,12 +2009,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191650Z-e24e7d15"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Human native dialogs/IME and installed acceptance not verified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191645Z-824876b1"
+          ],
+          "scope": "Ubuntu/X11/Wayland native runners unavailable; zero native checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T191242Z-960d04de",
+            "20261006T191601Z-c1e273e9",
+            "20261006T191654Z-94a8d24d"
+          ],
+          "scope": "Actual Windows 10 Electron and Harness: valid Hook/MCP/.env do not execute; immutable dirty baseline and reverse patch preview; stale external revision refusal; actual GUI completion/cancel, reload dedup, composition/Enter semantics, bounded 10000 list, spaces path and zoom. Scripted profile, no native isolation or human IME/dialog acceptance."
         }
       }
     },
@@ -2051,8 +2070,12 @@
       "title": "恢复 checkpoint 时存在用户修改和未跟踪文件",
       "source": "V3",
       "baseline_expectation": "不强制 reset／clean，保留原内容或报告冲突",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_workspace_views.py",
+        "tests/implementation/unit/test_workspace_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F16",
       "required_platforms": [
         "windows",
@@ -2061,12 +2084,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191650Z-e24e7d15"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Human native dialogs/IME and installed acceptance not verified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191645Z-824876b1"
+          ],
+          "scope": "Ubuntu/X11/Wayland native runners unavailable; zero native checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T191242Z-960d04de",
+            "20261006T191601Z-c1e273e9",
+            "20261006T191654Z-94a8d24d"
+          ],
+          "scope": "Actual Windows 10 Electron and Harness: valid Hook/MCP/.env do not execute; immutable dirty baseline and reverse patch preview; stale external revision refusal; actual GUI completion/cancel, reload dedup, composition/Enter semantics, bounded 10000 list, spaces path and zoom. Scripted profile, no native isolation or human IME/dialog acceptance."
         }
       }
     },
@@ -2297,7 +2335,9 @@
       "title": "WAL 数据库迁移失败与旧版本启动",
       "source": "V3",
       "baseline_expectation": "一致备份可恢复，旧 schema 客户端不写新库",
-      "implementation_test_refs": ["tests/implementation/integration/test_storage.py"],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_storage.py"
+      ],
       "status": "blocked",
       "owner_task": "F03",
       "required_platforms": [
@@ -2369,8 +2409,12 @@
       "title": "中文输入法、空格路径、高 DPI 与键盘操作",
       "source": "V3",
       "baseline_expectation": "任务输入与原生对话框正常，信息不截断",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_workspace_views.py",
+        "tests/implementation/unit/test_workspace_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F16",
       "required_platforms": [
         "windows",
@@ -2379,12 +2423,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191650Z-e24e7d15"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Human native dialogs/IME and installed acceptance not verified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191645Z-824876b1"
+          ],
+          "scope": "Ubuntu/X11/Wayland native runners unavailable; zero native checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T191242Z-960d04de",
+            "20261006T191601Z-c1e273e9",
+            "20261006T191654Z-94a8d24d"
+          ],
+          "scope": "Actual Windows 10 Electron and Harness: valid Hook/MCP/.env do not execute; immutable dirty baseline and reverse patch preview; stale external revision refusal; actual GUI completion/cancel, reload dedup, composition/Enter semantics, bounded 10000 list, spaces path and zoom. Scripted profile, no native isolation or human IME/dialog acceptance."
         }
       }
     },
@@ -2583,13 +2642,17 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": ["tests/implementation/integration/test_storage.py"],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_storage.py"
+      ],
       "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
           "status": "pass",
-          "evidence_ids": ["20261006T102615Z-0f141cab"]
+          "evidence_ids": [
+            "20261006T102615Z-0f141cab"
+          ]
         }
       }
     },
@@ -2623,13 +2686,19 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": ["tests/implementation/unit/test_contracts.py", "tests/implementation/portable/test_contracts_parity.py"],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
       "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
           "status": "pass",
-          "evidence_ids": ["20261006T100851Z-a7ee0375", "20261006T100856Z-8425af60"]
+          "evidence_ids": [
+            "20261006T100851Z-a7ee0375",
+            "20261006T100856Z-8425af60"
+          ]
         }
       }
     },
@@ -2668,13 +2737,17 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": ["tests/implementation/integration/test_storage.py"],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_storage.py"
+      ],
       "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
           "status": "pass",
-          "evidence_ids": ["20261006T102615Z-0f141cab"]
+          "evidence_ids": [
+            "20261006T102615Z-0f141cab"
+          ]
         }
       }
     },

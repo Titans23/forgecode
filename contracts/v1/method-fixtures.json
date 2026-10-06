@@ -2732,6 +2732,296 @@
         "unexpected_field": true
       },
       "expected": "invalid"
+    },
+    {
+      "schema": "session.create_default.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "expected_workspace_revision": 1,
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.create_default.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "expected_workspace_revision": 1,
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.create_default.result",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "state": "idle",
+        "created_at_utc": "2026-10-06T00:00:00Z",
+        "configuration": {
+          "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "active_turn_id": "turn-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.create_default.result",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "state": "idle",
+        "created_at_utc": "2026-10-06T00:00:00Z",
+        "configuration": {
+          "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "active_turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.submit.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "input": [
+          {
+            "type": "text",
+            "text": "Read files"
+          }
+        ]
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.submit.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "input": [
+          {
+            "type": "text",
+            "text": "Read files"
+          }
+        ],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.submit.result",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "accepted": true,
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.submit.result",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "accepted": true,
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.snapshot.request",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.snapshot.request",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.snapshot.result",
+      "value": {
+        "session": {
+          "session_id": "ses-11111111-1111-4111-8111-111111111111",
+          "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+          "state": "idle",
+          "created_at_utc": "2026-10-06T00:00:00Z",
+          "configuration": {
+            "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "active_turn_id": "turn-11111111-1111-4111-8111-111111111111"
+        },
+        "turns": [
+          {
+            "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+            "state": "queued",
+            "accepted": true,
+            "reused_existing_action": true
+          }
+        ],
+        "has_more_turns": false,
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "messages": [
+          {
+            "sequence": 1,
+            "kind": "user",
+            "text": "hello",
+            "tool_name": null,
+            "status": null
+          }
+        ],
+        "has_more_messages": false,
+        "snapshot_cursor": "0",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "event_cursor": "signed-cursor"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.snapshot.result",
+      "value": {
+        "session": {
+          "session_id": "ses-11111111-1111-4111-8111-111111111111",
+          "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+          "state": "idle",
+          "created_at_utc": "2026-10-06T00:00:00Z",
+          "configuration": {
+            "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "active_turn_id": "turn-11111111-1111-4111-8111-111111111111"
+        },
+        "turns": [
+          {
+            "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+            "state": "queued",
+            "accepted": true,
+            "reused_existing_action": true
+          }
+        ],
+        "has_more_turns": false,
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "messages": [
+          {
+            "sequence": 1,
+            "kind": "user",
+            "text": "hello",
+            "tool_name": null,
+            "status": null
+          }
+        ],
+        "has_more_messages": false,
+        "snapshot_cursor": "0",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true,
+        "event_cursor": "signed-cursor"
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.diff.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.diff.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.diff.result",
+      "value": {
+        "items": [],
+        "next_cursor": null,
+        "history_gap": false,
+        "revision": 1,
+        "baseline_revision": 1,
+        "original_dirty_status": "available",
+        "original_dirty": [],
+        "original_dirty_has_more": false
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.diff.result",
+      "value": {
+        "items": [],
+        "next_cursor": null,
+        "history_gap": false,
+        "revision": 1,
+        "baseline_revision": 1,
+        "original_dirty_status": "available",
+        "original_dirty": [],
+        "original_dirty_has_more": false,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.diff_file.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "relative_path": "value.txt",
+        "expected_revision": 1
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.diff_file.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "relative_path": "value.txt",
+        "expected_revision": 1,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.diff_file.result",
+      "value": {
+        "revision": 1,
+        "relative_path": "value.txt",
+        "before": "old",
+        "current": "new",
+        "reverse_patch": "patch",
+        "current_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "preview_only": true,
+        "reason": "manual_review_required"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.diff_file.result",
+      "value": {
+        "revision": 1,
+        "relative_path": "value.txt",
+        "before": "old",
+        "current": "new",
+        "reverse_patch": "patch",
+        "current_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "preview_only": true,
+        "reason": "manual_review_required",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
     }
   ]
 }

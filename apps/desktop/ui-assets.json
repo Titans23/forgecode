@@ -1,14 +1,14 @@
 {
-  "/assets/index-CXCCJYfb.js": {
-    "path": ".vite/renderer/ui/assets/index-CXCCJYfb.js",
-    "sha256": "c88c7a13d1afb09cd872407ab8ba2ce387dfd754678352ecf23d458a99399d48"
+  "/assets/index-BrSuCEYp.css": {
+    "path": ".vite/renderer/ui/assets/index-BrSuCEYp.css",
+    "sha256": "cc6a8a32f764649a286e87931a9145f9eb9d158401f37091cd5fbdadbb981002"
   },
-  "/assets/index-DVdDjqVZ.css": {
-    "path": ".vite/renderer/ui/assets/index-DVdDjqVZ.css",
-    "sha256": "fd16e4074222530e0dc8b94620f21c546db481395b1e33ba7a17a828dd4e3323"
+  "/assets/index-Bru9fUiz.js": {
+    "path": ".vite/renderer/ui/assets/index-Bru9fUiz.js",
+    "sha256": "aa11e3f2ec00c740226dee7ebcae10eaa53da51a2e2ede91dc2e3ffaccc0fedc"
   },
   "/index.html": {
     "path": ".vite/renderer/ui/index.html",
-    "sha256": "2a9b5b65ee28df360222e171fe266980879089874d1d1f8bbf4b17b9435e7c8c"
+    "sha256": "e801f96b42d3a6bc732458b69622d122860c0158dae14a1426563e142d76c1ad"
   }
 }

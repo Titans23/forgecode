@@ -117,7 +117,7 @@ export class EngineSupervisor {
   call(method: keyof typeof METHODS, params: any): Promise<any> {
     if (this.state !== 'ready') return Promise.reject(new Error('Engine handshake is unavailable'));
     if (method === 'system.initialize' || method === 'system.shutdown') return Promise.reject(new Error('Lifecycle methods belong to Main supervisor'));
-    if (METHODS[method].mutation && ['session.start_turn', 'run.start'].includes(method) && this.hello.readiness.status === 'blocked') return Promise.reject(new Error('Execution readiness is blocked'));
+    if (METHODS[method].mutation && ['session.start_turn', 'session.submit', 'run.start'].includes(method) && this.hello.readiness.status === 'blocked') return Promise.reject(new Error('Execution readiness is blocked'));
     if (!this.hello.capabilities.supported_methods.includes(method)) return Promise.reject(new Error('Engine method is not implemented'));
     return this.request(method, params);
   }

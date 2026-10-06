@@ -234,12 +234,12 @@ class Store:
             self.connection.execute('INSERT INTO sessions VALUES(?,?,?,?)', (session_id, workspace_id, legacy_ref, utc_now()))
             return dict(self.connection.execute('SELECT * FROM sessions WHERE id=?', (session_id,)).fetchone())
 
-    def accept_turn(self, profile_id, params, configuration):
+    def accept_turn(self, profile_id, params, configuration, *, action_method='session.start_turn', action_params=None):
         validate('start-turn', params)
-        params_hash = canonical_hash(params)
+        params_hash = canonical_hash(params if action_params is None else action_params)
         with self.transaction():
             existing = self.connection.execute('SELECT * FROM actions WHERE profile_id=? AND method=? AND client_action_id=?',
-                (profile_id, 'session.start_turn', params['client_action_id'])).fetchone()
+                (profile_id, action_method, params['client_action_id'])).fetchone()
             if existing:
                 if existing['params_hash'] != params_hash:
                     raise ContractError('Action ID has different parameters', kind='IDEMPOTENCY_CONFLICT', code=-32010)
@@ -255,7 +255,7 @@ class Store:
             result = {'turn_id': turn_id, 'state': 'queued', 'accepted': True, 'reused_existing_action': False}
             self.connection.execute('INSERT INTO turns VALUES(?,?,?,?,?,?,?)', (turn_id, params['session_id'], 'queued', None, encoded(configuration_ref), encoded(params['input']), None))
             self.connection.execute('INSERT INTO work_items VALUES(?,?,?,?,?,?,?)', (new_id('work'), 'turn', turn_id, 'queued', None, None, 0))
-            self.connection.execute('INSERT INTO actions VALUES(?,?,?,?,?,?)', (new_id('action'), profile_id, 'session.start_turn', params['client_action_id'], params_hash, encoded(result)))
+            self.connection.execute('INSERT INTO actions VALUES(?,?,?,?,?,?)', (new_id('action'), profile_id, action_method, params['client_action_id'], params_hash, encoded(result)))
             producer = self.connection.execute("SELECT value FROM store_meta WHERE key='producer_id'").fetchone()[0]
             source_seq = self.connection.execute('SELECT COALESCE(MAX(source_seq),0)+1 FROM events WHERE source_id=?', (producer,)).fetchone()[0]
             self._insert_event(self.event_body('turn.accepted', producer, source_seq,

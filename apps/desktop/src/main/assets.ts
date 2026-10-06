@@ -56,6 +56,35 @@ export async function loadInstalledEngine(resources: string, dataDir: string): P
     cwd: resources, environment: Object.freeze(environment()), manifestHash: manifest.contract_manifest_hash, profile: 'desktop' });
 }
 
+/** Setup uses the same fixed, hashed runtime closure; it accepts no UI paths. */
+export async function loadSetupRuntime(root: string, installed: boolean) {
+  if (!isAbsolute(root)) throw new Error('Setup root must be fixed by Main');
+  root = await realpath(root);
+  let node: string, entry: string, manifestHash: string;
+  if (installed) {
+    const manifest = JSON.parse(await readFile(resolve(root, 'release-manifest.json'), 'utf8'));
+    if (!manifest.bridge || !manifest.node || !Array.isArray(manifest.bridge_dependencies) || !manifest.bridge_dependencies.length ||
+        !/^bridge\//.test(manifest.bridge.path) || !/^runtimes\/node\//.test(manifest.node.path)) throw new Error('Installed setup assets are incomplete');
+    for (const asset of manifest.bridge_dependencies) await verifyAsset(root, asset);
+    node = await verifyAsset(root, manifest.node); entry = await verifyAsset(root, manifest.bridge);
+    manifestHash = manifest.contract_manifest_hash;
+  } else {
+    const release = JSON.parse(await readFile(resolve(root, 'release-lock.json'), 'utf8'));
+    const nodeAsset = release.assets.find((value: any) => value.name === 'node' && value.platform === process.platform + '-' + process.arch);
+    const inventoryAsset = release.assets.find((value: any) => value.name === 'bridge-runtime-manifest');
+    if (!nodeAsset || !inventoryAsset) throw new Error('Fixed development setup runtime is unavailable');
+    node = await verifyAsset(root, nodeAsset);
+    const inventory = JSON.parse(await readFile(await verifyAsset(root, inventoryAsset), 'utf8'));
+    if (inventory.schema_version !== 'forge.bridge.runtime.v1' || !Array.isArray(inventory.files) || !inventory.files.length) throw new Error('Invalid setup dependency closure');
+    for (const asset of inventory.files) await verifyAsset(root, asset);
+    const bridgeAsset = inventory.files.find((value: any) => value.path === 'sandbox_bridge/dist/main.js');
+    if (!bridgeAsset) throw new Error('Fixed Bridge setup entry is absent');
+    entry = await verifyAsset(root, bridgeAsset); manifestHash = inventoryAsset.sha256;
+  }
+  if (!/^[0-9a-f]{64}$/.test(manifestHash)) throw new Error('Setup manifest hash is invalid');
+  return Object.freeze({ node, entry, root, manifestHash, environment: Object.freeze(environment()) });
+}
+
 export async function uiAsset(root: string, manifest: Record<string, Asset>, url: string): Promise<{ path: string; contentType: string }> {
   if (url.includes('%') || url.includes('\\') || /\/\.{1,2}(?:\/|$)/.test(url)) throw new Error('Encoded or relative resource path is forbidden');
   const parsed = new URL(url);

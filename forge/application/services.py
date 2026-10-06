@@ -13,6 +13,8 @@ from urllib.parse import urlsplit
 from forge.application.harness_adapter import HarnessAdapter
 from forge.application.models import ContractError, canonical_hash, validate
 from forge.application.sessions import outcome_for, session_view, turn_view
+from forge.application.workspaces import WorkspaceService
+from forge.application.session_views import TurnMessages
 from forge.config import ForgeConfig
 from forge.engine.journal_projection import JournalProjector
 from forge.engine.lifecycle import Deadline
@@ -42,6 +44,7 @@ class ApplicationServices:
         self.approvals = None
         self.task_relation = task_relation
         self.running = {}
+        self.workspaces = WorkspaceService(self)
 
     def open_workspace(self, selected_directory):
         return self.store.register_workspace(selected_directory)
@@ -151,10 +154,11 @@ class ApplicationServices:
         self.store.connection.execute('INSERT INTO actions VALUES(?,?,?,?,?,?)',
             (new_id('action'), self.profile_id, method, params['client_action_id'], canonical_hash(params), encoded(result)))
 
-    def create_session(self, params):
+    def create_session(self, params, *, action_method='session.create', action_params=None):
         validate('session.create.request', params)
+        action_params = params if action_params is None else action_params
         with self.store.transaction():
-            existing = self._existing_action('session.create', params)
+            existing = self._existing_action(action_method, action_params)
             if existing is not None:
                 return existing
             configuration = self._configuration(params, params['workspace_id'])
@@ -163,19 +167,21 @@ class ApplicationServices:
             self.store.connection.execute('INSERT INTO sessions VALUES(?,?,NULL,?)', (session_id, params['workspace_id'], utc_now()))
             self.store.connection.execute('INSERT INTO session_configurations VALUES(?,?)', (session_id, reference['snapshot_id']))
             result = session_view(self.store, session_id)
-            self._record_action('session.create', params, result)
+            self._record_action(action_method, action_params, result)
             return result
 
-    def start_turn(self, params):
+    def start_turn(self, params, *, action_method='session.start_turn', action_params=None):
         validate('start-turn', params)
+        action_params = params if action_params is None else action_params
         if not any(part['text'].strip() for part in params['input']):
             raise ContractError('Turn input must contain non-whitespace text')
-        existing = self._existing_action('session.start_turn', params)
+        existing = self._existing_action(action_method, action_params)
         if existing is not None:
             return {**existing, 'reused_existing_action': True}
         session = session_view(self.store, params['session_id'])
         configuration = self._configuration(params, session['workspace_id'], execution=True)
-        return self.store.accept_turn(self.profile_id, params, configuration)
+        return self.store.accept_turn(self.profile_id, params, configuration,
+            action_method=action_method, action_params=action_params)
 
     def cancel_turn(self, params):
         validate('session.cancel_turn.request', params)
@@ -247,6 +253,7 @@ class ApplicationServices:
         cleanup = {'state': 'clean', 'scope': self.mode, 'resources': {}}
         projection_error = None
         model_cleanup_error = None
+        messages = None
         try:
             reference = json.loads(turn['config_json'])
             configuration = json.loads(self.store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
@@ -270,6 +277,9 @@ class ApplicationServices:
             metadata = dict(configuration['model'])
             metadata['request_timeout_seconds'] = float(metadata['request_timeout_seconds'])
             config = ForgeConfig(api_key=self.credentials.resolve(configuration['connection_id']), **metadata)
+            messages = TurnMessages(self.store, turn_id, config.api_key)
+            for part in json.loads(turn['input_json']):
+                messages.append('user', part['text'])
             session = self.store.connection.execute('SELECT * FROM sessions WHERE id=?', (turn['session_id'],)).fetchone()
             root = Path(self._workspace(session['workspace_id'], execution=True)['canonical_path'])
             native_store = SessionStore(root, data_root=self.store.data_dir / 'harness')
@@ -282,11 +292,13 @@ class ApplicationServices:
             adapter = HarnessAdapter(root, config=config, data_root=self.store.data_dir / 'harness',
                 backend=self.backend, budget=configuration, model_client_factory=self.model_client_factory,
                 recorder=self.recorder, approval_handler=approval, task_relation=self.task_relation,
-                resume_identifier=session['legacy_ref'], fork_session=fork)
+                resume_identifier=session['legacy_ref'], fork_session=fork,
+                turn_baseline_handler=lambda: self.workspaces.capture(turn_id, session['workspace_id']))
             with self.store.transaction():
                 self.store.connection.execute('UPDATE sessions SET legacy_ref=? WHERE id=?', (adapter.journal.session_id, session['id']))
                 self.store.connection.execute('UPDATE turns SET native_ref=? WHERE id=?', (adapter.journal.session_id, turn_id))
             async for event in adapter.stream(json.loads(turn['input_json'])):
+                messages.observe(event)
                 if isinstance(event, TurnCompleted):
                     result = event.result
             if result is None:
@@ -308,6 +320,8 @@ class ApplicationServices:
         except Exception as error:
             outcome, reason = 'indeterminate' if adapter else 'failed', type(error).__name__
         finally:
+            if messages is not None:
+                messages.flush(final=True)
             if timer is not None:
                 timer.cancel()
                 await asyncio.gather(timer, return_exceptions=True)

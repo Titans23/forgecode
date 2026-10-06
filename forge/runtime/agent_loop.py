@@ -109,6 +109,7 @@ class Conversation:
         task_relation: str | None = None,
         tool_backend: Any | None = None,
         event_recorder: Any | None = None,
+        turn_baseline_handler: Any | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
@@ -116,6 +117,7 @@ class Conversation:
             raise ValueError('Explicit task_relation must be new or active.')
         self.task_relation = task_relation
         self.event_recorder = event_recorder
+        self.turn_baseline_handler = turn_baseline_handler
         if max_iterations is not None and max_iterations < 1:
             raise ValueError('max_iterations must be positive')
         if max_protocol_recoveries < 0:
@@ -313,6 +315,10 @@ class Conversation:
         runner = TurnRunner(self)
         ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()
         with ownership:
+            if self.turn_baseline_handler is not None:
+                baseline = self.turn_baseline_handler()
+                if baseline is not None:
+                    await baseline
             async with aclosing(runner.run(prompt)) as stream:
                 async for event in stream:
                     if self.event_recorder is not None:

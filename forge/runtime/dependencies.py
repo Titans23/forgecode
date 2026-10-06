@@ -1,7 +1,7 @@
 """Optional entry-point bindings; the legacy CLI defaults remain in the factory."""
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Awaitable, Callable, Protocol
 
 from forge.config import ForgeConfig
 from forge.permissions.policy import PermissionManager
@@ -34,9 +34,11 @@ class RuntimeBindings:
     max_model_calls: int | None = None
     max_tool_calls: int | None = None
     wall_seconds: int | None = None
+    turn_baseline_handler: Callable[[], Awaitable[None] | None] | None = None
 
     def conversation_options(self):
-        options = {'tool_backend': self.backend, 'event_recorder': self.recorder}
+        options = {'tool_backend': self.backend, 'event_recorder': self.recorder,
+                   'turn_baseline_handler': self.turn_baseline_handler}
         if self.permission_manager is not None:
             options['permission_manager'] = self.permission_manager
         for key, value in (('task_relation', self.task_relation), ('max_iterations', self.max_model_calls),

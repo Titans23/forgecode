@@ -1,4 +1,9 @@
 /** UI code depends on named business operations; Electron stays in Main/Preload. */
+import type { SessionListRequest, SessionListResult, SessionSnapshotRequest, SessionSnapshotResult,
+  SessionCreateDefaultRequest, SessionCreateDefaultResult, SessionSubmitRequest, SessionSubmitResult,
+  WorkspaceFilesRequest, WorkspaceFilesResult, WorkspaceReadFileRequest, WorkspaceReadFileResult,
+  WorkspaceChangesRequest, WorkspaceChangesResult, WorkspaceDiffRequest, WorkspaceDiffResult,
+  WorkspaceDiffFileRequest, WorkspaceDiffFileResult, SystemHealthResult } from '@forgecode/contracts';
 export interface DesktopStatus {
   engine_state: string;
   readiness: { status: string; blockers?: unknown[] } | null;
@@ -36,6 +41,18 @@ export interface DesktopOperations {
   unlockConnection(id: string): Promise<unknown>;
   testConnection(id: string): Promise<{ status?: string; cancelled?: boolean }>;
   session(id: string): Promise<SessionSnapshot>;
+  sessions(value: SessionListRequest): Promise<SessionListResult>;
+  sessionSnapshot(value: SessionSnapshotRequest): Promise<SessionSnapshotResult>;
+  createSession(value: SessionCreateDefaultRequest): Promise<SessionCreateDefaultResult>;
+  submit(value: SessionSubmitRequest): Promise<SessionSubmitResult>;
+  files(value: WorkspaceFilesRequest): Promise<WorkspaceFilesResult>;
+  readProjectFile(value: WorkspaceReadFileRequest): Promise<WorkspaceReadFileResult>;
+  changes(value: WorkspaceChangesRequest): Promise<WorkspaceChangesResult>;
+  diff(value: WorkspaceDiffRequest): Promise<WorkspaceDiffResult>;
+  diffFile(value: WorkspaceDiffFileRequest): Promise<WorkspaceDiffFileResult>;
+  diagnostics(): Promise<SystemHealthResult>;
+  diagnoseSandbox(): Promise<{ status: string; reason?: string }>;
+  installSandbox(): Promise<{ status: string; reason?: string }>;
   startDemo(): Promise<{ turn_id: string }>;
   cancelTurn(id: string): Promise<unknown>;
   events(): Promise<{ events: Array<{ event_id: string; event_type: string; [key: string]: unknown }>; gap: boolean }>;
@@ -59,6 +76,18 @@ export class DesktopTransport implements DesktopOperations {
   unlockConnection(id: string) { return this.bridge().unlockConnection(id); }
   testConnection(id: string) { return this.bridge().testConnection(id); }
   session(id: string) { return this.bridge().session(id); }
+  sessions(value: SessionListRequest) { return this.bridge().sessions(value); }
+  sessionSnapshot(value: SessionSnapshotRequest) { return this.bridge().sessionSnapshot(value); }
+  createSession(value: SessionCreateDefaultRequest) { return this.bridge().createSession(value); }
+  submit(value: SessionSubmitRequest) { return this.bridge().submit(value); }
+  files(value: WorkspaceFilesRequest) { return this.bridge().files(value); }
+  readProjectFile(value: WorkspaceReadFileRequest) { return this.bridge().readProjectFile(value); }
+  changes(value: WorkspaceChangesRequest) { return this.bridge().changes(value); }
+  diff(value: WorkspaceDiffRequest) { return this.bridge().diff(value); }
+  diffFile(value: WorkspaceDiffFileRequest) { return this.bridge().diffFile(value); }
+  diagnostics() { return this.bridge().diagnostics(); }
+  diagnoseSandbox() { return this.bridge().diagnoseSandbox(); }
+  installSandbox() { return this.bridge().installSandbox(); }
   startDemo() { return this.bridge().startDemo(); }
   cancelTurn(id: string) { return this.bridge().cancelTurn(id); }
   events() { return this.bridge().events(); }

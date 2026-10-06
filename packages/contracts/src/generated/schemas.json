@@ -270,6 +270,10 @@
       "implementation_status": "contract_only",
       "payload_schema": "event.sandbox.prepared"
     },
+    "session.message": {
+      "implementation_status": "implemented",
+      "payload_schema": "event.session.message"
+    },
     "tool.finished": {
       "implementation_status": "contract_only",
       "payload_schema": "event.tool.finished"
@@ -1249,6 +1253,32 @@
       ],
       "timeout_query": "action.get"
     },
+    "session.create_default": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "service_transaction_before_response",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": "client_action_id",
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": true,
+      "request_schema": "session.create_default.request",
+      "result_schema": "session.create_default.result",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ],
+      "timeout_query": "action.get"
+    },
     "session.get": {
       "audience": "renderer",
       "cancellation": "none",
@@ -1301,6 +1331,27 @@
       ],
       "timeout_query": "repeat_read"
     },
+    "session.snapshot": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "session.snapshot.request",
+      "result_schema": "session.snapshot.result",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
     "session.start_turn": {
       "audience": "renderer",
       "cancellation": "explicit_domain_cancel",
@@ -1332,6 +1383,32 @@
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/integration/test_rpc.py"
+      ],
+      "timeout_query": "action.get"
+    },
+    "session.submit": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "service_transaction_before_response",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": "client_action_id",
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": true,
+      "request_schema": "session.submit.request",
+      "result_schema": "session.submit.result",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
       ],
       "timeout_query": "action.get"
     },
@@ -1473,7 +1550,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1482,6 +1559,48 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "workspace.diff": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "workspace.diff.request",
+      "result_schema": "workspace.diff.result",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "workspace.diff_file": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "workspace.diff_file.request",
+      "result_schema": "workspace.diff_file.result",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1495,7 +1614,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1596,7 +1715,7 @@
         "POLICY_DENIED"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -5790,6 +5909,29 @@
           ],
           "type": "object"
         },
+        "session.message": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "user",
+                "assistant",
+                "tool",
+                "result"
+              ]
+            },
+            "sequence": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "sequence",
+            "kind"
+          ],
+          "type": "object"
+        },
         "tool.finished": {
           "additionalProperties": false,
           "properties": {
@@ -6562,6 +6704,11 @@
     "event.sandbox.prepared": {
       "$id": "urn:forgecode:contracts:v1:event.sandbox.prepared",
       "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/sandbox.prepared",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "event.session.message": {
+      "$id": "urn:forgecode:contracts:v1:event.session.message",
+      "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/session.message",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "event.tool.finished": {
@@ -9628,6 +9775,44 @@
         "session.create.result": {
           "$ref": "urn:forgecode:contracts:v1:session"
         },
+        "session.create_default.request": {
+          "additionalProperties": false,
+          "properties": {
+            "client_action_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "connection_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "expected_workspace_revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "workspace_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^ws-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "client_action_id",
+            "workspace_id",
+            "expected_workspace_revision",
+            "connection_id"
+          ],
+          "type": "object"
+        },
+        "session.create_default.result": {
+          "$ref": "urn:forgecode:contracts:v1:session"
+        },
         "session.get.request": {
           "additionalProperties": false,
           "properties": {
@@ -9746,10 +9931,211 @@
           ],
           "type": "object"
         },
+        "session.snapshot.request": {
+          "additionalProperties": false,
+          "properties": {
+            "after_sequence": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "session_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^ses-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "turn_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "session_id"
+          ],
+          "type": "object"
+        },
+        "session.snapshot.result": {
+          "additionalProperties": false,
+          "properties": {
+            "connection_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "event_cursor": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "has_more_messages": {
+              "type": "boolean"
+            },
+            "has_more_turns": {
+              "type": "boolean"
+            },
+            "message_limit_reached": {
+              "type": "boolean"
+            },
+            "messages": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "user",
+                      "assistant",
+                      "tool",
+                      "result"
+                    ]
+                  },
+                  "sequence": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "minLength": 0,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "text": {
+                    "maxLength": 2048,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "tool_name": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 0,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "sequence",
+                  "kind",
+                  "text",
+                  "tool_name",
+                  "status"
+                ],
+                "type": "object"
+              },
+              "maxItems": 100,
+              "minItems": 0,
+              "type": "array"
+            },
+            "session": {
+              "$ref": "urn:forgecode:contracts:v1:session"
+            },
+            "snapshot_cursor": {
+              "maxLength": 30,
+              "pattern": "^(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            "turn_id": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "turns": {
+              "items": {
+                "$ref": "urn:forgecode:contracts:v1:accepted-turn"
+              },
+              "maxItems": 100,
+              "minItems": 0,
+              "type": "array"
+            }
+          },
+          "required": [
+            "session",
+            "turns",
+            "has_more_turns",
+            "turn_id",
+            "messages",
+            "has_more_messages",
+            "snapshot_cursor",
+            "connection_id",
+            "event_cursor"
+          ],
+          "type": "object"
+        },
         "session.start_turn.request": {
           "$ref": "urn:forgecode:contracts:v1:start-turn"
         },
         "session.start_turn.result": {
+          "$ref": "urn:forgecode:contracts:v1:accepted-turn"
+        },
+        "session.submit.request": {
+          "additionalProperties": false,
+          "properties": {
+            "client_action_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "input": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "maxLength": 131072,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "text"
+                  }
+                },
+                "required": [
+                  "type",
+                  "text"
+                ],
+                "type": "object"
+              },
+              "maxItems": 32,
+              "minItems": 1,
+              "type": "array"
+            },
+            "session_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^ses-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "client_action_id",
+            "session_id",
+            "input"
+          ],
+          "type": "object"
+        },
+        "session.submit.result": {
           "$ref": "urn:forgecode:contracts:v1:accepted-turn"
         },
         "system.capabilities.request": {
@@ -10268,12 +10654,324 @@
                   "type": "null"
                 }
               ]
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             }
           },
           "required": [
             "items",
             "next_cursor",
             "history_gap"
+          ],
+          "type": "object"
+        },
+        "workspace.diff.request": {
+          "additionalProperties": false,
+          "properties": {
+            "cursor": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "limit": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "turn_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "turn_id"
+          ],
+          "type": "object"
+        },
+        "workspace.diff.result": {
+          "additionalProperties": false,
+          "properties": {
+            "baseline_revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "history_gap": {
+              "type": "boolean"
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "before_sha256": {
+                    "anyOf": [
+                      {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "change": {
+                    "enum": [
+                      "created",
+                      "modified",
+                      "deleted",
+                      "renamed"
+                    ]
+                  },
+                  "classification": {
+                    "enum": [
+                      "text",
+                      "binary",
+                      "large",
+                      "quota"
+                    ]
+                  },
+                  "current_sha256": {
+                    "anyOf": [
+                      {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "previous_path": {
+                    "anyOf": [
+                      {
+                        "maxLength": 4096,
+                        "minLength": 1,
+                        "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^\\\\]+$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "relative_path": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^\\\\]+$",
+                    "type": "string"
+                  },
+                  "size_bytes": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "relative_path",
+                  "previous_path",
+                  "change",
+                  "classification",
+                  "before_sha256",
+                  "current_sha256",
+                  "size_bytes"
+                ],
+                "type": "object"
+              },
+              "maxItems": 100,
+              "minItems": 0,
+              "type": "array"
+            },
+            "next_cursor": {
+              "anyOf": [
+                {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "original_dirty": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "previous_path": {
+                    "anyOf": [
+                      {
+                        "maxLength": 4096,
+                        "minLength": 1,
+                        "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^\\\\]+$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "relative_path": {
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^\\\\]+$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "maxLength": 2,
+                    "minLength": 0,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "relative_path",
+                  "status",
+                  "previous_path"
+                ],
+                "type": "object"
+              },
+              "maxItems": 100,
+              "minItems": 0,
+              "type": "array"
+            },
+            "original_dirty_has_more": {
+              "type": "boolean"
+            },
+            "original_dirty_status": {
+              "enum": [
+                "available",
+                "unavailable"
+              ]
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "items",
+            "next_cursor",
+            "history_gap",
+            "revision",
+            "baseline_revision",
+            "original_dirty_status",
+            "original_dirty",
+            "original_dirty_has_more"
+          ],
+          "type": "object"
+        },
+        "workspace.diff_file.request": {
+          "additionalProperties": false,
+          "properties": {
+            "expected_revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "relative_path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^\\\\]+$",
+              "type": "string"
+            },
+            "turn_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "turn_id",
+            "relative_path",
+            "expected_revision"
+          ],
+          "type": "object"
+        },
+        "workspace.diff_file.result": {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "anyOf": [
+                {
+                  "maxLength": 131072,
+                  "minLength": 0,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "current": {
+              "anyOf": [
+                {
+                  "maxLength": 131072,
+                  "minLength": 0,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "current_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "preview_only": {
+              "const": true
+            },
+            "reason": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "relative_path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^\\\\]+$",
+              "type": "string"
+            },
+            "reverse_patch": {
+              "anyOf": [
+                {
+                  "maxLength": 524288,
+                  "minLength": 0,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "revision",
+            "relative_path",
+            "before",
+            "current",
+            "reverse_patch",
+            "current_sha256",
+            "preview_only",
+            "reason"
           ],
           "type": "object"
         },
@@ -10371,6 +11069,11 @@
                   "type": "null"
                 }
               ]
+            },
+            "revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             }
           },
           "required": [
@@ -12077,6 +12780,16 @@
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.create.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
+    "session.create_default.request": {
+      "$id": "urn:forgecode:contracts:v1:session.create_default.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.create_default.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "session.create_default.result": {
+      "$id": "urn:forgecode:contracts:v1:session.create_default.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.create_default.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
     "session.get.request": {
       "$id": "urn:forgecode:contracts:v1:session.get.request",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.get.request",
@@ -12097,6 +12810,16 @@
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.list.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
+    "session.snapshot.request": {
+      "$id": "urn:forgecode:contracts:v1:session.snapshot.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.snapshot.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "session.snapshot.result": {
+      "$id": "urn:forgecode:contracts:v1:session.snapshot.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.snapshot.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
     "session.start_turn.request": {
       "$id": "urn:forgecode:contracts:v1:session.start_turn.request",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.start_turn.request",
@@ -12105,6 +12828,16 @@
     "session.start_turn.result": {
       "$id": "urn:forgecode:contracts:v1:session.start_turn.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.start_turn.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "session.submit.request": {
+      "$id": "urn:forgecode:contracts:v1:session.submit.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.submit.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "session.submit.result": {
+      "$id": "urn:forgecode:contracts:v1:session.submit.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/session.submit.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "start-turn": {
@@ -12287,6 +13020,26 @@
     "workspace.changes.result": {
       "$id": "urn:forgecode:contracts:v1:workspace.changes.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.changes.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "workspace.diff.request": {
+      "$id": "urn:forgecode:contracts:v1:workspace.diff.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.diff.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "workspace.diff.result": {
+      "$id": "urn:forgecode:contracts:v1:workspace.diff.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.diff.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "workspace.diff_file.request": {
+      "$id": "urn:forgecode:contracts:v1:workspace.diff_file.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.diff_file.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "workspace.diff_file.result": {
+      "$id": "urn:forgecode:contracts:v1:workspace.diff_file.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.diff_file.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "workspace.files.request": {

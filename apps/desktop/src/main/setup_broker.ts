@@ -40,14 +40,16 @@ export function createSetupBroker(runtime: VerifiedRuntime) {
       });
     });
   }
-  return async function setup(action: SetupAction, window: BrowserWindow): Promise<any> {
+  return async function setup(action: SetupAction, window: BrowserWindow, assertCurrent: () => void = () => {}): Promise<any> {
     if (!['install', 'repair', 'diagnose'].includes(action)) throw new Error('Unknown fixed setup action');
     if (running) return { status: 'blocked', reason: 'setup_already_running', administrator_invoked: false };
     if (window.isDestroyed() || window.webContents.isDestroyed()) throw new Error('Main window is unavailable');
     running = true;
     try {
+      assertCurrent();
       if (action !== 'install') return await launch(action);
       const diagnosis = await launch('diagnose');
+      assertCurrent();
       if (!diagnosis.native_status || diagnosis.fresh_install_allowed !== true) {
         return { ...diagnosis, reason: diagnosis.native_status ? 'existing_shared_setup; administrator reconciliation required' : diagnosis.reason };
       }
@@ -56,6 +58,7 @@ export function createSetupBroker(runtime: VerifiedRuntime) {
         detail: '此操作会创建低权限账户和网络限制，Windows 随后会请求管理员确认。普通任务无需管理员权限。',
         buttons: ['取消', '继续设置'], defaultId: 0, cancelId: 0, noLink: true });
       if (choice.response !== 1 || window.isDestroyed()) return { status: 'blocked', reason: 'setup_declined', administrator_invoked: false };
+      assertCurrent();
       // The fixed child rechecks live setup immediately before UAC; no caller-supplied parameters.
       return await launch('install');
     } finally { running = false; }

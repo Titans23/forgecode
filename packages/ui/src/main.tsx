@@ -1,26 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DesktopTransport, type DesktopStatus, type SessionSnapshot } from './transport';
+import { DesktopTransport, type DesktopStatus } from './transport';
 import { Connections } from './pages/settings/Connections';
+import { Workspace, type Project } from './pages/workspace/Workspace';
 import './style.css';
 
 const transport = new DesktopTransport();
-const states: Record<string, string> = { ready: 'Engine 已连接', starting: '正在连接 Engine', engine_lost: 'Engine 连接已断开',
-  incompatible: '协议不兼容', finished: '已结束', running: '正在执行', queued: '等待执行', completed: '完成', cancelled: '已取消' };
-
 function App() {
   const [status, setStatus] = useState<DesktopStatus | null>(null);
-  const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
-  const [projects, setProjects] = useState<Array<{ workspace_id: string; name?: string }>>([]);
-  const [events, setEvents] = useState<Array<{ event_id: string; event_type: string }>>([]);
-  const [gap, setGap] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [page, setPage] = useState<'workspace' | 'settings'>('workspace');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [page, setPage] = useState<'home' | 'workspace' | 'settings' | 'diagnostics'>('home');
+  const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<unknown>(null);
   const [approvals, setApprovals] = useState<Array<{ approval_id: string; state: string; tool_name?: string; risk?: string }>>([]);
   useEffect(() => {
-    let disposed = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let disposed = false, timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       try {
         const current = await transport.status();
@@ -29,54 +24,55 @@ function App() {
         if (current.engine_state === 'ready') {
           const workspaces = await transport.projects();
           const pending = await transport.approvals();
-          const next = current.session_id ? await transport.session(current.session_id) : null;
-          const batch = await transport.events();
           if (disposed) return;
-          setProjects(workspaces.items); setSnapshot(next);
-          setApprovals(pending.items.filter(value => value.state === 'pending'));
-          setGap(old => old || batch.gap);
-          setEvents(old => Array.from(new Map([...old, ...batch.events].map(event => [event.event_id, event])).values()).slice(-100));
+          const items = workspaces.items as Project[];
+          setProjects(items); setApprovals(pending.items.filter(item => item.state === 'pending'));
+          if (current.session_id && !projectId) {
+            const snapshot = await transport.sessionSnapshot({ session_id: current.session_id });
+            if (!disposed) { setProjectId(snapshot.session.workspace_id); setPage('workspace'); }
+          }
         }
       } catch (reason) { if (!disposed) setError((reason as Error).message); }
-      finally { if (!disposed) timer = setTimeout(refresh, 400); }
+      finally { if (!disposed) timer = setTimeout(refresh, 1000); }
     }
-    void refresh();
-    return () => { disposed = true; clearTimeout(timer); };
-  }, []);
-  async function action(operation: () => Promise<unknown>) {
-    if (busy) return;
-    setBusy(true); setError(null);
+    void refresh(); return () => { disposed = true; clearTimeout(timer); };
+  }, [projectId]);
+  async function action(operation: () => Promise<void>) {
+    if (busy) return; setBusy(true); setError(null);
     try { await operation(); } catch (reason) { setError((reason as Error).message); } finally { setBusy(false); }
   }
-  const turn = snapshot?.turns[0];
+  const project = projects.find(item => item.workspace_id === projectId) ?? null;
   const connected = status?.engine_state === 'ready';
   return <div className="app"><aside><div className="brand"><span className="mark">F</span>ForgeCode</div>
-    <button className={'nav secondary ' + (page === 'workspace' ? 'active' : '')} onClick={() => setPage('workspace')}>工作台</button>
-    <button className={'nav secondary ' + (page === 'settings' ? 'active' : '')} onClick={() => setPage('settings')}>连接设置</button><div className="caption">项目</div>
-    <button className="secondary" disabled={busy || status?.engine_state !== 'ready'} onClick={() => action(() => transport.selectProject())}>选择项目</button>
-    {projects.length ? projects.map(project => <div className="project" key={project.workspace_id}>{project.name ?? project.workspace_id}
-      <button className="secondary" disabled={busy} onClick={() => action(() => transport.authorizeWorkspace(project.workspace_id))}>授权执行</button></div>) :
-      <div className="muted">尚未注册项目</div>}
-    <div className="sidebar-foot">V4 · Python Harness<br/>桌面开发版本</div></aside>
-    <main><header><div><div className="eyebrow">WORKSPACE</div><h1>开发工作台</h1></div>
-      <div className={'connection ' + (connected ? 'online' : '')}><i/>{states[status?.engine_state ?? 'starting'] ?? status?.engine_state}</div></header>
-    {page === 'settings' ? <Connections transport={transport}/> : <>
+    {([['home','首页／项目'],['workspace','Agent 工作区'],['settings','连接设置'],['diagnostics','诊断']] as const).map(([id, label]) =>
+      <button className={'nav secondary ' + (page === id ? 'active' : '')} key={id} onClick={() => setPage(id)}>{label}</button>)}
+    <div className="caption">最近项目</div><button className="secondary" disabled={busy || !connected} onClick={() => action(async () => {
+      const selected = await transport.selectProject() as Project;
+      if (selected?.workspace_id) { setProjectId(selected.workspace_id); setPage('workspace'); }
+    })}>选择项目</button>
+    {projects.slice().reverse().map(item => <button className="secondary project" key={item.workspace_id} onClick={() => { setProjectId(item.workspace_id); setPage('workspace'); }}>
+      {item.path?.split(/[\\/]/).at(-1) ?? item.name ?? item.workspace_id.slice(-8)} · {item.trust === 'inspect_only' ? '仅查看' : '可执行'}</button>)}
+    <div className="sidebar-foot">V4 · Python Harness<br/>{status?.mode === 'offline-demo' ? '脚本模型开发测试' : '严格执行模式'}</div></aside>
+    <main><header><div><div className="eyebrow">FORGECODE</div><h1>{page === 'workspace' ? '开发工作区' : page === 'settings' ? '连接设置' : page === 'diagnostics' ? '诊断' : '项目'}</h1></div>
+      <div className={'connection ' + (connected ? 'online' : '')}>{connected ? 'Engine 已连接' : status?.engine_state ?? '正在连接'}</div></header>
     {(error || status?.failure) && <div role="alert" className="notice">{error ?? status?.failure}</div>}
-    {status?.readiness?.status === 'blocked' && <div className="notice">执行环境未就绪，任务启动已禁用。请完成沙盒诊断与配置。</div>}
-    {approvals.map(value => <section key={value.approval_id}><h3>等待授权：{value.tool_name ?? '工具操作'}</h3>
-      <p>风险：{value.risk ?? '未知'}。确认框将显示当前操作的可信详情。</p>
-      <button disabled={busy} onClick={() => action(() => transport.requestApproval(value.approval_id))}>查看并决定</button></section>)}
-    <section className="task"><div className="eyebrow">CURRENT SESSION</div><h2>{status?.mode === 'offline-demo' ? '修复整数加法' : '开始一次开发任务'}</h2>
-      <p>{status?.mode === 'offline-demo' ? '离线脚本模型驱动真实 Harness、文件工具和 unittest。执行结果来自 Engine。' : '客户端通过独立 Engine 管理会话和执行环境。'}</p>
-      <div className="task-bottom"><div><span className="tag">{turn ? states[turn.state] ?? turn.state : '尚未开始'}</span>
-        {turn?.outcome && <span className="tag result" data-testid="turn-outcome">{states[turn.outcome] ?? turn.outcome}</span>}</div>
-        {status?.mode === 'offline-demo' && !status.session_id && <button disabled={!connected || busy} onClick={() => action(() => transport.startDemo())}>运行离线 Demo →</button>}
-        {turn && ['running', 'queued', 'awaiting_approval'].includes(turn.state) && <button className="secondary" disabled={busy} onClick={() => action(() => transport.cancelTurn(turn.turn_id))}>取消任务</button>}</div>
-      {turn && <code className="identity">{turn.turn_id}</code>}</section>
-    <div className="grid"><section><h3>会话快照</h3>{snapshot ? <><div className="muted">{snapshot.session_id}</div><pre>{JSON.stringify(snapshot, null, 2)}</pre></> : <div className="empty">执行任务后显示持久化会话状态。</div>}</section>
-      <section><h3>运行事件 <span className="count">{events.length}</span></h3>{gap && <div className="notice">显示队列存在历史缺口；会话快照已重新读取。</div>}
-        {events.length ? <div className="events">{events.map(event => <div key={event.event_id}><span className="dot"/><span>{event.event_type}</span><code>{event.event_id.slice(-8)}</code></div>)}</div> : <div className="empty">等待 Engine 事件。</div>}</section></div>
-    <footer>来源：{status?.mode === 'offline-demo' ? 'scripted · local-trusted' : 'desktop · strict'}<span>清理与任务状态以 Engine 记录为准</span></footer></>}
+    {status?.readiness?.status === 'blocked' && <div className="notice">执行环境未就绪，任务启动已禁用。项目文件和历史会话仍可查看。</div>}
+    {approvals.map(item => <section key={item.approval_id}><h3>等待授权：{item.tool_name ?? '工具操作'}</h3><p>风险：{item.risk ?? '未知'}</p>
+      <button disabled={busy} onClick={() => action(async () => { await transport.requestApproval(item.approval_id); })}>查看原生确认框</button></section>)}
+    {page === 'home' && <section><h2>最近注册的项目</h2><p>通过原生目录选择器打开项目；默认仅查看，执行前需单独授权。</p>
+      {!projects.length && <p className="muted">尚未注册项目。</p>}
+      {projects.slice().reverse().map(item => <p key={item.workspace_id}><button className="secondary" onClick={() => { setProjectId(item.workspace_id); setPage('workspace'); }}>{item.path ?? item.workspace_id}</button></p>)}</section>}
+    {page === 'workspace' && <>{project?.trust === 'inspect_only' && <button disabled={busy} onClick={() => action(async () => { await transport.authorizeWorkspace(project.workspace_id); })}>授权项目执行</button>}
+      {status?.mode === 'offline-demo' && !status.session_id && <section><p>离线脚本模型将调用真实 Harness、文件工具和 unittest。</p><button disabled={busy} onClick={() => action(async () => {
+        await transport.startDemo(); setStatus(await transport.status());
+      })}>运行离线 Demo →</button></section>}
+      <Workspace key={projectId} transport={transport} project={project} status={status} onSession={() => {}}/></>}
+    {page === 'settings' && <Connections transport={transport}/>}
+    {page === 'diagnostics' && <section><h2>Engine 状态</h2><button onClick={() => action(async () => setDiagnostics(await transport.diagnostics()))}>刷新诊断</button>
+      <button className="secondary" disabled={busy} onClick={() => action(async () => setDiagnostics(await transport.diagnoseSandbox()))}>诊断原生沙盒</button>
+      <button className="secondary" disabled={busy} onClick={() => action(async () => setDiagnostics(await transport.installSandbox()))}>安装原生沙盒（需原生确认）</button>
+      <pre>{JSON.stringify(diagnostics ?? status, null, 2)}</pre><p>原生沙盒安装和签名验收结果另行记录；环境缺失时不会报告通过。</p></section>}
+    <footer>来源：{status?.mode === 'offline-demo' ? 'scripted · local-trusted' : 'desktop · strict'}<span>任务与清理状态由 Engine 提供</span></footer>
     </main></div>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

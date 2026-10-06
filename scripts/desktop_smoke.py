@@ -14,9 +14,12 @@ from forge.testing.demo import seed_demo
 def smoke(output):
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    directory = output / 'fixture'
+    directory = output / 'fixture with spaces'
     directory.mkdir()
     params, fixture = seed_demo(directory)
+    scripted = json.loads(fixture.read_text(encoding='utf-8'))
+    scripted['responses'][0]['delay_seconds'] = 1
+    fixture.write_text(json.dumps(scripted, indent=2), encoding='utf-8')
     config = output / 'config.json'
     config.write_text(json.dumps({'origin': 'scripted', 'directory': str(directory), 'fixture': str(fixture),
         'output': str(output), 'params': params}), encoding='utf-8')

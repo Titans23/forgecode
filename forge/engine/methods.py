@@ -7,6 +7,7 @@ import sys
 from forge.application.models import ContractError, METHODS, canonical_hash, validate
 from forge.application.approvals import ApprovalService, ConfirmationNonces
 from forge.application.connections import ConnectionService
+from forge.application.session_views import create_default_session, submit, snapshot
 from forge.engine.persistence import utc_now
 from forge.application.sessions import session_view
 from forge.engine.event_stream import EventStream, accepted_view, workspace_view
@@ -23,6 +24,8 @@ class EngineMethods:
         self.store = service.store
         self.profile = profile
         self.events = EventStream(service)
+        self.workspaces = service.workspaces
+        self.workspaces.cursors = self.events
         self.approvals = ApprovalService(service)
         self.confirmations = ConfirmationNonces(self.store)
         self.connections = ConnectionService(service, self.confirmations)
@@ -35,6 +38,11 @@ class EngineMethods:
             'system.initialize': self.initialize, 'system.health': self.health, 'system.capabilities': self.capabilities,
             'system.shutdown': self.shutdown, 'workspace.register': self.register_workspace,
             'workspace.list': self.list_workspaces, 'workspace.inspect': self.inspect_workspace,
+            'workspace.files': self.workspaces.files, 'workspace.read_file': self.workspaces.read_file,
+            'workspace.changes': self.workspaces.changes, 'workspace.diff': self.workspaces.diff,
+            'workspace.diff_file': self.workspaces.diff_file,
+            'session.create_default': lambda p: create_default_session(service, p),
+            'session.submit': self.submit, 'session.snapshot': lambda p: snapshot(service, p),
             'session.create': self.service.create_session, 'session.start_turn': self.start_turn,
             'session.cancel_turn': self.service.cancel_turn, 'session.list': self.list_sessions,
             'session.get': self.get_session, 'action.get': self.get_action,
@@ -214,6 +222,11 @@ class EngineMethods:
                 return {**existing, 'reused_existing_action': True}
             raise ContractError('Engine is draining', kind='INDETERMINATE', code=-32010)
         return self.service.start_turn(params)
+
+    def submit(self, params):
+        if self.stopping and self.service._existing_action('session.submit', params) is None:
+            raise ContractError('Engine is draining', kind='INDETERMINATE', code=-32010)
+        return submit(self.service, params)
 
     def get_action(self, params):
         row = self.store.connection.execute('SELECT * FROM actions WHERE profile_id=? AND method=? AND client_action_id=?',

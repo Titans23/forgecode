@@ -7,10 +7,10 @@ import { promisify } from 'node:util';
 import { resolve, isAbsolute } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { validate } from '@forgecode/contracts';
-import { loadDevelopmentEngine, loadInstalledEngine, uiAsset } from './assets.js';
+import { loadDevelopmentEngine, loadInstalledEngine, loadSetupRuntime, uiAsset } from './assets.js';
 import { EngineSupervisor } from './supervisor.js';
 import { ownedTcpListeners } from './listeners.js';
-import { assertSender, empty, businessId, captureSender } from './ipc.js';
+import { assertSender, empty, businessId, captureSender, nativeOperation } from './ipc.js';
 import { NativeApprovals } from './approvals.js';
 import { probeSecurity } from './security_probe.js';
 import { runCredentialWorker } from './credential_worker.js';
@@ -18,6 +18,8 @@ import { CredentialCrypto, credentialEnvironment } from './credential_crypto.js'
 import { CredentialBroker } from './credential_broker.js';
 import { MainConnections } from './connections.js';
 import { probeCredentials } from './credential_probe.js';
+import { probeWorkspace } from './workspace_probe.js';
+import { createSetupBroker } from './setup_broker.js';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'forge-app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
@@ -30,6 +32,7 @@ let finalClose = false;
 let failure: string | null = null;
 let demo: any = null;
 let currentSession: string | null = null;
+let sessionSubscription: string | null = null;
 let smoke: any = null;
 let packagedReport: string | null = null;
 const execute = promisify(execFile);
@@ -141,6 +144,7 @@ async function runSmoke() {
       await new Promise(r => setTimeout(r, 50));
     }
     check('actual-demo-turn', snapshot?.turns[0]?.outcome === 'completed' && snapshot.turns[0].turn_id === accepted.turn_id);
+    checks.push(...await probeWorkspace(window, engine, smoke.directory, resolve(app.getAppPath(), '../..')));
     const reloaded = new Promise<void>(resolve => window!.webContents.once('did-finish-load', () => resolve()));
     window.webContents.reload();
     await reloaded;
@@ -167,6 +171,7 @@ async function runSmoke() {
     await writeFile(resolve(smoke.output, 'desktop-report.json'), JSON.stringify({ status: checks.every(x => x.status === 'pass') ? 'pass' : 'fail',
       scope: 'development-desktop', platform: process.platform, eligible_for_native_pass: false, checks, screenshot: 'desktop.png' }, null, 2));
   } catch (error) {
+    if (window && !window.isDestroyed()) await writeFile(resolve(smoke.output, 'desktop-failure.png'), (await window.webContents.capturePage()).toPNG());
     await writeFile(resolve(smoke.output, 'desktop-report.json'), JSON.stringify({ status: 'fail', checks, reason: (error as Error).message }));
   } finally { await close(); }
 }
@@ -225,6 +230,40 @@ async function ready() {
     mode: smoke ? 'offline-demo' : 'desktop', session_id: currentSession, failure }; });
   ipcMain.handle('forge:projects', (event, value) => { sender(event); empty(value); return live().call('workspace.list', { limit: 100 }); });
   ipcMain.handle('forge:session', (event, value) => { sender(event); const session_id = onlyId(value, 'session_id', 'ses'); return live().call('session.get', { session_id }); });
+  ipcMain.handle('forge:sessions', (event, value) => { sender(event); validate('session.list.request', value); return live().call('session.list', value); });
+  ipcMain.handle('forge:session-snapshot', async (event, value) => {
+    sender(event); validate('session.snapshot.request', value);
+    const result = await live().call('session.snapshot', value);
+    currentSession = result.session.session_id;
+    if (!sessionSubscription) {
+      // Snapshot first, then subscribe. Replay starts at that durable high watermark.
+      const subscription = await live().call('events.subscribe', { scope: { kind: 'all' }, after_cursor: result.event_cursor });
+      sessionSubscription = subscription.subscription_id;
+    }
+    return result;
+  });
+  ipcMain.handle('forge:create-session', async (event, value) => {
+    sender(event);
+    validate('session.create_default.request', value);
+    const created = await live().call('session.create_default', value);
+    currentSession = created.session_id;
+    return created;
+  });
+  ipcMain.handle('forge:submit', (event, value) => { sender(event); validate('session.submit.request', value); return live().call('session.submit', value); });
+  for (const [channel, method] of [['files', 'workspace.files'], ['read-file', 'workspace.read_file'],
+    ['changes', 'workspace.changes'], ['diff', 'workspace.diff'], ['diff-file', 'workspace.diff_file']] as const) {
+    ipcMain.handle('forge:' + channel, (event, value) => { sender(event); validate(method + '.request', value); return live().call(method, value); });
+  }
+  ipcMain.handle('forge:diagnostics', (event, value) => { sender(event); empty(value); return live().call('system.health', {}); });
+  for (const [channel, action] of [['sandbox-diagnosis', 'diagnose'], ['install-sandbox', 'install']] as const) {
+    ipcMain.handle('forge:' + channel, (event, value) => {
+      sender(event); empty(value); const guard = captureSender(() => window, event);
+      return nativeOperation(async () => {
+        const runtime = await loadSetupRuntime(root, app.isPackaged);
+        return createSetupBroker(runtime)(action, guard(), () => { guard(); });
+      });
+    });
+  }
   ipcMain.handle('forge:events', (event, value) => { sender(event); empty(value); return live().events(); });
   const approvals = new NativeApprovals(live);
   ipcMain.handle('forge:select-project', (event, value) => { sender(event); empty(value); return approvals.selectDirectory(captureSender(() => window, event)); });

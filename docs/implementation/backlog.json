@@ -40,7 +40,10 @@
       ],
       "non_goals": "不升级依赖、不重构主循环、不声称已重新验证历史潜在 Bug。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T091942Z-d39f0b28", "20261006T092001Z-c7f13bd9"],
+      "evidence_ids": [
+        "20261006T091942Z-d39f0b28",
+        "20261006T092001Z-c7f13bd9"
+      ],
       "case_ids": []
     },
     {
@@ -81,7 +84,11 @@
       ],
       "non_goals": "不为安装便利关闭系统防护；不自动执行管理员 setup。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T094338Z-9ee68b20", "20261006T094341Z-a9e7179e", "20261006T093957Z-8e28ebc0"],
+      "evidence_ids": [
+        "20261006T094338Z-9ee68b20",
+        "20261006T094341Z-a9e7179e",
+        "20261006T093957Z-8e28ebc0"
+      ],
       "case_ids": []
     },
     {
@@ -127,7 +134,11 @@
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T100851Z-a7ee0375", "20261006T100856Z-8425af60", "20261006T100851Z-a837e8f2"],
+      "evidence_ids": [
+        "20261006T100851Z-a7ee0375",
+        "20261006T100856Z-8425af60",
+        "20261006T100851Z-a837e8f2"
+      ],
       "case_ids": [
         "N04"
       ]
@@ -169,7 +180,11 @@
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T103414Z-2a9980f6", "20261006T103419Z-f3e3cf9a", "20261006T103452Z-166d145d"],
+      "evidence_ids": [
+        "20261006T103414Z-2a9980f6",
+        "20261006T103419Z-f3e3cf9a",
+        "20261006T103452Z-166d145d"
+      ],
       "case_ids": [
         "D30",
         "N02",
@@ -214,7 +229,10 @@
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T105304Z-1b46b663", "20261006T105310Z-27975238"],
+      "evidence_ids": [
+        "20261006T105304Z-1b46b663",
+        "20261006T105310Z-27975238"
+      ],
       "case_ids": []
     },
     {
@@ -257,7 +275,11 @@
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T111751Z-a64edfea", "20261006T111756Z-f5819b93", "20261006T111902Z-ff8046cd"],
+      "evidence_ids": [
+        "20261006T111751Z-a64edfea",
+        "20261006T111756Z-f5819b93",
+        "20261006T111902Z-ff8046cd"
+      ],
       "case_ids": [
         "O07",
         "D04",
@@ -304,7 +326,11 @@
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T113646Z-1cb5c7d9", "20261006T113651Z-324b93bb", "20261006T113811Z-54d4f9dd"],
+      "evidence_ids": [
+        "20261006T113646Z-1cb5c7d9",
+        "20261006T113651Z-324b93bb",
+        "20261006T113811Z-54d4f9dd"
+      ],
       "case_ids": []
     },
     {
@@ -345,7 +371,11 @@
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T115350Z-bfd58d91", "20261006T115355Z-edb1d80e", "20261006T115517Z-a30f1c2e"],
+      "evidence_ids": [
+        "20261006T115350Z-bfd58d91",
+        "20261006T115355Z-edb1d80e",
+        "20261006T115517Z-a30f1c2e"
+      ],
       "case_ids": [
         "C06",
         "C24",
@@ -858,8 +888,16 @@
         "portable"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T191227Z-fdf08b04",
+        "20261006T191242Z-960d04de",
+        "20261006T191601Z-c1e273e9",
+        "20261006T191629Z-b8802a4c",
+        "20261006T191645Z-824876b1",
+        "20261006T191650Z-e24e7d15",
+        "20261006T191654Z-94a8d24d"
+      ],
       "case_ids": [
         "D21",
         "D23",

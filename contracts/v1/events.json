@@ -168,6 +168,10 @@
     "journal.projected": {
       "payload_schema": "event.journal.projected",
       "implementation_status": "implemented"
+    },
+    "session.message": {
+      "payload_schema": "event.session.message",
+      "implementation_status": "implemented"
     }
   }
 }

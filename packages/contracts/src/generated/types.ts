@@ -45,11 +45,11 @@ export type WorkspaceListResult = { "items": Array<Workspace>; "next_cursor": (s
 export type WorkspaceInspectRequest = { "workspace_id": string };
 export type WorkspaceInspectResult = Workspace;
 export type WorkspaceFilesRequest = { "workspace_id": string; "relative_path"?: string; "cursor"?: string; "limit"?: number };
-export type WorkspaceFilesResult = { "items": Array<{ "relative_path": string; "kind": "file" | "directory"; "size_bytes": (number) | (null); "revision": number }>; "next_cursor": (string) | (null); "history_gap": boolean };
+export type WorkspaceFilesResult = { "items": Array<{ "relative_path": string; "kind": "file" | "directory"; "size_bytes": (number) | (null); "revision": number }>; "next_cursor": (string) | (null); "history_gap": boolean; "revision"?: number };
 export type WorkspaceReadFileRequest = { "workspace_id": string; "relative_path": string; "expected_revision": number; "offset": number; "length": number };
 export type WorkspaceReadFileResult = { "artifact": Artifact; "revision": number; "data_base64": string; "eof": boolean };
 export type WorkspaceChangesRequest = { "workspace_id": string; "after_revision": number; "cursor"?: string; "limit"?: number };
-export type WorkspaceChangesResult = { "items": Array<{ "relative_path": string; "change": "created" | "modified" | "deleted"; "revision": number }>; "next_cursor": (string) | (null); "history_gap": boolean };
+export type WorkspaceChangesResult = { "items": Array<{ "relative_path": string; "change": "created" | "modified" | "deleted"; "revision": number }>; "next_cursor": (string) | (null); "history_gap": boolean; "revision"?: number };
 export type SessionCreateRequest = { "client_action_id": string; "workspace_id": string; "expected_workspace_revision": number; "connection_id": string; "policy_id": string; "budget_profile_id": string };
 export type SessionCreateResult = Session;
 export type SessionListRequest = { "workspace_id": string; "cursor"?: string; "limit"?: number };
@@ -136,6 +136,16 @@ export type ConnectionPrepareTestRequest = { "connection_id": string; "expected_
 export type ConnectionPrepareTestResult = { "confirmation_token": string; "expires_at_utc": string };
 export type CredentialsClearRequest = { "client_action_id": string; "connection_id": string; "expected_revision": number };
 export type CredentialsClearResult = { "cleared": boolean; "reused_existing_action": boolean };
+export type SessionCreateDefaultRequest = { "client_action_id": string; "workspace_id": string; "expected_workspace_revision": number; "connection_id": string };
+export type SessionCreateDefaultResult = Session;
+export type SessionSubmitRequest = { "client_action_id": string; "session_id": string; "input": Array<{ "type": "text"; "text": string }> };
+export type SessionSubmitResult = AcceptedTurn;
+export type SessionSnapshotRequest = { "session_id": string; "turn_id"?: string; "after_sequence"?: number };
+export type SessionSnapshotResult = { "session": Session; "turns": Array<AcceptedTurn>; "has_more_turns": boolean; "turn_id": (string) | (null); "messages": Array<{ "sequence": number; "kind": "user" | "assistant" | "tool" | "result"; "text": string; "tool_name": (string) | (null); "status": (string) | (null) }>; "has_more_messages": boolean; "snapshot_cursor": string; "connection_id": string; "event_cursor": string; "message_limit_reached"?: boolean };
+export type WorkspaceDiffRequest = { "turn_id": string; "cursor"?: string; "limit"?: number };
+export type WorkspaceDiffResult = { "items": Array<{ "relative_path": string; "previous_path": (string) | (null); "change": "created" | "modified" | "deleted" | "renamed"; "classification": "text" | "binary" | "large" | "quota"; "before_sha256": (string) | (null); "current_sha256": (string) | (null); "size_bytes": number }>; "next_cursor": (string) | (null); "history_gap": boolean; "revision": number; "baseline_revision": number; "original_dirty_status": "available" | "unavailable"; "original_dirty": Array<{ "relative_path": string; "status": string; "previous_path": (string) | (null) }>; "original_dirty_has_more": boolean };
+export type WorkspaceDiffFileRequest = { "turn_id": string; "relative_path": string; "expected_revision": number };
+export type WorkspaceDiffFileResult = { "revision": number; "relative_path": string; "before": (string) | (null); "current": (string) | (null); "reverse_patch": (string) | (null); "current_sha256": (string) | (null); "preview_only": true; "reason": string };
 export type BridgeProbeRequest = { "workspace_id": string; "workspace_path": string };
 export type BridgeProbeResult = CapabilityReport;
 export type BridgePrepareRequest = { "policy": SandboxPolicy; "policy_hash": string; "owner": { "engine_epoch": string; "sandbox_session_id": string; "execution_id": (string) | (null) } };
@@ -190,6 +200,7 @@ export type EventClientAttached = { "client_action_id": (string) | (null); "desk
 export type EventClientReconnected = { "client_action_id": (string) | (null); "desktop_instance_id": string; "approval_id": (string) | (null) };
 export type EventClientApprovalShown = { "client_action_id": (string) | (null); "desktop_instance_id": string; "approval_id": (string) | (null) };
 export type EventJournalProjected = { "native_type": string; "native_uuid": string; "legacy_session_id": string; "record_hash": string };
+export type EventSessionMessage = { "sequence": number; "kind": "user" | "assistant" | "tool" | "result" };
 export const ERROR_KINDS = ["STALE_REVISION", "IDEMPOTENCY_CONFLICT", "DATA_DIR_IN_USE", "SETUP_REQUIRED", "CAPABILITY_UNSATISFIED", "STALE_APPROVAL", "INCOMPATIBLE_PROTOCOL", "INVALID_CURSOR", "NOT_FOUND", "INVALID_PARAMS", "UNAUTHORIZED", "BUDGET_EXHAUSTED", "CONNECTION_UNAVAILABLE", "ARTIFACT_LIMIT", "INDETERMINATE", "JOURNAL_WRITE_FAILED", "EVENT_CONFLICT", "UNSUPPORTED_PLATFORM", "MANIFEST_MISMATCH", "POLICY_DENIED", "SANDBOX_UNAVAILABLE", "COMMAND_FAILED", "CANCEL_UNCONFIRMED", "CLEANUP_FAILED", "STALE_FILE", "DESKTOP_OR_CLI_APPROVAL_REQUIRED"] as const;
 export type ErrorKind = typeof ERROR_KINDS[number];
 export interface MethodMap {
@@ -246,5 +257,10 @@ export interface MethodMap {
   "connection.prepare_set": { request: ConnectionPrepareSetRequest; result: ConnectionPrepareSetResult };
   "connection.prepare_test": { request: ConnectionPrepareTestRequest; result: ConnectionPrepareTestResult };
   "credentials.clear": { request: CredentialsClearRequest; result: CredentialsClearResult };
+  "session.create_default": { request: SessionCreateDefaultRequest; result: SessionCreateDefaultResult };
+  "session.submit": { request: SessionSubmitRequest; result: SessionSubmitResult };
+  "session.snapshot": { request: SessionSnapshotRequest; result: SessionSnapshotResult };
+  "workspace.diff": { request: WorkspaceDiffRequest; result: WorkspaceDiffResult };
+  "workspace.diff_file": { request: WorkspaceDiffFileRequest; result: WorkspaceDiffFileResult };
 }
 export type MethodName = keyof MethodMap;

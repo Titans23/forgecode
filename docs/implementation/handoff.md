@@ -1,6 +1,16 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F15；下一项 F16（任务卡、第 15 / 19 章已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F16；下一项 F17（任务卡、第 7 / 13 章及实际边界已读）。原生平台验收独立 blocked。
+- F16：真实项目文件、会话提交／流式消息／取消、immutable dirty 基线、Diff 和 guarded reverse patch 预览。
+  migration 006；session+action / turn+action 同事务；snapshot 签名事件边界、sequence 去重、10000 有界列表。
+  valid Hook/MCP/.env 不执行；Git 禁 fsmonitor / hooks 并限制父仓库查找。原 CLI / create_runtime 签名不变。
+  unit 127 / portable 139 / regression 1009，0 skip；Windows 10 development Electron 44 checks pass。
+  证据 20261006T191227Z-fdf08b04 / 20261006T191242Z-960d04de / 20261006T191601Z-c1e273e9 / 20261006T191654Z-94a8d24d。
+  packaged blocked / 0：20261006T191629Z-b8802a4c；native Linux / Windows blocked / 0：
+  20261006T191645Z-824876b1 / 20261006T191650Z-e24e7d15。人工原生 IME/对话框、安装版和 paid API 仍 blocked。
+  早期桌面选择检查失败保留，最终实际展开面板后全部通过。final dirty dca27cb8ed3cc9567d26c41fbee24f7dcad2a8109cd5c5deeff18afbaff1f5b3。
+  F16 测试父 HEAD 7d40c3e8f26c17c590463380defb9cf72e855913；提交 SHA 以实际 git HEAD 核对。
+- F15 已推送 7d40c3e8f26c17c590463380defb9cf72e855913；F16 测试父 HEAD 即此提交。
 - F15 测试父 HEAD e612f360be14dc2a198d65f936b88a7ffd336941；本次提交 SHA 以实际 git HEAD 核对。
   Main fixed Electron safeStorage helper / DPAPI、Linux 保护分类和内存模式、私有 Engine 注入、确认连接与显式联网测试。
   Renderer 无密钥读回；设置页清空输入，绑定 canonical endpoint / revision，锁定／删除／变更立即撤销并取消。

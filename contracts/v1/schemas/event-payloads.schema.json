@@ -2427,6 +2427,29 @@
         "legacy_session_id",
         "record_hash"
       ]
+    },
+    "session.message": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "enum": [
+            "user",
+            "assistant",
+            "tool",
+            "result"
+          ]
+        }
+      },
+      "required": [
+        "sequence",
+        "kind"
+      ]
     }
   }
 }

@@ -1900,6 +1900,23 @@
         "unknown": true
       },
       "expected": "invalid"
+    },
+    {
+      "schema": "event.session.message",
+      "value": {
+        "sequence": 1,
+        "kind": "assistant"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "event.session.message",
+      "value": {
+        "sequence": 1,
+        "kind": "assistant",
+        "text": "forbidden"
+      },
+      "expected": "invalid"
     }
   ]
 }
