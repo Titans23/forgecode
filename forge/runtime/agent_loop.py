@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import aclosing, nullcontext
 from functools import cache
 import json
 import os
@@ -106,12 +107,15 @@ class Conversation:
         intent_router: IntentRouter | None = None,
         include_task_tools: bool = True,
         task_relation: str | None = None,
+        tool_backend: Any | None = None,
+        event_recorder: Any | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
         if task_relation not in {None, 'new', 'active'}:
             raise ValueError('Explicit task_relation must be new or active.')
         self.task_relation = task_relation
+        self.event_recorder = event_recorder
         if max_iterations is not None and max_iterations < 1:
             raise ValueError('max_iterations must be positive')
         if max_protocol_recoveries < 0:
@@ -248,6 +252,7 @@ class Conversation:
                     )
                 ),
                 hook_context_sink=self._queue_hook_context,
+                backend=tool_backend,
             )
             if registry is not None
             else None
@@ -304,9 +309,21 @@ class Conversation:
     async def stream(self, prompt: str) -> AsyncIterator[ConversationEvent]:
         '''Compatibility entry point delegated to the turn runner.'''
         from forge.runtime.runner import TurnRunner
+        from forge.sessions.workspace_lock import workspace_execution
         runner = TurnRunner(self)
-        async for event in runner.run(prompt):
-            yield event
+        ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()
+        with ownership:
+            async with aclosing(runner.run(prompt)) as stream:
+                async for event in stream:
+                    if self.event_recorder is not None:
+                        self.event_recorder.record(event)
+                    yield event
+
+    def record_model_request(self, kind: str, attributes: dict[str, Any]) -> None:
+        if self.session_journal is not None:
+            self.session_journal.append(kind, attributes)
+        if self.event_recorder is not None:
+            self.event_recorder.record_request(kind, attributes)
 
     def _system_prompt_with_task(
         self,

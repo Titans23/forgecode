@@ -54,6 +54,7 @@ class ToolExecutor:
         checkpoint_store: CheckpointStore | None = None,
         path_resolver: PathResolver | None = None,
         hook_context_sink: HookContextSink | None = None,
+        backend: Any | None = None,
     ) -> None:
         self.registry = registry
         self.permission_manager = permission_manager
@@ -63,6 +64,7 @@ class ToolExecutor:
         self.checkpoint_store = checkpoint_store
         self.path_resolver = path_resolver or default_tool_paths
         self.hook_context_sink = hook_context_sink
+        self.backend = backend
         self._read_cache: dict[str, ToolResult] = {}
 
     async def execute(
@@ -207,7 +209,9 @@ class ToolExecutor:
             result = (
                 await operation(effective_call)
                 if operation is not None
-                else await self.registry.execute(call.name, arguments)
+                else (await self.backend.execute(effective_call, self.registry)
+                      if self.backend is not None
+                      else await self.registry.execute(call.name, arguments))
             )
             if checkpoint_id is not None and checkpoint_paths:
                 self.checkpoint_store.record_after(

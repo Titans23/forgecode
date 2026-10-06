@@ -108,8 +108,8 @@ class TurnRunner:
 
     async def _prepare_turn(self, prompt: str) -> None:
         c = self.conversation
-        if self.journal is not None:
-            self.state.request_event_sink = self.journal.append
+        if self.journal is not None or c.event_recorder is not None:
+            self.state.request_event_sink = c.record_model_request
         if c.tool_executor is not None:
             c.tool_executor.session_journal = self.journal
             c.tool_executor.checkpoint_store = c.checkpoint_store

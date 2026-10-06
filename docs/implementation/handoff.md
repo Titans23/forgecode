@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00—F03；下一任务 F04（已阅读 tasks/F04.md、主规范第 9、19 章）。
+- 当前完成 F00—F04；下一任务 F05（已阅读 tasks/F05.md、第 8 章和对应 RPC schema）。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -61,3 +61,13 @@
   strict sandbox 尚未就绪时明确阻断，测试可使用显式 scripted profile，不产生成绩。
 - G0 pass；G7 blocked；其他门禁未运行。保留 Python Harness、CLI、MCP、
   Hook、Explore、Feishu 和已有 Harbor runner，不复制或重写主循环。
+- F03 换行符修复已推送 4e851013f2dfc3021787f9dce35d0bc7346cb7de。
+- F04 实现 ApplicationServices / HarnessAdapter / session views / RuntimeBindings；
+  真实 create/start/cancel/snapshot、冻结连接/预算、凭证内存注入、backend/recorder/审批回调。
+  migration 002 保留原数据，服务不读项目 .env、Hook/MCP 或权限配置。CLI 默认兼容。
+  工作区文件身份 OS 锁由 CLI/服务共用，Explore 继承 backend/recorder/父预算。
+  原 Journal/完成契约不变；真实进程取消未知结果标 indeterminate，停止后续模型调用。
+  16 新行为测试，最新 unit 32 / portable 34 pass，0 skip：
+  20261006T105304Z-1b46b663 / 20261006T105310Z-27975238。
+  全量回归 806 pass、0 skip，20261006T105339Z-c4dd0804。
+  strict 未就绪明确拒绝。原生 Windows 11/Ubuntu 和真实模型实验仍未验收。

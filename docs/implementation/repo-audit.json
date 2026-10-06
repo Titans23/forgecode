@@ -1,21 +1,39 @@
 {
   "schema_version": "forge.repository.audit.v1",
   "repository_root": "D:\\learn_project\\forgecode",
-  "git_commit": "d5c08a3158c764d4e797b2a1e2907e391f6414a8",
+  "git_commit": "4e851013f2dfc3021787f9dce35d0bc7346cb7de",
   "dirty_files": [
+    "M forge/cli.py",
+    " M forge/config.py",
+    " M forge/permissions/policy.py",
+    " M forge/runtime/agent_loop.py",
+    " M forge/runtime/executor.py",
+    " M forge/runtime/factory.py",
+    " M forge/runtime/runner.py",
+    " M forge/subagents/explore.py",
+    " M forge/tools/__init__.py",
+    " M scripts/impl.py",
+    " M tests/implementation/integration/test_storage.py",
     "?? .forge/",
-    "?? AGENTS.md",
     "?? build/",
-    "?? docs/implementation/",
+    "?? docs/implementation/evidence/20261006T105155Z-1bd19379.json",
+    "?? docs/implementation/evidence/20261006T105201Z-48962857.json",
+    "?? docs/implementation/evidence/20261006T105304Z-1b46b663.json",
+    "?? docs/implementation/evidence/20261006T105310Z-27975238.json",
+    "?? forge/application/harness_adapter.py",
+    "?? forge/application/services.py",
+    "?? forge/application/sessions.py",
+    "?? forge/engine/migrations/002_application.sql",
+    "?? forge/runtime/dependencies.py",
+    "?? forge/sessions/workspace_lock.py",
     "?? forgecode-architecture-8k.png",
     "?? forgecode-architecture.png",
     "?? forgecode-architecture.svg",
-    "?? scripts/impl.py",
     "?? svg_probe.txt",
-    "?? tests/implementation/",
+    "?? tests/implementation/integration/test_application.py",
     "?? update_implementation_pack/"
   ],
-  "tracked_file_count": 265,
+  "tracked_file_count": 430,
   "instructions": [
     "D:\\learn_project\\forgecode\\AGENTS.md"
   ],
@@ -35,7 +53,7 @@
         },
         "create_session_runtime": {
           "line": 719,
-          "signature": "def create_session_runtime(root: Path, *, continue_session: bool=False, resume_identifier: str | None=None, fork_session: bool=False, model_override: str | None=None, task_policy: TaskPolicy | None=None, execution_profile: ExecutionProfile | None=None, allow_container_writes: bool=False) -> tuple[Conversation, SessionJournal, SessionState | None]"
+          "signature": "def create_session_runtime(root: Path, *, continue_session: bool=False, resume_identifier: str | None=None, fork_session: bool=False, model_override: str | None=None, task_policy: TaskPolicy | None=None, execution_profile: ExecutionProfile | None=None, allow_container_writes: bool=False, bindings: Any | None=None) -> tuple[Conversation, SessionJournal, SessionState | None]"
         },
         "render_streamed_turn": {
           "line": 665,
@@ -47,11 +65,11 @@
       "path": "forge/runtime/factory.py",
       "symbols": {
         "create_runtime": {
-          "line": 31,
-          "signature": "def create_runtime(root: Path, *, continue_session: bool=False, resume_identifier: str | None=None, fork_session: bool=False, model_override: str | None=None, task_policy: TaskPolicy | None=None, execution_profile: ExecutionProfile | None=None, allow_container_writes: bool=False, conversation_factory: Callable[..., Conversation] | None=None, task_relation: str | None=None) -> tuple[Conversation, SessionJournal, SessionState | None]"
+          "line": 32,
+          "signature": "def create_runtime(root: Path, *, continue_session: bool=False, resume_identifier: str | None=None, fork_session: bool=False, model_override: str | None=None, task_policy: TaskPolicy | None=None, execution_profile: ExecutionProfile | None=None, allow_container_writes: bool=False, conversation_factory: Callable[..., Conversation] | None=None, task_relation: str | None=None, bindings: RuntimeBindings | None=None) -> tuple[Conversation, SessionJournal, SessionState | None]"
         },
         "load_runtime_mcp_servers": {
-          "line": 141,
+          "line": 149,
           "signature": "def load_runtime_mcp_servers(root: Path) -> dict[str, Any]"
         }
       }
@@ -60,15 +78,15 @@
       "path": "forge/runtime/agent_loop.py",
       "symbols": {
         "Conversation.__init__": {
-          "line": 75,
-          "signature": "def __init__(self, client: ModelClient | None=None, system_prompt: str | None=None, tools: list[dict[str, Any]] | None=None, registry: ToolRegistry | None=None, max_iterations: int | None=80, task_policy: TaskPolicy | None=None, context_config: CompactionConfig | None=None, context_root: Path | None=None, max_protocol_recoveries: int=2, max_tool_protocol_recoveries: int=6, max_output_continuations: int=2, repeated_tool_limit: int=2, stagnation_warning: int=4, stagnation_limit: int=8, change_exploration_limit: int=8, completion_decision_limit: int=3, mutation_recovery_limit: int=4, max_tool_calls: int | None=120, max_turn_input_tokens: int | None=None, max_turn_seconds: float | None=None, initial_messages: list[dict[str, Any]] | None=None, active_task: ActiveTask | None=None, session_journal: SessionJournal | None=None, checkpoint_store: CheckpointStore | None=None, session_store: SessionStore | None=None, hook_manager: HookManager | None=None, permission_manager: PermissionManager | None=None, mcp_manager: MCPClientManager | None=None, skill_manager: SkillManager | None=None, intent_router: IntentRouter | None=None, include_task_tools: bool=True, task_relation: str | None=None) -> None"
+          "line": 76,
+          "signature": "def __init__(self, client: ModelClient | None=None, system_prompt: str | None=None, tools: list[dict[str, Any]] | None=None, registry: ToolRegistry | None=None, max_iterations: int | None=80, task_policy: TaskPolicy | None=None, context_config: CompactionConfig | None=None, context_root: Path | None=None, max_protocol_recoveries: int=2, max_tool_protocol_recoveries: int=6, max_output_continuations: int=2, repeated_tool_limit: int=2, stagnation_warning: int=4, stagnation_limit: int=8, change_exploration_limit: int=8, completion_decision_limit: int=3, mutation_recovery_limit: int=4, max_tool_calls: int | None=120, max_turn_input_tokens: int | None=None, max_turn_seconds: float | None=None, initial_messages: list[dict[str, Any]] | None=None, active_task: ActiveTask | None=None, session_journal: SessionJournal | None=None, checkpoint_store: CheckpointStore | None=None, session_store: SessionStore | None=None, hook_manager: HookManager | None=None, permission_manager: PermissionManager | None=None, mcp_manager: MCPClientManager | None=None, skill_manager: SkillManager | None=None, intent_router: IntentRouter | None=None, include_task_tools: bool=True, task_relation: str | None=None, tool_backend: Any | None=None, event_recorder: Any | None=None) -> None"
         },
         "Conversation.stream": {
-          "line": 304,
+          "line": 309,
           "signature": "async def stream(self, prompt: str) -> AsyncIterator[ConversationEvent]"
         },
         "Conversation.runtime_close": {
-          "line": 681,
+          "line": 698,
           "signature": "async def runtime_close(self, *, reason: str='exit') -> None"
         }
       }
@@ -95,18 +113,18 @@
       "symbols": {
         "ToolExecutor.__init__": {
           "line": 46,
-          "signature": "def __init__(self, registry: ToolRegistry, permission_manager: PermissionManager, *, workspace_tracker: WorkspaceTracker | None=None, hook_runner: HookRunner | None=None, session_journal: Any | None=None, checkpoint_store: CheckpointStore | None=None, path_resolver: PathResolver | None=None, hook_context_sink: HookContextSink | None=None) -> None"
+          "signature": "def __init__(self, registry: ToolRegistry, permission_manager: PermissionManager, *, workspace_tracker: WorkspaceTracker | None=None, hook_runner: HookRunner | None=None, session_journal: Any | None=None, checkpoint_store: CheckpointStore | None=None, path_resolver: PathResolver | None=None, hook_context_sink: HookContextSink | None=None, backend: Any | None=None) -> None"
         },
         "ToolExecutor.execute": {
-          "line": 68,
+          "line": 70,
           "signature": "async def execute(self, call: ToolCall, *, checkpoint_id: str | None=None, scope_checker: ScopeChecker | None=None, operation: Callable[[ToolCall], Awaitable[ToolResult]] | None=None, result_transformer: ResultTransformer | None=None) -> ExecutionOutcome"
         },
         "ToolExecutor._journal_started": {
-          "line": 383,
+          "line": 387,
           "signature": "def _journal_started(self, call: ToolCall) -> None"
         },
         "ToolExecutor._outcome": {
-          "line": 393,
+          "line": 397,
           "signature": "def _outcome(self, call: ToolCall, result: ToolResult, status: ExecutionStatus, started: float, arguments: dict[str, Any], revision: int, epoch: int, *, workspace_change: WorkspaceChange | None=None) -> ExecutionOutcome"
         }
       }

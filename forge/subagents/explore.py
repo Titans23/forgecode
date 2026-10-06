@@ -158,10 +158,14 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
         *,
         config: ExploreAgentConfig | None = None,
         client_factory: Callable[[], ModelClient] | None = None,
+        tool_backend: Any | None = None,
+        event_recorder: Any | None = None,
     ) -> None:
         super().__init__(root)
         self.config = config or ExploreAgentConfig()
         self._client_factory = client_factory
+        self.tool_backend = tool_backend
+        self.event_recorder = event_recorder
 
     @property
     def provenance(self) -> dict[str, Any]:
@@ -201,6 +205,8 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
             stagnation_limit=6,
             context_root=self.root,
             include_task_tools=False,
+            tool_backend=self.tool_backend,
+            event_recorder=self.event_recorder,
         )
         completed = None
         try:

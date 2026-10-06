@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "0696201c918c58973ec4f9ad4e025c3860325453",
-  "next_recommended_task": "F04",
-  "current_task": "F04",
+  "actual_repository_head": "4e851013f2dfc3021787f9dce35d0bc7346cb7de",
+  "next_recommended_task": "F05",
+  "current_task": "F05",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -41,16 +41,13 @@
       "blocked_reasons": ["D30 native acceptance requires Windows 11 and Ubuntu 22.04/24.04 runners; only Windows 10 portable storage verification is available."]
     },
     "F04": {
-      "implementation_status": "in_progress",
-      "verification": {
-        "unit": "not_run",
-        "portable": "not_run"
-      },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "implementation_status": "implemented",
+      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked", "live_model": "blocked"},
+      "evidence_ids": ["20261006T105304Z-1b46b663", "20261006T105310Z-27975238", "20261006T105339Z-c4dd0804"],
+      "blocked_reasons": ["Windows 11/Ubuntu native runners unavailable; tests exercised real tools with scripted models on Windows 10. Paid API experiments lack authorization/budget; no real model results claimed."]
     },
     "F05": {
-      "implementation_status": "todo",
+      "implementation_status": "in_progress",
       "verification": {
         "unit": "not_run",
         "portable": "not_run"

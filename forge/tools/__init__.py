@@ -29,6 +29,8 @@ def create_default_registry(
     execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
     model_client_factory=None,
+    tool_backend=None,
+    event_recorder=None,
 ) -> ToolRegistry:
     '''Create built-in tools sharing one task-local workspace tracker.'''
     # Delayed import prevents runtime.state -> forge.tools package cycles.
@@ -58,7 +60,8 @@ def create_default_registry(
             VerifyTool(root, tracker),
             GitStatusTool(root),
             GitDiffTool(root),
-            ExploreRepositoryTool(root, client_factory=model_client_factory),
+            ExploreRepositoryTool(root, client_factory=model_client_factory,
+                                  tool_backend=tool_backend, event_recorder=event_recorder),
             FinishTaskTool(root),
             ReviewDeliveryTool(root),
         ],

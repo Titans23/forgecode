@@ -726,6 +726,7 @@ def create_session_runtime(
     task_policy: TaskPolicy | None = None,
     execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
+    bindings: Any | None = None,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Compatibility wrapper; runtime assembly lives in forge.runtime.factory.'''
     return create_runtime(
@@ -738,6 +739,7 @@ def create_session_runtime(
         execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
         conversation_factory=Conversation,
+        **({'bindings': bindings} if bindings is not None else {}),
     )
 
 

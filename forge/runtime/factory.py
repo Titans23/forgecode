@@ -19,6 +19,7 @@ from forge.mcp import MCPClientManager, load_mcp_servers
 from forge.mcp.config import InternalStdioServerConfig
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy
+from forge.runtime.dependencies import RuntimeBindings
 from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.providers import create_model_client
 from forge.runtime.profile import ExecutionProfile
@@ -40,21 +41,28 @@ def create_runtime(
     allow_container_writes: bool = False,
     conversation_factory: Callable[..., Conversation] | None = None,
     task_relation: str | None = None,
+    bindings: RuntimeBindings | None = None,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Create a Conversation and all dependencies for any product surface.'''
     if model_override is not None and not fork_session:
         raise ValueError('model_override requires fork_session=True.')
     resolved_override = model_override.strip() if model_override else ''
-    config = ForgeConfig.from_env()
-    store = SessionStore(root)
+    config = bindings.config if bindings and bindings.config else ForgeConfig.from_env()
+    client_factory = bindings.model_client_factory if bindings and bindings.model_client_factory else create_model_client
+    store = SessionStore(root, data_root=bindings.data_root) if bindings else SessionStore(root)
+    options = bindings.conversation_options() if bindings else {}
+    if task_relation is not None:
+        options['task_relation'] = task_relation
     registry = create_default_registry(
         root,
         execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
-        model_client_factory=lambda: create_model_client(replace(config, model_id=model.model)),
+        model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
+        **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {}),
     )
-    hooks = HookManager.from_root(root)
-    mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root))
+    extensions = bindings is None or bindings.trusted_extensions
+    hooks = HookManager.from_root(root) if extensions else None
+    mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root)) if extensions else None
     conversation_type = conversation_factory or Conversation
 
     if continue_session or resume_identifier is not None:
@@ -90,11 +98,11 @@ def create_runtime(
         resumed_model = resolved_override or state.info.model
         if resumed_model:
             config = replace(config, model_id=resumed_model)
-        model = create_model_client(config)
+        model = client_factory(config)
         conversation = conversation_type(
             client=model,
             intent_router=ModelIntentRouter(
-                create_model_client(config, max_tokens=600)
+                client_factory(config, max_tokens=600)
             ),
             registry=registry,
             initial_messages=list(state.messages),
@@ -105,23 +113,23 @@ def create_runtime(
             hook_manager=hooks,
             mcp_manager=mcp,
             task_policy=task_policy,
-            **({'task_relation': task_relation} if task_relation is not None else {}),
+            **options,
         )
         conversation.verification_history = list(state.verification_history)
         if not fork_session:
             journal.record_resumed()
         return conversation, journal, state
 
-    model = create_model_client(config)
+    model = client_factory(config)
     conversation = conversation_type(
         client=model,
         intent_router=ModelIntentRouter(
-            create_model_client(config, max_tokens=600)
+            client_factory(config, max_tokens=600)
         ),
         registry=registry,
         mcp_manager=mcp,
         task_policy=task_policy,
-        **({'task_relation': task_relation} if task_relation is not None else {}),
+        **options,
     )
     journal = store.create(model=str(getattr(model, 'model', '')), provider=config.provider)
     conversation.session_journal = journal
@@ -133,7 +141,7 @@ def create_runtime(
     )
     conversation.hook_manager = hooks
     permission_manager = getattr(conversation, 'permission_manager', None)
-    if permission_manager is not None:
+    if permission_manager is not None and mcp is not None:
         mcp.bind(permission_manager, journal)
     return conversation, journal, None
 

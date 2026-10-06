@@ -169,7 +169,7 @@
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "implemented",
-      "evidence_ids": ["20261006T102610Z-94aab17c", "20261006T102615Z-0f141cab", "20261006T102610Z-698a0127"],
+      "evidence_ids": ["20261006T103414Z-2a9980f6", "20261006T103419Z-f3e3cf9a", "20261006T103452Z-166d145d"],
       "case_ids": [
         "D30",
         "N02",
@@ -213,8 +213,8 @@
         "portable"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": ["20261006T105304Z-1b46b663", "20261006T105310Z-27975238"],
       "case_ids": []
     },
     {

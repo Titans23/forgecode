@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -25,7 +25,7 @@ class ConfigurationError(ValueError):
 class ForgeConfig:
     '''Validated configuration used to create the first model client.'''
 
-    api_key: str
+    api_key: str = field(repr=False)
     model_id: str
     base_url: str | None = None
     max_tokens: int = DEFAULT_MODEL_MAX_TOKENS

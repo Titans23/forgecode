@@ -98,6 +98,7 @@ class PermissionManager:
         approval_handler: ApprovalHandler | None = None,
         journal: Any | None = None,
         user_path: Path | None = None,
+        load_stored_rules: bool = True,
     ) -> None:
         self.root = root.resolve()
         self.mode: PermissionMode = mode
@@ -105,9 +106,10 @@ class PermissionManager:
         self.journal = journal
         self.user_path = user_path or Path.home() / '.forge' / 'permissions.json'
         self.project_path = self.root / '.forge' / 'permissions.json'
+        self.load_stored_rules = load_stored_rules
         self.session_rules: list[PermissionRule] = []
-        self.user_rules = self._load_rules(self.user_path, 'user')
-        self.project_rules = self._load_rules(self.project_path, 'project')
+        self.user_rules = self._load_rules(self.user_path, 'user') if load_stored_rules else []
+        self.project_rules = self._load_rules(self.project_path, 'project') if load_stored_rules else []
 
     def bind_session(self, journal: Any | None, *, reset_rules: bool = True) -> None:
         '''Move audit output and ephemeral rules to the active session.'''
@@ -237,6 +239,8 @@ class PermissionManager:
                 )
             )
         elif response.choice == 'allow_project':
+            if not self.load_stored_rules:
+                return self._decision('deny', request, 'Persistent project grants are disabled for this profile.', 'profile')
             rule = PermissionRule(
                 action='allow',
                 capability=request.capability,

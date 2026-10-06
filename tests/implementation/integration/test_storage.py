@@ -154,11 +154,13 @@ def test_future_schema_enters_read_only_diagnostics_and_refuses_write(tmp_path):
 
 
 def test_failed_migration_preserves_data_and_consistent_backup(tmp_path):
-    store, workspace, _ = initialize(tmp_path)
-    store.close()
     migrations = tmp_path / 'migrations'
     migrations.mkdir()
     shutil.copy2(ROOT / 'forge/engine/migrations/001_initial.sql', migrations / '001_initial.sql')
+    project = tmp_path / 'project'
+    project.mkdir()
+    with Store(tmp_path / 'data', migrations_dir=migrations) as original:
+        workspace = original.register_workspace(project)
     (migrations / '002_broken.sql').write_text("DELETE FROM workspaces;\nTHIS IS NOT SQL;\n")
     with Store(tmp_path / 'data', migrations_dir=migrations) as failed:
         assert failed.read_only
