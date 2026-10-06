@@ -1,0 +1,7 @@
+/package-lock.json text eol=lf
+/release-lock.json text eol=lf
+/uv.lock text eol=lf
+contracts/** text eol=lf
+forge/application/_generated_contracts.json text eol=lf
+forge/engine/migrations/*.sql text eol=lf
+packages/contracts/src/generated/* text eol=lf

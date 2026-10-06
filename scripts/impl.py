@@ -221,7 +221,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     for relative in sorted(set(source_files)):
         path = Path(relative)
         source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts'}
-        source_manifest = relative in {'.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
+        source_manifest = relative in {'.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
         if (source_directory and path.suffix in {'.py', '.ts', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()

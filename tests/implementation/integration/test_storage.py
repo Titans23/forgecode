@@ -306,3 +306,14 @@ def test_failed_real_journal_intent_prevents_command_and_retry_records_intent(tm
     records = [json.loads(line) for line in journal.path.read_text().splitlines()]
     assert [record['type'] for record in records] == ['tool_started', 'tool_completed']
     assert records[1]['payload']['success'] is True
+
+
+def test_migration_checksum_is_stable_across_windows_and_linux_line_endings(tmp_path):
+    migrations = tmp_path / 'crlf'
+    migrations.mkdir()
+    original = ROOT / 'forge/engine/migrations/001_initial.sql'
+    (migrations / original.name).write_bytes(original.read_text(encoding='utf-8').replace('\n', '\r\n').encode('utf-8'))
+    with Store(tmp_path / 'data', migrations_dir=migrations) as windows_format:
+        assert not windows_format.read_only
+    with Store(tmp_path / 'data') as linux_format:
+        assert not linux_format.read_only

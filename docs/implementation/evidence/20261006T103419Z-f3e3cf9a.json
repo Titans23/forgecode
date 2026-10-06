@@ -1,0 +1,58 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T103419Z-f3e3cf9a",
+  "task_id": "F03",
+  "case_ids": [
+    "N04",
+    "D30",
+    "N02",
+    "N06"
+  ],
+  "suite": "portable",
+  "git_commit": "0696201c918c58973ec4f9ad4e025c3860325453",
+  "dirty_hash": "0a4121eef7fadf3d58ba8f83b0488bd72239702ff5b5d3164cdb60b3f1e0b28a",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d",
+    "release-lock.json": "6836115e5e23c723356cbdf08ee8b9fb06c23b599944e61b82da7ca37bbdd21b"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/implementation/portable",
+    "tests/implementation/integration",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T103419Z-f3e3cf9a\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T103419Z-f3e3cf9a\\junit.xml"
+  ],
+  "start": "2026-10-06T10:34:19.358446+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ]
+  ],
+  "end": "2026-10-06T10:34:23.461655+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261006T103419Z-f3e3cf9a/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T103419Z-f3e3cf9a/stderr.log",
+  "report_ref": ".local/implementation/20261006T103419Z-f3e3cf9a/junit.xml",
+  "report_hash": "bba077eeaa8c3e7de20c7882ca8d91e26db497916dee3de48666d154572a5462",
+  "status": "pass",
+  "tests": {
+    "collected": 18,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  }
+}

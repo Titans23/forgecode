@@ -53,6 +53,9 @@
   D30 Windows 11/Ubuntu 原生验收仍 blocked，不能用 Windows 10 代替。
 - 旧 owner 项重启后 reconciling，不能领取新任务；mark_indeterminate 只保留未知结果，
   完整清理/继续策略留给 F12/F25。Journal 回放仅元数据，不重跑工具、不编造费用。
+- F03 后续修正迁移 CRLF/LF 校验差异，锁文件和生成契约固定 LF；新增真实迁移重开测试。
+  最新 unit 32 / portable 18 / regression 790 pass，0 skip；证据
+  20261006T103414Z-2a9980f6 / 20261006T103419Z-f3e3cf9a / 20261006T103452Z-166d145d。
 - F04 复用 create_runtime/Conversation/TurnRunner，增加 backend/recorder/approval 注入、
   服务化 create/start/cancel/snapshot、真实权限/连接前置校验；保留CLI入口和原始终态映射。
   strict sandbox 尚未就绪时明确阻断，测试可使用显式 scripted profile，不产生成绩。

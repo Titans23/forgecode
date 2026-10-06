@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "6c2d10f4d68cae884993b92525459271a938780e",
+  "actual_repository_head": "0696201c918c58973ec4f9ad4e025c3860325453",
   "next_recommended_task": "F04",
-  "current_task": null,
+  "current_task": "F04",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -37,11 +37,11 @@
     "F03": {
       "implementation_status": "implemented",
       "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "typecheck": "pass", "native_windows": "blocked", "native_linux": "blocked"},
-      "evidence_ids": ["20261006T102610Z-94aab17c", "20261006T102615Z-0f141cab", "20261006T102610Z-698a0127"],
+      "evidence_ids": ["20261006T102610Z-94aab17c", "20261006T102615Z-0f141cab", "20261006T102610Z-698a0127", "20261006T103414Z-2a9980f6", "20261006T103419Z-f3e3cf9a", "20261006T103452Z-166d145d"],
       "blocked_reasons": ["D30 native acceptance requires Windows 11 and Ubuntu 22.04/24.04 runners; only Windows 10 portable storage verification is available."]
     },
     "F04": {
-      "implementation_status": "todo",
+      "implementation_status": "in_progress",
       "verification": {
         "unit": "not_run",
         "portable": "not_run"

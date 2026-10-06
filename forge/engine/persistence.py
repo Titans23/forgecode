@@ -24,6 +24,11 @@ def encoded(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False)
 
 
+def migration_checksum(path):
+    # Git checkouts and Windows editors can change line endings without changing SQL.
+    return sha256(path.read_text(encoding='utf-8').encode('utf-8')).hexdigest()
+
+
 def sync_directory(path):
     if os.name != 'nt':
         descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
@@ -134,7 +139,7 @@ class Store:
                 if set(applied) != set(range(1, version + 1)):
                     raise ValueError('Migration history differs from database version')
                 for number, checksum in applied.items():
-                    if sha256(migrations[number].read_bytes()).hexdigest() != checksum:
+                    if migration_checksum(migrations[number]) != checksum:
                         raise ValueError('Applied migration checksum changed')
             if version < max(migrations):
                 if self.connection.execute('SELECT count(*) FROM sqlite_master WHERE type=\'table\'').fetchone()[0]:
@@ -152,7 +157,7 @@ class Store:
                     if statement.strip():
                         raise ValueError('Migration contains an incomplete SQL statement')
                     self.connection.execute('INSERT INTO schema_migrations VALUES(?,?,?)',
-                        (number, sha256(migrations[number].read_bytes()).hexdigest(), utc_now()))
+                        (number, migration_checksum(migrations[number]), utc_now()))
                     self.connection.execute(f'PRAGMA user_version={number}')
                 self.connection.execute('COMMIT')
         except (sqlite3.Error, ValueError) as error:
