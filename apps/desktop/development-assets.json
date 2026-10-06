@@ -24,6 +24,42 @@
       "sha256": "8cf67be26d013d0c9b3cafe136cf372f263b8e01a44dd005450a1da512eaf11f"
     },
     {
+      "path": "benchmark/adapters/__init__.py",
+      "sha256": "511e4f9fb58a106a64d54c8ab0bf2964546ad5e3e14dfecf135ba179a34a09f0"
+    },
+    {
+      "path": "benchmark/adapters/__main__.py",
+      "sha256": "1a71ba0b175b61adc4417edb71ef8379b55a1f16c7118f8b3ddd2efb16f8c46c"
+    },
+    {
+      "path": "benchmark/adapters/diagnostics.py",
+      "sha256": "60d3384b8b4ce9312026eab8d46fb3c3b20770211fbe81bb98cad6006669800d"
+    },
+    {
+      "path": "benchmark/adapters/docker.py",
+      "sha256": "d1ce762d3a1f3c39f454521d6c2f2d2890df4f54a75932a77d500ae6ca5ca896"
+    },
+    {
+      "path": "benchmark/adapters/harbor.py",
+      "sha256": "2246a9c4a5433f3537b1c23f3a08280463cf3379e111adb753db5995ce914920"
+    },
+    {
+      "path": "benchmark/adapters/materialize.py",
+      "sha256": "3ad692e6544eaaf8d78826594dfc71dbe3ee2d6b2a066d68cc1536719158ed0c"
+    },
+    {
+      "path": "benchmark/adapters/process.py",
+      "sha256": "9de6e2ced40b4d52f1ebcd11e4a906367e542dd3ddf1ed050414c8502ff22894"
+    },
+    {
+      "path": "benchmark/adapters/protocol.py",
+      "sha256": "9a842b7db5299597bf0caf4e8c1902f92a74ad77a021c91b4b5a4e8b6bec95cd"
+    },
+    {
+      "path": "benchmark/catalog.py",
+      "sha256": "2926296c1f7836001c503fdba53624e5c0b9a7fd72542f45f1154a535e205510"
+    },
+    {
       "path": "benchmark/core/__init__.py",
       "sha256": "83612c395acccdbc6ad7eab59fe144b93b34e9e07758fa2b692b5a5af50b5079"
     },
@@ -38,6 +74,70 @@
     {
       "path": "benchmark/core/spec.py",
       "sha256": "73de5ad7242c06c1b9c2c2d0f82263c0b9cf9ff82cd754bbaddd22122c2eca55"
+    },
+    {
+      "path": "benchmark/harbor/__init__.py",
+      "sha256": "ce9615d2473ca64aa55b499c56c8bdf0d2b826846d8df9943d9dccf341329faf"
+    },
+    {
+      "path": "benchmark/harbor/aider_feedback_plugin.py",
+      "sha256": "7d909051fec571d625ec5ca78a48b58542779d2a2d7be1dae7fe48f1fc1b08e8"
+    },
+    {
+      "path": "benchmark/harbor/aider_feedback_trial.py",
+      "sha256": "590341d058bff89aec6f394f7c7b132655110ecd22c29b63b0c38b82245cb389"
+    },
+    {
+      "path": "benchmark/harbor/bounded_docker.py",
+      "sha256": "c687975746ccc43bafde77835a8384cdf9fa795a1c9840545f859ce758f29128"
+    },
+    {
+      "path": "benchmark/harbor/controller.py",
+      "sha256": "8d68b1d4bbce83b312fd506dd0fbcd0bcc25b3150dbca7973774b76be7500f55"
+    },
+    {
+      "path": "benchmark/harbor/deadline_plugin.py",
+      "sha256": "04c459e09be0d356544d88c0cb7ca0a3b5393cce98f764d12378d452334e9e72"
+    },
+    {
+      "path": "benchmark/harbor/forgecode_agent.py",
+      "sha256": "adefaecf81dab45f93e08cba1098042daa9642df2a70adee3571f10cf7626e62"
+    },
+    {
+      "path": "benchmark/harbor/process_supervisor.py",
+      "sha256": "8f06a11402727710c119c1e4bd24bc44b3e7232f7cea1e16c07238bda7f9333c"
+    },
+    {
+      "path": "benchmark/harbor/README.md",
+      "sha256": "3d3adc7ee431d925882141e4c8af03b08976712e291c2e4a4fdbdb71a5e4b754"
+    },
+    {
+      "path": "benchmark/harbor/run_aider.py",
+      "sha256": "ad6013d60c98fc02a4d732a9508809e25ddcde96b45b35d3febccc8d436a092d"
+    },
+    {
+      "path": "benchmark/harbor/run_dataset.py",
+      "sha256": "1d3ad5a0adf35c14b51a1de9bcec2297f2bc82411ad6be56e45758864914a6b8"
+    },
+    {
+      "path": "benchmark/harbor/run_forge.py",
+      "sha256": "89f5e67644d44b97590d7a4c9dfc7dc71d2322d07b8a217288a9247e73efe09b"
+    },
+    {
+      "path": "benchmark/harbor/run_swebench.py",
+      "sha256": "7aeab69415327760e4f65e512dd3c19a055cee566cd49eeaec4f152d5c4ebb96"
+    },
+    {
+      "path": "benchmark/harbor/run_terminal.py",
+      "sha256": "a7cbd4e787febf3f65116209d7c48fcc2137a216d1c66ef91d23153e6b1b5e1b"
+    },
+    {
+      "path": "benchmark/harbor/snapshot.py",
+      "sha256": "05c7191ad8810a88324e24dd61f35f0894f5075876632bfc0a21391a860b62b2"
+    },
+    {
+      "path": "benchmark/harbor/summarize.py",
+      "sha256": "58ad4e476446d685a5839040869d8e7fa81bd929a4f739307d208a7697726f8a"
     },
     {
       "path": "forge/__init__.py",
@@ -145,7 +245,7 @@
     },
     {
       "path": "forge/engine/__main__.py",
-      "sha256": "34688d49ab3fb3a8fdb3f9e2474e24e5090ecf9d1397733cdec5db24b851f553"
+      "sha256": "38c3f32e07f6c54e500679b1a347a905cbbc6ce3d089b30c3691155d667f27c8"
     },
     {
       "path": "forge/engine/event_stream.py",

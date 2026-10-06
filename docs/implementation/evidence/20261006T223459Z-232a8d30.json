@@ -1,0 +1,38 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T223459Z-232a8d30",
+  "task_id": "F20",
+  "case_ids": [],
+  "suite": "benchmark-harbor",
+  "git_commit": "12da1f9ab8c021d89f99ae35f796fcde4352eed4",
+  "dirty_hash": "df16b9a3e48f2236455775548e9f38b79c4d55719019d0dcecd0cc6424ee4f56",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "91a33f47d9bd08f8b0feb426f2009797b2696185c1880e944f3bd831ca7240ea",
+    "release-lock.json": "c8563bbe6253b729fa6ec8c407dd5f9c3807b5bdf956a441968539b6cbd86af2"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\harbor_probe.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T223459Z-232a8d30\\harbor-probe.json"
+  ],
+  "start": "2026-10-06T22:34:59.664961+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-06T22:35:08.192882+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261006T223459Z-232a8d30/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T223459Z-232a8d30/stderr.log",
+  "report_ref": ".local/implementation/20261006T223459Z-232a8d30/harbor-probe.json",
+  "report_hash": "f9c6901610633da7645ad0a05659482179d88a65f8bfab512cc90cfb2efe7ea4",
+  "status": "blocked",
+  "tests": {
+    "reason": "Actual public tasks/configuration checked; Docker daemon, explicit model/budget approval and policy/spend reconciliation still required. No model, independent grader or native sandbox was run.",
+    "scope": "official-Harbor-public-smallset-configuration",
+    "checks": 3
+  }
+}

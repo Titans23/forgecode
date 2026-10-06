@@ -29,7 +29,8 @@ def main():
         'contracts': asset(ROOT / 'forge/application/_generated_contracts.json'),
         'locks': [asset(ROOT / name) for name in ('uv.lock', 'package-lock.json')],
         'engine_sources': [asset(path) for path in sorted([*(ROOT / 'forge').rglob('*'),
-            *(ROOT / 'benchmark/core').rglob('*'), ROOT / 'benchmark/__init__.py'])
+            *(ROOT / 'benchmark/core').rglob('*'), *(ROOT / 'benchmark/adapters').rglob('*'),
+            *(ROOT / 'benchmark/harbor').rglob('*'), ROOT / 'benchmark/__init__.py',ROOT / 'benchmark/catalog.py'])
             if path.is_file() and '__pycache__' not in path.parts and path.suffix in ('.py', '.json', '.sql', '.md')]}
     def inventory(path, value):
         encoded = (json.dumps(value, indent=2) + '\n').encode('utf-8')

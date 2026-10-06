@@ -24,7 +24,13 @@ def main(argv=None):
     parser.add_argument('--capture-mode',choices=('metadata','controlled_debug'),default='metadata')
     parser.add_argument('--otlp-endpoint')
     parser.add_argument('--export-metadata',action='store_true',help='Confirm outbound OTLP metadata export to the supplied endpoint')
+    parser.add_argument('--evaluation-benchmark',choices=('aider-polyglot','swe-bench-verified','terminal-bench-2'))
+    parser.add_argument('--evaluation-taskset',type=Path)
+    parser.add_argument('--evaluation-source',type=Path)
     args = parser.parse_args(argv)
+    if any((args.evaluation_benchmark,args.evaluation_taskset,args.evaluation_source)) and not all((args.evaluation_benchmark,args.evaluation_taskset,args.evaluation_source)):
+        print(json.dumps({'status':'invalid_configuration','reason':'Official evaluation needs benchmark, exact taskset and frozen source together'}),file=sys.stderr)
+        return 3
     if args.interactive_approvals and (args.profile != 'test' or args.principal != 'main'):
         print(json.dumps({'status': 'invalid_configuration', 'reason': 'interactive test approvals require a private Main test profile'}), file=sys.stderr)
         return 3
@@ -61,6 +67,11 @@ def main(argv=None):
                     mode=args.execution_mode, backend=LocalTrustedBackend() if args.execution_mode == 'local-trusted' else None,
                     model_client_factory=factory, task_relation='new' if factory else None,
                     approval_handler=scripted.approval_handler if scripted and not args.interactive_approvals else None,observation_options=observations)
+                if args.profile!='test':
+                    from benchmark.adapters.harbor import HarborAdapter, HarborExecutor
+                    adapter=HarborAdapter(args.evaluation_benchmark,taskset_root=args.evaluation_taskset,
+                        source_root=args.evaluation_source) if args.evaluation_benchmark else None
+                    service.evaluation_executor=HarborExecutor(service,adapter=adapter)
                 return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile, interactive_approvals=args.interactive_approvals), principal=args.principal).run(input_descriptor, output_descriptor))
     except Exception as error:
         print(json.dumps({'status': 'blocked', 'exception_type': type(error).__name__,

@@ -1,6 +1,16 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F19；下一 F20（任务卡、第 17／19 章和实际 Harbor 0.18.0 源码已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F20；下一 F21（任务卡、第 18 章、bundle 契约和实际 Store / report / metrics 已读）。原生平台验收独立 blocked。
+- F20 测试父 HEAD 12da1f9ab8c021d89f99ae35f796fcde4352eed4；提交／推送 SHA 以实际 git HEAD 核对。
+  unit 142 / portable 196 / regression 1082，0 skip；Windows 10 development Electron 44 checks pass。
+  最终证据 20261006T222943Z-40ff0fc5 / 20261006T222959Z-e4a89567 / 20261006T223421Z-c303888f / 20261006T223450Z-81b1e3a6 / 20261006T223450Z-f696f399 / 20261006T223455Z-d454cccc / 20261006T223459Z-232a8d30 / 20261006T223508Z-0c033e57。
+  final dirty df16b9a3e48f2236455775548e9f38b79c4d55719019d0dcecd0cc6424ee4f56。
+  真实官方 Harbor adapter / owned process / immutable grade / patch cache key；冻结 Harness 无额外 repair 或 Harbor retry。
+  actual Aider Polyglot 1.0 三题来源 commit f30b14415dd733c83627204bad0af69a89ceb46f，官方 --print-config 3 checks pass；整体 probe blocked，0 model calls / 0 grades。
+  Harbor 0.18.0 / Docker client 29.7.2，Linux daemon 缺失；不自动启动管理员服务。Paid approval / F30 spend / native policy reconciliation 仍 blocked。
+  packed / native Linux / native Windows 各 blocked 0 checks；生产 executor 不降级、不调用未授权模型；远端 raw journals 不投影可信费用账本。
+  F21 实施安全 ZIP quotas / staging / provenance / 原始与脱敏证据 / 原生 profile artifact 归属；导入命名空间只读，离线报告不执行脚本。
+- F19 已推送 12da1f9ab8c021d89f99ae35f796fcde4352eed4，远端 HEAD 已核对；F20 当前实施中。
 - F19 测试父 HEAD fdbcf50047d290d6c765aaa8ac7b5da77b26b95c；提交／推送 SHA 以实际 git HEAD 核对。
   unit 142 / portable 184 / regression 1070，0 skip；Windows 10 development Electron 44 checks pass。
   最终证据 20261006T215137Z-955dfd02 / 20261006T215153Z-20c452df / 20261006T215603Z-bc7852d1 / 20261006T215634Z-245af063 / 20261006T215634Z-fca4984d / 20261006T215639Z-7dfab335 / 20261006T215643Z-b64762b3。

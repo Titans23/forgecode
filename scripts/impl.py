@@ -42,11 +42,13 @@ SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
           'regression': ['tests'], 'packaged': [],
           'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
+SUITES['benchmark-harbor']=[]
 TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F15': ['unit', 'portable', 'desktop', 'desktop-packaged']}
 TASK_SUITES['F16'] = ['unit', 'portable', 'desktop', 'desktop-packaged']
 TASK_SUITES['F17'] = ['unit', 'portable']
 TASK_SUITES['F18'] = ['unit', 'portable']
 TASK_SUITES['F19'] = ['unit', 'portable']
+TASK_SUITES['F20'] = ['unit', 'portable','benchmark-harbor']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -73,6 +75,7 @@ CASE_TESTS.update({case: ['tests/implementation/unit/test_observability.py',
     'tests/implementation/integration/test_observation_views.py'] for case in ('O01','O02','O03','O05','N13')})
 CASE_TESTS.update({case:['tests/implementation/unit/test_evaluation_metrics.py',
     'tests/implementation/integration/test_evaluations.py'] for case in ('O08','O09','D24','N14')})
+CASE_TESTS['D37']=['tests/implementation/integration/test_benchmark_adapters.py']
 
 
 class Parser(argparse.ArgumentParser):
@@ -225,7 +228,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
     native = suite in ('sandbox-linux', 'sandbox-windows')
-    report_path = output / (f'native-{suite.removeprefix("sandbox-")}.json' if native else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
+    report_path = output / (f'native-{suite.removeprefix("sandbox-")}.json' if native else 'harbor-probe.json' if suite=='benchmark-harbor' else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
     unavailable = SUITES[suite] is None
     if unavailable:
         argv = []
@@ -237,6 +240,8 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_smoke.py'), '--output', str(report_path)]
     elif suite == 'desktop-packaged':
         argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_packaged_smoke.py'), '--output', str(report_path)]
+    elif suite=='benchmark-harbor':
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/harbor_probe.py'),'--output',str(report_path)]
     else:
         argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
                 '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
@@ -284,7 +289,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                 stderr.write('Verification exceeded 900 seconds.\n')
     if unavailable:
         status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
-    elif (suite in ('packaged', 'desktop', 'desktop-packaged') or native) and report_path.is_file():
+    elif (suite in ('packaged', 'desktop', 'desktop-packaged','benchmark-harbor') or native) and report_path.is_file():
         result_report = json.loads(report_path.read_text(encoding='utf-8'))
         status = result_report['status']
         counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status', 'scope', 'eligible_for_native_pass') if key in result_report}

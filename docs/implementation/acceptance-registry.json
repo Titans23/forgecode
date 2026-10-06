@@ -2584,8 +2584,10 @@
       "title": "Windows 选择 Linux-only benchmark 或远端失联",
       "source": "V3",
       "baseline_expectation": "本机启动被拒绝，不偷偷换平台或重复重跑",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_benchmark_adapters.py"
+      ],
+      "status": "blocked",
       "owner_task": "F20",
       "required_platforms": [
         "windows"
@@ -2593,8 +2595,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T223455Z-d454cccc"
+          ],
+          "reason": "Windows 11 native runner unavailable, zero checks; actual Windows 10 portable test rejects Windows-native selection of Linux-only official task."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T222959Z-e4a89567"
+          ],
+          "reason": "Real runner exit/reward separation, immutable config, no native downgrade or unauthorized model request; official public source/config checked separately."
         }
       }
     },
