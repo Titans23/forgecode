@@ -41,8 +41,8 @@ SYMBOLS = {
 SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
           'regression': ['tests'], 'packaged': [],
-          'sandbox-linux': None, 'sandbox-windows': None, 'desktop': None, 'live-eval': None}
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable']}
+          'sandbox-linux': [], 'sandbox-windows': None, 'desktop': None, 'live-eval': None}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux']}
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -50,7 +50,8 @@ CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
               'N06': ['tests/implementation/integration/test_storage.py'],
               **{case: ['tests/implementation/integration/test_rpc.py'] for case in ('O07', 'D04', 'D07', 'D09', 'D10', 'N01', 'N03')},
               **{case: ['tests/implementation/unit/test_policy.py', 'tests/implementation/integration/test_policy_service.py'] for case in ('C06', 'C24', 'N08')},
-              **{case: ['tests/implementation/unit/test_bridge_launcher.py', 'tests/implementation/integration/test_bridge.py'] for case in ('C07', 'C08', 'C09', 'C16', 'C17', 'D13', 'N05')}}
+              **{case: ['tests/implementation/unit/test_bridge_launcher.py', 'tests/implementation/integration/test_bridge.py'] for case in ('C07', 'C08', 'C09', 'C16', 'C17', 'D13', 'N05')},
+              **{case: ['tests/implementation/native/linux/verify_linux.py'] for case in ('C10', 'C11', 'C12')}}
 
 
 class Parser(argparse.ArgumentParser):
@@ -202,18 +203,21 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     evidence_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid4().hex[:8]
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
-    report_path = output / ('build-smoke.json' if suite == 'packaged' else 'junit.xml')
+    native = suite == 'sandbox-linux'
+    report_path = output / ('native-linux.json' if native else 'build-smoke.json' if suite == 'packaged' else 'junit.xml')
     unavailable = SUITES[suite] is None
     if unavailable:
         argv = []
     elif suite == 'packaged':
         argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
+    elif native:
+        argv = [sys.executable, '-X', 'utf8', '-m', 'forge.sandbox.doctor', '--native-linux', '--output', str(report_path)]
     else:
         argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
                 '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
     started = datetime.now(timezone.utc).isoformat()
     preparation_commands = []
-    if suite in ('portable', 'regression'):
+    if suite in ('portable', 'regression', 'sandbox-linux'):
         node = shutil.which('node')
         if node:
             preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
@@ -250,20 +254,24 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                 stderr.write('Verification exceeded 900 seconds.\n')
     if unavailable:
         status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
-    elif suite == 'packaged' and report_path.is_file():
+    elif (suite == 'packaged' or native) and report_path.is_file():
         result_report = json.loads(report_path.read_text(encoding='utf-8'))
         status = result_report['status']
         counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status') if key in result_report}
         counts['checks'] = len(result_report.get('checks', []))
         if status == 'pass' and (exit_code != 0 or not counts['checks']):
             status = 'fail'
+        if native and status == 'pass' and (result_report.get('eligible_for_native_pass') is not True or
+                any(check.get('status') != 'pass' for check in result_report.get('checks', []))):
+            status = 'fail'
     else:
         status, counts = pytest_outcome(exit_code, report_path)
     lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
     evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
-                'task_id': task_id, 'case_ids': [case for case, refs in CASE_TESTS.items()
-                    if suite not in ('packaged',) and SUITES[suite] and any(any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)],
+                'task_id': task_id, 'case_ids': ['C10', 'C11', 'C12'] if native else [case for case, refs in CASE_TESTS.items()
+                    if suite not in ('packaged',) and SUITES[suite] and any(Path(ref).name.startswith('test_') and
+                        any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)],
                 'suite': suite, 'git_commit': head,
                 'dirty_hash': dirty_hash, 'platform': sys.platform, 'os_build': platform.platform(),
                 'dependency_lock_hash': lock_hashes, 'command': argv, 'start': started,

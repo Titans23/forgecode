@@ -439,11 +439,18 @@
         "不通过禁用 AppArmor／Electron sandbox 凑通过。"
       ],
       "verification_suites": [
+        "unit",
+        "portable",
         "sandbox-linux"
       ],
       "non_goals": "不宣称 cgroup 等未实现的资源能力，不修改全局 sysctl。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T125123Z-88d982fc",
+        "20261006T125133Z-3780e12c",
+        "20261006T125256Z-c6d9de11",
+        "20261006T125856Z-b7b52c5d"
+      ],
       "case_ids": [
         "C10",
         "C11",

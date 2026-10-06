@@ -5638,6 +5638,10 @@
       "sha256": "6fb96d0bbfa5c245a4f8d50c9e8626c871f155a6399925470f940105a7761136"
     },
     {
+      "path": "sandbox_bridge/dist/linux-ownership.js",
+      "sha256": "0c7fbce0dc38859a59bdb67c771ab565d7f36abea7cccedf2544f9c437fa77eb"
+    },
+    {
       "path": "sandbox_bridge/dist/main.js",
       "sha256": "37e0a072880583a6cdf22d4f3102b4a9706f78208e1223b1d0c54f8a20ba0046"
     },
@@ -5647,7 +5651,11 @@
     },
     {
       "path": "sandbox_bridge/dist/srt-adapter.js",
-      "sha256": "50caa54a0a3af6abd449321f54c4dfa4da31653ed3f8c6667bf719ef826127c8"
+      "sha256": "818028729ba8a17d1c5b68b44155b4a8311b14db2c4ebd94fa675e5ec7d382b4"
+    },
+    {
+      "path": "sandbox_bridge/dist/verify-linux.js",
+      "sha256": "2e59af4e4e29b9ac10936785e2cb05175fbe93df6af86138c6b45c6da0014ae1"
     },
     {
       "path": "sandbox_bridge/package.json",

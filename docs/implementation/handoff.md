@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00—F08；下一任务 F09（任务卡、第 11—12 章已读）。
+- 当前代码完成 F00—F09；下一任务 F10（任务卡、第 12 / 20 章已读）。原生平台验收独立 blocked。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -120,3 +120,19 @@
 - 构建命令 python scripts/build_bridge.py；校验 --check，inventory 不能在测试中自修复。
   packages/contracts 和 sandbox_bridge 编译强制 LF，相关资产清单固定 LF。
   Windows 11/Ubuntu 原生、动态 .env、权限/后代清理和真实模型实验仍 blocked；GHSA 保持。
+- F08 已推送 0cabc1873caa83bdb096f4532a4c5707196aa736。
+- F09 新增只读系统/项目 Doctor、固定 bwrap 真实前提探针、受控 Linux native fixture、
+  namespace/start tick/父子链绑定的保守取消；不按名称或孤立 PID 杀进程。
+  真实 canary 包括动态 .env、外部合成文件、代理变量删除、直连、Unix socket、嵌套进程。
+  动态敏感路径若可读必须 fail；SRT 初始化后 session cleanup 仍 unknown，不制造 verified。
+- F09 unit 110 / portable 60 / regression 910 pass，0 skip：
+  20261006T125123Z-88d982fc / 20261006T125133Z-3780e12c / 20261006T125856Z-b7b52c5d。
+  sandbox-linux 真实入口 blocked / 0 checks，20261006T125256Z-c6d9de11；Windows 10
+  不满足 Ubuntu 22.04/24.04，doctor exit 2、task 聚合 exit 1。不是空集合 pass。
+  早一轮回归误把非 test_ 的 native verifier 路径纳入 case_ids；已修复并重跑，旧证据保留。
+- Ubuntu 内核/隔离、C10 显式受控公共 HTTP endpoint、F12/F25 完整 session cleanup 尚缺。
+  当前 runtime inventory 1415 文件；构建和 --check 均成功。F09 验收后提交/push。
+- F10 已审计实际 srt-win --help 与上游 install/status/ACL API：诊断只读，install 真 UAC；
+  重复 install 可能更新共用用户凭据，不能把 repair 当无影响动作；不得自动 uninstall /
+  force / acl recover。现无只读共享 ACL holder 列表，未知共享活动需保守阻断。
+  此审计没有执行管理员 setup，没有 Windows 11 原生通过证据；F10 尚未写代码。

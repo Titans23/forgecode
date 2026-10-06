@@ -281,8 +281,10 @@
       "title": "代理允许目标可达",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/linux/verify_linux.py"
+      ],
+      "status": "blocked",
       "owner_task": "F09",
       "required_platforms": [
         "windows",
@@ -291,12 +293,16 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 11 acceptance unavailable; F10 native verifier pending."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T125256Z-c6d9de11"
+          ],
+          "reason": "Actual verifier ran on Windows 10: unsupported Ubuntu platform, zero native checks. Ubuntu 22.04/24.04 and C10 authorized controlled endpoint remain unavailable."
         }
       }
     },
@@ -305,8 +311,10 @@
       "title": "非允许目标由声明的边界阻断",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/linux/verify_linux.py"
+      ],
+      "status": "blocked",
       "owner_task": "F09",
       "required_platforms": [
         "windows",
@@ -315,12 +323,16 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 11 acceptance unavailable; F10 native verifier pending."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T125256Z-c6d9de11"
+          ],
+          "reason": "Actual verifier ran on Windows 10: unsupported Ubuntu platform, zero native checks. Ubuntu 22.04/24.04 and C10 authorized controlled endpoint remain unavailable."
         }
       }
     },
@@ -329,8 +341,10 @@
       "title": "移除代理变量不能绕过声明的直连约束",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/linux/verify_linux.py"
+      ],
+      "status": "blocked",
       "owner_task": "F09",
       "required_platforms": [
         "windows",
@@ -339,12 +353,16 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 11 acceptance unavailable; F10 native verifier pending."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T125256Z-c6d9de11"
+          ],
+          "reason": "Actual verifier ran on Windows 10: unsupported Ubuntu platform, zero native checks. Ubuntu 22.04/24.04 and C10 authorized controlled endpoint remain unavailable."
         }
       }
     },

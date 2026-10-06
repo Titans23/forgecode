@@ -1,6 +1,7 @@
 import { ContractError, canonicalHash } from '@forgecode/contracts';
 import type { ChildProcess } from 'node:child_process';
 import { OutputCapture } from './output.js';
+import type { LinuxExecutionOwner } from './linux-ownership.js';
 
 export interface Execution {
   hash: string;
@@ -14,6 +15,7 @@ export interface Execution {
   resolve: () => void;
   timer?: NodeJS.Timeout;
   cancellation?: Record<string, any>;
+  linuxOwner?: LinuxExecutionOwner;
 }
 
 /** A duplicate never launches again, including a launch whose outcome became unknown. */

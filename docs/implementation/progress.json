@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "0a3c03f6f5e88e50595b1c8c78fca311f4c6c247",
-  "next_recommended_task": "F09",
-  "current_task": "F09",
+  "actual_repository_head": "0cabc1873caa83bdb096f4532a4c5707196aa736",
+  "next_recommended_task": "F10",
+  "current_task": "F10",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -85,12 +85,26 @@
       ]
     },
     "F09": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "sandbox-linux": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "typecheck": "pass",
+        "sandbox-linux": "blocked",
+        "ubuntu_22_04": "blocked",
+        "ubuntu_24_04": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261006T125123Z-88d982fc",
+        "20261006T125133Z-3780e12c",
+        "20261006T125256Z-c6d9de11",
+        "20261006T125856Z-b7b52c5d"
+      ],
+      "blocked_reasons": [
+        "Actual Windows 10 diagnosis/native verifier returned blocked with zero native checks. Ubuntu 22.04/24.04 runners unavailable. Namespace ownership code has parser/compile coverage only; no kernel isolation/cleanup pass claimed.",
+        "C10 needs an explicitly authorized controlled public HTTP canary endpoint. Full session cleanup awaits F12/F25; dynamic sensitive-file enforcement remains unverified and its real canary must fail if readable."
+      ]
     },
     "F10": {
       "implementation_status": "todo",

@@ -94,7 +94,8 @@ def test_actual_launcher_ignores_inherited_node_loader_and_proxy(tmp_path, monke
 
 def test_real_dispatcher_and_output_transport_without_os_sandbox_claim():
     runtime = verify_runtime()
-    result = subprocess.run([str(runtime.node), '--test', '--test-reporter=tap', 'tests/implementation/node/bridge.test.mjs'],
+    result = subprocess.run([str(runtime.node), '--test', '--test-reporter=tap', 'tests/implementation/node/bridge.test.mjs',
+                             'tests/implementation/node/linux-ownership.test.mjs'],
         cwd=runtime.root, env=bridge_environment(runtime.root / '.local'), capture_output=True,
         encoding='utf-8', timeout=45)
     assert result.returncode == 0, result.stdout + result.stderr

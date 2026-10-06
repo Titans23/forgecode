@@ -8,6 +8,7 @@ import { checkWindowsSandboxStatusAsync } from '@anthropic-ai/sandbox-runtime/di
 import { checkLinuxDependencies } from '@anthropic-ai/sandbox-runtime/dist/sandbox/linux-sandbox-utils.js';
 import { ContractError, canonicalHash, validate } from '@forgecode/contracts';
 import { Executions } from './executions.js';
+import { LinuxExecutionOwner } from './linux-ownership.js';
 
 const FEATURES = ['read_isolation', 'write_isolation', 'direct_network_isolation', 'dns_isolation',
   'socket_isolation', 'process_cleanup', 'memory', 'disk', 'pids'];
@@ -44,6 +45,7 @@ export class SrtAdapter {
   private preparingHash?: string;
   private closing?: Promise<any>;
   private initialized = false;
+  private nativePolicy?: any;
   private launchAttempted = false;
   private sessionOutputBytes = 0;
   readonly executions: Executions;
@@ -53,7 +55,7 @@ export class SrtAdapter {
     readonly assets: Record<string, string>, emit: (value: Record<string, unknown>) => boolean) {
     this.executions = new Executions(owner, value => {
       const size = Buffer.byteLength(value.raw_base64 as string, 'base64');
-      if (this.sessionOutputBytes + size > (this.preparation?.policy.limits.session_artifact_bytes ?? 0)) return false;
+      if (this.sessionOutputBytes + size > (this.nativePolicy?.limits.session_artifact_bytes ?? 0)) return false;
       if (!emit(value)) return false;
       this.sessionOutputBytes += size;
       return true;
@@ -162,6 +164,7 @@ export class SrtAdapter {
    */
   async initializeNative(policy: any): Promise<void> {
     validate('sandbox-policy', policy);
+    if (this.initialized) throw new ContractError('Native initialization is single-use; create a new session', 'POLICY_DENIED', -32010);
     if (!this.workspace || !this.capabilities || this.capabilities.readiness !== 'ready') {
       throw new ContractError('Native prerequisites are unavailable', 'SANDBOX_UNAVAILABLE', -32010);
     }
@@ -177,7 +180,10 @@ export class SrtAdapter {
       throw new ContractError('Policy writes exceed the bound workspace', 'POLICY_DENIED', -32010);
     }
     this.initialized = true; // Any partial initialization requires actual reset and an unknown cleanup result.
-    try { await SandboxManager.initialize(this.nativeConfig(policy), async () => false, false); }
+    try {
+      await SandboxManager.initialize(this.nativeConfig(policy), async () => false, false);
+      this.nativePolicy = structuredClone(policy);
+    }
     catch (error) { throw mapSrtError(error); }
   }
 
@@ -188,8 +194,20 @@ export class SrtAdapter {
       return this.executions.handle(params.execution_id, true);
     }
     if (!this.preparation || this.closing) throw new ContractError('No executable prepared session', 'SANDBOX_UNAVAILABLE', -32010);
+    return this.executeNative(params);
+  }
+
+  /** Used only by the controlled native verifier after actual SRT initialize; never exposed over RPC. */
+  async executeNative(params: any): Promise<any> {
+    validate('bridge.execute.request', params);
+    if (!this.initialized || !this.nativePolicy || this.closing) throw new ContractError('No initialized native session', 'SANDBOX_UNAVAILABLE', -32010);
+    if (params.sandbox_session_id !== this.owner.sandbox_session_id) throw new ContractError('Session ownership mismatch', 'POLICY_DENIED', -32010);
+    if (this.executions.values.has(params.execution_id)) {
+      this.executions.accept(params.execution_id, params.command, params.command_hash);
+      return this.executions.handle(params.execution_id, true);
+    }
     const command = params.command;
-    const policy = this.preparation.policy;
+    const policy = this.nativePolicy;
     const cwd = await realpath(command.cwd);
     const info = await stat(this.workspace!.path);
     if (`${info.dev}:${info.ino}` !== this.workspace!.identity || !inside(this.workspace!.path, cwd)) throw new ContractError('Workspace identity/cwd changed', 'POLICY_DENIED', -32010);
@@ -227,6 +245,10 @@ export class SrtAdapter {
         e.resolve();
       });
       e.timer = setTimeout(() => { void this.cancel({ execution_id: params.execution_id, reason: 'deadline', deadline_utc: new Date(Date.now() + 3000).toISOString() }); }, remaining);
+      if (process.platform === 'linux') {
+        e.linuxOwner = new LinuxExecutionOwner(child, e.owner);
+        await e.linuxOwner.start();
+      }
       return this.executions.handle(params.execution_id);
     } catch (error) {
       e.state = 'indeterminate'; e.resolve();
@@ -256,8 +278,8 @@ export class SrtAdapter {
       }
     }
     e.state = e.state === 'finished' ? 'finished' : 'indeterminate';
-    const cleanup = this.cleanup(e.owner, false);
-    e.cancellation = { execution_id: params.execution_id, confirmed: false, cleanup };
+    const cleanup = e.linuxOwner ? await e.linuxOwner.cleanup() : this.cleanup(e.owner, false);
+    e.cancellation = { execution_id: params.execution_id, confirmed: cleanup.state === 'clean', cleanup };
     return structuredClone(e.cancellation);
   }
 
@@ -274,6 +296,7 @@ export class SrtAdapter {
       for (const [id, e] of this.executions.values) if (e.state === 'running' || e.state === 'accepted') {
         await this.cancel({ execution_id: id, reason: 'session-close', deadline_utc: new Date(Date.now() + 3000).toISOString() });
       }
+      for (const e of this.executions.values.values()) e.linuxOwner?.stop();
       if (this.initialized) {
         try { await SandboxManager.reset(); } catch { throw new ContractError('SRT reset failed; cleanup is unknown', 'CLEANUP_FAILED', -32010); }
       }
