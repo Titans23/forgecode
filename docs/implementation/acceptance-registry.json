@@ -1348,8 +1348,11 @@
       "title": "改变产物后产生新评分身份，报告可从原始记录重算",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bundles.py",
+        "tests/implementation/integration/test_benchmark_adapters.py::test_real_process_and_independent_grader_keep_three_axes"
+      ],
+      "status": "pass",
       "owner_task": "F21",
       "required_platforms": [
         "portable"
@@ -1357,8 +1360,11 @@
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T231438Z-2fe8c473",
+            "20261006T231943Z-2e15c738"
+          ]
         }
       }
     },
@@ -3094,13 +3100,18 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T231438Z-2fe8c473",
+            "20261006T231943Z-2e15c738"
+          ]
         }
       }
     },
@@ -3112,13 +3123,18 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T231438Z-2fe8c473",
+            "20261006T231943Z-2e15c738"
+          ]
         }
       }
     },

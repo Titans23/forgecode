@@ -3994,6 +3994,73 @@
         "preview_only",
         "reason"
       ]
+    },
+    "bundle.prepare_import.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32768
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "bundle.prepare_import.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_token": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 1024
+        }
+      },
+      "required": [
+        "source_token"
+      ]
+    },
+    "bundle.prepare_export.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32768
+        },
+        "scope": {
+          "$ref": "urn:forgecode:contracts:v1:scope"
+        },
+        "classification": {
+          "enum": [
+            "metadata_only",
+            "redacted_artifacts"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "scope",
+        "classification"
+      ]
+    },
+    "bundle.prepare_export.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "destination_token": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 1024
+        }
+      },
+      "required": [
+        "destination_token"
+      ]
     }
   }
 }

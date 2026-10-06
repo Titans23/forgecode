@@ -858,7 +858,8 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "service_transaction_before_response",
       "idempotency_key": "client_action_id",
@@ -866,10 +867,11 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ]
     },
     "bundle.import": {
@@ -882,7 +884,10 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "EVENT_CONFLICT",
+        "MANIFEST_MISMATCH",
+        "ARTIFACT_LIMIT"
       ],
       "commit_point": "service_transaction_before_response",
       "idempotency_key": "client_action_id",
@@ -890,10 +895,11 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ]
     },
     "artifact.describe": {
@@ -904,7 +910,8 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "MANIFEST_MISMATCH"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -912,10 +919,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ]
     },
     "artifact.read_chunk": {
@@ -926,7 +934,8 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "MANIFEST_MISMATCH"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -934,10 +943,11 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ]
     },
     "diagnostics.run": {
@@ -1441,6 +1451,52 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/integration/test_workspace_views.py"
+      ]
+    },
+    "bundle.prepare_import": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "bundle.prepare_import.request",
+      "result_schema": "bundle.prepare_import.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "bundle.prepare_export": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "bundle.prepare_export.request",
+      "result_schema": "bundle.prepare_export.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bundles.py"
       ]
     }
   }

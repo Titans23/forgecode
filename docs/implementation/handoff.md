@@ -1,6 +1,16 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F20；下一 F21（任务卡、第 18 章、bundle 契约和实际 Store / report / metrics 已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F21；下一 F22（任务卡、第 13—15 章与真实 Harness / UI / RPC 已读）。原生平台验收独立 blocked。
+- F20 已推送 f9574492088892b88da3362b37a44b6c81687e37；F21 提交／推送 SHA 以实际 git HEAD 和远端核对。
+- F21：安全 ZIP / private staging / 原始包与冲突隔离 / imported_* 只读表 / profile artifact / Main-only file token / offline report 已实现。
+  unit 142 / portable 231 / regression 1117，0 skip；Windows 10 development Electron 44 checks pass。
+  最终 evidence 20261006T231423Z-a85f0301 / 20261006T231438Z-2fe8c473 / 20261006T231905Z-de0f6db7 / 20261006T231934Z-9be0bef8 / 20261006T231934Z-6330ec21 / 20261006T231939Z-2971b33e / 20261006T231943Z-2e15c738。
+  final dirty 528cd116b097af4ccb7ca6215d4c9a76f2e485e69e4df3c0f2f72afba81d6440，测试父 HEAD f9574492088892b88da3362b37a44b6c81687e37。
+  35 项新增行为使用真实文件 / SQLite / RPC；静态手算 synthetic ZIP 为 4 planned / 5 attempts，不是真实模型成绩。
+  schema 010 自动备份与旧产物归属回填；原始包 exact bytes 保留，Renderer 不可读原始 private bundle。
+  首次 portable 230 pass / 1 fail：旧 F18 fixture 伪降 schema 7 遗留 artifact_profiles；改真实旧 schema 构造后完整重验通过。失败 evidence 保留；已中断旧回归不计 pass。
+  packed / native Linux / native Windows 各 blocked 0 checks；原生 file dialog 接线留 F23，无 paid model / Docker / native sandbox 调用。
+- F22 待实现：真实 execution ID 工具导航、Trace 树／瀑布、stdout/stderr 安全懒加载、上下文版本、证据扫描版本差异、请求账本质量与客户端／Harness 分离时延。
 - F20 测试父 HEAD 12da1f9ab8c021d89f99ae35f796fcde4352eed4；提交／推送 SHA 以实际 git HEAD 核对。
   unit 142 / portable 196 / regression 1082，0 skip；Windows 10 development Electron 44 checks pass。
   最终证据 20261006T222943Z-40ff0fc5 / 20261006T222959Z-e4a89567 / 20261006T223421Z-c303888f / 20261006T223450Z-81b1e3a6 / 20261006T223450Z-f696f399 / 20261006T223455Z-d454cccc / 20261006T223459Z-232a8d30 / 20261006T223508Z-0c033e57。

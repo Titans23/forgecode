@@ -469,7 +469,8 @@ class Store:
             self.connection.execute("UPDATE work_items SET state='finished',version=version+1 WHERE id=?", (work_item_id,))
 
     def publish_artifact(self, content: bytes, *, origin, classification, max_bytes=104857600,
-                         attempt_id=None, max_attempt_bytes=1073741824, max_diagnostic_bytes=209715200):
+                         attempt_id=None, max_attempt_bytes=1073741824, max_diagnostic_bytes=209715200,
+                         profile_id=None, media_type='application/json', redaction_version='metadata-v1'):
         if self.read_only:
             raise ContractError('Read-only diagnostic mode cannot publish artifacts', kind='INCOMPATIBLE_PROTOCOL', code=-32010)
         if len(content) > max_bytes:
@@ -505,6 +506,12 @@ class Store:
                     (artifact_id, relative, sha256(content).hexdigest(), len(content), origin, classification))
                 if attempt_id:
                     self.connection.execute('INSERT INTO artifact_attempts VALUES(?,?)', (artifact_id, attempt_id))
+                    owner=self.connection.execute('SELECT d.profile_id FROM attempts a JOIN trials t ON t.id=a.trial_id JOIN run_details d ON d.run_id=t.run_id WHERE a.id=?',(attempt_id,)).fetchone()
+                    if owner:
+                        if profile_id is not None and profile_id!=owner[0]: raise ContractError('Artifact profile differs from attempt owner')
+                        profile_id=owner[0]
+                if profile_id is not None:
+                    self.connection.execute('INSERT INTO artifact_profiles VALUES(?,?,?,?)',(artifact_id,profile_id,media_type,redaction_version))
             return dict(self.connection.execute('SELECT * FROM artifacts WHERE id=?', (artifact_id,)).fetchone())
         except BaseException:
             # A failure after rename can leave an unreferenced object. Never delete a

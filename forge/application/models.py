@@ -55,11 +55,11 @@ def _check_tree(value, depth=0):
         raise ContractError('Unsupported JSON value')
 
 
-def strict_loads(raw: str | bytes):
+def strict_loads(raw: str | bytes, *, max_bytes=MAX_FRAME_BYTES):
     try:
         encoded = raw.encode('utf-8', errors='strict') if isinstance(raw, str) else raw
-        if len(encoded) > MAX_FRAME_BYTES:
-            raise ContractError('JSON frame exceeds 1 MiB')
+        if len(encoded) > max_bytes:
+            raise ContractError('JSON exceeds the byte limit')
         text = encoded.decode('utf-8', errors='strict')
         # Bound nesting before the platform parser can recurse. Quoted brackets do not count.
         depth, quoted, escaped = 0, False, False

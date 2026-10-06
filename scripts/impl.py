@@ -49,6 +49,7 @@ TASK_SUITES['F17'] = ['unit', 'portable']
 TASK_SUITES['F18'] = ['unit', 'portable']
 TASK_SUITES['F19'] = ['unit', 'portable']
 TASK_SUITES['F20'] = ['unit', 'portable','benchmark-harbor']
+TASK_SUITES['F21'] = ['unit', 'portable']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -76,6 +77,7 @@ CASE_TESTS.update({case: ['tests/implementation/unit/test_observability.py',
 CASE_TESTS.update({case:['tests/implementation/unit/test_evaluation_metrics.py',
     'tests/implementation/integration/test_evaluations.py'] for case in ('O08','O09','D24','N14')})
 CASE_TESTS['D37']=['tests/implementation/integration/test_benchmark_adapters.py']
+CASE_TESTS.update({case:['tests/implementation/integration/test_bundles.py'] for case in ('O10','N15','N16')})
 
 
 class Parser(argparse.ArgumentParser):

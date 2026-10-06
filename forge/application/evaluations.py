@@ -130,6 +130,8 @@ class EvaluationService:
         return self._mutate('evaluation.retry', params, retry)
 
     def report_data(self, run_id):
+        imported=self.store.connection.execute('SELECT report_json FROM imported_runs WHERE id=? AND profile_id=?',(run_id,self.service.profile_id)).fetchone()
+        if imported: return json.loads(imported[0])
         run = self.run(run_id)
         trials = [dict(r) for r in self.store.connection.execute('SELECT * FROM trials WHERE run_id=? ORDER BY rowid', (run_id,))]
         attempts = [dict(r) for r in self.store.connection.execute('SELECT a.*,d.agent_outcome,d.owner_epoch,d.terminal_reason,d.trace_id,d.span_id,d.elapsed_ns,d.authoritative_grade_id,'
@@ -169,14 +171,19 @@ class EvaluationService:
 
     def report(self, params):
         data = self.report_data(params['run_id'])
-        artifact = self.store.publish_artifact(encoded(data).encode('utf-8'), origin='trusted_engine', classification='metadata', max_bytes=10485760)
+        artifact = self.store.publish_artifact(encoded(data).encode('utf-8'), origin='trusted_engine', classification='metadata', max_bytes=10485760, profile_id=self.service.profile_id)
         return {'run_id': params['run_id'], 'report_artifact': artifact_view(artifact), 'missing_evidence': data['missing_evidence'][:10000]}
 
     def compare(self, params):
-        runs = [self.run(identity) for identity in params['run_ids']]
+        runs=[];unverified=[]
+        for index,identity in enumerate(params['run_ids']):
+            imported=self.store.connection.execute('SELECT spec_json FROM imported_runs WHERE id=? AND profile_id=?',(identity,self.service.profile_id)).fetchone()
+            if imported: runs.append({'id':identity,'spec_json':imported[0]});unverified.append(f'run[{index}].unverified_origin')
+            else: runs.append(self.run(identity))
         result = compare_specs([json.loads(run['spec_json']) for run in runs])
+        if unverified: result={'comparable':False,'differences':(result['differences']+unverified)[:100]}
         data = {'schema_version': 'forge.eval.comparison.v1', 'protocol': params['protocol'], **result,
             'runs': [self.report_data(run['id']) for run in runs], 'effect_estimate': None,
             'uncertainty': 'No statistical improvement inferred; repeated trials require task-clustered analysis.'}
-        artifact = self.store.publish_artifact(encoded(data).encode('utf-8'), origin='trusted_engine', classification='metadata', max_bytes=10485760)
+        artifact = self.store.publish_artifact(encoded(data).encode('utf-8'), origin='trusted_engine', classification='metadata', max_bytes=10485760, profile_id=self.service.profile_id)
         return {**result, 'report_artifact': artifact_view(artifact)}

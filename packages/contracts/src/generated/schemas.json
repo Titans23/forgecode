@@ -462,10 +462,11 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "MANIFEST_MISMATCH"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -473,7 +474,8 @@
       "result_schema": "artifact.describe.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -484,10 +486,11 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "MANIFEST_MISMATCH"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -495,7 +498,8 @@
       "result_schema": "artifact.read_chunk.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -508,10 +512,11 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -519,7 +524,8 @@
       "result_schema": "bundle.export.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ],
       "timeout_query": "action.get"
     },
@@ -532,10 +538,13 @@
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "EVENT_CONFLICT",
+        "MANIFEST_MISMATCH",
+        "ARTIFACT_LIMIT"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -543,9 +552,56 @@
       "result_schema": "bundle.import.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
       ],
       "timeout_query": "action.get"
+    },
+    "bundle.prepare_export": {
+      "audience": "main",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "bundle.prepare_export.request",
+      "result_schema": "bundle.prepare_export.result",
+      "test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "bundle.prepare_import": {
+      "audience": "main",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "bundle.prepare_import.request",
+      "result_schema": "bundle.prepare_import.result",
+      "test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "timeout_query": "repeat_read"
     },
     "connection.delete": {
       "audience": "main",
@@ -2706,6 +2762,26 @@
     "bundle.import.result": {
       "$id": "urn:forgecode:contracts:v1:bundle.import.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/bundle.import.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "bundle.prepare_export.request": {
+      "$id": "urn:forgecode:contracts:v1:bundle.prepare_export.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/bundle.prepare_export.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "bundle.prepare_export.result": {
+      "$id": "urn:forgecode:contracts:v1:bundle.prepare_export.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/bundle.prepare_export.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "bundle.prepare_import.request": {
+      "$id": "urn:forgecode:contracts:v1:bundle.prepare_import.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/bundle.prepare_import.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "bundle.prepare_import.result": {
+      "$id": "urn:forgecode:contracts:v1:bundle.prepare_import.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/bundle.prepare_import.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "business-error": {
@@ -8553,6 +8629,73 @@
             "origin",
             "run_ids",
             "reused_existing_action"
+          ],
+          "type": "object"
+        },
+        "bundle.prepare_export.request": {
+          "additionalProperties": false,
+          "properties": {
+            "classification": {
+              "enum": [
+                "metadata_only",
+                "redacted_artifacts"
+              ]
+            },
+            "path": {
+              "maxLength": 32768,
+              "minLength": 1,
+              "type": "string"
+            },
+            "scope": {
+              "$ref": "urn:forgecode:contracts:v1:scope"
+            }
+          },
+          "required": [
+            "path",
+            "scope",
+            "classification"
+          ],
+          "type": "object"
+        },
+        "bundle.prepare_export.result": {
+          "additionalProperties": false,
+          "properties": {
+            "destination_token": {
+              "maxLength": 1024,
+              "minLength": 32,
+              "type": "string"
+            }
+          },
+          "required": [
+            "destination_token"
+          ],
+          "type": "object"
+        },
+        "bundle.prepare_import.request": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "maxLength": 32768,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        },
+        "bundle.prepare_import.result": {
+          "additionalProperties": false,
+          "properties": {
+            "source_token": {
+              "maxLength": 1024,
+              "minLength": 32,
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_token"
           ],
           "type": "object"
         },

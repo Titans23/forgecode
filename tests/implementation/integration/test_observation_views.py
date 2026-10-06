@@ -360,34 +360,40 @@ def test_actual_compaction_bills_summary_once_and_records_exact_tool_pair_retent
 
 def test_upgrade_legacy_observation_tables_backfills_attribution_without_guessing_prices(tmp_path):
     from forge.engine.persistence import Store
+    from pathlib import Path
+    import shutil
+    import sqlite3
+    from contextlib import closing
     service,store,_,_,_,params=setup(tmp_path)
     turn=service.start_turn(params)
     asyncio.run(service.execute_turn(turn['turn_id']))
-    # Retain committed events, request ledger and spans in their actual F17 schema.
-    with store.transaction():
-        for table in ('attempt_requests','attempt_recovery','attempt_details','run_details','validation_tickets'):
-            store.connection.execute('DROP TABLE '+table)
-        for trigger in ('immutable_trial_plan','immutable_attempt_identity','immutable_final_grade'):
-            store.connection.execute('DROP TRIGGER '+trigger)
-        for table in ('request_details','span_details','context_snapshots','evidence_details','export_queue','export_failures','turn_observation_config'):
-            if table=='context_snapshots':
-                store.connection.execute('DELETE FROM context_snapshots')  # F17 did not project this view.
-                for column in ('metadata_json','snapshot_ref'):
-                    store.connection.execute('ALTER TABLE context_snapshots DROP COLUMN '+column)
-            else:
-                store.connection.execute('DROP TABLE '+table)
-        for column in ('currency','cost_quality'):
-            store.connection.execute('ALTER TABLE usage_ledger DROP COLUMN '+column)
-        store.connection.execute('PRAGMA user_version=7')
-        store.connection.execute('DELETE FROM schema_migrations WHERE version>=8')
     count=store.connection.execute('SELECT COUNT(*) FROM events').fetchone()[0]
+    source=store.db_path
     store.close()
-    with Store(tmp_path/'data') as reopened:
-        assert not reopened.read_only and reopened.diagnostics()['schema_version']==9
+    # Build a genuine schema-7 database from its released migrations, then copy
+    # committed facts by that schema's columns. New tables cannot be left behind
+    # by pretending that a modern database became old through dropped views.
+    migrations=tmp_path/'schema-seven';migrations.mkdir()
+    for path in Path('forge/engine/migrations').glob('*.sql'):
+        if int(path.name[:3])<=7: shutil.copyfile(path,migrations/path.name)
+    legacy=tmp_path/'legacy-data'
+    with Store(legacy,migrations_dir=migrations) as old,closing(sqlite3.connect(source.as_uri()+'?mode=ro',uri=True)) as captured:
+        with old.transaction():
+            old.connection.execute('PRAGMA defer_foreign_keys=ON')
+            tables=[row[0] for row in old.connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+                if row[0] not in ('schema_migrations','store_meta','context_snapshots')]
+            for table in tables:
+                columns=','.join(row[1] for row in old.connection.execute('PRAGMA table_info('+table+')'))
+                rows=captured.execute('SELECT '+columns+' FROM '+table).fetchall()
+                marks=','.join('?' for _ in columns.split(','))
+                old.connection.executemany('INSERT INTO '+table+'('+columns+') VALUES('+marks+')',rows)
+    with Store(legacy) as reopened:
+        expected=max(int(path.name[:3]) for path in Path('forge/engine/migrations').glob('*.sql'))
+        assert not reopened.read_only and reopened.diagnostics()['schema_version']==expected
         assert reopened.connection.execute('SELECT COUNT(*) FROM request_details').fetchone()[0]==2
         assert reopened.connection.execute('SELECT COUNT(*) FROM spans').fetchone()[0]==reopened.connection.execute('SELECT COUNT(*) FROM span_details').fetchone()[0]
         assert reopened.connection.execute('SELECT COUNT(*) FROM events').fetchone()[0]==count
-        assert list((tmp_path/'data'/'backups').glob('*.sqlite3'))
+        assert list((legacy/'backups').glob('*.sqlite3'))
         service.store=reopened
         service.exporter.store=reopened
         usage=views(service).usage({'scope':{'kind':'turn','id':turn['turn_id']}})

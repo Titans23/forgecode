@@ -28,6 +28,8 @@ class EngineMethods:
         self.observations=ObservationViews(self)
         from forge.application.evaluations import EvaluationService
         self.evaluations = EvaluationService(service, executor=getattr(service, 'evaluation_executor', None))
+        from forge.application.artifacts import ArtifactService
+        self.artifacts=ArtifactService(service,self.evaluations)
         self.workspaces = service.workspaces
         self.workspaces.cursors = self.events
         self.approvals = ApprovalService(service)
@@ -67,6 +69,9 @@ class EngineMethods:
             'evaluation.start': lambda p: self.evaluation_mutation('evaluation.start', p), 'evaluation.cancel': self.evaluations.cancel,
             'evaluation.retry': lambda p: self.evaluation_mutation('evaluation.retry', p), 'evaluation.report': self.evaluations.report,
             'evaluation.compare': self.evaluations.compare,
+            'bundle.export':self.artifacts.export,'bundle.import':self.artifacts.import_bundle,
+            'artifact.describe':self.artifacts.describe,'artifact.read_chunk':self.artifacts.read_chunk,
+            'bundle.prepare_import':self.artifacts.prepare_import,'bundle.prepare_export':self.artifacts.prepare_export,
         }
 
     def readiness(self):

@@ -146,6 +146,10 @@ export type WorkspaceDiffRequest = { "turn_id": string; "cursor"?: string; "limi
 export type WorkspaceDiffResult = { "items": Array<{ "relative_path": string; "previous_path": (string) | (null); "change": "created" | "modified" | "deleted" | "renamed"; "classification": "text" | "binary" | "large" | "quota"; "before_sha256": (string) | (null); "current_sha256": (string) | (null); "size_bytes": number }>; "next_cursor": (string) | (null); "history_gap": boolean; "revision": number; "baseline_revision": number; "original_dirty_status": "available" | "unavailable"; "original_dirty": Array<{ "relative_path": string; "status": string; "previous_path": (string) | (null) }>; "original_dirty_has_more": boolean };
 export type WorkspaceDiffFileRequest = { "turn_id": string; "relative_path": string; "expected_revision": number };
 export type WorkspaceDiffFileResult = { "revision": number; "relative_path": string; "before": (string) | (null); "current": (string) | (null); "reverse_patch": (string) | (null); "current_sha256": (string) | (null); "preview_only": true; "reason": string };
+export type BundlePrepareImportRequest = { "path": string };
+export type BundlePrepareImportResult = { "source_token": string };
+export type BundlePrepareExportRequest = { "path": string; "scope": Scope; "classification": "metadata_only" | "redacted_artifacts" };
+export type BundlePrepareExportResult = { "destination_token": string };
 export type BridgeProbeRequest = { "workspace_id": string; "workspace_path": string };
 export type BridgeProbeResult = CapabilityReport;
 export type BridgePrepareRequest = { "policy": SandboxPolicy; "policy_hash": string; "owner": { "engine_epoch": string; "sandbox_session_id": string; "execution_id": (string) | (null) } };
@@ -265,5 +269,7 @@ export interface MethodMap {
   "session.snapshot": { request: SessionSnapshotRequest; result: SessionSnapshotResult };
   "workspace.diff": { request: WorkspaceDiffRequest; result: WorkspaceDiffResult };
   "workspace.diff_file": { request: WorkspaceDiffFileRequest; result: WorkspaceDiffFileResult };
+  "bundle.prepare_import": { request: BundlePrepareImportRequest; result: BundlePrepareImportResult };
+  "bundle.prepare_export": { request: BundlePrepareExportRequest; result: BundlePrepareExportResult };
 }
 export type MethodName = keyof MethodMap;
