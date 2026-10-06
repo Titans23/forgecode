@@ -274,13 +274,15 @@ def test_stream_delegates_events_and_merges_usage() -> None:
 
     assert events == [
         ModelUsageUpdate(
-            usage=TokenUsage(input_tokens=100, output_tokens=0)
+            usage=TokenUsage(input_tokens=100, output_tokens=0),raw_usage={'input_tokens':100,'output_tokens':0},usage_is_final=False
         ),
         ModelTextDelta(text='Hello'),
         ModelTextDelta(text=' world'),
         ModelUsageUpdate(
-            usage=TokenUsage(input_tokens=100, output_tokens=2)
+            usage=TokenUsage(input_tokens=100, output_tokens=2),raw_usage={'input_tokens':100,'output_tokens':2},usage_is_final=False
         ),
+        ModelUsageUpdate(usage=TokenUsage(input_tokens=100, output_tokens=2),
+            raw_usage={'input_tokens':100,'output_tokens':2},usage_is_final=True),
         ModelResponseCompleted(stop_reason='end_turn'),
     ]
     assert sdk.messages.calls == [
@@ -305,6 +307,27 @@ def test_stream_delegates_events_and_merges_usage() -> None:
         }
     ]
     assert isinstance(client, ModelClient)
+
+
+def test_stream_attaches_final_provider_identity_without_rebilling_usage() -> None:
+    from forge.runtime.model_budget import BudgetedModelClient
+    from forge.runtime.turn_state import TurnState
+    sdk=FakeAnthropic()
+    sdk.messages.events=[
+        SimpleNamespace(type='message_start',message=SimpleNamespace(usage=usage(input_tokens=2,output_tokens=0))),
+        SimpleNamespace(type='content_block_delta',index=0,delta=SimpleNamespace(type='text_delta',text='Observed.')),
+    ]
+    sdk.messages.final_message=SimpleNamespace(usage=usage(input_tokens=2,output_tokens=0),stop_reason='end_turn',
+        id='provider-message-fixture',model='returned-fixture')
+    client=AnthropicModelClient(model='requested-fixture',client=sdk)
+    state=TurnState(max_model_calls=2)
+    async def run():
+        return [event async for event in BudgetedModelClient(client,state).stream([{'role':'user','content':'Inspect.'}])]
+    events=asyncio.run(run())
+    updates=[event for event in events if isinstance(event,ModelUsageUpdate)]
+    assert len(updates)==2 and updates[-1].provider_request_id=='provider-message-fixture'
+    assert updates[-1].returned_model=='returned-fixture' and updates[-1].raw_usage=={'input_tokens':2,'output_tokens':0}
+    assert state.model_calls==1 and state.usage.input_tokens==2
 
 
 def test_stream_recovers_text_from_final_message_when_deltas_are_missing() -> None:
@@ -500,7 +523,7 @@ def test_stream_emits_multiple_completed_tool_calls() -> None:
 
     assert events == [
         ModelUsageUpdate(
-            usage=TokenUsage(input_tokens=80, output_tokens=0)
+            usage=TokenUsage(input_tokens=80, output_tokens=0),raw_usage={'input_tokens':80,'output_tokens':0},usage_is_final=False
         ),
         ModelToolCallStarted(
             index=0,
@@ -538,8 +561,10 @@ def test_stream_emits_multiple_completed_tool_calls() -> None:
             )
         ),
         ModelUsageUpdate(
-            usage=TokenUsage(input_tokens=80, output_tokens=24)
+            usage=TokenUsage(input_tokens=80, output_tokens=24),raw_usage={'input_tokens':80,'output_tokens':24},usage_is_final=False
         ),
+        ModelUsageUpdate(usage=TokenUsage(input_tokens=80, output_tokens=24),
+            raw_usage={'input_tokens':80,'output_tokens':24},usage_is_final=True),
         ModelResponseCompleted(stop_reason='tool_use'),
     ]
 

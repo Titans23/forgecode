@@ -4,6 +4,8 @@ import base64
 import json
 from pathlib import Path
 import sys
+from datetime import datetime, timezone
+from time import monotonic_ns
 
 from forge.application.models import ContractError, canonical_hash, strict_loads, validate
 from forge.sandbox.capabilities import CapabilityReport
@@ -41,6 +43,7 @@ class SrtBackend:
         self._worker_lease = None
         self._observation = None
         self._execution_observations = {}
+        self._phase_start = None
 
     async def _start(self):
         async with self._start_lock:
@@ -146,11 +149,12 @@ class SrtBackend:
         from forge.sandbox.capabilities import unavailable_report
         recorder=current()
         if recorder:
-            self._observation=(recorder,active.get().scope,snapshot.sha256,unavailable_report(reason='Probe has not completed').value)
+            self._phase_start=(datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),str(monotonic_ns()))
+            self._observation=(recorder,active.get().scope.child(),snapshot.sha256,unavailable_report(reason='Probe has not completed').value)
         try:
             capabilities = await self.probe()
             if recorder:
-                self._observation=(recorder,active.get().scope,snapshot.sha256,capabilities.value)
+                self._observation=(*self._observation[:3],capabilities.value)
             capabilities.require(snapshot.value)
             snapshot.srt_config(capabilities)
             if worker_root and self._worker_lease is None:
@@ -170,7 +174,8 @@ class SrtBackend:
         if self._observation:
             recorder,scope,policy_hash,capabilities=self._observation
             recorder.emit(event_type,{'backend':'srt','capabilities':capabilities,'policy_hash':policy_hash,
-                'owner':self.owner,'reason':reason,'cleanup':cleanup},scope=scope,origin='trusted_bridge')
+                'owner':self.owner,'reason':reason,'cleanup':cleanup,
+                **({'operation_started_at_utc':self._phase_start[0],'operation_start_monotonic_ns':self._phase_start[1]} if self._phase_start else {})},scope=scope,origin='trusted_bridge')
 
     async def execute(self, execution_id, command):
         if self._prepared is None:
@@ -241,6 +246,10 @@ class SrtBackend:
 
     async def close(self):
         if self._cleanup is None:
+            if self._observation:
+                recorder,scope,policy_hash,capabilities=self._observation
+                self._observation=(recorder,scope.child(),policy_hash,capabilities)
+                self._phase_start=(datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),str(monotonic_ns()))
             self._cleanup = await self._request('close', {'sandbox_session_id': self.owner['sandbox_session_id']})
             validate('cleanup-report', self._cleanup)
             if self._worker_lease:

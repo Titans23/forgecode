@@ -172,6 +172,10 @@
     "session.message": {
       "payload_schema": "event.session.message",
       "implementation_status": "implemented"
+    },
+    "model.usage.confirmed": {
+      "payload_schema": "event.model.usage.confirmed",
+      "implementation_status": "implemented"
     }
   }
 }

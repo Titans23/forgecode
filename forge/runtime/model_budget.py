@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from contextlib import aclosing
 from contextvars import ContextVar
-from time import monotonic
+from time import monotonic,monotonic_ns
+from datetime import datetime,timezone
 from typing import Callable
 from uuid import uuid4
 from dataclasses import asdict
@@ -56,6 +57,16 @@ class BudgetedModelClient:
         if self.state.request_event_sink is not None:
             self.state.request_event_sink('model_input_snapshot', {**snapshot.as_dict(),'invocation_id':invocation_id,'stage':self.stage})
         usage = None
+        raw_usage = None
+        provider_request_id = returned_model = None
+        usage_is_final=None
+        from forge.observability.events import current
+        observation=current()
+        capture_text=bool(observation and observation.options.capture_mode=='controlled_debug')
+        debug_chunks=[]
+        debug_bytes=0
+        debug_truncated=False
+        retry_started_ns=None
         started = monotonic()
         request = None
         request_started = started
@@ -67,21 +78,32 @@ class BudgetedModelClient:
         def end_request(outcome, reason=''):
             nonlocal request
             if request is not None:
-                if usage is None:
+                if usage is None or usage_is_final is False:
                     self.state.record_unknown_usage()
                 emit('model_request_finished', {
                     **request, 'outcome': outcome, 'reason': reason,
                     'duration_seconds': monotonic() - request_started,
                     'usage': asdict(usage) if usage is not None else None,
+                    'raw_usage': raw_usage, 'provider_request_id': provider_request_id, 'returned_model': returned_model,
+                    'usage_is_final':usage_is_final,
+                    **({'debug_output':{'text':''.join(debug_chunks),'text_truncated':debug_truncated,
+                        'scope':'client_text_deltas'}} if capture_text else {}),
                 })
                 request = None
 
         def begin_request() -> None:
-            nonlocal usage, request, request_started, attempt_no
+            nonlocal usage, raw_usage, provider_request_id, returned_model, usage_is_final, request, request_started, attempt_no, retry_started_ns
+            nonlocal debug_chunks,debug_bytes,debug_truncated
             end_request('indeterminate', 'missing_attempt_boundary')
             if usage is not None:
                 self.state.record_usage(usage)
                 usage = None
+            raw_usage = None
+            provider_request_id = returned_model = None
+            usage_is_final=None
+            debug_chunks=[]
+            debug_bytes=0
+            debug_truncated=False
             reason = self.state.budget_reason()
             if reason:
                 raise BudgetExhausted(reason)
@@ -96,9 +118,13 @@ class BudgetedModelClient:
                 current_state=current_state.parent
             request = dict(request_id=uuid4().hex, ordinal=self.state.model_calls,
                            invocation_id=invocation_id,attempt_no=attempt_no,requested_model=frozen['model'],
+                           provider=getattr(self.client,'provider','unreported'),
                            remaining_model_calls=min(remaining) if remaining else None,
                            stage=self.stage, text_characters=0, tool_blocks={}, stop_reason=None,
                            input_sha256=snapshot.sha256)
+            if retry_started_ns is not None:
+                request['observed_backoff_nanoseconds']=str(monotonic_ns()-retry_started_ns)
+                retry_started_ns=None
             emit('model_request_started', dict(request))
 
         observer_token = request_observer.set(begin_request)
@@ -113,10 +139,22 @@ class BudgetedModelClient:
                     if isinstance(event, ModelUsageUpdate):
                         # Provider events contain cumulative usage for this request.
                         usage = event.request_usage or event.usage
+                        raw_usage = event.raw_usage
+                        provider_request_id = event.provider_request_id or provider_request_id
+                        returned_model = event.returned_model or returned_model
+                        usage_is_final=event.usage_is_final
                     if request is not None:
                         if isinstance(event, ModelTextDelta):
+                            if capture_text:
+                                raw_text=event.text.encode('utf-8')
+                                remaining=max(0,262000-debug_bytes)
+                                if remaining and raw_text:
+                                    debug_chunks.append(raw_text[:remaining].decode('utf-8',errors='ignore'))
+                                debug_bytes+=min(len(raw_text),remaining)
+                                debug_truncated=debug_truncated or len(raw_text)>remaining
                             request['text_characters'] += len(event.text)
-                            emit('model_request_chunk',{'request_id':request['request_id'],'size_bytes':len(event.text.encode('utf-8'))})
+                            emit('model_request_chunk',{'request_id':request['request_id'],'size_bytes':len(event.text.encode('utf-8')),
+                                'client_observed_at_utc':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'client_monotonic_ns':str(monotonic_ns())})
                         elif isinstance(event, ModelToolCallStarted):
                             request['tool_blocks'][str(event.index)] = {'id': event.id, 'name': event.name, 'argument_characters': 0, 'complete': False}
                         elif isinstance(event, ModelToolCallArgumentsDelta):
@@ -129,6 +167,7 @@ class BudgetedModelClient:
                             request['stop_reason'] = event.stop_reason
                         elif isinstance(event, ModelRetryScheduled):
                             end_request('retrying', event.reason)
+                            retry_started_ns=monotonic_ns()
                     yield event
             end_request('completed')
         except (asyncio.CancelledError, GeneratorExit):

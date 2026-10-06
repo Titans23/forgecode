@@ -20,6 +20,10 @@ def main(argv=None):
     parser.add_argument('--execution-mode', choices=('strict', 'local-trusted'), default='strict')
     parser.add_argument('--scripted-fixture', type=Path)
     parser.add_argument('--interactive-approvals', action='store_true')
+    parser.add_argument('--pricing-file',type=Path)
+    parser.add_argument('--capture-mode',choices=('metadata','controlled_debug'),default='metadata')
+    parser.add_argument('--otlp-endpoint')
+    parser.add_argument('--export-metadata',action='store_true',help='Confirm outbound OTLP metadata export to the supplied endpoint')
     args = parser.parse_args(argv)
     if args.interactive_approvals and (args.profile != 'test' or args.principal != 'main'):
         print(json.dumps({'status': 'invalid_configuration', 'reason': 'interactive test approvals require a private Main test profile'}), file=sys.stderr)
@@ -45,13 +49,18 @@ def main(argv=None):
             from forge.engine.persistence import Store
             from forge.engine.rpc import RpcServer
             from forge.engine.test_profile import MemoryCredentials, load_scripted_profile
+            from forge.observability.export_queue import ObservationOptions
+            from forge.observability.usage_ledger import PriceBook
+            from forge.application.models import strict_loads
+            prices=PriceBook(strict_loads(args.pricing_file.read_bytes())) if args.pricing_file else None
+            observations=ObservationOptions(capture_mode=args.capture_mode,prices=prices,endpoint=args.otlp_endpoint,metadata_export_confirmed=args.export_metadata)
             scripted = load_scripted_profile(args.scripted_fixture) if args.scripted_fixture else None
             credentials, factory = (scripted.credentials, scripted.model_client_factory) if scripted else (MemoryCredentials(), None)
             with Store(args.data_dir) as store:
                 service = ApplicationServices(store, profile_id=args.profile_id or args.profile + '-profile', credentials=credentials,
                     mode=args.execution_mode, backend=LocalTrustedBackend() if args.execution_mode == 'local-trusted' else None,
                     model_client_factory=factory, task_relation='new' if factory else None,
-                    approval_handler=scripted.approval_handler if scripted and not args.interactive_approvals else None)
+                    approval_handler=scripted.approval_handler if scripted and not args.interactive_approvals else None,observation_options=observations)
                 return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile, interactive_approvals=args.interactive_approvals), principal=args.principal).run(input_descriptor, output_descriptor))
     except Exception as error:
         print(json.dumps({'status': 'blocked', 'exception_type': type(error).__name__,

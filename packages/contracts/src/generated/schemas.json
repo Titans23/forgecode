@@ -246,6 +246,10 @@
       "implementation_status": "implemented",
       "payload_schema": "event.model.request.started"
     },
+    "model.usage.confirmed": {
+      "implementation_status": "implemented",
+      "payload_schema": "event.model.usage.confirmed"
+    },
     "recovery.finished": {
       "implementation_status": "implemented",
       "payload_schema": "event.recovery.finished"
@@ -1026,7 +1030,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1074,7 +1078,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1096,7 +1100,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1118,7 +1122,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -4718,6 +4722,17 @@
                 }
               ]
             },
+            "capture_mode": {
+              "enum": [
+                "metadata",
+                "controlled_debug"
+              ]
+            },
+            "context_metadata": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
+            },
             "context_version": {
               "maximum": 9007199254740991,
               "minimum": 0,
@@ -4746,6 +4761,16 @@
               },
               "maxItems": 10000,
               "minItems": 0,
+              "type": "array"
+            },
+            "summary_request_ids": {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "maxItems": 100,
               "type": "array"
             }
           },
@@ -4797,6 +4822,17 @@
                 }
               ]
             },
+            "capture_mode": {
+              "enum": [
+                "metadata",
+                "controlled_debug"
+              ]
+            },
+            "context_metadata": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
+            },
             "context_version": {
               "maximum": 9007199254740991,
               "minimum": 0,
@@ -4820,6 +4856,16 @@
               },
               "maxItems": 10000,
               "minItems": 0,
+              "type": "array"
+            },
+            "summary_request_ids": {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "maxItems": 100,
               "type": "array"
             }
           },
@@ -4860,6 +4906,17 @@
                 }
               ]
             },
+            "capture_mode": {
+              "enum": [
+                "metadata",
+                "controlled_debug"
+              ]
+            },
+            "context_metadata": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
+            },
             "context_version": {
               "maximum": 9007199254740991,
               "minimum": 0,
@@ -4884,6 +4941,16 @@
               "maxItems": 10000,
               "minItems": 0,
               "type": "array"
+            },
+            "summary_request_ids": {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": "array"
             }
           },
           "required": [
@@ -4899,6 +4966,18 @@
         "completion.accepted": {
           "additionalProperties": false,
           "properties": {
+            "completion_report": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "maxProperties": 100,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "evidence_ids": {
               "items": {
                 "maxLength": 64,
@@ -4941,6 +5020,18 @@
         "completion.rejected": {
           "additionalProperties": false,
           "properties": {
+            "completion_report": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "maxProperties": 100,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "evidence_ids": {
               "items": {
                 "maxLength": 64,
@@ -5049,6 +5140,17 @@
                 }
               ]
             },
+            "capture_mode": {
+              "enum": [
+                "metadata",
+                "controlled_debug"
+              ]
+            },
+            "context_metadata": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
+            },
             "context_version": {
               "maximum": 9007199254740991,
               "minimum": 0,
@@ -5080,6 +5182,16 @@
             },
             "retained_message_ids_truncated": {
               "type": "boolean"
+            },
+            "summary_request_ids": {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "type": "array"
             }
           },
           "required": [
@@ -5130,6 +5242,16 @@
               "maxLength": 64,
               "minLength": 1,
               "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "operation_start_monotonic_ns": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            "operation_started_at_utc": {
+              "format": "date-time",
               "type": "string"
             },
             "raw_reward_decimal": {
@@ -5199,6 +5321,29 @@
               "minimum": 0,
               "type": "integer"
             },
+            "first_client_text_chunk_at_utc": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "first_client_text_chunk_monotonic_ns": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[0-9]{1,32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "invocation_id": {
               "maxLength": 64,
               "minLength": 1,
@@ -5209,6 +5354,16 @@
               "maxLength": 64,
               "minLength": 1,
               "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "observed_backoff_nanoseconds": {
+              "maxLength": 32,
+              "pattern": "^[0-9]{1,32}$",
+              "type": "string"
+            },
+            "provider": {
+              "maxLength": 256,
+              "minLength": 1,
               "type": "string"
             },
             "requested_model": {
@@ -5270,6 +5425,11 @@
               "minimum": 1,
               "type": "integer"
             },
+            "debug_capture": {
+              "additionalProperties": true,
+              "maxProperties": 32,
+              "type": "object"
+            },
             "error_kind": {
               "maxLength": 128,
               "minLength": 1,
@@ -5286,6 +5446,40 @@
               "minLength": 1,
               "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
+            },
+            "observed_backoff_nanoseconds": {
+              "maxLength": 32,
+              "pattern": "^[0-9]{1,32}$",
+              "type": "string"
+            },
+            "provider": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "provider_request_id": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "raw_usage": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "maxProperties": 100,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "requested_model": {
               "maxLength": 256,
@@ -5356,6 +5550,9 @@
                 }
               ]
             },
+            "usage_is_final": {
+              "type": "boolean"
+            },
             "usage_quality": {
               "enum": [
                 "actual",
@@ -5385,6 +5582,11 @@
               "minimum": 1,
               "type": "integer"
             },
+            "debug_capture": {
+              "additionalProperties": true,
+              "maxProperties": 32,
+              "type": "object"
+            },
             "invocation_id": {
               "maxLength": 64,
               "minLength": 1,
@@ -5396,6 +5598,40 @@
               "minLength": 1,
               "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
+            },
+            "observed_backoff_nanoseconds": {
+              "maxLength": 32,
+              "pattern": "^[0-9]{1,32}$",
+              "type": "string"
+            },
+            "provider": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "provider_request_id": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "raw_usage": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "maxProperties": 100,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "requested_model": {
               "maxLength": 256,
@@ -5463,6 +5699,9 @@
                 }
               ]
             },
+            "usage_is_final": {
+              "type": "boolean"
+            },
             "usage_quality": {
               "enum": [
                 "actual",
@@ -5501,6 +5740,16 @@
               "maxLength": 64,
               "minLength": 1,
               "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "observed_backoff_nanoseconds": {
+              "maxLength": 32,
+              "pattern": "^[0-9]{1,32}$",
+              "type": "string"
+            },
+            "provider": {
+              "maxLength": 256,
+              "minLength": 1,
               "type": "string"
             },
             "requested_model": {
@@ -5544,6 +5793,145 @@
             "requested_model",
             "returned_model",
             "usage_quality"
+          ],
+          "type": "object"
+        },
+        "model.usage.confirmed": {
+          "additionalProperties": false,
+          "properties": {
+            "attempt_no": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "invocation_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^invocation-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "model_request_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^request-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "observed_backoff_nanoseconds": {
+              "maxLength": 32,
+              "pattern": "^[0-9]{1,32}$",
+              "type": "string"
+            },
+            "provider": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "provider_request_id": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "raw_usage": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "maxProperties": 100,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "requested_model": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "returned_model": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "role": {
+              "enum": [
+                "main",
+                "summary",
+                "explore",
+                "repair"
+              ]
+            },
+            "usage": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "input_tokens": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "output_tokens": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "input_tokens",
+                    "output_tokens"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "usage_is_final": {
+              "type": "boolean"
+            },
+            "usage_quality": {
+              "const": "actual"
+            }
+          },
+          "required": [
+            "model_request_id",
+            "invocation_id",
+            "attempt_no",
+            "role",
+            "requested_model",
+            "returned_model",
+            "usage_quality",
+            "usage"
           ],
           "type": "object"
         },
@@ -5722,6 +6110,16 @@
                 }
               ]
             },
+            "operation_start_monotonic_ns": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            "operation_started_at_utc": {
+              "format": "date-time",
+              "type": "string"
+            },
             "owner": {
               "additionalProperties": false,
               "properties": {
@@ -5807,6 +6205,16 @@
                   "type": "null"
                 }
               ]
+            },
+            "operation_start_monotonic_ns": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            "operation_started_at_utc": {
+              "format": "date-time",
+              "type": "string"
             },
             "owner": {
               "additionalProperties": false,
@@ -5894,6 +6302,16 @@
                 }
               ]
             },
+            "operation_start_monotonic_ns": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            "operation_started_at_utc": {
+              "format": "date-time",
+              "type": "string"
+            },
             "owner": {
               "additionalProperties": false,
               "properties": {
@@ -5979,6 +6397,16 @@
                   "type": "null"
                 }
               ]
+            },
+            "operation_start_monotonic_ns": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^(0|[1-9][0-9]*)$",
+              "type": "string"
+            },
+            "operation_started_at_utc": {
+              "format": "date-time",
+              "type": "string"
             },
             "owner": {
               "additionalProperties": false,
@@ -6570,6 +6998,11 @@
               "pattern": "^evidence-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
+            "evidence_metadata": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
+            },
             "native_evidence_id": {
               "maxLength": 128,
               "type": "string"
@@ -6828,6 +7261,11 @@
     "event.model.request.started": {
       "$id": "urn:forgecode:contracts:v1:event.model.request.started",
       "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/model.request.started",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "event.model.usage.confirmed": {
+      "$id": "urn:forgecode:contracts:v1:event.model.usage.confirmed",
+      "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/model.usage.confirmed",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "event.recovery.finished": {
@@ -9189,6 +9627,15 @@
                       "controlled_debug"
                     ]
                   },
+                  "metadata": {
+                    "additionalProperties": true,
+                    "maxProperties": 100,
+                    "type": "object"
+                  },
+                  "reason": {
+                    "maxLength": 1024,
+                    "type": "string"
+                  },
                   "snapshot": {
                     "additionalProperties": false,
                     "properties": {
@@ -9222,6 +9669,11 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "version": {
+                    "maximum": 9007199254740991,
+                    "minimum": 1,
+                    "type": "integer"
                   }
                 },
                 "required": [
@@ -9366,6 +9818,19 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "metadata": {
+                    "additionalProperties": true,
+                    "maxProperties": 100,
+                    "type": "object"
+                  },
+                  "occurred_at_utc": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "maxLength": 1024,
+                    "type": "string"
+                  },
                   "validity": {
                     "enum": [
                       "current",
@@ -9455,6 +9920,11 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "metadata": {
+                    "additionalProperties": true,
+                    "maxProperties": 100,
+                    "type": "object"
                   },
                   "name": {
                     "maxLength": 128,
@@ -9557,7 +10027,7 @@
             "cost_decimal": {
               "anyOf": [
                 {
-                  "maxLength": 32,
+                  "maxLength": 128,
                   "minLength": 1,
                   "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
                   "type": "string"
@@ -9573,6 +10043,20 @@
               "pattern": "^[A-Z]{3}$",
               "type": "string"
             },
+            "estimated_cost_decimal": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+              "type": "string"
+            },
+            "exporter": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
+            },
+            "hard_usd_bound_available": {
+              "type": "boolean"
+            },
             "input_tokens": {
               "anyOf": [
                 {
@@ -9584,6 +10068,12 @@
                   "type": "null"
                 }
               ]
+            },
+            "known_cost_decimal": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+              "type": "string"
             },
             "output_tokens": {
               "anyOf": [
@@ -9626,10 +10116,25 @@
                 }
               ]
             },
+            "request_count": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "roles": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
+            },
             "unknown_requests": {
               "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
+            },
+            "usage_quality_counts": {
+              "additionalProperties": true,
+              "maxProperties": 100,
+              "type": "object"
             }
           },
           "required": [

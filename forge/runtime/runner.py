@@ -288,9 +288,8 @@ class TurnRunner:
         from contextlib import nullcontext
         recorder=current()
         scope=active.get().scope.child() if recorder else None
-        attributes=recorder.context_attributes(reason='forced' if force else 'automatic',messages=self.messages) if recorder else None
         if recorder:
-            recorder.emit('compaction.started',attributes,scope=scope)
+            recorder.compaction_started(scope,self.messages,'forced' if force else 'automatic')
         try:
             with bind(recorder,scope,branch=active.get().branch,role=active.get().role) if recorder else nullcontext():
                 report = await c.context.compact_history(
@@ -299,13 +298,10 @@ class TurnRunner:
                 )
         except BaseException as error:
             if recorder:
-                recorder.emit('compaction.failed',{**attributes,'error_kind':type(error).__name__},scope=scope)
+                recorder.compaction_finished(scope,self.messages,None,error)
             raise
         if recorder:
-            if report:
-                attributes={**attributes,'before_characters':report.before_characters,'after_characters':report.after_characters}
-            recorder.emit('compaction.finished' if report and report.success else 'compaction.failed',
-                attributes if report and report.success else {**attributes,'error_kind':'summary_not_applied'},scope=scope)
+            recorder.compaction_finished(scope,self.messages,report)
         if report is not None and report.success and self.journal is not None:
             self.journal.record_context_compacted(self.messages)
         self._commit_messages()
@@ -534,7 +530,7 @@ class TurnRunner:
                     from forge.observability.events import current
                     recorder=current()
                     if recorder:
-                        recorder.verification(evidence,call.id)
+                        await recorder.verification(evidence,call.id)
                 if evidence is not None and outcome.record.status == 'executed':
                     self.state.evidence.add(evidence)
                     yield VerificationCompleted(evidence)
@@ -837,8 +833,10 @@ class TurnRunner:
         recorder=current()
         if recorder:
             recorder.finish_budget(self.state,reason)
+            recorder.evidence_state(self.state.workspace_revision,self.state.environment_epoch)
             recorder.completion(accepted=status=='completed',reason=reason,revision=self.state.workspace_revision,
-                evidence_revision=evidence[-1].workspace_revision if evidence else self.state.workspace_revision)
+                evidence_revision=evidence[-1].workspace_revision if evidence else self.state.workspace_revision,
+                repairs_remaining=max(0,(policy.max_delivery_repairs if policy else 0)-len(self.delivery_repair_reasons)),report=asdict(report))
         event = TurnCompleted(TurnResult(
             text=text, status=status, stop_reason=reason,
             usage=self.state.usage, last_request_usage=self.state.last_request_usage,

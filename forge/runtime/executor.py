@@ -235,7 +235,7 @@ class ToolExecutor:
                     self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
             if operation is not None and self.backend is not None and self.backend.mode == 'strict':
                 raise CheckpointError('Strict execution cannot use an unrestricted internal operation.')
-            self._journal_started(effective_call)
+            await self._journal_started(effective_call)
             execution_started = True
             result = (
                 await operation(effective_call)
@@ -412,13 +412,15 @@ class ToolExecutor:
             self.hook_context_sink(outcome)
         return outcome
 
-    def _journal_started(self, call: ToolCall) -> None:
+    async def _journal_started(self, call: ToolCall) -> None:
         if self.session_journal is not None:
             self.session_journal.record_tool_started(call.id,call.name,self.registry.audit_arguments(call.name,call.arguments),
                                                     provenance=self.registry.provenance(call.name))
         from forge.observability.events import current
         recorder=current()
         if recorder:
+            if call.name=='verify':
+                await recorder.before_verification()
             recorder.tool_started(call,workspace_revision=self._state()[0],environment_epoch=self._state()[1])
 
     def _outcome(
@@ -461,6 +463,7 @@ class ToolExecutor:
         from forge.observability.events import current
         recorder=current()
         if recorder:
+            recorder.evidence_state(revision,epoch)
             recorder.tool_finished(ToolCall(call.index,call.id,call.name,arguments),result,status)
         return ExecutionOutcome(result, record, arguments, workspace_change)
 

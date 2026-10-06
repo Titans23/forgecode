@@ -260,6 +260,11 @@ class Store:
             turn_id = new_id('turn')
             result = {'turn_id': turn_id, 'state': 'queued', 'accepted': True, 'reused_existing_action': False}
             self.connection.execute('INSERT INTO turns VALUES(?,?,?,?,?,?,?)', (turn_id, params['session_id'], 'queued', None, encoded(configuration_ref), encoded(params['input']), None))
+            observations=getattr(self,'observation_options',None)
+            prices=observations.prices if observations else None
+            price_snapshot=self._configuration_snapshot(prices.as_dict(),prices.sha256) if prices else None
+            self.connection.execute('INSERT INTO turn_observation_config VALUES(?,?,?)',
+                (turn_id,encoded(price_snapshot) if price_snapshot else None,observations.capture_mode if observations else 'metadata'))
             self.connection.execute('INSERT INTO work_items VALUES(?,?,?,?,?,?,?)', (new_id('work'), 'turn', turn_id, 'queued', None, None, 0))
             self.connection.execute('INSERT INTO actions VALUES(?,?,?,?,?,?)', (new_id('action'), profile_id, action_method, params['client_action_id'], params_hash, encoded(result)))
             producer = self.connection.execute("SELECT value FROM store_meta WHERE key='producer_id'").fetchone()[0]

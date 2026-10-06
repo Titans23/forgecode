@@ -1,6 +1,17 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F17；下一 F18（任务卡、第 13 / 14 章和现有 provider/查询接口已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F18；下一 F19（任务卡、第 17 章和实际 SQL／Engine／旧 benchmark CLI 已读）。原生平台验收独立 blocked。
+- F18 测试父 HEAD 939d6fa0dcd0d7583571521fdef3f08f176a926e；提交 SHA 以实际 git HEAD 核对。
+  unit 139 / portable 170 / regression 1053，0 skip；Windows 10 development Electron 44 checks pass。
+  最终证据 20261006T211118Z-7289c010 / 20261006T211134Z-d4dc513b / 20261006T211536Z-3bcf5fe6 / 20261006T211605Z-c37e3033 / 20261006T211606Z-ff84a680 / 20261006T211610Z-70274cd5 / 20261006T211615Z-e379a908。
+  final dirty babd694a41cbccf99d4abcd0d9ce478ef3f27ca8ef0fd257018189bf124e1abc。
+  实际 request 唯一 ledger／冻结价格／Decimal／unknown、角色重试归因、上下文指纹、真实证据失效、显式 metadata OTLP。
+  官方 SDK 仅调用受控 loopback provider；不称为真实模型实验。部分 Anthropic usage 未结束时费用 unknown。
+  controlled_debug 保存有界脱敏本地模型／工具／上下文副本，导出只含 metadata；出口和磁盘失败不阻断 Agent。
+  migration 008 实际回填旧请求，不猜旧价格；原 CLI 与 create_runtime 签名保持。
+  packed / native Linux / native Windows 各 blocked 0 checks；G7、管理员设置、签名与 paid API 继续 blocked。
+  下一 F19 固定 RunSpec／计划分母／owner epoch／三轴终态；F20 接既有官方 Runner。
+- F17 已推送 939d6fa0dcd0d7583571521fdef3f08f176a926e，远端 HEAD 已核对。
 - F17：真实 Journal observation / fsync、受理根 trace、模型→上下文→工具→验证父子关系、Explore／摘要／重试归因。
   来源 ID/sequence/hash 冲突隔离；外部 import: 命名空间；重复回放不执行、不增 ledger。
   migration 007；恢复创建新 trace link 旧 trace，unknown 副作用仍不自动重跑。

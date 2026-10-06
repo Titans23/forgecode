@@ -63,7 +63,7 @@ def script():
     ]
 
 
-def setup(tmp_path, *, backend=None, mode='local-trusted', factory=None, recorder=None, approval=None):
+def setup(tmp_path, *, backend=None, mode='local-trusted', factory=None, recorder=None, approval=None, observation_options=None):
     root = tmp_path / 'project'
     root.mkdir(exist_ok=True)
     (root / 'value.txt').write_text('B', encoding='utf-8')
@@ -78,7 +78,7 @@ def setup(tmp_path, *, backend=None, mode='local-trusted', factory=None, recorde
     store = Store(tmp_path / 'data')
     service = ApplicationServices(store, profile_id='test-profile', credentials=vault,
         mode=mode, backend=backend or LocalTrustedBackend(), model_client_factory=factory or create,
-        recorder=recorder, approval_handler=approval, task_relation='new')
+        recorder=recorder, approval_handler=approval, task_relation='new',observation_options=observation_options)
     workspace = service.open_workspace(root)
     workspace = service.authorize_workspace(workspace['id'], expected_revision=0, allow=True)
     config = ForgeConfig(api_key='sensitive-do-not-persist', model_id='scripted-test', max_tokens=1024)

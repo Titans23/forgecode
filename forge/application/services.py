@@ -30,7 +30,7 @@ class CredentialProvider(Protocol):
 
 class ApplicationServices:
     def __init__(self, store, *, profile_id, credentials: CredentialProvider, mode='strict', backend=None,
-                 model_client_factory=None, recorder=None, approval_handler=None, task_relation=None):
+                 model_client_factory=None, recorder=None, approval_handler=None, task_relation=None, observation_options=None):
         if mode not in ('strict', 'local-trusted'):
             raise ValueError('Execution mode must be strict or local-trusted')
         self.store = store
@@ -45,6 +45,18 @@ class ApplicationServices:
         self.task_relation = task_relation
         self.running = {}
         self.workspaces = WorkspaceService(self)
+        from forge.observability.export_queue import ObservationOptions,ExportQueue
+        self.observation_options=observation_options or ObservationOptions()
+        self.store.observation_options=self.observation_options
+        self.store.observation_secrets=()
+        self.exporter=ExportQueue(store,self.observation_options)
+
+    async def evidence_observation(self,workspace_id):
+        revision,files,_,complete=await self.workspaces.refresh(workspace_id)
+        # Content fingerprints exclude mtime; identical bytes remain the same observation.
+        manifest={path:{key:item.get(key) for key in ('kind','classification','size_bytes','sha256')} for path,item in files.items()}
+        complete=complete and all(item['kind']!='file' or item['sha256'] is not None for item in files.values())
+        return {'revision':revision,'sha256':canonical_hash(manifest),'complete':complete}
 
     def open_workspace(self, selected_directory):
         return self.store.register_workspace(selected_directory)
@@ -277,6 +289,8 @@ class ApplicationServices:
             metadata = dict(configuration['model'])
             metadata['request_timeout_seconds'] = float(metadata['request_timeout_seconds'])
             config = ForgeConfig(api_key=self.credentials.resolve(configuration['connection_id']), **metadata)
+            self.store.observation_secrets=(config.api_key,)
+            self.exporter.start()
             messages = TurnMessages(self.store, turn_id, config.api_key)
             for part in json.loads(turn['input_json']):
                 messages.append('user', part['text'])
@@ -296,6 +310,9 @@ class ApplicationServices:
                 turn_baseline_handler=lambda: self.workspaces.capture(turn_id, session['workspace_id']))
             adapter.journal.observation_scope=self.store.trace_scope(turn_id)
             adapter.journal.observation_scope_sink=self.store.register_execution_scope
+            adapter.journal.observation_options=self.observation_options
+            adapter.journal.observation_secrets=(config.api_key,)
+            adapter.journal.observation_evidence_probe=lambda: self.evidence_observation(session['workspace_id'])
             with self.store.transaction():
                 self.store.connection.execute('UPDATE sessions SET legacy_ref=? WHERE id=?', (adapter.journal.session_id, session['id']))
                 self.store.connection.execute('UPDATE turns SET native_ref=? WHERE id=?', (adapter.journal.session_id, turn_id))

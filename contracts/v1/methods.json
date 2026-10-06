@@ -607,7 +607,7 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py"
@@ -629,7 +629,7 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py"
@@ -651,7 +651,7 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py"
@@ -673,7 +673,7 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py"

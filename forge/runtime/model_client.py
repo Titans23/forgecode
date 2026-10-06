@@ -333,6 +333,8 @@ class AnthropicModelClient:
     ) -> AsyncIterator[ModelStreamEvent]:
         '''Perform one provider request without retry policy.'''
         current_usage: TokenUsage | None = None
+        current_raw = {}
+        provider_request_id = returned_model = None
         semantic_output = False
         text_blocks: dict[int, str] = {}
         completed_blocks: dict[int, ToolCall] = {}
@@ -420,24 +422,36 @@ class AnthropicModelClient:
                             )
                         )
                 elif event.type == 'message_start':
+                    from forge.observability.usage_ledger import usage_dict
+                    current_raw.update(usage_dict(event.message.usage))
+                    provider_request_id=getattr(event.message,'id',None)
+                    returned_model=getattr(event.message,'model',None)
                     current_usage = merge_usage(
                         event.message.usage,
                         current_usage,
                     )
-                    yield ModelUsageUpdate(usage=current_usage)
+                    yield ModelUsageUpdate(usage=current_usage,raw_usage=dict(current_raw),
+                        provider_request_id=provider_request_id,returned_model=returned_model,usage_is_final=False)
                 elif event.type == 'message_delta':
+                    from forge.observability.usage_ledger import usage_dict
+                    current_raw.update(usage_dict(event.usage))
                     current_usage = merge_usage(
                         event.usage,
                         current_usage,
                     )
-                    yield ModelUsageUpdate(usage=current_usage)
+                    yield ModelUsageUpdate(usage=current_usage,raw_usage=dict(current_raw),
+                        provider_request_id=provider_request_id,returned_model=returned_model,usage_is_final=False)
 
             final_message = await stream.get_final_message()
 
         stop_reason = getattr(final_message, 'stop_reason', None)
         final_usage = merge_usage(final_message.usage, current_usage)
-        if final_usage != current_usage:
-            yield ModelUsageUpdate(usage=final_usage)
+        from forge.observability.usage_ledger import usage_dict
+        current_raw.update(usage_dict(final_message.usage))
+        final_id=getattr(final_message,'id',provider_request_id)
+        final_model=getattr(final_message,'model',returned_model)
+        yield ModelUsageUpdate(usage=final_usage,raw_usage=dict(current_raw),
+            provider_request_id=final_id,returned_model=final_model,usage_is_final=bool(stop_reason))
         if stop_reason == 'max_tokens':
             names = tuple(
                 pending.name for pending in pending_tool_calls.values()

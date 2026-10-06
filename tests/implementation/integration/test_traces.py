@@ -157,6 +157,15 @@ def test_real_bridge_denial_and_cleanup_are_observed_without_manufactured_capabi
     assert all(e['origin']=='trusted_bridge' for e in events)
     assert all(v['status']!='verified' for v in events[0]['attributes']['capabilities']['verification'].values())
     assert events[1]['attributes']['cleanup']['state']=='clean'
+    assert events[0]['span_id']!=events[1]['span_id']
+    assert all(int(e['monotonic_ns'])>=int(e['attributes']['operation_start_monotonic_ns']) for e in events)
+    assert int(events[0]['monotonic_ns'])>int(events[0]['attributes']['operation_start_monotonic_ns'])
+    from forge.observability.otel_mapping import export_span
+    with Store(tmp_path/'observation-data') as store:
+        for event in events:
+            store.append_event(event,event['producer_id'],int(event['producer_seq']))
+        denial=export_span(store,events[0])['resourceSpans'][0]['scopeSpans'][0]['spans'][0]
+        assert denial['status']['code']==2 and int(denial['endTimeUnixNano'])>int(denial['startTimeUnixNano'])
 
 
 def test_real_grader_callback_has_owned_provenance_and_actual_artifact_digest(tmp_path):
@@ -181,6 +190,7 @@ def test_real_grader_callback_has_owned_provenance_and_actual_artifact_digest(tm
     assert result['grade_result']=='pass' and event['event_type']=='grade.finished' and event['origin']=='grader_adapter'
     assert event['attributes']['artifact_hash']==sha256(b'B').hexdigest()
     assert event['attributes']['grader_hash']==sha256(script.encode()).hexdigest()
+    assert int(event['monotonic_ns'])>int(event['attributes']['operation_start_monotonic_ns'])
 
 
 def test_actual_explore_requests_inherit_trace_and_tool_parent_without_separate_ledger(tmp_path):

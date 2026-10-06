@@ -24,6 +24,8 @@ class EngineMethods:
         self.store = service.store
         self.profile = profile
         self.events = EventStream(service)
+        from forge.observability.query_views import ObservationViews
+        self.observations=ObservationViews(self)
         self.workspaces = service.workspaces
         self.workspaces.cursors = self.events
         self.approvals = ApprovalService(service)
@@ -48,6 +50,8 @@ class EngineMethods:
             'session.get': self.get_session, 'action.get': self.get_action,
             'events.subscribe': self.events.subscribe, 'events.ack': self.events.ack,
             'events.unsubscribe': self.events.unsubscribe, 'observability.events': self.query_events,
+            'observability.spans':self.observations.spans,'observability.context':self.observations.context,
+            'observability.evidence':self.observations.evidence,'observability.usage':self.observations.usage,
             'sandbox.cleanup_status': self.cleanup_status,
             'approval.get': self.approvals.get, 'approval.list': self.list_approvals,
             'approval.prepare_decision': self.approvals.prepare, 'approval.decide': self.approvals.decide,

@@ -1,0 +1,95 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T204552Z-790d1d7f",
+  "task_id": "F18",
+  "case_ids": [
+    "N04",
+    "C06",
+    "C24",
+    "N08",
+    "C07",
+    "C08",
+    "C09",
+    "C16",
+    "C17",
+    "D13",
+    "N05",
+    "D21",
+    "D23",
+    "D33",
+    "O01",
+    "O02",
+    "O03",
+    "O05",
+    "N13"
+  ],
+  "suite": "unit",
+  "git_commit": "939d6fa0dcd0d7583571521fdef3f08f176a926e",
+  "dirty_hash": "e0ef202442cf59d0f73bbeb31c1a5e2d0470fc3d09bd334ca905ecfcb66058f4",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "91a33f47d9bd08f8b0feb426f2009797b2696185c1880e944f3bd831ca7240ea",
+    "release-lock.json": "269ee56a46463bbea9c13ee939ff172975677f161f547a9d4d0bed5530e48738"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/implementation/unit",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T204552Z-790d1d7f\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T204552Z-790d1d7f\\junit.xml"
+  ],
+  "start": "2026-10-06T20:45:52.681594+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_bridge.py",
+      "--check"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--main-only"
+    ],
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "--target",
+      "ES2022",
+      "--module",
+      "NodeNext",
+      "--strict",
+      "--skipLibCheck",
+      "--newLine",
+      "lf",
+      "--outDir",
+      "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T204552Z-790d1d7f\\main-compile",
+      "D:\\learn_project\\forgecode\\apps\\desktop\\src\\main\\setup_broker.ts"
+    ]
+  ],
+  "end": "2026-10-06T20:45:54.825935+00:00",
+  "exit_code": 1,
+  "stdout_ref": ".local/implementation/20261006T204552Z-790d1d7f/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T204552Z-790d1d7f/stderr.log",
+  "report_ref": ".local/implementation/20261006T204552Z-790d1d7f/junit.xml",
+  "report_hash": null,
+  "status": "fail",
+  "tests": {
+    "reason": "pytest did not produce a JUnit report"
+  }
+}

@@ -240,6 +240,7 @@ class RpcServer:
         writing = asyncio.create_task(self._write(writer))
         pumping = asyncio.create_task(self._events())
         scheduling = asyncio.create_task(self.scheduler.run())
+        self.methods.service.exporter.start()
         try:
             while not self.methods.stopping:
                 reading = asyncio.create_task(self.inbound.get())
@@ -286,4 +287,5 @@ class RpcServer:
                 if not task.done():
                     task.cancel()
             await asyncio.gather(*remaining, return_exceptions=True)
+            await self.methods.service.exporter.aclose()
             writer.close()
