@@ -420,8 +420,14 @@
       "title": "命令超时得到明确终态",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F12",
       "required_platforms": [
         "windows",
@@ -430,12 +436,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         }
       }
     },
@@ -444,8 +456,14 @@
       "title": "正常取消关闭受管执行",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F12",
       "required_platforms": [
         "windows",
@@ -454,12 +472,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         }
       }
     },
@@ -468,8 +492,14 @@
       "title": "含子进程任务的取消／清理",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F12",
       "required_platforms": [
         "windows",
@@ -478,12 +508,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         }
       }
     },
@@ -570,8 +606,14 @@
       "title": "后台服务保留到评分阶段",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F12",
       "required_platforms": [
         "windows",
@@ -580,12 +622,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         }
       }
     },
@@ -594,8 +642,14 @@
       "title": "环境总期限到达后回收",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F12",
       "required_platforms": [
         "windows",
@@ -604,12 +658,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         }
       }
     },
@@ -1536,8 +1596,14 @@
       "title": "大量输出／慢 Renderer",
       "source": "V3",
       "baseline_expectation": "队列有界，取消和审批仍可处理",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F12",
       "required_platforms": [
         "windows",
@@ -1546,12 +1612,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         }
       }
     },
@@ -1695,8 +1767,14 @@
       "title": "重复取消、取消超时和部分清理失败",
       "source": "V3",
       "baseline_expectation": "幂等请求，终态和清理状态分别报告",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
       "owner_task": "F12",
       "required_platforms": [
         "windows",
@@ -1705,12 +1783,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
         }
       }
     },

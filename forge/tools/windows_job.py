@@ -28,6 +28,13 @@ class ExtendedLimits(ctypes.Structure):
     ]
 
 
+class BasicAccounting(ctypes.Structure):
+    _fields_ = [('user_time', ctypes.c_int64), ('kernel_time', ctypes.c_int64),
+        ('period_user_time', ctypes.c_int64), ('period_kernel_time', ctypes.c_int64),
+        ('page_faults', wintypes.DWORD), ('total_processes', wintypes.DWORD),
+        ('active_processes', wintypes.DWORD), ('terminated_processes', wintypes.DWORD)]
+
+
 class WindowsJob:
     def __init__(self):
         self.api = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -36,6 +43,8 @@ class WindowsJob:
             'SetInformationJobObject': ([wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD], wintypes.BOOL),
             'OpenProcess': ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
             'AssignProcessToJobObject': ([wintypes.HANDLE, wintypes.HANDLE], wintypes.BOOL),
+            'TerminateJobObject': ([wintypes.HANDLE, wintypes.UINT], wintypes.BOOL),
+            'QueryInformationJobObject': ([wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p], wintypes.BOOL),
             'CloseHandle': ([wintypes.HANDLE], wintypes.BOOL),
         }
         for name, (args, result) in signatures.items():
@@ -60,6 +69,18 @@ class WindowsJob:
                 raise ctypes.WinError(ctypes.get_last_error())
         finally:
             self.api.CloseHandle(process)
+
+    def terminate(self):
+        if not self.handle or not self.api.TerminateJobObject(self.handle, 125):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def active_processes(self):
+        if not self.handle:
+            raise ValueError('Closed job has no observable ownership')
+        accounting = BasicAccounting()
+        if not self.api.QueryInformationJobObject(self.handle, 1, ctypes.byref(accounting), ctypes.sizeof(accounting), None):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return accounting.active_processes
 
     def close(self):
         if self.handle:

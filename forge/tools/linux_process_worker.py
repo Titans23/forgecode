@@ -42,7 +42,7 @@ def cleanup():
     return not children()
 
 
-def run(command, shell):
+def run(command, shell, *, cleanup_normal=False):
     libc = ctypes.CDLL(None, use_errno=True)
     if libc.prctl(36, 1, 0, 0, 0):  # PR_SET_CHILD_SUBREAPER
         raise OSError(ctypes.get_errno(), 'Cannot establish command ownership')
@@ -96,17 +96,20 @@ def run(command, shell):
                         continue
             return 128 + interrupted
     finally:
-        if not normal_exit and not cleanup():
+        if (not normal_exit or cleanup_normal) and not cleanup():
             # stderr itself may be blocked. The parent has its own bounded
             # teardown and records incomplete collection in that situation.
             try:
                 os.write(2, b'FORGECODE_COMMAND_CLEANUP_INCOMPLETE\n')
             except OSError:
                 pass
+            if cleanup_normal:
+                raise SystemExit(125)
         if process is not None:
             for stream in (process.stdout, process.stderr):
                 stream.close()
 
 
 if __name__ == '__main__':
-    raise SystemExit(run(json.loads(sys.argv[1]), sys.argv[2] == '1'))
+    raise SystemExit(run(json.loads(sys.argv[1]), sys.argv[2] == '1',
+        cleanup_normal=len(sys.argv) == 4 and sys.argv[3] == '--cleanup-on-exit'))

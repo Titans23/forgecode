@@ -7,6 +7,7 @@ from forge.tools.base import ToolError, ToolResult
 
 FILE_TOOLS = frozenset({'list_directory', 'find_files', 'read_file', 'grep', 'create_directory',
     'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch'})
+PROCESS_TOOLS = frozenset({'run_command', 'verify'})
 
 
 class FileToolBackend:
@@ -35,7 +36,7 @@ class FileToolBackend:
         return snapshot
 
     async def execute(self, call, registry):
-        if call.name in FILE_TOOLS:
+        if call.name in FILE_TOOLS | PROCESS_TOOLS:
             validation = registry.validate(call.name, call.arguments)
             if validation is not None:
                 return validation
@@ -53,6 +54,10 @@ class FileToolBackend:
                 validate('file-worker.tool-result', raw)
                 error = ToolError(**raw['error']) if raw['error'] is not None else None
                 result = ToolResult(**{**raw, 'error': error})
+                if call.name == 'verify':
+                    tracker = registry.implementation(call.name).tracker
+                    result = replace(result, metadata={**result.metadata,
+                        'workspace_revision': tracker.revision, 'environment_epoch': tracker.environment_epoch})
                 for path, value in reply['observations'].items():
                     self._observed[path] = value['sha256']
                 return replace(result, metadata={**result.metadata, 'execution_boundary':
@@ -62,7 +67,7 @@ class FileToolBackend:
         # These tools mutate trusted task state or dispatch Explore with this same
         # backend. Hooks/MCP/skill extensions cannot inherit a sandbox label.
         safe_control = {'finish_task', 'review_delivery', 'explore_repository',
-            'create_task', 'update_task', 'list_tasks', 'read_task', 'read_context_artifact'}
+            'task_get', 'task_plan', 'task_update', 'task_revise_requirement', 'read_context_artifact'}
         if call.name in safe_control and registry.provenance(call.name).get('source') == 'builtin':
             return await registry.execute(call.name, call.arguments)
         if self.mode == 'local-trusted':
@@ -71,3 +76,6 @@ class FileToolBackend:
                 'sandbox_covered': False})
         return ToolResult.fail('CAPABILITY_UNSATISFIED', 'This tool has no restricted implementation for the prepared session.',
             metadata={'sandbox_covered': False, 'extension_provenance': registry.provenance(call.name)})
+
+    async def close(self):
+        return await self.observer.close()

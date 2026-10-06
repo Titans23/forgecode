@@ -526,6 +526,9 @@ class TurnRunner:
                 # WorkingState is evidence for context only, never a preflight gate.
                 c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision, call.id)
                 yield ToolExecutionCompleted(effective, outcome.result)
+                if (outcome.record.status == 'cancelled' and outcome.result.error
+                        and outcome.result.error.code == 'execution_cancelled'):
+                    raise asyncio.CancelledError
                 if outcome.record.status == 'indeterminate':
                     interrupted = True
                     batch_reason = 'not_executed_after_interruption'

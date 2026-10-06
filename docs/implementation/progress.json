@@ -1,8 +1,8 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "d17c361e147e07109c3f74761cd7df7954fad5b9",
-  "next_recommended_task": "F12",
+  "actual_repository_head": "4b87665a6a919f09438796fbdb685243e6fe85d4",
+  "next_recommended_task": "F13",
   "current_task": null,
   "tasks": {
     "F00": {
@@ -154,14 +154,27 @@
       ]
     },
     "F12": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "portable": "not_run",
-        "sandbox-linux": "not_run",
-        "sandbox-windows": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "sandbox-linux": "blocked",
+        "sandbox-windows": "blocked",
+        "live_model": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261006T153532Z-e789956e",
+        "20261006T153544Z-ed76e3cf",
+        "20261006T153751Z-30d364a9",
+        "20261006T153755Z-48e0813d",
+        "20261006T154553Z-92330490"
+      ],
+      "blocked_reasons": [
+        "Windows 10 real Engine/helper/Job/HTTP lifecycle tests passed; unit 124, portable 92, final regression 956, zero skips. Windows 11 and Ubuntu native runners remain unavailable (zero native checks); native SRT Job/ACL/session cleanup remains unverified/unknown. Portable ownership evidence does not promote native capabilities.",
+        "PhaseLifecycle is ready for F20/F21 grader adapters. Native service grading and paid API/model experiments need their environments and explicit budgets."
+      ]
     },
     "F13": {
       "implementation_status": "todo",

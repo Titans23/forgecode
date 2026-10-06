@@ -112,6 +112,9 @@ class Store:
                     # Old ownership requires reconciliation, never automatic re-execution.
                     self.connection.execute("UPDATE work_items SET state='reconciling',version=version+1 WHERE state IN ('running','cancel_requested') AND owner_epoch!=?", (self.epoch,))
                     self.connection.execute("UPDATE turns SET state='reconciling' WHERE id IN (SELECT business_id FROM work_items WHERE state='reconciling' AND kind='turn') AND state!='finished'")
+                    if self.connection.execute("SELECT 1 FROM sqlite_master WHERE name='turn_lifecycle'").fetchone():
+                        self.connection.execute("UPDATE turn_lifecycle SET cleanup_state='unknown',cancel_state='indeterminate' "
+                            "WHERE owner_epoch!=? AND cleanup_state IN ('pending','running')", (self.epoch,))
         except BaseException:
             self.close()
             raise

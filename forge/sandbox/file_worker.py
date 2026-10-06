@@ -41,6 +41,7 @@ class FileAccess:
             tuple(Path(os.path.abspath(p)) for p in fs['write_roots']),
             tuple(Path(os.path.abspath(p)) for p in fs['protected_paths']))
         self.root = root.path
+        self.limits = policy['limits']
         self.write = False
         self.before = {}
         self.expected = {}
@@ -249,8 +250,16 @@ async def execute(request):
     tools = {tool.name: tool(access.root) for tool in (CreateDirectoryTool, ListDirectoryTool,
         ReadFileTool, RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool, FindFilesTool, GrepTool)}
     name, arguments = request['name'], request['arguments']
+    if name in ('run_command', 'verify'):
+        from forge.tools.shell import RunCommandTool
+        if name == 'run_command':
+            tools[name] = RunCommandTool(access.root)
+        else:
+            from forge.tools.verify import VerifyTool
+            from forge.runtime.workspace import WorkspaceTracker
+            tools[name] = VerifyTool(access.root, WorkspaceTracker(access.root))
     if name != 'apply_patch' and name not in tools:
-        fail('POLICY_DENIED', 'Only fixed file tools are available in this helper')
+        fail('POLICY_DENIED', 'Only fixed file and process tools are available in this helper')
     access.write = name == 'apply_patch' or tools[name].effect == 'workspace_write'
     token = file_access_guard.set(access)
     try:

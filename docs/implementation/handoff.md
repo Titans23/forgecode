@@ -1,6 +1,19 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F11；下一任务 F12（任务卡、第 6 / 11 / 15 章已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F12；下一 F13（任务卡、第 15 / 16 / 20 章已读）。原生平台验收独立 blocked。
+- F12 提交父 HEAD：4b87665a6a919f09438796fbdb685243e6fe85d4；接续核对实际 git HEAD。
+- F12：EOF / 输出背压停止调度并取消，readonly 实际取消不再调用模型；未知写入不回放。
+  预算／批次跳过与 execution_cancelled 区分，保留原 Harness 失败和预算行为。
+  migration 003 保存 Agent / grader / environment deadline 和独立 cancel / cleanup 状态。
+  Job accounting / Linux subreaper 只处理 live owned handle；严格原生 cleanup unknown 保持 indeterminate。
+  固定 helper 执行 run_command / verify；PhaseLifecycle 保留服务到评分结束或 final deadline，评分结果独立。
+- F12 最终 unit 124 / portable 92 / regression 956 pass，0 skip；证据
+  20261006T153532Z-e789956e / 20261006T153544Z-ed76e3cf / 20261006T154553Z-92330490。
+  Linux / Windows native blocked 0：20261006T153751Z-30d364a9 / 20261006T153755Z-48e0813d。
+  contracts --check pass。旧 EOF 演示先显式 drain；新 bare EOF 测试必须取消队列和在途。
+  旧单测同名收集冲突、四项取消误判已修复，失败证据保留，最终 956 项全过。
+  直接在原测试进程重开刚强杀的 WAL 库出现过 disk I/O error；真实新 Engine 恢复测试通过。
+  F25 继续 I/O 诊断与对账覆盖；F20/F21 接入 PhaseLifecycle grader，native / 付费实验继续 blocked。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。

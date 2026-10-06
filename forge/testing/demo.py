@@ -113,8 +113,10 @@ async def execute_demo(directory, fixture, params, *, disconnect_before_response
                 input=[{'type': 'text', 'text': 'Fix integer addition in calculator.py. Preserve the tests; run unittest before and after the repair.'}])
             await client.call('events.subscribe', {'scope': {'kind': 'session', 'id': session['session_id']}})
             if disconnect_before_response:
-                # Lose the start response deliberately; EOF drains accepted work once.
+                # Lose the start response after an explicit, durable drain request.
+                # A bare Main EOF cancels work; it is not permission to continue.
                 await client.send('session.start_turn', turn)
+                await client.send('system.shutdown', {'client_action_id': new_id('act'), 'mode': 'drain'})
                 client.process.stdin.close()
                 if await client.drain() != 0:
                     raise RuntimeError('Disconnected Engine failed to drain')

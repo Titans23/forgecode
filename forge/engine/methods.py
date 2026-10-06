@@ -77,13 +77,16 @@ class EngineMethods:
 
     def shutdown(self, params):
         result = self._mutate('system.shutdown', params, lambda: {'state': 'draining', 'reused_existing_action': False})
+        self.begin_shutdown(params['mode'], 'Engine shutdown')
+        return result
+
+    def begin_shutdown(self, mode, reason):
         self.stopping = True
-        self.shutdown_mode = params['mode']
-        if params['mode'] == 'cancel':
+        self.shutdown_mode = mode
+        if mode == 'cancel':
             from forge.engine.persistence import new_id
             for row in self.store.connection.execute("SELECT id FROM turns WHERE state IN ('queued','running','awaiting_approval')").fetchall():
-                self.service.cancel_turn({'turn_id': row[0], 'client_action_id': new_id('act'), 'reason': 'Engine shutdown'})
-        return result
+                self.service.cancel_turn({'turn_id': row[0], 'client_action_id': new_id('act'), 'reason': reason})
 
     def register_workspace(self, params):
         return self._mutate('workspace.register', params,

@@ -15,6 +15,7 @@ from forge.application.models import ContractError, canonical_hash, validate
 from forge.application.sessions import outcome_for, session_view, turn_view
 from forge.config import ForgeConfig
 from forge.engine.journal_projection import JournalProjector
+from forge.engine.lifecycle import Deadline
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.runtime.state import TurnCompleted
 from forge.sessions.store import SessionStore
@@ -190,11 +191,17 @@ class ApplicationServices:
                 self.store.connection.execute("UPDATE turns SET state='cancel_requested' WHERE id=?", (params['turn_id'],))
                 self.store.connection.execute("UPDATE work_items SET state='cancel_requested' WHERE id=?", (work['id'],))
             if turn['state'] in ('queued', 'running', 'awaiting_approval'):
+                self.store.connection.execute('INSERT INTO turn_lifecycle(turn_id,owner_epoch,cancel_state,cleanup_state) '
+                    'VALUES(?,?,?,?) ON CONFLICT(turn_id) DO UPDATE SET cancel_state=excluded.cancel_state',
+                    (params['turn_id'], self.store.epoch, 'confirmed' if turn['state'] == 'queued' else 'requested',
+                     'clean' if turn['state'] == 'queued' else 'pending'))
                 attributes = {'original_turn_id': params['turn_id'], 'original_attempt_id': None,
                     'unknown_side_effects': turn['state'] != 'queued', 'reason': params['reason'],
                     'cleanup_state': 'clean' if turn['state'] == 'queued' else 'pending'}
                 self.store._turn_event('cancellation.requested', params['turn_id'], attributes)
                 if turn['state'] == 'queued':
+                    self.store.connection.execute('UPDATE turn_lifecycle SET cleanup_json=?,finished_at_utc=? WHERE turn_id=?',
+                        (encoded({'state': 'clean', 'scope': 'not_dispatched', 'resources': {}}), utc_now(), params['turn_id']))
                     self.store._turn_event('cancellation.confirmed', params['turn_id'], attributes)
                     self.store._turn_event('turn.finished', params['turn_id'], {
                         'configuration': turn['configuration'], 'outcome': 'cancelled', 'native_outcome': None,
@@ -234,6 +241,11 @@ class ApplicationServices:
         result = None
         outcome = 'failed'
         reason = 'harness_error'
+        timer = None
+        deadline_expired = False
+        cleanup = {'state': 'clean', 'scope': self.mode, 'resources': {}}
+        projection_error = None
+        model_cleanup_error = None
         try:
             reference = json.loads(turn['config_json'])
             configuration = json.loads(self.store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
@@ -243,6 +255,17 @@ class ApplicationServices:
             current = self._configuration(params, configuration['workspace_id'], execution=True)
             if canonical_hash(current) != canonical_hash(configuration):
                 raise ContractError('Accepted configuration is no longer available', kind='STALE_REVISION', code=-32010)
+            deadline = Deadline.start(configuration['wall_seconds'])
+            with self.store.transaction():
+                self.store.connection.execute('INSERT INTO turn_lifecycle(turn_id,owner_epoch,agent_deadline_utc,environment_deadline_utc,cancel_state,cleanup_state) '
+                    'VALUES(?,?,?,?,?,?) ON CONFLICT(turn_id) DO UPDATE SET agent_deadline_utc=excluded.agent_deadline_utc, '
+                    'environment_deadline_utc=excluded.environment_deadline_utc',
+                    (turn_id, self.store.epoch, deadline.utc_text, deadline.utc_text, 'none', 'pending'))
+            def expire():
+                nonlocal deadline_expired
+                deadline_expired = True
+                self.cancel_turn({'turn_id': turn_id, 'client_action_id': new_id('act'), 'reason': 'Agent deadline exceeded'})
+            timer = asyncio.create_task(deadline.watch(asyncio.current_task(), expire))
             metadata = dict(configuration['model'])
             metadata['request_timeout_seconds'] = float(metadata['request_timeout_seconds'])
             config = ForgeConfig(api_key=self.credentials.resolve(configuration['connection_id']), **metadata)
@@ -275,24 +298,51 @@ class ApplicationServices:
             records = adapter.conversation.turn_state.execution_records if adapter and adapter.conversation.turn_state else []
             outcome = 'indeterminate' if any(r.status == 'indeterminate' for r in records) else 'cancelled'
             reason = 'cancellation_propagated' if outcome == 'cancelled' else 'cancelled_with_unknown_tool_result'
+            if deadline_expired and outcome != 'indeterminate':
+                outcome, reason = 'timed_out', 'agent_deadline_exceeded'
         except Exception as error:
             outcome, reason = 'indeterminate' if adapter else 'failed', type(error).__name__
         finally:
-            self.running.pop(turn_id, None)
+            if timer is not None:
+                timer.cancel()
+                await asyncio.gather(timer, return_exceptions=True)
+            with self.store.transaction():
+                self.store.connection.execute("UPDATE turn_lifecycle SET cleanup_state='running' WHERE turn_id=? AND owner_epoch=?",
+                    (turn_id, self.store.epoch))
             if adapter is not None:
                 try:
-                    await adapter.close()
+                    await asyncio.wait_for(adapter.close(), 2)
+                except (Exception, asyncio.CancelledError) as error:
+                    model_cleanup_error = type(error).__name__
+                try:
                     JournalProjector(self.store).project(adapter.journal.path, turn['session_id'])
-                except Exception:
-                    # The native Journal is still authoritative. Never retry tool execution.
-                    with self.store.transaction():
-                        self.store.connection.execute("UPDATE work_items SET state='reconciling',version=version+1 WHERE id=?", (claimed['id'],))
-                        self.store.connection.execute("UPDATE turns SET state='reconciling' WHERE id=?", (turn_id,))
-                    raise
-            self._finish(claimed, turn, outcome, reason, result)
+                except Exception as error:
+                    projection_error = error  # Journal remains authoritative; no tool replay.
+            if self.backend is not None and hasattr(self.backend, 'close'):
+                try:
+                    cleanup = await asyncio.wait_for(self.backend.close(), 5)
+                    if not isinstance(cleanup, dict) or cleanup.get('state') not in ('clean', 'residual', 'unknown'):
+                        cleanup = {'state': 'unknown', 'reason': 'invalid_backend_cleanup_report'}
+                except (Exception, asyncio.CancelledError) as error:
+                    cleanup = {'state': 'unknown', 'reason': type(error).__name__}
+            elif self.mode == 'strict':
+                cleanup = {'state': 'unknown', 'reason': 'native_cleanup_observation_unavailable'}
+            if model_cleanup_error:
+                cleanup = {'state': 'unknown', 'model_cleanup_error': model_cleanup_error, 'backend': cleanup}
+            if outcome in ('cancelled', 'timed_out') and cleanup['state'] != 'clean':
+                outcome, reason = 'indeterminate', 'cancellation_cleanup_unconfirmed'
+            self.running.pop(turn_id, None)
+            if projection_error is not None:
+                with self.store.transaction():
+                    self.store.connection.execute("UPDATE work_items SET state='reconciling',version=version+1 WHERE id=?", (claimed['id'],))
+                    self.store.connection.execute("UPDATE turns SET state='reconciling' WHERE id=?", (turn_id,))
+                    self.store.connection.execute("UPDATE turn_lifecycle SET cancel_state='indeterminate',cleanup_state=?,cleanup_json=? WHERE turn_id=?",
+                        (cleanup['state'], encoded(cleanup), turn_id))
+                raise projection_error
+            self._finish(claimed, turn, outcome, reason, result, cleanup=cleanup)
         return result
 
-    def _finish(self, work, turn, outcome, reason, result):
+    def _finish(self, work, turn, outcome, reason, result, *, cleanup=None):
         native = {'status': result.status, 'stop_reason': result.stop_reason, 'model_calls': result.model_calls,
                   'tool_calls': [call.name for call in result.tool_calls], 'completion_reasons': list(result.completion_reasons),
                   'completion_report': asdict(result.completion_report) if result.completion_report else None} if result else None
@@ -303,6 +353,16 @@ class ApplicationServices:
                 raise ContractError('Execution ownership changed', kind='INDETERMINATE', code=-32010)
             self.store.connection.execute("UPDATE turns SET state='finished',outcome=? WHERE id=?", (outcome, turn['id']))
             self.store.connection.execute('INSERT INTO turn_results VALUES(?,?)', (turn['id'], encoded(native)))
+            requested = self.store.connection.execute('SELECT cancel_state FROM turn_lifecycle WHERE turn_id=?', (turn['id'],)).fetchone()
+            cleanup = cleanup or {'state': 'unknown', 'reason': 'cleanup_unobserved'}
+            confirmed = bool(requested and requested[0] == 'requested' and outcome != 'indeterminate' and cleanup['state'] == 'clean')
+            self.store.connection.execute('UPDATE turn_lifecycle SET cancel_state=?,cleanup_state=?,cleanup_json=?,finished_at_utc=? '
+                'WHERE turn_id=? AND owner_epoch=?',
+                ('confirmed' if confirmed else 'indeterminate' if requested and requested[0] == 'requested' else 'none',
+                 cleanup['state'], encoded(cleanup), utc_now(), turn['id'], self.store.epoch))
+            if confirmed:
+                self.store._turn_event('cancellation.confirmed', turn['id'], {'original_turn_id': turn['id'],
+                    'original_attempt_id': None, 'unknown_side_effects': False, 'reason': reason, 'cleanup_state': 'clean'})
             self.store._turn_event('turn.finished', turn['id'],
                 {'configuration': json.loads(turn['config_json']), 'outcome': outcome, 'native_outcome': result.status if result else None,
                  'reason': reason, 'budget_summary': {'model_calls_remaining': None, 'tool_calls_remaining': None, 'wall_seconds_remaining': None}})

@@ -184,7 +184,7 @@ class SrtBackend:
             return
         try:
             if self.process.returncode is None:
-                await self.close()
+                await asyncio.wait_for(self.close(), 3)
         finally:
             if self.process.stdin and not self.process.stdin.is_closing():
                 self.process.stdin.close()
@@ -193,6 +193,10 @@ class SrtBackend:
             except asyncio.TimeoutError:
                 self.process.kill()  # Exact owned Bridge handle; sandbox descendants still require reconciliation.
                 await self.process.wait()
-            await asyncio.gather(self._reader, self._stderr, return_exceptions=True)
+            readers = (self._reader, self._stderr)
+            done, pending = await asyncio.wait(readers, timeout=1)
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*readers, return_exceptions=True)
             if self._worker_lease:
                 self._worker_lease.close(self._cleanup)

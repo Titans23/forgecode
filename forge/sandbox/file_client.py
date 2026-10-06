@@ -25,6 +25,8 @@ class FileWorkerClient:
         self.native = native
         self.local_control = Path(local_control) if local_control is not None else None
         self._lock = asyncio.Lock()
+        self._owners = set()
+        self._cleanup_reports = []
 
     async def request(self, operation, **values):
         request_id = 'exec-' + str(uuid4())
@@ -41,16 +43,24 @@ class FileWorkerClient:
             else:
                 # Explicit portable/local-trusted mode. It is never selected as
                 # fallback after a native failure and makes no OS sandbox claim.
-                child = await asyncio.create_subprocess_exec(*worker_argv(), cwd=str(ROOT),
-                    env=bridge_environment(self.local_control), stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+                from forge.sandbox.process_owner import LocalProcessOwner
+                owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
+                    environment=bridge_environment(self.local_control), output=True)
+                child = owner.process
+                self._owners.add(owner)
                 try:
-                    output, _ = await asyncio.wait_for(child.communicate(raw), 30)
-                except BaseException:
-                    if child.returncode is None:
-                        child.kill()
-                    await child.wait()
-                    raise
+                    seconds = self._seconds(request)
+                    async with asyncio.timeout(seconds + 5):
+                        child.stdin.write(raw)
+                        await child.stdin.drain()
+                        child.stdin.close()
+                        output = await child.stdout.read(MAX_FRAME_BYTES + 1)
+                        if len(output) > MAX_FRAME_BYTES:
+                            raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
+                        await child.wait()
+                finally:
+                    self._cleanup_reports.append(await owner.close())
+                    self._owners.discard(owner)
                 if child.returncode not in (0, 2):
                     raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010)
         result = strict_loads(output)
@@ -63,11 +73,17 @@ class FileWorkerClient:
             raise ContractError('Invalid file helper response', kind='INDETERMINATE', code=-32010)
         return result
 
+    def _seconds(self, request):
+        seconds = 30
+        if request.get('name') in ('run_command', 'verify'):
+            seconds = request['arguments'].get('timeout_seconds', 120) + 5
+        return min(seconds, self.policy['limits']['wall_time_seconds'])
+
     async def _native_request(self, execution_id, raw):
         native = self.native
         if native._prepared is None or native._prepared.sha256 != self.policy_hash:
             raise ContractError('File helper requires its prepared native policy', kind='SANDBOX_UNAVAILABLE', code=-32010)
-        seconds = min(30, self.policy['limits']['wall_time_seconds'])
+        seconds = self._seconds(strict_loads(raw))
         deadline = (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat().replace('+00:00', 'Z')
         command = {'mode': 'argv', 'argv': worker_argv(), 'cwd': self.workspace['canonical_path'],
             'environment': {}, 'deadline_utc': deadline, 'output_limit_bytes': min(MAX_FRAME_BYTES, self.policy['limits']['command_output_bytes']),
@@ -108,9 +124,11 @@ class FileWorkerClient:
         except BaseException:
             cleanup_deadline = (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat().replace('+00:00', 'Z')
             try:
-                await native.cancel(execution_id, 'File helper interrupted', cleanup_deadline)
-            except Exception:
-                pass
+                report = await asyncio.wait_for(native.cancel(execution_id, 'Helper interrupted', cleanup_deadline), 3)
+                self._cleanup_reports.append({'state': 'clean' if report.get('confirmed') is True and
+                    report.get('cleanup', {}).get('state') == 'clean' else 'unknown', 'native_cancel': report})
+            except Exception as error:
+                self._cleanup_reports.append({'state': 'unknown', 'reason': type(error).__name__})
             raise
         finally:
             collector.cancel()
@@ -121,3 +139,17 @@ class FileWorkerClient:
 
     async def snapshot(self, paths, *, recursive=False):
         return (await self.request('snapshot', paths=list(paths), recursive=recursive))['result']
+
+    async def close(self):
+        for owner in list(self._owners):
+            self._cleanup_reports.append(await owner.close())
+            self._owners.discard(owner)
+        if self.native is not None:
+            try:
+                self._cleanup_reports.append(await self.native.close())
+            finally:
+                await self.native.aclose()
+        states = {report['state'] for report in self._cleanup_reports}
+        return {'state': 'unknown' if 'unknown' in states else 'residual' if 'residual' in states else 'clean',
+            'scope': 'native-session' if self.native else 'local-trusted-process-tree',
+            'reports': list(self._cleanup_reports)}

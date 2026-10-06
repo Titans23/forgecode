@@ -9,6 +9,7 @@ import sys
 
 from forge.application.models import ContractError, ErrorKind, MAX_FRAME_BYTES, METHODS, strict_loads, validate, validate_request
 from forge.engine.persistence import encoded, new_id
+from forge.engine.scheduler import TurnScheduler
 
 
 EOF = object()
@@ -61,7 +62,7 @@ class PipeWriter:
             raise ContractError('Response exceeds frame limit', kind='ARTIFACT_LIMIT', code=-32010)
         future = self.loop.create_future()
         self.jobs.put_nowait((raw + b'\n', future))
-        await future
+        await asyncio.wait_for(future, 5)
 
     def close(self):
         try:
@@ -123,7 +124,7 @@ class RpcServer:
         self.work_ready = asyncio.Event()
         self.reader_stopped = threading.Event()
         self.closed = False
-        self.active = None
+        self.scheduler = TurnScheduler(methods, self.work_ready)
 
     def handle_member(self, member):
         request_id = None
@@ -211,51 +212,44 @@ class RpcServer:
                         self.methods.events.subscriptions.pop(subscription_id, None)
             await asyncio.sleep(0.02)
 
-    async def _schedule(self):
-        while not self.closed:
-            self.work_ready.clear()
-            if not self.methods.initialized:
-                if self.methods.stopping:
-                    return
-                await self.work_ready.wait()
-                continue
-            row = self.methods.store.connection.execute("SELECT business_id FROM work_items WHERE kind='turn' AND state='queued' ORDER BY rowid LIMIT 1").fetchone()
-            reconciling = self.methods.store.connection.execute("SELECT 1 FROM work_items WHERE state='reconciling' LIMIT 1").fetchone()
-            if row and not reconciling:
-                self.active = asyncio.create_task(self.methods.service.execute_turn(row[0]))
-                try:
-                    await self.active
-                except Exception as error:
-                    print(json.dumps({'component': 'scheduler', 'exception_type': type(error).__name__}), file=sys.stderr)
-                finally:
-                    self.active = None
-                continue
-            if self.methods.stopping:
-                return
-            await self.work_ready.wait()
-
     async def run(self, input_descriptor, output_descriptor):
         writer = PipeWriter(output_descriptor)
         start_reader(input_descriptor, self.inbound, asyncio.get_running_loop(), self.reader_stopped)
         writing = asyncio.create_task(self._write(writer))
         pumping = asyncio.create_task(self._events())
-        scheduling = asyncio.create_task(self._schedule())
+        scheduling = asyncio.create_task(self.scheduler.run())
         try:
             while not self.methods.stopping:
-                raw = await self.inbound.get()
+                reading = asyncio.create_task(self.inbound.get())
+                done, _ = await asyncio.wait((reading, writing), return_when=asyncio.FIRST_COMPLETED)
+                if writing in done:
+                    reading.cancel()
+                    await asyncio.gather(reading, return_exceptions=True)
+                    self.methods.begin_shutdown('cancel', 'Main output pipe lost or blocked')
+                    break
+                raw = reading.result()
                 if raw is EOF:
-                    self.methods.stopping = True
+                    self.methods.begin_shutdown('cancel', 'Main control pipe EOF')
                     self.work_ready.set()
                     break
                 response = self.handle_frame(raw)
                 if response is not None:
-                    await self.control.put(response)
+                    try:
+                        self.control.put_nowait(response)
+                    except asyncio.QueueFull:
+                        self.methods.begin_shutdown('cancel', 'Main stopped draining control responses')
+                        break
                     self.output_ready.set()
             self.work_ready.set()
             await scheduling
             self.closed = True
             self.output_ready.set()
-            await writing
+            try:
+                await asyncio.wait_for(writing, 5)
+            except (TimeoutError, BrokenPipeError, ConnectionResetError):
+                # Work was cancelled/settled independently of stdout draining.
+                # A lost consumer cannot turn task output into an exit deadlock.
+                pass
             return 0
         finally:
             self.closed = True
