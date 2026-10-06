@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:owner-identity",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "engine_epoch": { "type": "string", "pattern": "^epoch-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "sandbox_session_id": { "type": "string", "pattern": "^sandbox-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "execution_id": { "anyOf": [
+      { "type": "string", "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+      { "type": "null" }
+    ] }
+  },
+  "required": ["engine_epoch", "sandbox_session_id", "execution_id"]
+}

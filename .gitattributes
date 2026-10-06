@@ -5,3 +5,6 @@ contracts/** text eol=lf
 forge/application/_generated_contracts.json text eol=lf
 forge/engine/migrations/*.sql text eol=lf
 packages/contracts/src/generated/* text eol=lf
+/package.json text eol=lf
+packages/contracts/package.json text eol=lf
+sandbox_bridge/** text eol=lf

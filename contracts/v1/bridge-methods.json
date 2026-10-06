@@ -6,7 +6,7 @@
       "request_schema": "bridge.probe.request",
       "result_schema": "bridge.probe.result",
       "mutation": false,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "errors": [
         "POLICY_DENIED",
         "SANDBOX_UNAVAILABLE",
@@ -19,7 +19,10 @@
       "idempotency_key": null,
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "prepare": {
@@ -27,7 +30,7 @@
       "request_schema": "bridge.prepare.request",
       "result_schema": "bridge.prepare.result",
       "mutation": true,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "errors": [
         "POLICY_DENIED",
         "SANDBOX_UNAVAILABLE",
@@ -40,7 +43,10 @@
       "idempotency_key": "sandbox_session_id",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "execute": {
@@ -48,7 +54,7 @@
       "request_schema": "bridge.execute.request",
       "result_schema": "bridge.execute.result",
       "mutation": true,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "errors": [
         "POLICY_DENIED",
         "SANDBOX_UNAVAILABLE",
@@ -61,7 +67,10 @@
       "idempotency_key": "execution_id",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "status": {
@@ -69,7 +78,7 @@
       "request_schema": "bridge.status.request",
       "result_schema": "bridge.status.result",
       "mutation": false,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "errors": [
         "POLICY_DENIED",
         "SANDBOX_UNAVAILABLE",
@@ -82,7 +91,10 @@
       "idempotency_key": null,
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "cancel": {
@@ -90,7 +102,7 @@
       "request_schema": "bridge.cancel.request",
       "result_schema": "bridge.cancel.result",
       "mutation": true,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "errors": [
         "POLICY_DENIED",
         "SANDBOX_UNAVAILABLE",
@@ -103,7 +115,10 @@
       "idempotency_key": "execution_id",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "close": {
@@ -111,7 +126,7 @@
       "request_schema": "bridge.close.request",
       "result_schema": "bridge.close.result",
       "mutation": true,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "errors": [
         "POLICY_DENIED",
         "SANDBOX_UNAVAILABLE",
@@ -124,7 +139,10 @@
       "idempotency_key": "sandbox_session_id",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     }
   }

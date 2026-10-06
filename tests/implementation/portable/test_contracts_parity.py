@@ -31,6 +31,18 @@ def test_python_and_typescript_validate_the_same_real_fixtures_and_hash():
         '[' * 33 + '0' + ']' * 33, '{"n":9007199254740992}',
         '"' + 'x' * 1048576 + '"', '{"n":1.0}',
     ]]
+    from forge.engine.persistence import new_id
+    owner = {'engine_epoch': new_id('epoch'), 'sandbox_session_id': new_id('sandbox'), 'execution_id': new_id('exec')}
+    output = {'execution_id': owner['execution_id'], 'owner': owner, 'stream': 'stdout', 'sequence': '1',
+              'raw_base64': '5Lit', 'text': '中', 'encoding': 'utf-8', 'final': False}
+    cases.append({'schema': 'bridge-output', 'raw': json.dumps(output)})
+    for field, bad in [('raw_base64', 'not base64!'), ('sequence', '0'), ('stream', 'approval'), ('encoding', 'invented')]:
+        cases.append({'schema': 'bridge-output', 'raw': json.dumps({**output, field: bad})})
+    cases.append({'schema': 'bridge-output', 'raw': json.dumps({**output, 'grade': 1})})
+    command = {'mode': 'argv', 'argv': ['program', ''], 'cwd': str(ROOT), 'environment': {},
+               'deadline_utc': '2026-10-07T00:00:00Z', 'output_limit_bytes': 1024}
+    cases += [{'schema': 'command-spec', 'raw': json.dumps(command)},
+              {'schema': 'command-spec', 'raw': json.dumps({**command, 'argv': ['']})}]
     value = {'budget': '2.5', '\U00010000': [1, 2], '\ue000': '中文'}
     requests = []
     for fixture in json.loads((directory / 'method-fixtures.json').read_text())['cases']:

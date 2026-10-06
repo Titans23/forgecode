@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "b5d2b4f5a79d9691e0a94ce430c38375911b4adc",
-  "next_recommended_task": "F08",
-  "current_task": "F08",
+  "actual_repository_head": "0a3c03f6f5e88e50595b1c8c78fca311f4c6c247",
+  "next_recommended_task": "F09",
+  "current_task": "F09",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -65,13 +65,24 @@
       "blocked_reasons": ["Policy/path compilation and actual Windows 10 file identity/junction behavior verified. Windows 11/Ubuntu OS isolation, dynamic sensitive-file shell/file-worker consistency, and native resource enforcement remain blocked/unverified; no verified native capabilities manufactured."]
     },
     "F08": {
-      "implementation_status": "in_progress",
+      "implementation_status": "implemented",
       "verification": {
-        "unit": "not_run",
-        "portable": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "typecheck": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261006T122617Z-467c0ff0",
+        "20261006T122623Z-252a9f8b",
+        "20261006T122834Z-df2df90c"
+      ],
+      "blocked_reasons": [
+        "Real locked Node/SRT Bridge and host dispatcher tests passed on Windows 10. Windows 11/Ubuntu native initialization/execution/boundaries, dynamic sensitive-path protection, descendant ownership and ACL cleanup remain blocked/unverified. Strict prepare refuses unverified capabilities; no ordinary-spawn fallback or paid-model result."
+      ]
     },
     "F09": {
       "implementation_status": "todo",

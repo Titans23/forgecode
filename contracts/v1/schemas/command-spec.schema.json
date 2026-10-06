@@ -11,9 +11,10 @@
         },
         "argv": {
           "type": "array",
+          "prefixItems": [{ "type": "string", "minLength": 1, "maxLength": 16384 }],
           "items": {
             "type": "string",
-            "minLength": 1,
+            "minLength": 0,
             "maxLength": 16384
           },
           "maxItems": 256,

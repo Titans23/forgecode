@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00—F07；下一任务 F08（任务卡和第 11 章已读）。
+- 当前完成 F00—F08；下一任务 F09（任务卡、第 11—12 章已读）。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -102,6 +102,21 @@
   unit 96 / portable 56 pass，0 skip，证据 20261006T115350Z-bfd58d91 /
   20261006T115355Z-edb1d80e；contracts --check pass。完整回归 892 pass、0 skip，
   20261006T115517Z-a30f1c2e。Native OS 隔离与动态 shell/file-worker 验收 blocked。
-- F08 已阅读任务卡和第 11 章；待做实际 SRT adapter/每 session Bridge/可信 fixed runtime
-  启动/受限 dispatcher/data-output/幂等/归属/清理。F01 loader 是 packaging/verify-release.mjs
-  的 verifyAsset/verifyReleaseLock，Node 24.21.0 资产在 release-lock；GHSA 生产阻断保持。
+- F07 已推送 0a3c03f6f5e88e50595b1c8c78fca311f4c6c247。
+- F08 实现独立 SrtBackend、固定 Node/资产/1413 文件运行库存、六方法 Bridge、受限
+  dispatcher、单独 payload stdin、raw byte/增量 UTF-8/输出与 session 配额、有界队列、
+  execution hash 幂等与 owner、重复 close。新 command argv 保留空参数；生成契约已同步。
+  真实 NODE_OPTIONS 注入测试未执行宿主 loader，输出伪造 RPC 只成为数据 envelope。
+  unit 100 / portable 60 / regression 900 pass，0 skip；证据
+  20261006T122617Z-467c0ff0 / 20261006T122623Z-252a9f8b / 20261006T122834Z-df2df90c。
+  contracts --check / npm run typecheck pass。F08 验收后提交并推送。
+- Bridge probe 仅系统/依赖前提，不制造 verified 能力；严格 prepare 在原生边界/清理证据
+  未齐时拒绝。SRT reset 为 best effort，native 初始化后 cleanup unknown；不能据
+  remaining_processes=0 推断无残留。仅从未初始化/启动的 Bridge close 可确认 clean。
+  F09/F10 的受控验证器可调用 initializeNative 底层入口；它不注册 RPC，不接收模型能力。
+- Node 路径由 release-lock 固定；安装根/compiled modules 需与 trusted control 根分开，
+  不允许工作区覆盖安装目录。prepare 的 control-root 保护会进入冻结 policy hash，
+  F11 接入存储/工具时需在创建 policy 前固定这些根。现有 Harness/CLI 入口保持。
+- 构建命令 python scripts/build_bridge.py；校验 --check，inventory 不能在测试中自修复。
+  packages/contracts 和 sandbox_bridge 编译强制 LF，相关资产清单固定 LF。
+  Windows 11/Ubuntu 原生、动态 .env、权限/后代清理和真实模型实验仍 blocked；GHSA 保持。

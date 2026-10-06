@@ -331,11 +331,20 @@
       "source": "@anthropic-ai/sandbox-runtime@0.0.78",
       "license": "Apache-2.0",
       "patches": []
+    },
+    {
+      "name": "bridge-runtime-manifest",
+      "platform": "all",
+      "path": "sandbox_bridge/runtime-manifest.json",
+      "sha256": "eeed4d325cd5334e62874c93faabe3124312a6702e8c9564ecb4365b971a17c8",
+      "source": "ForgeCode locked runtime code inventory",
+      "license": "Apache-2.0",
+      "patches": []
     }
   ],
   "lockfile_hashes": {
     "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
-    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d"
+    "package-lock.json": "84e4b2e7ece18e80431ccf25a6a9fe5a078aafb38d7e43b881b03cfde306098e"
   },
   "security": {
     "status": "blocked",

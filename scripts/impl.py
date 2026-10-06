@@ -42,14 +42,15 @@ SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
           'regression': ['tests'], 'packaged': [],
           'sandbox-linux': None, 'sandbox-windows': None, 'desktop': None, 'live-eval': None}
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable']}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable']}
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
               'N02': ['tests/implementation/integration/test_storage.py'],
               'N06': ['tests/implementation/integration/test_storage.py'],
               **{case: ['tests/implementation/integration/test_rpc.py'] for case in ('O07', 'D04', 'D07', 'D09', 'D10', 'N01', 'N03')},
-              **{case: ['tests/implementation/unit/test_policy.py', 'tests/implementation/integration/test_policy_service.py'] for case in ('C06', 'C24', 'N08')}}
+              **{case: ['tests/implementation/unit/test_policy.py', 'tests/implementation/integration/test_policy_service.py'] for case in ('C06', 'C24', 'N08')},
+              **{case: ['tests/implementation/unit/test_bridge_launcher.py', 'tests/implementation/integration/test_bridge.py'] for case in ('C07', 'C08', 'C09', 'C16', 'C17', 'D13', 'N05')}}
 
 
 class Parser(argparse.ArgumentParser):
@@ -216,6 +217,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         node = shutil.which('node')
         if node:
             preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
+            preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_bridge.py'), '--check'])
     head = command(['git', 'rev-parse', 'HEAD'])
     dirty = command(['git', 'diff', '--binary', 'HEAD'])
     source_hashes = {}

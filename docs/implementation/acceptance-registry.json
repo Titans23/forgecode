@@ -164,8 +164,12 @@
       "title": "后端初始化失败不回退普通 spawn",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
       "owner_task": "F08",
       "required_platforms": [
         "windows",
@@ -174,12 +178,23 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T122617Z-467c0ff0",
+            "20261006T122623Z-252a9f8b",
+            "20261006T122834Z-df2df90c"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
         }
       }
     },
@@ -188,8 +203,12 @@
       "title": "Shell 显式参数、cwd 与环境变量正确传递",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
       "owner_task": "F08",
       "required_platforms": [
         "windows",
@@ -198,12 +217,23 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T122617Z-467c0ff0",
+            "20261006T122623Z-252a9f8b",
+            "20261006T122834Z-df2df90c"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
         }
       }
     },
@@ -212,8 +242,12 @@
       "title": "模型凭证不进入子进程环境",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
       "owner_task": "F08",
       "required_platforms": [
         "windows",
@@ -222,12 +256,23 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T122617Z-467c0ff0",
+            "20261006T122623Z-252a9f8b",
+            "20261006T122834Z-df2df90c"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
         }
       }
     },
@@ -380,8 +425,12 @@
       "title": "大输出发生有记录的截断／外置",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
       "owner_task": "F08",
       "required_platforms": [
         "windows",
@@ -390,12 +439,23 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T122617Z-467c0ff0",
+            "20261006T122623Z-252a9f8b",
+            "20261006T122834Z-df2df90c"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
         }
       }
     },
@@ -404,8 +464,12 @@
       "title": "日志或磁盘预算耗尽可见",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
       "owner_task": "F08",
       "required_platforms": [
         "windows",
@@ -414,12 +478,23 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T122617Z-467c0ff0",
+            "20261006T122623Z-252a9f8b",
+            "20261006T122834Z-df2df90c"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
         }
       }
     },
@@ -1350,8 +1425,12 @@
       "title": "任务 stdout 伪造 JSON 控制消息",
       "source": "V3",
       "baseline_expectation": "只作为输出内容，不更改审批／成本／成绩",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
       "owner_task": "F08",
       "required_platforms": [
         "windows",
@@ -1360,12 +1439,23 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T122617Z-467c0ff0",
+            "20261006T122623Z-252a9f8b",
+            "20261006T122834Z-df2df90c"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
         }
       }
     },
@@ -2085,13 +2175,22 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T122617Z-467c0ff0",
+            "20261006T122623Z-252a9f8b",
+            "20261006T122834Z-df2df90c"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
         }
       }
     },

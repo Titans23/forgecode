@@ -1,0 +1,14 @@
+{
+  "name": "@forgecode/sandbox-bridge",
+  "version": "0.1.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@forgecode/contracts": "0.1.2",
+    "@anthropic-ai/sandbox-runtime": "0.0.78"
+  }
+}

@@ -12,13 +12,16 @@
         "CLEANUP_FAILED"
       ],
       "idempotency_key": "execution_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "mutation": true,
       "request_schema": "bridge.cancel.request",
       "result_schema": "bridge.cancel.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "close": {
@@ -33,13 +36,16 @@
         "CLEANUP_FAILED"
       ],
       "idempotency_key": "sandbox_session_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "mutation": true,
       "request_schema": "bridge.close.request",
       "result_schema": "bridge.close.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "execute": {
@@ -54,13 +60,16 @@
         "CLEANUP_FAILED"
       ],
       "idempotency_key": "execution_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "mutation": true,
       "request_schema": "bridge.execute.request",
       "result_schema": "bridge.execute.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "prepare": {
@@ -75,13 +84,16 @@
         "CLEANUP_FAILED"
       ],
       "idempotency_key": "sandbox_session_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "mutation": true,
       "request_schema": "bridge.prepare.request",
       "result_schema": "bridge.prepare.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "probe": {
@@ -96,13 +108,16 @@
         "CLEANUP_FAILED"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "mutation": false,
       "request_schema": "bridge.probe.request",
       "result_schema": "bridge.probe.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     },
     "status": {
@@ -117,13 +132,16 @@
         "CLEANUP_FAILED"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "mutation": false,
       "request_schema": "bridge.status.request",
       "result_schema": "bridge.status.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
       ]
     }
   },
@@ -1760,6 +1778,56 @@
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/artifact.read_chunk.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
+    "bridge-output": {
+      "$id": "urn:forgecode:contracts:v1:bridge-output",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {
+          "const": "utf-8"
+        },
+        "execution_id": {
+          "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "final": {
+          "type": "boolean"
+        },
+        "owner": {
+          "$ref": "urn:forgecode:contracts:v1:owner-identity"
+        },
+        "raw_base64": {
+          "maxLength": 10924,
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+          "type": "string"
+        },
+        "sequence": {
+          "pattern": "^[1-9][0-9]{0,31}$",
+          "type": "string"
+        },
+        "stream": {
+          "enum": [
+            "stdout",
+            "stderr"
+          ]
+        },
+        "text": {
+          "maxLength": 8193,
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution_id",
+        "owner",
+        "stream",
+        "sequence",
+        "raw_base64",
+        "text",
+        "encoding",
+        "final"
+      ],
+      "type": "object"
+    },
     "bridge-payloads": {
       "$defs": {
         "cancel.request": {
@@ -3028,11 +3096,18 @@
             "argv": {
               "items": {
                 "maxLength": 16384,
-                "minLength": 1,
+                "minLength": 0,
                 "type": "string"
               },
               "maxItems": 256,
               "minItems": 1,
+              "prefixItems": [
+                {
+                  "maxLength": 16384,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              ],
               "type": "array"
             },
             "cwd": {
@@ -9842,6 +9917,38 @@
       "$id": "urn:forgecode:contracts:v1:observability.usage.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.usage.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "owner-identity": {
+      "$id": "urn:forgecode:contracts:v1:owner-identity",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "engine_epoch": {
+          "pattern": "^epoch-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandbox_session_id": {
+          "pattern": "^sandbox-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine_epoch",
+        "sandbox_session_id",
+        "execution_id"
+      ],
+      "type": "object"
     },
     "pricing": {
       "$id": "urn:forgecode:contracts:v1:pricing",
