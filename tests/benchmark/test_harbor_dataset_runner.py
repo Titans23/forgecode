@@ -131,6 +131,7 @@ def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: 
         'forge/runner.py': 'VERSION = 1',
         'benchmark/__init__.py': '',
         'benchmark/harbor/entry.py': 'VERSION = 1',
+        'benchmark/core/spec.py': 'VERSION = 1',
         '.env': 'DO_NOT_COPY_SECRET=value',
         'benchmark/runs/private.txt': 'excluded',
         'forge/__pycache__/probe.pyc': 'excluded',
@@ -141,8 +142,10 @@ def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: 
 
     frozen = freeze_source(source, tmp_path / 'snapshots')
     (source / 'forge/runner.py').write_text('VERSION = 2', encoding='utf-8')
+    (source / 'benchmark/core/spec.py').write_text('VERSION = 2', encoding='utf-8')
 
     assert (frozen / 'forge/runner.py').read_text() == 'VERSION = 1'
+    assert (frozen / 'benchmark/core/spec.py').read_text() == 'VERSION = 1'
     assert not (frozen / '.env').exists()
     assert not (frozen / 'benchmark/runs').exists()
     assert not (frozen / 'forge/__pycache__').exists()

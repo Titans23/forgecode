@@ -22,7 +22,7 @@ def freeze_source(source: Path, destination: Path) -> Path:
     '''
     source = source.resolve()
     paths: list[Path] = []
-    for relative in ('pyproject.toml', 'README.md', 'forge', 'benchmark/__init__.py', 'benchmark/harbor'):
+    for relative in ('pyproject.toml', 'README.md', 'forge', 'benchmark/__init__.py', 'benchmark/harbor', 'benchmark/core'):
         target = source / relative
         if not target.exists():
             raise ValueError(f'Missing source package path: {relative}')

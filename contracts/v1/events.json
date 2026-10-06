@@ -143,11 +143,11 @@
     },
     "trial.planned": {
       "payload_schema": "event.trial.planned",
-      "implementation_status": "contract_only"
+      "implementation_status": "implemented"
     },
     "attempt.started": {
       "payload_schema": "event.attempt.started",
-      "implementation_status": "contract_only"
+      "implementation_status": "implemented"
     },
     "grade.finished": {
       "payload_schema": "event.grade.finished",
@@ -175,6 +175,14 @@
     },
     "model.usage.confirmed": {
       "payload_schema": "event.model.usage.confirmed",
+      "implementation_status": "implemented"
+    },
+    "attempt.heartbeat": {
+      "payload_schema": "event.attempt.heartbeat",
+      "implementation_status": "implemented"
+    },
+    "attempt.finished": {
+      "payload_schema": "event.attempt.finished",
       "implementation_status": "implemented"
     }
   }

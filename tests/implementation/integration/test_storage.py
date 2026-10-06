@@ -216,8 +216,11 @@ def test_scheduler_compare_and_swap_single_active_item_and_old_epoch(tmp_path):
     store.claim_work_item(items[0], expected_version=0)
     with pytest.raises(ContractError):
         store.claim_work_item(items[0], expected_version=0)
-    with pytest.raises(sqlite3.IntegrityError):
+    with pytest.raises(ContractError) as busy:
         store.claim_work_item(items[1], expected_version=0)
+    assert busy.value.kind == 'INDETERMINATE'
+    with pytest.raises(sqlite3.IntegrityError):
+        store.connection.execute("UPDATE work_items SET state='running' WHERE id=?", (items[1],))
     old_epoch = store.epoch
     store.close()
     with Store(tmp_path / 'data') as restarted:

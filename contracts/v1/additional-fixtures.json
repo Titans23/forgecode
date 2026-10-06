@@ -1951,6 +1951,54 @@
         }
       },
       "expected": "invalid"
+    },
+    {
+      "schema": "event.attempt.heartbeat",
+      "value": {
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "owner_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "heartbeat_at_utc": "2026-10-06T21:00:00Z"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "event.attempt.heartbeat",
+      "value": {
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "owner_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "heartbeat_at_utc": "2026-10-06T21:00:00Z",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "event.attempt.finished",
+      "value": {
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "execution_state": "blocked",
+        "cleanup_state": "clean",
+        "agent_outcome": "blocked",
+        "error_origin": "runner_unavailable",
+        "grade_state": "unscored",
+        "grade_id": null,
+        "reason": "executor unavailable"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "event.attempt.finished",
+      "value": {
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "execution_state": "blocked",
+        "cleanup_state": "clean",
+        "agent_outcome": "blocked",
+        "error_origin": "runner_unavailable",
+        "grade_state": "unscored",
+        "grade_id": null,
+        "reason": "executor unavailable",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
     }
   ]
 }

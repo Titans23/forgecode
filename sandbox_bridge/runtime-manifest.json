@@ -5607,11 +5607,11 @@
     },
     {
       "path": "packages/contracts/dist/generated/schemas.json",
-      "sha256": "2898997c11cfb53c92030b132517f701902b6b482a4bed5a93f53e155538058f"
+      "sha256": "0c798dfd55adff7702eb5a8c18aa01ee4c0742b08ea37370b4917d266ee71f2d"
     },
     {
       "path": "packages/contracts/dist/generated/types.d.ts",
-      "sha256": "b32bcd3161238a16a9b173a3f15a0a71b562edf1f3d3fc0f48ca21bcda0008fc"
+      "sha256": "0ffaecc6504ac924581d42ff4cc6704f8a703b8e385cf37ff8ea08c2d9b4d46c"
     },
     {
       "path": "packages/contracts/dist/generated/types.js",
@@ -5619,7 +5619,7 @@
     },
     {
       "path": "packages/contracts/dist/index.d.ts",
-      "sha256": "ca9d65583c6e246ce5b27f703fbe858e995132ef65011185319d0044ec33b5d4"
+      "sha256": "5f6d57ce12ad5d44b807b225d303e71bf7712f8585e416b8c1498236672a621d"
     },
     {
       "path": "packages/contracts/dist/index.js",

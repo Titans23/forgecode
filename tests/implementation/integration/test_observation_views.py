@@ -365,6 +365,10 @@ def test_upgrade_legacy_observation_tables_backfills_attribution_without_guessin
     asyncio.run(service.execute_turn(turn['turn_id']))
     # Retain committed events, request ledger and spans in their actual F17 schema.
     with store.transaction():
+        for table in ('attempt_requests','attempt_recovery','attempt_details','run_details','validation_tickets'):
+            store.connection.execute('DROP TABLE '+table)
+        for trigger in ('immutable_trial_plan','immutable_attempt_identity','immutable_final_grade'):
+            store.connection.execute('DROP TRIGGER '+trigger)
         for table in ('request_details','span_details','context_snapshots','evidence_details','export_queue','export_failures','turn_observation_config'):
             if table=='context_snapshots':
                 store.connection.execute('DELETE FROM context_snapshots')  # F17 did not project this view.
@@ -375,11 +379,11 @@ def test_upgrade_legacy_observation_tables_backfills_attribution_without_guessin
         for column in ('currency','cost_quality'):
             store.connection.execute('ALTER TABLE usage_ledger DROP COLUMN '+column)
         store.connection.execute('PRAGMA user_version=7')
-        store.connection.execute('DELETE FROM schema_migrations WHERE version=8')
+        store.connection.execute('DELETE FROM schema_migrations WHERE version>=8')
     count=store.connection.execute('SELECT COUNT(*) FROM events').fetchone()[0]
     store.close()
     with Store(tmp_path/'data') as reopened:
-        assert not reopened.read_only and reopened.diagnostics()['schema_version']==8
+        assert not reopened.read_only and reopened.diagnostics()['schema_version']==9
         assert reopened.connection.execute('SELECT COUNT(*) FROM request_details').fetchone()[0]==2
         assert reopened.connection.execute('SELECT COUNT(*) FROM spans').fetchone()[0]==reopened.connection.execute('SELECT COUNT(*) FROM span_details').fetchone()[0]
         assert reopened.connection.execute('SELECT COUNT(*) FROM events').fetchone()[0]==count

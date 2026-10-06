@@ -1,6 +1,19 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F18；下一 F19（任务卡、第 17 章和实际 SQL／Engine／旧 benchmark CLI 已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F19；下一 F20（任务卡、第 17／19 章和实际 Harbor 0.18.0 源码已读）。原生平台验收独立 blocked。
+- F19 测试父 HEAD fdbcf50047d290d6c765aaa8ac7b5da77b26b95c；提交／推送 SHA 以实际 git HEAD 核对。
+  unit 142 / portable 184 / regression 1070，0 skip；Windows 10 development Electron 44 checks pass。
+  最终证据 20261006T215137Z-955dfd02 / 20261006T215153Z-20c452df / 20261006T215603Z-bc7852d1 / 20261006T215634Z-245af063 / 20261006T215634Z-fca4984d / 20261006T215639Z-7dfab335 / 20261006T215643Z-b64762b3。
+  final dirty a1117ffe4bc74b91738fe6b07c69d8e3eeee2ec217664f680442140e828616f4。
+  原子生成全部 planned trials；同 action 幂等；turn/attempt 单 worker、epoch、真实 heartbeat／deadline／owned process cancel。
+  独立 execution／grading／cleanup 三轴；显式基础设施重试、末次授权选择；不可变 grade 和恢复 trace link，无自动副作用回放。
+  真实 Harness journal 投影／请求费用去重，手算分母／未知费用／N/A／配置可比性通过；无官方／真实模型成绩。
+  首次 portable 曾因旧 RPC capability 断言失败，修正动态目录校验后重验通过；旧 evidence 保留，已中断回归不计通过。
+  修正交接 progress 的 F17 缺少对象键；JSON 解析复核，未改变代码测试结论。
+  packed / native Linux / native Windows 各 blocked 0 checks；paid API、管理员设置、签名及 G7 仍 blocked。
+  F20 实际环境：Harbor 0.18.0 已安装；Docker CLI 29.7.2，但 desktop-linux daemon named pipe 不存在。
+  不启动管理员 Docker／付费模型；接既有官方协议、记录独立 grader／环境标签、源码与 patch hash。
+- F18 已推送 fdbcf50047d290d6c765aaa8ac7b5da77b26b95c，远端 HEAD 已核对。
 - F18 测试父 HEAD 939d6fa0dcd0d7583571521fdef3f08f176a926e；提交 SHA 以实际 git HEAD 核对。
   unit 139 / portable 170 / regression 1053，0 skip；Windows 10 development Electron 44 checks pass。
   最终证据 20261006T211118Z-7289c010 / 20261006T211134Z-d4dc513b / 20261006T211536Z-3bcf5fe6 / 20261006T211605Z-c37e3033 / 20261006T211606Z-ff84a680 / 20261006T211610Z-70274cd5 / 20261006T211615Z-e379a908。

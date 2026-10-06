@@ -130,13 +130,20 @@ def calculate_cost(usage,rates):
 
 def start_request(store,body):
     a=body['attributes']
+    attempt=store.connection.execute('SELECT a.id,r.spec_json,d.owner_epoch,d.trace_id,w.state FROM attempts a JOIN trials t ON t.id=a.trial_id JOIN runs r ON r.id=t.run_id JOIN attempt_details d ON d.attempt_id=a.id JOIN work_items w ON w.id=d.work_item_id WHERE a.id=? AND t.run_id=? AND t.id=?',
+        (body['attempt_id'],body['run_id'],body['trial_id'])).fetchone() if body['attempt_id'] else None
+    if body['attempt_id'] and (attempt is None or attempt['owner_epoch']!=store.epoch or attempt['state'] not in ('running','cancel_requested') or attempt['trace_id']!=body['trace_id']):
+        from forge.application.models import ContractError
+        raise ContractError('Model request evaluation identities conflict',kind='EVENT_CONFLICT',code=-32010)
     frozen=store.connection.execute('SELECT pricing_snapshot FROM turn_observation_config WHERE turn_id=?',(body['turn_id'],)).fetchone()
-    snapshot=json.loads(frozen[0]) if frozen and frozen[0] else None
+    snapshot=json.loads(attempt['spec_json'])['observability']['pricing_snapshot'] if attempt else json.loads(frozen[0]) if frozen and frozen[0] else None
     store.connection.execute('INSERT INTO request_details VALUES(?,?,?,?,?,?,?,?,?,?)',
         (a['model_request_id'],body['turn_id'],body['workspace_id'],body['session_id'],body['run_id'],
          body['trace_id'],body['span_id'],a.get('provider','unreported'),a['requested_model'],json.dumps(snapshot) if snapshot else None))
     store.connection.execute('INSERT INTO usage_ledger(request_id,quality,cost_quality) VALUES(?,?,?)',
         (a['model_request_id'],'unknown','unknown'))
+    if attempt:
+        store.connection.execute('INSERT INTO attempt_requests VALUES(?,?)',(a['model_request_id'],attempt['id']))
 
 
 def update_request(store,body):
@@ -173,7 +180,15 @@ def update_request(store,body):
     if snapshot:
         source=store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=? AND hash=?',
             (snapshot['snapshot_id'],snapshot['sha256'])).fetchone()
-        price=PriceBook(json.loads(source[0]))
+        value=json.loads(source[0])
+        if 'rates' not in value:
+            from forge.application.models import validate
+            validate('pricing',value)
+            value={'revision':value['revision'],'currency':value['currency'],'source':'frozen-pricing:'+value['effective_at_utc'],
+                'rates':[{'provider':value['provider'],'model':value['model'],'per_million':{key:value[field] for key,field in (
+                    ('input_tokens','input_per_million'),('output_tokens','output_per_million'),
+                    ('cache_read_tokens','cache_read_per_million'),('cache_write_tokens','cache_write_per_million')) if value[field] is not None}}]}
+        price=PriceBook(value)
     rates=price.lookup(details['provider'],a.get('returned_model') or details['requested_model']) if price else None
     amount=calculate_cost(normalized,rates) if a['usage_quality']!='unknown' and normalized and normalized.get('components') else None
     quality=a['usage_quality'] if amount is not None else 'unknown'

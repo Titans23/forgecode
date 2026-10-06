@@ -26,6 +26,8 @@ class EngineMethods:
         self.events = EventStream(service)
         from forge.observability.query_views import ObservationViews
         self.observations=ObservationViews(self)
+        from forge.application.evaluations import EvaluationService
+        self.evaluations = EvaluationService(service, executor=getattr(service, 'evaluation_executor', None))
         self.workspaces = service.workspaces
         self.workspaces.cursors = self.events
         self.approvals = ApprovalService(service)
@@ -61,6 +63,10 @@ class EngineMethods:
             'connection.set': self.connections.set, 'connection.delete': self.connections.delete,
             'connection.prepare_test': self.connections.prepare_test, 'connection.test': self.test_connection,
             'credentials.inject': self.connections.inject, 'credentials.clear': self.connections.clear,
+            'evaluation.validate': self.evaluations.validate, 'evaluation.create_run': self.evaluations.create_run,
+            'evaluation.start': lambda p: self.evaluation_mutation('evaluation.start', p), 'evaluation.cancel': self.evaluations.cancel,
+            'evaluation.retry': lambda p: self.evaluation_mutation('evaluation.retry', p), 'evaluation.report': self.evaluations.report,
+            'evaluation.compare': self.evaluations.compare,
         }
 
     def readiness(self):
@@ -139,6 +145,8 @@ class EngineMethods:
         self.shutdown_mode = mode
         if mode == 'cancel':
             from forge.engine.persistence import new_id
+            for row in self.store.connection.execute("SELECT id FROM runs WHERE state IN ('created','queued','running','cancel_requested')").fetchall():
+                self.evaluations.cancel({'run_id': row[0], 'client_action_id': new_id('act'), 'reason': reason})
             for row in self.store.connection.execute("SELECT id FROM turns WHERE state IN ('queued','running','awaiting_approval')").fetchall():
                 self.service.cancel_turn({'turn_id': row[0], 'client_action_id': new_id('act'), 'reason': reason})
 
@@ -239,6 +247,13 @@ class EngineMethods:
             raise ContractError('Action not found', kind='NOT_FOUND', code=-32010)
         result = json.loads(row['result_json'])
         state = 'accepted'
+        if params['method'].startswith('evaluation.'):
+            if 'run_id' in result:
+                current = self.evaluations.run(result['run_id'])['state']
+                state = current if current in ('completed', 'failed', 'cancelled', 'indeterminate') else 'running' if current in ('running','cancel_requested') else 'accepted'
+            elif 'attempt_id' in result:
+                current = self.store.connection.execute('SELECT w.state,a.execution_state FROM work_items w JOIN attempts a ON a.id=w.business_id WHERE a.id=?', (result['attempt_id'],)).fetchone()
+                state = 'indeterminate' if current['state']=='reconciling' else 'cancelled' if current['execution_state']=='cancelled' else 'completed' if current['execution_state']=='finished' else 'failed' if current['execution_state'] in ('error','blocked') else 'running' if current['state'] in ('running','cancel_requested') else 'accepted'
         if params['method'] == 'connection.test':
             observation = self.store.connection.execute('SELECT status,finished_at,owner_epoch FROM connection_test_results WHERE diagnostic_id=?',
                 (result['diagnostic_id'],)).fetchone()
@@ -261,6 +276,11 @@ class EngineMethods:
         if self.stopping and self.service._existing_action('connection.test', params) is None:
             raise ContractError('Engine is draining; new network tests are disabled', kind='INDETERMINATE', code=-32010)
         return await self.connections.test(params)
+
+    def evaluation_mutation(self, method, params):
+        if self.stopping and self.service._existing_action(method, params) is None:
+            raise ContractError('Engine is draining; new evaluation work is disabled', kind='INDETERMINATE', code=-32010)
+        return (self.evaluations.start if method == 'evaluation.start' else self.evaluations.retry)(params)
 
     def query_events(self, params):
         scope = params['scope']

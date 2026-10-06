@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from forge.application.models import ContractError, validate
+from forge.application.models import ContractError, METHODS, validate
 from forge.engine.event_stream import EventStream
 from forge.engine.persistence import new_id
 from test_application import setup
@@ -123,7 +123,9 @@ def test_real_child_handshake_start_events_cancel_action_and_shutdown(tmp_path):
         try:
             hello = await initialize(process)
             assert hello['result']['readiness']['status'] == 'degraded'
-            assert 'evaluation.create_run' not in hello['result']['capabilities']['supported_methods']
+            supported=set(hello['result']['capabilities']['supported_methods'])
+            assert 'evaluation.create_run' in supported
+            assert supported.isdisjoint({name for name,item in METHODS.items() if item.get('implementation_status')=='contract_only'})
             await send(process, 'events.subscribe', {'scope': {'kind': 'session', 'id': turn['session_id']}}, request_id='sub')
             subscription = (await receive(process, wanted_id='sub'))['result']
             await send(process, 'session.start_turn', turn, request_id='start')

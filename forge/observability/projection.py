@@ -29,7 +29,7 @@ def project(store, body):
         ended=connection.execute('SELECT end FROM spans WHERE trace_id=? AND span_id=?',identity).fetchone()[0]
         if ended:
             result=attributes.get('result') or attributes.get('outcome')
-            state='indeterminate' if result=='indeterminate' else 'cancelled' if result=='cancelled' else 'error' if event_type.endswith(('.failed','.denied')) or result in ('failed','denied') or attributes.get('grade_state')=='grader_error' else 'ok'
+            state='indeterminate' if result=='indeterminate' or attributes.get('cleanup_state') in ('unknown','residual') else 'cancelled' if result=='cancelled' or attributes.get('execution_state')=='cancelled' else 'error' if event_type.endswith(('.failed','.denied')) or result in ('failed','denied') or attributes.get('grade_state')=='grader_error' or attributes.get('execution_state') in ('error','blocked') else 'ok'
             connection.execute('UPDATE span_details SET state=?,end_monotonic=?,metadata_json=? WHERE trace_id=? AND span_id=?',
                 (state,body['monotonic_ns'],json.dumps(attributes),*identity))
     if event_type=='model.request.started':

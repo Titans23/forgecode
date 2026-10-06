@@ -158,8 +158,16 @@
       "implementation_status": "implemented",
       "payload_schema": "event.approval.requested"
     },
+    "attempt.finished": {
+      "implementation_status": "implemented",
+      "payload_schema": "event.attempt.finished"
+    },
+    "attempt.heartbeat": {
+      "implementation_status": "implemented",
+      "payload_schema": "event.attempt.heartbeat"
+    },
     "attempt.started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.attempt.started"
     },
     "budget.consumed": {
@@ -295,7 +303,7 @@
       "payload_schema": "event.tool.started"
     },
     "trial.planned": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.trial.planned"
     },
     "turn.accepted": {
@@ -792,7 +800,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -800,7 +808,8 @@
       "result_schema": "evaluation.cancel.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "action.get"
     },
@@ -814,7 +823,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -822,7 +831,8 @@
       "result_schema": "evaluation.compare.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -838,7 +848,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -846,7 +856,8 @@
       "result_schema": "evaluation.create_run.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "action.get"
     },
@@ -860,7 +871,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -868,7 +879,8 @@
       "result_schema": "evaluation.report.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -884,7 +896,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -892,7 +904,8 @@
       "result_schema": "evaluation.retry.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "action.get"
     },
@@ -908,7 +921,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -916,7 +929,8 @@
       "result_schema": "evaluation.start.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "action.get"
     },
@@ -930,7 +944,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -938,7 +952,8 @@
       "result_schema": "evaluation.validate.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1144,7 +1159,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -1152,7 +1167,8 @@
       "result_schema": "sandbox.cleanup_status.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_cleanup_status.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -4243,6 +4259,124 @@
           ],
           "type": "object"
         },
+        "attempt.finished": {
+          "additionalProperties": false,
+          "properties": {
+            "agent_outcome": {
+              "enum": [
+                null,
+                "completed",
+                "failed",
+                "cancelled",
+                "timed_out",
+                "budget_exhausted",
+                "blocked",
+                "indeterminate"
+              ]
+            },
+            "attempt_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^attempt-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "cleanup_state": {
+              "enum": [
+                "clean",
+                "residual",
+                "unknown"
+              ]
+            },
+            "error_origin": {
+              "enum": [
+                null,
+                "task_logic",
+                "runner_unavailable",
+                "runner_crash",
+                "environment_setup",
+                "provider_unavailable",
+                "grader_infrastructure"
+              ]
+            },
+            "execution_state": {
+              "enum": [
+                "finished",
+                "cancelled",
+                "error",
+                "blocked"
+              ]
+            },
+            "grade_id": {
+              "anyOf": [
+                {
+                  "pattern": "^grade-[0-9a-f-]{36}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "grade_state": {
+              "enum": [
+                "unscored",
+                "grading",
+                "graded",
+                "grader_error"
+              ]
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "maxLength": 1024,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "attempt_id",
+            "execution_state",
+            "cleanup_state",
+            "agent_outcome",
+            "error_origin",
+            "grade_state",
+            "grade_id",
+            "reason"
+          ],
+          "type": "object"
+        },
+        "attempt.heartbeat": {
+          "additionalProperties": false,
+          "properties": {
+            "attempt_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^attempt-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "heartbeat_at_utc": {
+              "format": "date-time",
+              "maxLength": 40,
+              "pattern": "Z$",
+              "type": "string"
+            },
+            "owner_epoch": {
+              "pattern": "^epoch-[0-9a-f-]{36}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "attempt_id",
+            "owner_epoch",
+            "heartbeat_at_utc"
+          ],
+          "type": "object"
+        },
         "attempt.started": {
           "additionalProperties": false,
           "properties": {
@@ -7151,6 +7285,16 @@
     "event.approval.requested": {
       "$id": "urn:forgecode:contracts:v1:event.approval.requested",
       "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/approval.requested",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "event.attempt.finished": {
+      "$id": "urn:forgecode:contracts:v1:event.attempt.finished",
+      "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/attempt.finished",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "event.attempt.heartbeat": {
+      "$id": "urn:forgecode:contracts:v1:event.attempt.heartbeat",
+      "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/attempt.heartbeat",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "event.attempt.started": {
@@ -12791,6 +12935,21 @@
                 "none",
                 "benchmark_defined"
               ]
+            },
+            "infrastructure_retry_categories": {
+              "items": {
+                "enum": [
+                  "runner_unavailable",
+                  "runner_crash",
+                  "environment_setup",
+                  "provider_unavailable",
+                  "grader_infrastructure"
+                ]
+              },
+              "maxItems": 5,
+              "minItems": 0,
+              "type": "array",
+              "uniqueItems": true
             },
             "max_infrastructure_attempts": {
               "maximum": 10,

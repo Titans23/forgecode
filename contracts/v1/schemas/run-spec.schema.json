@@ -321,6 +321,21 @@
         },
         "retain_first_attempt": {
           "const": true
+        },
+        "infrastructure_retry_categories": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "runner_unavailable",
+              "runner_crash",
+              "environment_setup",
+              "provider_unavailable",
+              "grader_infrastructure"
+            ]
+          }
         }
       },
       "required": [

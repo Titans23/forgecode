@@ -1296,8 +1296,11 @@
       "title": "未领取任务仍留在实验分母",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "pass",
       "owner_task": "F19",
       "required_platforms": [
         "portable"
@@ -1305,8 +1308,12 @@
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T215137Z-955dfd02",
+            "20261006T215153Z-20c452df"
+          ],
+          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
         }
       }
     },
@@ -1315,8 +1322,11 @@
       "title": "任务失败、基础设施错误、未评分和清理错误分开",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "pass",
       "owner_task": "F19",
       "required_platforms": [
         "portable"
@@ -1324,8 +1334,12 @@
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T215137Z-955dfd02",
+            "20261006T215153Z-20c452df"
+          ],
+          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
         }
       }
     },
@@ -2140,8 +2154,11 @@
       "title": "多个 UI 会话或评测任务试图写同一工作区",
       "source": "V3",
       "baseline_expectation": "执行锁与 Windows worker 串行规则生效",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "blocked",
       "owner_task": "F19",
       "required_platforms": [
         "windows",
@@ -2150,12 +2167,26 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T215639Z-7dfab335"
+          ],
+          "reason": "Windows 11/native sandbox environment unavailable; portable real worker mutex test does not certify native isolation."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T215634Z-fca4984d"
+          ],
+          "reason": "Ubuntu native environment unavailable."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T215137Z-955dfd02",
+            "20261006T215153Z-20c452df"
+          ],
+          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
         }
       }
     },
@@ -3026,13 +3057,20 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T215137Z-955dfd02",
+            "20261006T215153Z-20c452df"
+          ],
+          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
         }
       }
     },

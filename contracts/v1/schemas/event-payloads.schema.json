@@ -3033,6 +3033,124 @@
         "usage_quality",
         "usage"
       ]
+    },
+    "attempt.heartbeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^attempt-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "owner_epoch": {
+          "type": "string",
+          "pattern": "^epoch-[0-9a-f-]{36}$"
+        },
+        "heartbeat_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$",
+          "maxLength": 40
+        }
+      },
+      "required": [
+        "attempt_id",
+        "owner_epoch",
+        "heartbeat_at_utc"
+      ]
+    },
+    "attempt.finished": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^attempt-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "execution_state": {
+          "enum": [
+            "finished",
+            "cancelled",
+            "error",
+            "blocked"
+          ]
+        },
+        "cleanup_state": {
+          "enum": [
+            "clean",
+            "residual",
+            "unknown"
+          ]
+        },
+        "agent_outcome": {
+          "enum": [
+            null,
+            "completed",
+            "failed",
+            "cancelled",
+            "timed_out",
+            "budget_exhausted",
+            "blocked",
+            "indeterminate"
+          ]
+        },
+        "error_origin": {
+          "enum": [
+            null,
+            "task_logic",
+            "runner_unavailable",
+            "runner_crash",
+            "environment_setup",
+            "provider_unavailable",
+            "grader_infrastructure"
+          ]
+        },
+        "grade_state": {
+          "enum": [
+            "unscored",
+            "grading",
+            "graded",
+            "grader_error"
+          ]
+        },
+        "grade_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^grade-[0-9a-f-]{36}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "attempt_id",
+        "execution_state",
+        "cleanup_state",
+        "agent_outcome",
+        "error_origin",
+        "grade_state",
+        "grade_id",
+        "reason"
+      ]
     }
   }
 }

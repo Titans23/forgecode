@@ -20,10 +20,12 @@ class TurnScheduler:
                 await self.ready.wait()
                 continue
             store = self.methods.store
-            row = store.connection.execute("SELECT business_id FROM work_items WHERE kind='turn' AND state='queued' ORDER BY rowid LIMIT 1").fetchone()
+            row = store.connection.execute("SELECT kind,business_id FROM work_items WHERE kind IN ('turn','attempt') AND state='queued' ORDER BY rowid LIMIT 1").fetchone()
             reconciling = store.connection.execute("SELECT 1 FROM work_items WHERE state='reconciling' LIMIT 1").fetchone()
-            if row and not reconciling:
-                self.active = asyncio.create_task(self.methods.service.execute_turn(row[0]))
+            running = store.connection.execute("SELECT 1 FROM work_items WHERE state='running' LIMIT 1").fetchone()
+            if row and not reconciling and not running:
+                execute = self.methods.service.execute_turn if row['kind'] == 'turn' else self.methods.evaluations.scheduler.execute
+                self.active = asyncio.create_task(execute(row['business_id']))
                 try:
                     await self.active
                 except Exception as error:
