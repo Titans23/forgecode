@@ -193,17 +193,21 @@ class ToolExecutor:
             return self._outcome(call, cached, 'cached', started, arguments, *self._state())
         if effect != 'read_only':
             self._read_cache.clear()
-        if self.workspace_tracker is not None and effect == 'workspace_write':
-            self.workspace_tracker.watch_paths(checkpoint_paths)
         execution_started = False
         try:
+            if self.workspace_tracker is not None and effect == 'workspace_write':
+                await self.workspace_tracker.watch_paths_async(checkpoint_paths)
             if checkpoint_id is not None and checkpoint_paths:
                 if self.checkpoint_store is None:
                     raise CheckpointError('Checkpoint store is unavailable.')
-                self.checkpoint_store.capture_before(
-                    checkpoint_id,
-                    checkpoint_paths,
-                )
+                if self.backend is not None and hasattr(self.backend, 'snapshot'):
+                    observed = await self.backend.snapshot(checkpoint_paths, recursive=call.name == 'remove_directory')
+                    self.checkpoint_store.capture_observations(checkpoint_id, observed['files'])
+                    checkpoint_paths = tuple(observed['files'])
+                else:
+                    self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
+            if operation is not None and self.backend is not None and self.backend.mode == 'strict':
+                raise CheckpointError('Strict execution cannot use an unrestricted internal operation.')
             self._journal_started(effective_call)
             execution_started = True
             result = (
@@ -214,10 +218,11 @@ class ToolExecutor:
                       else await self.registry.execute(call.name, arguments))
             )
             if checkpoint_id is not None and checkpoint_paths:
-                self.checkpoint_store.record_after(
-                    checkpoint_id,
-                    checkpoint_paths,
-                )
+                if self.backend is not None and hasattr(self.backend, 'snapshot'):
+                    observed = await self.backend.snapshot(checkpoint_paths)
+                    self.checkpoint_store.record_observations(checkpoint_id, observed['files'])
+                else:
+                    self.checkpoint_store.record_after(checkpoint_id, checkpoint_paths)
         except asyncio.CancelledError:
             result = ToolResult.fail(
                 'execution_cancelled',
@@ -253,13 +258,13 @@ class ToolExecutor:
             )
         except Exception as error:
             result = ToolResult.fail(
-                'executor_failed',
+                getattr(error, 'kind', 'executor_failed'),
                 f'Tool executor failed before a determinate result: {error}',
             )
             return self._outcome(
                 call,
                 result,
-                'indeterminate' if effect in {'workspace_write', 'process'} else 'rejected',
+                'indeterminate' if execution_started and effect in {'workspace_write', 'process'} else 'rejected',
                 started,
                 arguments,
                 *self._state(),
@@ -302,7 +307,7 @@ class ToolExecutor:
         return self._outcome(
             call,
             result,
-            'executed',
+            ('indeterminate' if result.error and result.error.code == 'INDETERMINATE' else 'executed'),
             started,
             arguments,
             *self._state(),
@@ -436,6 +441,8 @@ class ToolExecutor:
     def _cache_key(self, call: ToolCall) -> str | None:
         # Only a local file read has a cheap, exact validity proof. Searches,
         # directory listings, commands, task state and MCP reads are not cached.
+        if self.backend is not None and hasattr(self.backend, 'observer'):
+            return None
         if call.name != 'read_file' or self.workspace_tracker is None:
             return None
         path = call.arguments.get('path')

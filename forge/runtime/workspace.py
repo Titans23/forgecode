@@ -25,8 +25,9 @@ class WorkspaceChange:
 class WorkspaceTracker:
     '''Track task-local changes without treating prior user edits as Agent work.'''
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, observer=None) -> None:
         self.root = root.resolve()
+        self.observer = observer
         self.baseline = WorkspaceSnapshot()
         self.current = WorkspaceSnapshot()
         self.revision = 0
@@ -63,6 +64,8 @@ class WorkspaceTracker:
 
     def watch_paths(self, paths: tuple[str, ...]) -> None:
         '''Capture task baselines for tool targets, including ignored files.'''
+        if self.observer is not None:
+            raise RuntimeError('Restricted observation requires await watch_paths_async')
         for raw_path in paths:
             candidate = Path(raw_path)
             resolved = (
@@ -86,6 +89,22 @@ class WorkspaceTracker:
                 files={**self.current.files, normalized: fingerprint}
             )
 
+    async def watch_paths_async(self, paths: tuple[str, ...]) -> None:
+        if self.observer is None:
+            self.watch_paths(paths)
+            return
+        snapshot = await self.observer.snapshot(paths)
+        if not snapshot['complete']:
+            self.available = False
+            raise RuntimeError('Authorized target observation is incomplete')
+        for path, value in snapshot['files'].items():
+            if path in self._watched_paths:
+                continue
+            fingerprint = observation_fingerprint(value)
+            self._watched_paths.add(path)
+            self.baseline = WorkspaceSnapshot({**self.baseline.files, path: fingerprint})
+            self.current = WorkspaceSnapshot({**self.current.files, path: fingerprint})
+
     async def refresh(self) -> WorkspaceChange | None:
         '''Capture tool-caused changes and advance the revision when needed.'''
         snapshot = await self._capture()
@@ -103,6 +122,8 @@ class WorkspaceTracker:
 
     async def refresh_paths(self, paths: tuple[str, ...]) -> WorkspaceChange | None:
         '''Observe known edit targets without rescanning unrelated content.'''
+        if self.observer is not None:
+            return await self.refresh()
         files = dict(self.current.files)
         for path in paths:
             resolved = (self.root / path).resolve(strict=False)
@@ -156,6 +177,22 @@ class WorkspaceTracker:
         )
 
     async def _capture(self) -> WorkspaceSnapshot | None:
+        if self.observer is not None:
+            self.git_available = False
+            try:
+                snapshot = await self.observer.scan()
+                if not snapshot['complete']:
+                    return None
+                files = {path: observation_fingerprint(value) for path, value in snapshot['files'].items()
+                    if not is_runtime_state_path(path)}
+                if self._watched_paths:
+                    watched = await self.observer.snapshot(tuple(self._watched_paths))
+                    if not watched['complete']:
+                        return None
+                    files.update({path: observation_fingerprint(value) for path, value in watched['files'].items()})
+                return WorkspaceSnapshot(files)
+            except (OSError, ValueError):
+                return None
         # Import lazily so WorkspaceTracker can be imported independently;
         # forge.tools exports VerifyTool, which itself references this class.
         from forge.tools.shell import run_process
@@ -234,6 +271,12 @@ class WorkspaceTracker:
         for path in self._watched_paths:
             files[path] = fingerprint_path(self.root, path)
         return WorkspaceSnapshot(files=files)
+
+
+def observation_fingerprint(value):
+    if not value['exists']:
+        return 'missing'
+    return value['sha256'] if value['is_file'] else 'directory:' + str(value['file_identity'])
 
 
 def changed_paths(

@@ -250,7 +250,7 @@ class Conversation:
                         resolved_context_root,
                         call,
                     )
-                ),
+                ) if not getattr(tool_backend, 'observer', None) else lambda call: mutation_target_paths(call, maximum=None),
                 hook_context_sink=self._queue_hook_context,
                 backend=tool_backend,
             )

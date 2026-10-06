@@ -3142,6 +3142,11 @@
               "maximum": 9007199254740991,
               "minimum": 1,
               "type": "integer"
+            },
+            "stdin_base64": {
+              "maxLength": 786432,
+              "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+              "type": "string"
             }
           },
           "required": [
@@ -3201,6 +3206,11 @@
                 "bash",
                 "sh"
               ]
+            },
+            "stdin_base64": {
+              "maxLength": 786432,
+              "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+              "type": "string"
             }
           },
           "required": [
@@ -6509,6 +6519,362 @@
         "stderr_bytes",
         "discarded_bytes",
         "owner"
+      ],
+      "type": "object"
+    },
+    "file-worker.request": {
+      "$id": "urn:forgecode:contracts:v1:file-worker.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "tool"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "name",
+              "arguments"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "snapshot"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "paths"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "arguments": {
+          "type": "object"
+        },
+        "expected_hashes": {
+          "additionalProperties": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maxProperties": 1000,
+          "type": "object"
+        },
+        "name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "bootstrap",
+            "tool",
+            "scan",
+            "snapshot"
+          ]
+        },
+        "paths": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 1000,
+          "type": "array"
+        },
+        "policy": {
+          "$ref": "urn:forgecode:contracts:v1:sandbox-policy"
+        },
+        "policy_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "recursive": {
+          "type": "boolean"
+        },
+        "request_id": {
+          "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "forge.file-worker.request.v1"
+        },
+        "workspace": {
+          "additionalProperties": false,
+          "properties": {
+            "canonical_path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "file_identity": {
+              "pattern": "^[0-9]+:[0-9]+$",
+              "type": "string"
+            },
+            "id": {
+              "pattern": "^ws-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "canonical_path",
+            "file_identity"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "workspace",
+        "policy",
+        "policy_hash",
+        "operation"
+      ],
+      "type": "object"
+    },
+    "file-worker.response": {
+      "$defs": {
+        "observation": {
+          "additionalProperties": false,
+          "properties": {
+            "content_base64": {
+              "maxLength": 699052,
+              "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+              "type": "string"
+            },
+            "exists": {
+              "type": "boolean"
+            },
+            "file_identity": {
+              "pattern": "^[0-9]+:[0-9]+$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "is_file": {
+              "type": "boolean"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "size_bytes": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "exists",
+            "is_file",
+            "sha256",
+            "file_identity"
+          ],
+          "type": "object"
+        }
+      },
+      "$id": "urn:forgecode:contracts:v1:file-worker.response",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "error"
+            ]
+          },
+          "properties": {
+            "status": {
+              "const": "ok"
+            }
+          },
+          "required": [
+            "result",
+            "observations"
+          ]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "result"
+                ]
+              },
+              {
+                "required": [
+                  "observations"
+                ]
+              }
+            ]
+          },
+          "properties": {
+            "status": {
+              "const": "error"
+            }
+          },
+          "required": [
+            "error"
+          ]
+        }
+      ],
+      "properties": {
+        "error": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "exception_type": {
+              "maxLength": 128,
+              "type": "string"
+            },
+            "message": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        },
+        "observations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/observation"
+          },
+          "maxProperties": 1000,
+          "type": "object"
+        },
+        "policy_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request_id": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result": {
+          "type": "object"
+        },
+        "schema_version": {
+          "const": "forge.file-worker.response.v1"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "policy_hash",
+        "status"
+      ],
+      "type": "object"
+    },
+    "file-worker.tool-result": {
+      "$id": "urn:forgecode:contracts:v1:file-worker.tool-result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "error": {
+              "type": "null"
+            },
+            "success": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "error": {
+              "type": "object"
+            },
+            "success": {
+              "const": false
+            }
+          }
+        }
+      ],
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "details": {
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "details"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "success",
+        "summary",
+        "content",
+        "metadata",
+        "error"
       ],
       "type": "object"
     },

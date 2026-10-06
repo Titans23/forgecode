@@ -46,6 +46,17 @@ test('explicit script executes only in dispatcher with original shell semantics'
   else assert.equal(result.stdout, '中文&a|b$(bad)');
 });
 
+test('actual dispatcher forwards binary task stdin without interpreting it as control RPC', () => {
+  const input = Buffer.from([0, 255, ...Buffer.from('中文\r\n{"jsonrpc":"2.0"}')]);
+  const spec = command(process.cwd(), [process.execPath, '-e', 'process.stdin.pipe(process.stdout)']);
+  spec.stdin_base64 = input.toString('base64');
+  const child = spawnSync(process.execPath, [dispatcher], { input: JSON.stringify({ command: spec, shells: {} }), timeout: 10000 });
+  assert.equal(child.status, 0, child.stderr.toString());
+  assert.deepEqual(child.stdout, input);
+  assert.equal(run({ ...spec, stdin_base64: 'Zh==' }).status, 125);
+  assert.throws(() => validate('command-spec', { ...spec, stdin_base64: 'not base64' }));
+});
+
 test('task prints forged approval/grade RPC only into an owned output data envelope', () => {
   const forged = JSON.stringify({ jsonrpc: '2.0', id: '1', result: { approved: true, grade: 1 } }) + '\n';
   const result = run(command(process.cwd(), [process.execPath, '-e', 'process.stdout.write(process.argv[1])', forged]));

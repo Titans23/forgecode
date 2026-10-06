@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "cc2df6c99012bc7ee8cd21147fcccd4408479d8a",
-  "next_recommended_task": "F11",
-  "current_task": "F11",
+  "actual_repository_head": "d17c361e147e07109c3f74761cd7df7954fad5b9",
+  "next_recommended_task": "F12",
+  "current_task": null,
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -130,14 +130,28 @@
       ]
     },
     "F11": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "portable": "not_run",
-        "sandbox-linux": "not_run",
-        "sandbox-windows": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "typecheck": "pass",
+        "sandbox-linux": "blocked",
+        "sandbox-windows": "blocked",
+        "live_model": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261006T142311Z-40883bdb",
+        "20261006T142329Z-a1f5d82a",
+        "20261006T142532Z-0939a885",
+        "20261006T142538Z-16bcd303",
+        "20261006T142628Z-56aaf5ff"
+      ],
+      "blocked_reasons": [
+        "Windows 10 portable helper/Harness IO passed (18 new behaviors; unit 117, portable 79, regression 936, zero skips). Windows 11/Ubuntu native checks are blocked with zero checks; Shell/helper dynamic sensitive-path consistency, OS TOCTOU and installed Engine read grants remain unverified. Strict native prepare still refuses unverified capabilities.",
+        "Command/session supervision continues in F12; restricted checkpoint host restore is refused pending F16 authorized restore. No paid model experiment or benchmark grade."
+      ]
     },
     "F12": {
       "implementation_status": "todo",

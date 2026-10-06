@@ -6,8 +6,10 @@
       "title": "工作区内读取普通文件",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -16,12 +18,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -30,8 +38,10 @@
       "title": "工作区内创建、修改和删除授权文件",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -40,12 +50,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -54,8 +70,10 @@
       "title": "项目外未授权写入被拒绝",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -64,12 +82,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -78,8 +102,10 @@
       "title": "配置为禁止的敏感路径读取被拒绝",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -88,12 +114,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -102,8 +134,10 @@
       "title": "Shell 与文件工具对同一禁用路径结论一致",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -112,12 +146,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -578,8 +618,10 @@
       "title": "控制面配置／日志不可被任务改写",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -588,12 +630,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -634,8 +682,10 @@
       "title": "只读子任务不会获得不必要的写工具",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -644,12 +694,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -658,8 +714,10 @@
       "title": "未迁移的 Hook／MCP 在严格模式下阻断或明确授权",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -668,12 +726,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -1751,8 +1815,10 @@
       "title": "外部编辑器修改了 Agent 正在检查的文件",
       "source": "V3",
       "baseline_expectation": "revision 更新、过期证据失效，冲突明确",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "owner_task": "F11",
       "required_platforms": [
         "windows",
@@ -1761,12 +1827,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },
@@ -2381,17 +2453,25 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
         }
       }
     },

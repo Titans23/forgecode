@@ -8,6 +8,10 @@ import sys
 
 
 def main(argv=None):
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments and arguments[0] == 'file-worker':
+        from forge.sandbox.file_worker import main as worker_main
+        return worker_main(arguments[1:])
     parser = argparse.ArgumentParser(description='ForgeCode private JSONL Engine')
     parser.add_argument('--data-dir', required=True, type=Path)
     parser.add_argument('--profile', choices=('desktop', 'cli', 'test', 'evaluation'), default='desktop')

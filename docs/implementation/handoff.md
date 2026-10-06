@@ -1,9 +1,18 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F10；下一任务 F11（任务卡、第 9 / 11 章已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F11；下一任务 F12（任务卡、第 6 / 11 / 15 章已读）。原生平台验收独立 blocked。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
+- F11 新增早期 file-worker、固定 stdin payload、真实 read/write/patch/search、授权观察、
+  expected hash / STALE_FILE、逐文件原子 patch、受控 checkpoint blob 和实际路径身份。
+  现有 CLI 默认、公开工具 schema / ToolResult 保留。工具包延迟导入；helper 不读凭证或启 RPC。
+  严格模式不执行未迁移 host Hook/MCP；Explore 继承 backend。受限 checkpoint 不走宿主 restore。
+- F11 新增 18 项 helper/Harness 行为，unit 117 / portable 79 / regression 936 pass，0 skip。
+  证据 20261006T142311Z-40883bdb / 20261006T142329Z-a1f5d82a / 20261006T142628Z-56aaf5ff。
+  Linux / Windows native blocked / 0 checks：20261006T142532Z-0939a885 / 20261006T142538Z-16bcd303。
+  Shell/helper 一致性、OS TOCTOU 和安装版 Engine 可读授权未验收；strict 仍拒绝未验证能力。
+  command/session 监督由 F12 接续，受控 restore 由 F16 接续。未执行付费模型或产生真实成绩。
 - 实施包原件在 update_implementation_pack/forgecode-implementation-v4，
   工作规范在 docs/implementation；原件未修改。
 - 用户原有 untracked：.forge/、build/、三张 architecture 图、svg_probe.txt、
@@ -157,3 +166,4 @@
   所有共享安装 repair 均保守 blocked；正常 task 不提权。Main 仅编译，F13/F14 接入 GUI。
   Worker 锁/未解决 grants marker 真实测试；全 Job/ACL 清理 F12/F25 仍需原生证明。
   inventory 1418 文件已实际构建/--check。F10 验收后提交/push，再开始 F11。
+- F10 已推送 d17c361e147e07109c3f74761cd7df7954fad5b9；F11 进入开发。

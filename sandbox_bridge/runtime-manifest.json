@@ -5607,11 +5607,11 @@
     },
     {
       "path": "packages/contracts/dist/generated/schemas.json",
-      "sha256": "59463892cd08d045e4a91f46fb1956792554b914a01fed4f1ab20bcd10690c27"
+      "sha256": "20c26805371f0e31fdd5356ea3889453f9f2d3d14cd756eba4edb78a56715ebd"
     },
     {
       "path": "packages/contracts/dist/generated/types.d.ts",
-      "sha256": "0c51be35a2340049624d22fbb649b9cbbcd8a67a50bbc57f607b94f0b6cef106"
+      "sha256": "7530291b0a82fe9006d08bb6367e2ebd5ddf562754282dcf0a358fd10ed628b5"
     },
     {
       "path": "packages/contracts/dist/generated/types.js",
@@ -5631,7 +5631,7 @@
     },
     {
       "path": "sandbox_bridge/dist/dispatcher.js",
-      "sha256": "f5ff0ebe47bb06f0fda544abbf82de9a6a94f9c612fb790bd4747fa103a503ae"
+      "sha256": "759c611a7bb3c04e7f09f57d2e7ab19a14e023124754832ead2a694ca16c0b07"
     },
     {
       "path": "sandbox_bridge/dist/executions.js",

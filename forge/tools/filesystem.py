@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import tempfile
 
 from pydantic import Field, model_validator
@@ -22,6 +23,7 @@ from forge.tools.base import (
     ToolInput,
     ToolResult,
     display_path,
+    file_access_guard,
     is_repository_path_protected,
     resolve_repository_path,
 )
@@ -224,6 +226,10 @@ class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
             )
         shown_path = display_path(self.root, directory)
         if arguments.recursive:
+            guard = file_access_guard.get()
+            if guard is not None:
+                for child in directory.rglob('*'):
+                    guard(child)
             entry_count = sum(1 for _ in directory.rglob('*'))
             if arguments.contents_only:
                 for child in directory.iterdir():
@@ -1046,6 +1052,10 @@ def validate_structured_file_content(
 def atomic_write_text(path: Path, content: str) -> None:
     '''Replace one text file without exposing a partially written result.'''
     temporary_path: Path | None = None
+    guard = file_access_guard.get()
+    if guard is not None:
+        guard(path)
+    mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else None
     try:
         with tempfile.NamedTemporaryFile(
             mode='w',
@@ -1057,9 +1067,14 @@ def atomic_write_text(path: Path, content: str) -> None:
             delete=False,
         ) as temporary:
             temporary.write(content)
+            if mode is not None:
+                os.chmod(temporary.name, mode)
             temporary.flush()
             os.fsync(temporary.fileno())
             temporary_path = Path(temporary.name)
+        guard = file_access_guard.get()
+        if guard is not None:
+            guard(path)
         temporary_path.replace(path)
     finally:
         if temporary_path is not None and temporary_path.exists():
@@ -1068,6 +1083,9 @@ def atomic_write_text(path: Path, content: str) -> None:
 
 def read_text_preserving_newlines(path: Path) -> str:
     '''Read UTF-8 text without universal-newline conversion.'''
+    guard = file_access_guard.get()
+    if guard is not None:
+        return guard.read_text(path)
     with path.open('r', encoding='utf-8', newline='') as source:
         return source.read()
 

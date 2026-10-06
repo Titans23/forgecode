@@ -61,6 +61,9 @@ def create_runtime(
         **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {}),
     )
     extensions = bindings is None or bindings.trusted_extensions
+    if extensions and bindings and bindings.backend and bindings.backend.mode == 'strict':
+        from forge.application.models import ContractError
+        raise ContractError('Strict execution disables host Hooks and MCP extensions', kind='POLICY_DENIED', code=-32010)
     hooks = HookManager.from_root(root) if extensions else None
     mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root)) if extensions else None
     conversation_type = conversation_factory or Conversation

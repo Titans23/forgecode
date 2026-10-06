@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:file-worker.request",
+  "type": "object", "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "forge.file-worker.request.v1"},
+    "request_id": {"type": "string", "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"},
+    "workspace": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^ws-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"},
+        "canonical_path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "file_identity": {"type": "string", "pattern": "^[0-9]+:[0-9]+$"}
+      }, "required": ["id", "canonical_path", "file_identity"]
+    },
+    "policy": {"$ref": "urn:forgecode:contracts:v1:sandbox-policy"},
+    "policy_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "operation": {"enum": ["bootstrap", "tool", "scan", "snapshot"]},
+    "recursive": {"type": "boolean"},
+    "name": {"type": "string", "minLength": 1, "maxLength": 64},
+    "arguments": {"type": "object"},
+    "paths": {"type": "array", "maxItems": 1000, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
+    "expected_hashes": {"type": "object", "maxProperties": 1000, "additionalProperties": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}}
+  },
+  "required": ["schema_version", "request_id", "workspace", "policy", "policy_hash", "operation"],
+  "allOf": [
+    {"if": {"properties": {"operation": {"const": "tool"}}}, "then": {"required": ["name", "arguments"]}},
+    {"if": {"properties": {"operation": {"const": "snapshot"}}}, "then": {"required": ["paths"]}}
+  ]
+}

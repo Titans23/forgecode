@@ -34,6 +34,8 @@ export async function dispatch(): Promise<void> {
     throw new Error('Invalid execution payload');
   }
   validate('command-spec', payload.command);
+  const input = payload.command.stdin_base64 === undefined ? undefined : Buffer.from(payload.command.stdin_base64, 'base64');
+  if (input && input.toString('base64') !== payload.command.stdin_base64) throw new Error('Noncanonical task stdin');
   const argv = commandArgv(payload.command, payload.shells);
   const environment = { ...process.env, ...payload.command.environment };
   // Host control variables are absent; preserve only SRT's own restricted proxy/profile overlays.
@@ -41,7 +43,11 @@ export async function dispatch(): Promise<void> {
     if (/^(NODE_|PYTHON|LD_|DYLD_|ELECTRON_)|(?:KEY|SECRET|PASSWORD|CREDENTIAL)/i.test(name)) delete environment[name];
   }
   const child = spawn(argv[0], argv.slice(1), { cwd: payload.command.cwd, env: environment,
-    shell: false, windowsHide: true, stdio: ['ignore', 'inherit', 'inherit'] });
+    shell: false, windowsHide: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'inherit', 'inherit'] });
+  if (child.stdin) {
+    child.stdin.on('error', () => { /* Closed task stdin never triggers replay. */ });
+    child.stdin.end(input);
+  }
   const forward = (signal: NodeJS.Signals) => { child.kill(signal); };
   process.on('SIGTERM', forward);
   process.on('SIGINT', forward);

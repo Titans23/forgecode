@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import base64
 import hashlib
 import json
 import os
@@ -85,6 +86,39 @@ class CheckpointStore:
         self._write_manifest(checkpoint_id, manifest)
         return tuple(captured)
 
+    def capture_observations(self, checkpoint_id, observations):
+        '''Persist authorized helper bytes without reading task paths on the host.'''
+        manifest = self._load_manifest(checkpoint_id)
+        manifest['restricted_io'] = True
+        for path, value in observations.items():
+            relative = self._observation_key(path)
+            if relative in manifest['files']:
+                continue
+            if value['exists'] and value['is_file']:
+                content = base64.b64decode(value['content_base64'], validate=True)
+                digest = hashlib.sha256(content).hexdigest()
+                if digest != value['sha256']:
+                    raise CheckpointError('Authorized checkpoint content hash differs')
+                self.blob_directory.mkdir(parents=True, exist_ok=True)
+                atomic_write_bytes(self.blob_directory / digest, content)
+            manifest['files'][relative] = {'before_exists': value['exists'], 'before_sha256': value['sha256'],
+                'before_directory': value['exists'] and not value['is_file']}
+        self._write_manifest(checkpoint_id, manifest)
+
+    def record_observations(self, checkpoint_id, observations):
+        manifest = self._load_manifest(checkpoint_id)
+        for path, value in observations.items():
+            entry = manifest['files'].get(self._observation_key(path))
+            if entry is not None:
+                entry.update(after_exists=value['exists'], after_sha256=value['sha256'])
+        self._write_manifest(checkpoint_id, manifest)
+
+    def _observation_key(self, raw):
+        path = Path(os.path.abspath(self.root / raw))
+        if not path.is_relative_to(self.root):
+            raise CheckpointError('Restricted checkpoint target is outside the workspace')
+        return path.relative_to(self.root).as_posix()
+
     def record_after(
         self,
         checkpoint_id: str,
@@ -104,6 +138,8 @@ class CheckpointStore:
 
     def restore(self, checkpoint_id: str) -> tuple[str, ...]:
         manifest = self._load_manifest(checkpoint_id)
+        if manifest.get('restricted_io'):
+            raise CheckpointError('Restricted checkpoint restore requires the authorized restore action; host restore is refused.')
         conflicts: list[str] = []
         restorable: list[tuple[str, Path, dict[str, Any]]] = []
         for relative, raw_entry in manifest['files'].items():

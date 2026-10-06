@@ -562,8 +562,14 @@
         "sandbox-windows"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T142311Z-40883bdb",
+        "20261006T142329Z-a1f5d82a",
+        "20261006T142532Z-0939a885",
+        "20261006T142538Z-16bcd303",
+        "20261006T142628Z-56aaf5ff"
+      ],
       "case_ids": [
         "C01",
         "C02",
