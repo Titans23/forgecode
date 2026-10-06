@@ -1,8 +1,8 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "d5c08a3158c764d4e797b2a1e2907e391f6414a8",
-  "next_recommended_task": "F01",
+  "actual_repository_head": "3355ee07fd05978cd19284f0460694d10d4d9086",
+  "next_recommended_task": "F02",
   "current_task": null,
   "tasks": {
     "F00": {
@@ -15,13 +15,18 @@
       "blocked_reasons": []
     },
     "F01": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "unit": "not_run",
-        "packaged": "not_run"
+        "unit": "pass",
+        "regression": "pass",
+        "development_smoke": "pass",
+        "packaged": "blocked",
+        "native_windows": "blocked",
+        "native_linux": "blocked",
+        "dependency_security": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": ["20261006T094338Z-9ee68b20", "20261006T094341Z-a9e7179e", "20261006T093957Z-8e28ebc0"],
+      "blocked_reasons": ["Host is Windows 10; Windows 11 and Ubuntu 22.04/24.04 native acceptance runners are unavailable.", "SRT administrator setup and signed production release are not authorized/provided.", "GHSA-86w9-cpqp-85rv affects node-forge 1.4.0 used by SRT; no patched published release. Production security guard refuses release."]
     },
     "F02": {
       "implementation_status": "todo",
@@ -311,13 +316,13 @@
     }
   },
   "gates": {
-    "G0-baseline": "not_run",
+    "G0-baseline": "pass",
     "G1-contracts-engine": "not_run",
     "G2-native-sandbox": "not_run",
     "G3-desktop-observability": "not_run",
     "G4-evaluation": "not_run",
     "G5-packaging-platform": "not_run",
     "G6-real-experiment": "not_run",
-    "G7-release": "not_run"
+    "G7-release": "blocked"
   }
 }

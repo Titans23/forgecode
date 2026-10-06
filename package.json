@@ -1,0 +1,33 @@
+{
+  "name": "forgecode-workspaces",
+  "version": "0.1.2",
+  "private": true,
+  "workspaces": ["packaging/smoke", "apps/*", "packages/*", "sandbox_bridge"],
+  "engines": {"node": ">=22.13.0"},
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "release:check": "node packaging/verify-release.mjs",
+    "build:smoke": "npm run release:check && npm run build --workspace @forgecode/build-smoke",
+    "package:smoke": "npm run release:check && npm run package --workspace @forgecode/build-smoke",
+    "test:unit": "node --test tests/implementation/node/*.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.78",
+    "ajv": "8.20.0",
+    "electron-squirrel-startup": "1.0.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "8.0.1",
+    "@electron-forge/maker-deb": "8.0.1",
+    "@electron-forge/maker-squirrel": "8.0.1",
+    "@electron-forge/plugin-vite": "8.0.1",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "electron": "44.5.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.3"
+  }
+}

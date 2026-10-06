@@ -38,7 +38,9 @@ SYMBOLS = {
     'benchmark_runner': ('benchmark/harbor/run_forge.py', ['run_turn', 'main']),
     'benchmark_results': ('benchmark/harbor/summarize.py', ['summarize_run', 'assess_trial']),
 }
-SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'], 'regression': ['tests']}
+SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
+          'unit': ['tests/implementation/unit'], 'regression': ['tests'], 'packaged': []}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged']}
 
 
 class Parser(argparse.ArgumentParser):
@@ -190,9 +192,12 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     evidence_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid4().hex[:8]
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
-    report_path = output / 'junit.xml'
-    argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
-            '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
+    report_path = output / ('build-smoke.json' if suite == 'packaged' else 'junit.xml')
+    if suite == 'packaged':
+        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
+    else:
+        argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
+                '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
     started = datetime.now(timezone.utc).isoformat()
     head = command(['git', 'rev-parse', 'HEAD'])
     dirty = command(['git', 'diff', '--binary', 'HEAD'])
@@ -200,7 +205,9 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     source_files = command(['git', 'ls-files', '--cached', '--others', '--exclude-standard']).splitlines()
     for relative in sorted(set(source_files)):
         path = Path(relative)
-        if path.suffix == '.py' and path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests'}:
+        source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts'}
+        source_manifest = relative in {'.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
+        if (source_directory and path.suffix in {'.py', '.ts', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec'}) or source_manifest:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
     with (output / 'stdout.log').open('w', encoding='utf-8') as stdout, (output / 'stderr.log').open('w', encoding='utf-8') as stderr:
@@ -210,7 +217,15 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         except subprocess.TimeoutExpired:
             exit_code = 1
             stderr.write('Verification exceeded 900 seconds.\n')
-    status, counts = pytest_outcome(exit_code, report_path)
+    if suite == 'packaged' and report_path.is_file():
+        result_report = json.loads(report_path.read_text(encoding='utf-8'))
+        status = result_report['status']
+        counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status') if key in result_report}
+        counts['checks'] = len(result_report.get('checks', []))
+        if status == 'pass' and (exit_code != 0 or not counts['checks']):
+            status = 'fail'
+    else:
+        status, counts = pytest_outcome(exit_code, report_path)
     lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
     evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
@@ -239,7 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     verify_parser = subs.add_parser('verify', help='Run registered real tests and save evidence')
     selection = verify_parser.add_mutually_exclusive_group(required=True)
     selection.add_argument('--suite', choices=sorted(SUITES))
-    selection.add_argument('--task', choices=['F00'])
+    selection.add_argument('--task', choices=sorted(TASK_SUITES))
     args = parser.parse_args(argv)
     try:
         if args.command == 'audit':
@@ -253,7 +268,13 @@ def main(argv: list[str] | None = None) -> int:
             report = task_status(json.loads((DOCS / 'backlog.json').read_text(encoding='utf-8')),
                                  json.loads((DOCS / 'progress.json').read_text(encoding='utf-8')))
         else:
-            report = verify(args.suite or 'audit', args.task)
+            if args.task:
+                evidence = [verify(suite, args.task) for suite in TASK_SUITES[args.task]]
+                states = [item['status'] for item in evidence]
+                report = {'status': 'fail' if 'fail' in states else 'blocked' if 'blocked' in states else 'pass',
+                          'task_id': args.task, 'evidence': evidence}
+            else:
+                report = verify(args.suite)
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return {'fail': 1, 'blocked': 2}.get(report.get('status'), 0)
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:

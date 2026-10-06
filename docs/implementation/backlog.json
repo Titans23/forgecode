@@ -80,8 +80,8 @@
         "packaged"
       ],
       "non_goals": "不为安装便利关闭系统防护；不自动执行管理员 setup。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": ["20261006T094338Z-9ee68b20", "20261006T094341Z-a9e7179e", "20261006T093957Z-8e28ebc0"],
       "case_ids": []
     },
     {

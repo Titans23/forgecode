@@ -1,0 +1,16 @@
+{
+  "name": "@forgecode/build-smoke",
+  "productName": "ForgeCode Build Smoke",
+  "version": "0.1.2",
+  "description": "F01 build compatibility probe, not the desktop product",
+  "author": "ForgeCode contributors",
+  "private": true,
+  "main": ".vite/build/main.js",
+  "devDependencies": {"electron": "44.5.1"},
+  "config": {"forge": "./forge.config.cjs"},
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "vite build --config vite.main.config.mjs",
+    "package": "electron-forge package"
+  }
+}

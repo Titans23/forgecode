@@ -1,0 +1,346 @@
+{
+  "schema_version": "forge.release.lock.v1",
+  "resolution_status": "resolved",
+  "python": {
+    "version": "3.12.13",
+    "minimum": "3.12",
+    "source": "https://github.com/astral-sh/python-build-standalone",
+    "license": "PSF-2.0",
+    "patches": []
+  },
+  "node": {
+    "version": "24.21.0",
+    "source": "https://nodejs.org/dist/v24.21.0",
+    "license": "MIT",
+    "patches": []
+  },
+  "components": [
+    {
+      "name": "@anthropic-ai/sandbox-runtime",
+      "kind": "npm",
+      "version": "0.0.78",
+      "source": "https://registry.npmjs.org/@anthropic-ai/sandbox-runtime/-/sandbox-runtime-0.0.78.tgz",
+      "integrity": "sha512-YAIcybXTp7MZkBjasnkR1E3yxnf7u6kUkyW0vZrtsAZ9tyJGMaugWETmquPZs0YvW0sR0VnZeMfS0gsN/wQiVQ==",
+      "license": "Apache-2.0",
+      "minimum_runtime": {
+        "node": ">=20.11.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "ajv",
+      "kind": "npm",
+      "version": "8.20.0",
+      "source": "https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz",
+      "integrity": "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "electron-squirrel-startup",
+      "kind": "npm",
+      "version": "1.0.1",
+      "source": "https://registry.npmjs.org/electron-squirrel-startup/-/electron-squirrel-startup-1.0.1.tgz",
+      "integrity": "sha512-sTfFIHGku+7PsHLJ7v0dRcZNkALrV+YEozINTW8X1nM//e5O3L+rfYuvSW00lmGHnYmUjARZulD8F2V8ISI9RA==",
+      "license": "Apache-2.0",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "react",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/react/-/react-19.3.0.tgz",
+      "integrity": "sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">=0.10.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "react-dom",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/react-dom/-/react-dom-19.3.0.tgz",
+      "integrity": "sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/cli",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/cli/-/cli-8.0.1.tgz",
+      "integrity": "sha512-zbkmgt7vtL8OBY7YDwVizhCfAHJLpmQtA35iOKGWPpLWRZbGADVyIUZz3QZrbc2V81/BkrBerURIBXdd/fnyhQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-deb",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/maker-deb/-/maker-deb-8.0.1.tgz",
+      "integrity": "sha512-KuHftOJKbP4Xoq51pxDrBRCpbcO99hA38KrYyr0Kpd3my+eZeg7fmo8D43TmWzQov8enXBgZi5vtLYt91KuqMQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-squirrel",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/maker-squirrel/-/maker-squirrel-8.0.1.tgz",
+      "integrity": "sha512-V6QrJvvmX2xbITXP1+/bXYe2hkMM7BYnQ8vzVHDOca2P6pn68MZsCSewqm8wiBIBSEeYuRhrztvV8aMlJ5n5Mg==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/plugin-vite",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/plugin-vite/-/plugin-vite-8.0.1.tgz",
+      "integrity": "sha512-6A8bV6vZnCxttIrc6vbg8aUWX0nYEsJBqqQ0WuvKziv2suG+CI0MzTMwFoZB9ofdRjrhxyHJ71+9wUndmZDpYQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@types/node",
+      "kind": "npm",
+      "version": "24.19.1",
+      "source": "https://registry.npmjs.org/@types/node/-/node-24.19.1.tgz",
+      "integrity": "sha512-aS3/DG0oM05K0RIXXP+hKjinGG5IgSSVGzswZxW3O0sS3pH4/fycXundUC9XsszgKCk4gHXylTEK6hyFxVxnoQ==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@types/react",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz",
+      "integrity": "sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@types/react-dom",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.3.0.tgz",
+      "integrity": "sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "electron",
+      "kind": "npm",
+      "version": "44.5.1",
+      "source": "https://registry.npmjs.org/electron/-/electron-44.5.1.tgz",
+      "integrity": "sha512-lx7AYoFIiyvEvgvpyWO9kOC60xtNPpiPZAth6Fmg9NutzpCAMLwpUlaBY2EXfZyIgUdzEmLMj9KvK0Vrokl1yQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.12.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "typescript",
+      "kind": "npm",
+      "version": "7.0.2",
+      "source": "https://registry.npmjs.org/typescript/-/typescript-7.0.2.tgz",
+      "integrity": "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==",
+      "license": "Apache-2.0",
+      "minimum_runtime": {
+        "node": ">=16.20.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "vite",
+      "kind": "npm",
+      "version": "8.3.3",
+      "source": "https://registry.npmjs.org/vite/-/vite-8.3.3.tgz",
+      "integrity": "sha512-cTAldKPImjg6c+gk48U19POPn3GCBzZwpdsN8ZMEEcbpes+6/wvfqUd0C2y3qYY4wsj8PwgFwrZ/1jBPVttMSg==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "pyinstaller",
+      "kind": "python",
+      "version": "6.22.3",
+      "source": "https://pypi.org/project/pyinstaller/6.22.3/",
+      "integrity": "uv.lock (distribution SHA-256)",
+      "license": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+      "minimum_runtime": "<3.16,>=3.8",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m PyInstaller packaging/forge_harness_smoke.spec"
+      ]
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "kind": "python",
+      "version": "2026.8",
+      "source": "https://pypi.org/project/pyinstaller-hooks-contrib/2026.8/",
+      "integrity": "uv.lock (distribution SHA-256)",
+      "license": null,
+      "minimum_runtime": ">=3.8",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m PyInstaller packaging/forge_harness_smoke.spec"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "name": "node",
+      "platform": "win32-x64",
+      "path": ".local/release-runtime/node-24.21.0-win-x64/node.exe",
+      "sha256": "ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32",
+      "source": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+      "archive_sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
+      "license": "MIT",
+      "patches": []
+    },
+    {
+      "name": "node",
+      "platform": "linux-x64",
+      "path": ".local/release-runtime/node-24.21.0-linux-x64/node",
+      "sha256": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c",
+      "source": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz",
+      "archive_sha256": "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6",
+      "license": "MIT",
+      "patches": []
+    },
+    {
+      "name": "srt-win",
+      "platform": "win32-x64",
+      "path": "node_modules/@anthropic-ai/sandbox-runtime/vendor/srt-win/x64/srt-win.exe",
+      "sha256": "b1927893da83a1cb28054f63c8b2bc61ac4303cf63dd92c0182f79c5c414d26d",
+      "source": "@anthropic-ai/sandbox-runtime@0.0.78",
+      "license": "Apache-2.0",
+      "patches": []
+    },
+    {
+      "name": "apply-seccomp",
+      "platform": "linux-x64",
+      "path": "node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/x64/apply-seccomp",
+      "sha256": "a6fdbdbe5875d32183754f1895c6e550300808e6297a07b569664b8beb2c5f17",
+      "source": "@anthropic-ai/sandbox-runtime@0.0.78",
+      "license": "Apache-2.0",
+      "patches": []
+    },
+    {
+      "name": "java-proxy-agent",
+      "platform": "all",
+      "path": "node_modules/@anthropic-ai/sandbox-runtime/vendor/java-proxy-agent/srt-proxy-agent.jar",
+      "sha256": "506a2995d055d5c3046b55c9a51cf905e9f24f535bce39c61b9b5ba0955424f9",
+      "source": "@anthropic-ai/sandbox-runtime@0.0.78",
+      "license": "Apache-2.0",
+      "patches": []
+    }
+  ],
+  "lockfile_hashes": {
+    "uv.lock": "061cf74b2dc437af7e83782fdc733f0040f2324eee2e1fa22a0b1240c075ad00",
+    "package-lock.json": "3bcbafcb3d1dbebfa7e5c2483dad8e4ad09380e671576b3f722b0ff8714a4b30"
+  },
+  "security": {
+    "status": "blocked",
+    "advisories": [
+      "GHSA-86w9-cpqp-85rv"
+    ],
+    "reason": "SRT depends on node-forge 1.4.0; no patched npm release as of 2026-10-06. Production release requires mitigation and regression evidence."
+  },
+  "platform_requirements": {
+    "win32-x64": [
+      "Windows 11 x64",
+      "SRT windows-install explicitly authorized by user"
+    ],
+    "linux-x64": [
+      "Ubuntu 22.04/24.04 x64",
+      "bubblewrap",
+      "socat",
+      "ripgrep",
+      "fakeroot/dpkg for deb"
+    ]
+  }
+}

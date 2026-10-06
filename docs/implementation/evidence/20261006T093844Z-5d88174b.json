@@ -1,0 +1,36 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T093844Z-5d88174b",
+  "task_id": "F01",
+  "case_ids": [],
+  "suite": "packaged",
+  "git_commit": "3355ee07fd05978cd19284f0460694d10d4d9086",
+  "dirty_hash": "09b0f6f658561045ba49d56a12400520c6c59bdff45af2bdfec2ce0e3041d353",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "061cf74b2dc437af7e83782fdc733f0040f2324eee2e1fa22a0b1240c075ad00",
+    "package-lock.json": "3bcbafcb3d1dbebfa7e5c2483dad8e4ad09380e671576b3f722b0ff8714a4b30",
+    "release-lock.json": "3a9b93849ad3bac2629109076fa6dda84e2a5840e40ed6d1986caba9baea21cb"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\build_smoke.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T093844Z-5d88174b\\build-smoke.json"
+  ],
+  "start": "2026-10-06T09:38:44.451256+00:00",
+  "end": "2026-10-06T09:38:59.134791+00:00",
+  "exit_code": 1,
+  "stdout_ref": ".local/implementation/20261006T093844Z-5d88174b/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T093844Z-5d88174b/stderr.log",
+  "report_ref": ".local/implementation/20261006T093844Z-5d88174b/build-smoke.json",
+  "report_hash": "1884aa601f42a45b5daaea66fc87a9104a5f39baa800af3c77f4f376e9ceb1b6",
+  "status": "fail",
+  "tests": {
+    "reason": "D:\\tools\\node\\node-v22.17.1-win-x64\\npm.CMD exited 1: × Copying files [FAILED: Cannot find module 'D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\win32.js' imported from D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\packager.js]\n× Packaging for x64 on win32 [FAILED: Cannot find module 'D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\win32.js' imported from D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\packager.js]\n× Packaging application [FAILED: Cannot find module 'D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\win32.js' imported from D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\packager.js]\n\nAn unhandled rejection has occurred inside Forge:\nError [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\win32.js' imported from D:\\learn_project\\forgecode\\node_modules\\@electron\\packager\\dist\\packager.js\nat finalizeResolution (node:internal/modules/esm/resolve:275:11)\n    at moduleResolve (node:internal/modules/esm/resolve:860:10)\n    at defaultResolve (node:internal/modules/esm/resolve:984:11)\n    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)\n    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)\n    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)\n    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:643:36)\n    at TracingChannel.tracePromise (node:diagnostics_channel:344:14)\n    at ModuleLoader.import (node:internal/modules/esm/loader:642:21)\nnpm error Lifecycle script `package` failed with error:\nnpm error code 1\nnpm error path D:\\learn_project\\forgecode\\packaging\\smoke\nnpm error workspace @forgecode/build-smoke@0.1.2\nnpm error location D:\\learn_project\\forgecode\\packaging\\smoke\nnpm error command failed\nnpm error command C:\\Windows\\system32\\cmd.exe /d /s /c electron-forge package\n  @forgecode/build-smoke\n\n\n> forgecode-workspaces@0.1.2 release:check\n> node packaging/verify-release.mjs\n\n{\"status\":\"pass\",\"scope\":\"dependency-integrity\",\"security_status\":\"blocked\",\"platform\":\"win32\",\"components\":17}\n\n> @forgecode/build-smoke@0.1.2 package\n> electron-forge package\n\n> Checking your system\n> Checking package manager version\n√ Found npm@10.9.2\n√ Checking your system\n> Preparing to package application\n√ Preparing to package application\n> Running packaging hooks\n> Running generateAssets hook\n√ Running generateAssets hook\n> Running prePackage hook\n> [plugin-vite] Building production Vite bundles\n> Building main and preload targets...\n> Building renderer targets...\n> Building src/main.ts\n√ Building renderer targets...\n√ Built target src/main.ts\n√ Building main and preload targets...\n√ [plugin-vite] Building production Vite bundles\n√ Running prePackage hook\n√ Running packaging hooks\n> Packaging application\n› Determining targets...\n> Packaging for x64 on win32\n> Copying files\n",
+    "checks": 0
+  }
+}

@@ -26,6 +26,7 @@ forge = 'forge.cli:app'
 
 [tool.setuptools.packages.find]
 include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
+exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*']
 
 [tool.setuptools.package-data]
 forge = ['prompts/*.md']
@@ -35,6 +36,9 @@ testpaths = ['tests']
 cache_dir = '.local/cache/pytest'
 
 [dependency-groups]
+desktop-build = [
+    "pyinstaller==6.22.3",
+]
 dev = [
     "harbor==0.18.0",
     "pytest>=9.1.1",
