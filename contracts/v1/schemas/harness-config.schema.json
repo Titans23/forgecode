@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:harness-config",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "max_context_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "compaction_enabled": {
+      "type": "boolean"
+    },
+    "max_delivery_repairs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10
+    },
+    "parent_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_model_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "max_tool_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "wall_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "max_model_calls",
+        "max_tool_calls",
+        "wall_seconds"
+      ]
+    },
+    "explore_enabled": {
+      "type": "boolean"
+    },
+    "trusted_extensions_enabled": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "max_context_tokens",
+    "compaction_enabled",
+    "max_delivery_repairs",
+    "parent_budget",
+    "explore_enabled",
+    "trusted_extensions_enabled"
+  ]
+}

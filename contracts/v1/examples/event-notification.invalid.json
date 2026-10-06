@@ -1,0 +1,39 @@
+{
+  "jsonrpc": "2.0",
+  "method": "events.batch",
+  "params": {
+    "subscription_id": "sub-11111111-1111-4111-8111-111111111111",
+    "cursor": "x",
+    "events": [
+      {
+        "schema_version": "forge.events.v1",
+        "event_id": "evt-11111111-1111-4111-8111-111111111111",
+        "event_type": "completion.rejected",
+        "origin": "trusted_engine",
+        "producer_id": "producer-11111111-1111-4111-8111-111111111111",
+        "producer_seq": "42",
+        "occurred_at_utc": "2026-10-06T00:00:00Z",
+        "monotonic_ns": "100000",
+        "store_seq": "45",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "run_id": null,
+        "trial_id": null,
+        "attempt_id": null,
+        "execution_id": null,
+        "trace_id": "11111111111111111111111111111111",
+        "span_id": "2222222222222222",
+        "parent_span_id": null,
+        "attributes": {
+          "reason": "stale_verification_evidence",
+          "workspace_revision": 8,
+          "evidence_revision": 7
+        },
+        "artifact_refs": [],
+        "redaction_version": "example-v1"
+      }
+    ]
+  },
+  "unexpected_field": true
+}

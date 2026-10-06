@@ -1987,13 +1987,13 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": ["tests/implementation/unit/test_contracts.py", "tests/implementation/portable/test_contracts_parity.py"],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": ["20261006T100851Z-a7ee0375", "20261006T100856Z-8425af60"]
         }
       }
     },

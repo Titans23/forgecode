@@ -1,0 +1,2549 @@
+{
+  "schema_version": "forge.method.fixtures.v1",
+  "cases": [
+    {
+      "schema": "system.initialize.request",
+      "value": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "client_build": "x",
+        "expected_manifest_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "profile": "desktop"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "system.initialize.request",
+      "value": {
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "client_build": "x",
+        "expected_manifest_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "profile": "desktop",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "system.initialize.result",
+      "value": {
+        "engine_build": "x",
+        "engine_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "event_schema": "forge.events.v1",
+        "db_schema": 1,
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "manifest_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "capabilities": {
+          "platform": "windows-native",
+          "sandbox": "ready",
+          "supported_methods": [],
+          "features": [],
+          "limits": {
+            "frame_bytes": 1048576,
+            "json_depth": 32,
+            "artifact_chunk_bytes": 262144,
+            "event_batch_count": 100,
+            "event_batch_bytes": 65536
+          }
+        },
+        "readiness": {
+          "status": "ready",
+          "reasons": []
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "system.initialize.result",
+      "value": {
+        "engine_build": "x",
+        "engine_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "event_schema": "forge.events.v1",
+        "db_schema": 1,
+        "protocol": {
+          "major": 1,
+          "minor": 0
+        },
+        "manifest_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "capabilities": {
+          "platform": "windows-native",
+          "sandbox": "ready",
+          "supported_methods": [],
+          "features": [],
+          "limits": {
+            "frame_bytes": 1048576,
+            "json_depth": 32,
+            "artifact_chunk_bytes": 262144,
+            "event_batch_count": 100,
+            "event_batch_bytes": 65536
+          }
+        },
+        "readiness": {
+          "status": "ready",
+          "reasons": []
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "system.health.request",
+      "value": {},
+      "expected": "valid"
+    },
+    {
+      "schema": "system.health.request",
+      "value": {
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "system.health.result",
+      "value": {
+        "engine_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "readiness": {
+          "status": "ready",
+          "reasons": []
+        },
+        "active_work_items": 0
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "system.health.result",
+      "value": {
+        "engine_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "readiness": {
+          "status": "ready",
+          "reasons": []
+        },
+        "active_work_items": 0,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "system.capabilities.request",
+      "value": {},
+      "expected": "valid"
+    },
+    {
+      "schema": "system.capabilities.request",
+      "value": {
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "system.capabilities.result",
+      "value": {
+        "platform": "windows-native",
+        "sandbox": "ready",
+        "supported_methods": [],
+        "features": [],
+        "limits": {
+          "frame_bytes": 1048576,
+          "json_depth": 32,
+          "artifact_chunk_bytes": 262144,
+          "event_batch_count": 100,
+          "event_batch_bytes": 65536
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "system.capabilities.result",
+      "value": {
+        "platform": "windows-native",
+        "sandbox": "ready",
+        "supported_methods": [],
+        "features": [],
+        "limits": {
+          "frame_bytes": 1048576,
+          "json_depth": 32,
+          "artifact_chunk_bytes": 262144,
+          "event_batch_count": 100,
+          "event_batch_bytes": 65536
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "system.shutdown.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "mode": "drain"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "system.shutdown.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "mode": "drain",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "system.shutdown.result",
+      "value": {
+        "state": "draining",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "system.shutdown.result",
+      "value": {
+        "state": "draining",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.register.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "selection_nonce": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.register.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "selection_nonce": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.register.result",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "canonical_path": "D:/project",
+        "revision": 0,
+        "trust": "inspect_only",
+        "diagnostics": []
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.register.result",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "canonical_path": "D:/project",
+        "revision": 0,
+        "trust": "inspect_only",
+        "diagnostics": [],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.list.request",
+      "value": {},
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.list.request",
+      "value": {
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.inspect.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.inspect.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.inspect.result",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "canonical_path": "D:/project",
+        "revision": 0,
+        "trust": "inspect_only",
+        "diagnostics": []
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.inspect.result",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "canonical_path": "D:/project",
+        "revision": 0,
+        "trust": "inspect_only",
+        "diagnostics": [],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.authorize.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0,
+        "approval_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.authorize.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0,
+        "approval_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.authorize.result",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "canonical_path": "D:/project",
+        "revision": 0,
+        "trust": "inspect_only",
+        "diagnostics": []
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.authorize.result",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "path": "D:/project",
+        "canonical_path": "D:/project",
+        "revision": 0,
+        "trust": "inspect_only",
+        "diagnostics": [],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.files.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.files.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.files.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.files.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.read_file.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "relative_path": "x",
+        "expected_revision": 0,
+        "offset": 0,
+        "length": 1
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.read_file.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "relative_path": "x",
+        "expected_revision": 0,
+        "offset": 0,
+        "length": 1,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.read_file.result",
+      "value": {
+        "artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        },
+        "revision": 0,
+        "data_base64": "x",
+        "eof": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.read_file.result",
+      "value": {
+        "artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        },
+        "revision": 0,
+        "data_base64": "x",
+        "eof": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.changes.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "after_revision": 0
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.changes.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "after_revision": 0,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "workspace.changes.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "workspace.changes.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.create.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "expected_workspace_revision": 0,
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "policy_id": "policy-11111111-1111-4111-8111-111111111111",
+        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.create.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "expected_workspace_revision": 0,
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "policy_id": "policy-11111111-1111-4111-8111-111111111111",
+        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.create.result",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "state": "idle",
+        "created_at_utc": "2026-10-06T00:00:00Z",
+        "configuration": {
+          "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "active_turn_id": "turn-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.create.result",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "state": "idle",
+        "created_at_utc": "2026-10-06T00:00:00Z",
+        "configuration": {
+          "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "active_turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.list.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.list.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.get.request",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.get.request",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.get.result",
+      "value": {
+        "session": {
+          "session_id": "ses-11111111-1111-4111-8111-111111111111",
+          "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+          "state": "idle",
+          "created_at_utc": "2026-10-06T00:00:00Z",
+          "configuration": {
+            "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "active_turn_id": "turn-11111111-1111-4111-8111-111111111111"
+        },
+        "turns": [],
+        "next_cursor": "x"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.get.result",
+      "value": {
+        "session": {
+          "session_id": "ses-11111111-1111-4111-8111-111111111111",
+          "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+          "state": "idle",
+          "created_at_utc": "2026-10-06T00:00:00Z",
+          "configuration": {
+            "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "active_turn_id": "turn-11111111-1111-4111-8111-111111111111"
+        },
+        "turns": [],
+        "next_cursor": "x",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.start_turn.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "expected_workspace_revision": 8,
+        "input": [
+          {
+            "type": "text",
+            "text": "修复登录测试失败"
+          }
+        ],
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "policy_id": "policy-11111111-1111-4111-8111-111111111111",
+        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.start_turn.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "expected_workspace_revision": 8,
+        "input": [
+          {
+            "type": "text",
+            "text": "修复登录测试失败"
+          }
+        ],
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "policy_id": "policy-11111111-1111-4111-8111-111111111111",
+        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.start_turn.result",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "accepted": true,
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.start_turn.result",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "accepted": true,
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.cancel_turn.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "reason": "x"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.cancel_turn.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "reason": "x",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "session.cancel_turn.result",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "accepted": true,
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "session.cancel_turn.result",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "accepted": true,
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "approval.list.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "approval.list.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "approval.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "approval.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "approval.get.request",
+      "value": {
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "approval.get.request",
+      "value": {
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "approval.get.result",
+      "value": {
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "execution_id": "exec-11111111-1111-4111-8111-111111111111",
+        "binding_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "workspace_revision": 0,
+        "policy_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "cwd": "x",
+        "argv": [],
+        "script_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "path_delta": [],
+        "network_delta": [],
+        "expires_at_utc": "2026-10-06T00:00:00Z",
+        "state": "pending"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "approval.get.result",
+      "value": {
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111",
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "execution_id": "exec-11111111-1111-4111-8111-111111111111",
+        "binding_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "workspace_revision": 0,
+        "policy_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "cwd": "x",
+        "argv": [],
+        "script_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "path_delta": [],
+        "network_delta": [],
+        "expires_at_utc": "2026-10-06T00:00:00Z",
+        "state": "pending",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "approval.decide.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111",
+        "binding_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "decision": "approve",
+        "confirmation_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "approval.decide.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111",
+        "binding_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "decision": "approve",
+        "confirmation_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "approval.decide.result",
+      "value": {
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111",
+        "state": "approved",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "approval.decide.result",
+      "value": {
+        "approval_id": "approval-11111111-1111-4111-8111-111111111111",
+        "state": "approved",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "action.get.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "method": "x"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "action.get.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "method": "x",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "action.get.result",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "method": "x",
+        "state": "accepted",
+        "result_schema": "x",
+        "result": {},
+        "payload_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "action.get.result",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "method": "x",
+        "state": "accepted",
+        "result_schema": "x",
+        "result": {},
+        "payload_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "events.subscribe.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "events.subscribe.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "events.subscribe.result",
+      "value": {
+        "subscription_id": "sub-11111111-1111-4111-8111-111111111111",
+        "snapshot": {
+          "scope": {
+            "kind": "all"
+          },
+          "workspaces": [],
+          "sessions": [],
+          "turns": []
+        },
+        "cursor": "x",
+        "high_watermark": "1",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "events.subscribe.result",
+      "value": {
+        "subscription_id": "sub-11111111-1111-4111-8111-111111111111",
+        "snapshot": {
+          "scope": {
+            "kind": "all"
+          },
+          "workspaces": [],
+          "sessions": [],
+          "turns": []
+        },
+        "cursor": "x",
+        "high_watermark": "1",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "events.ack.request",
+      "value": {
+        "subscription_id": "sub-11111111-1111-4111-8111-111111111111",
+        "cursor": "x"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "events.ack.request",
+      "value": {
+        "subscription_id": "sub-11111111-1111-4111-8111-111111111111",
+        "cursor": "x",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "events.ack.result",
+      "value": {
+        "acknowledged": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "events.ack.result",
+      "value": {
+        "acknowledged": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "events.unsubscribe.request",
+      "value": {
+        "subscription_id": "sub-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "events.unsubscribe.request",
+      "value": {
+        "subscription_id": "sub-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "events.unsubscribe.result",
+      "value": {
+        "unsubscribed": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "events.unsubscribe.result",
+      "value": {
+        "unsubscribed": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.events.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.events.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.events.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.events.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.spans.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.spans.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.spans.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.spans.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.context.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.context.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.context.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.context.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.evidence.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.evidence.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.evidence.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.evidence.result",
+      "value": {
+        "items": [],
+        "next_cursor": "x",
+        "history_gap": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.usage.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.usage.request",
+      "value": {
+        "scope": {
+          "kind": "all"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "observability.usage.result",
+      "value": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_decimal": "1",
+        "currency": "USD",
+        "unknown_requests": 0,
+        "pricing_snapshot": {
+          "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "observability.usage.result",
+      "value": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_decimal": "1",
+        "currency": "USD",
+        "unknown_requests": 0,
+        "pricing_snapshot": {
+          "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.validate.request",
+      "value": {
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.validate.request",
+      "value": {
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.validate.result",
+      "value": {
+        "validation_ticket": "ticket-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "compatible": true,
+        "issues": []
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.validate.result",
+      "value": {
+        "validation_ticket": "ticket-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "compatible": true,
+        "issues": [],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.create_run.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "validation_ticket": "ticket-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.create_run.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "validation_ticket": "ticket-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.create_run.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "trial_ids": [
+          "trial-11111111-1111-4111-8111-111111111111"
+        ],
+        "state": "created",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.create_run.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "trial_ids": [
+          "trial-11111111-1111-4111-8111-111111111111"
+        ],
+        "state": "created",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.start.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.start.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.start.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "trial_ids": [
+          "trial-11111111-1111-4111-8111-111111111111"
+        ],
+        "state": "created",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.start.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "trial_ids": [
+          "trial-11111111-1111-4111-8111-111111111111"
+        ],
+        "state": "created",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.cancel.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "reason": "x"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.cancel.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "reason": "x",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.cancel.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "trial_ids": [
+          "trial-11111111-1111-4111-8111-111111111111"
+        ],
+        "state": "created",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.cancel.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "trial_ids": [
+          "trial-11111111-1111-4111-8111-111111111111"
+        ],
+        "state": "created",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.retry.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "trial_id": "trial-11111111-1111-4111-8111-111111111111",
+        "reason": "x"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.retry.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "trial_id": "trial-11111111-1111-4111-8111-111111111111",
+        "reason": "x",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.retry.result",
+      "value": {
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "work_item_id": "work-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.retry.result",
+      "value": {
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "work_item_id": "work-11111111-1111-4111-8111-111111111111",
+        "state": "queued",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.compare.request",
+      "value": {
+        "run_ids": [
+          "run-11111111-1111-4111-8111-111111111111",
+          "run-00000002-1111-4111-8111-111111111111"
+        ],
+        "protocol": {
+          "comparison": "paired_task_set",
+          "metric": "first_attempt_pass_rate"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.compare.request",
+      "value": {
+        "run_ids": [
+          "run-11111111-1111-4111-8111-111111111111",
+          "run-00000002-1111-4111-8111-111111111111"
+        ],
+        "protocol": {
+          "comparison": "paired_task_set",
+          "metric": "first_attempt_pass_rate"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.compare.result",
+      "value": {
+        "comparable": true,
+        "differences": [],
+        "report_artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.compare.result",
+      "value": {
+        "comparable": true,
+        "differences": [],
+        "report_artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.report.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.report.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.report.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "report_artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        },
+        "missing_evidence": []
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.report.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "report_artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        },
+        "missing_evidence": [],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "bundle.export.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "scope": {
+          "kind": "all"
+        },
+        "destination_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "classification": "metadata_only"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "bundle.export.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "scope": {
+          "kind": "all"
+        },
+        "destination_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "classification": "metadata_only",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "bundle.export.result",
+      "value": {
+        "manifest": {
+          "schema_version": "forge.bundle.v1",
+          "bundle_id": "bundle-11111111-1111-4111-8111-111111111111",
+          "source_origin": "trusted_engine",
+          "producer_build": "x",
+          "created_at_utc": "2026-10-06T00:00:00Z",
+          "capture_mode": "metadata",
+          "redaction_version": "x",
+          "task_ids": [
+            "x"
+          ],
+          "supported_protocols": [
+            "forge.eval.runspec.v1"
+          ],
+          "contents": [
+            {
+              "path": "x",
+              "size_bytes": 0,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "media_type": "x",
+              "redacted": true
+            }
+          ],
+          "total_size_bytes": 0
+        },
+        "artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        },
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "bundle.export.result",
+      "value": {
+        "manifest": {
+          "schema_version": "forge.bundle.v1",
+          "bundle_id": "bundle-11111111-1111-4111-8111-111111111111",
+          "source_origin": "trusted_engine",
+          "producer_build": "x",
+          "created_at_utc": "2026-10-06T00:00:00Z",
+          "capture_mode": "metadata",
+          "redaction_version": "x",
+          "task_ids": [
+            "x"
+          ],
+          "supported_protocols": [
+            "forge.eval.runspec.v1"
+          ],
+          "contents": [
+            {
+              "path": "x",
+              "size_bytes": 0,
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "media_type": "x",
+              "redacted": true
+            }
+          ],
+          "total_size_bytes": 0
+        },
+        "artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "size_bytes": 0,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "x",
+          "redaction_version": "x",
+          "available": true
+        },
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "bundle.import.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "source_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "bundle.import.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "source_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "bundle.import.result",
+      "value": {
+        "bundle_id": "bundle-11111111-1111-4111-8111-111111111111",
+        "origin": "imported_unverified",
+        "run_ids": [],
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "bundle.import.result",
+      "value": {
+        "bundle_id": "bundle-11111111-1111-4111-8111-111111111111",
+        "origin": "imported_unverified",
+        "run_ids": [],
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "artifact.describe.request",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "artifact.describe.request",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "artifact.describe.result",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+        "size_bytes": 0,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "media_type": "x",
+        "redaction_version": "x",
+        "available": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "artifact.describe.result",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+        "size_bytes": 0,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "media_type": "x",
+        "redaction_version": "x",
+        "available": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "artifact.read_chunk.request",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+        "offset": 0,
+        "length": 1
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "artifact.read_chunk.request",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+        "offset": 0,
+        "length": 1,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "artifact.read_chunk.result",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+        "offset": 0,
+        "data_base64": "x",
+        "eof": true,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "artifact.read_chunk.result",
+      "value": {
+        "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+        "offset": 0,
+        "data_base64": "x",
+        "eof": true,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "diagnostics.run.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "kind": "system"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "diagnostics.run.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "kind": "system",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "diagnostics.run.result",
+      "value": {
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111",
+        "status": "pass",
+        "checks": [],
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "diagnostics.run.result",
+      "value": {
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111",
+        "status": "pass",
+        "checks": [],
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.list.request",
+      "value": {},
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.list.request",
+      "value": {
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.list.result",
+      "value": {
+        "connections": []
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.list.result",
+      "value": {
+        "connections": [],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.set.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0,
+        "provider": "x",
+        "base_url": "https://api.example.org/v1",
+        "requested_model": "x",
+        "confirmation_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.set.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0,
+        "provider": "x",
+        "base_url": "https://api.example.org/v1",
+        "requested_model": "x",
+        "confirmation_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.set.result",
+      "value": {
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "revision": 1,
+        "provider": "x",
+        "base_url": "https://api.example.org/v1",
+        "requested_model": "x",
+        "credential_present": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.set.result",
+      "value": {
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "revision": 1,
+        "provider": "x",
+        "base_url": "https://api.example.org/v1",
+        "requested_model": "x",
+        "credential_present": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.delete.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.delete.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.delete.result",
+      "value": {
+        "deleted": true,
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.delete.result",
+      "value": {
+        "deleted": true,
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.test.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0,
+        "confirmation_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.test.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 0,
+        "confirmation_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "connection.test.result",
+      "value": {
+        "status": "pass",
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "connection.test.result",
+      "value": {
+        "status": "pass",
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "sandbox.probe.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "sandbox.probe.request",
+      "value": {
+        "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "sandbox.probe.result",
+      "value": {
+        "platform": "windows-native",
+        "sandbox": "ready",
+        "supported_methods": [],
+        "features": [],
+        "limits": {
+          "frame_bytes": 1048576,
+          "json_depth": 32,
+          "artifact_chunk_bytes": 262144,
+          "event_batch_count": 100,
+          "event_batch_bytes": 65536
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "sandbox.probe.result",
+      "value": {
+        "platform": "windows-native",
+        "sandbox": "ready",
+        "supported_methods": [],
+        "features": [],
+        "limits": {
+          "frame_bytes": 1048576,
+          "json_depth": 32,
+          "artifact_chunk_bytes": 262144,
+          "event_batch_count": 100,
+          "event_batch_bytes": 65536
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "sandbox.cleanup_status.request",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "sandbox.cleanup_status.request",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "sandbox.cleanup_status.result",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "state": "pending",
+        "remaining_processes": 0,
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "sandbox.cleanup_status.result",
+      "value": {
+        "session_id": "ses-11111111-1111-4111-8111-111111111111",
+        "state": "pending",
+        "remaining_processes": 0,
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "credentials.inject.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 1,
+        "credential": "x"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "credentials.inject.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+        "expected_revision": 1,
+        "credential": "x",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "credentials.inject.result",
+      "value": {
+        "installed": true,
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "credentials.inject.result",
+      "value": {
+        "installed": true,
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "sandbox.setup.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "platform": "windows-native",
+        "authorization_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "sandbox.setup.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "platform": "windows-native",
+        "authorization_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "sandbox.setup.result",
+      "value": {
+        "status": "ready",
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "sandbox.setup.result",
+      "value": {
+        "status": "ready",
+        "diagnostic_id": "diag-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    }
+  ]
+}

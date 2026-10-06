@@ -1,0 +1,25 @@
+{
+  "schema_version": "forge.bundle.v1",
+  "bundle_id": "bundle-11111111-1111-4111-8111-111111111111",
+  "source_origin": "trusted_engine",
+  "producer_build": "x",
+  "created_at_utc": "2026-10-06T00:00:00Z",
+  "capture_mode": "metadata",
+  "redaction_version": "x",
+  "task_ids": [
+    "x"
+  ],
+  "supported_protocols": [
+    "forge.eval.runspec.v1"
+  ],
+  "contents": [
+    {
+      "path": "x",
+      "size_bytes": 0,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "media_type": "x",
+      "redacted": true
+    }
+  ],
+  "total_size_bytes": 0
+}

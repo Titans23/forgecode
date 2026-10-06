@@ -46,6 +46,20 @@
       ]
     },
     {
+      "name": "ajv-formats",
+      "kind": "npm",
+      "version": "3.0.1",
+      "source": "https://registry.npmjs.org/ajv-formats/-/ajv-formats-3.0.1.tgz",
+      "integrity": "sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
       "name": "electron-squirrel-startup",
       "kind": "npm",
       "version": "1.0.1",
@@ -320,8 +334,8 @@
     }
   ],
   "lockfile_hashes": {
-    "uv.lock": "061cf74b2dc437af7e83782fdc733f0040f2324eee2e1fa22a0b1240c075ad00",
-    "package-lock.json": "3bcbafcb3d1dbebfa7e5c2483dad8e4ad09380e671576b3f722b0ff8714a4b30"
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d"
   },
   "security": {
     "status": "blocked",

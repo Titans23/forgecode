@@ -1,0 +1,85 @@
+{
+  "schema_version": "forge.contract.examples.v1",
+  "examples": [
+    {
+      "schema": "schemas/start-turn.schema.json",
+      "example": "examples/start-turn.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/start-turn.schema.json",
+      "example": "examples/start-turn.invalid.json",
+      "expected": "invalid"
+    },
+    {
+      "schema": "schemas/event-envelope.schema.json",
+      "example": "examples/event-envelope.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/event-envelope.schema.json",
+      "example": "examples/event-envelope.invalid.json",
+      "expected": "invalid"
+    },
+    {
+      "schema": "schemas/sandbox-policy.schema.json",
+      "example": "examples/sandbox-policy.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/sandbox-policy.schema.json",
+      "example": "examples/sandbox-policy.invalid.json",
+      "expected": "invalid"
+    },
+    {
+      "schema": "schemas/run-spec.schema.json",
+      "example": "examples/run-spec.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/run-spec.schema.json",
+      "example": "examples/run-spec.invalid.json",
+      "expected": "invalid"
+    },
+    {
+      "schema": "schemas/bundle-manifest.schema.json",
+      "example": "examples/bundle-manifest.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/bundle-manifest.schema.json",
+      "example": "examples/bundle-manifest.invalid.json",
+      "expected": "invalid"
+    },
+    {
+      "schema": "schemas/rpc-request.schema.json",
+      "example": "examples/rpc-request.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/rpc-request.schema.json",
+      "example": "examples/rpc-request.invalid.json",
+      "expected": "invalid"
+    },
+    {
+      "schema": "schemas/event-notification.schema.json",
+      "example": "examples/event-notification.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/event-notification.schema.json",
+      "example": "examples/event-notification.invalid.json",
+      "expected": "invalid"
+    },
+    {
+      "schema": "schemas/business-error.schema.json",
+      "example": "examples/business-error.valid.json",
+      "expected": "valid"
+    },
+    {
+      "schema": "schemas/business-error.schema.json",
+      "example": "examples/business-error.invalid.json",
+      "expected": "invalid"
+    }
+  ]
+}

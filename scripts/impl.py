@@ -39,8 +39,12 @@ SYMBOLS = {
     'benchmark_results': ('benchmark/harbor/summarize.py', ['summarize_run', 'assess_trial']),
 }
 SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
-          'unit': ['tests/implementation/unit'], 'regression': ['tests'], 'packaged': []}
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged']}
+          'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable'],
+          'regression': ['tests'], 'packaged': [],
+          'sandbox-linux': None, 'sandbox-windows': None, 'desktop': None, 'live-eval': None}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable']}
+CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
+                      'tests/implementation/portable/test_contracts_parity.py']}
 
 
 class Parser(argparse.ArgumentParser):
@@ -193,12 +197,20 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
     report_path = output / ('build-smoke.json' if suite == 'packaged' else 'junit.xml')
-    if suite == 'packaged':
+    unavailable = SUITES[suite] is None
+    if unavailable:
+        argv = []
+    elif suite == 'packaged':
         argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
     else:
         argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
                 '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
     started = datetime.now(timezone.utc).isoformat()
+    preparation_commands = []
+    if suite in ('portable', 'regression'):
+        node = shutil.which('node')
+        if node:
+            preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
     head = command(['git', 'rev-parse', 'HEAD'])
     dirty = command(['git', 'diff', '--binary', 'HEAD'])
     source_hashes = {}
@@ -211,13 +223,26 @@ def verify(suite: str, task_id: str | None = None) -> dict:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
     with (output / 'stdout.log').open('w', encoding='utf-8') as stdout, (output / 'stderr.log').open('w', encoding='utf-8') as stderr:
-        try:
-            result = subprocess.run(argv, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=900)
-            exit_code = result.returncode
-        except subprocess.TimeoutExpired:
+        if unavailable:
             exit_code = 1
-            stderr.write('Verification exceeded 900 seconds.\n')
-    if suite == 'packaged' and report_path.is_file():
+            stderr.write('Suite verifier has not been implemented; no tests were run.\n')
+        else:
+            try:
+                exit_code = 0
+                for preparation in preparation_commands:
+                    prepared = subprocess.run(preparation, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=120)
+                    if prepared.returncode:
+                        exit_code = prepared.returncode
+                        break
+                if not exit_code:
+                    result = subprocess.run(argv, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=900)
+                    exit_code = result.returncode
+            except subprocess.TimeoutExpired:
+                exit_code = 1
+                stderr.write('Verification exceeded 900 seconds.\n')
+    if unavailable:
+        status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
+    elif suite == 'packaged' and report_path.is_file():
         result_report = json.loads(report_path.read_text(encoding='utf-8'))
         status = result_report['status']
         counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status') if key in result_report}
@@ -229,9 +254,12 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
     evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
-                'task_id': task_id, 'case_ids': [], 'suite': suite, 'git_commit': head,
+                'task_id': task_id, 'case_ids': [case for case, refs in CASE_TESTS.items()
+                    if suite not in ('packaged',) and SUITES[suite] and any(any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)],
+                'suite': suite, 'git_commit': head,
                 'dirty_hash': dirty_hash, 'platform': sys.platform, 'os_build': platform.platform(),
                 'dependency_lock_hash': lock_hashes, 'command': argv, 'start': started,
+                'preparation_commands': preparation_commands,
                 'end': datetime.now(timezone.utc).isoformat(), 'exit_code': exit_code,
                 'stdout_ref': (output / 'stdout.log').relative_to(ROOT).as_posix(),
                 'stderr_ref': (output / 'stderr.log').relative_to(ROOT).as_posix(),
@@ -240,6 +268,36 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                 'status': status, 'tests': counts}
     write_json(DOCS / 'evidence' / f'{evidence_id}.json', evidence)
     return evidence
+
+
+def gate(name: str) -> dict:
+    progress = json.loads((DOCS / 'progress.json').read_text(encoding='utf-8'))
+    incomplete = [task for task, state in progress['tasks'].items() if state['implementation_status'] != 'implemented']
+    missing_evidence = []
+    unverified = []
+    for task, state in progress['tasks'].items():
+        if state['implementation_status'] != 'implemented':
+            continue
+        if any(status in ('fail', 'not_run') for status in state.get('verification', {}).values()):
+            unverified.append(task)
+        for evidence_id in state['evidence_ids']:
+            path = DOCS / 'evidence' / (evidence_id + '.json')
+            if not path.is_file():
+                missing_evidence.append(evidence_id)
+                continue
+            evidence = json.loads(path.read_text(encoding='utf-8'))
+            report = (ROOT / evidence['report_ref']).resolve()
+            if not report.is_relative_to(ROOT) or not report.is_file() or sha256(report.read_bytes()).hexdigest() != evidence['report_hash']:
+                missing_evidence.append(evidence_id)
+            if evidence.get('status') == 'fail' or (evidence.get('status') == 'pass' and evidence.get('exit_code') != 0):
+                unverified.append(task)
+        if not state['evidence_ids']:
+            missing_evidence.append(task)
+    blockers = {task: state['blocked_reasons'] for task, state in progress['tasks'].items() if state['blocked_reasons']}
+    return {'status': 'fail' if incomplete or missing_evidence or unverified else 'blocked' if name == 'release' and blockers else 'pass',
+            'gate': name, 'incomplete_tasks': incomplete, 'missing_or_changed_evidence': missing_evidence,
+            'failed_or_unverified_tasks': sorted(set(unverified)),
+            'blocked_dependencies': blockers if name == 'release' else {}}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -251,10 +309,14 @@ def main(argv: list[str] | None = None) -> int:
     doctor_parser.add_argument('--scope', choices=['development'], default='development')
     doctor_parser.add_argument('--check-network', action='store_true')
     subs.add_parser('status', help='Read task progress and dependency readiness')
+    contract_parser = subs.add_parser('contracts', help='Generate shared contracts or check drift')
+    contract_parser.add_argument('--check', action='store_true')
+    gate_parser = subs.add_parser('gate', help='Check implementation or release evidence without running tasks')
+    gate_parser.add_argument('--name', choices=['implementation', 'release'], required=True)
     verify_parser = subs.add_parser('verify', help='Run registered real tests and save evidence')
     selection = verify_parser.add_mutually_exclusive_group(required=True)
     selection.add_argument('--suite', choices=sorted(SUITES))
-    selection.add_argument('--task', choices=sorted(TASK_SUITES))
+    selection.add_argument('--task', choices=[task['id'] for task in json.loads((DOCS / 'backlog.json').read_text(encoding='utf-8'))['tasks']])
     args = parser.parse_args(argv)
     try:
         if args.command == 'audit':
@@ -267,8 +329,16 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == 'status':
             report = task_status(json.loads((DOCS / 'backlog.json').read_text(encoding='utf-8')),
                                  json.loads((DOCS / 'progress.json').read_text(encoding='utf-8')))
+        elif args.command == 'contracts':
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/check_contracts.py'), *(['--check'] if args.check else [])], cwd=ROOT)
+            return result.returncode
+        elif args.command == 'gate':
+            report = gate(args.name)
         else:
             if args.task:
+                if args.task not in TASK_SUITES:
+                    print(json.dumps({'status': 'fail', 'task_id': args.task, 'reason': 'Task test bindings are not implemented'}))
+                    return 1
                 evidence = [verify(suite, args.task) for suite in TASK_SUITES[args.task]]
                 states = [item['status'] for item in evidence]
                 report = {'status': 'fail' if 'fail' in states else 'blocked' if 'blocked' in states else 'pass',

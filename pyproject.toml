@@ -19,6 +19,7 @@ dependencies = [
     'mcp>=1.28,<2',
     'lark-channel-sdk>=1.2,<2',
     'pyyaml>=6,<7',
+    'jsonschema==4.26.0',
 ]
 
 [project.scripts]
@@ -29,7 +30,7 @@ include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
 exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*']
 
 [tool.setuptools.package-data]
-forge = ['prompts/*.md']
+forge = ['prompts/*.md', 'application/_generated_contracts.json']
 
 [tool.pytest.ini_options]
 testpaths = ['tests']

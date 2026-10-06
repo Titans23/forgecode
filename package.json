@@ -5,6 +5,7 @@
   "workspaces": ["packaging/smoke", "apps/*", "packages/*", "sandbox_bridge"],
   "engines": {"node": ">=22.13.0"},
   "scripts": {
+    "contracts:check": "node packaging/check-contracts.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "release:check": "node packaging/verify-release.mjs",
     "build:smoke": "npm run release:check && npm run build --workspace @forgecode/build-smoke",
@@ -14,6 +15,7 @@
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.78",
     "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "electron-squirrel-startup": "1.0.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"

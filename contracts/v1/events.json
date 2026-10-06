@@ -1,0 +1,169 @@
+{
+  "schema_version": "forge.event.catalog.v1",
+  "events": {
+    "turn.accepted": {
+      "payload_schema": "event.turn.accepted",
+      "implementation_status": "contract_only"
+    },
+    "turn.started": {
+      "payload_schema": "event.turn.started",
+      "implementation_status": "contract_only"
+    },
+    "turn.finished": {
+      "payload_schema": "event.turn.finished",
+      "implementation_status": "contract_only"
+    },
+    "model.request.started": {
+      "payload_schema": "event.model.request.started",
+      "implementation_status": "contract_only"
+    },
+    "model.request.chunk": {
+      "payload_schema": "event.model.request.chunk",
+      "implementation_status": "contract_only"
+    },
+    "model.request.finished": {
+      "payload_schema": "event.model.request.finished",
+      "implementation_status": "contract_only"
+    },
+    "model.request.failed": {
+      "payload_schema": "event.model.request.failed",
+      "implementation_status": "contract_only"
+    },
+    "tool.intent": {
+      "payload_schema": "event.tool.intent",
+      "implementation_status": "contract_only"
+    },
+    "tool.started": {
+      "payload_schema": "event.tool.started",
+      "implementation_status": "contract_only"
+    },
+    "tool.output": {
+      "payload_schema": "event.tool.output",
+      "implementation_status": "contract_only"
+    },
+    "tool.finished": {
+      "payload_schema": "event.tool.finished",
+      "implementation_status": "contract_only"
+    },
+    "context.prepared": {
+      "payload_schema": "event.context.prepared",
+      "implementation_status": "contract_only"
+    },
+    "compaction.started": {
+      "payload_schema": "event.compaction.started",
+      "implementation_status": "contract_only"
+    },
+    "compaction.finished": {
+      "payload_schema": "event.compaction.finished",
+      "implementation_status": "contract_only"
+    },
+    "compaction.failed": {
+      "payload_schema": "event.compaction.failed",
+      "implementation_status": "contract_only"
+    },
+    "budget.reserved": {
+      "payload_schema": "event.budget.reserved",
+      "implementation_status": "contract_only"
+    },
+    "budget.consumed": {
+      "payload_schema": "event.budget.consumed",
+      "implementation_status": "contract_only"
+    },
+    "budget.limit_reached": {
+      "payload_schema": "event.budget.limit_reached",
+      "implementation_status": "contract_only"
+    },
+    "verification.started": {
+      "payload_schema": "event.verification.started",
+      "implementation_status": "contract_only"
+    },
+    "verification.finished": {
+      "payload_schema": "event.verification.finished",
+      "implementation_status": "contract_only"
+    },
+    "verification.invalidated": {
+      "payload_schema": "event.verification.invalidated",
+      "implementation_status": "contract_only"
+    },
+    "completion.accepted": {
+      "payload_schema": "event.completion.accepted",
+      "implementation_status": "contract_only"
+    },
+    "completion.rejected": {
+      "payload_schema": "event.completion.rejected",
+      "implementation_status": "contract_only"
+    },
+    "completion.repair_started": {
+      "payload_schema": "event.completion.repair_started",
+      "implementation_status": "contract_only"
+    },
+    "approval.requested": {
+      "payload_schema": "event.approval.requested",
+      "implementation_status": "contract_only"
+    },
+    "approval.decided": {
+      "payload_schema": "event.approval.decided",
+      "implementation_status": "contract_only"
+    },
+    "approval.expired": {
+      "payload_schema": "event.approval.expired",
+      "implementation_status": "contract_only"
+    },
+    "sandbox.prepared": {
+      "payload_schema": "event.sandbox.prepared",
+      "implementation_status": "contract_only"
+    },
+    "sandbox.denied": {
+      "payload_schema": "event.sandbox.denied",
+      "implementation_status": "contract_only"
+    },
+    "sandbox.failed": {
+      "payload_schema": "event.sandbox.failed",
+      "implementation_status": "contract_only"
+    },
+    "sandbox.cleanup_finished": {
+      "payload_schema": "event.sandbox.cleanup_finished",
+      "implementation_status": "contract_only"
+    },
+    "cancellation.requested": {
+      "payload_schema": "event.cancellation.requested",
+      "implementation_status": "contract_only"
+    },
+    "cancellation.confirmed": {
+      "payload_schema": "event.cancellation.confirmed",
+      "implementation_status": "contract_only"
+    },
+    "recovery.started": {
+      "payload_schema": "event.recovery.started",
+      "implementation_status": "contract_only"
+    },
+    "recovery.finished": {
+      "payload_schema": "event.recovery.finished",
+      "implementation_status": "contract_only"
+    },
+    "trial.planned": {
+      "payload_schema": "event.trial.planned",
+      "implementation_status": "contract_only"
+    },
+    "attempt.started": {
+      "payload_schema": "event.attempt.started",
+      "implementation_status": "contract_only"
+    },
+    "grade.finished": {
+      "payload_schema": "event.grade.finished",
+      "implementation_status": "contract_only"
+    },
+    "client.attached": {
+      "payload_schema": "event.client.attached",
+      "implementation_status": "contract_only"
+    },
+    "client.reconnected": {
+      "payload_schema": "event.client.reconnected",
+      "implementation_status": "contract_only"
+    },
+    "client.approval_shown": {
+      "payload_schema": "event.client.approval_shown",
+      "implementation_status": "contract_only"
+    }
+  }
+}

@@ -1,0 +1,504 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:run-spec",
+  "title": "RunSpec v1",
+  "description": "配置创建前验证所有 snapshot 引用、task revision 精确对应、trial预算、反馈协议与能力；回执另外包含 run_id/hash，实际返回模型记录在执行结果。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "forge.eval.runspec.v1"
+    },
+    "experiment_id": {
+      "type": "string",
+      "pattern": "^experiment-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{40,64}$"
+        },
+        "dirty_diff_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "dependency_lock_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "commit",
+        "dirty_diff_sha256",
+        "source_snapshot",
+        "dependency_lock_sha256"
+      ]
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connection_id": {
+          "type": "string",
+          "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "connection_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "requested_model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        }
+      },
+      "required": [
+        "connection_id",
+        "connection_revision",
+        "provider",
+        "requested_model",
+        "parameters"
+      ]
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prompt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "tool_schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "configuration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "max_delivery_repairs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "required": [
+        "prompt_sha256",
+        "tool_schema_sha256",
+        "configuration",
+        "max_delivery_repairs"
+      ]
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "task_revisions": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 10000,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      },
+      "required": [
+        "name",
+        "revision",
+        "task_ids",
+        "task_revisions"
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target_platform": {
+          "enum": [
+            "windows-native",
+            "linux-native",
+            "official-environment"
+          ]
+        },
+        "environment_snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "sandbox_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "sandbox_capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "network_cache_configuration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "concurrency": {
+          "const": 1
+        }
+      },
+      "required": [
+        "target_platform",
+        "environment_snapshot",
+        "sandbox_policy",
+        "sandbox_capabilities",
+        "network_cache_configuration",
+        "concurrency"
+      ]
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repeats": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "max_infrastructure_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "feedback": {
+          "enum": [
+            "none",
+            "benchmark_defined"
+          ]
+        },
+        "selection_rule": {
+          "const": "last_authorized_attempt"
+        },
+        "retain_first_attempt": {
+          "const": true
+        }
+      },
+      "required": [
+        "repeats",
+        "max_infrastructure_attempts",
+        "feedback",
+        "selection_rule",
+        "retain_first_attempt"
+      ]
+    },
+    "grader": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adapter_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "configuration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        }
+      },
+      "required": [
+        "adapter_id",
+        "revision",
+        "configuration",
+        "environment"
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempt_wall_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "trial_wall_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_model_requests_per_attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_tool_calls_per_attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "spend_ceiling": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+          "maxLength": 32
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "spend_policy": {
+          "enum": [
+            "preauthorization_with_reservation",
+            "unknown_usage_stop_next_request"
+          ]
+        }
+      },
+      "required": [
+        "attempt_wall_seconds",
+        "trial_wall_seconds",
+        "max_model_requests_per_attempt",
+        "max_tool_calls_per_attempt",
+        "spend_ceiling",
+        "currency",
+        "spend_policy"
+      ]
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_schema": {
+          "const": "forge.events.v1"
+        },
+        "capture": {
+          "enum": [
+            "metadata",
+            "controlled_debug"
+          ]
+        },
+        "pricing_snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        "export_classification": {
+          "enum": [
+            "metadata_only",
+            "redacted_artifacts"
+          ]
+        }
+      },
+      "required": [
+        "event_schema",
+        "capture",
+        "pricing_snapshot",
+        "export_classification"
+      ]
+    },
+    "model_mode": {
+      "enum": [
+        "scripted_mock",
+        "live"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "experiment_id",
+    "source",
+    "model",
+    "harness",
+    "dataset",
+    "execution",
+    "protocol",
+    "grader",
+    "budget",
+    "observability",
+    "model_mode"
+  ]
+}

@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00、F01；下一任务 F02（阅读 tasks/F02.md、主规范第 5、6、8、21、22 章）。
+- 当前完成 F00、F01、F02；下一任务 F03（已阅读 tasks/F03.md、主规范第 7 章与附录 B.2）。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -32,7 +32,17 @@
 - GHSA-86w9-cpqp-85rv：node-forge 1.4.0 尚无已发布补丁，SRT 0.0.78 依赖它。
   security=blocked；node packaging/verify-release.mjs --release 拒绝生产发布。
   不运行 npm audit fix 的旧 SRT 降级；不自造密码学补丁。详见 ADR 001。
-- 下一步 F02 共享契约；保留原始四个 seed 正反例，补齐方法与结果／Bundle schemas，
-  做 Python／TS 同判定与严格 JSON／canonical hash、case registry、证据门禁。
+- F01 已推送 629b8d612a0b0587144429522561a0dd0f26bcbb。F02 提交父 HEAD 即此提交。
+- F02 共享契约已实现：48 个 Engine / 6 个 Bridge / 41 个事件 payload，配置快照、
+  Policy / RunSpec / Bundle；严格 UTF-8 JSON、canonical hash、权限、生成漂移检查。
+  contract_only 不作为可调用能力；后续服务/Bridge/观测任务接入真实 handler。
+- F02 verify --task：unit 32 pass，portable 1 pass；同判定 310 个结构样本与
+  原始 seed/边界、99 个通道请求。evidence 20261006T100851Z-a7ee0375 / 20261006T100856Z-8425af60。
+  最终回归 773 pass / 0 skip，20261006T100851Z-a837e8f2；types / contracts check pass。
+- F02 新命令 contracts [--check]、gate --name implementation/release、suite/case 注册。
+  尚未实现的原生/desktop/live verifier 返回失败，required skip/零测试不能 pass。
+- F03 应先写真实 SQLite/进程中断/Journal 投影测试，在全新测试数据目录实施；
+  不迁移或改写用户现有 .forge 数据。唯一 writer、WAL 一致 backup、原子 artifact、
+  source offset/冲突、owner handle lock；保留原有 SessionJournal 副作用事实。
 - G0 pass；G7 blocked；其他门禁未运行。保留 Python Harness、CLI、MCP、
   Hook、Explore、Feishu 和已有 Harbor runner，不复制或重写主循环。

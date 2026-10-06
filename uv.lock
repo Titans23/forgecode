@@ -538,6 +538,7 @@ version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "jsonschema" },
     { name = "lark-channel-sdk" },
     { name = "mcp" },
     { name = "openai" },
@@ -561,6 +562,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.116,<0.117" },
+    { name = "jsonschema", specifier = "==4.26.0" },
     { name = "lark-channel-sdk", specifier = ">=1.2,<2" },
     { name = "mcp", specifier = ">=1.28,<2" },
     { name = "openai", specifier = ">=2.53,<3" },

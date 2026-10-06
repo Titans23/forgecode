@@ -1,0 +1,131 @@
+{
+  "schema_version": "forge.bridge.v1",
+  "methods": {
+    "probe": {
+      "audience": "engine",
+      "request_schema": "bridge.probe.request",
+      "result_schema": "bridge.probe.result",
+      "mutation": false,
+      "implementation_status": "contract_only",
+      "errors": [
+        "POLICY_DENIED",
+        "SANDBOX_UNAVAILABLE",
+        "SETUP_REQUIRED",
+        "CAPABILITY_UNSATISFIED",
+        "COMMAND_FAILED",
+        "CANCEL_UNCONFIRMED",
+        "CLEANUP_FAILED"
+      ],
+      "idempotency_key": null,
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "prepare": {
+      "audience": "engine",
+      "request_schema": "bridge.prepare.request",
+      "result_schema": "bridge.prepare.result",
+      "mutation": true,
+      "implementation_status": "contract_only",
+      "errors": [
+        "POLICY_DENIED",
+        "SANDBOX_UNAVAILABLE",
+        "SETUP_REQUIRED",
+        "CAPABILITY_UNSATISFIED",
+        "COMMAND_FAILED",
+        "CANCEL_UNCONFIRMED",
+        "CLEANUP_FAILED"
+      ],
+      "idempotency_key": "sandbox_session_id",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "execute": {
+      "audience": "engine",
+      "request_schema": "bridge.execute.request",
+      "result_schema": "bridge.execute.result",
+      "mutation": true,
+      "implementation_status": "contract_only",
+      "errors": [
+        "POLICY_DENIED",
+        "SANDBOX_UNAVAILABLE",
+        "SETUP_REQUIRED",
+        "CAPABILITY_UNSATISFIED",
+        "COMMAND_FAILED",
+        "CANCEL_UNCONFIRMED",
+        "CLEANUP_FAILED"
+      ],
+      "idempotency_key": "execution_id",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "status": {
+      "audience": "engine",
+      "request_schema": "bridge.status.request",
+      "result_schema": "bridge.status.result",
+      "mutation": false,
+      "implementation_status": "contract_only",
+      "errors": [
+        "POLICY_DENIED",
+        "SANDBOX_UNAVAILABLE",
+        "SETUP_REQUIRED",
+        "CAPABILITY_UNSATISFIED",
+        "COMMAND_FAILED",
+        "CANCEL_UNCONFIRMED",
+        "CLEANUP_FAILED"
+      ],
+      "idempotency_key": null,
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "cancel": {
+      "audience": "engine",
+      "request_schema": "bridge.cancel.request",
+      "result_schema": "bridge.cancel.result",
+      "mutation": true,
+      "implementation_status": "contract_only",
+      "errors": [
+        "POLICY_DENIED",
+        "SANDBOX_UNAVAILABLE",
+        "SETUP_REQUIRED",
+        "CAPABILITY_UNSATISFIED",
+        "COMMAND_FAILED",
+        "CANCEL_UNCONFIRMED",
+        "CLEANUP_FAILED"
+      ],
+      "idempotency_key": "execution_id",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "close": {
+      "audience": "engine",
+      "request_schema": "bridge.close.request",
+      "result_schema": "bridge.close.result",
+      "mutation": true,
+      "implementation_status": "contract_only",
+      "errors": [
+        "POLICY_DENIED",
+        "SANDBOX_UNAVAILABLE",
+        "SETUP_REQUIRED",
+        "CAPABILITY_UNSATISFIED",
+        "COMMAND_FAILED",
+        "CANCEL_UNCONFIRMED",
+        "CLEANUP_FAILED"
+      ],
+      "idempotency_key": "sandbox_session_id",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    }
+  }
+}

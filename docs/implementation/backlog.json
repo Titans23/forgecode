@@ -126,8 +126,8 @@
         "portable"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": ["20261006T100851Z-a7ee0375", "20261006T100856Z-8425af60", "20261006T100851Z-a837e8f2"],
       "case_ids": [
         "N04"
       ]
