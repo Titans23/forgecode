@@ -164,6 +164,10 @@
     "client.approval_shown": {
       "payload_schema": "event.client.approval_shown",
       "implementation_status": "contract_only"
+    },
+    "journal.projected": {
+      "payload_schema": "event.journal.projected",
+      "implementation_status": "implemented"
     }
   }
 }

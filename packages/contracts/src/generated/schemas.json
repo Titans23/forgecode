@@ -208,6 +208,10 @@
       "implementation_status": "contract_only",
       "payload_schema": "event.grade.finished"
     },
+    "journal.projected": {
+      "implementation_status": "implemented",
+      "payload_schema": "event.journal.projected"
+    },
     "model.request.chunk": {
       "implementation_status": "contract_only",
       "payload_schema": "event.model.request.chunk"
@@ -4192,6 +4196,36 @@
           ],
           "type": "object"
         },
+        "journal.projected": {
+          "additionalProperties": false,
+          "properties": {
+            "legacy_session_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "native_type": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "native_uuid": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "record_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "native_type",
+            "native_uuid",
+            "legacy_session_id",
+            "record_hash"
+          ],
+          "type": "object"
+        },
         "model.request.chunk": {
           "additionalProperties": false,
           "properties": {
@@ -5188,19 +5222,40 @@
               "additionalProperties": false,
               "properties": {
                 "model_calls_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "tool_calls_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "wall_seconds_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -5246,19 +5301,40 @@
               "additionalProperties": false,
               "properties": {
                 "model_calls_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "tool_calls_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "wall_seconds_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -5335,19 +5411,40 @@
               "additionalProperties": false,
               "properties": {
                 "model_calls_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "tool_calls_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "wall_seconds_remaining": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -5620,6 +5717,11 @@
     "event.grade.finished": {
       "$id": "urn:forgecode:contracts:v1:event.grade.finished",
       "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/grade.finished",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "event.journal.projected": {
+      "$id": "urn:forgecode:contracts:v1:event.journal.projected",
+      "$ref": "urn:forgecode:contracts:v1:event-payloads#/$defs/journal.projected",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "event.model.request.chunk": {

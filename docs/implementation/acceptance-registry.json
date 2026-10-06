@@ -1681,8 +1681,8 @@
       "title": "WAL 数据库迁移失败与旧版本启动",
       "source": "V3",
       "baseline_expectation": "一致备份可恢复，旧 schema 客户端不写新库",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": ["tests/implementation/integration/test_storage.py"],
+      "status": "blocked",
       "owner_task": "F03",
       "required_platforms": [
         "windows",
@@ -1691,11 +1691,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
+          "status": "blocked",
           "evidence_ids": []
         },
         "linux": {
-          "status": "not_run",
+          "status": "blocked",
           "evidence_ids": []
         }
       }
@@ -1951,13 +1951,13 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": ["tests/implementation/integration/test_storage.py"],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": ["20261006T102615Z-0f141cab"]
         }
       }
     },
@@ -2023,13 +2023,13 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": ["tests/implementation/integration/test_storage.py"],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": ["20261006T102615Z-0f141cab"]
         }
       }
     },

@@ -33,19 +33,40 @@
           "additionalProperties": false,
           "properties": {
             "model_calls_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "tool_calls_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "wall_seconds_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -91,19 +112,40 @@
           "additionalProperties": false,
           "properties": {
             "model_calls_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "tool_calls_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "wall_seconds_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -177,19 +219,40 @@
           "additionalProperties": false,
           "properties": {
             "model_calls_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "tool_calls_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "wall_seconds_remaining": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -2333,6 +2396,36 @@
         "client_action_id",
         "desktop_instance_id",
         "approval_id"
+      ]
+    },
+    "journal.projected": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "native_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "native_uuid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "legacy_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "record_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "native_type",
+        "native_uuid",
+        "legacy_session_id",
+        "record_hash"
       ]
     }
   }

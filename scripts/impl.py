@@ -39,12 +39,15 @@ SYMBOLS = {
     'benchmark_results': ('benchmark/harbor/summarize.py', ['summarize_run', 'assess_trial']),
 }
 SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
-          'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable'],
+          'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
           'regression': ['tests'], 'packaged': [],
           'sandbox-linux': None, 'sandbox-windows': None, 'desktop': None, 'live-eval': None}
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable']}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable']}
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
-                      'tests/implementation/portable/test_contracts_parity.py']}
+                      'tests/implementation/portable/test_contracts_parity.py'],
+              'D30': ['tests/implementation/integration/test_storage.py'],
+              'N02': ['tests/implementation/integration/test_storage.py'],
+              'N06': ['tests/implementation/integration/test_storage.py']}
 
 
 class Parser(argparse.ArgumentParser):
@@ -219,7 +222,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         path = Path(relative)
         source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts'}
         source_manifest = relative in {'.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
-        if (source_directory and path.suffix in {'.py', '.ts', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec'}) or source_manifest:
+        if (source_directory and path.suffix in {'.py', '.ts', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
     with (output / 'stdout.log').open('w', encoding='utf-8') as stdout, (output / 'stderr.log').open('w', encoding='utf-8') as stderr:

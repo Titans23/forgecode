@@ -30,7 +30,7 @@ include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
 exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*']
 
 [tool.setuptools.package-data]
-forge = ['prompts/*.md', 'application/_generated_contracts.json']
+forge = ['prompts/*.md', 'application/_generated_contracts.json', 'engine/migrations/*.sql']
 
 [tool.pytest.ini_options]
 testpaths = ['tests']

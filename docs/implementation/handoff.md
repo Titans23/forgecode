@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00、F01、F02；下一任务 F03（已阅读 tasks/F03.md、主规范第 7 章与附录 B.2）。
+- 当前完成 F00—F03；下一任务 F04（已阅读 tasks/F04.md、主规范第 9、19 章）。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -41,8 +41,20 @@
   最终回归 773 pass / 0 skip，20261006T100851Z-a837e8f2；types / contracts check pass。
 - F02 新命令 contracts [--check]、gate --name implementation/release、suite/case 注册。
   尚未实现的原生/desktop/live verifier 返回失败，required skip/零测试不能 pass。
-- F03 应先写真实 SQLite/进程中断/Journal 投影测试，在全新测试数据目录实施；
-  不迁移或改写用户现有 .forge 数据。唯一 writer、WAL 一致 backup、原子 artifact、
-  source offset/冲突、owner handle lock；保留原有 SessionJournal 副作用事实。
+- F02 已推送 6c2d10f4d68cae884993b92525459271a938780e。F03 提交父 HEAD 即此提交。
+- F03 完成真实 SQLite migration、OS owner lock、WAL/FULL、FK/唯一/不可变约束、
+  事务受理、snapshot、CAS/epoch/对账、Journal metadata 投影/冲突隔离、Backup API、
+  原子 artifact 和单项/attempt/diagnostic 配额。未迁移用户 .forge。
+- 修复原 SessionJournal：append/fsync 成功后再加入 started/completed 去重集合。
+  否则首次写入失败后同 ID 重试可不记录 intent/result；真实命令测试已复现并验证修复。
+- F03 unit 32 pass / portable 17 pass（16 个存储行为），证据
+  20261006T102610Z-94aab17c / 20261006T102615Z-0f141cab；最终回归 789 pass / 0 skip，
+  20261006T102610Z-698a0127；contracts/typecheck pass。N02/N06 portable pass，
+  D30 Windows 11/Ubuntu 原生验收仍 blocked，不能用 Windows 10 代替。
+- 旧 owner 项重启后 reconciling，不能领取新任务；mark_indeterminate 只保留未知结果，
+  完整清理/继续策略留给 F12/F25。Journal 回放仅元数据，不重跑工具、不编造费用。
+- F04 复用 create_runtime/Conversation/TurnRunner，增加 backend/recorder/approval 注入、
+  服务化 create/start/cancel/snapshot、真实权限/连接前置校验；保留CLI入口和原始终态映射。
+  strict sandbox 尚未就绪时明确阻断，测试可使用显式 scripted profile，不产生成绩。
 - G0 pass；G7 blocked；其他门禁未运行。保留 Python Harness、CLI、MCP、
   Hook、Explore、Feishu 和已有 Harbor runner，不复制或重写主循环。
