@@ -37,8 +37,8 @@ export async function verifyReleaseLock(root, target = `${process.platform}-${pr
   return lock;
 }
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+async function main() {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
   try {
     const lock = await verifyReleaseLock(root, undefined, process.argv.includes('--release'));
     console.log(JSON.stringify({ status: 'pass', scope: 'dependency-integrity', security_status: lock.security?.status,
@@ -48,3 +48,4 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exitCode = error.code === 'SECURITY_BLOCKED' ? 2 : 1;
   }
 }
+if (typeof import.meta.url === 'string' && process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) void main();

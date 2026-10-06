@@ -1,0 +1,8 @@
+{
+  "name": "@forgecode/ui",
+  "version": "0.1.2",
+  "private": true,
+  "type": "module",
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "react": "19.3.0", "react-dom": "19.3.0" }
+}

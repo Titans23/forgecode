@@ -1,0 +1,14 @@
+{
+  "/assets/index-BUWaMxSR.css": {
+    "path": ".vite/renderer/ui/assets/index-BUWaMxSR.css",
+    "sha256": "a63d563a4f773ce4d3ec16adc1d9ec224a9493e13334bfc34305a3b314b24c31"
+  },
+  "/assets/index-rgOt7V0M.js": {
+    "path": ".vite/renderer/ui/assets/index-rgOt7V0M.js",
+    "sha256": "6add43fd9edeab71c9770e75bcfd2c1db991ec5c052b2c5f5e6b7d5e52ebb9cc"
+  },
+  "/index.html": {
+    "path": ".vite/renderer/ui/index.html",
+    "sha256": "b34708a4b28ec84c292b24a362458b630823af9f2e3daf11aae1b0293112fb56"
+  }
+}

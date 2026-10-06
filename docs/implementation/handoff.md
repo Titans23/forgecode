@@ -1,7 +1,17 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F12；下一 F13（任务卡、第 15 / 16 / 20 章已读）。原生平台验收独立 blocked。
-- F12 提交父 HEAD：4b87665a6a919f09438796fbdb685243e6fe85d4；接续核对实际 git HEAD。
+- 当前代码完成 F00—F13；下一项 F14（任务卡、第 10 / 16 章已读）。原生平台验收独立 blocked。
+- F12 已推送 8875bfbaf9c14cce9834cb1e93f596a1055403b8；F13 本次提交的测试父 HEAD 即此提交。
+- F13：真实安全 Electron 窗口、固定 Preload、动态 DesktopTransport、固定 Engine 资产／私有 stdio Supervisor。
+  实际修复 demo、reload / Renderer crash 保持 Engine/turn、第二实例、obsolete 参数、OS 无 TCP listener、退出 cleanup confirmed。
+  unit 125 / portable 97 / regression 962，0 skip；desktop-development 10 checks pass。
+  20261006T162646Z-4fe55ae3 / 20261006T162701Z-1b15650e / 20261006T163202Z-24e933d4 / 20261006T163212Z-4433d05b。
+  frozen assembly 尚缺，desktop-packaged blocked / 0：20261006T162951Z-e58dd5f3；实际 Forge prePackage 拒绝缺资源。
+  Native Linux / Windows blocked / 0：20261006T163223Z-4a291216 / 20261006T163229Z-e28151f4。
+  Windows 10 GUI 是 development scope；Windows 11/Ubuntu/X11/Wayland、native close dialog choices 与发布仍未验收。
+  正常 start 使用 provider/strict；离线 demo 仅可信开发脚本 explicit scripted/local-trusted，不产真实模型成绩。
+  build_desktop.py --check 不修复 inventory；npm start 无开发 HTTP server；包加载绝不退回源码 Python。
+  Main-only credential/setup/approval 接线由 F14/F15继续，完整 frozen/hardened package 由 F28完成。
 - F12：EOF / 输出背压停止调度并取消，readonly 实际取消不再调用模型；未知写入不回放。
   预算／批次跳过与 execution_cancelled 区分，保留原 Harness 失败和预算行为。
   migration 003 保存 Agent / grader / environment deadline 和独立 cancel / cleanup 状态。

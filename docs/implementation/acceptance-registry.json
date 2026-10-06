@@ -1364,8 +1364,12 @@
       "title": "断网时能打开应用和既有历史；需联网功能正确报错",
       "source": "V3",
       "baseline_expectation": "不把模型离线报错当成客户端无法启动",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
       "owner_task": "F13",
       "required_platforms": [
         "windows",
@@ -1374,12 +1378,26 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163229Z-e28151f4"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T163212Z-4433d05b",
+            "20261006T163202Z-24e933d4"
+          ],
+          "scope": "Actual self-contained Electron assets, offline scripted task, real snapshots/reload/crash recovery; no external UI server. Installed/air-gap/provider failure acceptance remains blocked."
         }
       }
     },
@@ -1446,8 +1464,12 @@
       "title": "同一 profile 重复启动客户端",
       "source": "V3",
       "baseline_expectation": "单实例处理且无第二数据库 writer",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
       "owner_task": "F13",
       "required_platforms": [
         "windows",
@@ -1456,12 +1478,26 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163229Z-e28151f4"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T163212Z-4433d05b",
+            "20261006T163202Z-24e933d4"
+          ],
+          "scope": "Actual second Electron instance on the same development profile exited while the original Engine/turn stayed owned. Windows 10 development scope only."
         }
       }
     },
@@ -1695,8 +1731,12 @@
       "title": "有任务时点击关闭、选择继续或取消退出",
       "source": "V3",
       "baseline_expectation": "行为与选择一致，不隐藏失控任务",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
       "owner_task": "F13",
       "required_platforms": [
         "windows",
@@ -1705,12 +1745,26 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163229Z-e28151f4"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "development": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163212Z-4433d05b",
+            "20261006T163202Z-24e933d4"
+          ],
+          "scope": "Actual Supervisor active cancellation/shutdown passed. Both native active-close dialog choices remain unverified; no injected dialog response used."
         }
       }
     },
@@ -2190,8 +2244,12 @@
       "title": "X11／Wayland 下托盘缺失、通知不可用",
       "source": "V3",
       "baseline_expectation": "保留可恢复窗口，不静默隐藏正在执行的应用",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
       "owner_task": "F13",
       "required_platforms": [
         "linux"
@@ -2199,8 +2257,11 @@
       "release_required": true,
       "platform_verification": {
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
         }
       }
     },

@@ -1,8 +1,8 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "4b87665a6a919f09438796fbdb685243e6fe85d4",
-  "next_recommended_task": "F13",
+  "actual_repository_head": "8875bfbaf9c14cce9834cb1e93f596a1055403b8",
+  "next_recommended_task": "F14",
   "current_task": null,
   "tasks": {
     "F00": {
@@ -177,14 +177,32 @@
       ]
     },
     "F13": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "unit": "not_run",
-        "desktop": "not_run",
-        "packaged": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "desktop_development": "pass",
+        "desktop-packaged": "blocked",
+        "contracts": "pass",
+        "typecheck": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked",
+        "live_model": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261006T162646Z-4fe55ae3",
+        "20261006T162701Z-1b15650e",
+        "20261006T163212Z-4433d05b",
+        "20261006T162951Z-e58dd5f3",
+        "20261006T163223Z-4a291216",
+        "20261006T163229Z-e28151f4",
+        "20261006T163202Z-24e933d4"
+      ],
+      "blocked_reasons": [
+        "Actual Windows 10 Electron window and private Engine passed 10 development checks; unit 125, portable 97, final regression 962 with zero skips. Scripted/local-trusted fixture is not a native sandbox or provider benchmark result.",
+        "F28 frozen Engine/resources and installed release manifest are absent. Actual Forge prePackage refused packaging; installed inspection remains blocked. Windows 11/Ubuntu/X11/Wayland, both native active-close dialog choices, administrator setup and paid API budgets are unavailable/unapproved. G7 security remains blocked."
+      ]
     },
     "F14": {
       "implementation_status": "todo",

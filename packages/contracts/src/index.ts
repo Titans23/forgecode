@@ -178,7 +178,7 @@ export function validateEvent(value: unknown): unknown {
 }
 
 // Test-only CLI invokes the same exported decoder and validators used by clients.
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv[2] === '--verify-fixtures') {
+if (typeof import.meta.url === 'string' && process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv[2] === '--verify-fixtures') {
   const input = JSON.parse(readFileSync(0, 'utf8'));
   const valid = input.cases.map((item: { raw: string; schema: string | null }) => {
     try { const value = strictLoads(item.raw); if (item.schema) validate(item.schema, value); return true; }

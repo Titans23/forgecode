@@ -5623,7 +5623,7 @@
     },
     {
       "path": "packages/contracts/dist/index.js",
-      "sha256": "eaac6b8e573b59a9456fb30db974e188e0cbdccacfcd35117f574d78e9ffe637"
+      "sha256": "a61379d8ed71a3b418fe32634d96fad10159ac702c151bceed0d68c881c93bb0"
     },
     {
       "path": "packages/contracts/package.json",

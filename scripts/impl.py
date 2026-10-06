@@ -41,8 +41,8 @@ SYMBOLS = {
 SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
           'regression': ['tests'], 'packaged': [],
-          'sandbox-linux': [], 'sandbox-windows': [], 'desktop': None, 'live-eval': None}
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows']}
+          'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged']}
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -55,7 +55,8 @@ CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
               **{case: ['tests/implementation/native/windows/verify_windows.py'] for case in ('C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07')},
               **{case: ['tests/implementation/integration/test_file_worker.py'] for case in ('C01', 'C02', 'C03', 'C04', 'C05', 'C20', 'C22', 'C23', 'D22', 'N09')},
               **{case: ['tests/implementation/integration/test_cancellation.py', 'tests/implementation/integration/test_process_worker.py',
-                        'tests/implementation/integration/test_service_lifecycle.py'] for case in ('C13', 'C14', 'C15', 'C18', 'C19', 'D11', 'D17')}}
+                        'tests/implementation/integration/test_service_lifecycle.py'] for case in ('C13', 'C14', 'C15', 'C18', 'C19', 'D11', 'D17')},
+              **{case: ['tests/implementation/integration/test_desktop_supervisor.py', 'scripts/desktop_smoke.py'] for case in ('D03', 'D06', 'D14')}}
 
 
 class Parser(argparse.ArgumentParser):
@@ -208,7 +209,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
     native = suite in ('sandbox-linux', 'sandbox-windows')
-    report_path = output / (f'native-{suite.removeprefix("sandbox-")}.json' if native else 'build-smoke.json' if suite == 'packaged' else 'junit.xml')
+    report_path = output / (f'native-{suite.removeprefix("sandbox-")}.json' if native else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
     unavailable = SUITES[suite] is None
     if unavailable:
         argv = []
@@ -216,16 +217,21 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
     elif native:
         argv = [sys.executable, '-X', 'utf8', '-m', 'forge.sandbox.doctor', f'--native-{suite.removeprefix("sandbox-")}', '--output', str(report_path)]
+    elif suite == 'desktop':
+        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_smoke.py'), '--output', str(report_path)]
+    elif suite == 'desktop-packaged':
+        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_packaged_smoke.py'), '--output', str(report_path)]
     else:
         argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
                 '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
     started = datetime.now(timezone.utc).isoformat()
     preparation_commands = []
-    if suite in ('portable', 'regression', 'sandbox-linux', 'sandbox-windows'):
+    if suite in ('unit', 'portable', 'regression', 'sandbox-linux', 'sandbox-windows', 'desktop'):
         node = shutil.which('node')
         if node:
             preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
             preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_bridge.py'), '--check'])
+            preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_desktop.py'), '--check', *([] if suite == 'desktop' else ['--main-only'])])
             setup_source = ROOT / 'apps/desktop/src/main/setup_broker.ts'
             if setup_source.is_file():
                 preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '--target', 'ES2022',
@@ -239,7 +245,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts'}
         source_manifest = relative in {'.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
         fixture_input = relative.startswith('tests/implementation/fixtures/')
-        if (source_directory and path.suffix in {'.py', '.ts', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
+        if (source_directory and path.suffix in {'.py', '.ts', '.mts', '.tsx', '.css', '.html', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
     with (output / 'stdout.log').open('w', encoding='utf-8') as stdout, (output / 'stderr.log').open('w', encoding='utf-8') as stderr:
@@ -262,12 +268,14 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                 stderr.write('Verification exceeded 900 seconds.\n')
     if unavailable:
         status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
-    elif (suite == 'packaged' or native) and report_path.is_file():
+    elif (suite in ('packaged', 'desktop', 'desktop-packaged') or native) and report_path.is_file():
         result_report = json.loads(report_path.read_text(encoding='utf-8'))
         status = result_report['status']
-        counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status') if key in result_report}
+        counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status', 'scope', 'eligible_for_native_pass') if key in result_report}
         counts['checks'] = len(result_report.get('checks', []))
         if status == 'pass' and (exit_code != 0 or not counts['checks']):
+            status = 'fail'
+        if suite in ('desktop', 'desktop-packaged') and status == 'pass' and any(check.get('status') != 'pass' for check in result_report.get('checks', [])):
             status = 'fail'
         if native and status == 'pass' and (result_report.get('eligible_for_native_pass') is not True or
                 any(check.get('status') != 'pass' for check in result_report.get('checks', []))):

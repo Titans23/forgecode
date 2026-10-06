@@ -32,6 +32,7 @@ class EngineMethods:
             'session.get': self.get_session, 'action.get': self.get_action,
             'events.subscribe': self.events.subscribe, 'events.ack': self.events.ack,
             'events.unsubscribe': self.events.unsubscribe, 'observability.events': self.query_events,
+            'sandbox.cleanup_status': self.cleanup_status,
         }
 
     def readiness(self):
@@ -63,7 +64,32 @@ class EngineMethods:
 
     def health(self, params):
         return {'engine_epoch': self.store.epoch, 'readiness': self.readiness(), 'active_work_items':
-                self.store.connection.execute("SELECT COUNT(*) FROM work_items WHERE state IN ('running','cancel_requested','reconciling')").fetchone()[0]}
+                self.store.connection.execute("SELECT COUNT(*) FROM work_items WHERE state IN ('queued','running','cancel_requested','reconciling')").fetchone()[0]}
+
+    def cleanup_status(self, params):
+        session_view(self.store, params['session_id'])
+        rows = self.store.connection.execute('SELECT t.state,l.cleanup_state,l.cleanup_json FROM turns t '
+            'LEFT JOIN turn_lifecycle l ON l.turn_id=t.id WHERE t.session_id=?', (params['session_id'],)).fetchall()
+        states = {row['cleanup_state'] or ('pending' if row['state'] != 'finished' else 'unknown') for row in rows}
+        state = 'unknown' if 'unknown' in states else 'failed' if 'residual' in states else 'pending' if states & {'pending', 'running'} else 'complete'
+        counts = []
+        def observe(value, depth=0):
+            if depth > 8:
+                return
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if key in ('remaining_processes', 'active_processes') and type(item) is int and 0 <= item <= 2**53-1:
+                        counts.append(item)
+                    elif isinstance(item, (dict, list)):
+                        observe(item, depth + 1)
+            elif isinstance(value, list):
+                for item in value[:1000]:
+                    observe(item, depth + 1)
+        for row in rows:
+            if row['cleanup_json']:
+                observe(json.loads(row['cleanup_json']))
+        return {'session_id': params['session_id'], 'state': state,
+            'remaining_processes': max(counts, default=0), 'diagnostic_id': None}
 
     def _mutate(self, method, params, callback):
         with self.store.transaction():
