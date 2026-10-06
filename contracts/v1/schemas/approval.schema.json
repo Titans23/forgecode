@@ -107,6 +107,11 @@
       "format": "date-time",
       "pattern": "Z$"
     },
+    "tool_name": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "risk": { "enum": ["low", "medium", "high", "critical"] },
+    "reason": { "type": "string", "maxLength": 4096 },
+    "preview": { "type": "string", "maxLength": 4096 },
+    "arguments_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "state": {
       "enum": [
         "pending",

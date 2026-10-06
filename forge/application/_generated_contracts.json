@@ -147,15 +147,15 @@
   },
   "events": {
     "approval.decided": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.approval.decided"
     },
     "approval.expired": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.approval.expired"
     },
     "approval.requested": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.approval.requested"
     },
     "attempt.started": {
@@ -354,15 +354,16 @@
         "STALE_APPROVAL"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
       "request_schema": "approval.decide.request",
       "result_schema": "approval.decide.result",
       "test_refs": [
-        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/desktop/security/test_internal_grants.py"
       ],
       "timeout_query": "action.get"
     },
@@ -376,15 +377,16 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
       "request_schema": "approval.get.request",
       "result_schema": "approval.get.result",
       "test_refs": [
-        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/desktop/security/test_internal_grants.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -398,15 +400,42 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
       "request_schema": "approval.list.request",
       "result_schema": "approval.list.result",
       "test_refs": [
-        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/desktop/security/test_internal_grants.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "approval.prepare_decision": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "approval.prepare_decision.request",
+      "result_schema": "approval.prepare_decision.result",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_workspace_authorization.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1312,24 +1341,26 @@
     "workspace.authorize": {
       "audience": "main",
       "cancellation": "explicit_domain_cancel",
-      "commit_point": "service_transaction_before_response",
+      "commit_point": "sqlite_transaction",
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
         "NOT_FOUND",
         "IDEMPOTENCY_CONFLICT",
-        "STALE_REVISION"
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
       ],
-      "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "idempotency_key": "profile_id,method,client_action_id",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
       "request_schema": "workspace.authorize.request",
       "result_schema": "workspace.authorize.result",
       "test_refs": [
-        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_workspace_authorization.py"
       ],
       "timeout_query": "action.get"
     },
@@ -1425,6 +1456,32 @@
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/integration/test_rpc.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "workspace.prepare_authorization": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "workspace.prepare_authorization.request",
+      "result_schema": "workspace.prepare_authorization.result",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_workspace_authorization.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1557,6 +1614,10 @@
           "pattern": "^approval-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "type": "string"
         },
+        "arguments_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
         "argv": {
           "anyOf": [
             {
@@ -1624,6 +1685,22 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "preview": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "risk": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
         "script_hash": {
           "anyOf": [
             {
@@ -1645,6 +1722,11 @@
             "expired",
             "consumed"
           ]
+        },
+        "tool_name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
         },
         "turn_id": {
           "maxLength": 64,
@@ -1710,6 +1792,16 @@
     "approval.list.result": {
       "$id": "urn:forgecode:contracts:v1:approval.list.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/approval.list.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "approval.prepare_decision.request": {
+      "$id": "urn:forgecode:contracts:v1:approval.prepare_decision.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/approval.prepare_decision.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "approval.prepare_decision.result": {
+      "$id": "urn:forgecode:contracts:v1:approval.prepare_decision.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/approval.prepare_decision.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "artifact": {
@@ -7219,6 +7311,48 @@
           ],
           "type": "object"
         },
+        "approval.prepare_decision.request": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^approval-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "binding_hash": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "approval_id",
+            "binding_hash"
+          ],
+          "type": "object"
+        },
+        "approval.prepare_decision.result": {
+          "additionalProperties": false,
+          "properties": {
+            "confirmation_token": {
+              "maxLength": 1024,
+              "minLength": 32,
+              "type": "string"
+            },
+            "expires_at_utc": {
+              "format": "date-time",
+              "pattern": "Z$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "confirmation_token",
+            "expires_at_utc"
+          ],
+          "type": "object"
+        },
         "artifact.describe.request": {
           "additionalProperties": false,
           "properties": {
@@ -9705,15 +9839,24 @@
         "workspace.authorize.request": {
           "additionalProperties": false,
           "properties": {
-            "approval_token": {
-              "maxLength": 1024,
-              "minLength": 32,
+            "allow": {
+              "type": "boolean"
+            },
+            "binding_hash": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[0-9a-f]{64}$",
               "type": "string"
             },
             "client_action_id": {
               "maxLength": 64,
               "minLength": 1,
               "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "confirmation_token": {
+              "maxLength": 1024,
+              "minLength": 32,
               "type": "string"
             },
             "expected_revision": {
@@ -9732,7 +9875,9 @@
             "client_action_id",
             "workspace_id",
             "expected_revision",
-            "approval_token"
+            "binding_hash",
+            "allow",
+            "confirmation_token"
           ],
           "type": "object"
         },
@@ -9999,6 +10144,54 @@
             "items",
             "next_cursor",
             "history_gap"
+          ],
+          "type": "object"
+        },
+        "workspace.prepare_authorization.request": {
+          "additionalProperties": false,
+          "properties": {
+            "expected_revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "workspace_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^ws-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "workspace_id",
+            "expected_revision"
+          ],
+          "type": "object"
+        },
+        "workspace.prepare_authorization.result": {
+          "additionalProperties": false,
+          "properties": {
+            "binding_hash": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "confirmation_token": {
+              "maxLength": 1024,
+              "minLength": 32,
+              "type": "string"
+            },
+            "expires_at_utc": {
+              "format": "date-time",
+              "pattern": "Z$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "confirmation_token",
+            "expires_at_utc",
+            "binding_hash"
           ],
           "type": "object"
         },
@@ -11822,6 +12015,16 @@
     "workspace.list.result": {
       "$id": "urn:forgecode:contracts:v1:workspace.list.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.list.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "workspace.prepare_authorization.request": {
+      "$id": "urn:forgecode:contracts:v1:workspace.prepare_authorization.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.prepare_authorization.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "workspace.prepare_authorization.result": {
+      "$id": "urn:forgecode:contracts:v1:workspace.prepare_authorization.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/workspace.prepare_authorization.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "workspace.read_file.request": {

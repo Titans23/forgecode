@@ -1,5 +1,6 @@
 """Bounded private JSONL transport. Protocol bytes never use print/Rich."""
 import asyncio
+import inspect
 from concurrent.futures import CancelledError as FutureCancelled
 import json
 import os
@@ -126,7 +127,7 @@ class RpcServer:
         self.closed = False
         self.scheduler = TurnScheduler(methods, self.work_ready)
 
-    def handle_member(self, member):
+    async def handle_member(self, member):
         request_id = None
         notification = False
         try:
@@ -149,6 +150,8 @@ class RpcServer:
             if notification and METHODS[method]['mutation']:
                 return None
             result = self.methods.handlers[method](member['params'])
+            if inspect.isawaitable(result):
+                result = await result
             validate(METHODS[method]['result_schema'], result)
             self.work_ready.set()
             return None if notification else {'jsonrpc': '2.0', 'id': request_id, 'result': result}
@@ -162,7 +165,7 @@ class RpcServer:
             print(json.dumps({'component': 'rpc', 'exception_type': type(error).__name__}), file=sys.stderr)
             return None if notification else rpc_error(request_id, -32603, 'Internal error; inspect diagnostic metadata')
 
-    def handle_frame(self, raw):
+    async def handle_frame(self, raw):
         if raw is None:
             return rpc_error(None, -32700, 'Frame exceeds 1 MiB')
         try:
@@ -172,14 +175,14 @@ class RpcServer:
         if isinstance(value, list):
             if not value or len(value) > 32:
                 return rpc_error(None, -32600, 'Batch must contain 1 to 32 requests')
-            responses = [response for member in value if (response := self.handle_member(member)) is not None]
+            responses = [response for member in value if (response := await self.handle_member(member)) is not None]
             if not responses:
                 return None
             while len(encoded(responses).encode('utf-8')) > MAX_FRAME_BYTES:
                 index = max(range(len(responses)), key=lambda i: len(encoded(responses[i])))
                 responses[index] = rpc_error(responses[index]['id'], -32603, 'Batch result exceeds frame limit; query separately')
             return responses
-        response = self.handle_member(value)
+        response = await self.handle_member(value)
         if response and len(encoded(response).encode('utf-8')) > MAX_FRAME_BYTES:
             return rpc_error(response['id'], -32010, 'Result exceeds frame limit; use paging', 'ARTIFACT_LIMIT')
         return response
@@ -232,7 +235,7 @@ class RpcServer:
                     self.methods.begin_shutdown('cancel', 'Main control pipe EOF')
                     self.work_ready.set()
                     break
-                response = self.handle_frame(raw)
+                response = await self.handle_frame(raw)
                 if response is not None:
                     try:
                         self.control.put_nowait(response)

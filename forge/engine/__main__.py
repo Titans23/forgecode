@@ -19,7 +19,11 @@ def main(argv=None):
     parser.add_argument('--principal', choices=('main', 'renderer'), default='main')
     parser.add_argument('--execution-mode', choices=('strict', 'local-trusted'), default='strict')
     parser.add_argument('--scripted-fixture', type=Path)
+    parser.add_argument('--interactive-approvals', action='store_true')
     args = parser.parse_args(argv)
+    if args.interactive_approvals and (args.profile != 'test' or args.principal != 'main'):
+        print(json.dumps({'status': 'invalid_configuration', 'reason': 'interactive test approvals require a private Main test profile'}), file=sys.stderr)
+        return 3
     if args.scripted_fixture and args.profile != 'test':
         print(json.dumps({'status': 'invalid_configuration', 'reason': 'scripted fixture requires test profile'}), file=sys.stderr)
         return 3
@@ -47,8 +51,8 @@ def main(argv=None):
                 service = ApplicationServices(store, profile_id=args.profile_id or args.profile + '-profile', credentials=credentials,
                     mode=args.execution_mode, backend=LocalTrustedBackend() if args.execution_mode == 'local-trusted' else None,
                     model_client_factory=factory, task_relation='new' if factory else None,
-                    approval_handler=scripted.approval_handler if scripted else None)
-                return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile), principal=args.principal).run(input_descriptor, output_descriptor))
+                    approval_handler=scripted.approval_handler if scripted and not args.interactive_approvals else None)
+                return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile, interactive_approvals=args.interactive_approvals), principal=args.principal).run(input_descriptor, output_descriptor))
     except Exception as error:
         print(json.dumps({'status': 'blocked', 'exception_type': type(error).__name__,
                           'kind': str(getattr(error, 'kind', 'INDETERMINATE'))}), file=sys.stderr)

@@ -1,6 +1,18 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F13；下一项 F14（任务卡、第 10 / 16 章已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F14；下一 F15（任务卡、第 10 / 16 章已读）。原生平台验收独立 blocked。
+- F14 测试父 HEAD c094171f9ce175d8914a777110a3975346474a2e，提交 SHA 以实际 git HEAD 核对。
+- F14：命名 IPC、可信窗口／frame／origin／schema；原生目录选择与高风险拒绝／仅此次。
+  Engine 持久 pending、最终参数／policy／实际 workspace / environment 绑定、短期 nonce / CAS 一次消费。
+  真实删除、文件／参数变化拒绝、伪造／过期／重试、取消与 Engine 重启测试；等待不挂起 RPC reader。
+  migration 004 增加不可变审批详情与 nonce hash；两个 prepare 方法扩展 catalog 至 50。
+  重复定义会被 generator 拒绝；workspace.authorize 旧 contract-only payload 已升级。
+  unit 126 / portable 109 / regression 976，0 skip；Windows 10 Electron development 21 checks pass。
+  20261006T171100Z-46d571f9 / 20261006T171115Z-dc7c34c1 / 20261006T171412Z-ce51f277 / 20261006T171509Z-18a7199e。
+  desktop-packaged blocked / 0：20261006T171429Z-f16c25e3；native Linux / Windows blocked / 0：
+  20261006T171457Z-102cd590 / 20261006T171503Z-7e896f69。手工原生批准／拒绝选择与安装版未验收。
+  F15 继续 Main 私有凭证与连接；F16 设置接线既有 fixed setup broker，不自动管理员安装。
+- F13 已推送 c094171f9ce175d8914a777110a3975346474a2e；F14 测试父 HEAD 即此提交。
 - F12 已推送 8875bfbaf9c14cce9834cb1e93f596a1055403b8；F13 本次提交的测试父 HEAD 即此提交。
 - F13：真实安全 Electron 窗口、固定 Preload、动态 DesktopTransport、固定 Engine 资产／私有 stdio Supervisor。
   实际修复 demo、reload / Renderer crash 保持 Engine/turn、第二实例、obsolete 参数、OS 无 TCP listener、退出 cleanup confirmed。

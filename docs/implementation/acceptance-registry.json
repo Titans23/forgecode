@@ -1668,8 +1668,15 @@
       "title": "非预期窗口／iframe／伪造来源调用 IPC",
       "source": "V3",
       "baseline_expectation": "来源、方法与参数校验拒绝",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F14",
       "required_platforms": [
         "windows",
@@ -1678,12 +1685,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
         }
       }
     },
@@ -1881,8 +1903,15 @@
       "title": "旧审批重放／过期／目标或参数变化",
       "source": "V3",
       "baseline_expectation": "不沿用旧授权，新请求绑定真实操作",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F14",
       "required_platforms": [
         "windows",
@@ -1891,12 +1920,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
         }
       }
     },
@@ -1905,8 +1949,15 @@
       "title": "审批期间工作区版本变化",
       "source": "V3",
       "baseline_expectation": "重新验证前置条件，不在陈旧状态上写入",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F14",
       "required_platforms": [
         "windows",
@@ -1915,12 +1966,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
         }
       }
     },
@@ -2076,8 +2142,15 @@
       "title": "模型输出包含 HTML／脚本／危险链接／远程图片",
       "source": "V3",
       "baseline_expectation": "不执行、不静默外连、不调用原生 Shell",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F14",
       "required_platforms": [
         "windows",
@@ -2086,12 +2159,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
         }
       }
     },
@@ -2100,8 +2188,15 @@
       "title": "任务网站或不可信内容访问客户端控制面",
       "source": "V3",
       "baseline_expectation": "无特权嵌入访问；可选 Web API 认证不可绕过",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F14",
       "required_platforms": [
         "windows",
@@ -2110,12 +2205,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
         }
       }
     },
@@ -2629,17 +2739,39 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
         }
       }
     },

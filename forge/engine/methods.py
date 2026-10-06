@@ -4,7 +4,9 @@ import json
 from pathlib import Path
 import sys
 
-from forge.application.models import ContractError, METHODS, validate
+from forge.application.models import ContractError, METHODS, canonical_hash, validate
+from forge.application.approvals import ApprovalService, ConfirmationNonces
+from forge.engine.persistence import utc_now
 from forge.application.sessions import session_view
 from forge.engine.event_stream import EventStream, accepted_view, workspace_view
 
@@ -15,11 +17,15 @@ def manifest_hash():
 
 
 class EngineMethods:
-    def __init__(self, service, *, profile):
+    def __init__(self, service, *, profile, interactive_approvals=False):
         self.service = service
         self.store = service.store
         self.profile = profile
         self.events = EventStream(service)
+        self.approvals = ApprovalService(service)
+        self.confirmations = ConfirmationNonces(self.store)
+        if profile == 'desktop' or interactive_approvals:
+            service.approvals = self.approvals
         self.initialized = False
         self.stopping = False
         self.shutdown_mode = None
@@ -33,6 +39,10 @@ class EngineMethods:
             'events.subscribe': self.events.subscribe, 'events.ack': self.events.ack,
             'events.unsubscribe': self.events.unsubscribe, 'observability.events': self.query_events,
             'sandbox.cleanup_status': self.cleanup_status,
+            'approval.get': self.approvals.get, 'approval.list': self.list_approvals,
+            'approval.prepare_decision': self.approvals.prepare, 'approval.decide': self.approvals.decide,
+            'workspace.prepare_authorization': self.prepare_workspace_authorization,
+            'workspace.authorize': self.authorize_workspace,
         }
 
     def readiness(self):
@@ -115,8 +125,52 @@ class EngineMethods:
                 self.service.cancel_turn({'turn_id': row[0], 'client_action_id': new_id('act'), 'reason': reason})
 
     def register_workspace(self, params):
-        return self._mutate('workspace.register', params,
-                            lambda: workspace_view(self.store._register_workspace(params['path'])))
+        def register():
+            digest = sha256(params['selection_nonce'].encode()).hexdigest()
+            if self.store.connection.execute('SELECT 1 FROM consumed_nonces WHERE token_hash=?', (digest,)).fetchone():
+                raise ContractError('Directory selection was already consumed', kind='UNAUTHORIZED', code=-32010)
+            result = workspace_view(self.store._register_workspace(params['path']))
+            self.store.connection.execute('INSERT INTO consumed_nonces VALUES(?,?,?,?,?,?)',
+                (digest, 'directory_selection', result['workspace_id'], canonical_hash({'path': params['path']}), self.store.epoch, utc_now()))
+            return result
+        return self._mutate('workspace.register', params, register)
+
+    def _workspace_binding(self, params):
+        row = self.service._workspace(params['workspace_id'], expected_revision=params['expected_revision'])
+        return canonical_hash({'workspace': row, 'profile_id': self.service.profile_id, 'engine_epoch': self.store.epoch})
+
+    def prepare_workspace_authorization(self, params):
+        binding = self._workspace_binding(params)
+        return {**self.confirmations.issue('workspace_authorization', params['workspace_id'], binding), 'binding_hash': binding}
+
+    def authorize_workspace(self, params):
+        def authorize():
+            binding = self._workspace_binding(params)
+            if binding != params['binding_hash']:
+                raise ContractError('Workspace authorization binding changed', kind='STALE_REVISION', code=-32010)
+            self.confirmations.consume(params['confirmation_token'], 'workspace_authorization', params['workspace_id'], binding)
+            changed = self.store.connection.execute('UPDATE workspaces SET trust=?,revision=revision+1 WHERE id=? AND revision=?',
+                ('execution_allowed' if params['allow'] else 'inspect_only', params['workspace_id'], params['expected_revision']))
+            if changed.rowcount != 1:
+                raise ContractError('Workspace revision changed', kind='STALE_REVISION', code=-32010)
+            return workspace_view(self.service._workspace(params['workspace_id']))
+        return self._mutate('workspace.authorize', params, authorize)
+
+    def list_approvals(self, params):
+        scope = params['scope']
+        self.events.check_scope(scope)
+        clauses = {'all': ('1=1', ()), 'workspace': ('t.session_id IN (SELECT id FROM sessions WHERE workspace_id=?)', (scope.get('id'),)),
+            'session': ('t.session_id=?', (scope.get('id'),)), 'turn': ('a.turn_id=?', (scope.get('id'),))}
+        if scope['kind'] not in clauses:
+            raise ContractError('Approval scope is not interactive', kind='INVALID_PARAMS', code=-32010)
+        where, bindings = clauses[scope['kind']]
+        cursor_scope = {'collection': 'approval.list', 'scope': scope}
+        after = self.events.decode_cursor(params['cursor'], cursor_scope) if 'cursor' in params else 0
+        limit = params.get('limit', 100)
+        rows = self.store.connection.execute('SELECT a.rowid AS position,a.id FROM approvals a JOIN turns t ON t.id=a.turn_id '
+            f'WHERE ({where}) AND a.rowid>? ORDER BY a.rowid LIMIT ?', (*bindings, after, limit+1)).fetchall()
+        return {'items': [self.approvals.get({'approval_id': row['id']}) for row in rows[:limit]], 'next_cursor':
+            self.events.cursor(cursor_scope, rows[limit-1]['position']) if len(rows)>limit else None, 'history_gap': False}
 
     def inspect_workspace(self, params):
         return workspace_view(self.service._workspace(params['workspace_id']))

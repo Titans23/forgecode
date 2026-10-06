@@ -39,6 +39,7 @@ class ApplicationServices:
         self.model_client_factory = model_client_factory
         self.recorder = recorder
         self.approval_handler = approval_handler
+        self.approvals = None
         self.task_relation = task_relation
         self.running = {}
 
@@ -274,9 +275,13 @@ class ApplicationServices:
             native_store = SessionStore(root, data_root=self.store.data_dir / 'harness')
             previous = native_store.load(session['legacy_ref']) if session['legacy_ref'] else None
             fork = previous is not None and (previous.info.model != config.model_id or previous.info.provider != config.provider)
+            approval = self.approval_handler
+            if approval is None and self.approvals is not None:
+                async def approval(request):
+                    return await self.approvals.authorize(request, turn_id=turn_id, configuration=configuration)
             adapter = HarnessAdapter(root, config=config, data_root=self.store.data_dir / 'harness',
                 backend=self.backend, budget=configuration, model_client_factory=self.model_client_factory,
-                recorder=self.recorder, approval_handler=self.approval_handler, task_relation=self.task_relation,
+                recorder=self.recorder, approval_handler=approval, task_relation=self.task_relation,
                 resume_identifier=session['legacy_ref'], fork_session=fork)
             with self.store.transaction():
                 self.store.connection.execute('UPDATE sessions SET legacy_ref=? WHERE id=?', (adapter.journal.session_id, session['id']))

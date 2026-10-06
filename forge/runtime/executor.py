@@ -8,9 +8,11 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from time import monotonic
 from typing import Any
+from uuid import uuid4
 
 from forge.hooks import HookEvent, HookOutcome
 from forge.permissions.policy import PermissionManager
+from forge.permissions.context import ToolApprovalContext, tool_approval_context
 from forge.permissions.risk import classify_tool_call
 from forge.runtime.state import ToolCall
 from forge.runtime.turn_state import (
@@ -166,7 +168,11 @@ class ToolExecutor:
         request = self.registry.permission_request(call.name, arguments)
         if request is None:
             request = classify_tool_call(effective_call, effect)
-        decision = await self.permission_manager.authorize(request)
+        token = tool_approval_context.set(ToolApprovalContext('exec-' + str(uuid4()), effective_call, self.workspace_tracker))
+        try:
+            decision = await self.permission_manager.authorize(request)
+        finally:
+            tool_approval_context.reset(token)
         if decision.action == 'deny':
             result = ToolResult.fail(
                 'permission_denied',

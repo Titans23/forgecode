@@ -10,6 +10,9 @@ import { validate } from '@forgecode/contracts';
 import { loadDevelopmentEngine, loadInstalledEngine, uiAsset } from './assets.js';
 import { EngineSupervisor } from './supervisor.js';
 import { ownedTcpListeners } from './listeners.js';
+import { assertSender, empty, businessId, captureSender } from './ipc.js';
+import { NativeApprovals } from './approvals.js';
+import { probeSecurity } from './security_probe.js';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'forge-app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
@@ -47,15 +50,16 @@ function configureDevelopment() {
 }
 
 function sender(event: Electron.IpcMainInvokeEvent) {
-  if (!window || window.isDestroyed() || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame ||
-      event.senderFrame.url !== 'forge-app://ui/index.html') throw new Error('IPC sender is not the current main UI frame');
+  assertSender(window, event);
 }
-function empty(value: unknown) { if (value !== undefined) throw new Error('Operation accepts no payload'); }
 function onlyId(value: unknown, key: string, prefix: string): string {
-  if (!value || typeof value !== 'object' || Object.keys(value).length !== 1) throw new Error('Invalid ID payload');
-  const id = (value as Record<string, unknown>)[key];
-  if (typeof id !== 'string' || !new RegExp(`^${prefix}-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).test(id)) throw new Error('Invalid business ID');
-  return id;
+  const schema = prefix === 'ses' ? 'sandbox.cleanup_status.request' : prefix === 'approval' ? 'approval.get.request' : 'workspace.inspect.request';
+  if (prefix === 'turn') {
+    validate('session.cancel_turn.request', { ...(value as object), client_action_id: 'act-' + randomUUID(), reason: 'UI cancellation' });
+    if (Object.keys(value as object).length !== 1) throw new Error('Invalid cancellation payload');
+    return (value as Record<string, string>)[key];
+  }
+  return businessId(value, key, schema);
 }
 function live(): EngineSupervisor { if (!engine || stopping) throw new Error('Engine is unavailable'); return engine; }
 
@@ -113,6 +117,7 @@ async function runSmoke() {
   try {
     const status = await window.webContents.executeJavaScript('window.forgeDesktop.status()');
     check('real-engine-handshake', status.engine_state === 'ready' && status.mode === 'offline-demo');
+    checks.push(...await probeSecurity(window, resolve(__dirname, 'preload.js')));
     const accepted = await window.webContents.executeJavaScript('window.forgeDesktop.startDemo()');
     const expires = Date.now() + 45000;
     let snapshot;
@@ -200,6 +205,11 @@ async function ready() {
   ipcMain.handle('forge:projects', (event, value) => { sender(event); empty(value); return live().call('workspace.list', { limit: 100 }); });
   ipcMain.handle('forge:session', (event, value) => { sender(event); const session_id = onlyId(value, 'session_id', 'ses'); return live().call('session.get', { session_id }); });
   ipcMain.handle('forge:events', (event, value) => { sender(event); empty(value); return live().events(); });
+  const approvals = new NativeApprovals(live);
+  ipcMain.handle('forge:select-project', (event, value) => { sender(event); empty(value); return approvals.selectDirectory(captureSender(() => window, event)); });
+  ipcMain.handle('forge:authorize-workspace', (event, value) => { sender(event); const id = onlyId(value, 'workspace_id', 'ws'); return approvals.authorizeWorkspace(id, captureSender(() => window, event)); });
+  ipcMain.handle('forge:request-approval', (event, value) => { sender(event); const id = onlyId(value, 'approval_id', 'approval'); return approvals.request(id, captureSender(() => window, event)); });
+  ipcMain.handle('forge:approvals', (event, value) => { sender(event); empty(value); return live().call('approval.list', { scope: { kind: 'all' }, limit: 100 }); });
   ipcMain.handle('forge:cancel-turn', (event, value) => { sender(event); const turn_id = onlyId(value, 'turn_id', 'turn'); return live().call('session.cancel_turn', {
     turn_id, client_action_id: 'act-' + randomUUID(), reason: 'Desktop user cancelled' }); });
   ipcMain.handle('forge:start-demo', async (event, value) => {

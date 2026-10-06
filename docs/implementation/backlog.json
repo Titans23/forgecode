@@ -735,11 +735,21 @@
       ],
       "verification_suites": [
         "unit",
-        "desktop"
+        "portable",
+        "desktop",
+        "desktop-packaged"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T171100Z-46d571f9",
+        "20261006T171115Z-dc7c34c1",
+        "20261006T171412Z-ce51f277",
+        "20261006T171429Z-f16c25e3",
+        "20261006T171457Z-102cd590",
+        "20261006T171503Z-7e896f69",
+        "20261006T171509Z-18a7199e"
+      ],
       "case_ids": [
         "D12",
         "D19",

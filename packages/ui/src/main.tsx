@@ -15,6 +15,7 @@ function App() {
   const [gap, setGap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [approvals, setApprovals] = useState<Array<{ approval_id: string; state: string; tool_name?: string; risk?: string }>>([]);
   useEffect(() => {
     let disposed = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -25,10 +26,12 @@ function App() {
         setStatus(current);
         if (current.engine_state === 'ready') {
           const workspaces = await transport.projects();
+          const pending = await transport.approvals();
           const next = current.session_id ? await transport.session(current.session_id) : null;
           const batch = await transport.events();
           if (disposed) return;
           setProjects(workspaces.items); setSnapshot(next);
+          setApprovals(pending.items.filter(value => value.state === 'pending'));
           setGap(old => old || batch.gap);
           setEvents(old => Array.from(new Map([...old, ...batch.events].map(event => [event.event_id, event])).values()).slice(-100));
         }
@@ -47,13 +50,18 @@ function App() {
   const connected = status?.engine_state === 'ready';
   return <div className="app"><aside><div className="brand"><span className="mark">F</span>ForgeCode</div>
     <div className="nav active">工作台</div><div className="caption">项目</div>
-    {projects.length ? projects.map(project => <div className="project" key={project.workspace_id}>{project.name ?? project.workspace_id}</div>) :
+    <button className="secondary" disabled={busy || status?.engine_state !== 'ready'} onClick={() => action(() => transport.selectProject())}>选择项目</button>
+    {projects.length ? projects.map(project => <div className="project" key={project.workspace_id}>{project.name ?? project.workspace_id}
+      <button className="secondary" disabled={busy} onClick={() => action(() => transport.authorizeWorkspace(project.workspace_id))}>授权执行</button></div>) :
       <div className="muted">尚未注册项目</div>}
     <div className="sidebar-foot">V4 · Python Harness<br/>桌面开发版本</div></aside>
     <main><header><div><div className="eyebrow">WORKSPACE</div><h1>开发工作台</h1></div>
       <div className={'connection ' + (connected ? 'online' : '')}><i/>{states[status?.engine_state ?? 'starting'] ?? status?.engine_state}</div></header>
     {(error || status?.failure) && <div role="alert" className="notice">{error ?? status?.failure}</div>}
     {status?.readiness?.status === 'blocked' && <div className="notice">执行环境未就绪，任务启动已禁用。请完成沙盒诊断与配置。</div>}
+    {approvals.map(value => <section key={value.approval_id}><h3>等待授权：{value.tool_name ?? '工具操作'}</h3>
+      <p>风险：{value.risk ?? '未知'}。确认框将显示当前操作的可信详情。</p>
+      <button disabled={busy} onClick={() => action(() => transport.requestApproval(value.approval_id))}>查看并决定</button></section>)}
     <section className="task"><div className="eyebrow">CURRENT SESSION</div><h2>{status?.mode === 'offline-demo' ? '修复整数加法' : '开始一次开发任务'}</h2>
       <p>{status?.mode === 'offline-demo' ? '离线脚本模型驱动真实 Harness、文件工具和 unittest。执行结果来自 Engine。' : '客户端通过独立 Engine 管理会话和执行环境。'}</p>
       <div className="task-bottom"><div><span className="tag">{turn ? states[turn.state] ?? turn.state : '尚未开始'}</span>

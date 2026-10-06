@@ -120,3 +120,11 @@ def test_contract_generation_has_no_drift():
     result = subprocess.run([sys.executable, str(ROOT / 'scripts/check_contracts.py'), '--check'],
                             cwd=ROOT, capture_output=True, text=True, encoding='utf-8')
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_authoritative_contracts_reject_duplicate_definitions(tmp_path):
+    from scripts.check_contracts import read_contract
+    source = tmp_path / 'duplicate.json'
+    source.write_text('{"methods":{"workspace.authorize":{"audience":"main"},"workspace.authorize":{"audience":"renderer"}}}', encoding='utf-8')
+    with pytest.raises(ValueError, match='Duplicate contract key'):
+        read_contract(source)

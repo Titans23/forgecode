@@ -42,7 +42,7 @@ SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
           'regression': ['tests'], 'packaged': [],
           'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged']}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged']}
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -56,7 +56,10 @@ CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
               **{case: ['tests/implementation/integration/test_file_worker.py'] for case in ('C01', 'C02', 'C03', 'C04', 'C05', 'C20', 'C22', 'C23', 'D22', 'N09')},
               **{case: ['tests/implementation/integration/test_cancellation.py', 'tests/implementation/integration/test_process_worker.py',
                         'tests/implementation/integration/test_service_lifecycle.py'] for case in ('C13', 'C14', 'C15', 'C18', 'C19', 'D11', 'D17')},
-              **{case: ['tests/implementation/integration/test_desktop_supervisor.py', 'scripts/desktop_smoke.py'] for case in ('D03', 'D06', 'D14')}}
+              **{case: ['tests/implementation/integration/test_desktop_supervisor.py', 'scripts/desktop_smoke.py'] for case in ('D03', 'D06', 'D14')},
+              **{case: ['tests/implementation/integration/test_bound_approvals.py', 'tests/implementation/integration/test_approval_rpc.py',
+                        'tests/implementation/integration/test_workspace_authorization.py', 'tests/desktop/security/test_internal_grants.py',
+                        'scripts/desktop_smoke.py'] for case in ('D12', 'D19', 'D20', 'D27', 'D28', 'N10')}}
 
 
 class Parser(argparse.ArgumentParser):

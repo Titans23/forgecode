@@ -6,7 +6,7 @@
   },
   "contracts": {
     "path": "forge/application/_generated_contracts.json",
-    "sha256": "3a9a86738a18891ef9318f0389e73b1601b3d8e23e3ee1ad4159ec4710974880"
+    "sha256": "2773dbd87d465c0a84fbb99f9fb82b8effd510698581225ff097b6fa464776f7"
   },
   "locks": [
     {
@@ -33,7 +33,11 @@
     },
     {
       "path": "forge/application/_generated_contracts.json",
-      "sha256": "3a9a86738a18891ef9318f0389e73b1601b3d8e23e3ee1ad4159ec4710974880"
+      "sha256": "2773dbd87d465c0a84fbb99f9fb82b8effd510698581225ff097b6fa464776f7"
+    },
+    {
+      "path": "forge/application/approvals.py",
+      "sha256": "3ab55341c65ccb229f0fc534f40844b79225c87ef664d7a788e56774791f3f45"
     },
     {
       "path": "forge/application/harness_adapter.py",
@@ -45,7 +49,7 @@
     },
     {
       "path": "forge/application/services.py",
-      "sha256": "d3cb4392ea1543021774306faa30d18b59cca3ac8f6e72150e9a7e031fcda51f"
+      "sha256": "06a8ce4861ecf9d019832adbd661a7ae3442448466e84e94973955b068b18cf2"
     },
     {
       "path": "forge/application/sessions.py",
@@ -105,7 +109,7 @@
     },
     {
       "path": "forge/engine/__main__.py",
-      "sha256": "edbbe8c4d780c0e844ba17236c72fee96005c2719ac9e66fb656aa4d120393a6"
+      "sha256": "102c645dbab8c8be8e2c3007c637dbd049bb41f564c7cc33608277bf7988e2e4"
     },
     {
       "path": "forge/engine/event_stream.py",
@@ -121,7 +125,7 @@
     },
     {
       "path": "forge/engine/methods.py",
-      "sha256": "69f6e9e3a93b29ce9824993866e8a1a4504a23863b15d7a60dc94362237a961b"
+      "sha256": "be2900749ebdc224ca4caa68e2329e46429d08580b0d176660d55ed4443406e7"
     },
     {
       "path": "forge/engine/migrations/001_initial.sql",
@@ -136,12 +140,16 @@
       "sha256": "3c8a20382ea7ab3a6c3fa2fd67bc8ca57d9bd990e13f7b33ef2039dde3946540"
     },
     {
+      "path": "forge/engine/migrations/004_bound_approvals.sql",
+      "sha256": "a98c825ed2ff853c3fb3b191a5b76fba26b245eae49006a928ff27b629107ff3"
+    },
+    {
       "path": "forge/engine/persistence.py",
       "sha256": "5ee06277ee019c778561346904118d4266851a1476ca7ac64766fc308faff5c6"
     },
     {
       "path": "forge/engine/rpc.py",
-      "sha256": "6af49d358423900cb78ac34ec8daef6872972f67c163aaaa613decdd52b190b7"
+      "sha256": "e92ad936e81a61ffa25a2570bb280fc88619751ecb6408acca512febd8e95af0"
     },
     {
       "path": "forge/engine/scheduler.py",
@@ -204,6 +212,10 @@
       "sha256": "71704bf557034fc4da0cd552261d1bfdcffa344c591081f306acac43e3a5067a"
     },
     {
+      "path": "forge/permissions/context.py",
+      "sha256": "7b465368d964b85717c9680c435c6f552e98dccc6ad79cac0f25a294a19decc2"
+    },
+    {
       "path": "forge/permissions/policy.py",
       "sha256": "4b47749d5e49013ac504d88b0c6e0ff3512ba051bb213d4d061e90126980f59f"
     },
@@ -249,7 +261,7 @@
     },
     {
       "path": "forge/runtime/executor.py",
-      "sha256": "fc8ab982c8f119affd68c80a080fdb43d69a67c068aa47f94de2b59835def98c"
+      "sha256": "30bfa9a658009b8c6726fc59149d2867d632d1cc2c37920427c27af35d5d0f10"
     },
     {
       "path": "forge/runtime/factory.py",

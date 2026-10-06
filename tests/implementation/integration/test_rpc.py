@@ -73,11 +73,13 @@ def seed(tmp_path, *, wait=False):
     return fixture, params, turn
 
 
-async def launch(tmp_path, fixture=None, *, principal='main', profile='test'):
+async def launch(tmp_path, fixture=None, *, principal='main', profile='test', interactive_approvals=False):
     argv = [sys.executable, '-m', 'forge.engine', '--data-dir', str(tmp_path / 'data'), '--profile', profile,
             '--principal', principal]
     if fixture:
         argv += ['--scripted-fixture', str(fixture), '--execution-mode', 'local-trusted']
+    if interactive_approvals:
+        argv.append('--interactive-approvals')
     return await asyncio.create_subprocess_exec(*argv, cwd=ROOT, stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, limit=1048577)
 

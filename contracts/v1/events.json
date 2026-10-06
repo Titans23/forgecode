@@ -99,15 +99,15 @@
     },
     "approval.requested": {
       "payload_schema": "event.approval.requested",
-      "implementation_status": "contract_only"
+      "implementation_status": "implemented"
     },
     "approval.decided": {
       "payload_schema": "event.approval.decided",
-      "implementation_status": "contract_only"
+      "implementation_status": "implemented"
     },
     "approval.expired": {
       "payload_schema": "event.approval.expired",
-      "implementation_status": "contract_only"
+      "implementation_status": "implemented"
     },
     "sandbox.prepared": {
       "payload_schema": "event.sandbox.prepared",
