@@ -179,6 +179,11 @@ class TurnState:
         if self.parent is not None:
             self.parent.record_tool_request()
         self.tool_requests += 1
+        if self.parent is None:
+            from forge.observability.events import current
+            recorder=current()
+            if recorder:
+                recorder.tool_requested(self)
 
     def record_execution(self, record: ExecutionRecord) -> None:
         self.execution_records.append(record)

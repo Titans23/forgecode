@@ -108,8 +108,12 @@ class TurnRunner:
 
     async def _prepare_turn(self, prompt: str) -> None:
         c = self.conversation
-        if self.journal is not None or c.event_recorder is not None:
+        from forge.observability.events import current
+        recorder=current()
+        if self.journal is not None or c.event_recorder is not None or recorder:
             self.state.request_event_sink = c.record_model_request
+        if recorder:
+            recorder.reserve_budget(self.state)
         if c.tool_executor is not None:
             c.tool_executor.session_journal = self.journal
             c.tool_executor.checkpoint_store = c.checkpoint_store
@@ -165,6 +169,9 @@ class TurnRunner:
         # for checker inheritance, but numerical revision=0 never refreshes them.
         c.verification_history[:] = [replace(item, freshness='unknown')
                                      for item in c.verification_history]
+        if recorder:
+            for item in c.verification_history:
+                recorder.invalidate_verification(item)
         self.state.evidence.verification.extend(
             item for item in c.verification_history if item.task_id == task_id)
         if c.mcp_manager is not None:
@@ -277,10 +284,28 @@ class TurnRunner:
         c._queue_hook_context(outcome)
         if not outcome.allowed:
             return
-        report = await c.context.compact_history(
-            self.messages, BudgetedModelClient(c.client, self.state, 'compaction'),
-            force=force, task_goal=self.state.goal, **kwargs,
-        )
+        from forge.observability.events import current, active, bind
+        from contextlib import nullcontext
+        recorder=current()
+        scope=active.get().scope.child() if recorder else None
+        attributes=recorder.context_attributes(reason='forced' if force else 'automatic',messages=self.messages) if recorder else None
+        if recorder:
+            recorder.emit('compaction.started',attributes,scope=scope)
+        try:
+            with bind(recorder,scope,branch=active.get().branch,role=active.get().role) if recorder else nullcontext():
+                report = await c.context.compact_history(
+                    self.messages, BudgetedModelClient(c.client, self.state, 'compaction'),
+                    force=force, task_goal=self.state.goal, **kwargs,
+                )
+        except BaseException as error:
+            if recorder:
+                recorder.emit('compaction.failed',{**attributes,'error_kind':type(error).__name__},scope=scope)
+            raise
+        if recorder:
+            if report:
+                attributes={**attributes,'before_characters':report.before_characters,'after_characters':report.after_characters}
+            recorder.emit('compaction.finished' if report and report.success else 'compaction.failed',
+                attributes if report and report.success else {**attributes,'error_kind':'summary_not_applied'},scope=scope)
         if report is not None and report.success and self.journal is not None:
             self.journal.record_context_compacted(self.messages)
         self._commit_messages()
@@ -506,6 +531,10 @@ class TurnRunner:
                     c.verification_history.append(evidence)
                     if self.journal is not None:
                         self.journal.append('verification_recorded', {'evidence': asdict(evidence)})
+                    from forge.observability.events import current
+                    recorder=current()
+                    if recorder:
+                        recorder.verification(evidence,call.id)
                 if evidence is not None and outcome.record.status == 'executed':
                     self.state.evidence.add(evidence)
                     yield VerificationCompleted(evidence)
@@ -700,6 +729,14 @@ class TurnRunner:
                 or not self.state.can_request_model()):
             return False
         self.delivery_repair_reasons.add(signature)
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            attributes={'reason':'\n'.join(signature)[:1024],'workspace_revision':self.state.workspace_revision,
+                'evidence_revision':self.state.evidence.verification[-1].workspace_revision if self.state.evidence.verification else self.state.workspace_revision,
+                'repairs_remaining':max(0,limit-len(self.delivery_repair_reasons))}
+            recorder.emit('completion.rejected',attributes)
+            recorder.emit('completion.repair_started',attributes)
         self._feedback('Completion was not accepted. Fix the implementation or supply missing evidence; '
                        'do not weaken acceptance checks. The original budget still applies. '
                        'If the gaps cannot be repaired, finish with partial or failed.\n'
@@ -796,6 +833,12 @@ class TurnRunner:
             environment_epoch=self.state.environment_epoch, reasons=reasons,
             has_contract=has_contract, agent_assessment=self.declared_status,
             usage_complete=self.state.unknown_usage_requests == 0)
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            recorder.finish_budget(self.state,reason)
+            recorder.completion(accepted=status=='completed',reason=reason,revision=self.state.workspace_revision,
+                evidence_revision=evidence[-1].workspace_revision if evidence else self.state.workspace_revision)
         event = TurnCompleted(TurnResult(
             text=text, status=status, stop_reason=reason,
             usage=self.state.usage, last_request_usage=self.state.last_request_usage,

@@ -115,6 +115,12 @@ class Store:
                     if self.connection.execute("SELECT 1 FROM sqlite_master WHERE name='turn_lifecycle'").fetchone():
                         self.connection.execute("UPDATE turn_lifecycle SET cleanup_state='unknown',cancel_state='indeterminate' "
                             "WHERE owner_epoch!=? AND cleanup_state IN ('pending','running')", (self.epoch,))
+                    if self.connection.execute("SELECT 1 FROM sqlite_master WHERE name='recovery_traces'").fetchone():
+                        for row in self.connection.execute("SELECT business_id FROM work_items WHERE kind='turn' AND state='reconciling'").fetchall():
+                            original=self.connection.execute('SELECT trace_id,span_id FROM turn_traces WHERE turn_id=?',(row[0],)).fetchone()
+                            self.connection.execute('INSERT INTO recovery_traces VALUES(?,?,?,?,?)',
+                                (row[0],self.epoch,uuid4().hex,uuid4().hex[:16],original['trace_id'] if original else None))
+                            self._recovery_event('recovery.started',row[0],'previous_engine_exited')
         except BaseException:
             self.close()
             raise
@@ -272,11 +278,50 @@ class Store:
         return {'snapshot_id': snapshot_id, 'sha256': digest}
 
     def event_body(self, event_type, producer, sequence, attributes, **identities):
+        turn_id=identities.get('turn_id')
+        if turn_id and self.connection.execute("SELECT 1 FROM sqlite_master WHERE name='turn_traces'").fetchone():
+            scope=self.trace_scope(turn_id,execution_id=identities.get('execution_id'))
+            identities={**scope.as_dict(),**{k:v for k,v in identities.items() if v is not None}}
         body = {'schema_version': 'forge.events.v1', 'event_id': new_id('evt'), 'event_type': event_type,
             'origin': 'trusted_engine', 'producer_id': producer, 'producer_seq': str(sequence), 'occurred_at_utc': utc_now(),
             'monotonic_ns': None, 'attributes': attributes, 'artifact_refs': [], 'redaction_version': 'metadata-v1'}
         body.update({key: identities.get(key) for key in ('workspace_id', 'session_id', 'turn_id', 'run_id', 'trial_id', 'attempt_id', 'execution_id', 'trace_id', 'span_id', 'parent_span_id')})
         return body
+
+    def trace_scope(self, turn_id, *, execution_id=None):
+        from forge.observability.events import Scope
+        row=self.connection.execute('SELECT * FROM turn_traces WHERE turn_id=?',(turn_id,)).fetchone()
+        if row is None:
+            if not self.connection.in_transaction:
+                raise RuntimeError('Trace creation belongs in the acceptance transaction')
+            self.connection.execute('INSERT INTO turn_traces VALUES(?,?,?,?)',(turn_id,uuid4().hex,uuid4().hex[:16],self.epoch))
+            row=self.connection.execute('SELECT * FROM turn_traces WHERE turn_id=?',(turn_id,)).fetchone()
+        turn=self.connection.execute('SELECT t.session_id,s.workspace_id FROM turns t JOIN sessions s ON s.id=t.session_id WHERE t.id=?',(turn_id,)).fetchone()
+        execution=self.connection.execute('SELECT * FROM execution_spans WHERE execution_id=? AND turn_id=?',(execution_id,turn_id)).fetchone() if execution_id else None
+        return Scope(trace_id=row['trace_id'],span_id=execution['span_id'] if execution else row['span_id'],
+            parent_span_id=execution['parent_span_id'] if execution else None,execution_id=execution_id,
+            identities={'turn_id':turn_id,'session_id':turn['session_id'],'workspace_id':turn['workspace_id']})
+
+    def register_execution_scope(self, scope):
+        turn_id=scope.identities.get('turn_id')
+        if turn_id:
+            with self.transaction():
+                root=self.trace_scope(turn_id)
+                if root.trace_id!=scope.trace_id:
+                    raise ContractError('Execution trace identity changed',kind='EVENT_CONFLICT',code=-32010)
+                self.connection.execute('INSERT INTO execution_spans VALUES(?,?,?,?,?)',
+                    (scope.execution_id,turn_id,scope.trace_id,scope.span_id,scope.parent_span_id))
+
+    def _recovery_event(self, event_type, turn_id, reason):
+        row=self.connection.execute('SELECT * FROM recovery_traces WHERE turn_id=? AND owner_epoch=?',(turn_id,self.epoch)).fetchone()
+        original=self.connection.execute('SELECT span_id FROM turn_traces WHERE turn_id=?',(turn_id,)).fetchone()
+        links=[{'trace_id':row['original_trace_id'],'span_id':original[0]}] if row['original_trace_id'] and original else []
+        producer=self.connection.execute("SELECT value FROM store_meta WHERE key='producer_id'").fetchone()[0]
+        sequence=self.connection.execute('SELECT COALESCE(MAX(source_seq),0)+1 FROM events WHERE source_id=?',(producer,)).fetchone()[0]
+        body=self.event_body(event_type,producer,sequence,{'original_turn_id':turn_id,'original_attempt_id':None,
+            'unknown_side_effects':True,'reason':reason,'cleanup_state':'unknown','trace_links':links},
+            turn_id=turn_id,trace_id=row['trace_id'],span_id=row['span_id'],parent_span_id=None)
+        self._insert_event(body,producer,sequence)
 
     def _turn_event(self, event_type, turn_id, attributes):
         turn = self.connection.execute('SELECT t.*,s.workspace_id FROM turns t JOIN sessions s ON s.id=t.session_id WHERE t.id=?', (turn_id,)).fetchone()
@@ -290,6 +335,10 @@ class Store:
     def _insert_event(self, body, source_id, source_seq):
         if not self.connection.in_transaction:
             raise RuntimeError('Events must be inserted within a write transaction')
+        registered=self.connection.execute('SELECT producer_id FROM producers WHERE source_id=?',(source_id,)).fetchone()
+        expected_producer=registered[0] if registered else source_id
+        if body['producer_seq']!=str(source_seq) or body['producer_id']!=expected_producer:
+            raise ContractError('Event producer identity differs from its assigned source',kind='EVENT_CONFLICT',code=-32010)
         candidate = {key: value for key, value in body.items() if key != 'store_seq'}
         validate_event({**candidate, 'store_seq': '0'})
         digest = canonical_hash(candidate)
@@ -301,6 +350,11 @@ class Store:
             return {**json.loads(existing[0]['body_json']), 'store_seq': str(existing[0]['store_seq'])}
         cursor = self.connection.execute('INSERT INTO events(event_id,source_id,source_seq,body_json,hash) VALUES(?,?,?,?,?)',
             (body['event_id'], source_id, source_seq, encoded(candidate), digest))
+        from forge.observability.projection import project
+        try:
+            project(self,candidate)
+        except sqlite3.IntegrityError as error:
+            raise ContractError('Derived event identity conflicts with an existing fact',kind='EVENT_CONFLICT',code=-32010) from error
         # store_seq is projected during reads, so immutable event bytes need no post-insert UPDATE.
         return {**candidate, 'store_seq': str(cursor.lastrowid)}
 
@@ -338,6 +392,16 @@ class Store:
                 self.quarantine_event(body, source_id, source_seq)
             raise
 
+    def import_observation(self, body, source_id, source_seq):
+        # Explicitly demote externally supplied origin and producer ownership.
+        if type(source_seq) is not int or not 1<=source_seq<2**63 or not isinstance(source_id,str) or not 1<=len(source_id)<=128:
+            raise ContractError('Imported observation source bounds are invalid')
+        source_id='import:'+source_id
+        with self.transaction():
+            self.connection.execute('INSERT OR IGNORE INTO producers VALUES(?,?)',(source_id,new_id('producer')))
+            producer=self.connection.execute('SELECT producer_id FROM producers WHERE source_id=?',(source_id,)).fetchone()[0]
+        return self.append_event({**body,'origin':'imported','producer_id':producer,'producer_seq':str(source_seq)},source_id,source_seq)
+
     def quarantine_event(self, body, source_id, source_seq):
         incoming = canonical_hash({key: value for key, value in body.items() if key != 'store_seq'})
         with self.transaction():
@@ -369,6 +433,9 @@ class Store:
             if not row or row['state'] != 'reconciling' or row['version'] != expected_version:
                 raise ContractError('Reconciliation state changed', kind='STALE_REVISION', code=-32010)
             if row['kind'] == 'turn':
+                recovery=self.connection.execute('SELECT 1 FROM recovery_traces WHERE turn_id=? AND owner_epoch=?',(row['business_id'],self.epoch)).fetchone()
+                if recovery:
+                    self._recovery_event('recovery.finished',row['business_id'],'unknown_result_retained_without_replay')
                 self.connection.execute("UPDATE turns SET state='finished',outcome='indeterminate' WHERE id=?", (row['business_id'],))
             self.connection.execute("UPDATE work_items SET state='finished',version=version+1 WHERE id=?", (work_item_id,))
 

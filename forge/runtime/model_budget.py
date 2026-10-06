@@ -51,8 +51,10 @@ class BudgetedModelClient:
         # 冻结本次输入，避免流式请求期间共享消息被修改而破坏轨迹复现。
         snapshot = RequestSnapshot.capture(messages=messages, tools=tools, system=system, client=self.client)
         frozen = snapshot.payload
+        invocation_id='invocation-'+str(uuid4())
+        attempt_no=0
         if self.state.request_event_sink is not None:
-            self.state.request_event_sink('model_input_snapshot', snapshot.as_dict())
+            self.state.request_event_sink('model_input_snapshot', {**snapshot.as_dict(),'invocation_id':invocation_id,'stage':self.stage})
         usage = None
         started = monotonic()
         request = None
@@ -75,7 +77,7 @@ class BudgetedModelClient:
                 request = None
 
         def begin_request() -> None:
-            nonlocal usage, request, request_started
+            nonlocal usage, request, request_started, attempt_no
             end_request('indeterminate', 'missing_attempt_boundary')
             if usage is not None:
                 self.state.record_usage(usage)
@@ -84,8 +86,17 @@ class BudgetedModelClient:
             if reason:
                 raise BudgetExhausted(reason)
             self.state.record_model_request(stage=self.stage)
+            attempt_no+=1
             request_started = monotonic()
+            remaining=[]
+            current_state=self.state
+            while current_state is not None:
+                if current_state.max_model_calls is not None:
+                    remaining.append(max(0,current_state.max_model_calls-current_state.model_calls))
+                current_state=current_state.parent
             request = dict(request_id=uuid4().hex, ordinal=self.state.model_calls,
+                           invocation_id=invocation_id,attempt_no=attempt_no,requested_model=frozen['model'],
+                           remaining_model_calls=min(remaining) if remaining else None,
                            stage=self.stage, text_characters=0, tool_blocks={}, stop_reason=None,
                            input_sha256=snapshot.sha256)
             emit('model_request_started', dict(request))
@@ -105,6 +116,7 @@ class BudgetedModelClient:
                     if request is not None:
                         if isinstance(event, ModelTextDelta):
                             request['text_characters'] += len(event.text)
+                            emit('model_request_chunk',{'request_id':request['request_id'],'size_bytes':len(event.text.encode('utf-8'))})
                         elif isinstance(event, ModelToolCallStarted):
                             request['tool_blocks'][str(event.index)] = {'id': event.id, 'name': event.name, 'argument_characters': 0, 'complete': False}
                         elif isinstance(event, ModelToolCallArgumentsDelta):

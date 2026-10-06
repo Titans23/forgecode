@@ -75,6 +75,22 @@ class ToolExecutor:
         *,
         checkpoint_id: str | None = None,
         scope_checker: ScopeChecker | None = None,
+        operation: Operation | None = None,
+        result_transformer: ResultTransformer | None = None,
+    ) -> ExecutionOutcome:
+        from forge.observability.events import current
+        from contextlib import nullcontext
+        recorder=current()
+        with recorder.tool(call) if recorder else nullcontext():
+            return await self._execute(call,checkpoint_id=checkpoint_id,scope_checker=scope_checker,
+                                       operation=operation,result_transformer=result_transformer)
+
+    async def _execute(
+        self,
+        call: ToolCall,
+        *,
+        checkpoint_id: str | None = None,
+        scope_checker: ScopeChecker | None = None,
         operation: Callable[[ToolCall], Awaitable[ToolResult]] | None = None,
         result_transformer: ResultTransformer | None = None,
     ) -> ExecutionOutcome:
@@ -168,7 +184,12 @@ class ToolExecutor:
         request = self.registry.permission_request(call.name, arguments)
         if request is None:
             request = classify_tool_call(effective_call, effect)
-        token = tool_approval_context.set(ToolApprovalContext('exec-' + str(uuid4()), effective_call, self.workspace_tracker))
+        from forge.observability.events import active, current
+        recorder=current()
+        if recorder:
+            recorder.tool_intent(effective_call)
+        execution_id=active.get().scope.execution_id if recorder else 'exec-'+str(uuid4())
+        token = tool_approval_context.set(ToolApprovalContext(execution_id, effective_call, self.workspace_tracker))
         try:
             decision = await self.permission_manager.authorize(request)
         finally:
@@ -337,15 +358,11 @@ class ToolExecutor:
         started = monotonic()
         effective_arguments = dict(arguments or call.arguments)
         revision, epoch = self._state()
-        return self._outcome(
-            call,
-            result,
-            status,
-            started,
-            effective_arguments,
-            revision,
-            epoch,
-        )
+        from forge.observability.events import current
+        from contextlib import nullcontext
+        recorder=current()
+        with recorder.tool(call) if recorder else nullcontext():
+            return self._outcome(call,result,status,started,effective_arguments,revision,epoch)
 
     def _state(self) -> tuple[int, int]:
         if self.workspace_tracker is None:
@@ -396,14 +413,13 @@ class ToolExecutor:
         return outcome
 
     def _journal_started(self, call: ToolCall) -> None:
-        if self.session_journal is None:
-            return
-        self.session_journal.record_tool_started(
-            call.id,
-            call.name,
-            self.registry.audit_arguments(call.name, call.arguments),
-            provenance=self.registry.provenance(call.name),
-        )
+        if self.session_journal is not None:
+            self.session_journal.record_tool_started(call.id,call.name,self.registry.audit_arguments(call.name,call.arguments),
+                                                    provenance=self.registry.provenance(call.name))
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            recorder.tool_started(call,workspace_revision=self._state()[0],environment_epoch=self._state()[1])
 
     def _outcome(
         self,
@@ -442,6 +458,10 @@ class ToolExecutor:
                 workspace_revision=record.workspace_revision,
                 environment_epoch=record.environment_epoch,
             )
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            recorder.tool_finished(ToolCall(call.index,call.id,call.name,arguments),result,status)
         return ExecutionOutcome(result, record, arguments, workspace_change)
 
     def _cache_key(self, call: ToolCall) -> str | None:

@@ -294,6 +294,8 @@ class ApplicationServices:
                 recorder=self.recorder, approval_handler=approval, task_relation=self.task_relation,
                 resume_identifier=session['legacy_ref'], fork_session=fork,
                 turn_baseline_handler=lambda: self.workspaces.capture(turn_id, session['workspace_id']))
+            adapter.journal.observation_scope=self.store.trace_scope(turn_id)
+            adapter.journal.observation_scope_sink=self.store.register_execution_scope
             with self.store.transaction():
                 self.store.connection.execute('UPDATE sessions SET legacy_ref=? WHERE id=?', (adapter.journal.session_id, session['id']))
                 self.store.connection.execute('UPDATE turns SET native_ref=? WHERE id=?', (adapter.journal.session_id, turn_id))
@@ -333,10 +335,6 @@ class ApplicationServices:
                     await asyncio.wait_for(adapter.close(), 2)
                 except (Exception, asyncio.CancelledError) as error:
                     model_cleanup_error = type(error).__name__
-                try:
-                    JournalProjector(self.store).project(adapter.journal.path, turn['session_id'])
-                except Exception as error:
-                    projection_error = error  # Journal remains authoritative; no tool replay.
             if self.backend is not None and hasattr(self.backend, 'close'):
                 try:
                     cleanup = await asyncio.wait_for(self.backend.close(), 5)
@@ -348,6 +346,11 @@ class ApplicationServices:
                 cleanup = {'state': 'unknown', 'reason': 'native_cleanup_observation_unavailable'}
             if model_cleanup_error:
                 cleanup = {'state': 'unknown', 'model_cleanup_error': model_cleanup_error, 'backend': cleanup}
+            if adapter is not None:
+                try:
+                    JournalProjector(self.store).project(adapter.journal.path,turn['session_id'],trusted=True)
+                except Exception as error:
+                    projection_error=error  # Journal remains authoritative; no tool replay.
             if outcome in ('cancelled', 'timed_out') and cleanup['state'] != 'clean':
                 outcome, reason = 'indeterminate', 'cancellation_cleanup_unconfirmed'
             self.running.pop(turn_id, None)

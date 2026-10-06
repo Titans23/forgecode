@@ -6,7 +6,7 @@
   },
   "contracts": {
     "path": "forge/application/_generated_contracts.json",
-    "sha256": "7d52d410ae0adad15e27d2e4fa2cf7c3e565462e2c5b38e85fe118fc33c3aaea"
+    "sha256": "0b00a7a8a5204542fa3cbe27a4b4d9921e688b72e83199caf55ad9ec0a79eede"
   },
   "locks": [
     {
@@ -33,7 +33,7 @@
     },
     {
       "path": "forge/application/_generated_contracts.json",
-      "sha256": "7d52d410ae0adad15e27d2e4fa2cf7c3e565462e2c5b38e85fe118fc33c3aaea"
+      "sha256": "0b00a7a8a5204542fa3cbe27a4b4d9921e688b72e83199caf55ad9ec0a79eede"
     },
     {
       "path": "forge/application/approvals.py",
@@ -53,7 +53,7 @@
     },
     {
       "path": "forge/application/services.py",
-      "sha256": "55cdc19404e6a3e2d64a952a338a7ea643c0a22b83cf841993aa1a6733be6692"
+      "sha256": "734520eea69289981f85cff0ae1e64752112016826ae400e12aed949e27d37a3"
     },
     {
       "path": "forge/application/session_views.py",
@@ -129,7 +129,7 @@
     },
     {
       "path": "forge/engine/journal_projection.py",
-      "sha256": "7ee709d2a9413b9e23fa320527c90ba529e8acc708d69326eafb708bf5350eff"
+      "sha256": "268e382eacdd339391b36c321fdebae554fb072a87b6c69456c0982901acb650"
     },
     {
       "path": "forge/engine/lifecycle.py",
@@ -164,8 +164,12 @@
       "sha256": "99176b8157e464d0d636a7d8b63c843877c48e9f4e7e058e107de2d4780d1099"
     },
     {
+      "path": "forge/engine/migrations/007_observability.sql",
+      "sha256": "4448bca223c9aa8de9425716b75b36470e7e461c256a89c8d898c9a9bef74e19"
+    },
+    {
       "path": "forge/engine/persistence.py",
-      "sha256": "865e85456436009598111ecefa6f96a5fd4c2dce360f9b92c1c96c052f615d05"
+      "sha256": "5804438580ebf2b6249569c091bf922306110ce156306c31281050e7da1eea1f"
     },
     {
       "path": "forge/engine/rpc.py",
@@ -216,6 +220,22 @@
       "sha256": "db4d3cc718aee21f102e3b1b133b906870b9f883a829f21c780926e78bedc9f6"
     },
     {
+      "path": "forge/observability/__init__.py",
+      "sha256": "64158d12a024555dfd8455cbded7ca78028caa5b440b6aed52322cbad130193b"
+    },
+    {
+      "path": "forge/observability/events.py",
+      "sha256": "d22fa8392608db98f25279f0a9e1d99ee8d26a300cd9f8f71ae38b35efea70c6"
+    },
+    {
+      "path": "forge/observability/projection.py",
+      "sha256": "0ed90f37dda52ee90846f0f490bd0d926a7370793712254a07c1a7df45f2c166"
+    },
+    {
+      "path": "forge/observability/recorder.py",
+      "sha256": "8fcc3aa645f340f75a08a070cd423f540e2918be6a1df2413584fd0a418f7b32"
+    },
+    {
       "path": "forge/office/__init__.py",
       "sha256": "78ae8b950499dd622236bfb9e03a413614e5ca5d165d48fbb35c3bc7e8503e30"
     },
@@ -257,7 +277,7 @@
     },
     {
       "path": "forge/runtime/agent_loop.py",
-      "sha256": "96f846e30bdc6e4e4101ba625acf8e9253e86926ff14fce6ff4dd822809fac8a"
+      "sha256": "6af618955540b602b372484efba2a127a2d1bd6260a1535f7b1b1b8a298bd984"
     },
     {
       "path": "forge/runtime/check_contracts.py",
@@ -281,7 +301,7 @@
     },
     {
       "path": "forge/runtime/executor.py",
-      "sha256": "30bfa9a658009b8c6726fc59149d2867d632d1cc2c37920427c27af35d5d0f10"
+      "sha256": "3cb5bb47da17c0d1e6ac56ff2b3533e851b0c1ae656fa3c248b85fba0796386e"
     },
     {
       "path": "forge/runtime/factory.py",
@@ -293,7 +313,7 @@
     },
     {
       "path": "forge/runtime/model_budget.py",
-      "sha256": "e2fa928e03b98f184134e3cfb2b66218c143552160165da18de8cc731d2da3bf"
+      "sha256": "a03a9387136988cc05b6a23a9080cdedf1269130b3c77c8c225e2670a270f0db"
     },
     {
       "path": "forge/runtime/model_client.py",
@@ -317,7 +337,7 @@
     },
     {
       "path": "forge/runtime/runner.py",
-      "sha256": "b0026cbd5c8023c63c2c981a2841809824239071fe6adc51a0a47c35a3ac8361"
+      "sha256": "7147e954fa4af4f5baba9f6e31f2e6946629d03a4dd799c0ed019325daf4423b"
     },
     {
       "path": "forge/runtime/service_health.py",
@@ -329,7 +349,7 @@
     },
     {
       "path": "forge/runtime/turn_state.py",
-      "sha256": "5cbc0f7248a3cf225290be478dc9c430b6aabd5ea0f574c2e1d5256fcb07c809"
+      "sha256": "450be3783d92067da1ec1187b197cb741d214d258caf95a1b145ca34bb530a7c"
     },
     {
       "path": "forge/runtime/verification.py",
@@ -381,7 +401,7 @@
     },
     {
       "path": "forge/sandbox/srt_backend.py",
-      "sha256": "4d49f8e6e2c733ad674dd08d65018ad5f46d434e91324b9f3a3d9f665cad803d"
+      "sha256": "57c66d8baa537c979a56d2141047f62de9ce2775bf85c129916f269825a9ed14"
     },
     {
       "path": "forge/sandbox/tool_backend.py",

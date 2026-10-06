@@ -576,6 +576,47 @@
         },
         "retryable": {
           "type": "boolean"
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "input_tokens": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "output_tokens": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "input_tokens",
+                "output_tokens"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -692,6 +733,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 64
+        },
+        "source_sequence": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,31}$"
         }
       },
       "required": [
@@ -807,6 +852,13 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "retained_message_ids_truncated": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -933,6 +985,16 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128
+        },
+        "before_characters": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "after_characters": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": [
@@ -1001,6 +1063,16 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128
+        },
+        "before_characters": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "after_characters": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": [
@@ -1022,7 +1094,8 @@
             "model_calls",
             "tool_calls",
             "wall_seconds",
-            "spend"
+            "spend",
+            "input_tokens"
           ]
         },
         "model_request_id": {
@@ -1045,10 +1118,17 @@
           "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
         },
         "remaining_decimal": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 32,
-          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32,
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1067,7 +1147,8 @@
             "model_calls",
             "tool_calls",
             "wall_seconds",
-            "spend"
+            "spend",
+            "input_tokens"
           ]
         },
         "model_request_id": {
@@ -1090,10 +1171,17 @@
           "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
         },
         "remaining_decimal": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 32,
-          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32,
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1112,7 +1200,8 @@
             "model_calls",
             "tool_calls",
             "wall_seconds",
-            "spend"
+            "spend",
+            "input_tokens"
           ]
         },
         "model_request_id": {
@@ -1135,10 +1224,17 @@
           "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
         },
         "remaining_decimal": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 32,
-          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32,
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1226,6 +1322,16 @@
             "stale",
             "unknown"
           ]
+        },
+        "native_evidence_id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "pending_evidence_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^evidence-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         }
       },
       "required": [
@@ -1270,6 +1376,10 @@
             "stale",
             "unknown"
           ]
+        },
+        "native_evidence_id": {
+          "type": "string",
+          "maxLength": 128
         }
       },
       "required": [
@@ -2046,6 +2156,28 @@
             "residual",
             "unknown"
           ]
+        },
+        "trace_links": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "trace_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "span_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{16}$"
+              }
+            },
+            "required": [
+              "trace_id",
+              "span_id"
+            ]
+          }
         }
       },
       "required": [
@@ -2101,6 +2233,28 @@
             "residual",
             "unknown"
           ]
+        },
+        "trace_links": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "trace_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              "span_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{16}$"
+              }
+            },
+            "required": [
+              "trace_id",
+              "span_id"
+            ]
+          }
         }
       },
       "required": [

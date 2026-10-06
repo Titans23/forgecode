@@ -44,6 +44,7 @@ SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
 TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F15': ['unit', 'portable', 'desktop', 'desktop-packaged']}
 TASK_SUITES['F16'] = ['unit', 'portable', 'desktop', 'desktop-packaged']
+TASK_SUITES['F17'] = ['unit', 'portable']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -65,6 +66,7 @@ CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                         'tests/desktop/credentials/test_storage_policy.py', 'scripts/desktop_smoke.py'] for case in ('D25', 'D26', 'N11', 'N12')}}
 CASE_TESTS.update({case: ['tests/implementation/integration/test_workspace_views.py',
     'tests/implementation/unit/test_workspace_ui.py', 'scripts/desktop_smoke.py'] for case in ('D21', 'D23', 'D33')})
+CASE_TESTS['O06'] = ['tests/implementation/integration/test_traces.py']
 
 
 class Parser(argparse.ArgumentParser):

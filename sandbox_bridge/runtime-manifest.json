@@ -5607,11 +5607,11 @@
     },
     {
       "path": "packages/contracts/dist/generated/schemas.json",
-      "sha256": "a016b3b89a48b224e3e4c0f1ca44b98c7f4508cc70744350743106f239d198de"
+      "sha256": "39e47a64b864e0dc5d7b1d2254f4a6fc18fc6f50431c82d9ec4473f4a545fc9b"
     },
     {
       "path": "packages/contracts/dist/generated/types.d.ts",
-      "sha256": "7079563ccf61d61bcc731883ae1e0940e7174aa934b00358245703578e1263ca"
+      "sha256": "2818e5dc61abab8a660f140bfa64660e5fe34bd8961a0590d598b09539dc1dc7"
     },
     {
       "path": "packages/contracts/dist/generated/types.js",

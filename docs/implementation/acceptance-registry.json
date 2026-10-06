@@ -1227,8 +1227,10 @@
       "title": "重复事件导入不改变计数和成本",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_traces.py"
+      ],
+      "status": "pass",
       "owner_task": "F17",
       "required_platforms": [
         "portable"
@@ -1236,8 +1238,11 @@
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T195743Z-1fa9ce8a",
+            "20261006T200005Z-56bfc334"
+          ]
         }
       }
     },

@@ -39,6 +39,8 @@ class SrtBackend:
         self._discarded_by_execution = {}
         self.stderr_bytes = 0
         self._worker_lease = None
+        self._observation = None
+        self._execution_observations = {}
 
     async def _start(self):
         async with self._start_lock:
@@ -76,6 +78,7 @@ class SrtBackend:
                     if output['owner'] != {**self.owner, 'execution_id': output['execution_id']}:
                         raise ContractError('Output ownership mismatch')
                     size = len(base64.b64decode(output['raw_base64'], validate=True))
+                    self._observe_output(output,size)
                     try:
                         self.outputs.put_nowait(output)
                     except asyncio.QueueFull:
@@ -88,7 +91,7 @@ class SrtBackend:
                 future = self._pending.get(response.get('id'))
                 if future is not None and not future.done():
                     future.set_result(response)
-        except (ValueError, ContractError, asyncio.LimitOverrunError) as error:
+        except (ValueError, OSError, ContractError, asyncio.LimitOverrunError) as error:
             failure = ContractError('Bridge returned invalid control data', kind='SANDBOX_UNAVAILABLE', code=-32010)
             failure.__cause__ = error
         else:
@@ -139,24 +142,60 @@ class SrtBackend:
             worker_root = windows_worker_root()
         roots = (str(self.control_root),) + ((str(worker_root),) if worker_root else ())
         snapshot = compile_policy(policy, self.workspace, control_roots=roots)
-        capabilities = await self.probe()
-        capabilities.require(snapshot.value)
-        snapshot.srt_config(capabilities)
-        if worker_root and self._worker_lease is None:
-            from forge.sandbox.windows_worker import WindowsWorkerLease
-            self._worker_lease = WindowsWorkerLease(worker_root, self.owner, snapshot.sha256)
-        result = await self._request('prepare', {'policy': snapshot.value, 'policy_hash': snapshot.sha256, 'owner': self.owner})
-        validate('bridge.prepare.result', result)
-        self._prepared = snapshot
+        from forge.observability.events import current, active
+        from forge.sandbox.capabilities import unavailable_report
+        recorder=current()
+        if recorder:
+            self._observation=(recorder,active.get().scope,snapshot.sha256,unavailable_report(reason='Probe has not completed').value)
+        try:
+            capabilities = await self.probe()
+            if recorder:
+                self._observation=(recorder,active.get().scope,snapshot.sha256,capabilities.value)
+            capabilities.require(snapshot.value)
+            snapshot.srt_config(capabilities)
+            if worker_root and self._worker_lease is None:
+                from forge.sandbox.windows_worker import WindowsWorkerLease
+                self._worker_lease = WindowsWorkerLease(worker_root, self.owner, snapshot.sha256)
+            result = await self._request('prepare', {'policy': snapshot.value, 'policy_hash': snapshot.sha256, 'owner': self.owner})
+            validate('bridge.prepare.result', result)
+            self._prepared = snapshot
+        except BaseException as error:
+            self._observe('sandbox.denied' if isinstance(error,ContractError) and error.kind in ('CAPABILITY_UNSATISFIED','POLICY_DENIED','SANDBOX_UNAVAILABLE') else 'sandbox.failed',
+                          reason=type(error).__name__)
+            raise
+        self._observe('sandbox.prepared')
         return result
+
+    def _observe(self, event_type, *, reason=None, cleanup=None):
+        if self._observation:
+            recorder,scope,policy_hash,capabilities=self._observation
+            recorder.emit(event_type,{'backend':'srt','capabilities':capabilities,'policy_hash':policy_hash,
+                'owner':self.owner,'reason':reason,'cleanup':cleanup},scope=scope,origin='trusted_bridge')
 
     async def execute(self, execution_id, command):
         if self._prepared is None:
             raise ContractError('No executable prepared session', kind='SANDBOX_UNAVAILABLE', code=-32010)
         validate('command-spec', command)
         self._prepared.paths.authorize(command['cwd'], write=False).assert_current()
-        result = await self._request('execute', {'sandbox_session_id': self.owner['sandbox_session_id'],
-            'execution_id': execution_id, 'command': command, 'command_hash': canonical_hash(command)})
+        from forge.observability.events import current, active
+        recorder=current()
+        if recorder:
+            if execution_id in self._execution_observations or len(self._execution_observations)>=4096:
+                raise ContractError('Execution observation requires a new owned identity',kind='INDETERMINATE',code=-32010)
+            scope=active.get().scope.child(execution_id=execution_id)
+            if recorder.scope_sink:
+                recorder.scope_sink(scope)
+            observed={'recorder':recorder,'scope':scope,'base':{'execution_id':execution_id,'tool_name':'sandbox.command',
+                'arguments_hash':canonical_hash(command)},'streams':{},'finished':False}
+            self._execution_observations[execution_id]=observed
+            recorder.emit('tool.intent',observed['base'],scope=scope,origin='trusted_bridge')
+            recorder.emit('tool.started',observed['base'],scope=scope,origin='trusted_bridge')
+        try:
+            result = await self._request('execute', {'sandbox_session_id': self.owner['sandbox_session_id'],
+                'execution_id': execution_id, 'command': command, 'command_hash': canonical_hash(command)})
+        except BaseException:
+            self._observe_terminal(execution_id,'indeterminate',None)
+            raise
         validate('bridge.execute.result', result)
         return result
 
@@ -164,7 +203,36 @@ class SrtBackend:
         result = await self._request('status', {'execution_id': execution_id})
         validate('execution-status', result)
         result['discarded_bytes'] += self._discarded_by_execution.get(execution_id, 0)
+        if result['state'] in ('finished','indeterminate'):
+            self._observe_terminal(execution_id,'indeterminate' if result['state']=='indeterminate' else
+                'success' if result['exit_code']==0 else 'failed',result['exit_code'])
         return result
+
+    def _observe_output(self, frame, size):
+        observed=self._execution_observations.get(frame['execution_id'])
+        if observed and not observed['finished']:
+            stream=observed['streams'].setdefault(frame['stream'],{'size':0,'index':0,'sequence':frame['sequence']})
+            stream['size']+=size
+            stream['sequence']=frame['sequence']
+            if stream['size']>=65536 or frame['final']:
+                self._flush_output(observed,frame['stream'],stream)
+
+    def _flush_output(self, observed, name, stream):
+        observed['recorder'].emit('tool.output',{**observed['base'],'stream':name,'chunk_index':stream['index'],
+            'size_bytes':stream['size'],'discarded_bytes':0,'encoding':'utf-8','source_sequence':stream['sequence']},
+            scope=observed['scope'],origin='trusted_bridge')
+        stream['size']=0
+        stream['index']+=1
+
+    def _observe_terminal(self, execution_id, outcome, exit_code):
+        observed=self._execution_observations.get(execution_id)
+        if observed and not observed['finished']:
+            for name,stream in observed['streams'].items():
+                if stream['size']:
+                    self._flush_output(observed,name,stream)
+            observed['recorder'].emit('tool.finished',{**observed['base'],'result':outcome,'exit_code':exit_code},
+                scope=observed['scope'],origin='trusted_bridge')
+            observed['finished']=True
 
     async def cancel(self, execution_id, reason, deadline_utc):
         result = await self._request('cancel', {'execution_id': execution_id, 'reason': reason, 'deadline_utc': deadline_utc})
@@ -177,6 +245,7 @@ class SrtBackend:
             validate('cleanup-report', self._cleanup)
             if self._worker_lease:
                 self._worker_lease.close(self._cleanup)
+            self._observe('sandbox.cleanup_finished',cleanup=self._cleanup)
         return json.loads(json.dumps(self._cleanup))
 
     async def aclose(self):

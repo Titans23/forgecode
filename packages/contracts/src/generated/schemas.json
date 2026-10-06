@@ -163,23 +163,23 @@
       "payload_schema": "event.attempt.started"
     },
     "budget.consumed": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.budget.consumed"
     },
     "budget.limit_reached": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.budget.limit_reached"
     },
     "budget.reserved": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.budget.reserved"
     },
     "cancellation.confirmed": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.cancellation.confirmed"
     },
     "cancellation.requested": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.cancellation.requested"
     },
     "client.approval_shown": {
@@ -195,35 +195,35 @@
       "payload_schema": "event.client.reconnected"
     },
     "compaction.failed": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.compaction.failed"
     },
     "compaction.finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.compaction.finished"
     },
     "compaction.started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.compaction.started"
     },
     "completion.accepted": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.completion.accepted"
     },
     "completion.rejected": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.completion.rejected"
     },
     "completion.repair_started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.completion.repair_started"
     },
     "context.prepared": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.context.prepared"
     },
     "grade.finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.grade.finished"
     },
     "journal.projected": {
@@ -231,43 +231,43 @@
       "payload_schema": "event.journal.projected"
     },
     "model.request.chunk": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.model.request.chunk"
     },
     "model.request.failed": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.model.request.failed"
     },
     "model.request.finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.model.request.finished"
     },
     "model.request.started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.model.request.started"
     },
     "recovery.finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.recovery.finished"
     },
     "recovery.started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.recovery.started"
     },
     "sandbox.cleanup_finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.sandbox.cleanup_finished"
     },
     "sandbox.denied": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.sandbox.denied"
     },
     "sandbox.failed": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.sandbox.failed"
     },
     "sandbox.prepared": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.sandbox.prepared"
     },
     "session.message": {
@@ -275,19 +275,19 @@
       "payload_schema": "event.session.message"
     },
     "tool.finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.tool.finished"
     },
     "tool.intent": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.tool.intent"
     },
     "tool.output": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.tool.output"
     },
     "tool.started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.tool.started"
     },
     "trial.planned": {
@@ -295,27 +295,27 @@
       "payload_schema": "event.trial.planned"
     },
     "turn.accepted": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.turn.accepted"
     },
     "turn.finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.turn.finished"
     },
     "turn.started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.turn.started"
     },
     "verification.finished": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.verification.finished"
     },
     "verification.invalidated": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.verification.invalidated"
     },
     "verification.started": {
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "payload_schema": "event.verification.started"
     }
   },
@@ -4297,7 +4297,8 @@
                 "model_calls",
                 "tool_calls",
                 "wall_seconds",
-                "spend"
+                "spend",
+                "input_tokens"
               ]
             },
             "model_request_id": {
@@ -4314,10 +4315,17 @@
               ]
             },
             "remaining_decimal": {
-              "maxLength": 32,
-              "minLength": 1,
-              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
-              "type": "string"
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -4342,7 +4350,8 @@
                 "model_calls",
                 "tool_calls",
                 "wall_seconds",
-                "spend"
+                "spend",
+                "input_tokens"
               ]
             },
             "model_request_id": {
@@ -4359,10 +4368,17 @@
               ]
             },
             "remaining_decimal": {
-              "maxLength": 32,
-              "minLength": 1,
-              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
-              "type": "string"
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -4387,7 +4403,8 @@
                 "model_calls",
                 "tool_calls",
                 "wall_seconds",
-                "spend"
+                "spend",
+                "input_tokens"
               ]
             },
             "model_request_id": {
@@ -4404,10 +4421,17 @@
               ]
             },
             "remaining_decimal": {
-              "maxLength": 32,
-              "minLength": 1,
-              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
-              "type": "string"
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -4660,6 +4684,11 @@
         "compaction.failed": {
           "additionalProperties": false,
           "properties": {
+            "after_characters": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
             "after_tokens": {
               "anyOf": [
                 {
@@ -4671,6 +4700,11 @@
                   "type": "null"
                 }
               ]
+            },
+            "before_characters": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             },
             "before_tokens": {
               "anyOf": [
@@ -4729,6 +4763,11 @@
         "compaction.finished": {
           "additionalProperties": false,
           "properties": {
+            "after_characters": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
             "after_tokens": {
               "anyOf": [
                 {
@@ -4740,6 +4779,11 @@
                   "type": "null"
                 }
               ]
+            },
+            "before_characters": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             },
             "before_tokens": {
               "anyOf": [
@@ -5015,6 +5059,10 @@
               "minLength": 1,
               "type": "string"
             },
+            "input_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
             "reason": {
               "maxLength": 1024,
               "minLength": 1,
@@ -5029,6 +5077,9 @@
               "maxItems": 10000,
               "minItems": 0,
               "type": "array"
+            },
+            "retained_message_ids_truncated": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -5264,6 +5315,47 @@
                 "repair"
               ]
             },
+            "usage": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "input_tokens": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "output_tokens": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "input_tokens",
+                    "output_tokens"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "usage_quality": {
               "enum": [
                 "actual",
@@ -5497,6 +5589,28 @@
               "minLength": 1,
               "type": "string"
             },
+            "trace_links": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "span_id": {
+                    "pattern": "^[0-9a-f]{16}$",
+                    "type": "string"
+                  },
+                  "trace_id": {
+                    "pattern": "^[0-9a-f]{32}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "trace_id",
+                  "span_id"
+                ],
+                "type": "object"
+              },
+              "maxItems": 8,
+              "type": "array"
+            },
             "unknown_side_effects": {
               "type": "boolean"
             }
@@ -5551,6 +5665,28 @@
               "maxLength": 1024,
               "minLength": 1,
               "type": "string"
+            },
+            "trace_links": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "span_id": {
+                    "pattern": "^[0-9a-f]{16}$",
+                    "type": "string"
+                  },
+                  "trace_id": {
+                    "pattern": "^[0-9a-f]{32}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "trace_id",
+                  "span_id"
+                ],
+                "type": "object"
+              },
+              "maxItems": 8,
+              "type": "array"
             },
             "unknown_side_effects": {
               "type": "boolean"
@@ -6045,6 +6181,10 @@
               "minimum": 0,
               "type": "integer"
             },
+            "source_sequence": {
+              "pattern": "^[1-9][0-9]{0,31}$",
+              "type": "string"
+            },
             "stream": {
               "enum": [
                 "stdout",
@@ -6430,6 +6570,16 @@
               "pattern": "^evidence-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
+            "native_evidence_id": {
+              "maxLength": 128,
+              "type": "string"
+            },
+            "pending_evidence_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^evidence-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
             "reason": {
               "maxLength": 1024,
               "minLength": 1,
@@ -6472,6 +6622,10 @@
               "maxLength": 64,
               "minLength": 1,
               "pattern": "^evidence-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "native_evidence_id": {
+              "maxLength": 128,
               "type": "string"
             },
             "reason": {

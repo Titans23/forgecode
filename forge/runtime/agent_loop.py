@@ -314,7 +314,12 @@ class Conversation:
         from forge.sessions.workspace_lock import workspace_execution
         runner = TurnRunner(self)
         ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()
-        with ownership:
+        from forge.observability.events import current
+        from forge.observability.recorder import JournalRecorder
+        inherited=current()
+        recorder=(JournalRecorder(self.session_journal,scope=getattr(self.session_journal,'observation_scope',None),
+                  scope_sink=getattr(self.session_journal,'observation_scope_sink',None)) if self.session_journal else inherited)
+        with ownership, recorder.turn(nested=self.session_journal is None) if recorder else nullcontext():
             if self.turn_baseline_handler is not None:
                 baseline = self.turn_baseline_handler()
                 if baseline is not None:
@@ -330,6 +335,10 @@ class Conversation:
             self.session_journal.append(kind, attributes)
         if self.event_recorder is not None:
             self.event_recorder.record_request(kind, attributes)
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            recorder.record_request(kind,attributes)
 
     def _system_prompt_with_task(
         self,

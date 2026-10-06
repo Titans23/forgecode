@@ -1,6 +1,17 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F16；下一项 F17（任务卡、第 7 / 13 章及实际边界已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F17；下一 F18（任务卡、第 13 / 14 章和现有 provider/查询接口已读）。原生平台验收独立 blocked。
+- F17：真实 Journal observation / fsync、受理根 trace、模型→上下文→工具→验证父子关系、Explore／摘要／重试归因。
+  来源 ID/sequence/hash 冲突隔离；外部 import: 命名空间；重复回放不执行、不增 ledger。
+  migration 007；恢复创建新 trace link 旧 trace，unknown 副作用仍不自动重跑。
+  已实现事件目录留 trial/attempt/client 未接入项 contract_only；grader 是真实回调 fixture，F19—F21 接续正式协议。
+  unit 127 / portable 156 / regression 1026，0 skip；Windows 10 development Electron 44 checks pass。
+  证据 20261006T195728Z-806a10fc / 20261006T195743Z-1fa9ce8a / 20261006T195925Z-29d74dae / 20261006T200005Z-56bfc334。
+  packaged blocked / 0：20261006T195955Z-97a1025e；native Linux / Windows blocked / 0：
+  20261006T195956Z-d6a34afe / 20261006T200000Z-05e1019e。native Bridge child execution tracing 未验收；不制造 verified caps。
+  F17 测试父 HEAD bc27f9780b179097d0e2bb9f732e93748ce3709c；final dirty 0fbdf33ae33b98b252644e79b82f76c3f0aa7156280eff4a71221c4ddc2f75b0。
+  F18 继续 raw / normalized usage、冻结价格与 unknown 成本、上下文版本／配对、证据失效、有界异步 OTLP。
+- F16 已推送 bc27f9780b179097d0e2bb9f732e93748ce3709c，远端 HEAD 已核对；F17 测试父 HEAD 即此提交。
 - F16：真实项目文件、会话提交／流式消息／取消、immutable dirty 基线、Diff 和 guarded reverse patch 预览。
   migration 006；session+action / turn+action 同事务；snapshot 签名事件边界、sequence 去重、10000 有界列表。
   valid Hook/MCP/.env 不执行；Git 禁 fsmonitor / hooks 并限制父仓库查找。原 CLI / create_runtime 签名不变。
