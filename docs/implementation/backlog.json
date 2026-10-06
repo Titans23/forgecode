@@ -1,0 +1,1556 @@
+{
+  "schema_version": "forge.implementation.backlog.v1",
+  "document_version": "4.0.0",
+  "scope": "P0",
+  "tasks": [
+    {
+      "id": "F00",
+      "title": "审计当前分支并建立可恢复实施入口",
+      "depends_on": [],
+      "chapters": [
+        0,
+        2,
+        22
+      ],
+      "files": [
+        "docs/implementation/repo-audit.md",
+        "docs/implementation/code-map.json",
+        "docs/implementation/commands.local.json",
+        "docs/implementation/handoff.md",
+        "scripts/impl.py"
+      ],
+      "steps": [
+        "记录 HEAD、dirty 文件、AGENTS 层级、Python／JS 工具链和现有入口。",
+        "沿实际调用链定位 Conversation、Runner、Executor、Journal、Shell 和模型请求。",
+        "运行现有离线回归，区分旧失败与新问题。",
+        "建立 audit、doctor 和任务状态读取入口；只合并短 AGENTS 指引。"
+      ],
+      "tests": [
+        "从另一个 cwd 调用 audit，仍正确发现仓库根。",
+        "用户 dirty 文件保持不变。",
+        "缺 Node／无网络可产生 blocked 诊断，不伪造版本。"
+      ],
+      "acceptance": [
+        "code-map 包含实际符号而非猜测路径。",
+        "保存原测试命令、退出码及失败摘要。",
+        "新的 Codex 会话能从 handoff 得知下一步。"
+      ],
+      "verification_suites": [
+        "audit"
+      ],
+      "non_goals": "不升级依赖、不重构主循环、不声称已重新验证历史潜在 Bug。",
+      "implementation_status": "implemented",
+      "evidence_ids": ["20261006T091942Z-d39f0b28", "20261006T092001Z-c7f13bd9"],
+      "case_ids": []
+    },
+    {
+      "id": "F01",
+      "title": "锁定依赖和双平台构建基线",
+      "depends_on": [
+        "F00"
+      ],
+      "chapters": [
+        3,
+        20
+      ],
+      "files": [
+        "package.json",
+        "package-lock.json",
+        "release-lock.json",
+        "docs/implementation/adr/001-stack.md",
+        "packaging/"
+      ],
+      "steps": [
+        "沿用已有兼容包管理，否则建立 npm workspaces。",
+        "解析 Electron／Forge／React／Node／SRT／Python／PyInstaller 的受支持组合，锁精确版本与来源。",
+        "下载并核验原生 helper，记录许可、patch 和完整性。",
+        "建立最小双平台构建 smoke，记录系统安装前提。"
+      ],
+      "tests": [
+        "干净依赖安装不依赖项目外全局 npm 包。",
+        "release-lock unresolved 时 build 拒绝。",
+        "篡改资产 hash 后 loader 拒绝。"
+      ],
+      "acceptance": [
+        "锁文件提交，发布依赖无浮动 latest。",
+        "明确 Windows／Linux 工具链矩阵及受阻项。"
+      ],
+      "verification_suites": [
+        "unit",
+        "packaged"
+      ],
+      "non_goals": "不为安装便利关闭系统防护；不自动执行管理员 setup。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": []
+    },
+    {
+      "id": "F02",
+      "title": "冻结契约与实现验收命令骨架",
+      "depends_on": [
+        "F00",
+        "F01"
+      ],
+      "chapters": [
+        5,
+        6,
+        8,
+        21,
+        22
+      ],
+      "files": [
+        "contracts/v1/",
+        "packages/contracts/",
+        "forge/application/models.py",
+        "scripts/impl.py",
+        "tests/implementation/unit/"
+      ],
+      "steps": [
+        "将文档契约种子扩展为完整方法 payload、事件、Policy、RunSpec 与 Bundle schemas。",
+        "生成 TS 类型并建立 Python／TS 运行时校验，使用同一正反例集。",
+        "实现 canonical hash、错误枚举、method registry。",
+        "实现 suite／case 注册、退出码、报告与证据生成，不提供空成功套件。"
+      ],
+      "tests": [
+        "未知字段、重复 JSON key、NaN、深层／大帧被拒绝。",
+        "TS 与 Python 对同一 fixture 判定相同。",
+        "hash 对键序不敏感、对数组顺序和预算变化敏感。",
+        "零测试／required 全 skip 不返回成功。"
+      ],
+      "acceptance": [
+        "contracts --check 检查生成文件无漂移。",
+        "所有实现前 fixture 合法，非法样本能被拒绝。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "N04"
+      ]
+    },
+    {
+      "id": "F03",
+      "title": "SQLite 单写入者、幂等与 Journal 投影",
+      "depends_on": [
+        "F02"
+      ],
+      "chapters": [
+        7
+      ],
+      "files": [
+        "forge/engine/persistence.py",
+        "forge/engine/migrations/",
+        "forge/engine/journal_projection.py",
+        "tests/implementation/integration/test_storage.py"
+      ],
+      "steps": [
+        "建立第 7 章表、索引、外键与迁移；保留现有 Journal。",
+        "受理 action／work item／event 在同一事务提交。",
+        "实现 source sequence 投影、重复冲突识别和备份。",
+        "实现 data-dir owner lock、只读诊断及 artifact 原子发布。"
+      ],
+      "tests": [
+        "提交后响应前崩溃，重试返回原 turn。",
+        "Journal result 落盘但投影失败，重启能补齐且不执行命令。",
+        "磁盘满不开始新副作用。",
+        "活跃 WAL 的备份恢复后数据一致。"
+      ],
+      "acceptance": [
+        "受理与投影无双计，事件可重建。",
+        "迁移失败不破坏原始数据。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D30",
+        "N02",
+        "N06"
+      ]
+    },
+    {
+      "id": "F04",
+      "title": "抽出应用服务并接入原有 Harness",
+      "depends_on": [
+        "F02",
+        "F03"
+      ],
+      "chapters": [
+        9,
+        19
+      ],
+      "files": [
+        "forge/application/services.py",
+        "forge/application/harness_adapter.py",
+        "forge/application/sessions.py",
+        "实际 CLI composition root"
+      ],
+      "steps": [
+        "根据 code-map 为 Conversation／Runner 增加依赖注入。",
+        "分离 CLI 呈现与业务执行，提供服务化 create／start／cancel／snapshot。",
+        "保留工具 schema、预算和完成契约。",
+        "模型／工具 adapter 接收 recorder、审批与 backend 接口。"
+      ],
+      "tests": [
+        "同一 scripted 输入走 CLI 与服务得到等价工具序列及结束原因。",
+        "Engine 流程不调用 input 或打印彩色 UI。",
+        "缺权限／连接时没有模型调用。"
+      ],
+      "acceptance": [
+        "应用层无 Electron import、没有第二份 Agent loop。",
+        "原有离线 CLI 回归不新增失败。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": []
+    },
+    {
+      "id": "F05",
+      "title": "私有 stdio RPC 与持久事件流",
+      "depends_on": [
+        "F02",
+        "F03",
+        "F04"
+      ],
+      "chapters": [
+        8
+      ],
+      "files": [
+        "forge/engine/__main__.py",
+        "forge/engine/rpc.py",
+        "forge/engine/methods.py",
+        "forge/engine/event_stream.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "steps": [
+        "实现 JSONL reader/writer、握手、method ACL、标准与业务错误。",
+        "所有 mutation 走持久 action 受理。",
+        "实现 snapshot＋cursor 衔接、订阅 ack、持久补读及去重。",
+        "控制与数据有界队列，stderr 诊断与 stdout 协议隔离。"
+      ],
+      "tests": [
+        "响应丢失后 action.get 返回原对象。",
+        "订阅高水位切换期间插入事件，无丢失。",
+        "慢消费者、大输出期间取消仍被受理。",
+        "错误 batch／notification 符合协议。"
+      ],
+      "acceptance": [
+        "真实 Python 子进程完成 handshake、start、stream、cancel、shutdown。",
+        "非法帧不能改变业务状态。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "O07",
+        "D04",
+        "D07",
+        "D09",
+        "D10",
+        "N01",
+        "N03"
+      ]
+    },
+    {
+      "id": "F06",
+      "title": "建立第一个可运行纵向切片",
+      "depends_on": [
+        "F04",
+        "F05"
+      ],
+      "chapters": [
+        3,
+        21
+      ],
+      "files": [
+        "tests/implementation/fixtures/fix-python-add/",
+        "forge/testing/或既有测试辅助模块",
+        "docs/implementation/evidence/"
+      ],
+      "steps": [
+        "实现只用于 test/demo 的 ScriptedModel 和六个 fixture 的基础结构。",
+        "让 MockModel 经过真实 HarnessAdapter、存储、工具接口与 RPC。",
+        "提供演示驱动，不依赖真实 key。",
+        "Mock 执行结果带明显 origin／mode，不能导出为真实榜单成绩。"
+      ],
+      "tests": [
+        "小型修复任务能读改测并产出证据。",
+        "客户端断开不自动重复受理。",
+        "生产默认配置不选择 Mock。"
+      ],
+      "acceptance": [
+        "可一条命令演示完整核心链路。",
+        "尚未接原生后端的测试明确标 simulated backend。"
+      ],
+      "verification_suites": [
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": []
+    },
+    {
+      "id": "F07",
+      "title": "策略模型、能力报告与路径规则",
+      "depends_on": [
+        "F02",
+        "F04"
+      ],
+      "chapters": [
+        10,
+        11,
+        12
+      ],
+      "files": [
+        "forge/sandbox/policy.py",
+        "forge/sandbox/capabilities.py",
+        "forge/sandbox/path_policy.py",
+        "tests/implementation/unit/test_policy.py"
+      ],
+      "steps": [
+        "实现 read／write／network 独立策略与 requirement 检查。",
+        "禁止上游配置含义被错误映射，生成固定 policy hash。",
+        "实现 workspace 真实身份及特殊路径拒绝策略。",
+        "区分 verified／partial／unsupported，附测试证据。"
+      ],
+      "tests": [
+        "严格 DNS 请求在无能力时启动前拒绝。",
+        "只写限制不能伪装成读取白名单。",
+        "链接、盘符大小写、UNC／ADS 等按契约处理。"
+      ],
+      "acceptance": [
+        "策略编译有正反例，主循环不直接读取 UI 的 backend 配置。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "C06",
+        "C24",
+        "N08"
+      ]
+    },
+    {
+      "id": "F08",
+      "title": "实现 Node／SRT Bridge 与可信启动器",
+      "depends_on": [
+        "F01",
+        "F05",
+        "F07"
+      ],
+      "chapters": [
+        11
+      ],
+      "files": [
+        "sandbox_bridge/src/",
+        "forge/sandbox/backend.py",
+        "forge/sandbox/srt_backend.py",
+        "tests/implementation/integration/test_bridge.py"
+      ],
+      "steps": [
+        "锁定 SRT API adapter，提供 probe／prepare／execute／status／cancel／close。",
+        "每 session 一个 Bridge，固定路径 Node 和资源。",
+        "执行 payload 与控制通道分离，stdout 仅作为数据封装。",
+        "实现 raw output 限额、增量解码、execution 幂等及归属。"
+      ],
+      "tests": [
+        "子进程输出伪造 RPC 不影响审批或成绩。",
+        "Bridge 初始化失败无普通 spawn 回退。",
+        "带特殊字符 argv 保持语义；重复 execution 不重跑。",
+        "重复 close 返回原清理结果。"
+      ],
+      "acceptance": [
+        "Bridge 不含 Agent 规划逻辑；所有外部启动位置可审计。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "C07",
+        "C08",
+        "C09",
+        "C16",
+        "C17",
+        "D13",
+        "N05"
+      ]
+    },
+    {
+      "id": "F09",
+      "title": "Linux 原生限制与生命周期验证",
+      "depends_on": [
+        "F07",
+        "F08"
+      ],
+      "chapters": [
+        11,
+        12
+      ],
+      "files": [
+        "forge/sandbox/doctor.py",
+        "sandbox_bridge/src/adapter.ts",
+        "tests/implementation/native/linux/",
+        "docs/platforms/linux.md"
+      ],
+      "steps": [
+        "适配 Linux SRT 依赖与系统能力检查。",
+        "验证文件、网络、进程边界并报告实际能力。",
+        "处理 system policy 阻断、namespace 与进程所有权。",
+        "添加 Ubuntu 22.04／24.04 两套原生证据。"
+      ],
+      "tests": [
+        "允许写入成功，项目外合成敏感读写拒绝。",
+        "移除代理变量不绕过声明网络约束。",
+        "取消受管子进程无残留或明确 unknown。",
+        "不支持的系统返回 blocked。"
+      ],
+      "acceptance": [
+        "不依赖 Docker 跑日常 native fixture。",
+        "不通过禁用 AppArmor／Electron sandbox 凑通过。"
+      ],
+      "verification_suites": [
+        "sandbox-linux"
+      ],
+      "non_goals": "不宣称 cgroup 等未实现的资源能力，不修改全局 sysctl。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "C10",
+        "C11",
+        "C12"
+      ]
+    },
+    {
+      "id": "F10",
+      "title": "Windows 原生 setup、ACL、网络与清理",
+      "depends_on": [
+        "F07",
+        "F08"
+      ],
+      "chapters": [
+        12,
+        20
+      ],
+      "files": [
+        "forge/sandbox/doctor.py",
+        "sandbox_bridge/src/windows_adapter.ts",
+        "apps/desktop/src/main/setup_broker.ts",
+        "tests/implementation/native/windows/"
+      ],
+      "steps": [
+        "实现固定 install／repair／diagnose 调用和明确 UAC 交互。",
+        "校验 session 权限、工具可达性、Job／网络所有权。",
+        "串行 worker、会话固定 grants、恢复与共享安装保护。",
+        "记录 DNS 等真实限制，系统安装未批准时保持 blocked。"
+      ],
+      "tests": [
+        "无 WSL／Docker 原生读改测。",
+        "中文／空格／长路径／PowerShell 编码正确。",
+        "指定越界被拒，取消与 ACL 清理有证据。",
+        "拒绝安装不提权、不降级。"
+      ],
+      "acceptance": [
+        "Windows 真机或独立 VM 证据包含 OS、SRT、policy 和 verifier 版本。",
+        "只有 Mock／类型检查不能将本任务验证标 pass。"
+      ],
+      "verification_suites": [
+        "sandbox-windows"
+      ],
+      "non_goals": "不自研驱动，不自动删除其他应用共用的 SRT 安装。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "C21",
+        "W01",
+        "W02",
+        "W03",
+        "W04",
+        "W05",
+        "W06",
+        "W07",
+        "W08",
+        "W09",
+        "W10",
+        "W11",
+        "W12",
+        "D39",
+        "N07"
+      ]
+    },
+    {
+      "id": "F11",
+      "title": "迁移真实文件操作并统一工具边界",
+      "depends_on": [
+        "F04",
+        "F07",
+        "F08"
+      ],
+      "chapters": [
+        9,
+        11
+      ],
+      "files": [
+        "forge/sandbox/file_worker.py",
+        "forge/engine/__main__.py",
+        "实际 read/write/patch/search/workspace observer",
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "steps": [
+        "保留工具 schema，将实际 IO 移入固定受限 helper。",
+        "实现 expected hash、原子 patch、revision 与失效事件。",
+        "checkpoint 仅观察授权内容，可信日志位于控制面。",
+        "盘点 Hook／MCP／Explore，未受限扩展有明确标签和严格模式规则。"
+      ],
+      "tests": [
+        "Shell 与 read_file 对禁用路径一致。",
+        "外部编辑导致 STALE_FILE，不覆盖用户改动。",
+        "file-worker 不加载凭证或启动 Engine server。",
+        "控制面配置和日志不可被任务改写。"
+      ],
+      "acceptance": [
+        "读—改—搜—测—观察在同一工作区边界内。",
+        "未迁移扩展不被宣传为沙盒覆盖。"
+      ],
+      "verification_suites": [
+        "portable",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C20",
+        "C22",
+        "C23",
+        "D22",
+        "N09"
+      ]
+    },
+    {
+      "id": "F12",
+      "title": "取消、期限与后台服务的统一管理",
+      "depends_on": [
+        "F05",
+        "F08",
+        "F11"
+      ],
+      "chapters": [
+        6,
+        11,
+        15
+      ],
+      "files": [
+        "forge/engine/lifecycle.py",
+        "forge/engine/scheduler.py",
+        "实际工具取消入口",
+        "tests/implementation/integration/test_cancellation.py"
+      ],
+      "steps": [
+        "统一模型流、子 Agent、审批等待、命令和 Bridge 的取消传播。",
+        "区分 cancel_requested、confirmed、cleanup、indeterminate。",
+        "实现 Agent／grader／环境期限与服务保留。",
+        "EOF／睡眠／崩溃时停止新工作并做有所有权的清理。"
+      ],
+      "tests": [
+        "只读慢工具被取消后不出现下一次模型调用。",
+        "写操作结果未知不自动重放。",
+        "服务评分时仍可访问，结束后清理。",
+        "日志输出洪泛不阻塞取消请求。"
+      ],
+      "acceptance": [
+        "取消测试看实际进程和请求计数，不看按钮隐藏。"
+      ],
+      "verification_suites": [
+        "portable",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "C13",
+        "C14",
+        "C15",
+        "C18",
+        "C19",
+        "D11",
+        "D17"
+      ]
+    },
+    {
+      "id": "F13",
+      "title": "Electron 壳与 Engine Supervisor",
+      "depends_on": [
+        "F01",
+        "F05",
+        "F06"
+      ],
+      "chapters": [
+        15,
+        16,
+        20
+      ],
+      "files": [
+        "apps/desktop/src/main/",
+        "apps/desktop/src/preload/",
+        "apps/desktop/forge.config.ts",
+        "packages/ui/"
+      ],
+      "steps": [
+        "建立安全 BrowserWindow、固定资源协议与单实例入口。",
+        "启动固定 Engine 路径，握手后才允许任务。",
+        "Main 始终读取管道，监督异常和关闭顺序。",
+        "处理安装参数，建立开发和打包 smoke 路径。"
+      ],
+      "tests": [
+        "从任意 cwd 启动，资源定位正确。",
+        "协议不兼容禁用新任务。",
+        "Renderer 重载不重启 Engine。",
+        "安装事件不启动 Agent。"
+      ],
+      "acceptance": [
+        "独立窗口可连真实 Engine 显示 demo turn。",
+        "无默认 HTTP 管理监听。"
+      ],
+      "verification_suites": [
+        "unit",
+        "desktop",
+        "packaged"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D03",
+        "D06",
+        "D14",
+        "D34"
+      ]
+    },
+    {
+      "id": "F14",
+      "title": "限权 IPC、原生授权与应用协议安全",
+      "depends_on": [
+        "F05",
+        "F10",
+        "F13"
+      ],
+      "chapters": [
+        10,
+        16
+      ],
+      "files": [
+        "apps/desktop/src/main/ipc.ts",
+        "apps/desktop/src/main/approvals.ts",
+        "apps/desktop/src/preload/",
+        "tests/desktop/security/"
+      ],
+      "steps": [
+        "按业务暴露 preload，每个 IPC 校验 sender、frame、origin、schema。",
+        "目录注册和高风险审批由 Main 重新取可信详情。",
+        "实现 binding nonce／hash／expiry 消费。",
+        "禁止导航、webview、远程脚本和任意原生接口。"
+      ],
+      "tests": [
+        "恶意 iframe／未知方法／伪审批不能获得权限。",
+        "审批参数变化后旧批准失效。",
+        "自定义协议 traversal 被拒。",
+        "项目 HTML 不执行脚本。"
+      ],
+      "acceptance": [
+        "Renderer 无任意 RPC／文件／Shell／密钥读回接口。"
+      ],
+      "verification_suites": [
+        "unit",
+        "desktop"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D12",
+        "D19",
+        "D20",
+        "D27",
+        "D28",
+        "N10"
+      ]
+    },
+    {
+      "id": "F15",
+      "title": "凭证 Broker 与连接管理",
+      "depends_on": [
+        "F13",
+        "F14"
+      ],
+      "chapters": [
+        10,
+        16
+      ],
+      "files": [
+        "apps/desktop/src/main/credential_broker.ts",
+        "forge/application/connections.py",
+        "packages/ui/src/pages/settings/",
+        "tests/desktop/credentials/"
+      ],
+      "steps": [
+        "实现系统存储 adapter 与内存模式。",
+        "安全注入 Engine 连接，阻止日志／argv／task env 泄漏。",
+        "base URL 与 credential 绑定，跨 origin 变更需要确认。",
+        "实现删除、锁定和临时不可用状态。"
+      ],
+      "tests": [
+        "Linux basic_text／unknown 不持久化秘密。",
+        "Windows 当前用户存储可读，Renderer 无读回。",
+        "合成 key 在导出／日志／子进程中不可见。",
+        "修改 endpoint 不自动携带旧密钥。"
+      ],
+      "acceptance": [
+        "设置页显示真实保护级别；未批准连接无网络测试。"
+      ],
+      "verification_suites": [
+        "unit",
+        "desktop",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D25",
+        "D26",
+        "N11",
+        "N12"
+      ]
+    },
+    {
+      "id": "F16",
+      "title": "项目、会话、流式任务和 Diff 页面",
+      "depends_on": [
+        "F11",
+        "F12",
+        "F13",
+        "F14",
+        "F15"
+      ],
+      "chapters": [
+        15,
+        19
+      ],
+      "files": [
+        "packages/ui/src/pages/workspace/",
+        "packages/ui/src/components/diff/",
+        "packages/ui/src/state/",
+        "forge/application/workspaces.py"
+      ],
+      "steps": [
+        "实现首页、最近项目、inspect-only 和会话导航。",
+        "通过事件驱动流式消息、工具卡、取消和审批状态。",
+        "区分原有 dirty 与任务变化，支持大文件／二进制提示。",
+        "恢复以预览／patch 为主，遵守 hash 和写入锁。"
+      ],
+      "tests": [
+        "IME composing 时 Enter 不提交。",
+        "UI 重载后去重显示且不重开 turn。",
+        "外部修改刷新 revision，不能一键覆盖。",
+        "10000 项列表有界渲染。"
+      ],
+      "acceptance": [
+        "用户可在 GUI 完成选项目—发任务—看 Diff—取消／完成。"
+      ],
+      "verification_suites": [
+        "desktop",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D21",
+        "D23",
+        "D33"
+      ]
+    },
+    {
+      "id": "F17",
+      "title": "Harness 核心埋点与可信事件投影",
+      "depends_on": [
+        "F03",
+        "F04",
+        "F05"
+      ],
+      "chapters": [
+        7,
+        13
+      ],
+      "files": [
+        "forge/observability/events.py",
+        "forge/observability/recorder.py",
+        "实际 Runner/Executor/model call",
+        "tests/implementation/integration/test_traces.py"
+      ],
+      "steps": [
+        "按事件目录覆盖 turn、模型、工具、审批、恢复、sandbox、grader。",
+        "传播 trace／span／execution 与 source sequence。",
+        "保留 Journal 权威，建立原始事件与查询投影。",
+        "区分可信控制事件和工具内容，来源冲突隔离。"
+      ],
+      "tests": [
+        "模型—工具—上下文—验证链父子关系完整。",
+        "进程重启 link 原 Trace 而不是伪造无中断轨迹。",
+        "伪输出不能写 grade／budget。",
+        "重复事件不增加计数。"
+      ],
+      "acceptance": [
+        "关键运行事实能从事件与 artifact 追溯。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "O06"
+      ]
+    },
+    {
+      "id": "F18",
+      "title": "Usage、上下文、证据与 OTLP",
+      "depends_on": [
+        "F17"
+      ],
+      "chapters": [
+        13,
+        14
+      ],
+      "files": [
+        "forge/observability/usage_ledger.py",
+        "forge/observability/context_snapshots.py",
+        "forge/observability/otel_mapping.py",
+        "forge/observability/export_queue.py"
+      ],
+      "steps": [
+        "每个真实请求计一次费用，角色与 retry 独立归因。",
+        "记录上下文版本和验证失效原因。",
+        "实现锁定版本 OTel 映射及异步导出。",
+        "实现采集模式、脱敏和有界队列。"
+      ],
+      "tests": [
+        "父子汇总不重复收费，缺 usage 为 unknown。",
+        "缓存 token 按 provider fixtures 归一正确。",
+        "exporter 断开不阻断 Agent。",
+        "过期证据 UI 查询对应真实行为。"
+      ],
+      "acceptance": [
+        "总费用能按请求 ledger 手工复算。",
+        "调试载荷不默认外发。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "O01",
+        "O02",
+        "O03",
+        "O05",
+        "N13"
+      ]
+    },
+    {
+      "id": "F19",
+      "title": "RunSpec、trial／attempt 与评测调度",
+      "depends_on": [
+        "F03",
+        "F05",
+        "F07",
+        "F17"
+      ],
+      "chapters": [
+        17
+      ],
+      "files": [
+        "benchmark/core/spec.py",
+        "benchmark/core/scheduler.py",
+        "benchmark/core/metrics.py",
+        "forge/application/evaluations.py"
+      ],
+      "steps": [
+        "固定配置并在创建时生成全部 trial。",
+        "区分独立重复、基础设施 attempt、API retry 和反馈修复。",
+        "实现 worker 领取、owner epoch、重试策略和三轴终态。",
+        "实现指标口径与配置可比性检查。"
+      ],
+      "tests": [
+        "未领取任务仍在分母。",
+        "旧 epoch 结果不能覆盖当前 attempt。",
+        "相同 create action 不产生重复 run。",
+        "零成功／未知费用输出 N/A／unknown。"
+      ],
+      "acceptance": [
+        "手算 fixture 的全部指标与预期一致。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "O08",
+        "O09",
+        "D24",
+        "N14"
+      ]
+    },
+    {
+      "id": "F20",
+      "title": "包装已有公开 Benchmark Runner",
+      "depends_on": [
+        "F11",
+        "F12",
+        "F19"
+      ],
+      "chapters": [
+        17,
+        19
+      ],
+      "files": [
+        "benchmark/adapters/",
+        "实际 benchmark/harbor/ 与 Aider Runner",
+        "tests/implementation/integration/test_benchmark_adapters.py"
+      ],
+      "steps": [
+        "依据审计保留现有 Runner 入口并添加统一协议输出。",
+        "实现 describe／validate／execute／collect／grade 的职责分离。",
+        "至少一个现有公开基准小集端到端接入。",
+        "实现 Linux-only 诊断、RunSpec 导出及原生结果标签。"
+      ],
+      "tests": [
+        "fixture runner 的非零退出／无 reward／grader 失败分别记录。",
+        "更换 patch 生成新 grader cache key。",
+        "Windows 不兼容任务不静默替换协议。",
+        "原 Runner 离线／参数测试不回归。"
+      ],
+      "acceptance": [
+        "有真实小集证据；未获 API 或环境授权部分明确 blocked。"
+      ],
+      "verification_suites": [
+        "portable",
+        "live-eval"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D37"
+      ]
+    },
+    {
+      "id": "F21",
+      "title": "安全结果包与只读复算",
+      "depends_on": [
+        "F18",
+        "F19",
+        "F20"
+      ],
+      "chapters": [
+        18
+      ],
+      "files": [
+        "benchmark/core/bundle.py",
+        "benchmark/core/results.py",
+        "forge/application/artifacts.py",
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "steps": [
+        "实现 manifest、hash、来源、隐私分类和分块 artifact。",
+        "安全 staging 解包、配额、冲突隔离、幂等导入。",
+        "原始证据与脱敏输出分开。",
+        "离线复算不调用模型、不执行脚本。"
+      ],
+      "tests": [
+        "traversal／symlink／zip bomb／重复文件被拒。",
+        "相同包重复导入不双计，冲突不覆盖。",
+        "导出后复算指标一致。",
+        "外部包无签名不显示本机可信。"
+      ],
+      "acceptance": [
+        "结果包有 schema 和正反例，导入过程无脚本执行。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "O10",
+        "N15",
+        "N16"
+      ]
+    },
+    {
+      "id": "F22",
+      "title": "Trace、上下文、证据与费用可视化",
+      "depends_on": [
+        "F13",
+        "F17",
+        "F18"
+      ],
+      "chapters": [
+        13,
+        14,
+        15
+      ],
+      "files": [
+        "packages/ui/src/pages/observability/",
+        "packages/ui/src/components/trace/",
+        "forge/application/queries.py"
+      ],
+      "steps": [
+        "实现 Trace 树／瀑布图、输出懒加载、上下文版本、证据面板。",
+        "从工具卡与完成拒绝跳到对应事实。",
+        "展示费用质量和采集缺口。",
+        "用户侧时延与 Harness 执行耗时分离。"
+      ],
+      "tests": [
+        "从 stale-evidence fixture 找到 revision 差异。",
+        "重连后无重复费用和空洞伪装。",
+        "大 trace 下界面有界且可分页。",
+        "不渲染隐藏思考或原始脚本。"
+      ],
+      "acceptance": [
+        "失败任务能定位到执行—上下文—证据完整链。"
+      ],
+      "verification_suites": [
+        "desktop",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": []
+    },
+    {
+      "id": "F23",
+      "title": "实验 Wizard、逐题对比与导入导出 UI",
+      "depends_on": [
+        "F16",
+        "F19",
+        "F20",
+        "F21",
+        "F22"
+      ],
+      "chapters": [
+        15,
+        17,
+        18
+      ],
+      "files": [
+        "packages/ui/src/pages/evaluations/",
+        "packages/ui/src/components/run-spec/",
+        "apps/desktop/src/main/dialogs.ts"
+      ],
+      "steps": [
+        "实现四步实验配置、创建前兼容性与预算检查。",
+        "展示计划分母、首次尝试、重试、未评分和清理状态。",
+        "同题 A/B 双轨迹和不可比警告。",
+        "原生文件选择下导入／导出与隐私确认。"
+      ],
+      "tests": [
+        "不兼容 Windows 本机任务有导出入口而非假运行。",
+        "改变配置创建新 run。",
+        "重试不能不透明地选择最好结果。",
+        "删除产物后页面显示复核缺失。"
+      ],
+      "acceptance": [
+        "用户能在客户端完成小集评测与对照报告。"
+      ],
+      "verification_suites": [
+        "desktop",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": []
+    },
+    {
+      "id": "F24",
+      "title": "失败案例库与规则诊断",
+      "depends_on": [
+        "F18",
+        "F21",
+        "F22",
+        "F23"
+      ],
+      "chapters": [
+        18
+      ],
+      "files": [
+        "forge/application/annotations.py",
+        "packages/ui/src/pages/failures/",
+        "tests/implementation/unit/test_annotations.py"
+      ],
+      "steps": [
+        "实现分类、证据引用、人工修正和版本保留。",
+        "增加有限规则告警：重复错误、过期证据、初始化／清理失败。",
+        "脱敏保存最小回归样例，区分“已保存”和“已复现”。"
+      ],
+      "tests": [
+        "规则相关性不自动写成可信根因。",
+        "修改标注保留旧版。",
+        "缺 artifact 的案例不能标完全可复现。"
+      ],
+      "acceptance": [
+        "可从失败题保存带证据的回归候选。"
+      ],
+      "verification_suites": [
+        "unit",
+        "desktop"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": []
+    },
+    {
+      "id": "F25",
+      "title": "崩溃对账、幂等恢复与事件续读集成",
+      "depends_on": [
+        "F03",
+        "F05",
+        "F12",
+        "F13",
+        "F17"
+      ],
+      "chapters": [
+        6,
+        7,
+        8,
+        15
+      ],
+      "files": [
+        "forge/engine/lifecycle.py",
+        "forge/engine/journal_projection.py",
+        "apps/desktop/src/main/supervisor.ts",
+        "tests/implementation/integration/test_recovery.py"
+      ],
+      "steps": [
+        "实现 Renderer／Main／Engine／Bridge 分别失效的矩阵。",
+        "对已受理任务、Journal intent、进程归属和 artifact 做恢复对账。",
+        "未知副作用不自动重放，提供可解释恢复状态。",
+        "处理 sleep、deadline 与 cursor expiration。"
+      ],
+      "tests": [
+        "响应丢失、进程 kill、重启交错下无重复工作。",
+        "PID 复用 fixture 不清理无关进程。",
+        "WAL 与事件投影缺口可恢复。",
+        "取消未确认不显示 cancelled。"
+      ],
+      "acceptance": [
+        "每类故障有测试和实际事件证据。"
+      ],
+      "verification_suites": [
+        "portable",
+        "desktop",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D08",
+        "D15",
+        "D16",
+        "D18",
+        "N21",
+        "N22"
+      ]
+    },
+    {
+      "id": "F26",
+      "title": "CLI、历史会话和共享锁兼容",
+      "depends_on": [
+        "F04",
+        "F11",
+        "F25"
+      ],
+      "chapters": [
+        19
+      ],
+      "files": [
+        "实际 CLI 入口",
+        "forge/application/legacy_import.py",
+        "forge/application/workspaces.py",
+        "forge/engine/http_adapter.py",
+        "tests/implementation/integration/test_compatibility.py"
+      ],
+      "steps": [
+        "接入共享项目锁与服务，不要求启动桌面才能运行 CLI。",
+        "保留旧命令行为，strict／local-trusted 明确。",
+        "只读扫描、备份和幂等导入历史数据。",
+        "登记 MCP／Hook／飞书等扩展的覆盖边界。",
+        "实现默认关闭的最小 HTTP／SSE adapter 与 HttpTransport，公共方法契约等价，审批等特权方法受角色限制。"
+      ],
+      "tests": [
+        "CLI／Desktop 同项目冲突不并发写。",
+        "旧会话导入两次无重复。",
+        "旧配置未知字段有诊断。",
+        "原工具 schema golden tests 通过。"
+      ],
+      "acceptance": [
+        "现有 CLI 可用，旧数据无破坏性就地迁移。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D35",
+        "D36",
+        "D38"
+      ]
+    },
+    {
+      "id": "F27",
+      "title": "双平台打包、安装、版本与升级",
+      "depends_on": [
+        "F01",
+        "F10",
+        "F13",
+        "F15",
+        "F25",
+        "F26"
+      ],
+      "chapters": [
+        20
+      ],
+      "files": [
+        "packaging/forge_engine.spec",
+        "scripts/package_engine.py",
+        "scripts/assemble_release.py",
+        "apps/desktop/forge.config.ts",
+        "release-manifest.json"
+      ],
+      "steps": [
+        "打包 Python onedir、独立 Node／Bridge／helper 和许可。",
+        "处理 frozen 解释器语义、DLL 环境、资源定位与 Windows 安装事件。",
+        "构建 Windows installer／Linux deb，附 hash／签名状态。",
+        "实现人工升级、schema 检查、备份和卸载策略。"
+      ],
+      "tests": [
+        "干净机器无全局 Python／Node 仍启动 Engine。",
+        "项目 Git／Python／Node 不加载私有错误库。",
+        "component 篡改／版本错配拒绝运行。",
+        "升级失败可读原备份，用户项目不被卸载。"
+      ],
+      "acceptance": [
+        "两个平台真实安装产物有完整 smoke 和 native 记录。",
+        "无证书时标 developer-preview。"
+      ],
+      "verification_suites": [
+        "packaged",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "D01",
+        "D02",
+        "D05",
+        "D29",
+        "D31",
+        "D32",
+        "D40",
+        "N17",
+        "N18",
+        "N19"
+      ]
+    },
+    {
+      "id": "F28",
+      "title": "全量平台、性能和安全验收",
+      "depends_on": [
+        "F09",
+        "F10",
+        "F11",
+        "F12",
+        "F14",
+        "F15",
+        "F16",
+        "F18",
+        "F21",
+        "F22",
+        "F23",
+        "F24",
+        "F25",
+        "F26",
+        "F27",
+        "F30"
+      ],
+      "chapters": [
+        21,
+        24
+      ],
+      "files": [
+        "tests/implementation/native/",
+        "tests/desktop/",
+        "docs/implementation/evidence/",
+        "docs/platforms/support-matrix.md"
+      ],
+      "steps": [
+        "运行原 86 场景与新增契约场景，按平台保留结果。",
+        "在声明的 Windows／Ubuntu 环境测安装、执行、恢复、secret store。",
+        "测冷启动、事件洪泛、磁盘、UI 和观测开销。",
+        "整理缺陷、回归和支持矩阵，不掩盖 blocked。"
+      ],
+      "tests": [
+        "所列 acceptance registry 每项有测试映射和证据。",
+        "native 与 packaged 验证不能只含 Mock。",
+        "生产 fuse 配置有独立 smoke。"
+      ],
+      "acceptance": [
+        "所有 P0 必需平台／安全项通过，或明确发布受阻。"
+      ],
+      "verification_suites": [
+        "portable",
+        "desktop",
+        "packaged",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "N20"
+      ]
+    },
+    {
+      "id": "F29",
+      "title": "持续集成、证据门禁与依赖安全",
+      "depends_on": [
+        "F02",
+        "F05",
+        "F13"
+      ],
+      "chapters": [
+        21,
+        22,
+        24
+      ],
+      "files": [
+        ".github/workflows/",
+        "scripts/impl.py",
+        "tests/implementation/unit/test_gates.py",
+        "docs/implementation/ci.md"
+      ],
+      "steps": [
+        "建立 contracts／unit／portable 的 Linux／Windows 矩阵。",
+        "GUI／native／packaged 分层，特权 runner 不向不可信 fork PR 开放。",
+        "将验收 case 和证据映射为真实 gate。",
+        "检查锁文件、secret、类型、静态质量、schema 漂移。"
+      ],
+      "tests": [
+        "缺证据、全部 skip、零测试时 gate 非零。",
+        "未授权 PR 无法获取 signing／API secrets。",
+        "文档和 backlog 依赖图无循环。"
+      ],
+      "acceptance": [
+        "CI 能阻止伪通过，不因 runner 无权限自动降低 required。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "N23"
+      ]
+    },
+    {
+      "id": "F30",
+      "title": "依据证据优化现有 Harness",
+      "depends_on": [
+        "F12",
+        "F17",
+        "F18",
+        "F25"
+      ],
+      "chapters": [
+        9,
+        14,
+        17
+      ],
+      "files": [
+        "实际 runtime/context/session 模块",
+        "tests/implementation/integration/test_harness_regressions.py",
+        "docs/implementation/adr/"
+      ],
+      "steps": [
+        "把此前潜在问题重新转成当前分支测试，重现才修复。",
+        "校准取消传播、父子预算、上下文配对和过期证据。",
+        "提供真实的交付修复开关与 capability 描述。",
+        "保留基线配置和行为差异，不同时改变多项实验因素。"
+      ],
+      "tests": [
+        "取消后额外模型请求为零。",
+        "子 Agent 消耗只计一次且共享额度。",
+        "压缩后工具协议合法，验证版本不误用。",
+        "repair=0 与 repair=2 行为差异可确定验证。"
+      ],
+      "acceptance": [
+        "每项修改有 before／after 行为证据，不预写成功率提升。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "O04"
+      ]
+    },
+    {
+      "id": "F31",
+      "title": "执行对照实验与生成可复算报告",
+      "depends_on": [
+        "F20",
+        "F21",
+        "F23",
+        "F28",
+        "F30"
+      ],
+      "chapters": [
+        17,
+        18
+      ],
+      "files": [
+        "experiments/delivery-repair.json",
+        "docs/experiments/",
+        "scripts/impl.py",
+        "实验 artifact 索引"
+      ],
+      "steps": [
+        "冻结任务和 A/B 配置，做无费用协议验证。",
+        "取得用户明确预算／key／环境许可后预实验并锁规模。",
+        "正式交错运行，保留所有 attempt、usage 与 grader 产物。",
+        "逐题配对和 task-cluster 区间，报告回退、成本与限制。"
+      ],
+      "tests": [
+        "未授权执行返回 blocked。",
+        "相同 bundle 离线复算一致。",
+        "A/B 非目标配置差异被检测。",
+        "真实结果不使用 Mock 或 best-of 历史替换。"
+      ],
+      "acceptance": [
+        "实验流程完整可运行；实际成绩有来源，缺授权明确未实测。"
+      ],
+      "verification_suites": [
+        "portable",
+        "live-eval"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": [
+        "N24"
+      ]
+    },
+    {
+      "id": "F32",
+      "title": "最终发布审查与用户文档",
+      "depends_on": [
+        "F28",
+        "F29",
+        "F31"
+      ],
+      "chapters": [
+        24,
+        26
+      ],
+      "files": [
+        "README.md",
+        "docs/install/",
+        "docs/security/",
+        "docs/implementation/final-report.md",
+        "发布资产清单"
+      ],
+      "steps": [
+        "复查全部 P0 功能／平台／安全／兼容／实验要求。",
+        "从干净安装按 README 完成演示。",
+        "输出完成、阻塞、不支持、上游复用与个人实现清单。",
+        "准备安装包与证据索引，发布上传需另行授权。"
+      ],
+      "tests": [
+        "用户文档步骤实际运行成功。",
+        "无 TODO stub／静态假数据支撑必需功能。",
+        "未签名／未原生验证的包不能标正式稳定版。"
+      ],
+      "acceptance": [
+        "代码完成、产品验收、真实实验三个结论分别声明。",
+        "final-report 与 evidence／progress 一致。"
+      ],
+      "verification_suites": [
+        "release"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "todo",
+      "evidence_ids": [],
+      "case_ids": []
+    }
+  ]
+}

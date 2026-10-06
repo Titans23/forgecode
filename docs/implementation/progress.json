@@ -1,0 +1,323 @@
+{
+  "schema_version": "forge.implementation.progress.v1",
+  "document_version": "4.0.0",
+  "actual_repository_head": "d5c08a3158c764d4e797b2a1e2907e391f6414a8",
+  "next_recommended_task": "F01",
+  "current_task": null,
+  "tasks": {
+    "F00": {
+      "implementation_status": "implemented",
+      "verification": {
+        "audit": "pass",
+        "regression": "pass"
+      },
+      "evidence_ids": ["20261006T091942Z-d39f0b28", "20261006T092001Z-c7f13bd9"],
+      "blocked_reasons": []
+    },
+    "F01": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "packaged": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F02": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F03": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F04": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F05": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F06": {
+      "implementation_status": "todo",
+      "verification": {
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F07": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F08": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F09": {
+      "implementation_status": "todo",
+      "verification": {
+        "sandbox-linux": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F10": {
+      "implementation_status": "todo",
+      "verification": {
+        "sandbox-windows": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F11": {
+      "implementation_status": "todo",
+      "verification": {
+        "portable": "not_run",
+        "sandbox-linux": "not_run",
+        "sandbox-windows": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F12": {
+      "implementation_status": "todo",
+      "verification": {
+        "portable": "not_run",
+        "sandbox-linux": "not_run",
+        "sandbox-windows": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F13": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "desktop": "not_run",
+        "packaged": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F14": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "desktop": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F15": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "desktop": "not_run",
+        "sandbox-linux": "not_run",
+        "sandbox-windows": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F16": {
+      "implementation_status": "todo",
+      "verification": {
+        "desktop": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F17": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F18": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F19": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F20": {
+      "implementation_status": "todo",
+      "verification": {
+        "portable": "not_run",
+        "live-eval": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F21": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F22": {
+      "implementation_status": "todo",
+      "verification": {
+        "desktop": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F23": {
+      "implementation_status": "todo",
+      "verification": {
+        "desktop": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F24": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "desktop": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F25": {
+      "implementation_status": "todo",
+      "verification": {
+        "portable": "not_run",
+        "desktop": "not_run",
+        "sandbox-linux": "not_run",
+        "sandbox-windows": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F26": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F27": {
+      "implementation_status": "todo",
+      "verification": {
+        "packaged": "not_run",
+        "sandbox-linux": "not_run",
+        "sandbox-windows": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F28": {
+      "implementation_status": "todo",
+      "verification": {
+        "portable": "not_run",
+        "desktop": "not_run",
+        "packaged": "not_run",
+        "sandbox-linux": "not_run",
+        "sandbox-windows": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F29": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F30": {
+      "implementation_status": "todo",
+      "verification": {
+        "unit": "not_run",
+        "portable": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F31": {
+      "implementation_status": "todo",
+      "verification": {
+        "portable": "not_run",
+        "live-eval": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    },
+    "F32": {
+      "implementation_status": "todo",
+      "verification": {
+        "release": "not_run"
+      },
+      "evidence_ids": [],
+      "blocked_reasons": []
+    }
+  },
+  "gates": {
+    "G0-baseline": "not_run",
+    "G1-contracts-engine": "not_run",
+    "G2-native-sandbox": "not_run",
+    "G3-desktop-observability": "not_run",
+    "G4-evaluation": "not_run",
+    "G5-packaging-platform": "not_run",
+    "G6-real-experiment": "not_run",
+    "G7-release": "not_run"
+  }
+}
