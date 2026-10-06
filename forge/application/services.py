@@ -18,6 +18,7 @@ from forge.engine.journal_projection import JournalProjector
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.runtime.state import TurnCompleted
 from forge.sessions.store import SessionStore
+from forge.sandbox.policy import compile_policy
 
 
 class CredentialProvider(Protocol):
@@ -73,10 +74,11 @@ class ApplicationServices:
 
     def put_policy(self, policy):
         validate('sandbox-policy', policy)
-        self._workspace(policy['workspace_id'])
+        workspace = self._workspace(policy['workspace_id'])
+        snapshot = compile_policy(policy, workspace, control_roots=(self.store.data_dir,))
         with self.store.transaction():
             self.store.connection.execute('INSERT INTO policies VALUES(?,?,?,?)',
-                (policy['policy_id'], canonical_hash(policy), encoded(policy), self.mode))
+                (policy['policy_id'], snapshot.sha256, encoded(snapshot.value), self.mode))
         return policy['policy_id']
 
     def put_budget(self, budget):
@@ -117,6 +119,9 @@ class ApplicationServices:
             raise ContractError('Policy execution mode changed', kind='STALE_REVISION', code=-32010)
         if policy_value['workspace_id'] != workspace_id:
             raise ContractError('Policy belongs to another workspace', kind='UNAUTHORIZED', code=-32010)
+        compiled = compile_policy(policy_value, workspace, control_roots=(self.store.data_dir,))
+        if compiled.sha256 != policy['hash']:
+            raise ContractError('Policy normalization or path bindings changed; provision a new policy', kind='STALE_REVISION', code=-32010)
         credential = self.credentials.resolve(params['connection_id'])
         if not credential:
             raise ContractError('Connection credential is unavailable', kind='CONNECTION_UNAVAILABLE', code=-32010)

@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前完成 F00—F06；下一任务 F07（已阅读任务卡、第 10—12 章和 SRT 锁定源码）。
+- 当前完成 F00—F07；下一任务 F08（任务卡和第 11 章已读）。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -95,3 +95,13 @@
   断开响应后 drain，再开启 Engine 用 action.get 和同 ID 重试，确认只有一个 turn/Journal。
 - F07 已阅读任务卡、第 10—12 章和锁定 SRT 的 config/schema 类型。allowRead 是 deny
   例外，不能伪装严格读取白名单；需要路径身份/链接/特殊路径拒绝及独立能力要求检查。
+- F06 已推送 b5d2b4f5a79d9691e0a94ce430c38375911b4adc。
+- F07 已实现 forge/sandbox policy/capabilities/path_policy，规范化/hash/服务前置复核、
+  强要求拒绝、真实身份/硬链接/junction/特殊路径、外部 gitdir/commondir 保护。
+  capability verification schema 及 3 个生成文件已更新；未探测无 verified 能力。
+  unit 96 / portable 56 pass，0 skip，证据 20261006T115350Z-bfd58d91 /
+  20261006T115355Z-edb1d80e；contracts --check pass。完整回归 892 pass、0 skip，
+  20261006T115517Z-a30f1c2e。Native OS 隔离与动态 shell/file-worker 验收 blocked。
+- F08 已阅读任务卡和第 11 章；待做实际 SRT adapter/每 session Bridge/可信 fixed runtime
+  启动/受限 dispatcher/data-output/幂等/归属/清理。F01 loader 是 packaging/verify-release.mjs
+  的 verifyAsset/verifyReleaseLock，Node 24.21.0 资产在 release-lock；GHSA 生产阻断保持。

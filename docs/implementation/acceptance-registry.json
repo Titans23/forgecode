@@ -126,8 +126,12 @@
       "title": "配置不存在／非法时拒绝执行",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_policy.py",
+        "tests/implementation/integration/test_policy_service.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "status": "blocked",
       "owner_task": "F07",
       "required_platforms": [
         "windows",
@@ -136,12 +140,22 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T115350Z-bfd58d91",
+            "20261006T115355Z-edb1d80e"
+          ],
+          "scope": "Policy/path compilation and service preflight; not native OS isolation."
         }
       }
     },
@@ -558,8 +572,12 @@
       "title": "声明不支持的强约束在运行前被拒绝",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_policy.py",
+        "tests/implementation/integration/test_policy_service.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "status": "blocked",
       "owner_task": "F07",
       "required_platforms": [
         "windows",
@@ -568,12 +586,22 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T115350Z-bfd58d91",
+            "20261006T115355Z-edb1d80e"
+          ],
+          "scope": "Policy/path compilation and service preflight; not native OS isolation."
         }
       }
     },
@@ -2112,17 +2140,31 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_policy.py",
+        "tests/implementation/integration/test_policy_service.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T115350Z-bfd58d91",
+            "20261006T115355Z-edb1d80e"
+          ],
+          "scope": "Policy/path compilation and service preflight; not native OS isolation."
         }
       }
     },

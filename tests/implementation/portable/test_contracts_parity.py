@@ -17,6 +17,15 @@ def test_python_and_typescript_validate_the_same_real_fixtures_and_hash():
               for item in json.loads((directory / 'method-fixtures.json').read_text())['cases']]
     cases += [{'schema': item['schema'], 'raw': json.dumps(item['value'])}
               for item in json.loads((directory / 'additional-fixtures.json').read_text())['cases']]
+    from copy import deepcopy
+    from forge.sandbox.capabilities import unavailable_report
+    capability = unavailable_report().value
+    cases.append({'schema': 'capability-report', 'raw': json.dumps(capability)})
+    for invalid in ({'status': 'verified', 'evidence_refs': []}, {'status': 'invented', 'evidence_refs': ['x']},
+                    {'status': 'unsupported', 'evidence_refs': [], 'permission': True}):
+        value = deepcopy(capability)
+        value['verification']['dns_isolation'] = invalid
+        cases.append({'schema': 'capability-report', 'raw': json.dumps(value)})
     cases += [{'schema': None, 'raw': raw} for raw in [
         '{"a":1,"a":2}', '{"x":NaN}', '{"x":1e999}', '"\\ud800"',
         '[' * 33 + '0' + ']' * 33, '{"n":9007199254740992}',
@@ -58,3 +67,30 @@ def test_python_and_typescript_validate_the_same_real_fixtures_and_hash():
         except ContractError as error:
             expected_requests.append(error.kind)
     assert actual['requests'] == expected_requests
+
+
+def test_compiled_adapter_settings_match_locked_srt_schemas(tmp_path):
+    from forge.sandbox.capabilities import CapabilityReport, unavailable_report
+    from forge.sandbox.policy import compile_policy
+    from forge.testing.demo import seed_demo
+    from forge.engine.persistence import Store
+    directory = tmp_path / 'demo'
+    directory.mkdir()
+    params, _ = seed_demo(directory)
+    with Store(directory / 'data') as store:
+        workspace = dict(store.connection.execute('SELECT * FROM workspaces WHERE id=?', (params['workspace_id'],)).fetchone())
+        policy = json.loads(store.connection.execute('SELECT normalized_json FROM policies WHERE id=?', (params['policy_id'],)).fetchone()[0])
+    declared = unavailable_report(platform='linux-native', backend_version='0.0.78').value
+    declared.update(read_isolation='protected_paths', write_isolation=True, direct_network_isolation=True,
+        socket_isolation=True, process_cleanup=True, readiness='ready')
+    for name in ('read_isolation', 'write_isolation', 'direct_network_isolation', 'socket_isolation', 'process_cleanup'):
+        declared['verification'][name] = {'status': 'verified', 'evidence_refs': ['unit-schema-input-only']}
+    config = compile_policy(policy, workspace).srt_config(CapabilityReport(declared))
+    program = """import fs from 'node:fs';
+import {FilesystemConfigSchema, NetworkConfigSchema} from './node_modules/@anthropic-ai/sandbox-runtime/dist/sandbox/sandbox-config.js';
+const value = JSON.parse(fs.readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify({filesystem: FilesystemConfigSchema.parse(value.filesystem), network: NetworkConfigSchema.parse(value.network)}));"""
+    result = subprocess.run([shutil.which('node'), '--input-type=module', '-e', program], input=json.dumps(config),
+        capture_output=True, text=True, encoding='utf-8', cwd=ROOT, timeout=30)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == config

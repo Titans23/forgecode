@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "cb724ac5cbd2b874f9d4fdd2f7501905d44c53d5",
-  "next_recommended_task": "F07",
-  "current_task": "F07",
+  "actual_repository_head": "b5d2b4f5a79d9691e0a94ce430c38375911b4adc",
+  "next_recommended_task": "F08",
+  "current_task": "F08",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -59,16 +59,13 @@
       "blocked_reasons": ["Demo uses real host tools with explicit local-trusted mode and scripted model origin. No OS sandbox/desktop/native acceptance or paid-model grades claimed. Remaining five fixture scenarios await their owning tasks."]
     },
     "F07": {
-      "implementation_status": "in_progress",
-      "verification": {
-        "unit": "not_run",
-        "portable": "not_run"
-      },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "implementation_status": "implemented",
+      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked"},
+      "evidence_ids": ["20261006T115350Z-bfd58d91", "20261006T115355Z-edb1d80e", "20261006T115517Z-a30f1c2e"],
+      "blocked_reasons": ["Policy/path compilation and actual Windows 10 file identity/junction behavior verified. Windows 11/Ubuntu OS isolation, dynamic sensitive-file shell/file-worker consistency, and native resource enforcement remain blocked/unverified; no verified native capabilities manufactured."]
     },
     "F08": {
-      "implementation_status": "todo",
+      "implementation_status": "in_progress",
       "verification": {
         "unit": "not_run",
         "portable": "not_run"

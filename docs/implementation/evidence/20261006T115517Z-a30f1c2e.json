@@ -1,0 +1,67 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T115517Z-a30f1c2e",
+  "task_id": null,
+  "case_ids": [
+    "N04",
+    "D30",
+    "N02",
+    "N06",
+    "O07",
+    "D04",
+    "D07",
+    "D09",
+    "D10",
+    "N01",
+    "N03",
+    "C06",
+    "C24",
+    "N08"
+  ],
+  "suite": "regression",
+  "git_commit": "b5d2b4f5a79d9691e0a94ce430c38375911b4adc",
+  "dirty_hash": "c9425ab381dcc7be1b6485036ce5d37acdd2f1ab1ef1fa79e07f74275824207d",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d",
+    "release-lock.json": "6836115e5e23c723356cbdf08ee8b9fb06c23b599944e61b82da7ca37bbdd21b"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T115517Z-a30f1c2e\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T115517Z-a30f1c2e\\junit.xml"
+  ],
+  "start": "2026-10-06T11:55:17.042332+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ]
+  ],
+  "end": "2026-10-06T11:58:41.226013+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261006T115517Z-a30f1c2e/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T115517Z-a30f1c2e/stderr.log",
+  "report_ref": ".local/implementation/20261006T115517Z-a30f1c2e/junit.xml",
+  "report_hash": "61073aae1ca7b349fa8bb2c3b6918fafca51df771019c893277dd82024994aff",
+  "status": "pass",
+  "tests": {
+    "collected": 892,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  }
+}
