@@ -120,7 +120,7 @@ class NativeModelClient:
             client = client.with_options(max_retries=0)
         self._client = client or AsyncOpenAI(api_key=config.api_key, base_url=config.base_url,
             timeout=config.request_timeout_seconds, max_retries=0,
-            http_client=httpx.AsyncClient(event_hooks={'request': [observe_wire_request]}))
+            http_client=httpx.AsyncClient(follow_redirects=False, event_hooks={'request': [observe_wire_request]}))
 
     def request_arguments(self, messages, tools, system):
         definitions = [{'name': item['name'], 'description': item.get('description', ''),

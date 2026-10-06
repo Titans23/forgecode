@@ -176,7 +176,7 @@ class AnthropicModelClient:
                 base_url=resolved_config.base_url,
                 timeout=resolved_config.request_timeout_seconds,
                 max_retries=0,
-                http_client=httpx.AsyncClient(event_hooks={'request': [observe_wire_request]}),
+                http_client=httpx.AsyncClient(follow_redirects=False, event_hooks={'request': [observe_wire_request]}),
             )
 
     async def aclose(self):

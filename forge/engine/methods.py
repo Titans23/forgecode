@@ -6,6 +6,7 @@ import sys
 
 from forge.application.models import ContractError, METHODS, canonical_hash, validate
 from forge.application.approvals import ApprovalService, ConfirmationNonces
+from forge.application.connections import ConnectionService
 from forge.engine.persistence import utc_now
 from forge.application.sessions import session_view
 from forge.engine.event_stream import EventStream, accepted_view, workspace_view
@@ -24,6 +25,7 @@ class EngineMethods:
         self.events = EventStream(service)
         self.approvals = ApprovalService(service)
         self.confirmations = ConfirmationNonces(self.store)
+        self.connections = ConnectionService(service, self.confirmations)
         if profile == 'desktop' or interactive_approvals:
             service.approvals = self.approvals
         self.initialized = False
@@ -43,6 +45,10 @@ class EngineMethods:
             'approval.prepare_decision': self.approvals.prepare, 'approval.decide': self.approvals.decide,
             'workspace.prepare_authorization': self.prepare_workspace_authorization,
             'workspace.authorize': self.authorize_workspace,
+            'connection.list': self.list_connections, 'connection.prepare_set': self.connections.prepare_set,
+            'connection.set': self.connections.set, 'connection.delete': self.connections.delete,
+            'connection.prepare_test': self.connections.prepare_test, 'connection.test': self.test_connection,
+            'credentials.inject': self.connections.inject, 'credentials.clear': self.connections.clear,
         }
 
     def readiness(self):
@@ -186,6 +192,9 @@ class EngineMethods:
     def list_workspaces(self, params):
         return self._page('workspaces', params, {'collection': 'workspace.list'}, workspace_view)
 
+    def list_connections(self, params):
+        return self._page('connections', params, {'collection': 'connection.list'}, self.connections.view)
+
     def list_sessions(self, params):
         self.service._workspace(params['workspace_id'])
         return self._page('sessions', params, {'collection': 'session.list', 'workspace_id': params['workspace_id']},
@@ -213,6 +222,13 @@ class EngineMethods:
             raise ContractError('Action not found', kind='NOT_FOUND', code=-32010)
         result = json.loads(row['result_json'])
         state = 'accepted'
+        if params['method'] == 'connection.test':
+            observation = self.store.connection.execute('SELECT status,finished_at,owner_epoch FROM connection_test_results WHERE diagnostic_id=?',
+                (result['diagnostic_id'],)).fetchone()
+            if observation:
+                result = {**result, 'status': observation['status']}
+                state = ('completed' if observation['status'] == 'pass' else 'failed') if observation['finished_at'] else (
+                    'running' if observation['owner_epoch'] == self.store.epoch else 'indeterminate')
         if 'turn_id' in result:
             turn = self.store.connection.execute('SELECT state,outcome FROM turns WHERE id=?', (result['turn_id'],)).fetchone()
             if turn['state'] == 'finished':
@@ -223,6 +239,11 @@ class EngineMethods:
                 state = 'indeterminate'
         return {'client_action_id': params['client_action_id'], 'method': params['method'], 'state': state,
                 'result_schema': METHODS[params['method']]['result_schema'], 'result': result, 'payload_hash': row['params_hash']}
+
+    async def test_connection(self, params):
+        if self.stopping and self.service._existing_action('connection.test', params) is None:
+            raise ContractError('Engine is draining; new network tests are disabled', kind='INDETERMINATE', code=-32010)
+        return await self.connections.test(params)
 
     def query_events(self, params):
         scope = params['scope']

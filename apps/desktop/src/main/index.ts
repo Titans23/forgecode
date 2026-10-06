@@ -13,12 +13,18 @@ import { ownedTcpListeners } from './listeners.js';
 import { assertSender, empty, businessId, captureSender } from './ipc.js';
 import { NativeApprovals } from './approvals.js';
 import { probeSecurity } from './security_probe.js';
+import { runCredentialWorker } from './credential_worker.js';
+import { CredentialCrypto, credentialEnvironment } from './credential_crypto.js';
+import { CredentialBroker } from './credential_broker.js';
+import { MainConnections } from './connections.js';
+import { probeCredentials } from './credential_probe.js';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'forge-app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
 const installation = process.argv.some(arg => ['--squirrel-install', '--squirrel-updated', '--squirrel-uninstall', '--squirrel-obsolete'].includes(arg));
 let window: BrowserWindow | null = null;
 let engine: EngineSupervisor | null = null;
+let connections: MainConnections | null = null;
 let stopping = false;
 let finalClose = false;
 let failure: string | null = null;
@@ -53,6 +59,11 @@ function sender(event: Electron.IpcMainInvokeEvent) {
   assertSender(window, event);
 }
 function onlyId(value: unknown, key: string, prefix: string): string {
+  if (prefix === 'conn') {
+    validate('credentials.clear.request', { ...(value as object), client_action_id: 'act-' + randomUUID(), expected_revision: 1 });
+    if (!value || Object.keys(value as object).length !== 1) throw new Error('Invalid connection payload');
+    return (value as Record<string, string>)[key];
+  }
   const schema = prefix === 'ses' ? 'sandbox.cleanup_status.request' : prefix === 'approval' ? 'approval.get.request' : 'workspace.inspect.request';
   if (prefix === 'turn') {
     validate('session.cancel_turn.request', { ...(value as object), client_action_id: 'act-' + randomUUID(), reason: 'UI cancellation' });
@@ -62,10 +73,12 @@ function onlyId(value: unknown, key: string, prefix: string): string {
   return businessId(value, key, schema);
 }
 function live(): EngineSupervisor { if (!engine || stopping) throw new Error('Engine is unavailable'); return engine; }
+function connectionManager(): MainConnections { live(); if (!connections) throw new Error('Connection storage is unavailable'); return connections; }
 
 async function close() {
   if (stopping) return;
   stopping = true;
+  connections?.broker.close();
   const report = engine ? await engine.shutdown('cancel') : { state: 'unknown', cleanup_state: 'unknown', reason: failure ?? 'Engine unavailable' };
   const data = app.getPath('userData');
   try {
@@ -118,6 +131,7 @@ async function runSmoke() {
     const status = await window.webContents.executeJavaScript('window.forgeDesktop.status()');
     check('real-engine-handshake', status.engine_state === 'ready' && status.mode === 'offline-demo');
     checks.push(...await probeSecurity(window, resolve(__dirname, 'preload.js')));
+    checks.push(...await probeCredentials(window, engine, connectionManager()));
     const accepted = await window.webContents.executeJavaScript('window.forgeDesktop.startDemo()');
     const expires = Date.now() + 45000;
     let snapshot;
@@ -197,6 +211,13 @@ async function ready() {
         profile: smoke ? 'test' : 'desktop', ...(smoke ? { fixture: smoke.fixture } : {}) });
     engine = new EngineSupervisor(launch);
     await engine.start();
+    const dataDir = launch.arguments[launch.arguments.indexOf('--data-dir') + 1];
+    if (!isAbsolute(dataDir)) throw new Error('Credential data root must be fixed by Main');
+    const crypto = new CredentialCrypto({ executable: process.execPath,
+      arguments: [...(app.isPackaged ? [] : [app.getAppPath()]), '--credential-worker', resolve(dataDir, 'credential-runtime')],
+      cwd: launch.cwd, environment: credentialEnvironment(process.env) });
+    connections = new MainConnections(live, new CredentialBroker(resolve(dataDir, 'credentials'), crypto));
+    await connections.restore();
   } catch { failure = 'Engine 启动或组件校验失败；请查看诊断。'; }
 
   ipcMain.handle('forge:status', (event, value) => { sender(event); empty(value); return {
@@ -210,6 +231,14 @@ async function ready() {
   ipcMain.handle('forge:authorize-workspace', (event, value) => { sender(event); const id = onlyId(value, 'workspace_id', 'ws'); return approvals.authorizeWorkspace(id, captureSender(() => window, event)); });
   ipcMain.handle('forge:request-approval', (event, value) => { sender(event); const id = onlyId(value, 'approval_id', 'approval'); return approvals.request(id, captureSender(() => window, event)); });
   ipcMain.handle('forge:approvals', (event, value) => { sender(event); empty(value); return live().call('approval.list', { scope: { kind: 'all' }, limit: 100 }); });
+  ipcMain.handle('forge:connections', (event, value) => { sender(event); empty(value); return connectionManager().list(); });
+  ipcMain.handle('forge:save-connection', (event, value) => { sender(event); return connectionManager().save(value, captureSender(() => window, event)); });
+  for (const [channel, operation] of [['delete', 'remove'], ['lock', 'lock'], ['unlock', 'unlock'], ['test', 'test']] as const) {
+    ipcMain.handle('forge:' + channel + '-connection', (event, value) => {
+      sender(event); const id = onlyId(value, 'connection_id', 'conn');
+      return connectionManager()[operation](id, captureSender(() => window, event));
+    });
+  }
   ipcMain.handle('forge:cancel-turn', (event, value) => { sender(event); const turn_id = onlyId(value, 'turn_id', 'turn'); return live().call('session.cancel_turn', {
     turn_id, client_action_id: 'act-' + randomUUID(), reason: 'Desktop user cancelled' }); });
   ipcMain.handle('forge:start-demo', async (event, value) => {
@@ -235,7 +264,8 @@ async function ready() {
   }
 }
 
-if (installation || squirrel) app.quit();
+if (argument('--credential-worker')) void runCredentialWorker(argument('--credential-worker')!);
+else if (installation || squirrel) app.quit();
 else {
   configureDevelopment();
   if (!app.requestSingleInstanceLock()) app.quit();

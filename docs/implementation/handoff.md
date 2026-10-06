@@ -1,6 +1,20 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F14；下一 F15（任务卡、第 10 / 16 章已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F15；下一项 F16（任务卡、第 15 / 19 章已读）。原生平台验收独立 blocked。
+- F15 测试父 HEAD e612f360be14dc2a198d65f936b88a7ffd336941；本次提交 SHA 以实际 git HEAD 核对。
+  Main fixed Electron safeStorage helper / DPAPI、Linux 保护分类和内存模式、私有 Engine 注入、确认连接与显式联网测试。
+  Renderer 无密钥读回；设置页清空输入，绑定 canonical endpoint / revision，锁定／删除／变更立即撤销并取消。
+  锁定 Electron Win bootstrap stdin 是 EOF；辅助进程实际读取继承 fd 0。无 Node exe fallback / 自造 crypto。
+  migration 005 独立测试结果，immutable accepted actions 不 UPDATE；action.get 查询实际观察。
+  慢网络测试最多 16 个 owned async requests，真实 RPC 撤销／EOF 及时取消，batch 保持成员顺序。
+  unit 126 / portable 128 / regression 997，0 skip；Windows 10 development Electron 29 checks pass。
+  20261006T181011Z-29e85a98 / 20261006T181026Z-879caa5b / 20261006T181340Z-690e66f5 / 20261006T181449Z-45ec1b68。
+  packaged blocked / 0：20261006T181358Z-6ef85083；native Linux / Windows blocked / 0：
+  20261006T181437Z-202e38e3 / 20261006T181443Z-9ce797db。final dirty 14ab3eda6e9f1e99bc47402b15f58ea88219b5e748a914cbd27a3ac86a40e4ef。
+  actual Linux keyring、原生人工确认、F28 installed / F24 bundle / F27 diagnostics export 和 paid API 未验收。
+  F16 接入当前契约-only workspace.files / read_file / changes，内容 revision 与授权 revision 分开；
+  session / message / Diff 复用真实 Harness / Journal / 写入锁，10000 项有界、IME、reload 不重开 turn。
+- F14 已推送 e612f360be14dc2a198d65f936b88a7ffd336941；F15 测试父 HEAD 即此提交。
 - F14 测试父 HEAD c094171f9ce175d8914a777110a3975346474a2e，提交 SHA 以实际 git HEAD 核对。
 - F14：命名 IPC、可信窗口／frame／origin／schema；原生目录选择与高风险拒绝／仅此次。
   Engine 持久 pending、最终参数／policy／实际 workspace / environment 绑定、短期 nonce / CAS 一次消费。

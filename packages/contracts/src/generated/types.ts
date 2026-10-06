@@ -108,8 +108,8 @@ export type ArtifactReadChunkRequest = { "artifact_id": string; "offset": number
 export type ArtifactReadChunkResult = { "artifact_id": string; "offset": number; "data_base64": string; "eof": boolean; "sha256": string };
 export type DiagnosticsRunRequest = { "client_action_id": string; "kind": "system" | "project"; "workspace_id"?: string };
 export type DiagnosticsRunResult = { "diagnostic_id": string; "status": "pass" | "fail" | "blocked"; "checks": Array<{ "name": string; "status": "pass" | "fail" | "blocked"; "reason": (string) | (null) }>; "reused_existing_action": boolean };
-export type ConnectionListRequest = { [key: string]: never };
-export type ConnectionListResult = { "connections": Array<Connection> };
+export type ConnectionListRequest = { "cursor"?: string; "limit"?: number };
+export type ConnectionListResult = { "items": Array<Connection>; "next_cursor": (string) | (null); "history_gap": boolean };
 export type ConnectionSetRequest = { "client_action_id": string; "connection_id": string; "expected_revision": number; "provider": string; "base_url": string; "requested_model": string; "confirmation_token": string };
 export type ConnectionSetResult = Connection;
 export type ConnectionDeleteRequest = { "client_action_id": string; "connection_id": string; "expected_revision": number };
@@ -130,6 +130,12 @@ export type WorkspacePrepareAuthorizationRequest = { "workspace_id": string; "ex
 export type WorkspacePrepareAuthorizationResult = { "confirmation_token": string; "expires_at_utc": string; "binding_hash": string };
 export type WorkspaceAuthorizeRequest = { "client_action_id": string; "workspace_id": string; "expected_revision": number; "binding_hash": string; "allow": boolean; "confirmation_token": string };
 export type WorkspaceAuthorizeResult = Workspace;
+export type ConnectionPrepareSetRequest = { "connection_id": string; "expected_revision": number; "provider": string; "base_url": string; "requested_model": string };
+export type ConnectionPrepareSetResult = { "confirmation_token": string; "expires_at_utc": string };
+export type ConnectionPrepareTestRequest = { "connection_id": string; "expected_revision": number };
+export type ConnectionPrepareTestResult = { "confirmation_token": string; "expires_at_utc": string };
+export type CredentialsClearRequest = { "client_action_id": string; "connection_id": string; "expected_revision": number };
+export type CredentialsClearResult = { "cleared": boolean; "reused_existing_action": boolean };
 export type BridgeProbeRequest = { "workspace_id": string; "workspace_path": string };
 export type BridgeProbeResult = CapabilityReport;
 export type BridgePrepareRequest = { "policy": SandboxPolicy; "policy_hash": string; "owner": { "engine_epoch": string; "sandbox_session_id": string; "execution_id": (string) | (null) } };
@@ -237,5 +243,8 @@ export interface MethodMap {
   "approval.prepare_decision": { request: ApprovalPrepareDecisionRequest; result: ApprovalPrepareDecisionResult };
   "workspace.prepare_authorization": { request: WorkspacePrepareAuthorizationRequest; result: WorkspacePrepareAuthorizationResult };
   "workspace.authorize": { request: WorkspaceAuthorizeRequest; result: WorkspaceAuthorizeResult };
+  "connection.prepare_set": { request: ConnectionPrepareSetRequest; result: ConnectionPrepareSetResult };
+  "connection.prepare_test": { request: ConnectionPrepareTestRequest; result: ConnectionPrepareTestResult };
+  "credentials.clear": { request: CredentialsClearRequest; result: CredentialsClearResult };
 }
 export type MethodName = keyof MethodMap;

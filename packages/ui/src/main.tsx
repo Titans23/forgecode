@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DesktopTransport, type DesktopStatus, type SessionSnapshot } from './transport';
+import { Connections } from './pages/settings/Connections';
 import './style.css';
 
 const transport = new DesktopTransport();
@@ -15,6 +16,7 @@ function App() {
   const [gap, setGap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState<'workspace' | 'settings'>('workspace');
   const [approvals, setApprovals] = useState<Array<{ approval_id: string; state: string; tool_name?: string; risk?: string }>>([]);
   useEffect(() => {
     let disposed = false;
@@ -49,7 +51,8 @@ function App() {
   const turn = snapshot?.turns[0];
   const connected = status?.engine_state === 'ready';
   return <div className="app"><aside><div className="brand"><span className="mark">F</span>ForgeCode</div>
-    <div className="nav active">工作台</div><div className="caption">项目</div>
+    <button className={'nav secondary ' + (page === 'workspace' ? 'active' : '')} onClick={() => setPage('workspace')}>工作台</button>
+    <button className={'nav secondary ' + (page === 'settings' ? 'active' : '')} onClick={() => setPage('settings')}>连接设置</button><div className="caption">项目</div>
     <button className="secondary" disabled={busy || status?.engine_state !== 'ready'} onClick={() => action(() => transport.selectProject())}>选择项目</button>
     {projects.length ? projects.map(project => <div className="project" key={project.workspace_id}>{project.name ?? project.workspace_id}
       <button className="secondary" disabled={busy} onClick={() => action(() => transport.authorizeWorkspace(project.workspace_id))}>授权执行</button></div>) :
@@ -57,6 +60,7 @@ function App() {
     <div className="sidebar-foot">V4 · Python Harness<br/>桌面开发版本</div></aside>
     <main><header><div><div className="eyebrow">WORKSPACE</div><h1>开发工作台</h1></div>
       <div className={'connection ' + (connected ? 'online' : '')}><i/>{states[status?.engine_state ?? 'starting'] ?? status?.engine_state}</div></header>
+    {page === 'settings' ? <Connections transport={transport}/> : <>
     {(error || status?.failure) && <div role="alert" className="notice">{error ?? status?.failure}</div>}
     {status?.readiness?.status === 'blocked' && <div className="notice">执行环境未就绪，任务启动已禁用。请完成沙盒诊断与配置。</div>}
     {approvals.map(value => <section key={value.approval_id}><h3>等待授权：{value.tool_name ?? '工具操作'}</h3>
@@ -72,7 +76,7 @@ function App() {
     <div className="grid"><section><h3>会话快照</h3>{snapshot ? <><div className="muted">{snapshot.session_id}</div><pre>{JSON.stringify(snapshot, null, 2)}</pre></> : <div className="empty">执行任务后显示持久化会话状态。</div>}</section>
       <section><h3>运行事件 <span className="count">{events.length}</span></h3>{gap && <div className="notice">显示队列存在历史缺口；会话快照已重新读取。</div>}
         {events.length ? <div className="events">{events.map(event => <div key={event.event_id}><span className="dot"/><span>{event.event_type}</span><code>{event.event_id.slice(-8)}</code></div>)}</div> : <div className="empty">等待 Engine 事件。</div>}</section></div>
-    <footer>来源：{status?.mode === 'offline-demo' ? 'scripted · local-trusted' : 'desktop · strict'}<span>清理与任务状态以 Engine 记录为准</span></footer>
+    <footer>来源：{status?.mode === 'offline-demo' ? 'scripted · local-trusted' : 'desktop · strict'}<span>清理与任务状态以 Engine 记录为准</span></footer></>}
     </main></div>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

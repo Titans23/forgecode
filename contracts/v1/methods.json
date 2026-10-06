@@ -973,10 +973,13 @@
       "cancellation": "none",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ]
     },
     "connection.set": {
@@ -997,10 +1000,13 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ]
     },
     "connection.delete": {
@@ -1021,10 +1027,13 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ]
     },
     "connection.test": {
@@ -1045,10 +1054,13 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ]
     },
     "sandbox.probe": {
@@ -1113,10 +1125,13 @@
       "cancellation": "explicit_domain_cancel",
       "max_output_bytes": 1048576,
       "logging": "metadata_only_no_payload_values",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ]
     },
     "sandbox.setup": {
@@ -1219,6 +1234,90 @@
       "test_refs": [
         "tests/implementation/integration/test_bound_approvals.py",
         "tests/implementation/integration/test_workspace_authorization.py"
+      ]
+    },
+    "connection.prepare_set": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "connection.prepare_set.request",
+      "result_schema": "connection.prepare_set.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "connection.prepare_test": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "connection.prepare_test.request",
+      "result_schema": "connection.prepare_test.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "credentials.clear": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "credentials.clear.request",
+      "result_schema": "credentials.clear.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "sqlite_transaction",
+      "idempotency_key": "profile_id,method,client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ]
     }
   }

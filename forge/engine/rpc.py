@@ -125,6 +125,7 @@ class RpcServer:
         self.work_ready = asyncio.Event()
         self.reader_stopped = threading.Event()
         self.closed = False
+        self.deferred = set()
         self.scheduler = TurnScheduler(methods, self.work_ready)
 
     async def handle_member(self, member):
@@ -215,6 +216,24 @@ class RpcServer:
                         self.methods.events.subscriptions.pop(subscription_id, None)
             await asyncio.sleep(0.02)
 
+    def defer_frame(self, raw):
+        # Only bounded network tests need asynchronous dispatch. Members inside a
+        # batch still execute in order; no arbitrary mutation becomes parallel.
+        try:
+            value = strict_loads(raw) if raw is not None else None
+            members = value if isinstance(value, list) else [value]
+            return any(isinstance(member, dict) and member.get('method') == 'connection.test' for member in members)
+        except ContractError: return False
+
+    async def respond(self, raw):
+        response = await self.handle_frame(raw)
+        if response is not None:
+            try: self.control.put_nowait(response)
+            except asyncio.QueueFull:
+                self.methods.begin_shutdown('cancel', 'Main stopped draining control responses')
+                return
+            self.output_ready.set()
+
     async def run(self, input_descriptor, output_descriptor):
         writer = PipeWriter(output_descriptor)
         start_reader(input_descriptor, self.inbound, asyncio.get_running_loop(), self.reader_stopped)
@@ -235,14 +254,19 @@ class RpcServer:
                     self.methods.begin_shutdown('cancel', 'Main control pipe EOF')
                     self.work_ready.set()
                     break
-                response = await self.handle_frame(raw)
-                if response is not None:
-                    try:
-                        self.control.put_nowait(response)
-                    except asyncio.QueueFull:
-                        self.methods.begin_shutdown('cancel', 'Main stopped draining control responses')
+                if self.defer_frame(raw):
+                    if len(self.deferred) >= 16:
+                        self.methods.begin_shutdown('cancel', 'Connection test request limit exceeded')
                         break
-                    self.output_ready.set()
+                    task = asyncio.create_task(self.respond(raw))
+                    self.deferred.add(task)
+                    task.add_done_callback(self.deferred.discard)
+                    await asyncio.sleep(0)  # Persist accepted action before the next frame.
+                else:
+                    await self.respond(raw)
+            pending = tuple(self.deferred)
+            for task in pending: task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
             self.work_ready.set()
             await scheduling
             self.closed = True
@@ -257,8 +281,9 @@ class RpcServer:
         finally:
             self.closed = True
             self.reader_stopped.set()
-            for task in (pumping, scheduling, writing):
+            remaining = (pumping, scheduling, writing, *tuple(self.deferred))
+            for task in remaining:
                 if not task.done():
                     task.cancel()
-            await asyncio.gather(pumping, scheduling, writing, return_exceptions=True)
+            await asyncio.gather(*remaining, return_exceptions=True)
             writer.close()

@@ -2618,24 +2618,52 @@
     "connection.list.request": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {},
+      "properties": {
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
       "required": []
     },
     "connection.list.result": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "connections": {
+        "items": {
           "type": "array",
           "items": {
             "$ref": "urn:forgecode:contracts:v1:connection"
           },
           "minItems": 0,
           "maxItems": 100
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "history_gap": {
+          "type": "boolean"
         }
       },
       "required": [
-        "connections"
+        "items",
+        "next_cursor",
+        "history_gap"
       ]
     },
     "connection.set.request": {
@@ -3190,6 +3218,151 @@
     },
     "workspace.authorize.result": {
       "$ref": "urn:forgecode:contracts:v1:workspace"
+    },
+    "connection.prepare_set.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connection_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "base_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "format": "uri"
+        },
+        "requested_model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "connection_id",
+        "expected_revision",
+        "provider",
+        "base_url",
+        "requested_model"
+      ]
+    },
+    "connection.prepare_set.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "confirmation_token": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 1024
+        },
+        "expires_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "confirmation_token",
+        "expires_at_utc"
+      ]
+    },
+    "connection.prepare_test.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connection_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "connection_id",
+        "expected_revision"
+      ]
+    },
+    "connection.prepare_test.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "confirmation_token": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 1024
+        },
+        "expires_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "confirmation_token",
+        "expires_at_utc"
+      ]
+    },
+    "credentials.clear.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "client_action_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "connection_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "client_action_id",
+        "connection_id",
+        "expected_revision"
+      ]
+    },
+    "credentials.clear.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cleared": {
+          "type": "boolean"
+        },
+        "reused_existing_action": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cleared",
+        "reused_existing_action"
+      ]
     }
   }
 }

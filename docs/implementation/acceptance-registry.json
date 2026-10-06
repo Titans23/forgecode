@@ -2099,8 +2099,14 @@
       "title": "使用合成模型密钥完成调用与导出",
       "source": "V3",
       "baseline_expectation": "不进入 argv、子进程环境、通用日志、Trace 或报告",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F15",
       "required_platforms": [
         "windows",
@@ -2109,12 +2115,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181443Z-9ce797db"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Real Engine, local HTTP/provider SDK redirect refusal, DPAPI helper, named Renderer lock and metadata/Journal/database/child scans. F24/F27 export acceptance pending; no provider benchmark."
         }
       }
     },
@@ -2123,8 +2144,14 @@
       "title": "Linux 无可用密钥库或返回 basic_text",
       "source": "V3",
       "baseline_expectation": "禁止安全持久化标称，切换显式内存模式",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F15",
       "required_platforms": [
         "linux"
@@ -2132,8 +2159,20 @@
       "release_required": true,
       "platform_verification": {
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Pure Linux basic_text/unknown/unavailable protection selection tested, no actual Linux keyring or persistence PASS claimed."
         }
       }
     },
@@ -2784,17 +2823,38 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181443Z-9ce797db"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Real Engine, local HTTP/provider SDK redirect refusal, DPAPI helper, named Renderer lock and metadata/Journal/database/child scans. F24/F27 export acceptance pending; no provider benchmark."
         }
       }
     },
@@ -2806,13 +2866,31 @@
       "required_platforms": [
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Pure Linux basic_text/unknown/unavailable protection selection tested, no actual Linux keyring or persistence PASS claimed."
         }
       }
     },

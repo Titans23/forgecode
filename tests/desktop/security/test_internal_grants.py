@@ -28,6 +28,11 @@ def test_renderer_private_channel_cannot_forge_main_privileges(tmp_path):
                 ('approval.prepare_decision', {'approval_id': new_id('approval'), 'binding_hash': 'a' * 64}),
                 ('approval.decide', {'client_action_id': new_id('act'), 'approval_id': new_id('approval'), 'binding_hash': 'a' * 64,
                     'confirmation_token': 'a' * 64, 'decision': 'approve'}),
+                ('connection.prepare_set', {'connection_id': new_id('conn'), 'expected_revision': 0, 'provider': 'anthropic',
+                    'base_url': 'https://example.invalid', 'requested_model': 'synthetic'}),
+                ('connection.prepare_test', {'connection_id': new_id('conn'), 'expected_revision': 1}),
+                ('credentials.inject', {'client_action_id': new_id('act'), 'connection_id': new_id('conn'), 'expected_revision': 1, 'credential': 'synthetic'}),
+                ('credentials.clear', {'client_action_id': new_id('act'), 'connection_id': new_id('conn'), 'expected_revision': 1}),
             ]:
                 response = await call(method, params)
                 assert response['error']['data']['kind'] == 'UNAUTHORIZED'

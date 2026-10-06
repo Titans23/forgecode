@@ -10,6 +10,8 @@ export async function probeSecurity(main: BrowserWindow, preload: string) {
     'typeof window.forgeDesktop.invoke === "undefined" && typeof window.forgeDesktop.approve === "undefined" && typeof window.forgeDesktop.readFile === "undefined" && typeof window.forgeDesktop.credentials === "undefined"'));
   check('malformed-ipc-payload-denied', await rejected(main.webContents, 'window.forgeDesktop.session({session_id:"forged",role:"main"})'));
   check('forged-approval-id-denied', await rejected(main.webContents, 'window.forgeDesktop.requestApproval("forged-approval")'));
+  check('forged-connection-id-denied', await rejected(main.webContents, 'window.forgeDesktop.lockConnection("forged-connection")'));
+  check('invalid-connection-form-denied-before-dialog', await rejected(main.webContents, 'window.forgeDesktop.saveConnection({credential:"synthetic",base_url:"https://user:secret@other.invalid"})'));
   check('csp-eval-denied', await main.webContents.executeJavaScript('(()=>{try{eval("window.__unsafeEval=1");return false}catch{return window.__unsafeEval===undefined}})()'));
   check('project-html-protocol-denied', await main.webContents.executeJavaScript('fetch("forge-app://ui/project.html").then(r=>r.status===404).catch(()=>true)'));
   check('protocol-traversal-denied', await main.webContents.executeJavaScript('fetch("forge-app://ui/%252e%252e/secret.html").then(r=>r.status===404).catch(()=>true)'));
@@ -23,6 +25,7 @@ export async function probeSecurity(main: BrowserWindow, preload: string) {
     await auxiliary.loadURL('forge-app://ui/index.html');
     check('foreign-window-ipc-denied', await rejected(auxiliary.webContents, 'window.forgeDesktop.status()'));
     check('foreign-window-directory-dialog-denied', await rejected(auxiliary.webContents, 'window.forgeDesktop.selectProject()'));
+    check('foreign-window-connection-access-denied', await rejected(auxiliary.webContents, 'window.forgeDesktop.connections()'));
     // Forge protocol never executes project markup; data navigation has no grants either.
     let blocked = false;
     try { await auxiliary.loadURL('data:text/html,<script>window.projectScript=1</script>'); } catch { blocked = true; }

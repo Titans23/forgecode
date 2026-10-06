@@ -793,13 +793,24 @@
       ],
       "verification_suites": [
         "unit",
+        "portable",
         "desktop",
+        "desktop-packaged",
         "sandbox-linux",
-        "sandbox-windows"
+        "sandbox-windows",
+        "regression"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T181011Z-29e85a98",
+        "20261006T181026Z-879caa5b",
+        "20261006T181340Z-690e66f5",
+        "20261006T181358Z-6ef85083",
+        "20261006T181437Z-202e38e3",
+        "20261006T181443Z-9ce797db",
+        "20261006T181449Z-45ec1b68"
+      ],
       "case_ids": [
         "D25",
         "D26",

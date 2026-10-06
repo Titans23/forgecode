@@ -1,6 +1,12 @@
 /** Every named operation authenticates the current window and its main frame. */
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron';
 import { validate } from '@forgecode/contracts';
+let nativePending = false;
+export async function nativeOperation<T>(operation: () => Promise<T>): Promise<T> {
+  if (nativePending) throw new Error('A native authorization is already open');
+  nativePending = true;
+  try { return await operation(); } finally { nativePending = false; }
+}
 
 export function assertSender(current: BrowserWindow | null, event: IpcMainInvokeEvent): void {
   if (!current || current.isDestroyed() || event.sender !== current.webContents ||

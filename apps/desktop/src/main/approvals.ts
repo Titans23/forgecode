@@ -3,14 +3,12 @@ import { dialog, type BrowserWindow } from 'electron';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { isAbsolute } from 'node:path';
 import type { EngineSupervisor } from './supervisor.js';
+import { nativeOperation } from './ipc.js';
 
 export class NativeApprovals {
-  private active = false;
   constructor(private engine: () => EngineSupervisor) {}
   private async exclusive<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.active) throw new Error('A native authorization is already open');
-    this.active = true;
-    try { return await operation(); } finally { this.active = false; }
+    return nativeOperation(operation);
   }
   selectDirectory(current: () => BrowserWindow) {
     return this.exclusive(async () => {

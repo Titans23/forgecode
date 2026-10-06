@@ -543,7 +543,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -551,7 +551,10 @@
       "result_schema": "connection.delete.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ],
       "timeout_query": "action.get"
     },
@@ -565,7 +568,7 @@
         "NOT_FOUND"
       ],
       "idempotency_key": null,
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
@@ -573,7 +576,66 @@
       "result_schema": "connection.list.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "connection.prepare_set": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "connection.prepare_set.request",
+      "result_schema": "connection.prepare_set.result",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "connection.prepare_test": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "connection.prepare_test.request",
+      "result_schema": "connection.prepare_test.result",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -589,7 +651,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -597,7 +659,10 @@
       "result_schema": "connection.set.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ],
       "timeout_query": "action.get"
     },
@@ -613,7 +678,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -621,7 +686,38 @@
       "result_schema": "connection.test.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "timeout_query": "action.get"
+    },
+    "credentials.clear": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "sqlite_transaction",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": "profile_id,method,client_action_id",
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": true,
+      "request_schema": "credentials.clear.request",
+      "result_schema": "credentials.clear.result",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ],
       "timeout_query": "action.get"
     },
@@ -637,7 +733,7 @@
         "STALE_REVISION"
       ],
       "idempotency_key": "client_action_id",
-      "implementation_status": "contract_only",
+      "implementation_status": "implemented",
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": true,
@@ -645,7 +741,10 @@
       "result_schema": "credentials.inject.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
       ],
       "timeout_query": "action.get"
     },
@@ -3384,6 +3483,26 @@
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/connection.list.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
+    "connection.prepare_set.request": {
+      "$id": "urn:forgecode:contracts:v1:connection.prepare_set.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/connection.prepare_set.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "connection.prepare_set.result": {
+      "$id": "urn:forgecode:contracts:v1:connection.prepare_set.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/connection.prepare_set.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "connection.prepare_test.request": {
+      "$id": "urn:forgecode:contracts:v1:connection.prepare_test.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/connection.prepare_test.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "connection.prepare_test.result": {
+      "$id": "urn:forgecode:contracts:v1:connection.prepare_test.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/connection.prepare_test.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
     "connection.set.request": {
       "$id": "urn:forgecode:contracts:v1:connection.set.request",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/connection.set.request",
@@ -3402,6 +3521,16 @@
     "connection.test.result": {
       "$id": "urn:forgecode:contracts:v1:connection.test.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/connection.test.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "credentials.clear.request": {
+      "$id": "urn:forgecode:contracts:v1:credentials.clear.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/credentials.clear.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "credentials.clear.result": {
+      "$id": "urn:forgecode:contracts:v1:credentials.clear.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/credentials.clear.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "credentials.inject.request": {
@@ -7590,24 +7719,153 @@
         },
         "connection.list.request": {
           "additionalProperties": false,
-          "properties": {},
+          "properties": {
+            "cursor": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "limit": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
           "required": [],
           "type": "object"
         },
         "connection.list.result": {
           "additionalProperties": false,
           "properties": {
-            "connections": {
+            "history_gap": {
+              "type": "boolean"
+            },
+            "items": {
               "items": {
                 "$ref": "urn:forgecode:contracts:v1:connection"
               },
               "maxItems": 100,
               "minItems": 0,
               "type": "array"
+            },
+            "next_cursor": {
+              "anyOf": [
+                {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
-            "connections"
+            "items",
+            "next_cursor",
+            "history_gap"
+          ],
+          "type": "object"
+        },
+        "connection.prepare_set.request": {
+          "additionalProperties": false,
+          "properties": {
+            "base_url": {
+              "format": "uri",
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "connection_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "expected_revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "provider": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "requested_model": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "connection_id",
+            "expected_revision",
+            "provider",
+            "base_url",
+            "requested_model"
+          ],
+          "type": "object"
+        },
+        "connection.prepare_set.result": {
+          "additionalProperties": false,
+          "properties": {
+            "confirmation_token": {
+              "maxLength": 1024,
+              "minLength": 32,
+              "type": "string"
+            },
+            "expires_at_utc": {
+              "format": "date-time",
+              "pattern": "Z$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "confirmation_token",
+            "expires_at_utc"
+          ],
+          "type": "object"
+        },
+        "connection.prepare_test.request": {
+          "additionalProperties": false,
+          "properties": {
+            "connection_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "expected_revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "connection_id",
+            "expected_revision"
+          ],
+          "type": "object"
+        },
+        "connection.prepare_test.result": {
+          "additionalProperties": false,
+          "properties": {
+            "confirmation_token": {
+              "maxLength": 1024,
+              "minLength": 32,
+              "type": "string"
+            },
+            "expires_at_utc": {
+              "format": "date-time",
+              "pattern": "Z$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "confirmation_token",
+            "expires_at_utc"
           ],
           "type": "object"
         },
@@ -7724,6 +7982,50 @@
           "required": [
             "status",
             "diagnostic_id",
+            "reused_existing_action"
+          ],
+          "type": "object"
+        },
+        "credentials.clear.request": {
+          "additionalProperties": false,
+          "properties": {
+            "client_action_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "connection_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "expected_revision": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "client_action_id",
+            "connection_id",
+            "expected_revision"
+          ],
+          "type": "object"
+        },
+        "credentials.clear.result": {
+          "additionalProperties": false,
+          "properties": {
+            "cleared": {
+              "type": "boolean"
+            },
+            "reused_existing_action": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "cleared",
             "reused_existing_action"
           ],
           "type": "object"
