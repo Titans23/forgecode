@@ -282,7 +282,8 @@
       "source": "V3",
       "baseline_expectation": null,
       "implementation_test_refs": [
-        "tests/implementation/native/linux/verify_linux.py"
+        "tests/implementation/native/linux/verify_linux.py",
+        "tests/implementation/native/windows/verify_windows.py"
       ],
       "status": "blocked",
       "owner_task": "F09",
@@ -294,15 +295,17 @@
       "platform_verification": {
         "windows": {
           "status": "blocked",
-          "evidence_ids": [],
-          "reason": "Windows 11 acceptance unavailable; F10 native verifier pending."
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [
-            "20261006T125256Z-c6d9de11"
+            "20261006T134433Z-be4553ee"
           ],
-          "reason": "Actual verifier ran on Windows 10: unsupported Ubuntu platform, zero native checks. Ubuntu 22.04/24.04 and C10 authorized controlled endpoint remain unavailable."
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
         }
       }
     },
@@ -312,7 +315,8 @@
       "source": "V3",
       "baseline_expectation": null,
       "implementation_test_refs": [
-        "tests/implementation/native/linux/verify_linux.py"
+        "tests/implementation/native/linux/verify_linux.py",
+        "tests/implementation/native/windows/verify_windows.py"
       ],
       "status": "blocked",
       "owner_task": "F09",
@@ -324,15 +328,17 @@
       "platform_verification": {
         "windows": {
           "status": "blocked",
-          "evidence_ids": [],
-          "reason": "Windows 11 acceptance unavailable; F10 native verifier pending."
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [
-            "20261006T125256Z-c6d9de11"
+            "20261006T134433Z-be4553ee"
           ],
-          "reason": "Actual verifier ran on Windows 10: unsupported Ubuntu platform, zero native checks. Ubuntu 22.04/24.04 and C10 authorized controlled endpoint remain unavailable."
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
         }
       }
     },
@@ -342,7 +348,8 @@
       "source": "V3",
       "baseline_expectation": null,
       "implementation_test_refs": [
-        "tests/implementation/native/linux/verify_linux.py"
+        "tests/implementation/native/linux/verify_linux.py",
+        "tests/implementation/native/windows/verify_windows.py"
       ],
       "status": "blocked",
       "owner_task": "F09",
@@ -354,15 +361,17 @@
       "platform_verification": {
         "windows": {
           "status": "blocked",
-          "evidence_ids": [],
-          "reason": "Windows 11 acceptance unavailable; F10 native verifier pending."
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [
-            "20261006T125256Z-c6d9de11"
+            "20261006T134433Z-be4553ee"
           ],
-          "reason": "Actual verifier ran on Windows 10: unsupported Ubuntu platform, zero native checks. Ubuntu 22.04/24.04 and C10 authorized controlled endpoint remain unavailable."
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
         }
       }
     },
@@ -593,8 +602,10 @@
       "title": "重建 session 后旧权限不残留或明确报告异常",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows",
@@ -603,12 +614,18 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134433Z-be4553ee"
+          ],
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
         }
       }
     },
@@ -703,8 +720,10 @@
       "title": "全程 Windows 原生，没有经由 WSL／Docker",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -712,8 +731,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -722,8 +744,10 @@
       "title": "安装批准、拒绝、重复安装与 doctor 状态",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -731,8 +755,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -741,8 +768,10 @@
       "title": "中文、空格、大小写与盘符路径",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -750,8 +779,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -760,8 +792,10 @@
       "title": "PowerShell 参数引用、编码与退出码",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -769,8 +803,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -779,8 +816,10 @@
       "title": "junction／reparse point 和 `..` 混合路径",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -788,8 +827,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -798,8 +840,10 @@
       "title": "硬链接快照禁用与特殊路径拒绝",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -807,8 +851,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -817,8 +864,10 @@
       "title": "用户级 Python／Node／Git 的只读授权与定位",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -826,8 +875,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -836,8 +888,10 @@
       "title": "Session 权限扩大必须切换策略／会话",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -845,8 +899,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -855,8 +912,10 @@
       "title": "Controller 崩溃后的授权与执行残留检查",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -864,8 +923,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -874,8 +936,10 @@
       "title": "Job 生命周期、嵌套进程和文件锁处理",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -883,8 +947,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -893,8 +960,10 @@
       "title": "同一受控 worker 的串行与共享状态检查",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -902,8 +971,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -912,8 +984,10 @@
       "title": "DNS 能力限制被正确报告，严格离线要求被拒绝",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -921,8 +995,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -2067,8 +2144,10 @@
       "title": "用户拒绝 UAC／系统策略阻止 setup",
       "source": "V3",
       "baseline_expectation": "保留 setup_required／blocked，不改成普通执行",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "owner_task": "F10",
       "required_platforms": [
         "windows"
@@ -2076,8 +2155,11 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },
@@ -2238,13 +2320,18 @@
       "required_platforms": [
         "windows"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
         }
       }
     },

@@ -336,7 +336,7 @@
       "name": "bridge-runtime-manifest",
       "platform": "all",
       "path": "sandbox_bridge/runtime-manifest.json",
-      "sha256": "2672cf5eb1cbc5e4182430219bfc9680188beb73e4c070dbf68237be134bf8a0",
+      "sha256": "b89eb1354bc6c56b856de6392ea0dc14768a3c4e73e8778fd8b81565d5b6fb40",
       "source": "ForgeCode locked runtime code inventory",
       "license": "Apache-2.0",
       "patches": []

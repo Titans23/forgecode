@@ -1,6 +1,6 @@
 # ForgeCode V4 交接 — 2026-10-06
 
-- 当前代码完成 F00—F09；下一任务 F10（任务卡、第 12 / 20 章已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F10；下一任务 F11（任务卡、第 9 / 11 章已读）。原生平台验收独立 blocked。
 - F00 已推送：3355ee07fd05978cd19284f0460694d10d4d9086，分支 codex/forgecode-v4。
 - 实际基线 HEAD：d5c08a3158c764d4e797b2a1e2907e391f6414a8。
   接续时运行 git status / git rev-parse HEAD，以实际提交为准。
@@ -136,3 +136,24 @@
   重复 install 可能更新共用用户凭据，不能把 repair 当无影响动作；不得自动 uninstall /
   force / acl recover。现无只读共享 ACL holder 列表，未知共享活动需保守阻断。
   此审计没有执行管理员 setup，没有 Windows 11 原生通过证据；F10 尚未写代码。
+- F09 已推送 cc2df6c99012bc7ee8cd21147fcccd4408479d8a。
+- F10 正在实施：固定 Main setup broker / 三 action Bridge launch、实际上游 UAC API、
+  保守共享 repair 阻断、OS Known Folder worker + OS lock + unresolved marker、真实 Windows
+  Doctor / NTFS / helper 状态、双平台共同 native canary。没有执行管理员 setup。
+  首轮 unit 116 / portable 61 / native Windows blocked 0；证据
+  20261006T132815Z-f8ebdcb8 / 20261006T132833Z-f342b184 / 20261006T133034Z-632dd5ea。
+  实际 raw srt-win user 有额外 wrapper / snake_case，Python Doctor 映射已修正并新增单测；
+  上述旧报告的账户字段遗漏不能作为最终诊断证据。需重跑最终 task + regression 后推送。
+  此前回归 20261006T133122Z-68006520 为 917 pass，是映射修正前启动；不作为最终 source 验收。
+  最新局部 doctor 测试 12 pass；setup blocked 退出码 0 的问题已修复为 2，stdout 完整写出。
+  接续先核对 git status；F10 改动未提交，用户原有 untracked 仍保留。F11 卡 / 第 9、11 章
+  已读并盘点现有工具 IO、Tracker / Checkpoint；F11 尚未写代码。
+- F10 最终代码验收 unit 117 / portable 61 / regression 918 pass，0 skip：
+  20261006T134127Z-76e53bec / 20261006T134145Z-5e720e59 / 20261006T134442Z-98283708。
+  Windows native 20261006T134352Z-ad842262、Linux native 20261006T134433Z-be4553ee
+  均 blocked / 0 checks / 底层 exit 2。实际 raw status 映射已修复：SRT 账户 / credential
+  缺失；BFE cannot-read、pwsh7 缺失、NTFS。没有自动 setup / force / recover / CA 安装。
+  首次 setup 需账号/group/credential/marker 全缺；cannot-read 不单独阻止明确确认的 UAC。
+  所有共享安装 repair 均保守 blocked；正常 task 不提权。Main 仅编译，F13/F14 接入 GUI。
+  Worker 锁/未解决 grants marker 真实测试；全 Job/ACL 清理 F12/F25 仍需原生证明。
+  inventory 1418 文件已实际构建/--check。F10 验收后提交/push，再开始 F11。

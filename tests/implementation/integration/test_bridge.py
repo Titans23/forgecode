@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 import pytest
 
@@ -95,8 +96,26 @@ def test_actual_launcher_ignores_inherited_node_loader_and_proxy(tmp_path, monke
 def test_real_dispatcher_and_output_transport_without_os_sandbox_claim():
     runtime = verify_runtime()
     result = subprocess.run([str(runtime.node), '--test', '--test-reporter=tap', 'tests/implementation/node/bridge.test.mjs',
-                             'tests/implementation/node/linux-ownership.test.mjs'],
+                             'tests/implementation/node/linux-ownership.test.mjs',
+                             'tests/implementation/node/windows-adapter.test.mjs'],
         cwd=runtime.root, env=bridge_environment(runtime.root / '.local'), capture_output=True,
         encoding='utf-8', timeout=45)
     assert result.returncode == 0, result.stdout + result.stderr
     assert '# pass ' in result.stdout and '# skipped 0' in result.stdout
+
+
+def test_fixed_setup_launcher_rejects_parameters_and_unsupported_host_without_UAC(tmp_path):
+    runtime = verify_runtime()
+    invalid = subprocess.run([str(runtime.node), str(runtime.entry), '--setup-action', 'install --force'],
+        cwd=runtime.root, env=bridge_environment(tmp_path), capture_output=True, text=True, encoding='utf-8', timeout=30)
+    assert invalid.returncode != 0
+    if sys.platform == 'win32' and sys.getwindowsversion().build >= 22000:
+        # Supported hosts run explicit native setup separately; never invoke install from portable CI.
+        action = 'diagnose'
+    else:
+        action = 'install'
+    result = subprocess.run([str(runtime.node), str(runtime.entry), '--setup-action', action],
+        cwd=runtime.root, env=bridge_environment(tmp_path), capture_output=True, text=True, encoding='utf-8', timeout=30)
+    assert result.returncode == 2
+    report = json.loads(result.stdout)
+    assert report['administrator_invoked'] is False and report['status'] == 'blocked'

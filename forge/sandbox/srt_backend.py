@@ -3,6 +3,7 @@ import asyncio
 import base64
 import json
 from pathlib import Path
+import sys
 
 from forge.application.models import ContractError, canonical_hash, strict_loads, validate
 from forge.sandbox.capabilities import CapabilityReport
@@ -37,6 +38,7 @@ class SrtBackend:
         self.discarded_transport_bytes = 0
         self._discarded_by_execution = {}
         self.stderr_bytes = 0
+        self._worker_lease = None
 
     async def _start(self):
         async with self._start_lock:
@@ -131,10 +133,18 @@ class SrtBackend:
         return CapabilityReport(result)
 
     async def prepare(self, policy):
-        snapshot = compile_policy(policy, self.workspace, control_roots=(str(self.control_root),))
+        worker_root = None
+        if sys.platform == 'win32':
+            from forge.sandbox.windows_worker import windows_worker_root
+            worker_root = windows_worker_root()
+        roots = (str(self.control_root),) + ((str(worker_root),) if worker_root else ())
+        snapshot = compile_policy(policy, self.workspace, control_roots=roots)
         capabilities = await self.probe()
         capabilities.require(snapshot.value)
         snapshot.srt_config(capabilities)
+        if worker_root and self._worker_lease is None:
+            from forge.sandbox.windows_worker import WindowsWorkerLease
+            self._worker_lease = WindowsWorkerLease(worker_root, self.owner, snapshot.sha256)
         result = await self._request('prepare', {'policy': snapshot.value, 'policy_hash': snapshot.sha256, 'owner': self.owner})
         validate('bridge.prepare.result', result)
         self._prepared = snapshot
@@ -165,6 +175,8 @@ class SrtBackend:
         if self._cleanup is None:
             self._cleanup = await self._request('close', {'sandbox_session_id': self.owner['sandbox_session_id']})
             validate('cleanup-report', self._cleanup)
+            if self._worker_lease:
+                self._worker_lease.close(self._cleanup)
         return json.loads(json.dumps(self._cleanup))
 
     async def aclose(self):
@@ -182,3 +194,5 @@ class SrtBackend:
                 self.process.kill()  # Exact owned Bridge handle; sandbox descendants still require reconciliation.
                 await self.process.wait()
             await asyncio.gather(self._reader, self._stderr, return_exceptions=True)
+            if self._worker_lease:
+                self._worker_lease.close(self._cleanup)

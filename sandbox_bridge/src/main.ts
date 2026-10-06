@@ -28,6 +28,13 @@ async function main(): Promise<void> {
   if (inventory.schema_version !== 'forge.bridge.runtime.v1' || inventory.files.length < 1) throw new Error('Invalid code inventory');
   for (const asset of inventory.files) await verified(asset);
   const { strictLoads, validate, ContractError, BRIDGE_METHODS } = await import('@forgecode/contracts');
+  if (process.argv.length === 4 && process.argv[2] === '--setup-action') {
+    const { runWindowsSetup } = await import('./windows-adapter.js');
+    const result = await runWindowsSetup(process.argv[3], assets['srt-win']);
+    await new Promise<void>((resolve, reject) => process.stdout.write(JSON.stringify(result) + '\n', error => error ? reject(error) : resolve()));
+    process.exitCode = result.status === 'pass' ? 0 : 2;
+    return;
+  }
   const { SrtAdapter } = await import('./srt-adapter.js');
   if (process.argv.length !== 6 || process.argv[2] !== '--control-root' || process.argv[4] !== '--owner') throw new Error('Invalid trusted launch arguments');
   const control = await realpath(process.argv[3]);
@@ -115,6 +122,6 @@ async function main(): Promise<void> {
   for (let attempts = 0; writing && attempts < 50 && !broken; attempts++) await new Promise(r => setTimeout(r, 10));
 }
 
-main().then(() => process.exit(0)).catch(() => {
+main().then(() => process.exit(process.exitCode ?? 0)).catch(() => {
   process.stderr.write('ForgeCode Bridge startup or shutdown failed\n'); process.exit(2);
 });

@@ -491,11 +491,19 @@
         "只有 Mock／类型检查不能将本任务验证标 pass。"
       ],
       "verification_suites": [
+        "unit",
+        "portable",
         "sandbox-windows"
       ],
       "non_goals": "不自研驱动，不自动删除其他应用共用的 SRT 安装。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T134127Z-76e53bec",
+        "20261006T134145Z-5e720e59",
+        "20261006T134352Z-ad842262",
+        "20261006T134433Z-be4553ee",
+        "20261006T134442Z-98283708"
+      ],
       "case_ids": [
         "C21",
         "W01",

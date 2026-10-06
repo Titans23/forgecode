@@ -5643,7 +5643,7 @@
     },
     {
       "path": "sandbox_bridge/dist/main.js",
-      "sha256": "37e0a072880583a6cdf22d4f3102b4a9706f78208e1223b1d0c54f8a20ba0046"
+      "sha256": "cf08e736d68c35cd2e9f43c47dbbcb33837f9be3379d818a1655623e0d0b1499"
     },
     {
       "path": "sandbox_bridge/dist/output.js",
@@ -5651,11 +5651,23 @@
     },
     {
       "path": "sandbox_bridge/dist/srt-adapter.js",
-      "sha256": "818028729ba8a17d1c5b68b44155b4a8311b14db2c4ebd94fa675e5ec7d382b4"
+      "sha256": "85463cdbddf243642c10d216be677649190662b472b1a825e23226a31a161993"
     },
     {
       "path": "sandbox_bridge/dist/verify-linux.js",
-      "sha256": "2e59af4e4e29b9ac10936785e2cb05175fbe93df6af86138c6b45c6da0014ae1"
+      "sha256": "9593478490d0775768d3dd325dad9fb5c7d1991204dd3f233fe8bb3855f702d7"
+    },
+    {
+      "path": "sandbox_bridge/dist/verify-native.js",
+      "sha256": "16c98332a0e167efd08d36750bbc8eaeab438f14029829b35c98940e3aac927f"
+    },
+    {
+      "path": "sandbox_bridge/dist/verify-windows.js",
+      "sha256": "1b04f3f454e865f893f953e8097d63e4ea81637a2017c5c57b263282a441b8a3"
+    },
+    {
+      "path": "sandbox_bridge/dist/windows-adapter.js",
+      "sha256": "adb4eed306a1f93c0515d3d7714ac4d861dbcef213ae8225d3d3d308a8b6e206"
     },
     {
       "path": "sandbox_bridge/package.json",

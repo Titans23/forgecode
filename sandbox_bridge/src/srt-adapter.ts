@@ -2,13 +2,13 @@
 import { spawn } from 'node:child_process';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import os from 'node:os';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { SandboxManager, SandboxRuntimeConfigSchema } from '@anthropic-ai/sandbox-runtime';
-import { checkWindowsSandboxStatusAsync } from '@anthropic-ai/sandbox-runtime/dist/sandbox/windows-sandbox-utils.js';
 import { checkLinuxDependencies } from '@anthropic-ai/sandbox-runtime/dist/sandbox/linux-sandbox-utils.js';
 import { ContractError, canonicalHash, validate } from '@forgecode/contracts';
 import { Executions } from './executions.js';
 import { LinuxExecutionOwner } from './linux-ownership.js';
+import { protectedDirectoryPaths, windowsPrerequisites } from './windows-adapter.js';
 
 const FEATURES = ['read_isolation', 'write_isolation', 'direct_network_isolation', 'dns_isolation',
   'socket_isolation', 'process_cleanup', 'memory', 'disk', 'pids'];
@@ -67,11 +67,15 @@ export class SrtAdapter {
 
   private nativeConfig(policy?: any): any {
     const fs = policy?.filesystem;
-    const protectedPaths = fs?.protected_paths ?? [this.controlRoot];
+    const rawProtectedPaths = fs?.protected_paths ?? [this.controlRoot];
+    const protectedPaths = process.platform === 'win32' ? protectedDirectoryPaths(rawProtectedPaths) : rawProtectedPaths;
     const patterns = this.workspace ? ['.env', '.env.*', 'credentials', 'credentials.json', 'id_rsa', 'id_ed25519']
       .map(name => resolve(this.workspace!.path, '**', name)) : [];
     return SandboxRuntimeConfigSchema.parse({
-      filesystem: { denyRead: [...protectedPaths, ...patterns], allowRead: [],
+      filesystem: { denyRead: [...protectedPaths, ...patterns], allowRead: process.platform === 'win32'
+        ? [dirname(process.execPath), resolve(this.root, 'sandbox_bridge/dist'), resolve(this.root, 'packages/contracts/dist'),
+          resolve(this.root, 'node_modules'), resolve(this.root, 'package.json'), resolve(this.root, 'sandbox_bridge/package.json'),
+          resolve(this.root, 'packages/contracts/package.json')] : [],
         allowWrite: fs?.write_roots ?? [], denyWrite: [...protectedPaths, ...patterns, this.root], allowGitConfig: false },
       network: { allowedDomains: policy?.network.allowed_domains ?? [], deniedDomains: [], strictAllowlist: true,
         deniedResolvedAddresses: privateAddresses, allowUnixSockets: [], allowAllUnixSockets: false, allowLocalBinding: false },
@@ -102,9 +106,9 @@ export class SrtAdapter {
     try {
       if (platform === 'unsupported') report.issues.push('Supported native hosts require Windows 11 x64 or Ubuntu 22.04/24.04 x64');
       else if (platform === 'windows-native') {
-        const status = await checkWindowsSandboxStatusAsync({ srtWin: { exe: this.assets['srt-win'], prependArgs: ['--srt-win'] } });
+        const prerequisite = await windowsPrerequisites(this.assets['srt-win']);
         // The upstream readiness is a prerequisite, never native isolation evidence.
-        report.readiness = status.user.provisioned && status.user.credPresent && status.user.inSandboxGroup && status.wfp.state === 'installed' ? 'ready' : 'setup_required';
+        report.readiness = prerequisite.ready ? 'ready' : 'setup_required';
         if (report.readiness !== 'ready') report.issues.push('SRT account/WFP prerequisites require authorized setup or verification');
       } else {
         const release = await readFile('/etc/os-release', 'utf8');
@@ -172,7 +176,8 @@ export class SrtAdapter {
       ['memory_bytes', 'disk_bytes', 'pids'].some(name => policy.limits[name]?.enforcement === 'hard_required')) {
       throw new ContractError('Native SRT cannot enforce this policy', 'CAPABILITY_UNSATISFIED', -32010);
     }
-    if (inside(this.root, this.workspace.path) || inside(this.workspace.path, this.root) || inside(this.workspace.path, this.controlRoot)) {
+    if (inside(this.root, this.workspace.path) || inside(this.workspace.path, this.root) || inside(this.workspace.path, this.controlRoot) ||
+      inside(this.root, this.controlRoot) || inside(this.controlRoot, this.root)) {
       throw new ContractError('Installation/control roots must be outside workspace', 'POLICY_DENIED', -32010);
     }
     if (!policy.filesystem.protected_paths.includes(this.controlRoot)) throw new ContractError('Control root must be protected', 'POLICY_DENIED', -32010);

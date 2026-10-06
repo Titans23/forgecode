@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "0cabc1873caa83bdb096f4532a4c5707196aa736",
-  "next_recommended_task": "F10",
-  "current_task": "F10",
+  "actual_repository_head": "cc2df6c99012bc7ee8cd21147fcccd4408479d8a",
+  "next_recommended_task": "F11",
+  "current_task": "F11",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -107,12 +107,27 @@
       ]
     },
     "F10": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "sandbox-windows": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "typecheck": "pass",
+        "sandbox-windows": "blocked",
+        "sandbox-linux": "blocked",
+        "desktop": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261006T134127Z-76e53bec",
+        "20261006T134145Z-5e720e59",
+        "20261006T134352Z-ad842262",
+        "20261006T134433Z-be4553ee",
+        "20261006T134442Z-98283708"
+      ],
+      "blocked_reasons": [
+        "Final actual Windows 10 unit 117 / portable 61 / regression 918 passed with zero skips; native Windows/Linux verifiers returned blocked with zero checks. Windows 11, PowerShell 7, authorized SRT setup and Ubuntu runners unavailable.",
+        "Shared SRT holder references are unobservable: existing setup repair/force/uninstall refused. Full ACL/Job/replacement-session cleanup needs F12/F25 native evidence. Main setup module awaits F13/F14 desktop/IPC integration and GUI acceptance; no real model experiment performed."
+      ]
     },
     "F11": {
       "implementation_status": "todo",

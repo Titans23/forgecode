@@ -41,8 +41,8 @@ SYMBOLS = {
 SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
           'regression': ['tests'], 'packaged': [],
-          'sandbox-linux': [], 'sandbox-windows': None, 'desktop': None, 'live-eval': None}
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux']}
+          'sandbox-linux': [], 'sandbox-windows': [], 'desktop': None, 'live-eval': None}
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows']}
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -51,7 +51,8 @@ CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
               **{case: ['tests/implementation/integration/test_rpc.py'] for case in ('O07', 'D04', 'D07', 'D09', 'D10', 'N01', 'N03')},
               **{case: ['tests/implementation/unit/test_policy.py', 'tests/implementation/integration/test_policy_service.py'] for case in ('C06', 'C24', 'N08')},
               **{case: ['tests/implementation/unit/test_bridge_launcher.py', 'tests/implementation/integration/test_bridge.py'] for case in ('C07', 'C08', 'C09', 'C16', 'C17', 'D13', 'N05')},
-              **{case: ['tests/implementation/native/linux/verify_linux.py'] for case in ('C10', 'C11', 'C12')}}
+              **{case: ['tests/implementation/native/linux/verify_linux.py'] for case in ('C10', 'C11', 'C12')},
+              **{case: ['tests/implementation/native/windows/verify_windows.py'] for case in ('C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07')}}
 
 
 class Parser(argparse.ArgumentParser):
@@ -203,25 +204,29 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     evidence_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid4().hex[:8]
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
-    native = suite == 'sandbox-linux'
-    report_path = output / ('native-linux.json' if native else 'build-smoke.json' if suite == 'packaged' else 'junit.xml')
+    native = suite in ('sandbox-linux', 'sandbox-windows')
+    report_path = output / (f'native-{suite.removeprefix("sandbox-")}.json' if native else 'build-smoke.json' if suite == 'packaged' else 'junit.xml')
     unavailable = SUITES[suite] is None
     if unavailable:
         argv = []
     elif suite == 'packaged':
         argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
     elif native:
-        argv = [sys.executable, '-X', 'utf8', '-m', 'forge.sandbox.doctor', '--native-linux', '--output', str(report_path)]
+        argv = [sys.executable, '-X', 'utf8', '-m', 'forge.sandbox.doctor', f'--native-{suite.removeprefix("sandbox-")}', '--output', str(report_path)]
     else:
         argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
                 '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
     started = datetime.now(timezone.utc).isoformat()
     preparation_commands = []
-    if suite in ('portable', 'regression', 'sandbox-linux'):
+    if suite in ('portable', 'regression', 'sandbox-linux', 'sandbox-windows'):
         node = shutil.which('node')
         if node:
             preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
             preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_bridge.py'), '--check'])
+            setup_source = ROOT / 'apps/desktop/src/main/setup_broker.ts'
+            if setup_source.is_file():
+                preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '--target', 'ES2022',
+                    '--module', 'NodeNext', '--strict', '--skipLibCheck', '--newLine', 'lf', '--outDir', str(output / 'main-compile'), str(setup_source)])
     head = command(['git', 'rev-parse', 'HEAD'])
     dirty = command(['git', 'diff', '--binary', 'HEAD'])
     source_hashes = {}
@@ -269,7 +274,8 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
     evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
-                'task_id': task_id, 'case_ids': ['C10', 'C11', 'C12'] if native else [case for case, refs in CASE_TESTS.items()
+                'task_id': task_id, 'case_ids': (['C10', 'C11', 'C12'] if suite == 'sandbox-linux' else
+                    ['C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07']) if native else [case for case, refs in CASE_TESTS.items()
                     if suite not in ('packaged',) and SUITES[suite] and any(Path(ref).name.startswith('test_') and
                         any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)],
                 'suite': suite, 'git_commit': head,
