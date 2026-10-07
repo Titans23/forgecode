@@ -1,13 +1,71 @@
 """Preregister repair-only conditions and recompute bundles; official execution and opt-in Windows live regression stay separate."""
 import argparse
+from copy import deepcopy
 from hashlib import sha256
 import json
+import os
 from pathlib import Path,PurePosixPath
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from forge.application.models import canonical_hash,strict_loads
 from benchmark.core.repair_comparison import interleaved_schedule,report_from_bundle
+
+
+def freeze_plans(base_plan):
+    """Resolve both repair treatments from one fully specified, read-only plan.
+
+    A portable plan carries configuration, never a host's authority to spend or
+    to launch a task. The receiving Engine must rebind its local connection and
+    reconcile source, environment, policy and authorization before execution.
+    """
+    from benchmark.adapters.harbor import export_runspec
+    from benchmark.core.repair_comparison import compare_repairs
+    from forge.engine.persistence import new_id
+    if (not isinstance(base_plan, dict) or base_plan.get('schema_version') != 'forge.eval.plan-export.v1'
+            or base_plan.get('read_only_plan') is not True
+            or base_plan.get('spec_hash') != canonical_hash(base_plan['spec'])):
+        raise ValueError('A valid resolved read-only RunSpec export is required')
+    source = export_runspec(base_plan['spec'], base_plan['resolved_snapshots'])
+    if base_plan.get('execution_label') != source['execution_label']:
+        raise ValueError('Execution label differs from the frozen RunSpec')
+    plans = {}
+    for group, repairs in (('A', 0), ('B', 2)):
+        spec, values = deepcopy(source['spec']), deepcopy(source['resolved_snapshots'])
+        spec['harness']['max_delivery_repairs'] = repairs
+        values['harness']['max_delivery_repairs'] = repairs
+        spec['harness']['configuration'] = {'snapshot_id': new_id('snap'),
+            'sha256': canonical_hash(values['harness'])}
+        plans[group] = export_runspec(spec, values)
+    comparison = compare_repairs(plans['A']['spec'], plans['B']['spec'],
+        plans['A']['resolved_snapshots'], plans['B']['resolved_snapshots'])
+    if not comparison['comparable']:
+        raise ValueError('Frozen experiment differs beyond the repair treatment')
+    return plans
+
+
+def write_frozen_plans(source, destination):
+    from benchmark.adapters.protocol import file_bytes
+    raw = file_bytes(source, limit=1048576)
+    plans = freeze_plans(strict_loads(raw))
+    spec = plans['A']['spec']
+    schedule = interleaved_schedule(spec['dataset']['task_ids'], spec['protocol']['repeats'])
+    encoded = {group + '.json': (json.dumps(plan, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+        for group, plan in plans.items()}
+    manifest = {'schema_version': 'forge.repair-plans.v1', 'base_plan_sha256': sha256(raw).hexdigest(),
+        'plans': {group: {'path': group + '.json', 'sha256': sha256(encoded[group + '.json']).hexdigest(),
+            'spec_hash': plan['spec_hash']} for group, plan in plans.items()},
+        'schedule': schedule, 'actual_model_calls': 0, 'execution_authorized': False}
+    # Validate before reserving the directory. The manifest is published last;
+    # an interrupted directory without it is incomplete and must not be used.
+    destination.mkdir(parents=True, exist_ok=False)
+    encoded['manifest.json'] = (json.dumps(manifest, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    for name, content in encoded.items():
+        with (destination / name).open('xb') as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+    return {'status': 'pass', **manifest}
 
 def check_configuration(value):
     if value.get('schema_version')!='forge.experiment.preregistration.v1':raise ValueError('Unsupported preregistration')
@@ -88,6 +146,9 @@ def verify(path):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);commands=parser.add_subparsers(dest='command',required=True)
+    freeze=commands.add_parser('freeze',help='Freeze repair-only A/B exports without starting a model or runner')
+    freeze.add_argument('--from-plan',type=Path,required=True)
+    freeze.add_argument('--output',type=Path,required=True)
     for name in ('verify','run'):
         command=commands.add_parser(name);command.add_argument('--configuration',type=Path,default=ROOT/'experiments/delivery-repair.json')
         command.add_argument('--output',type=Path,required=True)
@@ -96,6 +157,13 @@ def main():
     for name in ('run-a','run-b'):report.add_argument('--'+name,required=True)
     report.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
+    if args.command=='freeze':
+        try:
+            result=write_frozen_plans(args.from_plan,args.output)
+        except (OSError,ValueError,KeyError,TypeError) as error:
+            result={'status':'fail','reason':str(error),'actual_model_calls':0}
+        print(json.dumps(result,ensure_ascii=False))
+        return 0 if result['status']=='pass' else 1
     try:
         result=report_from_bundle(args.from_bundle,args.run_a,args.run_b,strict_loads(args.plan_a.read_bytes()),
             strict_loads(args.plan_b.read_bytes())) if args.command=='report' else verify(args.configuration)

@@ -3,7 +3,7 @@ from copy import deepcopy
 from decimal import Decimal,localcontext
 import random
 from forge.application.models import canonical_hash,validate
-from forge.application.evaluation_client import REFERENCES
+from benchmark.core.spec import REFERENCES
 
 def differences(a,b,path=''):
     if type(a)!=type(b):return [path]

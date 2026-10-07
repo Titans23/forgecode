@@ -41,7 +41,7 @@
     },
     {
       "path": "benchmark/adapters/harbor.py",
-      "sha256": "bb66643d1cd7055a13fd05769cd14b82ace508a3f02abaa5b3c1168f32a97e92"
+      "sha256": "e4cf5e38111f6a30168568415f4d97b1037abd7ae39277888138a763544aa216"
     },
     {
       "path": "benchmark/adapters/materialize.py",
@@ -73,7 +73,7 @@
     },
     {
       "path": "benchmark/core/repair_comparison.py",
-      "sha256": "2157e0317a7756005e55592d51db8f832ebc8613dab44ee730817cb0a61d283c"
+      "sha256": "1b5f8f96c19a5d4cc376937a9108e85e3955c54b53497e0fcfbf4b043ed9ec5d"
     },
     {
       "path": "benchmark/core/results.py",
@@ -85,7 +85,7 @@
     },
     {
       "path": "benchmark/core/spec.py",
-      "sha256": "a66a5898456ca6944e4b9d8b6b8ceadd18d05d1d47fb27676b17ef90d11dd41d"
+      "sha256": "7ebf401073e4a9439dc3e992b2196d5d517a82788c39442f9a30480e5520d2bf"
     },
     {
       "path": "benchmark/harbor/__init__.py",
@@ -113,7 +113,7 @@
     },
     {
       "path": "benchmark/harbor/forgecode_agent.py",
-      "sha256": "adefaecf81dab45f93e08cba1098042daa9642df2a70adee3571f10cf7626e62"
+      "sha256": "b73b6169e212e5404e5d071fc201c87e285703ad266ee2df602d80e5bf3273eb"
     },
     {
       "path": "benchmark/harbor/process_supervisor.py",
@@ -133,7 +133,7 @@
     },
     {
       "path": "benchmark/harbor/run_forge.py",
-      "sha256": "89f5e67644d44b97590d7a4c9dfc7dc71d2322d07b8a217288a9247e73efe09b"
+      "sha256": "eecd730d4eae46ad5197a0c2006d2e8f06361d02882c33bf533dff7d9bff2800"
     },
     {
       "path": "benchmark/harbor/run_swebench.py",
@@ -145,7 +145,7 @@
     },
     {
       "path": "benchmark/harbor/snapshot.py",
-      "sha256": "05c7191ad8810a88324e24dd61f35f0894f5075876632bfc0a21391a860b62b2"
+      "sha256": "51fc381f15f4bf6228889eb77317393eba41a51a1a0f54275816f8e8db6a93c6"
     },
     {
       "path": "benchmark/harbor/summarize.py",
@@ -185,7 +185,7 @@
     },
     {
       "path": "forge/application/evaluation_client.py",
-      "sha256": "455be4d260b7c1cb722e419bb5206082bf9357a40d711a4f2587644f0b32b70e"
+      "sha256": "e2468caaecebfd43991f14e03473a273969c23ded482c6670509c4f0d255887f"
     },
     {
       "path": "forge/application/evaluations.py",

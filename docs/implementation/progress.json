@@ -4,9 +4,9 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "a523a7887a238fa7f52bd6be625d71ab4d0625bd",
+  "actual_repository_head": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
   "next_recommended_task": "F28",
-  "current_task": "F29",
+  "current_task": "F31",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -1012,7 +1012,7 @@
         "20261007T145332Z-695f9ba9"
       ],
       "blocked_reasons": [
-        "Tested remediation candidate passes current contracts2/quality4/unit225/portable382/regression1351. A new actual hosted matrix is pending upload/verification; first failed run is retained in F32-first-hosted-ci-observations.json.",
+        "Actual hosted run37642586381 attempt2: Ubuntu22.04 and Windows2025 portable pass; Ubuntu24.04 has one missing browser-report failure; dependency-security fails with two high entries. Initial startup_failure retained.",
         "Security/native/signing/LICENSE and protected runner configuration remain independently blocked."
       ],
       "historical_blocked_reasons": [
@@ -1025,7 +1025,7 @@
       "current_remediation": {
         "scope": "F32 actual hosted portability failures",
         "parent_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
-        "status": "local_full_pass_hosted_pending",
+        "status": "uploaded_hosted_partial_failure",
         "first_hosted_ref": "evidence/F32-first-hosted-ci-observations.json",
         "model_calls": 0,
         "candidate_commit": "a523a7887a238fa7f52bd6be625d71ab4d0625bd",
@@ -1045,7 +1045,11 @@
           "20261007T144844Z-d7aa5443"
         ],
         "local_ci_gate": "pass",
-        "observations_ref": "evidence/F32-ci-remediation-observations.json"
+        "observations_ref": "evidence/F32-ci-remediation-observations.json",
+        "uploaded_commit": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
+        "hosted_run_id": 37642586381,
+        "hosted_run_attempt": 2,
+        "hosted_observations_ref": "evidence/F32-remediation-hosted-observations.json"
       },
       "gate_review_evidence_ids": [
         "20261007T150406Z-81c7bee6"
@@ -1082,7 +1086,7 @@
       "verification_scope": "Historical task execution; current development-version tests/assets are tracked in F32, authorized live observations in F31."
     },
     "F31": {
-      "implementation_status": "implemented",
+      "implementation_status": "in_progress",
       "verification": {
         "contracts": "pass",
         "quality": "pass",
@@ -1107,23 +1111,56 @@
         "20261007T125541Z-271c143b",
         "20261007T125548Z-a7d9525c",
         "20261007T125611Z-4e7c1bd8",
-        "20261007T131021Z-e5bf3413"
+        "20261007T131021Z-e5bf3413",
+        "20261007T154114Z-26ded72b",
+        "20261007T154120Z-2a46ead5",
+        "20261007T154135Z-0a1ccbae",
+        "20261007T154224Z-82b552ed",
+        "20261007T155239Z-37f6cb63"
       ],
       "blocked_reasons": [
-        "Linux Docker daemon unavailable; official execution has unresolved frozen snapshots, policy and trusted accounting code conditions. Human real-model permission is granted, with no monetary ceiling.",
+        "Linux Docker daemon unavailable; official execution still needs verified environment/network policy and trusted host authorization/per-request accounting. Human real-model permission is granted, with no monetary ceiling.",
         "Current phase is Windows10; Windows11/Ubuntu native sandbox proof, complete official trace, signing, project LICENSE and dependency security remain blocked.",
         "Formal independent holdout set/scale is unselected; three inspected tasks support exploratory regression only. Actual billing/pricing is unavailable; all monetary costs unknown."
       ],
       "remaining_implementation": [
-        "Official Harbor frozen RunSpec/source/model/environment binding, verified execution policy and trusted host authorization/per-request ledger integration remain unimplemented; live official execution is refused."
+        "Official network/policy and actual Docker environment reconciliation, trusted host authorization and per-request ledger integration remain unimplemented/unverified; official live execution stays refused.",
+        "The current preregistration still needs real official environment snapshots and a RunSpec representation for explicitly unbounded monetary authorization; no null snapshot or permission is guessed."
       ],
-      "implemented_scope": "Repair-only preregistration/authorization guards, exact bundle comparison and actual Windows controlled six-attempt A/B with independent unittest; not complete official Harbor execution.",
+      "implemented_scope": "In progress: complete resolved-plan checks and repair-only portable plan freezing; real source/staging identity and pre-request model/parameter/prompt/tool-schema binding. Historical Windows controlled A/B remains separate from official Harbor.",
       "artifact_refs": [
         "evidence/F31-real-model-observations.json",
-        "evidence/F31-prior-hosted-ci-observations.json"
+        "evidence/F31-prior-hosted-ci-observations.json",
+        "evidence/F31-frozen-plan-observations.json"
       ],
       "historical_ci_blockers": [
         "Actual hosted F28 matrix failed on Electron cold-import output, Windows path aliases/PowerShell timeout and security. F32 candidate fixes are not yet hosted-verified."
+      ],
+      "current_continuation": {
+        "parent_commit": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
+        "status": "local_full_pass_upload_pending",
+        "new_behavior_tests": 18,
+        "model_calls": 0,
+        "administrator_setup": false,
+        "artifacts_rebuilt": false,
+        "source_inventory_hash": "92c78581312ad297ca5507e7b739e5ffdf6c2bd72d8ac5340656c203d9aae0db",
+        "final_evidence_ids": [
+          "20261007T154114Z-26ded72b",
+          "20261007T154120Z-2a46ead5",
+          "20261007T154135Z-0a1ccbae",
+          "20261007T154224Z-82b552ed",
+          "20261007T155239Z-37f6cb63"
+        ],
+        "local_ci_gate": "pass",
+        "reports_recomputed": 5,
+        "observations_ref": "evidence/F31-frozen-plan-observations.json"
+      },
+      "current_evidence_ids": [
+        "20261007T154114Z-26ded72b",
+        "20261007T154120Z-2a46ead5",
+        "20261007T154135Z-0a1ccbae",
+        "20261007T154224Z-82b552ed",
+        "20261007T155239Z-37f6cb63"
       ]
     },
     "F32": {
@@ -1215,7 +1252,7 @@
       "current_remediation": {
         "scope": "F32 actual hosted portability failures",
         "parent_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
-        "status": "local_full_pass_hosted_pending",
+        "status": "uploaded_hosted_partial_failure",
         "first_hosted_ref": "evidence/F32-first-hosted-ci-observations.json",
         "model_calls": 0,
         "candidate_commit": "a523a7887a238fa7f52bd6be625d71ab4d0625bd",
@@ -1236,9 +1273,13 @@
         ],
         "local_ci_gate": "pass",
         "observations_ref": "evidence/F32-ci-remediation-observations.json",
-        "release_gate": "blocked with zero evidence errors"
+        "release_gate": "blocked with zero evidence errors",
+        "uploaded_commit": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
+        "hosted_run_id": 37642586381,
+        "hosted_run_attempt": 2,
+        "hosted_observations_ref": "evidence/F32-remediation-hosted-observations.json"
       },
-      "verification_scope": "Initial F32 Windows10 development review followed by actual hosted-failure remediation; current five-suite source9f9a924d/head a523a788 passed; final hosted matrix is pending upload.",
+      "verification_scope": "F32 Windows10 review and hosted remediation source9f9a924d. Uploaded commit3a51097; actual run37642586381 attempt2 has two portable jobs pass, Ubuntu24.04 one browser failure, security failure. F31 continuation is tracked separately.",
       "release_gate_history_note": "Derived release reviews are retained separately in gate_review_evidence_ids and are not input evidence to their own gate. First follow-up failed because current suite references were not added yet; second failed because the prior derived failure was used as input. Both raw failures are preserved and recomputed; current tests passed. Rerun after correcting the explicit references.",
       "gate_review_evidence_ids": [
         "20261007T141839Z-0478b9bc",
@@ -1259,11 +1300,11 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Frozen unuploaded hosted-CI remediation candidate. Local five-suite verification is running; last uploaded commit is dd17e3488103008957ed88bfff764cbe27694a94.",
+  "head_recorded_scope": "HEAD3a51097 is uploaded and its actual hosted result is recorded. The F31 resolved-plan continuation has completed all five local suites on source92c78581 and is pending a tested development commit/upload.",
   "gate_notes": {
     "G1-contracts-engine": "Current contracts/quality/unit/portable/regression all pass, zero required skips; actual private Engine, DB, actions and offline repair exercised.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",
-    "G4-evaluation": "Actual protocol/bundle comparison and controlled Windows grades exist; official RunSpec/policy/accounting binding is unimplemented, Linux Docker daemon absent.",
+    "G4-evaluation": "Resolved RunSpec/source/model/prompt/tool-schema binding now has current passing offline behavior tests. Official environment/network policy, host accounting and unbounded monetary-budget representation remain incomplete; Linux Docker daemon absent.",
     "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."
   }
 }

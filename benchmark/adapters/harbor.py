@@ -10,11 +10,12 @@ from benchmark.catalog import get_benchmark
 from benchmark.adapters.diagnostics import doctor
 from benchmark.adapters.materialize import resolve_task
 from benchmark.adapters.process import run_process
-from benchmark.adapters.protocol import (capture_tree, collect_harbor, file_bytes, grader_cache_key, normalize,
+from benchmark.adapters.protocol import (collect_harbor, file_bytes, grader_cache_key, normalize,
     NORMALIZATION_VERSION)
 from forge.application.models import ContractError, canonical_hash, strict_loads
 from forge.engine.persistence import new_id
-from benchmark.core.spec import freeze_spec
+from benchmark.core.spec import freeze_spec, validate_resolved_spec
+from benchmark.harbor.snapshot import verify_frozen_source
 
 
 class HarborAdapter:
@@ -43,6 +44,16 @@ class HarborAdapter:
         return {'schema_version':'forge.harbor.source.v1','manifest':self.source}
 
     def validate(self,spec,values):
+        issues=self.configuration_issues(spec,values)
+        issues.append({'task_id':None,'kind':'policy_unverified',
+            'message':'Official task network policy has not been verified against frozen sandbox policy; live execution remains blocked until capability reconciliation'})
+        issues.append({'task_id':None,'kind':'live_authorization_binding_unverified',
+            'message':'Official runner has not bound trusted host authorization and per-request accounting to its frozen execution plan'})
+        return issues
+
+    def configuration_issues(self,spec,values):
+        """Configuration can be materialized without granting permission to execute."""
+        validate_resolved_spec(spec,values)
         issues=[]
         def issue(kind,message,task=None):
             issues.append({'task_id':task,'kind':kind,'message':message})
@@ -76,18 +87,11 @@ class HarborAdapter:
             if spec['source']['dirty_diff_sha256']!=self.source.get('dirty_diff_sha256'):
                 issue('protocol_incompatible','Frozen dirty diff identity differs from RunSpec')
             try:
-                current={name:sha256(content).hexdigest() for name,content in capture_tree(self.source_root).items()
-                    if '__pycache__' not in Path(name).parts}
-                if current!=self.source['files']:
-                    raise ContractError('Frozen candidate file set changed')
-                for name,digest in self.source['files'].items():
-                    relative=Path(name)
-                    if relative.is_absolute() or '..' in relative.parts or sha256(file_bytes(self.source_root/relative)).hexdigest()!=digest:
-                        raise ContractError('Candidate source bytes changed')
+                verify_frozen_source(self.source_root,self.source)
                 lock=file_bytes(self.source_root/'uv.lock')
                 if sha256(lock).hexdigest()!=spec['source']['dependency_lock_sha256']:
                     issue('protocol_incompatible','Dependency lock differs from frozen source')
-            except (OSError,ContractError):
+            except (OSError,ValueError):
                 issue('environment_setup','Frozen candidate or dependency lock is unavailable/changed')
         parameters,harness=values['model_parameters'],values['harness']
         if parameters['temperature'] is not None or parameters['top_p'] is not None:
@@ -99,16 +103,19 @@ class HarborAdapter:
         network=values['network_cache']
         if network['cache_mode']!='cold':
             issue('protocol_incompatible','V4 adapter currently supports a private cold cache; shared cache must not be silently substituted')
-        issue('policy_unverified','Official task network policy has not been verified against frozen sandbox policy; live execution remains blocked until capability reconciliation')
         if values['environment']['backend_version']!='harbor-0.18.0-docker' or values['grader_environment']['backend_version']!='harbor-0.18.0-docker':
             issue('protocol_incompatible','Frozen environment must describe the actual official Harbor Docker backend')
-        # Human permission and executable binding/accounting are separate facts.
-        # The upgrade is authorized; this official adapter still lacks that binding.
-        issue('live_authorization_binding_unverified','Official runner has not bound trusted host authorization and per-request accounting to its frozen execution plan')
         return issues
 
     def materialize(self,spec,values,work,directory,*,endpoint):
         """Build an actual JobConfig for exactly one already planned attempt."""
+        issues=self.configuration_issues(spec,values)
+        if issues:
+            raise ContractError('Official configuration cannot be materialized: '+issues[0]['message'])
+        if work['task_id'] not in spec['dataset']['task_ids']:
+            raise ContractError('Attempt task is not selected in the frozen RunSpec')
+        if not 0 < work['duration_seconds'] <= spec['budget']['attempt_wall_seconds']:
+            raise ContractError('Attempt deadline exceeds the frozen RunSpec budget')
         from harbor.models.job.config import JobConfig
         directory=Path(directory)
         directory.mkdir(parents=True,exist_ok=False)
@@ -116,6 +123,7 @@ class HarborAdapter:
         task_path=resolve_task(self.taskset_root,self.taskset,work['task_id'])
         parameters,harness=values['model_parameters'],values['harness']
         frozen={'schema_version':'forge.harbor.harness.v1','parameters':parameters,'harness':harness,
+            'plan':export_runspec(spec,values),
             'scope':{key:work[key] for key in ('trace_id','span_id','run_id','trial_id')},'attempt_id':work['business_id']}
         agent={'import_path':'benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent',
             'model_name':spec['model']['requested_model'],'override_timeout_sec':work['duration_seconds'],
@@ -245,15 +253,7 @@ class HarborExecutor:
 
 def export_runspec(spec,values):
     """Portable plan with resolved snapshots; no credentials, imported scores or local control authority."""
-    from forge.application.models import validate
-    validate('run-spec',spec)
-    references={'source':spec['source']['source_snapshot'],'model_parameters':spec['model']['parameters'],
-        'harness':spec['harness']['configuration'],'environment':spec['execution']['environment_snapshot'],
-        'policy':spec['execution']['sandbox_policy'],'capabilities':spec['execution']['sandbox_capabilities'],
-        'network_cache':spec['execution']['network_cache_configuration'],'grader':spec['grader']['configuration'],
-        'grader_environment':spec['grader']['environment'],'pricing':spec['observability']['pricing_snapshot']}
-    if set(values)!=set(references) or any(canonical_hash(values[key])!=ref['sha256'] for key,ref in references.items()):
-        raise ContractError('Export snapshot content differs from immutable RunSpec',kind='STALE_REVISION',code=-32010)
+    validate_resolved_spec(spec,values)
     return {'schema_version':'forge.eval.plan-export.v1','spec':spec,'spec_hash':canonical_hash(spec),
         'resolved_snapshots':values,'execution_label':spec['execution']['target_platform'],
         'read_only_plan':True,'required_environment':('official Harbor Linux Docker environment' if spec['execution']['target_platform']=='official-environment'

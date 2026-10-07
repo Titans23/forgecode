@@ -100,6 +100,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
         self._package = package
         self._frozen_configuration = json.loads(frozen_configuration) if frozen_configuration else None
+        if package is not None and (self._frozen_configuration or {}).get('plan'):
+            raise ValueError('A bound RunSpec requires its frozen local source, not a package override.')
         self._phase_deadline: float | None = None
 
     def set_phase_timeout(self, seconds: float | None) -> None:
@@ -220,6 +222,15 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         source = self._source_dir
         if source is None:
             raise ValueError('No local ForgeCode source directory is available.')
+        plan = (self._frozen_configuration or {}).get('plan')
+        if plan:
+            from benchmark.adapters.harbor import export_runspec
+            from benchmark.harbor.snapshot import verify_frozen_source
+            expected = export_runspec(plan['spec'], plan['resolved_snapshots'])
+            if plan['spec_hash'] != expected['spec_hash']:
+                raise ValueError('Frozen plan hash changed before staging')
+            manifest = plan['resolved_snapshots']['source']['manifest']
+            verify_frozen_source(source, manifest)
         required = (
             source / 'pyproject.toml',
             source / 'README.md',
@@ -260,6 +271,10 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
                 shutil.copytree(source/relative,staged/relative,ignore=_ignore_source_artifacts)
         if (source/'uv.lock').is_file():
             shutil.copy2(source/'uv.lock',staged/'uv.lock')
+        if (source/'benchmark/catalog.py').is_file():
+            shutil.copy2(source/'benchmark/catalog.py',staged/'benchmark/catalog.py')
+        if plan:
+            verify_frozen_source(staged, manifest)
         return staged
 
     def _run_command(

@@ -1,5 +1,62 @@
 # ForgeCode V4 交接 — 2026-10-07
 
+## 当前续作（2026-10-08，Asia/Shanghai）
+
+旧聊天已返回 completed/idle，明确释放工作区；当前聊天接管。3a51097 已正常fast-forward推送并用ls-remote核对。对应GitHub run37642586381首次startup_failure、0 jobs/0 check-runs；官方API单次rerun返回201。attempt2实际Ubuntu22.04/Windows2025 portable通过，Ubuntu24.04一个真实浏览器测试未产出report，security仍2high失败。四个job日志、四份artifact ZIP和JUnit摘要已取回，索引F32-remediation-hosted-observations.json。现有失败栈未保留Electron退出诊断，不能推断具体根因，也不称workflow全绿。
+
+当前F31源码/RunSpec绑定补齐进行中：共享resolved snapshot语义检查；离线freeze生成A/B/read-only计划和清单；真实冻结/暂存包含catalog且核验完整内容；物化前重验；首模型请求前检查model/参数/prompt/tool schema。F31仍in_progress；官方政策、宿主授权/逐请求账本、无上限正式预算表示、Docker/环境证明仍未完成。0新增模型请求/管理员操作。之前实际83请求和A3/3、B2/3历史保持，不重跑挑成绩。
+
+本轮定向初始8项失败全部复现（7项导出校验、1项借用宿主模块），新增freeze/源码核验各2项初始失败及一项测试消息正则失败均保留。最终source92c78581312ad297ca5507e7b739e5ffdf6c2bd72d8ac5340656c203d9aae0db：contracts2、quality4、unit225、portable400、regression1369全pass，0skip/failure/error；五份报告独立复算、freshCIgate通过，session38375已退出0。证据ID依次20261007T154114Z-26ded72b、154120Z-2a46ead5、154135Z-0a1ccbae、154224Z-82b552ed、155239Z-37f6cb63；完整记录F31-frozen-plan-observations.json。build_desktop已刷新development-assets；未重建旧exe。下一精确stage本轮文件，commit/push并检查新hosted结果，再继续F28/F31必需代码。无关未跟踪文件和旧四份10:33证据仍保留，不打包提交。
+
+## 上一聊天移交快照（2026-10-07 15:14 UTC，以下已由当前续作更新）
+
+收到迁移通知后已在安全工具边界停止开发。本段为最新状态；下方旧记录仅作历史，不得把旧的“正在运行”“待测试”或“未授权模型”当作当前状态。没有启动新的源码修改、模型实验、回归或管理员设置，没有创建新聊天或向其他聊天发消息。迁移通知指定新聊天使用 GPT-6 Astra / Max / Fast 关闭；既有人类授权继续有效。
+
+### 本地提交、远端与工作区
+
+- 分支：`codex/forgecode-v4`；工作区：`D:\learn_project\forgecode`；远端：`https://github.com/Titans23/forgecode.git`。
+- 最新本地 HEAD：`3a51097d77e012abe297fb05893ec6e9dfba84ab`，提交完整复验文档与证据。已测试的源码提交为其父提交 `a523a7887a238fa7f52bd6be625d71ab4d0625bd`；最新 HEAD 仅增加文档/证据，源码指纹仍为 `9f9a924db65db866dcbe3971bfff2b8c74213456331801df8b4bf5ba7e283d1f`。没有待提交产品源码。
+- 15:14 UTC 实际 `git ls-remote` 再次核对：远端仍为 `dd17e3488103008957ed88bfff764cbe27694a94`。本地两个新提交尚未上传，不能把 3a51097 或 a523a78 写成 GitHub 已有版本。
+- 三次上传分别于 15:07:55、15:08:36、15:09:21 UTC 被 GitHub 远端 Internal Server Error / HTTP 500 拒绝；第三次明确使用 HTTP/1.1。Request ID 依次为 `9C88:7B98C:A1CF98:D73B06:6AC66049`、`D912:A1665:A0F622:D5F87E:6AC66072`、`8FD6:9E9B8:2FD4E9:3F3453:6AC6609F`。这是上传阻塞，不是测试失败或自动审批拒绝。官方状态页当时未报告全局故障，不推断全局宕机。
+- 只读 GitHub API 同样确认 ref 为 dd17e34，查询 3a51097 返回 404。已阅读官方 Git database trees/commits/refs 接口作为潜在备用上传方式；没有执行 API 写入，没有创建上传脚本，没有强推或改写历史。
+- 本次交接只修改 `docs/implementation/handoff.md`，留为未提交文档变更供新聊天读取；不为迁移再启动推送。其余既有未跟踪文件保留：`.forge/`、`build/`、`update_implementation_pack/`、`forgecode-architecture-8k.png`、`forgecode-architecture.png`、`forgecode-architecture.svg`、`svg_probe.txt`，以及 evidence 中 `20261007T103345Z-a7c89b8b` / `103355Z-bb8cd159` / `103520Z-669445a7` / `103613Z-0bd17f57` 四份旧记录。它们未进入本次提交；不得 `git add -A`、清理或覆盖。
+
+### 最终本地测试与证据（全部已经结束）
+
+- 固定环境：Windows 10 x64 build 19045；`.venv/Scripts/python.exe` 3.12.13；正式 Node 为 `.local/release-runtime/node-24.21.0-win-x64/node.exe` 24.21.0。系统 PATH 默认 Node 22.17.1；正式复验在当前进程 PATH 前置固定 Node 目录，不改系统设置。
+- 五层正式验证全部 PASS，零 skip/failure/error：contracts 2（`20261007T143907Z-f2d2193d`）；quality 4（`20261007T143911Z-01c04c24`）；unit 225（`20261007T143926Z-173a661a`）；portable 382（`20261007T144011Z-c6c40c46`）；regression 1351（`20261007T144844Z-d7aa5443`）。全部绑定 a523a78 和上述 9f9a924 源码指纹。
+- 87 项相关专项 PASS；真实 `scripts/ci_bootstrap.py` 已完成锁定 Electron 下载与 contracts / Bridge / Main / Vite 构建。本机 fresh CI gate PASS。没有用 Mock 或静态返回替代执行。
+- 公开事实索引：`docs/implementation/evidence/F32-ci-remediation-observations.json`、`F32-first-hosted-ci-observations.json`；私有完整报告：`.local/F32-ci-fix-final.json` / `.log`、`F32-ci-fix-gate.json`、`F32-ci-fix-focused.xml` / `.log`、`F32-ci-bootstrap-fix.log`。31 份实际 F32 报告已复算，另有一份历史无 JUnit 超时 FAIL 独立保留。
+- 37 项已有 portable 证明重新绑定当前报告，未提升 native 验收。acceptance `20261007T145332Z-695f9ba9` 仍 BLOCKED：110 引用有效、156 项平台证明缺失。最新 release `20261007T150635Z-a27c64ba` BLOCKED：280 条条件、0 evidence errors；implementation gate 同样 BLOCKED、0 errors，包含真实 F28/F31 必需代码缺口。
+- gate 索引中间两次真实 FAIL（`20261007T150406Z-81c7bee6`、`20261007T150523Z-0a7b7434`）均保留：首次缺新增测试索引，第二次派生审查反向输入自己的 gate。只修正文档索引；派生报告放在 `gate_review_evidence_ids`，不作为测试输入证明，未更改产品门禁或掩盖测试失败。
+- 所有 verifier/live/build 会话已结束，没有待等待的本任务后台工具；不要轮询旧 session。`.local/F32-ci-fix-finalize.py` 曾按 HEAD=a523a78 完成复算；当前 HEAD=3a51097，不能原样重跑其当前 HEAD 断言后误判源码变动。
+
+### GitHub CI 实际结果与本轮修复
+
+- 最后已上传 dd17e34 的真实 run：`37636301297`，`https://github.com/Titans23/forgecode/actions/runs/37636301297`。四个 job 全部 failure：Ubuntu 22/24 各 unit 223 PASS、portable 367 PASS / 14 FAIL；Windows Server 2025 unit 223 PASS、portable 379 PASS / 2 FAIL；security 实际 2 high。日志、artifact ZIP、JUnit/hash 已取回复算，原始目录 `.local/F32-remote-ci/`。
+- a523a78 已修复真实原因并完整本地复验：development Engine 保留 venv Python 启动别名并独立校验目标 hash；明确调用锁定 Electron 44 官方 installer；F25 工具 schema 分别核对原提交 e37e09a 的 Windows/POSIX 描述；catalog JSON 用 ASCII 转义保留 Unicode 值。新增两个 Python unit、一个 integration 和真实 Node venv 启动行为。
+- 修正提交尚未上传，因此没有它的新 hosted CI 结果。`.local/F32-ci-remediated-remote/index.json` 空列表不证明通过；不能用本机 portable PASS 或 Windows Server runner 替代 Linux / Windows 11 原生验收。
+- 只读 helper：`.local/inspect_remote_ci.py --commit <实际已上传完整SHA> --output .local/F32-ci-remediated-remote`；完成后再加 `--logs --artifacts`。`--output` 接受目录。认证只在内存读取，禁止打印 token/完整私有配置或放入命令参数。原始 artifact 可用 `.local/F32-hosted-finalize.py --directory <目录> --commit <SHA>` 复算。
+
+### 尚未完成的实现和环境阻塞
+
+- F28 必需代码仍缺：严格原生 capability verified promotion、已初始化 SRT/helper/listener 的完整清理、动态敏感路径 Shell/File 策略一致性。strict 继续在模型请求前拒绝，不能用 host fallback 或伪 native 结果解除。
+- F31 必需代码仍缺：官方 Harbor 的 RunSpec / source / model / environment / policy / 可信宿主授权及逐请求账本绑定。正式 live 实验仍拒绝，已有 Windows 原始任务实验不等同官方 Harbor 成绩。
+- Windows 11 工作站、Ubuntu 22/24 X11/Wayland、原生沙盒、干净系统安装/升级/卸载、OS keystore、suspend 和手动原生对话框等 156 项证明仍缺。当前验收先 Windows 10，不把 GitHub Windows Server 当 Windows 11 客户端验收。
+- Docker CLI 29.7.2 存在但无 Linux daemon；管理员系统安装/设置未授权。签名材料与项目 LICENSE 缺失。SRT / node-forge 两个 high dependency entry 属于同一 `GHSA-86w9-cpqp-85rv`；不能为清零盲目降级 SRT 或声称已修补。
+- 真实固定负载 100000 events / 10000 spans / 100 MiB：metadata 从 8.0771% 改善到 5.210340492313925%，仍超过 5%。本轮没有重新测量性能；原生图形性能未验收。
+- 旧安装包仅属于 `v4-f32-13bc5fd-win-x64`；本轮 CI 修正未重建或系统安装包，不得将旧 Setup 改称 a523a78 / 3a51097 产物。
+
+### 授权、模型历史与恢复顺序
+
+- 人类此前明确授权：已测试开发版本上传 GitHub；使用现有配置真实模型；费用预算“无上限”；本阶段先 Windows 10。安全授权证据 `docs/implementation/evidence/human-authorization-20261007.json`。管理员设置仍未授权。不得重新把付费实验“未授权”列为阻塞。
+- 真实模型两批 10 attempts / 83 requests，共 864743 input / 15909 output，cost unknown；首批 source_changed 无效并完整保留。第二批独立 Windows grade A 3/3、B 2/3，B proverb 类型错误真实失败，不能选择性重试后宣传增益。安全索引 `F31-real-model-observations.json`；原始 `.local/F31-live-20261007T1251/`、`1255/`。本轮 F32 未新增模型请求，迁移时未启动新实验。
+- 新聊天先读各级 AGENTS、PLANS/progress/backlog、任务卡和本段，再核对本地 HEAD/工作区/远端。已有完整测试和冻结源码未变时，不为上传重复全量回归。优先解除上传阻塞，正常 fast-forward push 两个本地提交并核对远端 SHA。若采用官方 Git database API，只能上传确切已测试 blob/tree/commit，校验身份和父链，并在远端仍为预期父提交时 `force:false` 更新；未核对同一 tree/历史不得改分支。
+- 上传成功后检查真实新 Actions，下载/复算三个 portable artifact 与 security 结论。即使 portable 三平台通过，现有 high 仍会使整体 workflow failure；分别记录，不宣称全绿。根据真实失败修复、运行相关行为/回归后再上传，更新 progress、任务卡、evidence、support matrix 和 final report。
+- 此后继续补 F28/F31 必需代码，按 backlog 依赖执行；implemented 标签或报告完成不代表全部 V4 功能已实现。`progress.json` 当前任务 F29（hosted 修正跟进），next recommended F28。双平台/正式模型/管理员资源缺失继续记 BLOCKED，同时推进独立代码工作。此聊天按迁移通知停止，不会自行恢复开发。
+
+---
+
 - 15:07UTC追加修正已完成全量：测试父HEADa523a7887a238fa7f52bd6be625d71ab4d0625bd/source9f9a924db65db866dcbe3971bfff2b8c74213456331801df8b4bf5ba7e283d1f，contracts2/quality4/unit225/portable382/regression1351全pass0skip/failure/error，freshCIgatepass。验证会话92229、19466、38971已结束；31份报告复算、87专项通过。37已有portable证明绑定当前report，native不提升，156证明仍blocked。gate派生报告独立保留为gate_review_evidence_ids：首次缺新测试索引、第二次前次派生fail反向输入，原始fail均保留；正确索引后implementation/release blocked0errors，latestrelease20261007T150635Z-a27c64ba/280条件。当前将提交这些文档/证据并推送修正，之后用.local/inspect_remote_ci.py检查真实新run。此前dd17e34/run37636301297已实际失败并完整保存；不能称新矩阵已通过。安装包仍属于此前v4-f32-13bc5fd，未重建或安装；0新增模型/UAC调用。
 
 - CI修正已本机提交为a523a7887a238fa7f52bd6be625d71ab4d0625bd，尚未再次上传；source9f9a924db65db866dcbe3971bfff2b8c74213456331801df8b4bf5ba7e283d1f冻结。87定向测试零failure/error/skip；实际ci_bootstrap全部成功。私有.local/F32-ci-fix-verify.py正在串行contracts/quality/unit/portable/regression，并逐项原子保存.local/F32-ci-fix-final.json；结束后复算五份报告及fresh CIgate，通过才推送。当前新增3个Python行为（unit2、integration1）和真实Nodevenv启动断言。不要在这一轮执行中更改public源码／release-manifest或重建installer，避免source_changed。已有安装包仍属于此前v4-f32-13bc5fd构建，不能将旧二进制改称本候选重建产物。

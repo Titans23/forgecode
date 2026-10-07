@@ -15,6 +15,20 @@ uv run --no-sync python scripts/delivery_experiment.py run --output .local/deliv
 
 两条命令验证预注册、真实官方任务证据及本机 Harbor/Docker，不请求模型。当前正式 `run` 记录未完成的环境与代码条件，不用其他执行方式伪造 Harbor 结果。修改JSON中的授权布尔值不能自行创建人类授权；明确的人类无上限政策也不会被改成零额度。未解决的正式 source/model/environment/pricing 快照仍保留null。
 
+## 冻结可导出的 A/B RunSpec
+
+对一份含完整 `spec`、`spec_hash` 和 `resolved_snapshots` 的现有配置导出执行：
+
+```text
+uv run --no-sync python scripts/delivery_experiment.py freeze --from-plan BASE_PLAN.json --output .local/delivery-plans-NEW_DIRECTORY
+```
+
+入口先校验所有快照 schema/hash，以及模型参数、父预算、执行环境、评分器、定价货币和网络配置的一致性，再生成 `A.json`、`B.json` 与最后写入的 `manifest.json`。两组只改变修复上限0/2，任务、模型、source、总预算和环境保持一致；清单包含文件hash、spec hash和交错执行顺序。已有目录拒绝覆盖，没有完整清单的中断目录不能用于执行。冻结不发模型请求、不运行任务，也不产生宿主授权。
+
+这不会把预注册中的 null 或无上限金额许可替换成猜测快照或零额度。当前正式预注册仍需真实环境/策略/定价或无上限授权的执行绑定；从其他宿主导入计划依旧是 imported_unverified，需在接收端绑定本地连接并复核环境。
+
+Harbor 物化任务时重新校验源码文件集合、内容与 RunSpec；暂存阶段再检查原快照及实际复制结果。绑定计划不能通过 package 参数换包。Runner在首次模型请求前核对实际provider/model、参数、系统prompt和工具schema，拒绝与冻结计划不符的启动配置。旧CLI仍保留原协议；这些检查不能替代尚缺的官方网络策略证明、宿主授权与逐请求账本。
+
 ## 当前 Windows 10 真实 Harness 回归
 
 固定任务目录必须来自已验证的官方任务 materialization，内容与预注册完全相同。使用新私有目录显式运行：

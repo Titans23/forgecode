@@ -13,6 +13,19 @@ import tempfile
 _IGNORED = {'__pycache__', '.pytest_cache', '.git', '.forge', 'node_modules'}
 
 
+def verify_frozen_source(package: Path, manifest: dict) -> None:
+    """Recheck the entire captured package before staging or creating a job."""
+    from benchmark.adapters.protocol import capture_tree
+    files = manifest.get('files')
+    if (manifest.get('schema_version') != 1 or not isinstance(files, dict) or not files
+            or manifest.get('content_sha256') != sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()):
+        raise ValueError('Frozen source manifest is inconsistent')
+    actual = {name: sha256(content).hexdigest() for name, content in capture_tree(package).items()
+        if '__pycache__' not in Path(name).parts}
+    if actual != files:
+        raise ValueError('Frozen source bytes or file inventory changed')
+
+
 def freeze_source(source: Path, destination: Path) -> Path:
     '''Create an auditable, isolated package snapshot without copying secrets.
 
@@ -38,7 +51,7 @@ def freeze_source(source: Path, destination: Path) -> Path:
             if path.is_file() and path.suffix not in {'.pyc', '.pyo'}:
                 paths.append(path)
     # Optional for legacy minimal source fixtures; required by the V4 official adapter.
-    for relative in ('uv.lock','benchmark/adapters'):
+    for relative in ('uv.lock','benchmark/adapters','benchmark/catalog.py'):
         target=source/relative
         if target.exists():
             if target.is_symlink() or getattr(target.lstat(),'st_file_attributes',0)&0x400:

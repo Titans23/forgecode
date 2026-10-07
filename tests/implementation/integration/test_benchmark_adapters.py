@@ -100,6 +100,9 @@ def test_windows_target_feedback_sampling_and_unapproved_live_are_explicitly_blo
         _,values,_=freeze_spec(methods.store,spec)
         spec=deepcopy(spec);spec['dataset']['name']='aider-polyglot';spec['execution']['target_platform']='windows-native'
         spec['protocol']['feedback']='benchmark_defined';values['model_parameters']['temperature']='1'
+        values['environment']['platform']='windows-native'
+        spec['execution']['environment_snapshot']['sha256']=canonical_hash(values['environment'])
+        spec['model']['parameters']['sha256']=canonical_hash(values['model_parameters'])
         adapter=HarborAdapter('aider-polyglot')
         issues=adapter.validate(spec,values)
         assert any('native Windows' in item['message'] for item in issues)
@@ -183,6 +186,22 @@ def test_frozen_harbor_harness_runs_real_tools_and_tests_without_extra_repair_bu
             'scope':{'trace_id':'1'*32,'span_id':'2'*16,'run_id':new_id('run'),'trial_id':new_id('trial')},
             'attempt_id':new_id('attempt')}
         config['harness']['max_context_tokens']=128000
+        # Observe the real packaged prompt/tool definitions without making a
+        # request, then bind the positive scripted run to that exact RunSpec.
+        from dataclasses import replace
+        from benchmark.harbor.run_forge import BENCHMARK_TASK_POLICY
+        from forge.runtime.factory import create_runtime
+        from forge.runtime.profile import ExecutionProfile
+        probe,probe_journal,_=create_runtime(project,bindings=replace(bindings,data_root=tmp_path/'probe'),
+            execution_profile=ExecutionProfile.sandbox(),task_relation='new',
+            task_policy=replace(BENCHMARK_TASK_POLICY,max_delivery_repairs=0))
+        spec['harness']['prompt_sha256']=sha256(probe.system_prompt.encode('utf-8')).hexdigest()
+        spec['harness']['tool_schema_sha256']=canonical_hash(probe._tool_definitions())
+        asyncio.run(probe.runtime_close());probe_journal.record_stopped()
+        spec['harness']['configuration']['sha256']=canonical_hash(values['harness'])
+        spec['model_mode']='live'
+        spec['model'].update(provider=bindings.config.provider,requested_model=bindings.config.model_id)
+        config['plan']=export_runspec(spec,values)
         result_path=tmp_path/'actual-result.json'
         result=asyncio.run(run_turn(project,'Fix integer addition; run the unchanged standard-library tests.',
             resume=False,max_model_calls=10,max_tool_calls=20,max_turn_seconds=30,

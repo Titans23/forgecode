@@ -8,6 +8,19 @@ from forge.application.models import ContractError, canonical_hash, validate
 
 INFRASTRUCTURE_ERRORS = ('runner_unavailable', 'runner_crash', 'environment_setup', 'provider_unavailable', 'grader_infrastructure')
 
+REFERENCES = {
+    'source': ('source', 'source_snapshot', None),
+    'model_parameters': ('model', 'parameters', 'model-parameters'),
+    'harness': ('harness', 'configuration', 'harness-config'),
+    'environment': ('execution', 'environment_snapshot', 'environment'),
+    'policy': ('execution', 'sandbox_policy', 'sandbox-policy'),
+    'capabilities': ('execution', 'sandbox_capabilities', 'capability-report'),
+    'network_cache': ('execution', 'network_cache_configuration', 'network-cache'),
+    'grader': ('grader', 'configuration', 'grader-configuration'),
+    'grader_environment': ('grader', 'environment', 'environment'),
+    'pricing': ('observability', 'pricing_snapshot', None),
+}
+
 
 def resolve_snapshot(store, reference, schema=None):
     row = store.connection.execute('SELECT hash,normalized_json FROM configuration_snapshots WHERE id=?',
@@ -22,23 +35,24 @@ def resolve_snapshot(store, reference, schema=None):
     return value
 
 
-def freeze_spec(store, spec, *, check_connection=True):
-    spec = deepcopy(validate('run-spec', spec))
+def validate_resolved_spec(spec, values):
+    """Apply the same semantic checks to stored and portable resolved plans.
+
+    Hashes establish byte identity, not consistency between a budget, a model,
+    its environment and the snapshots. This function grants no execution rights.
+    """
+    validate('run-spec', spec)
     if len(spec['dataset']['task_ids']) * spec['protocol']['repeats'] > 10000:
         raise ContractError('P0 run supports at most 10000 planned trials', kind='ARTIFACT_LIMIT', code=-32010)
     if len(json.dumps(spec, ensure_ascii=False).encode()) > 524288:
         raise ContractError('RunSpec exceeds the bounded plan size', kind='ARTIFACT_LIMIT', code=-32010)
-    refs = {'source': (spec['source']['source_snapshot'], None),
-        'model_parameters': (spec['model']['parameters'], 'model-parameters'),
-        'harness': (spec['harness']['configuration'], 'harness-config'),
-        'environment': (spec['execution']['environment_snapshot'], 'environment'),
-        'policy': (spec['execution']['sandbox_policy'], 'sandbox-policy'),
-        'capabilities': (spec['execution']['sandbox_capabilities'], 'capability-report'),
-        'network_cache': (spec['execution']['network_cache_configuration'], 'network-cache'),
-        'grader': (spec['grader']['configuration'], 'grader-configuration'),
-        'grader_environment': (spec['grader']['environment'], 'environment'),
-        'pricing': (spec['observability']['pricing_snapshot'], None)}
-    values = {key: resolve_snapshot(store, ref, schema) for key, (ref, schema) in refs.items()}
+    if not isinstance(values, dict) or set(values) != set(REFERENCES):
+        raise ContractError('Resolved RunSpec snapshot index is incomplete')
+    for name, (group, key, schema) in REFERENCES.items():
+        if canonical_hash(values[name]) != spec[group][key]['sha256']:
+            raise ContractError('Resolved snapshot content differs from immutable RunSpec', kind='STALE_REVISION', code=-32010)
+        if schema:
+            validate(schema, values[name])
     pricing = values['pricing']
     if not isinstance(pricing,dict):
         raise ContractError('Pricing snapshot requires an object')
@@ -71,14 +85,21 @@ def freeze_spec(store, spec, *, check_connection=True):
     if parameters['top_p'] is not None and Decimal(parameters['top_p']) > 1:
         raise ContractError('top_p is outside the supported interval')
     cache = values['network_cache']
-    if cache['cache_snapshot']:
-        resolve_snapshot(store, cache['cache_snapshot'])
     if cache['cache_mode'] == 'shared_read_only' and cache['cache_snapshot'] is None:
         raise ContractError('Shared cache requires an immutable snapshot')
     if cache['network_mode'] == 'deny_direct' and cache['allowed_domains']:
         raise ContractError('Denied network must not contain an implicit domain allowlist')
     if spec['model_mode'] == 'scripted_mock' and spec['model']['provider'] != 'scripted_mock':
         raise ContractError('Scripted protocol must identify its synthetic provider')
+
+
+def freeze_spec(store, spec, *, check_connection=True):
+    spec = deepcopy(validate('run-spec', spec))
+    values = {name: resolve_snapshot(store, spec[group][key])
+        for name, (group, key, _) in REFERENCES.items()}
+    validate_resolved_spec(spec, values)
+    if values['network_cache']['cache_snapshot']:
+        resolve_snapshot(store, values['network_cache']['cache_snapshot'])
     if spec['model_mode'] == 'live' and check_connection:
         connection = store.connection.execute('SELECT * FROM connections WHERE id=?', (spec['model']['connection_id'],)).fetchone()
         if connection is None:

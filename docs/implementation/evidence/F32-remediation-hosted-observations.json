@@ -1,0 +1,166 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F29",
+  "scope": "Actual hosted verification after uploading the tested F32 remediation",
+  "head_sha": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
+  "workflow_url": "https://github.com/Titans23/forgecode/actions/runs/37642586381",
+  "run_id": 37642586381,
+  "run_attempt": 2,
+  "status": "completed",
+  "conclusion": "failure",
+  "initial_attempt": {
+    "conclusion": "startup_failure",
+    "jobs": 0,
+    "check_runs": 0
+  },
+  "retry": {
+    "count": 1,
+    "method": "GitHub workflow rerun API",
+    "status_code": 201
+  },
+  "jobs": [
+    {
+      "id": 112874214067,
+      "name": "dependency-security",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T15:36:23Z",
+      "completed_at": "2026-10-07T15:36:47Z"
+    },
+    {
+      "id": 112874214314,
+      "name": "portable (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-07T15:36:23Z",
+      "completed_at": "2026-10-07T15:40:06Z"
+    },
+    {
+      "id": 112874214349,
+      "name": "portable (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T15:36:23Z",
+      "completed_at": "2026-10-07T15:41:31Z"
+    },
+    {
+      "id": 112874214433,
+      "name": "portable (windows-2025)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-07T15:36:30Z",
+      "completed_at": "2026-10-07T15:42:59Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 11494357231,
+      "name": "portable-ubuntu-22.04",
+      "size_in_bytes": 604911,
+      "sha256": "e6ee1820d6c9bcf8d6ab73dd07331606dc1e31b0ccfd7cdca201bc7d207b3a81",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261007T153649Z-0de3a6ab/junit.xml",
+          "path": "artifact-11494357231-b3f5b91e.xml",
+          "sha256": "8fde7cc1dcbfd6eb493a39cf00ac407b0b53cd7526ddca410256c8c28e15be5d",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261007T153703Z-9a85bb95/junit.xml",
+          "path": "artifact-11494357231-0d344980.xml",
+          "sha256": "2f4de330b3b8439588dc48e1a89a38e06891003a33ff71863f054a6a0c15ed65",
+          "collected": 382,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "id": 11494217956,
+      "name": "portable-windows-2025",
+      "size_in_bytes": 607694,
+      "sha256": "b082dead480b3025423f95eca864f4cba7cebbc072cdf09f60f0f30585461dbb",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261007T153800Z-1673d705/junit.xml",
+          "path": "artifact-11494217956-e1bace18.xml",
+          "sha256": "40200a2be0e8513880109cd506ef74b6aa3fa99ca3b23bd21d0396d901b39fe6",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261007T153820Z-367ef104/junit.xml",
+          "path": "artifact-11494217956-5d50db4c.xml",
+          "sha256": "7be3f193b628376841abfe8ddcce89501bd4cd51e3e526dd5bbbfdad2957571d",
+          "collected": 382,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "id": 11493748512,
+      "name": "portable-ubuntu-24.04",
+      "size_in_bytes": 605844,
+      "sha256": "aafa58003b9a2bf3a0137548e6b7ebd07ec996ada4582e96147b080d96775c40",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261007T153704Z-cd326469/junit.xml",
+          "path": "artifact-11493748512-347458c0.xml",
+          "sha256": "124137e85f7f8e8157304193f78f02b075ca4c2e0c475b7c295142c7bab8e629",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261007T153724Z-943d3c7e/junit.xml",
+          "path": "artifact-11493748512-d4a30b9b.xml",
+          "sha256": "2e9a8882d69a163a89b8335f6b4ca2ddcda88de2287c5c98c45dc40ba8af81cd",
+          "collected": 382,
+          "failures": [
+            {
+              "name": "test_actual_browser_login_csp_and_shared_ui_execute_the_scripted_task",
+              "reason": "Electron child did not produce http-browser-report.json; the existing test reads it before checking the child return code. Root cause not present in retained traceback."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11493103206,
+      "name": "actual-dependency-security",
+      "size_in_bytes": 576668,
+      "sha256": "4f0b3acbc5f7d939e7d619dfa90a45e51acdb43fc89b18c10e763d4583e730a8",
+      "junit": []
+    }
+  ],
+  "logs": [
+    {
+      "job": 112874214067,
+      "path": ".local/F32-ci-remediated-attempt2/job-112874214067.log",
+      "sha256": "2ddbc4929bee7258bb531e4996bf834506b08e49260b1e89cc5311e473fd3f49"
+    },
+    {
+      "job": 112874214314,
+      "path": ".local/F32-ci-remediated-attempt2/job-112874214314.log",
+      "sha256": "e78cc717bd67bb718674ea4e80f5ce236b0a167b252533600b019f9e3206d951"
+    },
+    {
+      "job": 112874214349,
+      "path": ".local/F32-ci-remediated-attempt2/job-112874214349.log",
+      "sha256": "d80b97e05dc71d1a3a55055cc8b0575470f245af37a81753ad898cedfb15e388"
+    },
+    {
+      "job": 112874214433,
+      "path": ".local/F32-ci-remediated-attempt2/job-112874214433.log",
+      "sha256": "0e966f7d8b62bf5fd83e56a09b9035df0ee78295730c83860b1c5225334c030b"
+    }
+  ],
+  "raw_root": ".local/F32-ci-remediated-attempt2",
+  "security": {
+    "affected_entries": 2,
+    "severity": "high",
+    "status": "blocked"
+  },
+  "eligible_for_native_pass": false,
+  "model_calls": 0,
+  "interpretation": "Ubuntu22.04 and Windows2025 portable jobs passed. Ubuntu24.04 retained one real browser-test failure; security failed. This workflow is not green and does not establish native acceptance."
+}

@@ -1815,7 +1815,7 @@
         "acceptance"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "implemented",
+      "implementation_status": "in_progress",
       "evidence_ids": [
         "20261007T124926Z-ffba8638",
         "20261007T124931Z-2a076df9",
@@ -1828,13 +1828,19 @@
         "20261007T125541Z-271c143b",
         "20261007T125548Z-a7d9525c",
         "20261007T125611Z-4e7c1bd8",
-        "20261007T131021Z-e5bf3413"
+        "20261007T131021Z-e5bf3413",
+        "20261007T154114Z-26ded72b",
+        "20261007T154120Z-2a46ead5",
+        "20261007T154135Z-0a1ccbae",
+        "20261007T154224Z-82b552ed",
+        "20261007T155239Z-37f6cb63"
       ],
       "case_ids": [
         "N24"
       ],
       "remaining_implementation": [
-        "Official Harbor frozen RunSpec/source/model/environment binding, verified execution policy and trusted host authorization/per-request ledger integration remain unimplemented; live official execution is refused."
+        "Official network/policy and actual Docker environment reconciliation, trusted host authorization and per-request ledger integration remain unimplemented/unverified; official live execution stays refused.",
+        "The current preregistration still needs real official environment snapshots and a RunSpec representation for explicitly unbounded monetary authorization; no null snapshot or permission is guessed."
       ]
     },
     {

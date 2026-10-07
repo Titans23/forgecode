@@ -6,25 +6,11 @@ import json
 from benchmark.adapters.harbor import export_runspec
 from benchmark.core.bundle import selected_file
 from benchmark.core.metrics import compare_specs
-from benchmark.core.spec import freeze_spec, resolve_snapshot
+from benchmark.core.spec import REFERENCES, freeze_spec, resolve_snapshot
 from forge.application.models import ContractError, canonical_hash, validate, strict_loads
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.observability.export_queue import redact
 import re
-
-
-REFERENCES = {
-    'source': ('source','source_snapshot',None),
-    'model_parameters': ('model','parameters','model-parameters'),
-    'harness': ('harness','configuration','harness-config'),
-    'environment': ('execution','environment_snapshot','environment'),
-    'policy': ('execution','sandbox_policy','sandbox-policy'),
-    'capabilities': ('execution','sandbox_capabilities','capability-report'),
-    'network_cache': ('execution','network_cache_configuration','network-cache'),
-    'grader': ('grader','configuration','grader-configuration'),
-    'grader_environment': ('grader','environment','environment'),
-    'pricing': ('observability','pricing_snapshot',None),
-}
 
 
 def secret_values(values,secrets=()):
