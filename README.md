@@ -16,6 +16,19 @@ ForgeCode 是一个运行在终端中的 Agent Harness，用于可靠地执行�
 
 当前发行版本以 [`pyproject.toml`](pyproject.toml) 为准，目前是 `0.1.2`。详细源码审阅见 [`report.md`](docs/architecture/report.md)，最新分析和目录约定见[文档导航](docs/README.md)；本文只保留安装、使用、架构和评测入口，避免重复维护实现细节与历史 Benchmark 数字。
 
+V4 开发代码在 `codex/forgecode-v4` 分支，保留上述 CLI 与 Python Harness，加入实际 Electron 客户端、私有 Engine、Bridge/FileWorker、持久事件与评测复算。请按[开发安装与演示](docs/install/development.md)使用锁定工具链和真实命令，并查看[最终审查](docs/implementation/final-report.md)、[平台矩阵](docs/platforms/support-matrix.md)与[安全状态](docs/security/status.md)。当前 Windows 10 为用户指定的开发验收阶段；原生双平台、正式 Harbor、签名及安全条件仍有阻塞，安装包是 unsigned developer-preview。
+
+无需模型费用的 V4 演示：
+
+```text
+uv python install 3.12.13
+uv sync --locked --all-groups --all-extras
+npm ci --ignore-scripts
+uv run --no-sync python -m forge.testing.demo --output-dir .local/user-demo
+```
+
+使用新的输出目录；该演示使用明确标注的离线模型并实际执行读、改、测与持久化。真实模型实验需要明确授权和显式入口，结果与限制见[实际交付修复实验](docs/experiments/delivery-repair.md)。
+
 ## 快速开始
 
 CLI 需要 Python 3.12、[uv](https://docs.astral.sh/uv/) 和一个 Anthropic 或 Anthropic-compatible 模型接口。普通 CLI 运行不需要 Docker。

@@ -1866,10 +1866,23 @@
         "final-report 与 evidence／progress 一致。"
       ],
       "verification_suites": [
+        "contracts",
+        "quality",
+        "unit",
+        "portable",
+        "regression",
+        "engine-packaged",
+        "desktop",
+        "desktop-packaged",
+        "hardened",
+        "installer-windows",
+        "installer-linux",
+        "acceptance",
+        "security",
         "release"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
+      "implementation_status": "in_progress",
       "evidence_ids": [],
       "case_ids": []
     }

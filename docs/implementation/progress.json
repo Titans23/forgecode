@@ -4,7 +4,7 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "Earlier task notes about unauthorized paid experiments describe their execution time. Human authorization on 2026-10-07 supersedes that blocker; monetary ceiling is explicitly unbounded. Administrator setup remains unauthorized.",
   "document_version": "4.0.0",
-  "actual_repository_head": "368b60535397a22f84cfa77a8eb19a4315939560",
+  "actual_repository_head": "13bc5fd803185fdc688c180ec3dd0c416eb725f5",
   "next_recommended_task": "F32",
   "current_task": "F32",
   "tasks": {
@@ -849,6 +849,10 @@
         "Full fixed 100000 events / 10000 spans / 100MiB measurements improved metadata overhead 8.07714390646% to 5.210340492313925%, still above 5%. Graphical/packaged native performance unverified.",
         "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing, owner-approved LICENSE and administrator setup unavailable/unapproved.",
         "Real-model execution now explicitly authorized with an unbounded monetary budget; actual connectivity 1 request / 335 input / 10 output tokens passed. Cost unknown; official grades zero. Docker daemon and official execution/control snapshots unavailable; F31 continues bounded actual Harness validation."
+      ],
+      "remaining_implementation": [
+        "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
+        "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
       ]
     },
     "F29": {
@@ -961,7 +965,7 @@
       ]
     },
     "F32": {
-      "implementation_status": "todo",
+      "implementation_status": "in_progress",
       "verification": {
         "release": "not_run"
       },

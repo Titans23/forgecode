@@ -14,9 +14,9 @@ const owner = { engine_epoch: `epoch-${randomUUID()}`, sandbox_session_id: `sand
 const command = (cwd, argv) => ({ mode: 'argv', argv, cwd, environment: {},
   deadline_utc: new Date(Date.now() + 10000).toISOString(), output_limit_bytes: 65536 });
 const dispatcher = resolve('sandbox_bridge/dist/dispatcher.js');
-function run(spec, shells = {}) {
+function run(spec, shells = {}, timeout = 10000) {
   return spawnSync(process.execPath, [dispatcher], { input: JSON.stringify({ command: spec, shells }),
-    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot }, encoding: 'utf8', timeout: 10000 });
+    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot }, encoding: 'utf8', timeout });
 }
 
 test('actual dispatcher preserves empty, quotes, Chinese, metacharacters and multiline argv', () => {
@@ -28,7 +28,7 @@ test('actual dispatcher preserves empty, quotes, Chinese, metacharacters and mul
 });
 
 test('explicit script executes only in dispatcher with original shell semantics', () => {
-  const spec = { ...command(process.cwd(), []), mode: 'shell_script' };
+  const spec = { ...command(process.cwd(), []), mode: 'shell_script', deadline_utc: new Date(Date.now() + 60000).toISOString() };
   delete spec.argv;
   let shells;
   if (process.platform === 'win32') {
@@ -40,8 +40,8 @@ test('explicit script executes only in dispatcher with original shell semantics'
     spec.shell = 'bash'; shells = { bash: '/bin/bash' };
     spec.script = "printf '%s' '中文&a|b$(bad)'";
   }
-  const result = run(spec, shells);
-  assert.equal(result.status, 0, result.stderr);
+  const result = run(spec, shells, 65000);
+  assert.equal(result.status, 0, JSON.stringify({stderr:result.stderr,error:result.error?.code,signal:result.signal}));
   if (process.platform === 'win32') assert.deepEqual(JSON.parse(result.stdout), ['中文', 'a&b', 'x$(bad)']);
   else assert.equal(result.stdout, '中文&a|b$(bad)');
 });

@@ -197,7 +197,7 @@ forge/
     queries.py
     models.py
   engine/
-    __main__.py              # serve / file-worker / doctor 子命令
+    __main__.py              # 实际 stdio Engine；file-worker为独立受信任入口
     rpc.py                   # framing、dispatch、schema
     methods.py               # 明确方法清单及调用主体
     scheduler.py
@@ -1072,8 +1072,8 @@ python scripts/impl.py gate --name implementation
 python scripts/impl.py gate --name release
 
 # 产品运行入口，由对应任务注册
-python -m forge.engine serve --transport stdio --data-dir .local/forge-dev
-python -m forge.engine doctor --json
+python -m forge.engine --data-dir .local/forge-dev --profile desktop
+python scripts/impl.py doctor --scope development
 
 # 新 JS workspace 命令，F01/F13 建立
 npm ci
@@ -1087,9 +1087,12 @@ npm run build:desktop
 npm run make:desktop
 
 # 打包与复算
-python scripts/package_engine.py --platform current
-python scripts/assemble_release.py --platform current
-python scripts/impl.py report --from-bundle artifacts/demo.fcresult.zip
+python scripts/materialize_release.py --output .local/runtime-assets.json
+python scripts/package_engine.py --build-id v4-local-win-x64 --target win32-x64
+python scripts/build_bridge.py
+python scripts/build_desktop.py
+python scripts/assemble_release.py --build-id v4-local-win-x64 --target win32-x64
+python -m benchmark.core.results report --from-bundle artifacts/demo.fcresult.zip
 ```
 
 root npm scripts 必须调用真实 workspace 命令；如仓库已有统一包管理器，F00/F01 建立等价命令映射并同步所有任务卡，不能同时出现 npm/pnpm 两套漂移指令。
@@ -1103,11 +1106,14 @@ root npm scripts 必须调用真实 workspace 命令；如仓库已有统一包�
 ### 22.4 真实模型运行
 
 ```bash
-# 仅在用户已配置连接、批准预算后；目标入口由 F31 实现
-python scripts/impl.py experiment --spec experiments/delivery-repair.json --authorize-file .local/live-authorization.json
+# 无模型费用的固定任务物化与正式环境检查
+python scripts/materialize_experiment.py --output-dir .local/f20/aider-smallset
+python scripts/delivery_experiment.py verify --output .local/delivery-readiness.json
+# 仅在已有明确授权和配置后；当前Windows受控回归单独标注
+python scripts/model_regression.py --authorize-real-model --task-root .local/f20/aider-smallset --output-dir .local/real-model-NEW_DIRECTORY
 ```
 
-授权文件由可信用户创建，包含预算／期限／允许连接／任务集合 hash，不包含密钥。未经授权或配置变更后 hash 不匹配，退出 blocked。测试套件默认不读取本机环境里的真实 API key 自动花费。
+实际授权绑定可信人类记录、固定任务证据和有限父预算，不包含密钥。F31本次授权金额无上限，不用零额度代替；JSON标志或hash变更不能自行授权。Windows额外入口保留真实请求和独立unittest，但不建立正式Harbor/native/holdout证明；正式执行的policy、授权账本binding、冻结RunSpec与Docker条件缺失时blocked。测试套件默认不读取本机真实API key自动花费。
 
 ### 22.5 每任务完成输出
 

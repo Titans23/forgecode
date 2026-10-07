@@ -73,7 +73,7 @@ def latest_evidence(records):
 
 def evaluate_gate(root, name, evidence_ids=None):
     root=Path(root);docs=root/'docs/implementation'
-    errors=[];blocked=[];records=[];incomplete=[];invalid_evidence=[]
+    errors=[];blocked=[];records=[];incomplete=[];invalid_evidence=[];implementation_gaps={}
     if name=='ci':
         if not evidence_ids:return {'status':'fail','gate':name,'errors':['Fresh CI evidence IDs are required']}
         ids=list(evidence_ids)
@@ -82,6 +82,12 @@ def evaluate_gate(root, name, evidence_ids=None):
         incomplete=[t for t,s in progress['tasks'].items() if s['implementation_status']!='implemented']
         ids=[]
         for task,state in progress['tasks'].items():
+            gaps=state.get('remaining_implementation',[])
+            if not isinstance(gaps,list) or any(not isinstance(gap,str) or not gap.strip() for gap in gaps):
+                errors.append(task+': invalid mandatory implementation gap declaration')
+            elif gaps:
+                implementation_gaps[task]=gaps
+                blocked.extend(task+': mandatory implementation gap: '+gap for gap in gaps)
             if state['implementation_status']!='implemented':continue
             if not state['evidence_ids']:errors.append(task+': no evidence')
             ids.extend(state['evidence_ids'])
@@ -139,5 +145,5 @@ def evaluate_gate(root, name, evidence_ids=None):
         if manifest.get('channel')!='production' or manifest.get('signature',{}).get('status')!='verified' or not manifest.get('signing_verification'):blocked.append('Independent production signing evidence is missing')
         if manifest.get('project_license_status')!='present' or not (root/'LICENSE').is_file():blocked.append('Owner-approved project LICENSE is missing')
     return {'status':'fail' if errors or incomplete else 'blocked' if blocked else 'pass','gate':name,
-        'incomplete_tasks':incomplete,'errors':errors,'missing_or_changed_evidence':invalid_evidence,'blocked_dependencies':blocked,
+        'incomplete_tasks':incomplete,'implementation_gaps':implementation_gaps,'errors':errors,'missing_or_changed_evidence':invalid_evidence,'blocked_dependencies':blocked,
         'selected_evidence_ids':[r['evidence_id'] for r in selected]}

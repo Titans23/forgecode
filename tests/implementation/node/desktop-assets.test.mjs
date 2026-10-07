@@ -12,7 +12,7 @@ test('fixed UI protocol refuses traversal, wrong origins and replaced assets', a
   const path = join(directory, 'index.html');
   await writeFile(path, '<p>owned built asset</p>');
   const manifest = { '/index.html': { path: 'index.html', sha256: createHash('sha256').update('<p>owned built asset</p>').digest('hex') } };
-  assert.equal((await uiAsset(directory, manifest, 'forge-app://ui/index.html')).path, path);
+  assert.equal((await uiAsset(directory, manifest, 'forge-app://ui/index.html')).path, await realpath(path));
   for (const url of ['file:///index.html', 'forge-app://other/index.html', 'forge-app://ui/%2e%2e/index.html',
     'forge-app://ui/../index.html', 'forge-app://ui/private.txt', 'forge-app://ui/index.html?path=secret', 'forge-app://user@ui/index.html']) {
     await assert.rejects(uiAsset(directory, manifest, url));
