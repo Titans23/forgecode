@@ -1,5 +1,6 @@
 """Strict protocol decoding and validation. No services or model clients are loaded."""
 
+from copy import deepcopy
 from enum import StrEnum
 from hashlib import sha256
 import json
@@ -115,13 +116,55 @@ _REGISTRY = Registry().with_resources((schema['$id'], Resource.from_contents(sch
 _VALIDATORS = {}
 
 
+def _absolute_references(schema):
+    """Only expand catalog wrappers whose descendants have no relative scope."""
+    if isinstance(schema, dict):
+        if any(key in schema for key in ('$id', '$anchor', '$dynamicAnchor', '$dynamicRef')):
+            return False
+        if '$ref' in schema and not schema['$ref'].startswith('urn:forgecode:contracts:'):
+            return False
+        return all(_absolute_references(child) for child in schema.values())
+    if isinstance(schema, list):
+        return all(_absolute_references(child) for child in schema)
+    return True
+
+
+def _compiled_schema(key):
+    schema = _SCHEMAS[key]
+    if key.startswith('event.'):
+        name = key.removeprefix('event.')
+        reference = 'urn:forgecode:contracts:v1:event-payloads#/$defs/' + name
+        payload = _SCHEMAS['event-payloads']['$defs'].get(name)
+        if set(schema) == {'$id', '$schema', '$ref'} and schema['$ref'] == reference and payload and _absolute_references(payload):
+            schema = {**payload, '$id': schema['$id'], '$schema': schema['$schema']}
+    if key != 'event-envelope' and not key.startswith('event.'):
+        return schema
+    # These scalar constraints accept null in Draft 2020-12; preserve every
+    # pattern, length and nonzero-ID exclusion while eliminating anyOf errors.
+    schema = deepcopy(schema)
+    for name, rule in schema.get('properties', {}).items():
+        branches = rule.get('anyOf', [])
+        if set(rule) == {'anyOf'} and len(branches) == 2:
+            text, null = branches
+            exclusion = text.get('not')
+            string_exclusion = exclusion is None or isinstance(exclusion, dict) and set(exclusion) == {'const'} and isinstance(exclusion['const'], str)
+            if null == {'type': 'null'} and text.get('type') == 'string' and string_exclusion and set(text) <= {'type', 'pattern', 'minLength', 'maxLength', 'not'}:
+                schema['properties'][name] = {**text, 'type': ['string', 'null']}
+    return schema
+
+
 def validate(name: str, value):
     _check_tree(value)
+    return _validate_contract(name, value)
+
+
+def _validate_contract(name: str, value):
+    """Validate an already checked JSON tree; callers must check the full value first."""
     key = name.removeprefix('schemas/').removesuffix('.schema.json')
     if key not in _VALIDATORS:
         if key not in _SCHEMAS:
             raise ContractError('Unknown contract schema')
-        _VALIDATORS[key] = Draft202012Validator(_SCHEMAS[key], registry=_REGISTRY, format_checker=FormatChecker())
+        _VALIDATORS[key] = Draft202012Validator(_compiled_schema(key), registry=_REGISTRY, format_checker=FormatChecker())
     error = next(_VALIDATORS[key].iter_errors(value), None)
     if error:
         # Do not include payload values, secrets, or jsonschema's full instance in errors.
@@ -160,9 +203,10 @@ def validate_request(request, principal: str):
 
 
 def validate_event(value):
-    validate('event-envelope', value)
+    _check_tree(value)
+    _validate_contract('event-envelope', value)
     event = EVENTS.get(value['event_type'])
     if event is None:
         raise ContractError('Unknown event type')
-    validate(event['payload_schema'], value['attributes'])
+    _validate_contract(event['payload_schema'], value['attributes'])
     return value

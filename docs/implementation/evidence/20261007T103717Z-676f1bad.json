@@ -1,0 +1,40 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261007T103717Z-676f1bad",
+  "task_id": "F28",
+  "case_ids": [],
+  "suite": "performance",
+  "git_commit": "f3c194ae7eebca392fb1db8511903013e554c933",
+  "dirty_hash": "d4d78ad8d1f99cde1ff533a0086fd19bd29f4fa66e0fc70b3ea28745821a0c08",
+  "source_inventory_hash": "cbe38720538acff347a1a16a2530298699e1989af7e555e3e994c638e5401205",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a",
+    "release-lock.json": "ce0dbb37f4614642fec7f8aeb3e79a91a2f0e7df033f960f3cb26cdd337db495"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\performance_probe.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T103717Z-676f1bad\\packaging.json"
+  ],
+  "start": "2026-10-07T10:37:17.915418+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-07T11:06:51.604391+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261007T103717Z-676f1bad/stdout.log",
+  "stderr_ref": ".local/implementation/20261007T103717Z-676f1bad/stderr.log",
+  "report_ref": ".local/implementation/20261007T103717Z-676f1bad/packaging.json",
+  "report_hash": "bf21d6bae42b1d965ec84951956be5cfa404f2869f992e16dd5a941417e067d4",
+  "status": "blocked",
+  "tests": {
+    "reason": "Supported-platform, packaged startup and graphical UI performance require dedicated native acceptance",
+    "scope": "development fixed load; real Journal, SQLite, artifact, React SSR and offline Harness",
+    "eligible_for_native_pass": false,
+    "checks": 5
+  }
+}

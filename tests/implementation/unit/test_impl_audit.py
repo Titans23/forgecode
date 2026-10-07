@@ -18,16 +18,28 @@ def load_impl():
 
 
 def test_audit_discovers_root_from_another_cwd_and_preserves_user_files(tmp_path):
-    before = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'], cwd=SCRIPT.parent.parent)
-    result = subprocess.run([sys.executable, str(SCRIPT), 'audit'], cwd=tmp_path,
+    # Use a real checkout: other suite runners may append evidence to the shared
+    # repository while this audit is running. Its user's Git/content state must
+    # remain unchanged, including staged, unstaged and untracked modifications.
+    repository=tmp_path/'repository'
+    subprocess.run(['git','clone','--quiet','--local','--no-hardlinks',str(SCRIPT.parent.parent),str(repository)],check=True)
+    tracked=repository/'README.md';tracked.write_bytes(b'controlled staged user edit\r\n')
+    subprocess.run(['git','add','README.md'],cwd=repository,check=True)
+    tracked.write_bytes(tracked.read_bytes()+b'controlled unstaged user edit\r\n')
+    untracked=repository/'user.bin';untracked.write_bytes(b'\x00\xffcontrolled untracked content\r\n')
+    original={p:p.read_bytes() for p in (tracked,untracked)}
+    before = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'], cwd=repository)
+    assert b'MM README.md\x00' in before and b'?? user.bin\x00' in before
+    result = subprocess.run([sys.executable, str(repository/'scripts/impl.py'), 'audit'], cwd=tmp_path,
                             capture_output=True, text=True, encoding='utf-8')
     assert result.returncode == 0, result.stderr
     audit = json.loads(result.stdout)
-    assert Path(audit['repository_root']) == SCRIPT.parent.parent
+    assert Path(audit['repository_root']) == repository
     assert len(audit['git_commit']) == 40
     assert audit['code_map']['conversation']['symbols']['Conversation.stream']['signature'].startswith('async def stream(')
-    after = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'], cwd=SCRIPT.parent.parent)
+    after = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z'], cwd=repository)
     assert after == before
+    assert all(p.read_bytes()==content for p,content in original.items())
 
 
 def test_audit_reads_actual_signatures_and_leaves_dirty_file_bytes_unchanged(tmp_path):

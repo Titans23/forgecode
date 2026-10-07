@@ -1,0 +1,600 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F28",
+  "parent_commit": "f3c194ae7eebca392fb1db8511903013e554c933",
+  "scope": "Actual Windows10 current acceptance phase; native/product release and official benchmark grades remain separate",
+  "public_model_calls": 1,
+  "performance_before": {
+    "status": "blocked",
+    "reason": "Supported-platform, packaged startup and graphical UI performance require dedicated native acceptance",
+    "eligible_for_native_pass": false,
+    "scope": "development fixed load; real Journal, SQLite, artifact, React SSR and offline Harness",
+    "host": "Windows-10-10.0.19045-SP0",
+    "public_model_calls": 0,
+    "checks": [
+      {
+        "id": "fixed-workload-preserved",
+        "status": "pass"
+      },
+      {
+        "id": "real-artifact-hash-roundtrip",
+        "status": "pass"
+      },
+      {
+        "id": "react-ten-thousand-items-bounded",
+        "status": "pass"
+      },
+      {
+        "id": "metadata-median-goal",
+        "status": "blocked"
+      },
+      {
+        "id": "supported-platform-graphical-performance",
+        "status": "blocked"
+      }
+    ],
+    "latency": {
+      "cold": {
+        "samples": 5,
+        "median_seconds": 4.472947300000669,
+        "p95_seconds": 4.8555351999993945,
+        "total_seconds": 22.046012200001314
+      },
+      "hot": {
+        "samples": 100,
+        "median_seconds": 0.0010005499998442247,
+        "p95_seconds": 0.0016520999997737817,
+        "total_seconds": 0.11345769999479671
+      },
+      "scope": "source Engine stdio; explicit offline profile"
+    },
+    "load": {
+      "events": 100000,
+      "spans": 10000,
+      "output_bytes": 104857600,
+      "baseline": {
+        "samples": 100000,
+        "median_seconds": 0.007663599999432336,
+        "p95_seconds": 0.009467599999879894,
+        "total_seconds": 789.1777598002463
+      },
+      "metadata": {
+        "samples": 100000,
+        "median_seconds": 0.008282599999802187,
+        "p95_seconds": 0.010203799999544572,
+        "total_seconds": 853.3444457001697
+      },
+      "metadata_extra_percent": 8.077143906463057,
+      "metadata_goal_percent": 5,
+      "comparison_scope": "paired fsync Journal append, preconstructed envelope versus real recorder; not end-to-end model runtime",
+      "projection_seconds": 70.99229490000107,
+      "projection_events_per_second": 1408.6176554914905,
+      "span_pages": {
+        "samples": 101,
+        "median_seconds": 0.0035657000007631723,
+        "p95_seconds": 0.005203000000619795,
+        "total_seconds": 0.3747143000127835
+      },
+      "ui": {
+        "status": "pass",
+        "scope": "actual React component server rendering; graphical scroll/frame latency unverified",
+        "items": 10000,
+        "rendered_rows": 14,
+        "bounded": true,
+        "samples_seconds": [
+          0.008943399999999997,
+          0.0009053000000000111,
+          0.0008897000000000617,
+          0.0007094000000000733,
+          0.0007918999999999415,
+          0.0007310999999999695,
+          0.0007066999999999552,
+          0.0007039999999999509,
+          0.00115949999999998,
+          0.0008504000000000361,
+          0.0007483999999999469,
+          0.0007133000000000038,
+          0.0007087000000000216,
+          0.0007305000000000063,
+          0.0006803999999999633,
+          0.0006710999999999103,
+          0.0006783999999998969,
+          0.0007799999999999727,
+          0.0006912999999999556,
+          0.0006725000000000137
+        ],
+        "median_seconds": 0.0007219000000000051,
+        "p95_seconds": 0.00115949999999998
+      },
+      "artifact_write_seconds": 0.13442750000103842,
+      "artifact_read_seconds": 0.08414989999982936,
+      "artifact_sha256": "70ac5602a55c5279e29e8b7bcf66b13cef574a2568acf81da03d77fa5e174e24",
+      "peak_process_memory_bytes": 729485312,
+      "disk_bytes": 625750308
+    }
+  },
+  "performance_after": {
+    "status": "blocked",
+    "reason": "Supported-platform, packaged startup and graphical UI performance require dedicated native acceptance",
+    "eligible_for_native_pass": false,
+    "scope": "development fixed load; real Journal, SQLite, artifact, React SSR and offline Harness",
+    "host": "Windows-10-10.0.19045-SP0",
+    "public_model_calls": 0,
+    "checks": [
+      {
+        "id": "fixed-workload-preserved",
+        "status": "pass"
+      },
+      {
+        "id": "real-artifact-hash-roundtrip",
+        "status": "pass"
+      },
+      {
+        "id": "react-ten-thousand-items-bounded",
+        "status": "pass"
+      },
+      {
+        "id": "metadata-median-goal",
+        "status": "blocked"
+      },
+      {
+        "id": "supported-platform-graphical-performance",
+        "status": "blocked"
+      }
+    ],
+    "latency": {
+      "cold": {
+        "samples": 5,
+        "median_seconds": 3.2679284999994707,
+        "p95_seconds": 3.3868106999998417,
+        "total_seconds": 16.491377100001046
+      },
+      "hot": {
+        "samples": 100,
+        "median_seconds": 0.0007653499997104518,
+        "p95_seconds": 0.0009469000015087659,
+        "total_seconds": 0.08471840000129305
+      },
+      "scope": "source Engine stdio; explicit offline profile"
+    },
+    "load": {
+      "events": 100000,
+      "spans": 10000,
+      "output_bytes": 104857600,
+      "baseline": {
+        "samples": 100000,
+        "median_seconds": 0.00773269999990589,
+        "p95_seconds": 0.009833300000536838,
+        "total_seconds": 799.0746831000288
+      },
+      "metadata": {
+        "samples": 100000,
+        "median_seconds": 0.008135599999150145,
+        "p95_seconds": 0.010308400000212714,
+        "total_seconds": 840.5270177997154
+      },
+      "metadata_extra_percent": 5.210340492313925,
+      "metadata_goal_percent": 5,
+      "comparison_scope": "paired fsync Journal append, preconstructed envelope versus real recorder; not end-to-end model runtime",
+      "projection_seconds": 55.66787060000024,
+      "projection_events_per_second": 1796.386298275249,
+      "span_pages": {
+        "samples": 101,
+        "median_seconds": 0.0037455000001500593,
+        "p95_seconds": 0.004342000000178814,
+        "total_seconds": 0.38610190001054434
+      },
+      "ui": {
+        "status": "pass",
+        "scope": "actual React component server rendering; graphical scroll/frame latency unverified",
+        "items": 10000,
+        "rendered_rows": 14,
+        "bounded": true,
+        "samples_seconds": [
+          0.011127499999999999,
+          0.001630200000000002,
+          0.0013949000000000069,
+          0.0011243000000000052,
+          0.0013417999999999779,
+          0.0012795000000000415,
+          0.0013134999999999764,
+          0.0011305000000000405,
+          0.002024499999999989,
+          0.0014778999999999769,
+          0.0011212999999999625,
+          0.001113900000000001,
+          0.0010797000000000024,
+          0.0011062000000000012,
+          0.0010468000000000187,
+          0.0010486999999999966,
+          0.001050200000000018,
+          0.0010880999999999972,
+          0.0010305999999999926,
+          0.0008622000000000298
+        ],
+        "median_seconds": 0.0011227999999999837,
+        "p95_seconds": 0.002024499999999989
+      },
+      "artifact_write_seconds": 0.13666290000037407,
+      "artifact_read_seconds": 0.08966709999913292,
+      "artifact_sha256": "70ac5602a55c5279e29e8b7bcf66b13cef574a2568acf81da03d77fa5e174e24",
+      "peak_process_memory_bytes": 729182208,
+      "disk_bytes": 625905244
+    }
+  },
+  "real_process_stdout": {
+    "status": "pass",
+    "scope": "actual local-trusted host process and full output archive; not native SRT acceptance",
+    "eligible_for_native_pass": false,
+    "public_model_calls": 0,
+    "command": [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "-c",
+      "import sys;chunk=b'F'*1048576;[sys.stdout.buffer.write(chunk) for _ in range(100)];sys.stdout.buffer.flush()"
+    ],
+    "platform": "Windows-10-10.0.19045-SP0",
+    "source_inventory_hash": "cbe38720538acff347a1a16a2530298699e1989af7e555e3e994c638e5401205",
+    "seconds": 0.5962927999989915,
+    "process_seconds": 0.5854704999983369,
+    "stdout_bytes": 104857600,
+    "display_bytes": 4096,
+    "artifact": ".local/F28-real-output/.forge/context/tool-results/70ac5602a55c5279e29e8b7bcf66b13cef574a2568acf81da03d77fa5e174e24.txt",
+    "artifact_bytes": 104857600,
+    "artifact_sha256": "70ac5602a55c5279e29e8b7bcf66b13cef574a2568acf81da03d77fa5e174e24",
+    "checks": {
+      "zero_exit": true,
+      "full_stream_bytes": true,
+      "bounded_display": true,
+      "truncated_display": true,
+      "complete_output": true,
+      "zero_stderr": true,
+      "full_archive_bytes": true,
+      "archive_hash": true
+    }
+  },
+  "limitations": [
+    "Metadata goal remains unmet: 5.210340492313925% against 5%, after 8.07714390646%.",
+    "Paired fsync Journal measures recorder metadata overhead, not end-to-end model latency.",
+    "React SSR on actual Node22.17.1 is not graphical frame performance or pinned Node24 production acceptance.",
+    "Small private read-only CI/SQLite/ZIP preparation ran concurrently with performance; no full regressions or packaging overlapped.",
+    "Verified native capability promotion and initialized full cleanup proof remain code gaps, not only missing environment."
+  ],
+  "final_registered_evidence": [
+    {
+      "evidence_id": "20261007T122040Z-d187f818",
+      "suite": "unit",
+      "status": "pass",
+      "source_inventory_hash": "6078be1646f91cf2238bf911134726b1b6b5b6a168a442c96878d742844bebd3",
+      "report_hash": "de1cdc5b0c1edab4c7b0b191d3e72403864853cdbd83117ef893d895ac87c4dd",
+      "tests": {
+        "collected": 214,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      }
+    },
+    {
+      "evidence_id": "20261007T122029Z-b3dc3704",
+      "suite": "portable",
+      "status": "pass",
+      "source_inventory_hash": "6078be1646f91cf2238bf911134726b1b6b5b6a168a442c96878d742844bebd3",
+      "report_hash": "cccd7e522293a3b29a2a35a87dee864ae5ce5749c486ac87284b0cc875979e64",
+      "tests": {
+        "collected": 355,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      }
+    },
+    {
+      "evidence_id": "20261007T122019Z-9e16aa46",
+      "suite": "regression",
+      "status": "pass",
+      "source_inventory_hash": "6078be1646f91cf2238bf911134726b1b6b5b6a168a442c96878d742844bebd3",
+      "report_hash": "8070f909e2896753e2fa20e9768e0be38dbe2737c5b9b4661471f025776461d2",
+      "tests": {
+        "collected": 1313,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      }
+    },
+    {
+      "evidence_id": "20261007T122050Z-66356479",
+      "suite": "contracts",
+      "status": "pass",
+      "source_inventory_hash": "6078be1646f91cf2238bf911134726b1b6b5b6a168a442c96878d742844bebd3",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      }
+    },
+    {
+      "evidence_id": "20261007T122057Z-9dbacf36",
+      "suite": "quality",
+      "status": "pass",
+      "source_inventory_hash": "6078be1646f91cf2238bf911134726b1b6b5b6a168a442c96878d742844bebd3",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      }
+    },
+    {
+      "evidence_id": "20261007T123505Z-c2af5541",
+      "suite": "acceptance",
+      "status": "blocked",
+      "source_inventory_hash": "6078be1646f91cf2238bf911134726b1b6b5b6a168a442c96878d742844bebd3",
+      "report_hash": "d101fe5c642231b5b1da673ec777ea3d303a730fe076cdb39999f7d757b03878",
+      "tests": {
+        "reason": "157 required platform proofs unavailable",
+        "scope": "all 86 legacy plus 24 new case mappings and recomputed existing proofs",
+        "eligible_for_native_pass": false,
+        "checks": 2
+      }
+    },
+    {
+      "evidence_id": "20261007T115336Z-e6b64f9f",
+      "suite": "engine-packaged",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "93e5b721e274e764ca4d4208b123b8b72b8cd9bb9ea7ed6be6b5276e99a1a3b3",
+      "tests": {
+        "scope": "Windows 10 development frozen components",
+        "eligible_for_native_pass": false,
+        "checks": 9
+      }
+    },
+    {
+      "evidence_id": "20261007T115542Z-989317b8",
+      "suite": "desktop-packaged",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "16c511c1d0a198c3164aa97ee54c8c4c7210c7ebb66be90b5f977e6fdf33db2b",
+      "tests": {
+        "scope": "installed-readonly-preview",
+        "eligible_for_native_pass": false,
+        "checks": 5
+      }
+    },
+    {
+      "evidence_id": "20261007T115633Z-5468aba9",
+      "suite": "installer-windows",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "298dde981e6e02a0f1356d50021e48631e9ae065fd8c8bcc9590c1bb779f5f0d",
+      "tests": {
+        "scope": "native developer-preview installer build",
+        "eligible_for_native_pass": false,
+        "checks": 1
+      }
+    },
+    {
+      "evidence_id": "20261007T115843Z-75f1d0e0",
+      "suite": "hardened",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "6814539384a38eb5e3d4754d2f25f550c8d205ee97825f742b0db14b09e2b423",
+      "tests": {
+        "scope": "actual hardened unsigned developer artifact; not supported-platform acceptance",
+        "eligible_for_native_pass": false,
+        "checks": 13
+      }
+    },
+    {
+      "evidence_id": "20261007T120200Z-7b6c825e",
+      "suite": "installer-linux",
+      "status": "blocked",
+      "source_inventory_hash": "0f2bc42808ee2122017d8357c69f9f4df0c3923b3d9236bcf6eb404944d335e3",
+      "report_hash": "1c60fae9cac2cb794dcde69a4bb21ec4c087cdb102eecc6c75a732158cf18719",
+      "tests": {
+        "reason": "Native installer target OS is unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      }
+    },
+    {
+      "evidence_id": "20261007T120202Z-8d7621a8",
+      "suite": "sandbox-windows",
+      "status": "blocked",
+      "source_inventory_hash": "0f2bc42808ee2122017d8357c69f9f4df0c3923b3d9236bcf6eb404944d335e3",
+      "report_hash": "285d5539b7246d6aba6f9585fda4123cf5897e35669c9a19640cfb64c6a73774",
+      "tests": {
+        "reason": "Supported Windows 11 x64 native runner is unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      }
+    },
+    {
+      "evidence_id": "20261007T120225Z-5cf027ff",
+      "suite": "sandbox-linux",
+      "status": "blocked",
+      "source_inventory_hash": "0f2bc42808ee2122017d8357c69f9f4df0c3923b3d9236bcf6eb404944d335e3",
+      "report_hash": "37557908d05ff7130532e12cb46f6076163c922803b55146236b8184567d6d3f",
+      "tests": {
+        "reason": "Supported Ubuntu native runner is unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      }
+    },
+    {
+      "evidence_id": "20261007T120248Z-d0af77b5",
+      "suite": "security",
+      "status": "blocked",
+      "source_inventory_hash": "0f2bc42808ee2122017d8357c69f9f4df0c3923b3d9236bcf6eb404944d335e3",
+      "report_hash": "66acbc0f296cae25bf8176217700fe5c04480cb0129791b0b592dbe39b92aab0",
+      "tests": {
+        "reason": "Unresolved locked dependency vulnerabilities",
+        "checks": 1
+      }
+    },
+    {
+      "evidence_id": "20261007T120147Z-641572b1",
+      "suite": "desktop",
+      "status": "pass",
+      "source_inventory_hash": "0f2bc42808ee2122017d8357c69f9f4df0c3923b3d9236bcf6eb404944d335e3",
+      "report_hash": "e9b9842e02ab99d3fffa4438be2a87662c1ecccb78bb526737a151808432a033",
+      "tests": {
+        "scope": "development-desktop",
+        "eligible_for_native_pass": false,
+        "checks": 66
+      }
+    }
+  ],
+  "final_build": {
+    "build_id": "v4-f28-f3c194a-win-x64",
+    "manifest_sha256": "bdead244f5942642ee9b2fa72cf2122d55c877fc1695c54d5fd27bcd3df690ae",
+    "files": 1860,
+    "components": 121,
+    "license_files": 147,
+    "frozen_python_distributions": 87,
+    "frozen_source_still_matches": true,
+    "channel": "developer-preview",
+    "signature": {
+      "status": "unsigned",
+      "reason": "No production signing certificate configured"
+    },
+    "platform": "win32-x64",
+    "project_license_status": "blocked_missing_project_license"
+  },
+  "remote_ci": null,
+  "installer": {
+    "status": "pass",
+    "scope": "native developer-preview installer build",
+    "eligible_for_native_pass": false,
+    "build_id": "v4-f28-f3c194a-win-x64",
+    "platform": "win32-x64",
+    "host": "Windows-10-10.0.19045-SP0",
+    "signature": {
+      "status": "unsigned",
+      "reason": "No production signing certificate configured"
+    },
+    "channel": "developer-preview",
+    "command": [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\npm.CMD",
+      "exec",
+      "--workspace",
+      "@forgecode/desktop",
+      "--",
+      "electron-forge",
+      "make"
+    ],
+    "checks": [
+      {
+        "name": "actual-forge-maker",
+        "status": "pass"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": ".local/desktop-packages/make/squirrel.windows/x64/ForgeCode-0.1.2 Setup.exe",
+        "sha256": "4fb6c1dfc1e48d8b877cea8bed27e1a9ec5e00e365f13f31981c4f352e553a13",
+        "size_bytes": 231225344,
+        "signature_status": "unsigned"
+      },
+      {
+        "path": ".local/desktop-packages/make/squirrel.windows/x64/ForgeCode-0.1.2-full.nupkg",
+        "sha256": "ceb74b9166a80af22d760c38dda23431969b7fb43f8f2fd1f5baef4581f104d4",
+        "size_bytes": 231322595,
+        "signature_status": "unsigned"
+      },
+      {
+        "path": ".local/desktop-packages/make/squirrel.windows/x64/RELEASES",
+        "sha256": "8feb5701ec5433d77ae5fb2ad7125471b1cfb20518057ddc757e71551eb836c8",
+        "size_bytes": 80,
+        "signature_status": "unsigned"
+      }
+    ],
+    "production_acceptance": "blocked",
+    "native_install_acceptance": "blocked",
+    "project_license_status": "blocked_missing_project_license"
+  },
+  "package_verification": [
+    {
+      "evidence_id": "20261007T115336Z-e6b64f9f",
+      "suite": "engine-packaged",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "93e5b721e274e764ca4d4208b123b8b72b8cd9bb9ea7ed6be6b5276e99a1a3b3",
+      "tests": {
+        "scope": "Windows 10 development frozen components",
+        "eligible_for_native_pass": false,
+        "checks": 9
+      }
+    },
+    {
+      "evidence_id": "20261007T115542Z-989317b8",
+      "suite": "desktop-packaged",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "16c511c1d0a198c3164aa97ee54c8c4c7210c7ebb66be90b5f977e6fdf33db2b",
+      "tests": {
+        "scope": "installed-readonly-preview",
+        "eligible_for_native_pass": false,
+        "checks": 5
+      }
+    },
+    {
+      "evidence_id": "20261007T115633Z-5468aba9",
+      "suite": "installer-windows",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "298dde981e6e02a0f1356d50021e48631e9ae065fd8c8bcc9590c1bb779f5f0d",
+      "tests": {
+        "scope": "native developer-preview installer build",
+        "eligible_for_native_pass": false,
+        "checks": 1
+      }
+    },
+    {
+      "evidence_id": "20261007T115843Z-75f1d0e0",
+      "suite": "hardened",
+      "status": "pass",
+      "source_inventory_hash": "71d0053f0ea29663a71c1ca6aa47b2b474eba09ae2de28f0a5d061a820927808",
+      "report_hash": "6814539384a38eb5e3d4754d2f25f550c8d205ee97825f742b0db14b09e2b423",
+      "tests": {
+        "scope": "actual hardened unsigned developer artifact; not supported-platform acceptance",
+        "eligible_for_native_pass": false,
+        "checks": 13
+      }
+    }
+  ],
+  "post_package_changes": {
+    "scope": "Only cancellation and service-lifetime test fixtures changed after package checks; complete frozen Engine source inventory still matches repository bytes.",
+    "inflight_deadline_seconds": 5,
+    "preparation_deadline_seconds": 1,
+    "actual_preparation_probe": {
+      "constructed_clients": 2,
+      "scripted_requests": 0,
+      "outcome": "timed_out",
+      "cancel_state": "confirmed",
+      "cleanup_state": "clean",
+      "public_model_calls": 0
+    },
+    "focused_cancellation_cases": 7,
+    "service_deadline_seconds": 0.25,
+    "frozen_source_still_matches": true
+  },
+  "actual_failures_preserved": [
+    "20261007T114802Z-d746a201: absolute acceptance path erroneously accepted inside repository basetemp; fixed relative ownership checks.",
+    "20261007T115007Z-1c5d30b2: shared Git-status audit raced independent evidence writes; isolated actual clone now preserves staged/unstaged/untracked status and exact content.",
+    "Interrupted portable one-second in-flight fixture actually timed out before its request; real readonly SQLite retained timed_out/confirmed/clean. Split preparation and in-flight cases; no product deadline or assertion was disabled.",
+    "Interrupted runs have no completed report and are not pass evidence.",
+    "20261007T120124Z-c1577d00: full regression 1312 pass / 1 fail; 0.25-second service lifetime legitimately reset an HTTP liveness request. Test now establishes liveness before starting unchanged deadline, then proves owned expiry/cleanup. Focused five actual service tests passed; all final source suites rerun."
+  ],
+  "authorization_ref": "human-authorization-20261007.json",
+  "live_model_connectivity_ref": "F28-real-model-connectivity.json",
+  "final_source_inventory_hash": "6078be1646f91cf2238bf911134726b1b6b5b6a168a442c96878d742844bebd3",
+  "final_ci_gate": {
+    "status": "pass",
+    "evidence_ids": [
+      "20261007T122050Z-66356479",
+      "20261007T122057Z-9dbacf36",
+      "20261007T122040Z-d187f818",
+      "20261007T122029Z-b3dc3704"
+    ],
+    "private_report_ref": ".local/F28-rechecked-ci-gate.json"
+  },
+  "final_conclusion": "F28 actual development acceptance audit complete; current Windows10 code/tool/package checks passed. Production/native/performance/security release remains blocked; real-model authorization resolved and Harness experiments continue F31."
+}

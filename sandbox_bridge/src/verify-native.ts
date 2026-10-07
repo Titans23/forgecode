@@ -16,7 +16,7 @@ const check = (id: string, status: 'pass' | 'fail' | 'blocked', observations: an
 const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export async function verifyNative(platform: 'linux' | 'win32'): Promise<any> {
-  if (process.platform !== platform || process.arch !== 'x64' || platform === 'win32' && Number(os.release().split('.')[2]) < 22000) return { schema_version: 'forge.native.acceptance.v1',
+  if (process.platform !== platform || process.arch !== 'x64' || platform === 'win32' && (Number(os.release().split('.')[2]) < 22000 || !os.version().startsWith('Windows 11'))) return { schema_version: 'forge.native.acceptance.v1',
     status: 'blocked', reason: 'Supported native runner is unavailable', checks, eligible_for_native_pass: false };
   if (process.argv.length !== 6 || process.argv[2] !== '--fixture' || process.argv[4] !== '--owner') throw new Error('Invalid verifier invocation');
   const fixture = resolve(process.argv[3]);

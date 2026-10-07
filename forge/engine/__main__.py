@@ -72,6 +72,7 @@ def main(argv=None):
         with redirect_stdout(sys.stderr):
             from forge.application.harness_adapter import LocalTrustedBackend
             from forge.application.services import ApplicationServices
+            from forge.sandbox.application_backend import NativeBackendFactory
             from forge.engine.methods import EngineMethods
             from forge.engine.persistence import Store
             from forge.engine.rpc import RpcServer
@@ -86,6 +87,7 @@ def main(argv=None):
             with Store(args.data_dir) as store:
                 service = ApplicationServices(store, profile_id=args.profile_id or args.profile + '-profile', credentials=credentials,
                     mode=args.execution_mode, backend=LocalTrustedBackend() if args.execution_mode == 'local-trusted' else None,
+                    backend_factory=NativeBackendFactory(store.data_dir) if args.execution_mode=='strict' else None,
                     model_client_factory=factory, task_relation='new' if factory else None,
                     approval_handler=scripted.approval_handler if scripted and not args.interactive_approvals else None,observation_options=observations)
                 if args.profile!='test':

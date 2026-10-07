@@ -15,7 +15,7 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "91a33f47d9bd08f8b0feb426f2009797b2696185c1880e944f3bd831ca7240ea"
+      "sha256": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a"
     }
   ],
   "engine_sources": [
@@ -197,11 +197,11 @@
     },
     {
       "path": "forge/application/models.py",
-      "sha256": "08dba4ed14ccc97499a669c893abe0194b0e5f9081cee8212ba565ce8e5e8eff"
+      "sha256": "ce04d222d7a3739795bbf6a023c4dad67d59429dde862124e810d3c9547987b8"
     },
     {
       "path": "forge/application/services.py",
-      "sha256": "adad251c1ce115e0d17c2b07f5ee5968c4d2e79c43eeda91c2c53240b731bb38"
+      "sha256": "756c620907a80527e17bad4da774bcbe3cd4000e04aa8148029b24a8659805c1"
     },
     {
       "path": "forge/application/session_views.py",
@@ -273,7 +273,7 @@
     },
     {
       "path": "forge/engine/__main__.py",
-      "sha256": "a71799bdbad22c90ad731b099579c3021411ba248cbd8382238ffedc1990e284"
+      "sha256": "ca92fad5a0cea8ac0c1e65020c34ee5244e922d649611c80a6d94f1b0717f973"
     },
     {
       "path": "forge/engine/event_stream.py",
@@ -505,7 +505,7 @@
     },
     {
       "path": "forge/release/runtime.py",
-      "sha256": "4afd950c3172f51d77fd8a081fbf3f780328d4555a633571b2d090c89a807efb"
+      "sha256": "b567a16d9b515948627389b88740b22be2a02f75362027e75665cd0e9a317fb9"
     },
     {
       "path": "forge/release/toolchains.py",
@@ -608,16 +608,20 @@
       "sha256": "28a7024216160a9dd9b425422cab9516457d034da6a53dbcdba06e9a480fbf3d"
     },
     {
+      "path": "forge/sandbox/application_backend.py",
+      "sha256": "1ff882119754daacb07888912d62cf4a235cc1b328cb08fc29c2eccd3b576d97"
+    },
+    {
       "path": "forge/sandbox/backend.py",
       "sha256": "8a8a3b2ee2d7a7023bfe6773339bbf30e0fcdb0f0761ee5489e488ec95811869"
     },
     {
       "path": "forge/sandbox/capabilities.py",
-      "sha256": "8ed478a2fae7d2e046faec03196eca6a49fe7319cd4c0913e82c70a6bf1acbad"
+      "sha256": "b733b33896c88200d76a250cb2825a400da208ed009cefff8b19242c3fbbf533"
     },
     {
       "path": "forge/sandbox/doctor.py",
-      "sha256": "35ad1aa9481e5dbc7d17ecd7cd331f9d72683bb1596fcdee093fd62a949b7f3a"
+      "sha256": "91519ca7c04beed4189c71d6745528f82368345dda682ba9f05f89e138aaa54a"
     },
     {
       "path": "forge/sandbox/file_client.py",
@@ -637,7 +641,7 @@
     },
     {
       "path": "forge/sandbox/policy.py",
-      "sha256": "2d821612ed6abbb2dfdc6ba1aef06782a194f61a0fdd191fc136234590d2943a"
+      "sha256": "4f78242e8ec22ce739cf00c934c87d09998eddb2ab670c0a5f07dd0b6ef955dc"
     },
     {
       "path": "forge/sandbox/process_owner.py",

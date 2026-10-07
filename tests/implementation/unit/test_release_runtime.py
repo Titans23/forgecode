@@ -34,6 +34,12 @@ def test_grouped_manifest_and_tampered_dependency(tmp_path):
     (tmp_path/'engine/build/lib.so').write_bytes(b'changed')
     with pytest.raises(ValueError, match='integrity'): verify_manifest(tmp_path)
 
+def test_missing_resource_is_rejected_with_loader_boundary_error(tmp_path):
+    release_tree(tmp_path)
+    (tmp_path/'engine/build/lib.so').unlink()
+    with pytest.raises(ValueError, match='Resource is unavailable'):
+        verify_manifest(tmp_path)
+
 @pytest.mark.parametrize('field,value',[('protocol','future'),('platform','darwin-x64'),('build_id','other')])
 def test_component_version_mismatch(tmp_path,field,value):
     m=release_tree(tmp_path); m[field]=value

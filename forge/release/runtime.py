@@ -21,7 +21,10 @@ def verify_asset(root,asset):
     if not isinstance(value,str) or not value or '\\' in value or ':' in value or PurePosixPath(value).is_absolute() or '..' in PurePosixPath(value).parts:
         raise ValueError('Resource path is outside trusted root')
     path=root/value
-    actual=path.resolve(strict=True)
+    try:
+        actual=path.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise ValueError('Resource is unavailable or has an invalid link: '+value) from error
     if not actual.is_relative_to(root) or not actual.is_file():
         raise ValueError('Resource link is outside trusted root')
     link=asset.get('symlink')

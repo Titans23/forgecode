@@ -96,7 +96,7 @@ export class SrtAdapter {
       throw new ContractError('Workspace identity changed', 'POLICY_DENIED', -32010);
     }
     this.workspace = { id: params.workspace_id, path, identity: `${info.dev}:${info.ino}` };
-    const platform = process.platform === 'win32' && Number(os.release().split('.')[2]) >= 22000 ? 'windows-native'
+    const platform = process.platform === 'win32' && process.arch === 'x64' && Number(os.release().split('.')[2]) >= 22000 && os.version().startsWith('Windows 11') ? 'windows-native'
       : process.platform === 'linux' && process.arch === 'x64' ? 'linux-native' : 'unsupported';
     const report: any = { platform, backend: 'srt', backend_version: '0.0.78', read_isolation: 'unavailable',
       write_isolation: false, direct_network_isolation: false, dns_isolation: false, socket_isolation: false,

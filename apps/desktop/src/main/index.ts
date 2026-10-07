@@ -25,6 +25,11 @@ import { probeEvaluations } from './evaluation_probe.js';
 import { probeFailures } from './failure_probe.js';
 import { createSetupBroker } from './setup_broker.js';
 
+if (app.isPackaged && process.argv.some(arg => /^--(?:inspect(?:-brk|-port)?|remote-debugging-(?:port|pipe))(?:=|$)/.test(arg))) {
+  console.error('FORGE_INSTALLED_DEBUG_DENIED');
+  app.exit(2);
+}
+
 protocol.registerSchemesAsPrivileged([{ scheme: 'forge-app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
 const installation = process.argv.some(arg => ['--squirrel-install', '--squirrel-updated', '--squirrel-uninstall', '--squirrel-obsolete'].includes(arg));
@@ -194,6 +199,21 @@ async function runPackagedInspection() {
       engine.hello.capabilities.features.includes('provider-model') && !engine.hello.capabilities.features.includes('scripted-model'));
     const security = await window.webContents.executeJavaScript('window.forgeDesktop.security()');
     check('installed-window-sandbox', security.contextIsolated === true && security.sandboxed === true);
+    const crypto = new CredentialCrypto({ executable: process.execPath,
+      arguments: ['--credential-worker', resolve(app.getPath('userData'), 'hardened-credential-runtime')],
+      cwd: process.resourcesPath, environment: credentialEnvironment(process.env) });
+    try {
+      const protection = await crypto.request({ action: 'probe' });
+      if (protection.protection.mode === 'os_protected') {
+        const value = 'controlled-credential-' + randomUUID();
+        const encrypted = await crypto.request({ action: 'encrypt', value });
+        const decrypted = encrypted.value ? await crypto.request({ action: 'decrypt', value: encrypted.value }) : null;
+        check('installed-credential-helper', encrypted.status === 'pass' && encrypted.value !== value && decrypted?.value === value);
+      } else {
+        const denied = await crypto.request({ action: 'encrypt', value: 'controlled-memory-only-probe' });
+        check('installed-credential-helper', denied.status === 'blocked' && denied.value === undefined);
+      }
+    } finally { crypto.close(); }
     check('installed-no-owned-listener', await ownedTcpListeners([process.pid, engine.pid!]) === 0);
     const report = await engine.shutdown('cancel');
     check('installed-owned-shutdown', report.state === 'confirmed' && report.cleanup_state === 'complete');

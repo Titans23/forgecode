@@ -12,7 +12,7 @@ import tempfile
 
 from forge.application.models import ContractError
 from forge.engine.persistence import new_id
-from forge.sandbox.capabilities import unavailable_report
+from forge.sandbox.capabilities import unavailable_report,windows11_supported
 from forge.sandbox.launcher import bridge_environment, verify_runtime
 from forge.sandbox.path_policy import inspect_path
 from forge.sandbox.srt_backend import SrtBackend
@@ -89,8 +89,7 @@ def windows_status_diagnosis(runtime):
 
 def system_diagnosis():
     host = {'system': platform.system(), 'build': platform.platform(), 'architecture': platform.machine(),
-            'supported_linux': False, 'supported_windows': sys.platform == 'win32' and
-            sys.getwindowsversion().build >= 22000 and platform.machine().lower() in ('amd64', 'x86_64')}
+            'supported_linux': False, 'supported_windows': windows11_supported()}
     tools = {}
     system_policy = {}
     kernel_probe = {'status': 'not_run', 'reason': 'Supported native namespace probe unavailable'}

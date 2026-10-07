@@ -30,7 +30,8 @@ class CredentialProvider(Protocol):
 
 class ApplicationServices:
     def __init__(self, store, *, profile_id, credentials: CredentialProvider, mode='strict', backend=None,
-                 model_client_factory=None, recorder=None, approval_handler=None, task_relation=None, observation_options=None):
+                 model_client_factory=None, recorder=None, approval_handler=None, task_relation=None, observation_options=None,
+                 backend_factory=None):
         if mode not in ('strict', 'local-trusted'):
             raise ValueError('Execution mode must be strict or local-trusted')
         self.store = store
@@ -38,6 +39,9 @@ class ApplicationServices:
         self.credentials = credentials
         self.mode = mode
         self.backend = backend
+        if backend is not None and backend_factory is not None:
+            raise ValueError('Choose a supplied backend or an owned backend factory')
+        self.backend_factory = backend_factory
         self.model_client_factory = model_client_factory
         self.recorder = recorder
         self.approval_handler = approval_handler
@@ -92,7 +96,8 @@ class ApplicationServices:
     def put_policy(self, policy):
         validate('sandbox-policy', policy)
         workspace = self._workspace(policy['workspace_id'])
-        snapshot = compile_policy(policy, workspace, control_roots=(self.store.data_dir,))
+        roots = self.backend_factory.protected_roots if self.backend_factory else (self.store.data_dir,)
+        snapshot = compile_policy(policy, workspace, control_roots=roots)
         with self.store.transaction():
             self.store.connection.execute('INSERT INTO policies VALUES(?,?,?,?)',
                 (policy['policy_id'], snapshot.sha256, encoded(snapshot.value), self.mode))
@@ -136,16 +141,20 @@ class ApplicationServices:
             raise ContractError('Policy execution mode changed', kind='STALE_REVISION', code=-32010)
         if policy_value['workspace_id'] != workspace_id:
             raise ContractError('Policy belongs to another workspace', kind='UNAUTHORIZED', code=-32010)
-        compiled = compile_policy(policy_value, workspace, control_roots=(self.store.data_dir,))
+        roots = self.backend_factory.protected_roots if self.backend_factory else (self.store.data_dir,)
+        compiled = compile_policy(policy_value, workspace, control_roots=roots)
         if compiled.sha256 != policy['hash']:
             raise ContractError('Policy normalization or path bindings changed; provision a new policy', kind='STALE_REVISION', code=-32010)
         credential = self.credentials.resolve(params['connection_id'])
         if not credential:
             raise ContractError('Connection credential is unavailable', kind='CONNECTION_UNAVAILABLE', code=-32010)
         if execution:
-            if self.backend is None:
+            if self.backend_factory is not None:
+                self.backend_factory.check_request(policy_value, required_mode=self.mode)
+            elif self.backend is None:
                 raise ContractError('strict sandbox backend is not ready', kind='SANDBOX_UNAVAILABLE', code=-32010)
-            self.backend.check_ready(policy_value, required_mode=self.mode)
+            else:
+                self.backend.check_ready(policy_value, required_mode=self.mode)
         value = {'workspace_id': workspace_id, 'workspace_revision': workspace['revision'],
             'connection_id': params['connection_id'], 'connection_revision': connection['revision'],
             'model': json.loads(connection['configuration_json']), 'policy_id': policy['id'], 'policy_hash': policy['hash'],
@@ -257,6 +266,7 @@ class ApplicationServices:
         claimed = self.store.claim_work_item(work['id'], expected_version=work['version'], emit_turn_event=True)
         self.running[turn_id] = asyncio.current_task()
         adapter = None
+        turn_backend = self.backend
         result = None
         outcome = 'failed'
         reason = 'harness_error'
@@ -287,6 +297,12 @@ class ApplicationServices:
                 deadline_expired = True
                 self.cancel_turn({'turn_id': turn_id, 'client_action_id': new_id('act'), 'reason': 'Agent deadline exceeded'})
             timer = asyncio.create_task(deadline.watch(asyncio.current_task(), expire))
+            if self.backend_factory is not None:
+                policy = json.loads(self.store.connection.execute('SELECT normalized_json FROM policies WHERE id=?',
+                    (configuration['policy_id'],)).fetchone()[0])
+                workspace = self._workspace(configuration['workspace_id'], execution=True)
+                owner = {'engine_epoch': self.store.epoch, 'sandbox_session_id': new_id('sandbox'), 'execution_id': None}
+                turn_backend = await self.backend_factory.open(workspace, policy, owner, turn_id)
             metadata = dict(configuration['model'])
             metadata['request_timeout_seconds'] = float(metadata['request_timeout_seconds'])
             config = ForgeConfig(api_key=self.credentials.resolve(configuration['connection_id']), **metadata)
@@ -305,7 +321,7 @@ class ApplicationServices:
                 async def approval(request):
                     return await self.approvals.authorize(request, turn_id=turn_id, configuration=configuration)
             adapter = HarnessAdapter(root, config=config, data_root=self.store.data_dir / 'harness',
-                backend=self.backend, budget=configuration, model_client_factory=self.model_client_factory,
+                backend=turn_backend, budget=configuration, model_client_factory=self.model_client_factory,
                 recorder=self.recorder, approval_handler=approval, task_relation=self.task_relation,
                 resume_identifier=session['legacy_ref'], fork_session=fork,
                 turn_baseline_handler=lambda: self.workspaces.capture(turn_id, session['workspace_id']))
@@ -353,9 +369,11 @@ class ApplicationServices:
                 reason = 'unknown_tool_result' if uncertain else result.stop_reason or result.status
         except ContractError as error:
             outcome, reason = 'blocked', str(error.kind)
+            cleanup = getattr(error, 'cleanup_report', cleanup)
         except BlockingIOError:
             outcome, reason = 'blocked', 'workspace_in_use'
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as error:
+            cleanup = getattr(error, 'cleanup_report', cleanup)
             records = adapter.conversation.turn_state.execution_records if adapter and adapter.conversation.turn_state else []
             outcome = 'indeterminate' if any(r.status == 'indeterminate' for r in records) else 'cancelled'
             reason = 'cancellation_propagated' if outcome == 'cancelled' else 'cancelled_with_unknown_tool_result'
@@ -380,14 +398,14 @@ class ApplicationServices:
                     await asyncio.wait_for(adapter.close(), 2)
                 except (Exception, asyncio.CancelledError) as error:
                     model_cleanup_error = type(error).__name__
-            if self.backend is not None and hasattr(self.backend, 'close'):
+            if turn_backend is not None and hasattr(turn_backend, 'close'):
                 try:
-                    cleanup = await asyncio.wait_for(self.backend.close(), 5)
+                    cleanup = await asyncio.wait_for(turn_backend.close(), 5)
                     if not isinstance(cleanup, dict) or cleanup.get('state') not in ('clean', 'residual', 'unknown'):
                         cleanup = {'state': 'unknown', 'reason': 'invalid_backend_cleanup_report'}
                 except (Exception, asyncio.CancelledError) as error:
                     cleanup = {'state': 'unknown', 'reason': type(error).__name__}
-            elif self.mode == 'strict':
+            elif self.mode == 'strict' and not cleanup.get('reports'):
                 cleanup = {'state': 'unknown', 'reason': 'native_cleanup_observation_unavailable'}
             if model_cleanup_error:
                 cleanup = {'state': 'unknown', 'model_cleanup_error': model_cleanup_error, 'backend': cleanup}

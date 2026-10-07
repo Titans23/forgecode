@@ -75,11 +75,18 @@ def test_final_environment_deadline_reclaims_ungraded_service(tmp_path):
     (tmp_path / 'public.txt').write_text('delivery-v1')
     async def scenario():
         owner, url = await server(tmp_path)
+        # Establish real liveness before starting the deliberately short lifetime.
+        # A valid expiry may close an HTTP connection started inside that lifetime.
+        try:
+            assert await read(url) == 'delivery-v1'
+        except BaseException:
+            await owner.close()
+            raise
         phases = PhaseLifecycle(agent_seconds=0.1, environment_seconds=0.25)
         phases.register('delivery', owner.close, retain_for_grader=True)
         try:
             await phases.finish_agent()
-            assert await read(url) == 'delivery-v1'
+            assert owner.process.returncode is None
             async with asyncio.timeout(3):
                 while phases.cleanup is None:
                     await asyncio.sleep(0.01)

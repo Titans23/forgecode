@@ -77,8 +77,11 @@ def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=()):
         candidate = Path(path)
         if not any(candidate == allowed or candidate.is_relative_to(allowed) for allowed in (root.path, *trusted_temp)):
             denied('Write root is outside workspace or trusted temporary roots')
-    protected = [*map(Path, filesystem['protected_paths']), root.path / '.forge', *git_metadata_paths(root.path),
-                 *(inspect_path(path, absolute=True).path for path in control_roots)]
+    protected = [*map(Path, filesystem['protected_paths']), root.path / '.forge', *git_metadata_paths(root.path)]
+    for path in control_roots:
+        candidate = inspect_path(path, absolute=True).path
+        if not any(candidate == parent or candidate.is_relative_to(parent) for parent in protected):
+            protected.append(candidate)
     filesystem['protected_paths'] = sorted(set(map(str, protected)))
     value['network']['allowed_domains'] = sorted(set(normalize_domain(name) for name in value['network']['allowed_domains']))
     if any(UNSAFE_ENV.search(name) for name in value['environment_keys']):

@@ -1146,9 +1146,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T211118Z-7289c010",
-            "20261006T211134Z-d4dc513b"
-          ]
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1171,9 +1172,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T211118Z-7289c010",
-            "20261006T211134Z-d4dc513b"
-          ]
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1195,9 +1197,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T211118Z-7289c010",
-            "20261006T211134Z-d4dc513b"
-          ]
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1220,10 +1223,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T100117Z-2b3a1290",
-            "20261007T100154Z-0aaf1497"
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
           ],
-          "reason": "Actual current-revision failure and late historical-success tests plus real verify/external-edit/completion rejection Journal behavior passed; scripted models, developer portable scope."
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       },
       "development_evidence_ids": [
@@ -1250,9 +1253,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T211118Z-7289c010",
-            "20261006T211134Z-d4dc513b"
-          ]
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1274,9 +1278,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T195743Z-1fa9ce8a",
-            "20261006T200005Z-56bfc334"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1298,8 +1302,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T111756Z-f5819b93"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1322,10 +1327,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T215137Z-955dfd02",
-            "20261006T215153Z-20c452df"
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
           ],
-          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1348,10 +1353,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T215137Z-955dfd02",
-            "20261006T215153Z-20c452df"
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
           ],
-          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -1374,9 +1379,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T231438Z-2fe8c473",
-            "20261006T231943Z-2e15c738"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -2941,8 +2946,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T111756Z-f5819b93"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -2963,8 +2969,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T102615Z-0f141cab"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -2985,8 +2992,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T111756Z-f5819b93"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3008,9 +3016,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T100851Z-a7ee0375",
-            "20261006T100856Z-8425af60"
-          ]
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3033,11 +3042,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T122617Z-467c0ff0",
-            "20261006T122623Z-252a9f8b",
-            "20261006T122834Z-df2df90c"
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
           ],
-          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3058,8 +3066,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T102615Z-0f141cab"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3297,9 +3306,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T211118Z-7289c010",
-            "20261006T211134Z-d4dc513b"
-          ]
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3321,10 +3331,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T215137Z-955dfd02",
-            "20261006T215153Z-20c452df"
+            "20261007T122040Z-d187f818",
+            "20261007T122029Z-b3dc3704"
           ],
-          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3345,9 +3355,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T231438Z-2fe8c473",
-            "20261006T231943Z-2e15c738"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3368,9 +3378,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T231438Z-2fe8c473",
-            "20261006T231943Z-2e15c738"
-          ]
+            "20261007T122029Z-b3dc3704"
+          ],
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       }
     },
@@ -3506,7 +3516,10 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_hardened_artifact.py",
+        "scripts/hardened_smoke.py"
+      ],
       "status": "not_run",
       "release_required": true,
       "platform_verification": {
@@ -3614,9 +3627,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T094158Z-06aa2a42"
+            "20261007T122040Z-d187f818"
           ],
-          "reason": "Actual current-source gate/workflow behavior tests passed in unit189; this verifies refusal logic, not supported native product acceptance."
+          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
         }
       },
       "development_evidence_ids": [
@@ -3633,7 +3646,9 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_benchmark_adapters.py"
+      ],
       "status": "not_run",
       "release_required": true,
       "platform_verification": {

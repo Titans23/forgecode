@@ -1,8 +1,11 @@
 {
   "schema_version": "forge.implementation.progress.v1",
+  "current_authorization_ref": "evidence/human-authorization-20261007.json",
+  "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
+  "authorization_history_note": "Earlier task notes about unauthorized paid experiments describe their execution time. Human authorization on 2026-10-07 supersedes that blocker; monetary ceiling is explicitly unbounded. Administrator setup remains unauthorized.",
   "document_version": "4.0.0",
-  "actual_repository_head": "e5d5b88671fc84ab2483966397aa49047ac93852",
-  "next_recommended_task": "F28",
+  "actual_repository_head": "f3c194ae7eebca392fb1db8511903013e554c933",
+  "next_recommended_task": "F31",
   "current_task": null,
   "tasks": {
     "F00": {
@@ -11,7 +14,10 @@
         "audit": "pass",
         "regression": "pass"
       },
-      "evidence_ids": ["20261006T091942Z-d39f0b28", "20261006T092001Z-c7f13bd9"],
+      "evidence_ids": [
+        "20261006T091942Z-d39f0b28",
+        "20261006T092001Z-c7f13bd9"
+      ],
       "blocked_reasons": []
     },
     "F01": {
@@ -25,44 +31,136 @@
         "native_linux": "blocked",
         "dependency_security": "blocked"
       },
-      "evidence_ids": ["20261006T094338Z-9ee68b20", "20261006T094341Z-a9e7179e", "20261006T093957Z-8e28ebc0"],
-      "blocked_reasons": ["Host is Windows 10; Windows 11 and Ubuntu 22.04/24.04 native acceptance runners are unavailable.", "SRT administrator setup and signed production release are not authorized/provided.", "GHSA-86w9-cpqp-85rv affects node-forge 1.4.0 used by SRT; no patched published release. Production security guard refuses release."]
+      "evidence_ids": [
+        "20261006T094338Z-9ee68b20",
+        "20261006T094341Z-a9e7179e",
+        "20261006T093957Z-8e28ebc0"
+      ],
+      "blocked_reasons": [
+        "Host is Windows 10; Windows 11 and Ubuntu 22.04/24.04 native acceptance runners are unavailable.",
+        "SRT administrator setup and signed production release are not authorized/provided.",
+        "GHSA-86w9-cpqp-85rv affects node-forge 1.4.0 used by SRT; no patched published release. Production security guard refuses release."
+      ]
     },
     "F02": {
       "implementation_status": "implemented",
-      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "typecheck": "pass"},
-      "evidence_ids": ["20261006T100851Z-a7ee0375", "20261006T100856Z-8425af60", "20261006T100851Z-a837e8f2"],
+      "verification": {
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "typecheck": "pass"
+      },
+      "evidence_ids": [
+        "20261006T100851Z-a7ee0375",
+        "20261006T100856Z-8425af60",
+        "20261006T100851Z-a837e8f2"
+      ],
       "blocked_reasons": []
     },
     "F03": {
       "implementation_status": "implemented",
-      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "typecheck": "pass", "native_windows": "blocked", "native_linux": "blocked"},
-      "evidence_ids": ["20261006T102610Z-94aab17c", "20261006T102615Z-0f141cab", "20261006T102610Z-698a0127", "20261006T103414Z-2a9980f6", "20261006T103419Z-f3e3cf9a", "20261006T103452Z-166d145d"],
-      "blocked_reasons": ["D30 native acceptance requires Windows 11 and Ubuntu 22.04/24.04 runners; only Windows 10 portable storage verification is available."]
+      "verification": {
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "typecheck": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked"
+      },
+      "evidence_ids": [
+        "20261006T102610Z-94aab17c",
+        "20261006T102615Z-0f141cab",
+        "20261006T102610Z-698a0127",
+        "20261006T103414Z-2a9980f6",
+        "20261006T103419Z-f3e3cf9a",
+        "20261006T103452Z-166d145d"
+      ],
+      "blocked_reasons": [
+        "D30 native acceptance requires Windows 11 and Ubuntu 22.04/24.04 runners; only Windows 10 portable storage verification is available."
+      ]
     },
     "F04": {
       "implementation_status": "implemented",
-      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked", "live_model": "blocked"},
-      "evidence_ids": ["20261006T105304Z-1b46b663", "20261006T105310Z-27975238", "20261006T105339Z-c4dd0804"],
-      "blocked_reasons": ["Windows 11/Ubuntu native runners unavailable; tests exercised real tools with scripted models on Windows 10. Paid API experiments lack authorization/budget; no real model results claimed."]
+      "verification": {
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked",
+        "live_model": "blocked"
+      },
+      "evidence_ids": [
+        "20261006T105304Z-1b46b663",
+        "20261006T105310Z-27975238",
+        "20261006T105339Z-c4dd0804"
+      ],
+      "blocked_reasons": [
+        "Windows 11/Ubuntu native runners unavailable; tests exercised real tools with scripted models on Windows 10. Paid API experiments lack authorization/budget; no real model results claimed."
+      ]
     },
     "F05": {
       "implementation_status": "implemented",
-      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked", "desktop": "not_run", "live_model": "blocked"},
-      "evidence_ids": ["20261006T111751Z-a64edfea", "20261006T111756Z-f5819b93", "20261006T111902Z-ff8046cd"],
-      "blocked_reasons": ["Windows 11 and Ubuntu native runners unavailable; real Engine subprocess tests ran on Windows 10. UI reducer acceptance awaits desktop implementation. No paid model authorization; scripted model results are not benchmark grades."]
+      "verification": {
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked",
+        "desktop": "not_run",
+        "live_model": "blocked"
+      },
+      "evidence_ids": [
+        "20261006T111751Z-a64edfea",
+        "20261006T111756Z-f5819b93",
+        "20261006T111902Z-ff8046cd"
+      ],
+      "blocked_reasons": [
+        "Windows 11 and Ubuntu native runners unavailable; real Engine subprocess tests ran on Windows 10. UI reducer acceptance awaits desktop implementation. No paid model authorization; scripted model results are not benchmark grades."
+      ]
     },
     "F06": {
       "implementation_status": "implemented",
-      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked", "desktop": "not_run", "live_model": "blocked"},
-      "evidence_ids": ["20261006T113646Z-1cb5c7d9", "20261006T113651Z-324b93bb", "20261006T113811Z-54d4f9dd"],
-      "blocked_reasons": ["Demo uses real host tools with explicit local-trusted mode and scripted model origin. No OS sandbox/desktop/native acceptance or paid-model grades claimed. Remaining five fixture scenarios await their owning tasks."]
+      "verification": {
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked",
+        "desktop": "not_run",
+        "live_model": "blocked"
+      },
+      "evidence_ids": [
+        "20261006T113646Z-1cb5c7d9",
+        "20261006T113651Z-324b93bb",
+        "20261006T113811Z-54d4f9dd"
+      ],
+      "blocked_reasons": [
+        "Demo uses real host tools with explicit local-trusted mode and scripted model origin. No OS sandbox/desktop/native acceptance or paid-model grades claimed. Remaining five fixture scenarios await their owning tasks."
+      ]
     },
     "F07": {
       "implementation_status": "implemented",
-      "verification": {"unit": "pass", "portable": "pass", "regression": "pass", "contracts": "pass", "native_windows": "blocked", "native_linux": "blocked"},
-      "evidence_ids": ["20261006T115350Z-bfd58d91", "20261006T115355Z-edb1d80e", "20261006T115517Z-a30f1c2e"],
-      "blocked_reasons": ["Policy/path compilation and actual Windows 10 file identity/junction behavior verified. Windows 11/Ubuntu OS isolation, dynamic sensitive-file shell/file-worker consistency, and native resource enforcement remain blocked/unverified; no verified native capabilities manufactured."]
+      "verification": {
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked"
+      },
+      "evidence_ids": [
+        "20261006T115350Z-bfd58d91",
+        "20261006T115355Z-edb1d80e",
+        "20261006T115517Z-a30f1c2e"
+      ],
+      "blocked_reasons": [
+        "Policy/path compilation and actual Windows 10 file identity/junction behavior verified. Windows 11/Ubuntu OS isolation, dynamic sensitive-file shell/file-worker consistency, and native resource enforcement remain blocked/unverified; no verified native capabilities manufactured."
+      ]
     },
     "F08": {
       "implementation_status": "implemented",
@@ -658,16 +756,100 @@
       ]
     },
     "F28": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "portable": "not_run",
-        "desktop": "not_run",
-        "packaged": "not_run",
-        "sandbox-linux": "not_run",
-        "sandbox-windows": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "quality": "pass",
+        "acceptance": "blocked",
+        "engine-packaged": "pass",
+        "desktop-packaged": "pass",
+        "installer-windows": "pass",
+        "hardened": "pass",
+        "installer-linux": "blocked",
+        "sandbox-windows": "blocked",
+        "sandbox-linux": "blocked",
+        "security": "blocked",
+        "desktop": "pass",
+        "performance": "blocked",
+        "live_connectivity": "pass",
+        "official_live_evaluation": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261007T103717Z-676f1bad",
+        "20261007T111308Z-47ed56ff",
+        "20261007T114653Z-8643620c",
+        "20261007T114653Z-8fb96dfa",
+        "20261007T114659Z-a03354ee",
+        "20261007T114718Z-bb01a8fa",
+        "20261007T114719Z-8a45ae6e",
+        "20261007T114734Z-3b013674",
+        "20261007T114749Z-0c5bc15c",
+        "20261007T114802Z-d746a201",
+        "20261007T115007Z-1c5d30b2",
+        "20261007T115008Z-2d5c6b3b",
+        "20261007T115008Z-b4dac5ef",
+        "20261007T115014Z-cf830c39",
+        "20261007T115034Z-e65cbfa4",
+        "20261007T115035Z-c13c7951",
+        "20261007T115053Z-702fc295",
+        "20261007T115110Z-3b09af01",
+        "20261007T115335Z-4c40349e",
+        "20261007T115336Z-6fd3890d",
+        "20261007T115336Z-e6b64f9f",
+        "20261007T115342Z-0a50978d",
+        "20261007T115404Z-e1b8d821",
+        "20261007T115405Z-c4fcc76f",
+        "20261007T115427Z-ebb8faaf",
+        "20261007T115449Z-a168aabd",
+        "20261007T115542Z-989317b8",
+        "20261007T115633Z-5468aba9",
+        "20261007T115843Z-75f1d0e0",
+        "20261007T120123Z-9c08eb64",
+        "20261007T120123Z-a5f177b5",
+        "20261007T120124Z-121bd483",
+        "20261007T120124Z-c1577d00",
+        "20261007T120132Z-3d9dcfdf",
+        "20261007T120147Z-641572b1",
+        "20261007T120200Z-7b6c825e",
+        "20261007T120202Z-8d7621a8",
+        "20261007T120225Z-5cf027ff",
+        "20261007T120248Z-d0af77b5",
+        "20261007T122040Z-d187f818",
+        "20261007T122050Z-66356479",
+        "20261007T122057Z-9dbacf36",
+        "20261007T122029Z-b3dc3704",
+        "20261007T122019Z-9e16aa46",
+        "20261007T123505Z-c2af5541"
+      ],
+      "current_evidence_ids": [
+        "20261007T122040Z-d187f818",
+        "20261007T122029Z-b3dc3704",
+        "20261007T122019Z-9e16aa46",
+        "20261007T122050Z-66356479",
+        "20261007T122057Z-9dbacf36",
+        "20261007T123505Z-c2af5541"
+      ],
+      "artifact_evidence_ids": [
+        "20261007T115336Z-e6b64f9f",
+        "20261007T115542Z-989317b8",
+        "20261007T115633Z-5468aba9",
+        "20261007T115843Z-75f1d0e0",
+        "20261007T120200Z-7b6c825e",
+        "20261007T120202Z-8d7621a8",
+        "20261007T120225Z-5cf027ff",
+        "20261007T120248Z-d0af77b5",
+        "20261007T120147Z-641572b1"
+      ],
+      "blocked_reasons": [
+        "Current Windows10 phase passed 214 unit / 355 portable / 1313 regression, zero skips; actual Engine/package/maker/fuses checks pass. Windows11/Ubuntu clean/native acceptance remains subsequent and unverified.",
+        "Strict verified capability promotion, initialized complete boundary/process cleanup and dynamic sensitive-path parity remain code/native-proof gaps. Strict refuses; no fake sandbox pass.",
+        "Full fixed 100000 events / 10000 spans / 100MiB measurements improved metadata overhead 8.07714390646% to 5.210340492313925%, still above 5%. Graphical/packaged native performance unverified.",
+        "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing, owner-approved LICENSE and administrator setup unavailable/unapproved.",
+        "Real-model execution now explicitly authorized with an unbounded monetary budget; actual connectivity 1 request / 335 input / 10 output tokens passed. Cost unknown; official grades zero. Docker daemon and official execution/control snapshots unavailable; F31 continues bounded actual Harness validation."
+      ]
     },
     "F29": {
       "implementation_status": "implemented",

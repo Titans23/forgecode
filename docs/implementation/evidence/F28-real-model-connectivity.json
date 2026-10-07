@@ -1,0 +1,118 @@
+{
+  "schema_version": "forge.real-model-connectivity.v1",
+  "started_at_utc": "2026-10-07T12:17:00.264079+00:00",
+  "authorization_ref": "docs/implementation/evidence/human-authorization-20261007.json",
+  "provider": "anthropic",
+  "requested_model": "gpt-6-luna",
+  "endpoint_host": "localhost",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "model_is_scripted": false,
+  "budgets": {
+    "requests": 1,
+    "tools": 0,
+    "wall_seconds": 120,
+    "input_tokens": 4096,
+    "output_tokens": 1024
+  },
+  "monetary_budget_policy": "human_unbounded",
+  "known_cost": null,
+  "cost_status": "unknown: no trusted price or actual billing receipt supplied",
+  "independent_grades": [],
+  "official_benchmark_grades": 0,
+  "eligible_for_native_pass": false,
+  "status": "pass",
+  "response_sha256": "f0699496362b49f4babcdcb7618455388b46a8fe98c558d40f85a5d1e25c1183",
+  "response_characters": 23,
+  "exact_sentinel_match": true,
+  "ended_at_utc": "2026-10-07T12:17:03.749811+00:00",
+  "elapsed_seconds": 3.4840000000003783,
+  "actual_model_calls": 1,
+  "usage": {
+    "input_tokens": 335,
+    "output_tokens": 10,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0
+  },
+  "unknown_usage_requests": 0,
+  "statistics": {
+    "executed": 0,
+    "cached": 0,
+    "rejected": 0,
+    "cancelled": 0,
+    "indeterminate": 0,
+    "model_requests": 1,
+    "tool_requests": 0,
+    "recovery_feedback": 0,
+    "unknown_usage_requests": 0,
+    "authorized_connectivity_stage_requests": 1,
+    "authorized_connectivity_seconds": 3.234,
+    "elapsed_seconds": 3.703
+  },
+  "events": [
+    {
+      "kind": "model_request_started",
+      "payload": {
+        "request_id": "08e345c7c9174412874ce807441172fc",
+        "ordinal": 1,
+        "invocation_id": "invocation-21c2c4b6-f659-4e84-bb5a-5341d2ac447c",
+        "attempt_no": 1,
+        "requested_model": "gpt-6-luna",
+        "provider": "anthropic",
+        "remaining_model_calls": 0,
+        "stage": "authorized_connectivity",
+        "text_characters": 0,
+        "tool_blocks": {},
+        "stop_reason": null,
+        "input_sha256": "bfd5848c019e6f87dc2b23a1058ef5ff31634fed40aafb79676def8691c6eb29"
+      }
+    },
+    {
+      "kind": "model_request_finished",
+      "payload": {
+        "request_id": "08e345c7c9174412874ce807441172fc",
+        "ordinal": 1,
+        "invocation_id": "invocation-21c2c4b6-f659-4e84-bb5a-5341d2ac447c",
+        "attempt_no": 1,
+        "requested_model": "gpt-6-luna",
+        "provider": "anthropic",
+        "remaining_model_calls": 0,
+        "stage": "authorized_connectivity",
+        "text_characters": 23,
+        "tool_blocks": {},
+        "stop_reason": "end_turn",
+        "input_sha256": "bfd5848c019e6f87dc2b23a1058ef5ff31634fed40aafb79676def8691c6eb29",
+        "outcome": "completed",
+        "reason": "",
+        "duration_seconds": 3.2340000000003783,
+        "usage": {
+          "input_tokens": 335,
+          "output_tokens": 10,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0
+        },
+        "raw_usage": {
+          "input_tokens": 335,
+          "output_tokens": 10
+        },
+        "provider_request_id": "resp_0606c9fafda96ed1016ac6383dddc087d1b49c52ad02e1bea5",
+        "returned_model": "gpt-6-luna",
+        "usage_is_final": true
+      }
+    }
+  ],
+  "scope": "Actual configured gateway/provider connectivity; not a Harness task grade or native acceptance",
+  "private_report_ref": ".local/authorized-model-probe/report.json",
+  "request_snapshots": [
+    {
+      "kind": "model_input_snapshot",
+      "sha256": "bfd5848c019e6f87dc2b23a1058ef5ff31634fed40aafb79676def8691c6eb29",
+      "request_id": null
+    },
+    {
+      "kind": "model_wire_snapshot",
+      "sha256": "9e91dabcff7eb76804f7d84f0ea65fdc271f306b7f9aaeed144a925300165e78",
+      "request_id": "08e345c7c9174412874ce807441172fc"
+    }
+  ],
+  "gateway_identity_limit": "Requested and returned model names are gateway observations; upstream identity and billing independently unverified"
+}

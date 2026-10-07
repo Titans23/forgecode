@@ -123,10 +123,12 @@ def test_agent_deadline_interrupts_inflight_real_engine_model_and_persists_clean
         return client
     service, store, _, _, _, turn = setup(tmp_path, factory=factory)
     try:
-        budget = service.put_budget({'max_model_calls': 4, 'max_tool_calls': 6, 'wall_seconds': 1})
+        # Reserve startup time so this case actually exercises an in-flight
+        # request, even while other real build/test processes contend for I/O.
+        budget = service.put_budget({'max_model_calls': 4, 'max_tool_calls': 6, 'wall_seconds': 5})
         accepted = service.start_turn({**turn, 'budget_profile_id': budget})
         async def run():
-            await asyncio.wait_for(service.execute_turn(accepted['turn_id']), 5)
+            await asyncio.wait_for(service.execute_turn(accepted['turn_id']), 10)
         asyncio.run(run())
         result = service.get_snapshot(turn['session_id'])['turns'][0]
         assert result['outcome'] == 'timed_out' and clients[0].calls == 1
@@ -136,6 +138,29 @@ def test_agent_deadline_interrupts_inflight_real_engine_model_and_persists_clean
         assert any(e['event_type'] == 'cancellation.confirmed' for e in store.events())
     finally:
         store.close()
+
+
+def test_agent_deadline_expired_during_real_preparation_never_starts_model_request(tmp_path):
+    import time
+    from test_application import setup
+    from forge.engine.test_profile import ScriptedModelClient
+    clients=[]
+    def factory(config,**kwargs):
+        client=ScriptedModelClient(config,[{'delay_seconds':30,'text_chunks':['too late']}])
+        clients.append(client)
+        time.sleep(2)  # Actual preparation work exceeds the one-second agent deadline.
+        return client
+    service,store,_,_,_,turn=setup(tmp_path,factory=factory)
+    try:
+        budget=service.put_budget({'max_model_calls':4,'max_tool_calls':6,'wall_seconds':1})
+        accepted=service.start_turn({**turn,'budget_profile_id':budget})
+        async def run():await asyncio.wait_for(service.execute_turn(accepted['turn_id']),10)
+        asyncio.run(run())
+        assert clients and sum(client.calls for client in clients)==0
+        assert service.get_snapshot(turn['session_id'])['turns'][0]['outcome']=='timed_out'
+        row=store.connection.execute('SELECT cancel_state,cleanup_state FROM turn_lifecycle WHERE turn_id=?',(accepted['turn_id'],)).fetchone()
+        assert tuple(row)==('confirmed','clean')
+    finally:store.close()
 
 
 def test_real_engine_crash_reopens_lifecycle_unknown_and_never_replays(tmp_path):
