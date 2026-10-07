@@ -718,7 +718,7 @@ class TurnRunner:
 
     def _offer_delivery_repair(self, reasons) -> bool:
         gate = self.conversation.completion_gate
-        limit = max(0, min(2, gate.policy.max_delivery_repairs)) if gate else 0
+        limit = gate.policy.effective_delivery_repairs if gate else 0
         signature = tuple(sorted(set(reasons)))
         if (len(self.delivery_repair_reasons) >= limit
                 or signature in self.delivery_repair_reasons
@@ -836,7 +836,7 @@ class TurnRunner:
             recorder.evidence_state(self.state.workspace_revision,self.state.environment_epoch)
             recorder.completion(accepted=status=='completed',reason=reason,revision=self.state.workspace_revision,
                 evidence_revision=evidence[-1].workspace_revision if evidence else self.state.workspace_revision,
-                repairs_remaining=max(0,(policy.max_delivery_repairs if policy else 0)-len(self.delivery_repair_reasons)),report=asdict(report))
+                repairs_remaining=max(0,(policy.effective_delivery_repairs if policy else 0)-len(self.delivery_repair_reasons)),report=asdict(report))
         event = TurnCompleted(TurnResult(
             text=text, status=status, stop_reason=reason,
             usage=self.state.usage, last_request_usage=self.state.last_request_usage,

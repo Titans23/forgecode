@@ -1206,8 +1206,11 @@
       "title": "过期证据导致完成拒绝，事件与代码行为一致",
       "source": "V3",
       "baseline_expectation": null,
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_harness_regressions.py",
+        "tests/implementation/unit/test_workspace_scope.py"
+      ],
+      "status": "pass",
       "owner_task": "F30",
       "required_platforms": [
         "portable"
@@ -1215,10 +1218,19 @@
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261007T100117Z-2b3a1290",
+            "20261007T100154Z-0aaf1497"
+          ],
+          "reason": "Actual current-revision failure and late historical-success tests plus real verify/external-edit/completion rejection Journal behavior passed; scripted models, developer portable scope."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T100117Z-2b3a1290",
+        "20261007T100154Z-0aaf1497",
+        "20261007T100111Z-456566b1"
+      ]
     },
     {
       "id": "O05",

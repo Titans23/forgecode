@@ -294,6 +294,12 @@ class Conversation:
         return self.tools
 
     @property
+    def capabilities(self) -> dict:
+        policy = self.completion_gate.policy if self.completion_gate else TaskPolicy()
+        return {'delivery_repair': {**policy.delivery_repair_capability,
+                                   'supported': self.completion_gate is not None}}
+
+    @property
     def context_stats(self) -> ContextStats:
         '''Return current committed conversation context statistics.'''
         return self.context.stats_for_request(

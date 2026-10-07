@@ -1,11 +1,18 @@
 # ForgeCode V4 交接 — 2026-10-07
 
-- F29 已通过当前源码验证；提交／推送 SHA 以实际 git HEAD／remote 核验。下一任务 F30，依赖 F12/F17/F18/F25 全 implemented，任务卡和规范9/14/17已读。
+- F30 已实现／测试，待本次 commit/push；测试父 HEAD e5d5b88671fc84ab2483966397aa49047ac93852。source f35d374c5c4fdb1fd1f05dd66548613aaaebcccc3ed39ee62c62536b0209034f / dirty 8e7f67151172cec234f738a8b5d8fd98300a3eb218fb5bf0c14f2f9caa87d610。
+  contracts2 / quality4 / unit190 / portable353 / regression1287 pass，0 skip/failure/error；本机 fresh CI gate pass，5份正式报告已独立复算：20261007T100100Z-61029d00 / 20261007T100104Z-966ab87c / 20261007T100117Z-2b3a1290 / 20261007T100154Z-0aaf1497 / 20261007T100111Z-456566b1。
+  实际 pending cancel TCP1→0、current failure不被stale success解除、repair cap0..2/terminal剩余一致、Adapter真实策略能力、ignored workspace外部编辑hash失效已修；原父子usage与长输出压缩行为保持。12项Harness+1项workspace新增行为；before/after/focused/深验与原夹具错误均保留。事实 evidence/F30-harness-observations.json。
+  F29 推送 e5d5b88671fc84ab2483966397aa49047ac93852 后，GitHub run37603953403实际四job failure：Windows setup-python找不到3.12.13，Ubuntu22/24各4个unit failure，security按预期exit2。已下载实际日志/JUnit/hash；本机Node24复现两个reporter断言fail。F28先修CI可移植性，再fuses/真实性能/原生矩阵与strict组合。
+  下一F28，依赖均implemented。未授权admin/paid模型；Windows11/Ubuntu原生设备、Docker daemon、signing/LICENSE、GHSA安全仍blocked，不虚构验收或成功率。
+
+
+- F29 已推送 e5d5b88671fc84ab2483966397aa49047ac93852，本地／远端 SHA 已核对。F30 当前实施中，依赖 F12/F17/F18/F25 全 implemented，任务卡和规范9/14/17已读。
   测试父 HEAD 779d74aa19aad7d083191b69e367e42f77eedd7a；source 722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa / dirty 1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225。
   contracts2 / quality4 / unit189 / portable341 / regression1274 pass，0 skip/failure/error；本机 fresh CI gate pass。最终6份 evidence 20261007T094141Z-120a6785 / 20261007T094145Z-f0087cfb / 20261007T094158Z-06aa2a42 / 20261007T094233Z-03fcb104 / 20261007T095022Z-ac0916fa / 20261007T094141Z-77705e45，全部18份历史保留并核对真实报告。
   已修复 gate 对零测试/skip/unknown verdict 的 false pass、当前 HEAD/平台/源码证据绑定、实际锁文件/type/AST/secret/workflow检查；真实 Git 子工作区误读父仓库导致审批 STALE_REVISION 的2项 before fail / 36项 after pass，未放宽审批限制。
-  security actual exit2 blocked（2 high）；GitHub Actions尚未跑，protected environment/reviewers/runner外部配置未核验；native/signing/LICENSE/admin/paid实验不宣称通过。事实索引 evidence/F29-ci-observations.json。
-  F30 已在 ignored .local 独立准备11项真实 Harness/files/TCP候选：before7 fail/4 pass（4行为缺陷+3尚未支持的capability接口）。修复草稿 .local/F30-prepared.patch，尚未写入生产源码；原报告和 hashes .local/F30-prepared-index.json。不得把准备测试当当前产品通过；F30开始后逐项修复/回归。
+  security actual exit2 blocked（2 high）；GitHub Actions后续实际run37603953403失败，最新诊断见上述F30，protected environment/reviewers/runner外部配置未核验；native/signing/LICENSE/admin/paid实验不宣称通过。事实索引 evidence/F29-ci-observations.json。
+  F30 的11项候选已加入 tests/implementation/integration/test_harness_regressions.py，在当前分支重现 before7 fail/4 pass；.local/F30-before-current-branch.xml 保留。取消请求边界、当前证据展示、实际repair cap和Adapter capability已写入，专项/全仓回归已完成，结果见上述F30。原候选报告和 hashes .local/F30-prepared-index.json；付费模型和原生验收仍 blocked。
 
 
 - F27 已推送 779d74aa19aad7d083191b69e367e42f77eedd7a，本地／远端 SHA 已核对。F29 当前实施中：已读任务卡／规范21/22/24，先复现 gate 零测试／skip 伪通过，再补 CI、实际证据复算与安全门禁。F27 最终测试父 HEAD 08ec4ccbaf55f3a8db6e561e24b1df4ae3303724。

@@ -198,6 +198,13 @@ class WorkspaceTracker:
         from forge.tools.shell import run_process
 
         try:
+            ignored = await run_process(
+                ['git', 'check-ignore', '-q', '--', '.'],
+                cwd=self.root, timeout_seconds=30,
+            )
+            if ignored.exit_code != 1:
+                self.git_available = False
+                return self._capture_filesystem()
             result = await run_process(
                 [
                     'git',

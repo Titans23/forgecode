@@ -1,8 +1,8 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "779d74aa19aad7d083191b69e367e42f77eedd7a",
-  "next_recommended_task": "F30",
+  "actual_repository_head": "e5d5b88671fc84ab2483966397aa49047ac93852",
+  "next_recommended_task": "F28",
   "current_task": null,
   "tasks": {
     "F00": {
@@ -679,7 +679,7 @@
         "regression": "pass",
         "security": "blocked",
         "native_ci": "blocked",
-        "github_hosted_matrix": "not_run",
+        "github_hosted_matrix": "fail",
         "protected_runner_policy": "blocked",
         "live_model": "blocked"
       },
@@ -705,19 +705,35 @@
       ],
       "blocked_reasons": [
         "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
-        "GitHub protected environments/reviewers/branch policies and dedicated native runner configuration have not been verified; hosted Actions matrix has not yet run.",
+        "GitHub hosted run 37603953403 actually failed: Windows Server2025 could not acquire Python3.12.13 via setup-python; both Ubuntu jobs failed four unit cases. Security job retained actual exit2. Protected environments/reviewers/branch policies and dedicated native runners remain unverified.",
         "Actual npm official audit records 2 high affected dependency entries; GHSA-86w9-cpqp-85rv remains unresolved. Production release is blocked.",
         "Administrator SRT setup, production signing/project LICENSE and paid model experiments are not authorized/provided."
       ]
     },
     "F30": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "unit": "not_run",
-        "portable": "not_run"
+        "contracts": "pass",
+        "quality": "pass",
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "native_windows": "blocked",
+        "native_linux": "blocked",
+        "live_model": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261007T100100Z-61029d00",
+        "20261007T100104Z-966ab87c",
+        "20261007T100117Z-2b3a1290",
+        "20261007T100154Z-0aaf1497",
+        "20261007T100111Z-456566b1"
+      ],
+      "blocked_reasons": [
+        "Only Windows10 19045 developer execution was available; Windows11/Ubuntu native sandbox acceptance remains unavailable.",
+        "Public-model budget is not authorized; actual loopback/scripted-model results are not official benchmark grades. Harbor paid/policy controls remain closed.",
+        "Hosted F29 CI actual failures are retained and continue in F28; local Node24 diagnostic reproduced two reporter assertions. Signing, project LICENSE and dependency security remain blocked."
+      ]
     },
     "F31": {
       "implementation_status": "todo",

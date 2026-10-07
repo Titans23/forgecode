@@ -34,16 +34,19 @@ def completion_report(*, status: str, evidence: tuple['VerificationEvidence', ..
     # Repeated runs of the same check remain in the durable ledger; presentation
     # uses the latest observation, without erasing distinct failed checks.
     from forge.runtime.completion import unresolved_verification_failures
-    unresolved = {id(item) for item in unresolved_verification_failures(evidence)}
+    current_evidence = tuple(item for item in evidence if item.freshness == 'current'
+        and item.workspace_revision == workspace_revision and item.environment_epoch == environment_epoch)
+    current_ids = {id(item) for item in current_evidence}
+    unresolved = {id(item) for item in unresolved_verification_failures(current_evidence)}
     latest = {}
     for item in evidence:
         key = (item.command, item.cwd, item.stdin_sha256, item.check_signature)
-        latest[key] = item
+        if key not in latest or id(item) in current_ids or id(latest[key]) not in current_ids:
+            latest[key] = item
     passed, failed, historical = [], [], []
     for item in latest.values():
         identity = item.verification_id or item.command
-        current = (item.freshness == 'current' and item.workspace_revision == workspace_revision
-                   and item.environment_epoch == environment_epoch)
+        current = id(item) in current_ids
         resolved = not item.success and id(item) not in unresolved
         target = historical if not current or resolved else passed if item.success else failed
         target.append(identity)

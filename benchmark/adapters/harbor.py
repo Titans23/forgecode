@@ -102,8 +102,8 @@ class HarborAdapter:
         issue('policy_unverified','Official task network policy has not been verified against frozen sandbox policy; live execution remains blocked until capability reconciliation')
         if values['environment']['backend_version']!='harbor-0.18.0-docker' or values['grader_environment']['backend_version']!='harbor-0.18.0-docker':
             issue('protocol_incompatible','Frozen environment must describe the actual official Harbor Docker backend')
-        # F30 installs the reviewed spend controller. A key or nonzero ceiling alone is never authorization.
-        issue('paid_api_not_authorized','Real API execution remains disabled until explicit budget authorization and F30 spend enforcement are installed')
+        # A key or nonzero ceiling alone is never human budget authorization.
+        issue('paid_api_not_authorized','Real API execution remains disabled until explicit budget authorization and executable spend/policy controls are verified')
         return issues
 
     def materialize(self,spec,values,work,directory,*,endpoint):

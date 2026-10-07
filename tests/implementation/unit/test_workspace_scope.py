@@ -38,3 +38,20 @@ def test_parent_repository_changes_do_not_invalidate_workspace(tmp_path, ignored
         assert tracker.changed_paths == ('value.txt',)
 
     asyncio.run(run())
+
+
+def test_ignored_workspace_detects_unwatched_external_edit(tmp_path):
+    subprocess.run(['git', 'init'], cwd=tmp_path, capture_output=True, check=True)
+    (tmp_path / '.gitignore').write_text('project/\n', encoding='utf-8')
+    project = tmp_path / 'project'
+    project.mkdir()
+    target = project / 'input.txt'
+    target.write_text('before', encoding='utf-8')
+    tracker = WorkspaceTracker(project)
+    async def run():
+        await tracker.begin_turn()
+        target.write_text('after', encoding='utf-8')
+        change = await tracker.refresh()
+        assert change is not None and change.paths == ('input.txt',)
+        assert tracker.available and not tracker.git_available
+    asyncio.run(run())

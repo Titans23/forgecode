@@ -94,6 +94,9 @@ class BudgetedModelClient:
         def begin_request() -> None:
             nonlocal usage, raw_usage, provider_request_id, returned_model, usage_is_final, request, request_started, attempt_no, retry_started_ns
             nonlocal debug_chunks,debug_bytes,debug_truncated
+            task = asyncio.current_task()
+            if task is not None and task.cancelling():
+                raise asyncio.CancelledError
             end_request('indeterminate', 'missing_attempt_boundary')
             if usage is not None:
                 self.state.record_usage(usage)

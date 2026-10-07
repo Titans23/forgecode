@@ -41,7 +41,7 @@
     },
     {
       "path": "benchmark/adapters/harbor.py",
-      "sha256": "e1169873006e4dc1d9241256fc01ceb03f70e8e8ce54919d126a4c871afc151b"
+      "sha256": "5f842bf384cfd9dd9cb166ea7adc6d2dbe1ea070ef02157d501a715d774e8bf0"
     },
     {
       "path": "benchmark/adapters/materialize.py",
@@ -189,7 +189,7 @@
     },
     {
       "path": "forge/application/harness_adapter.py",
-      "sha256": "3bad8e4101f2b9d672421d9b353d014ecb6df40f55c9f1819ac255dc3086ed73"
+      "sha256": "f36a81910d49f98ab88c57078ce36c9ca8fcac6875b4929f86b2d92f30de6413"
     },
     {
       "path": "forge/application/legacy_import.py",
@@ -521,7 +521,7 @@
     },
     {
       "path": "forge/runtime/agent_loop.py",
-      "sha256": "6af618955540b602b372484efba2a127a2d1bd6260a1535f7b1b1b8a298bd984"
+      "sha256": "c3a58f9ec98d114c90645aa368c7563236adade4b83b8741083ae9434b2e053d"
     },
     {
       "path": "forge/runtime/check_contracts.py",
@@ -529,11 +529,11 @@
     },
     {
       "path": "forge/runtime/completion.py",
-      "sha256": "7e993b1aaa59f3d01f2d7a48325b0f64b9e4ecee2b266f119bd05fc63a6f8912"
+      "sha256": "02acc09355738aac189a6c01b3f589356a70a6cc92c48d1ab950a064fe8a0d25"
     },
     {
       "path": "forge/runtime/delivery.py",
-      "sha256": "e6e97e1744b0955e2fc4a1ec777341ab355c9da1ed9e0801bdf54b602204a520"
+      "sha256": "361cc933952db7bad60cd42ef2629c222d4615d08e5dd589620adefda7b7175e"
     },
     {
       "path": "forge/runtime/dependencies.py",
@@ -557,7 +557,7 @@
     },
     {
       "path": "forge/runtime/model_budget.py",
-      "sha256": "69f62a7df4b4fcf00fb9f950aa9df10b0b460533a3be093b491d52597bf2c97e"
+      "sha256": "cfe8b8155b57599fb0da475d60eb994f30c16de1becf4d78055c8bf5f5c9abf7"
     },
     {
       "path": "forge/runtime/model_client.py",
@@ -581,7 +581,7 @@
     },
     {
       "path": "forge/runtime/runner.py",
-      "sha256": "d3ed4c0d70f6cb985da737a3222e3a27378e2b8e026425b3d100f9d782315a8d"
+      "sha256": "a2cc258c43ec4381b88f9d4ad7c1eb16109417773bbda0e6b07995fe72edf02c"
     },
     {
       "path": "forge/runtime/service_health.py",
@@ -601,7 +601,7 @@
     },
     {
       "path": "forge/runtime/workspace.py",
-      "sha256": "4dbce2a725122409fbdd5f14ccea557bea335e39b45dc644ecfb8a47d845c413"
+      "sha256": "9a488283f676203eedb076148cc483263587a77ae9d0e68ce82e428aca88af29"
     },
     {
       "path": "forge/sandbox/__init__.py",

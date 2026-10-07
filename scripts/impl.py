@@ -60,6 +60,7 @@ TASK_SUITES['F25'] = ['unit', 'portable','desktop','desktop-packaged','sandbox-l
 TASK_SUITES['F26'] = ['unit','portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
 TASK_SUITES['F27']=['unit','portable','engine-packaged','desktop','desktop-packaged','installer-windows','installer-linux','sandbox-linux','sandbox-windows']
 TASK_SUITES['F29']=['contracts','quality','unit','portable','security']
+TASK_SUITES['F30']=['contracts','quality','unit','portable']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -101,6 +102,7 @@ CASE_TESTS.update({case:['scripts/make_installer.py','scripts/engine_packaged_sm
     for case in ('D01','D02')})
 
 CASE_TESTS['N23']=['tests/implementation/unit/test_gates.py','tests/implementation/unit/test_ci.py']
+CASE_TESTS['O04']=['tests/implementation/integration/test_harness_regressions.py','tests/implementation/unit/test_workspace_scope.py']
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):

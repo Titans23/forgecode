@@ -1688,12 +1688,21 @@
         "每项修改有 before／after 行为证据，不预写成功率提升。"
       ],
       "verification_suites": [
+        "contracts",
+        "quality",
         "unit",
-        "portable"
+        "portable",
+        "regression"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T100100Z-61029d00",
+        "20261007T100104Z-966ab87c",
+        "20261007T100117Z-2b3a1290",
+        "20261007T100154Z-0aaf1497",
+        "20261007T100111Z-456566b1"
+      ],
       "case_ids": [
         "O04"
       ]
