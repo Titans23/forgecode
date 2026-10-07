@@ -1,7 +1,13 @@
 # ForgeCode V4 交接 — 2026-10-07
 
-- 当前代码完成 F00—F23；下一 F24，任务卡与规范第 18 章已读。原生平台验收独立 blocked。
-- F22 已推送 4f9f42216153f465f00d130561cf95573b371b85，远端 SHA 已核对；这是 F23 的测试父 HEAD。
+- 当前代码完成 F00—F24；下一满足依赖任务 F25，任务卡与规范第 6 / 7 / 8 / 15 章已读。原生平台验收独立 blocked。
+- F24 已实现 migration 013 / 人工标注版本与 CAS / 有限建议 / 脱敏候选 / 实际新执行复现核验 / 失败页面与 Main 原生导出。
+  专项 14 项、含既有 ZIP 回归 49 项 pass；initial desktop 64 checks 的旧 zoom 失败保留，等待实际布局后重验 64 checks pass。
+  正式 unit 147 / portable 268 / regression 1159 pass，全部 0 skip；development desktop 64 checks pass。
+  最终 evidence 20261007T010959Z-5c2cc1a6 / 20261007T011016Z-ef2bdeb2 / 20261007T011517Z-8b0f33be / 20261007T011549Z-d546abf4 / 20261007T011550Z-aed347b6 / 20261007T011555Z-727165ad / 20261007T011559Z-8a7b78d1；final dirty 4596b013bb59f887f18caa42d6d5bbbd88423666d7e23a5fef44db2ccda839d2。
+  packed / native Linux / native Windows 各 blocked 0 checks；不把离线 fixture 视为公开模型／原生 sandbox 结果。下一 F25：修复 RPC 超时迟到响应并做真实故障对账。
+- 提交前只移除 annotations.py 一个空行的尾随空格（逐文本比较确认无其他源码变化），刷新 asset inventory 后补跑 unit 147 / desktop 64 pass：20261007T012542Z-218e0608 / 20261007T012606Z-e13d7eac；dirty 8ba311c8fcf12233a3b4afffc8c986d458d245246f168d3d800ec934ea64d50c。
+- F23 已推送 4082833ff7a81f6555e96111239c87ea32b5a854，远端 SHA 已核对；这是 F24 的测试父 HEAD。
 - F23 已实现四步不可变实验配置、profile 快照归属、真实分页报告、同题 A/B Trace 与不可比告警、Main 原生文件／隐私确认接线。
   unit 145 / portable 256 / regression 1145，全部 0 skip；Windows 10 development Electron 59 checks pass。
   最终 evidence 20261007T004628Z-9d6e9f79 / 20261007T004659Z-01d191f0 / 20261007T004716Z-11c7a1ea / 20261007T005211Z-485cb317 / 20261007T005211Z-82b55461 / 20261007T005216Z-cdbc3407 / 20261007T005220Z-8a72deb8；final dirty 850c79a0e7244712b36cabfb1c3d9f1f3252d5d84a880dbba2456f653902e030。

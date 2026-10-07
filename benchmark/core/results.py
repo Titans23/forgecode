@@ -75,7 +75,7 @@ def read_results(root,manifest):
                 raise ContractError('Run state or immutable spec hash invalid')
             runs[parts[1]]={'spec':spec,**state}
     if not runs or len(runs)>10000: raise ContractError('Run collection is empty or too large')
-    allowed={'evidence.json',*(name+'.jsonl' for name in RECORDS)}
+    allowed={'evidence.json','annotation_details.jsonl',*(name+'.jsonl' for name in RECORDS)}
     allowed|={f'runs/{run}/{name}.json' for run in runs for name in ('spec','state')}
     for path in paths-allowed:
         parts=path.split('/')
@@ -151,14 +151,35 @@ def read_results(root,manifest):
         if event['trial_id'] and trials[event['trial_id']]['run_id']!=event['run_id'] or event['attempt_id'] and attempts[event['attempt_id']]['trial_id']!=event['trial_id']:
             raise ContractError('Event cross-run relation invalid')
         event_ids.add(event['event_id'])
-    unique_rows(data['annotations'],'annotation')
+    annotations=unique_rows(data['annotations'],'annotation')
+    previous_annotations=set()
     for row in data['annotations']:
         identity(row.get('attempt_id'),'attempt')
         if set(row)!={'id','attempt_id','author','category','evidence_refs','supersedes'} or row['attempt_id'] not in attempts or not isinstance(row['category'],str) or row['category'] not in CATEGORIES or not isinstance(row['author'],str) or not 1<=len(row['author'])<=128 or not isinstance(row['evidence_refs'],str):
             raise ContractError('Annotation relation or category invalid')
+        if row['supersedes'] is not None:
+            identity(row['supersedes'],'annotation')
+            prior=annotations.get(row['supersedes'])
+            if row['supersedes'] not in previous_annotations or not prior or prior['attempt_id']!=row['attempt_id']:
+                raise ContractError('Annotation history contains a cycle, forward or foreign reference')
+        previous_annotations.add(row['id'])
         refs=strict_loads(row['evidence_refs'])
         if not isinstance(refs,list) or len(refs)>100: raise ContractError('Annotation evidence bounds invalid')
         for ref in refs: identity(ref,'art')
+    details=json_lines(root,'annotation_details') if 'annotation_details.jsonl' in paths else []
+    seen_details=set()
+    for row in details:
+        if set(row)!={'schema_version','annotation_id','created_at','note'} or row['schema_version']!='forge.annotation.details.v1':raise ContractError('Annotation details schema invalid')
+        identity(row['annotation_id'],'annotation')
+        if row['annotation_id'] not in annotations or row['annotation_id'] in seen_details or not isinstance(row['created_at'],str) or len(row['created_at'])>64 or not isinstance(row['note'],str) or len(row['note'])>4000:
+            raise ContractError('Annotation details relation or bounds invalid')
+        from datetime import datetime
+        try:
+            timestamp=datetime.fromisoformat(row['created_at'].replace('Z','+00:00'))
+            if timestamp.tzinfo is None:raise ValueError('Timezone required')
+        except ValueError as error:raise ContractError('Annotation timestamp invalid') from error
+        seen_details.add(row['annotation_id'])
+    data['annotation_details']=details
     trace_completeness(attempts.values(),data['events'])
     evidence=strict_loads((root/'evidence.json').read_bytes(),max_bytes=16777216)
     if set(evidence)!={'classification','artifacts','missing'} or evidence['classification'] not in ('metadata_only','redacted_artifacts') or not isinstance(evidence['artifacts'],list) or not isinstance(evidence['missing'],list):
@@ -181,7 +202,7 @@ def read_results(root,manifest):
     for item in evidence['missing']: identity(item,'art')
     if len(set(evidence['missing']))!=len(evidence['missing']) or set(evidence['missing'])!={x['artifact_id'] for x in evidence['artifacts'] if x['status']=='missing'}: raise ContractError('Missing evidence index disagrees')
     for row in data['annotations']:
-        if not set(strict_loads(row['evidence_refs']))<=artifact_ids: raise ContractError('Annotation evidence not indexed')
+        if not set(strict_loads(row['evidence_refs']))<={x['artifact_id'] for x in evidence['artifacts'] if x['run_id']==trials[attempts[row['attempt_id']]['trial_id']]['run_id']}: raise ContractError('Annotation evidence not indexed in its run')
     reports=[]
     for run_id,run in runs.items():
         local_trials=[row for row in trials.values() if row['run_id']==run_id]
@@ -195,6 +216,7 @@ def read_results(root,manifest):
             'missing_evidence':[x['artifact_id'] for x in evidence['artifacts'] if x['run_id']==run_id and x['status']!='redacted_copy'],
             'evidence_changes':[x for x in evidence['artifacts'] if x['run_id']==run_id],
             'annotations':[x for x in data['annotations'] if attempts[x['attempt_id']]['trial_id'] in trial_ids],
+            'annotation_details':[x for x in details if attempts[annotations[x['annotation_id']]['attempt_id']]['trial_id'] in trial_ids],
             'origin':'imported_unverified','score_authority':'imported_independent_grader_claim',
             'official_metrics_preserved_separately':True})
     return {'runs':runs,'records':data,'reports':reports,'evidence':evidence}

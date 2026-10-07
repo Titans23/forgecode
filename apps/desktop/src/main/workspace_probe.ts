@@ -66,8 +66,7 @@ export async function probeWorkspace(window: BrowserWindow, engine: EngineSuperv
     nativeTheme.themeSource = 'dark';
     for (const zoom of [1, 1.5, 2]) {
       window.webContents.setZoomFactor(zoom);
-      await js(`document.querySelector('textarea').scrollIntoView({block:'center'})`);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await until(`(()=>{document.querySelector('textarea').scrollIntoView({block:'center'});const rect=document.querySelector('textarea').getBoundingClientRect();return rect.top>=0&&rect.bottom<=innerHeight&&rect.left>=0&&rect.right<=innerWidth})()`);
       check('actual-zoom-' + Math.round(zoom*100), await js(`(()=>{const rect=document.querySelector('textarea').getBoundingClientRect();return rect.top>=0&&rect.bottom<=innerHeight&&rect.left>=0&&rect.right<=innerWidth&&Array.from(document.querySelectorAll('.virtual-list')).every(list=>list.querySelectorAll('[data-virtual-row]').length<=20)})()`));
     }
   } finally { window.webContents.setZoomFactor(1); nativeTheme.themeSource = oldTheme; }

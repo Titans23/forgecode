@@ -37,6 +37,9 @@ class EngineMethods:
         self.connections = ConnectionService(service, self.confirmations)
         from forge.application.evaluation_client import EvaluationClient
         self.evaluation_client=EvaluationClient(self)
+        from forge.application.annotations import AnnotationService
+        self.annotations=AnnotationService(self)
+        self.artifacts.annotations=self.annotations
         if profile == 'desktop' or interactive_approvals:
             service.approvals = self.approvals
         self.initialized = False
@@ -76,6 +79,12 @@ class EngineMethods:
             'evaluation.draft':self.evaluation_client.draft,'evaluation.list':self.evaluation_client.list_runs,
             'evaluation.snapshot':self.evaluation_client.snapshot,'evaluation.comparison':self.evaluation_client.comparison,
             'evaluation.import_plan':self.evaluation_client.import_plan,'evaluation.plan_export':self.evaluation_client.export_plan,
+            'failure.list':self.annotations.list,
+            'failure.get':self.annotations.get,
+            'failure.annotate':self.annotations.annotate,
+            'failure.save_candidate':self.annotations.save_candidate,
+            'failure.check_reproduction':self.annotations.check_reproduction,
+            'failure.candidate':self.annotations.candidate,
             'bundle.export':self.artifacts.export,'bundle.import':self.artifacts.import_bundle,
             'artifact.describe':self.artifacts.describe,'artifact.read_chunk':self.artifacts.read_chunk,
             'bundle.prepare_import':self.artifacts.prepare_import,'bundle.prepare_export':self.artifacts.prepare_export,

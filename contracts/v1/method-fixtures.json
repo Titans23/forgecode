@@ -4224,6 +4224,316 @@
         "unexpected_field": true
       },
       "expected": "invalid"
+    },
+    {
+      "schema": "failure.list.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.list.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": null,
+        "history_gap": false
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": null,
+        "history_gap": false,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.get.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.get.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.get.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "task_id": "case-fail",
+        "task_revision": "v1",
+        "origin": "local",
+        "attempt": {
+          "id": "attempt-11111111-1111-4111-8111-111111111111",
+          "trial_id": "trial-11111111-1111-4111-8111-111111111111",
+          "attempt_no": 1,
+          "execution_state": "finished",
+          "error_origin": null,
+          "cleanup_state": "clean",
+          "agent_outcome": "failed",
+          "grade_state": "graded",
+          "grade_result": "fail",
+          "grade_reward": "0",
+          "trace_complete": true,
+          "trace_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "span_id": "bbbbbbbbbbbbbbbb"
+        },
+        "annotations": [],
+        "annotation_head": null,
+        "history_gap": false,
+        "evidence": [],
+        "evidence_count": 0,
+        "evidence_scope": "attempt",
+        "suggestions": [],
+        "rules_scope": "latest_200_attempt_events",
+        "candidates": [],
+        "is_failure": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.get.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "task_id": "case-fail",
+        "task_revision": "v1",
+        "origin": "local",
+        "attempt": {
+          "id": "attempt-11111111-1111-4111-8111-111111111111",
+          "trial_id": "trial-11111111-1111-4111-8111-111111111111",
+          "attempt_no": 1,
+          "execution_state": "finished",
+          "error_origin": null,
+          "cleanup_state": "clean",
+          "agent_outcome": "failed",
+          "grade_state": "graded",
+          "grade_result": "fail",
+          "grade_reward": "0",
+          "trace_complete": true,
+          "trace_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "span_id": "bbbbbbbbbbbbbbbb"
+        },
+        "annotations": [],
+        "annotation_head": null,
+        "history_gap": false,
+        "evidence": [],
+        "evidence_count": 0,
+        "evidence_scope": "attempt",
+        "suggestions": [],
+        "rules_scope": "latest_200_attempt_events",
+        "candidates": [],
+        "is_failure": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.annotate.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "expected_head": null,
+        "author": "local-user",
+        "category": "unknown",
+        "note": "Evidence does not prove root cause",
+        "evidence_refs": []
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.annotate.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "expected_head": null,
+        "author": "local-user",
+        "category": "unknown",
+        "note": "Evidence does not prove root cause",
+        "evidence_refs": [],
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.annotate.result",
+      "value": {
+        "annotation_id": "annotation-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": false
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.annotate.result",
+      "value": {
+        "annotation_id": "annotation-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": false,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.save_candidate.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "expected_head": null
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.save_candidate.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "expected_head": null,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.save_candidate.result",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": false
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.save_candidate.result",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "reused_existing_action": false,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.check_reproduction.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.check_reproduction.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "attempt_id": "attempt-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.check_reproduction.result",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "observed_status": "blocked",
+        "blockers": [
+          "original_evidence_missing"
+        ],
+        "reused_existing_action": false
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.check_reproduction.result",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "observed_status": "blocked",
+        "blockers": [
+          "original_evidence_missing"
+        ],
+        "reused_existing_action": false,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.candidate.request",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.candidate.request",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "failure.candidate.result",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "fixture": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 1,
+          "media_type": "application/json",
+          "redaction_version": "metadata-v1",
+          "available": true
+        },
+        "created_at": "2026-10-07T00:00:00Z",
+        "status": "saved_pending_reproduction",
+        "blockers": [],
+        "reproduction_run_id": null,
+        "reproduction_attempt_id": null,
+        "authority": "independent_grader_failure_only; human root cause is not proven"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "failure.candidate.result",
+      "value": {
+        "candidate_id": "candidate-11111111-1111-4111-8111-111111111111",
+        "fixture": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 1,
+          "media_type": "application/json",
+          "redaction_version": "metadata-v1",
+          "available": true
+        },
+        "created_at": "2026-10-07T00:00:00Z",
+        "status": "saved_pending_reproduction",
+        "blockers": [],
+        "reproduction_run_id": null,
+        "reproduction_attempt_id": null,
+        "authority": "independent_grader_failure_only; human root cause is not proven",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
     }
   ]
 }

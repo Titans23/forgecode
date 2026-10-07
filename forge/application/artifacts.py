@@ -110,7 +110,7 @@ class ArtifactService:
         return [dict(row) for row in self.store.connection.execute('SELECT r.* FROM runs r JOIN run_details d ON d.run_id=r.id WHERE d.profile_id=? ORDER BY r.rowid',(self.service.profile_id,))]
 
     def _freeze(self,scope,classification):
-        files={};records={name:[] for name in ('trials','attempts','grades','requests','events','annotations')}
+        files={};records={name:[] for name in ('trials','attempts','grades','requests','events','annotations','annotation_details')}
         evidence={'classification':classification,'artifacts':[],'missing':[]};tasks=[]
         with self.store.transaction():
             runs=self._runs(scope)
@@ -124,7 +124,10 @@ class ArtifactService:
                 records['grades'].extend(dict(row) for row in self.store.connection.execute('SELECT g.* FROM grades g JOIN attempts a ON a.id=g.attempt_id JOIN trials t ON t.id=a.trial_id WHERE t.run_id=? ORDER BY g.rowid',(run_id,)))
                 records['requests'].extend({**dict(row),'run_id':run_id} for row in self.store.connection.execute('SELECT m.id,l.cost,l.cost_quality AS quality,l.currency FROM model_requests m JOIN usage_ledger l ON l.request_id=m.id JOIN attempt_requests ar ON ar.request_id=m.id JOIN attempts a ON a.id=ar.attempt_id JOIN trials t ON t.id=a.trial_id WHERE t.run_id=? ORDER BY m.rowid',(run_id,)))
                 records['events'].extend(redact({**json.loads(row['body_json']),'store_seq':str(row['store_seq'])},self.store.observation_secrets) for row in self.store.connection.execute("SELECT store_seq,body_json FROM events WHERE json_extract(body_json,'$.run_id')=? ORDER BY store_seq",(run_id,)))
-                records['annotations'].extend(dict(row) for row in self.store.connection.execute('SELECT n.* FROM annotations n JOIN attempts a ON a.id=n.attempt_id JOIN trials t ON t.id=a.trial_id WHERE t.run_id=? ORDER BY n.rowid',(run_id,)))
+                records['annotations'].extend({**dict(row),'author':redact(row['author'],self.store.observation_secrets)[:128]} for row in self.store.connection.execute('SELECT n.* FROM annotations n JOIN attempts a ON a.id=n.attempt_id JOIN trials t ON t.id=a.trial_id WHERE t.run_id=? ORDER BY n.rowid',(run_id,)))
+                records['annotation_details'].extend({'schema_version':'forge.annotation.details.v1',**dict(row),'note':redact(row['note'],self.store.observation_secrets)[:4000]} for row in self.store.connection.execute(
+                    'SELECT d.* FROM annotation_details d JOIN annotations n ON n.id=d.annotation_id JOIN attempts a ON a.id=n.attempt_id JOIN trials t ON t.id=a.trial_id WHERE t.run_id=? ORDER BY n.rowid',(run_id,)))
+
                 for row in self.store.connection.execute('SELECT x.* FROM artifacts x JOIN artifact_attempts ar ON ar.artifact_id=x.id JOIN attempts a ON a.id=ar.attempt_id JOIN trials t ON t.id=a.trial_id WHERE t.run_id=? ORDER BY x.rowid',(run_id,)).fetchall():
                     item={'artifact_id':row['id'],'run_id':run_id,'source_sha256':row['sha256'],'export_sha256':None,'status':'omitted_metadata_only'}
                     try: raw=self.store.read_artifact(row['id'])
@@ -195,8 +198,10 @@ class ArtifactService:
     def _facts(self,data):
         result=[]
         for run_id,run in data['runs'].items(): result.append(('run',run_id,sha256(encoded(run).encode()).hexdigest()))
-        for kind in ('trials','attempts','grades','requests'):
-            for row in data['records'][kind]: result.append((kind,row['id'],sha256(encoded(row).encode()).hexdigest()))
+        for kind in ('trials','attempts','grades','requests','annotations'):
+            for row in data['records'][kind]:
+                detail=next((d for d in data['records'].get('annotation_details',[]) if d['annotation_id']==row['id']),None) if kind=='annotations' else None
+                result.append((kind,row['id'],sha256(encoded({'record':row,'details':detail} if detail else row).encode()).hexdigest()))
         return result
 
     def _conflict(self,manifest,source_hash,existing,incoming,source):
@@ -262,14 +267,10 @@ class ArtifactService:
         return json.loads(row[0])
 
     def annotate(self,attempt_id,*,author,category,evidence_refs):
-        """Explicit human labels only; rules never assert a cause."""
-        if category not in CATEGORIES or not isinstance(author,str) or not 1<=len(author)<=128 or len(evidence_refs)>100: raise ContractError('Invalid human annotation')
+        """Retain the trusted host API; new labels also record time and history."""
         row=self.store.connection.execute('SELECT t.run_id FROM attempts a JOIN trials t ON t.id=a.trial_id WHERE a.id=?',(attempt_id,)).fetchone()
-        if row is None: raise ContractError('Attempt not found',kind='NOT_FOUND',code=-32010)
-        self.evaluations.run(row[0])
-        for ref in evidence_refs:
-            identity(ref,'art')
-            if not self.store.connection.execute('SELECT 1 FROM artifact_attempts WHERE artifact_id=? AND attempt_id=?',(ref,attempt_id)).fetchone(): raise ContractError('Annotation evidence belongs to another attempt')
-        annotation_id=new_id('annotation')
-        with self.store.transaction(): self.store.connection.execute('INSERT INTO annotations VALUES(?,?,?,?,?,NULL)',(annotation_id,attempt_id,author,category,encoded(evidence_refs)))
-        return annotation_id
+        if row is None:raise ContractError('Attempt not found',kind='NOT_FOUND',code=-32010)
+        target={'run_id':row[0],'attempt_id':attempt_id}
+        current=self.annotations.get(target)
+        return self.annotations.annotate({'client_action_id':new_id('act'),**target,'expected_head':current['annotation_head'],
+            'author':author,'category':category,'evidence_refs':evidence_refs,'note':''})['annotation_id']

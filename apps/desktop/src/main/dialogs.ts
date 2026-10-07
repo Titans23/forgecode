@@ -4,6 +4,7 @@ import { randomUUID,createHash } from 'node:crypto';
 import { open,lstat,link,unlink } from 'node:fs/promises';
 import { dirname,basename,resolve,isAbsolute,join } from 'node:path';
 import type { EngineSupervisor } from './supervisor.js';
+import type {Artifact} from '@forgecode/contracts';
 import { nativeOperation } from './ipc.js';
 
 export async function publishSelectedFile(path:string,bytes:Uint8Array,current:()=>void) {
@@ -72,6 +73,27 @@ export class NativeFileDialogs {
       return{cancelled:false,saved:true};
     });
   }
+  private async artifactBytes(engine:EngineSupervisor,guard:()=>void,reference:Artifact) {
+    if(reference.size_bytes>1048576||!reference.available)throw new Error('Metadata artifact unavailable or exceeds quota');
+    const parts:Buffer[]=[];let offset=0;
+    while(offset<reference.size_bytes){const part=await engine.call('artifact.read_chunk',{artifact_id:reference.artifact_id,offset,length:Math.min(262144,reference.size_bytes-offset)});guard();
+      const bytes=Buffer.from(part.data_base64,'base64');if(!bytes.length||part.offset!==offset||part.sha256!==reference.sha256||bytes.length>reference.size_bytes-offset)throw new Error('Metadata artifact changed');
+      parts.push(bytes);offset+=bytes.length;if(part.eof!==(offset===reference.size_bytes))throw new Error('Incomplete metadata artifact');}
+    const bytes=Buffer.concat(parts);if(createHash('sha256').update(bytes).digest('hex')!==reference.sha256)throw new Error('Metadata hash differs');
+    return bytes;
+  }
+  exportCandidate(candidateId:string,current:()=>BrowserWindow) {
+    return nativeOperation(async()=>{
+      const engine=this.engine(),guard=this.guard(engine,current),candidate=await engine.call('failure.candidate',{candidate_id:candidateId});guard();
+      const choice=await dialog.showMessageBox(current(),{type:'warning',title:'导出脱敏回归候选',message:'保存候选元数据和证据引用？',
+        detail:'已保存不代表已复现。文件含冻结配置引用、任务标识和人工说明，不含原始模型输出或凭证；导出不授权执行和模型支出。',
+        buttons:['取消','导出候选'],defaultId:0,cancelId:0,noLink:true});guard();if(choice.response!==1)return{cancelled:true};
+      const selected=await dialog.showSaveDialog(current(),{title:'保存回归候选（不会覆盖已有文件）',defaultPath:'forge-'+candidateId+'.json',filters:[{name:'Regression candidate',extensions:['json']}]});
+      guard();if(selected.canceled||!selected.filePath)return{cancelled:true};
+      const bytes=await this.artifactBytes(engine,guard,candidate.fixture);
+      await publishSelectedFile(selected.filePath,bytes,guard);guard();return{cancelled:false,saved:true};
+    });
+  }
   exportConfiguration(runId:string,current:()=>BrowserWindow) {
     return nativeOperation(async()=>{
       const engine=this.engine(),guard=this.guard(engine,current);
@@ -82,12 +104,7 @@ export class NativeFileDialogs {
       const selected=await dialog.showSaveDialog(current(),{title:'保存实验配置（不会覆盖已有文件）',defaultPath:'forge-'+runId+'.json',filters:[{name:'Experimental configuration',extensions:['json']}]});
       guard();if(selected.canceled||!selected.filePath)return{cancelled:true};
       const exported=await engine.call('evaluation.plan_export',{run_id:runId});guard();const reference=exported.plan_artifact;
-      if(reference.size_bytes>1048576||!reference.available)throw new Error('Configuration artifact unavailable or exceeds quota');
-      const parts:Buffer[]=[];let offset=0;
-      while(offset<reference.size_bytes){const part=await engine.call('artifact.read_chunk',{artifact_id:reference.artifact_id,offset,length:Math.min(262144,reference.size_bytes-offset)});guard();
-        const bytes=Buffer.from(part.data_base64,'base64');if(!bytes.length||part.offset!==offset||part.sha256!==reference.sha256||bytes.length>reference.size_bytes-offset)throw new Error('Configuration artifact changed');
-        parts.push(bytes);offset+=bytes.length;if(part.eof!==(offset===reference.size_bytes))throw new Error('Incomplete configuration artifact');}
-      const bytes=Buffer.concat(parts);if(createHash('sha256').update(bytes).digest('hex')!==reference.sha256)throw new Error('Configuration hash differs');
+      const bytes=await this.artifactBytes(engine,guard,reference);
       await publishSelectedFile(selected.filePath,bytes,guard);guard();return{cancelled:false,saved:true};
     });
   }

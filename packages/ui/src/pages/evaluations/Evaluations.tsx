@@ -48,7 +48,7 @@ function AttemptTrace({transport,run,trial,title}:{transport:DesktopOperations;r
   </section>;
 }
 
-export function Evaluations({transport}:{transport:DesktopOperations}) {
+export function Evaluations({transport,onFailure}:{transport:DesktopOperations;onFailure?:(target:{run_id:string;attempt_id:string})=>void}) {
   const [templates,setTemplates]=useState<EvaluationTemplatesResult|null>(null),[templateId,setTemplateId]=useState(''),[template,setTemplate]=useState<EvaluationTemplateResult|null>(null);
   const [connections,setConnections]=useState<ConnectionMetadata[]>([]),[choices,setChoices]=useState<Choices|null>(null),[step,setStep]=useState(0),[wizard,setWizard]=useState(true);
   const [draft,setDraft]=useState<EvaluationDraftResult|null>(null),[validation,setValidation]=useState<EvaluationValidateResult|null>(null);
@@ -142,6 +142,7 @@ export function Evaluations({transport}:{transport:DesktopOperations}) {
       const views=attemptViews(t,snapshot.attempts);return <button className="secondary file-row" onClick={()=>setTrialId(t.id)}>{t.task_id} · repeat {t.repeat_index+1} · 首次 {resultLabel(views.first)} · 选定 {resultLabel(views.selected)} · attempts {views.all.length} · cleanup {views.selected?.cleanup_state??'尚未执行'}</button>;}}/>
     <button className="secondary" disabled={!cursor} onClick={()=>{setCursor(null);setTrialId(null);}}>回到第一页</button><button className="secondary" disabled={!snapshot.next_cursor} onClick={()=>{setCursor(snapshot.next_cursor);setTrialId(null);}}>下一页 trial</button>
     <button className="secondary" disabled={busy||!retryAllowed} onClick={()=>action(()=>retry(selectedAttempt!))}>明确授权基础设施重试</button>
+    {selectedAttempt&&onFailure&&<button className="secondary" disabled={busy} onClick={()=>onFailure({run_id:snapshot.run_id,attempt_id:selectedAttempt.id})}>查看失败案例与人工标注</button>}
     <p className="muted">末次授权 attempt 是选定结果；首次结果、历史失败、所有费用与清理状态继续保留。</p>
     <label>同题 A/B 对照<select value={partnerId} onChange={e=>setPartnerId(e.target.value)}><option value="">选择另一个实验</option>{runs?.items.filter(r=>r.run_id!==snapshot.run_id).map(r=><option key={r.run_id} value={r.run_id}>{r.dataset} · {r.run_id.slice(-8)} · {r.origin}</option>)}</select></label>
     {comparison&&<><p className={comparison.comparable?'muted':'notice'}>{comparison.comparable?'控制条件可比；尚未推断提升':'不可比警告：'+comparison.differences.join(' / ')}</p><p>{comparison.uncertainty}</p></>}

@@ -6,7 +6,7 @@
   },
   "contracts": {
     "path": "forge/application/_generated_contracts.json",
-    "sha256": "c02d78598b1094dca394d0975f4ce52da03a447719d1cad479197beee48c59ac"
+    "sha256": "3f1438b2938626d39a0dc3f043dcd0f6f4423334a21927528e95e14dc5d9a1cb"
   },
   "locks": [
     {
@@ -73,7 +73,7 @@
     },
     {
       "path": "benchmark/core/results.py",
-      "sha256": "740dfd9c53e77839919235db031a3479947986933731fb0a54da5ab956f9b4bd"
+      "sha256": "52036123fd07ad625326eb713100af666d3f9bc04ffefe8ced05ee69c2845b48"
     },
     {
       "path": "benchmark/core/scheduler.py",
@@ -161,7 +161,11 @@
     },
     {
       "path": "forge/application/_generated_contracts.json",
-      "sha256": "c02d78598b1094dca394d0975f4ce52da03a447719d1cad479197beee48c59ac"
+      "sha256": "3f1438b2938626d39a0dc3f043dcd0f6f4423334a21927528e95e14dc5d9a1cb"
+    },
+    {
+      "path": "forge/application/annotations.py",
+      "sha256": "a1443d3367d91810e26c1c8b2ef3fc7233f21bf01be1ecaccd19a7daf42b02a3"
     },
     {
       "path": "forge/application/approvals.py",
@@ -169,7 +173,7 @@
     },
     {
       "path": "forge/application/artifacts.py",
-      "sha256": "33505da887745da9f084fd484c1be2c44c3b2256246bebdd98d54b66e1d32975"
+      "sha256": "2b0338d8678b0a34a6fd9109862c0f44642d612c729da8faf227e1430955a662"
     },
     {
       "path": "forge/application/connections.py",
@@ -277,7 +281,7 @@
     },
     {
       "path": "forge/engine/methods.py",
-      "sha256": "edff918d60832c6c5c048d17173893e7d0ddf1dbb4026e17405a16adc7321874"
+      "sha256": "b9b944b770fa7eb65e90366b671a10ffec87dee18e0c49cab31e84ff3ccdf76f"
     },
     {
       "path": "forge/engine/migrations/001_initial.sql",
@@ -326,6 +330,10 @@
     {
       "path": "forge/engine/migrations/012_evaluation_client.sql",
       "sha256": "a94385f5e1a1580cd1f44f19395548b67a4cb5cc4b1bb0d67fc88a976d29ba3e"
+    },
+    {
+      "path": "forge/engine/migrations/013_failure_annotations.sql",
+      "sha256": "02b09bc6c88db9d26533e26564a8d8bcb901d19eebbfd587ca7da30b5d0cb82b"
     },
     {
       "path": "forge/engine/persistence.py",

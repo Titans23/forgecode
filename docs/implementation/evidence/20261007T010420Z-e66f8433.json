@@ -1,0 +1,70 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261007T010420Z-e66f8433",
+  "task_id": "F24",
+  "case_ids": [],
+  "suite": "desktop",
+  "git_commit": "4082833ff7a81f6555e96111239c87ea32b5a854",
+  "dirty_hash": "ffd95568ab6a135b8737fda36941890ceb958b89efd38f0b45689c9059f71a02",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "91a33f47d9bd08f8b0feb426f2009797b2696185c1880e944f3bd831ca7240ea",
+    "release-lock.json": "72461d5864f03b51a7ac56504f5cfdceac0ca4d0f08f60869ae3f100b1af7bc6"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\desktop_smoke.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T010420Z-e66f8433\\desktop-smoke.json"
+  ],
+  "start": "2026-10-07T01:04:20.583584+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_bridge.py",
+      "--check"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_desktop.py",
+      "--check"
+    ],
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "--target",
+      "ES2022",
+      "--module",
+      "NodeNext",
+      "--strict",
+      "--skipLibCheck",
+      "--newLine",
+      "lf",
+      "--outDir",
+      "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T010420Z-e66f8433\\main-compile",
+      "D:\\learn_project\\forgecode\\apps\\desktop\\src\\main\\setup_broker.ts"
+    ]
+  ],
+  "end": "2026-10-07T01:04:53.055337+00:00",
+  "exit_code": 1,
+  "stdout_ref": ".local/implementation/20261007T010420Z-e66f8433/stdout.log",
+  "stderr_ref": ".local/implementation/20261007T010420Z-e66f8433/stderr.log",
+  "report_ref": ".local/implementation/20261007T010420Z-e66f8433/desktop-smoke.json",
+  "report_hash": "039ab399c9abf14c61a67cb0b7b723bbadc6a3741b805fc939085bfb3be05a85",
+  "status": "fail",
+  "tests": {
+    "scope": "development-desktop",
+    "eligible_for_native_pass": false,
+    "checks": 64
+  }
+}

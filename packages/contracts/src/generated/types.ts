@@ -171,6 +171,18 @@ export type EvaluationImportPlanRequest = { "client_action_id": string; "path": 
 export type EvaluationImportPlanResult = { "template_id": string; "origin": "imported_unverified"; "source_sha256": string; "reused_existing_action"?: boolean };
 export type EvaluationPlanExportRequest = { "run_id": string };
 export type EvaluationPlanExportResult = { "plan_artifact": Artifact; "configuration_origin": "trusted_configuration" | "imported_unverified"; "required_environment": string };
+export type FailureListRequest = { "run_id": string; "limit"?: number; "cursor"?: string; "category"?: "model_reasoning" | "tool_usage" | "context" | "verification" | "sandbox" | "environment" | "provider" | "grader" | "unknown" };
+export type FailureListResult = { "items": Array<{ "run_id": string; "attempt_id": string; "task_id": string; "execution_state": string; "cleanup_state": string; "grade_result": (string) | (null); "category": "model_reasoning" | "tool_usage" | "context" | "verification" | "sandbox" | "environment" | "provider" | "grader" | "unknown"; "origin": "local" | "imported_unverified" }>; "next_cursor": (string) | (null); "history_gap": boolean };
+export type FailureGetRequest = { "run_id": string; "attempt_id": string };
+export type FailureGetResult = { "run_id": string; "task_id": string; "task_revision": string; "origin": "local" | "imported_unverified"; "attempt": { "id": string; "trial_id": string; "attempt_no": number; "execution_state": string; "error_origin": (string) | (null); "cleanup_state": string; "agent_outcome": (string) | (null); "grade_state": (string) | (null); "grade_result": (string) | (null); "grade_reward": (string) | (null); "trace_complete": (boolean) | (null); "trace_id": (string) | (null); "span_id": (string) | (null) }; "annotations": Array<{ "id": string; "author": string; "category": "model_reasoning" | "tool_usage" | "context" | "verification" | "sandbox" | "environment" | "provider" | "grader" | "unknown"; "evidence_refs": Array<string>; "supersedes": (string) | (null); "created_at": (string) | (null); "note": string; "origin": "local_human" | "local_human_overlay" | "imported_unverified" }>; "annotation_head": (string) | (null); "history_gap": boolean; "evidence": Array<Artifact>; "evidence_count": number; "evidence_scope": "attempt" | "run"; "suggestions": Array<{ "rule": "repeated_tool_error" | "stale_evidence" | "initialization_unavailable" | "cleanup_unconfirmed"; "category": "model_reasoning" | "tool_usage" | "context" | "verification" | "sandbox" | "environment" | "provider" | "grader" | "unknown"; "authority": "suggestion_only"; "basis_ids": Array<string> }>; "rules_scope": "latest_200_attempt_events"; "candidates": Array<{ "candidate_id": string; "fixture": Artifact; "created_at": string; "status": "blocked" | "saved_pending_reproduction" | "reproduced"; "blockers": Array<string>; "reproduction_run_id": (string) | (null); "reproduction_attempt_id": (string) | (null); "authority": string }>; "is_failure": boolean };
+export type FailureAnnotateRequest = { "client_action_id": string; "run_id": string; "attempt_id": string; "expected_head": (string) | (null); "author": string; "category": "model_reasoning" | "tool_usage" | "context" | "verification" | "sandbox" | "environment" | "provider" | "grader" | "unknown"; "note": string; "evidence_refs": Array<string> };
+export type FailureAnnotateResult = { "annotation_id": string; "reused_existing_action": boolean };
+export type FailureSaveCandidateRequest = { "client_action_id": string; "run_id": string; "attempt_id": string; "expected_head": (string) | (null) };
+export type FailureSaveCandidateResult = { "candidate_id": string; "reused_existing_action": boolean };
+export type FailureCheckReproductionRequest = { "client_action_id": string; "candidate_id": string; "run_id": string; "attempt_id": string };
+export type FailureCheckReproductionResult = { "candidate_id": string; "observed_status": "blocked" | "reproduced"; "blockers": Array<string>; "reused_existing_action": boolean };
+export type FailureCandidateRequest = { "candidate_id": string };
+export type FailureCandidateResult = { "candidate_id": string; "fixture": Artifact; "created_at": string; "status": "blocked" | "saved_pending_reproduction" | "reproduced"; "blockers": Array<string>; "reproduction_run_id": (string) | (null); "reproduction_attempt_id": (string) | (null); "authority": string };
 export type BridgeProbeRequest = { "workspace_id": string; "workspace_path": string };
 export type BridgeProbeResult = CapabilityReport;
 export type BridgePrepareRequest = { "policy": SandboxPolicy; "policy_hash": string; "owner": { "engine_epoch": string; "sandbox_session_id": string; "execution_id": (string) | (null) } };
@@ -302,5 +314,11 @@ export interface MethodMap {
   "evaluation.comparison": { request: EvaluationComparisonRequest; result: EvaluationComparisonResult };
   "evaluation.import_plan": { request: EvaluationImportPlanRequest; result: EvaluationImportPlanResult };
   "evaluation.plan_export": { request: EvaluationPlanExportRequest; result: EvaluationPlanExportResult };
+  "failure.list": { request: FailureListRequest; result: FailureListResult };
+  "failure.get": { request: FailureGetRequest; result: FailureGetResult };
+  "failure.annotate": { request: FailureAnnotateRequest; result: FailureAnnotateResult };
+  "failure.save_candidate": { request: FailureSaveCandidateRequest; result: FailureSaveCandidateResult };
+  "failure.check_reproduction": { request: FailureCheckReproductionRequest; result: FailureCheckReproductionResult };
+  "failure.candidate": { request: FailureCandidateRequest; result: FailureCandidateResult };
 }
 export type MethodName = keyof MethodMap;

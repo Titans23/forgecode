@@ -75,6 +75,13 @@ export interface DesktopOperations {
   evaluationRuns(value: EvaluationContract.EvaluationListRequest): Promise<EvaluationContract.EvaluationListResult>;
   evaluationSnapshot(value: EvaluationContract.EvaluationSnapshotRequest): Promise<EvaluationContract.EvaluationSnapshotResult>;
   evaluationComparison(value: EvaluationContract.EvaluationComparisonRequest): Promise<EvaluationContract.EvaluationComparisonResult>;
+  failureList(value: EvaluationContract.FailureListRequest): Promise<EvaluationContract.FailureListResult>;
+  failureGet(value: EvaluationContract.FailureGetRequest): Promise<EvaluationContract.FailureGetResult>;
+  failureAnnotate(value: EvaluationContract.FailureAnnotateRequest): Promise<EvaluationContract.FailureAnnotateResult>;
+  failureSaveCandidate(value: EvaluationContract.FailureSaveCandidateRequest): Promise<EvaluationContract.FailureSaveCandidateResult>;
+  failureCheckReproduction(value: EvaluationContract.FailureCheckReproductionRequest): Promise<EvaluationContract.FailureCheckReproductionResult>;
+  failureCandidate(value: EvaluationContract.FailureCandidateRequest): Promise<EvaluationContract.FailureCandidateResult>;
+  exportRegressionCandidate(id:string): Promise<NativeFileResult>;
   importExperimentPlan(): Promise<NativeFileResult>;
   exportExperimentPlan(runId:string): Promise<NativeFileResult>;
   importResults(): Promise<NativeFileResult>;
@@ -133,6 +140,13 @@ export class DesktopTransport implements DesktopOperations {
   evaluationRuns(value: EvaluationContract.EvaluationListRequest) { return this.bridge().evaluationRuns(value); }
   evaluationSnapshot(value: EvaluationContract.EvaluationSnapshotRequest) { return this.bridge().evaluationSnapshot(value); }
   evaluationComparison(value: EvaluationContract.EvaluationComparisonRequest) { return this.bridge().evaluationComparison(value); }
+  failureList(value: EvaluationContract.FailureListRequest) { return this.bridge().failureList(value); }
+  failureGet(value: EvaluationContract.FailureGetRequest) { return this.bridge().failureGet(value); }
+  failureAnnotate(value: EvaluationContract.FailureAnnotateRequest) { return this.bridge().failureAnnotate(value); }
+  failureSaveCandidate(value: EvaluationContract.FailureSaveCandidateRequest) { return this.bridge().failureSaveCandidate(value); }
+  failureCheckReproduction(value: EvaluationContract.FailureCheckReproductionRequest) { return this.bridge().failureCheckReproduction(value); }
+  failureCandidate(value: EvaluationContract.FailureCandidateRequest) { return this.bridge().failureCandidate(value); }
+  exportRegressionCandidate(id:string) { return this.bridge().exportRegressionCandidate(id); }
   importExperimentPlan() { return this.bridge().importExperimentPlan(); }
   exportExperimentPlan(runId:string) { return this.bridge().exportExperimentPlan(runId); }
   importResults() { return this.bridge().importResults(); }

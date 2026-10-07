@@ -22,6 +22,7 @@ import { probeCredentials } from './credential_probe.js';
 import { probeWorkspace } from './workspace_probe.js';
 import { probeObservability } from './observability_probe.js';
 import { probeEvaluations } from './evaluation_probe.js';
+import { probeFailures } from './failure_probe.js';
 import { createSetupBroker } from './setup_broker.js';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'forge-app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
@@ -151,6 +152,7 @@ async function runSmoke() {
     checks.push(...await probeWorkspace(window, engine, smoke.directory, resolve(app.getAppPath(), '../..')));
     checks.push(...await probeObservability(window,engine,observedSession,smoke.directory,smoke.output));
     checks.push(...await probeEvaluations(window,engine,resolve(app.getAppPath(),'../..'),smoke.directory,smoke.output));
+    checks.push(...await probeFailures(window,engine,smoke.output));
     const reloaded = new Promise<void>(resolve => window!.webContents.once('did-finish-load', () => resolve()));
     window.webContents.reload();
     await reloaded;
@@ -265,7 +267,8 @@ async function ready() {
     ['evaluation-templates','evaluation.templates'],['evaluation-template','evaluation.template'],
     ['evaluation-draft','evaluation.draft'],['evaluation-validate','evaluation.validate'],['evaluation-create','evaluation.create_run'],
     ['evaluation-start','evaluation.start'],['evaluation-cancel','evaluation.cancel'],['evaluation-retry','evaluation.retry'],
-    ['evaluation-runs','evaluation.list'],['evaluation-snapshot','evaluation.snapshot'],['evaluation-comparison','evaluation.comparison']] as const) {
+    ['evaluation-runs','evaluation.list'],['evaluation-snapshot','evaluation.snapshot'],['evaluation-comparison','evaluation.comparison'],
+    ['failure-list','failure.list'],['failure-get','failure.get'],['failure-annotate','failure.annotate'],['failure-save-candidate','failure.save_candidate'],['failure-check-reproduction','failure.check_reproduction'],['failure-candidate','failure.candidate']] as const) {
     ipcMain.handle('forge:' + channel, (event, value) => { sender(event); validate(method + '.request', value); return live().call(method, value); });
   }
   ipcMain.handle('forge:diagnostics', (event, value) => { sender(event); empty(value); return live().call('system.health', {}); });
@@ -282,6 +285,8 @@ async function ready() {
   const approvals = new NativeApprovals(live);
   const fileDialogs=new NativeFileDialogs(live);
   ipcMain.handle('forge:import-experiment-plan',(event,value)=>{sender(event);empty(value);return fileDialogs.importConfiguration(captureSender(()=>window,event));});
+  ipcMain.handle('forge:export-regression-candidate',(event,value)=>{sender(event);validate('failure.candidate.request',value);
+    return fileDialogs.exportCandidate((value as {candidate_id:string}).candidate_id,captureSender(()=>window,event));});
   ipcMain.handle('forge:import-results',(event,value)=>{sender(event);empty(value);return fileDialogs.importResults(captureSender(()=>window,event));});
   for(const [channel,operation] of [['export-experiment-plan','exportConfiguration'],['export-results','exportResults']] as const) {
     ipcMain.handle('forge:'+channel,(event,value)=>{sender(event);validate('evaluation.plan_export.request',value);

@@ -1309,8 +1309,18 @@
         "desktop"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T010959Z-5c2cc1a6",
+        "20261007T011016Z-ef2bdeb2",
+        "20261007T011517Z-8b0f33be",
+        "20261007T011549Z-d546abf4",
+        "20261007T011550Z-aed347b6",
+        "20261007T011555Z-727165ad",
+        "20261007T011559Z-8a7b78d1",
+        "20261007T012542Z-218e0608",
+        "20261007T012606Z-e13d7eac"
+      ],
       "case_ids": []
     },
     {
