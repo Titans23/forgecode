@@ -4,7 +4,7 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "dd17e3488103008957ed88bfff764cbe27694a94",
+  "actual_repository_head": "a523a7887a238fa7f52bd6be625d71ab4d0625bd",
   "next_recommended_task": "F28",
   "current_task": "F29",
   "tasks": {
@@ -1003,11 +1003,17 @@
         "20261007T094145Z-f0087cfb",
         "20261007T094158Z-06aa2a42",
         "20261007T094233Z-03fcb104",
-        "20261007T095022Z-ac0916fa"
+        "20261007T095022Z-ac0916fa",
+        "20261007T143907Z-f2d2193d",
+        "20261007T143911Z-01c04c24",
+        "20261007T143926Z-173a661a",
+        "20261007T144011Z-c6c40c46",
+        "20261007T144844Z-d7aa5443",
+        "20261007T145332Z-695f9ba9"
       ],
       "blocked_reasons": [
-        "Actual F32 run 37636301297 failed: Linux unit223 passed/portable367 passed14 failed; Windows unit223 passed/portable379 passed2 failed; security retains2high. Corrections are in progress, pending focused/full tests and a new hosted matrix.",
-        "Protected environments/reviewers/runner configuration remains unverified; native/signing/LICENSE/security requirements remain in F28/F32."
+        "Tested remediation candidate passes current contracts2/quality4/unit225/portable382/regression1351. A new actual hosted matrix is pending upload/verification; first failed run is retained in F32-first-hosted-ci-observations.json.",
+        "Security/native/signing/LICENSE and protected runner configuration remain independently blocked."
       ],
       "historical_blocked_reasons": [
         "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
@@ -1019,10 +1025,31 @@
       "current_remediation": {
         "scope": "F32 actual hosted portability failures",
         "parent_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
-        "status": "in_progress",
+        "status": "local_full_pass_hosted_pending",
         "first_hosted_ref": "evidence/F32-first-hosted-ci-observations.json",
-        "model_calls": 0
-      }
+        "model_calls": 0,
+        "candidate_commit": "a523a7887a238fa7f52bd6be625d71ab4d0625bd",
+        "source_inventory_hash": "9f9a924db65db866dcbe3971bfff2b8c74213456331801df8b4bf5ba7e283d1f",
+        "focused_tests": {
+          "collected": 87,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "bootstrap": "actual locked assets/contracts/Bridge/desktop build passed",
+        "final_evidence_ids": [
+          "20261007T143907Z-f2d2193d",
+          "20261007T143911Z-01c04c24",
+          "20261007T143926Z-173a661a",
+          "20261007T144011Z-c6c40c46",
+          "20261007T144844Z-d7aa5443"
+        ],
+        "local_ci_gate": "pass",
+        "observations_ref": "evidence/F32-ci-remediation-observations.json"
+      },
+      "gate_review_evidence_ids": [
+        "20261007T150406Z-81c7bee6"
+      ]
     },
     "F30": {
       "implementation_status": "implemented",
@@ -1143,7 +1170,12 @@
         "20261007T140226Z-41e7d2a5",
         "20261007T140356Z-8d48b0ea",
         "20261007T141742Z-a9ec721c",
-        "20261007T141839Z-0478b9bc"
+        "20261007T143907Z-f2d2193d",
+        "20261007T143911Z-01c04c24",
+        "20261007T143926Z-173a661a",
+        "20261007T144011Z-c6c40c46",
+        "20261007T144844Z-d7aa5443",
+        "20261007T145332Z-695f9ba9"
       ],
       "current_evidence_ids": [
         "20261007T135250Z-b325aa30",
@@ -1179,7 +1211,42 @@
         "implementation_gate": "blocked",
         "release_gate": "blocked",
         "gate_errors": 0
-      }
+      },
+      "current_remediation": {
+        "scope": "F32 actual hosted portability failures",
+        "parent_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+        "status": "local_full_pass_hosted_pending",
+        "first_hosted_ref": "evidence/F32-first-hosted-ci-observations.json",
+        "model_calls": 0,
+        "candidate_commit": "a523a7887a238fa7f52bd6be625d71ab4d0625bd",
+        "source_inventory_hash": "9f9a924db65db866dcbe3971bfff2b8c74213456331801df8b4bf5ba7e283d1f",
+        "focused_tests": {
+          "collected": 87,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "bootstrap": "actual locked assets/contracts/Bridge/desktop build passed",
+        "final_evidence_ids": [
+          "20261007T143907Z-f2d2193d",
+          "20261007T143911Z-01c04c24",
+          "20261007T143926Z-173a661a",
+          "20261007T144011Z-c6c40c46",
+          "20261007T144844Z-d7aa5443"
+        ],
+        "local_ci_gate": "pass",
+        "observations_ref": "evidence/F32-ci-remediation-observations.json",
+        "release_gate": "blocked with zero evidence errors"
+      },
+      "verification_scope": "Initial F32 Windows10 development review followed by actual hosted-failure remediation; current five-suite source9f9a924d/head a523a788 passed; final hosted matrix is pending upload.",
+      "release_gate_history_note": "Derived release reviews are retained separately in gate_review_evidence_ids and are not input evidence to their own gate. First follow-up failed because current suite references were not added yet; second failed because the prior derived failure was used as input. Both raw failures are preserved and recomputed; current tests passed. Rerun after correcting the explicit references.",
+      "gate_review_evidence_ids": [
+        "20261007T141839Z-0478b9bc",
+        "20261007T150406Z-81c7bee6",
+        "20261007T150523Z-0a7b7434",
+        "20261007T150635Z-a27c64ba"
+      ],
+      "latest_gate_review_evidence_id": "20261007T150635Z-a27c64ba"
     }
   },
   "gates": {
@@ -1192,7 +1259,7 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Actual uploaded F32 commit; four-job run 37636301297 failed. F29/F32 CI corrections are in progress and are not yet uploaded or claimed tested.",
+  "head_recorded_scope": "Frozen unuploaded hosted-CI remediation candidate. Local five-suite verification is running; last uploaded commit is dd17e3488103008957ed88bfff764cbe27694a94.",
   "gate_notes": {
     "G1-contracts-engine": "Current contracts/quality/unit/portable/regression all pass, zero required skips; actual private Engine, DB, actions and offline repair exercised.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",

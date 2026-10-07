@@ -192,10 +192,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T115350Z-bfd58d91",
-            "20261006T115355Z-edb1d80e"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Policy/path compilation and service preflight; not native OS isolation."
+          "scope": "Policy/path compilation and service preflight; not native OS isolation.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -230,11 +230,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T122617Z-467c0ff0",
-            "20261006T122623Z-252a9f8b",
-            "20261006T122834Z-df2df90c"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -269,11 +268,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T122617Z-467c0ff0",
-            "20261006T122623Z-252a9f8b",
-            "20261006T122834Z-df2df90c"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -308,11 +306,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T122617Z-467c0ff0",
-            "20261006T122623Z-252a9f8b",
-            "20261006T122834Z-df2df90c"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -554,11 +551,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T122617Z-467c0ff0",
-            "20261006T122623Z-252a9f8b",
-            "20261006T122834Z-df2df90c"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -593,11 +589,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T122617Z-467c0ff0",
-            "20261006T122623Z-252a9f8b",
-            "20261006T122834Z-df2df90c"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -832,10 +827,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T115350Z-bfd58d91",
-            "20261006T115355Z-edb1d80e"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Policy/path compilation and service preflight; not native OS isolation."
+          "scope": "Policy/path compilation and service preflight; not native OS isolation.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1146,9 +1141,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1171,9 +1166,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1195,9 +1190,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1220,9 +1215,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       },
       "development_evidence_ids": [
@@ -1249,9 +1244,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1273,9 +1268,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1297,9 +1292,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1322,9 +1317,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1347,9 +1342,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1372,9 +1367,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1519,8 +1514,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T111756Z-f5819b93"
-          ]
+            "20261007T144011Z-c6c40c46"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1638,8 +1634,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T111756Z-f5819b93"
-          ]
+            "20261007T144011Z-c6c40c46"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1712,8 +1709,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T111756Z-f5819b93"
-          ]
+            "20261007T144011Z-c6c40c46"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1746,8 +1744,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T111756Z-f5819b93"
-          ]
+            "20261007T144011Z-c6c40c46"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -1864,11 +1863,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T122617Z-467c0ff0",
-            "20261006T122623Z-252a9f8b",
-            "20261006T122834Z-df2df90c"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed."
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -2313,10 +2311,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T215137Z-955dfd02",
-            "20261006T215153Z-20c452df"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock."
+          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -2812,9 +2810,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T222959Z-e4a89567"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": "Real runner exit/reward separation, immutable config, no native downgrade or unauthorized model request; official public source/config checked separately."
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -2939,9 +2937,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -2962,9 +2960,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -2985,9 +2983,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3009,9 +3007,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3034,9 +3032,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3057,9 +3055,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3116,10 +3114,10 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261006T115350Z-bfd58d91",
-            "20261006T115355Z-edb1d80e"
+            "20261007T144011Z-c6c40c46"
           ],
-          "scope": "Policy/path compilation and service preflight; not native OS isolation."
+          "scope": "Policy/path compilation and service preflight; not native OS isolation.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3297,9 +3295,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3321,9 +3319,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3344,9 +3342,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3367,9 +3365,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     },
@@ -3616,9 +3614,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-d1841360"
+            "20261007T143926Z-173a661a"
           ],
-          "reason": null
+          "reason": "Actual current unit JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       },
       "development_evidence_ids": [
@@ -3645,9 +3643,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T135321Z-9ad83267"
+            "20261007T144011Z-c6c40c46"
           ],
-          "reason": null
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
         }
       }
     }

@@ -2,7 +2,7 @@
 
 F29 保留真实 Python Harness／CLI。所有检查调用当前源码与固定依赖，不从仓库历史 JSON 推断本次 CI 成功。测试报告、命令、退出码、平台、HEAD、源码 inventory hash 和 report SHA256 一起保存。
 
-`portable.yml` 在 push／PR 上执行 Ubuntu 22.04、Ubuntu 24.04、Windows Server 2025 矩阵。Windows hosted runner 仅建立 portable 证据，不能建立 Windows 11 原生验收。固定 Python 3.12.13、Node 24.21.0、uv 0.12.5；第三方 Actions 固定官方 tag 对应的完整 commit SHA。`uv sync --locked --all-groups --all-extras` 和 `npm ci` 后，`scripts/ci_bootstrap.py` 校验官方 Node archive／binary SHA，将运行时放入项目 `.local`，生成 contracts、Bridge 和开发 desktop assets；不安装系统服务或执行管理员 setup。
+`portable.yml` 在 push／PR 上执行 Ubuntu 22.04、Ubuntu 24.04、Windows Server 2025 矩阵。Windows hosted runner 仅建立 portable 证据，不能建立 Windows 11 原生验收。固定 Python 3.12.13、Node 24.21.0、uv 0.12.5；第三方 Actions 固定官方 tag 对应的完整 commit SHA。`uv sync --locked --all-groups --all-extras` 和 `npm ci` 后，`scripts/ci_bootstrap.py` 校验官方 Node archive／binary SHA，将运行时放入项目 `.local`；用固定 Node 显式运行锁定 Electron 的官方 installer 并检查实际版本／平台，再生成 contracts、Bridge 和开发 desktop assets。Electron44 的实际 package.json 没有二进制 postinstall，不能依赖任意测试模块的冷导入顺带下载。bootstrap 不安装系统服务或执行管理员 setup。
 
 随后 `scripts/ci_run.py --layer portable` 运行 contracts、quality、unit、portable，逐项保留 evidence，并把本轮 ID 显式传入 `impl.py gate --name ci`。Linux hosted 路径通过现有 `xvfb-run` 为真实 Chromium 集成测试提供图形会话；缺少该工具时命令失败，不自动安装，也不建立原生 X11／Wayland 资格。缺项、另一 HEAD／平台、过期源码 hash、非零退出、报告被改、零测试、required skip、unknown verdict 都会拒绝通过。JUnit testcase 数量由实际 XML 复算；JSON 必须有非空且全部通过的 checks。回归独立执行 `impl.py verify --suite regression`；不将其历史结果冒充本轮 CI 结果。
 

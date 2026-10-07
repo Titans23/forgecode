@@ -8,7 +8,7 @@
 | Windows 11 x64 客户端 | 已有 Windows adapter、Main 入口与 setup broker；实际平台判断排除 Server | blocked：没有干净 VM／设备与 setup 授权 |
 | Ubuntu 22.04 x64 X11／Wayland | Linux adapter、deb 构建基线约束、受控 Bridge/FileWorker 与打包入口 | blocked：没有专用原生／图形验收设备 |
 | Ubuntu 24.04 x64 X11／Wayland | 同上；Linux 包必须在较老 Ubuntu 22.04 构建 | blocked：没有专用原生／图形验收设备 |
-| GitHub Ubuntu 22.04／24.04 portable jobs | F31 实际 run 37627185380 各 214 pass/1 冷 Electron 导入 fail；Windows hosted Node 18 pass/3 cold-start/path fail。F32 public 定向修复已通过，上传后继续核验实际矩阵 | hosted portable CI 不建立原生产品能力 |
+| GitHub Ubuntu 22.04／24.04、Windows Server2025 portable jobs | F32实际run37636301297：Linux各unit223pass、portable367pass/14fail；Windowsunit223pass、portable379pass/2fail。已定位并修正venv别名、显式Electron安装、原平台golden及ASCII JSON；87本机专项通过，完整复验与新hosted矩阵待完成 | hosted portable CI不建立原生产品能力；当前矩阵仍failure |
 | macOS／Windows Server／WSL | 无产品支持声明；Server 不满足 Windows 11 workstation 判定 | unsupported |
 
 每个 strict turn 现在创建独立实际 SRT Bridge 和 FileWorker，配置／prepared policy hash 必须一致，准备成功才创建模型。准备失败记录真实 owner-bound cleanup，不自动改用 local-trusted。当前 capability verification 尚不提供可提升为 verified 的完整原生证明，初始化后的边界／后代清理也未完成原生验收，因此 strict 执行继续拒绝。此处既有环境限制，也有尚待原生实现验证的代码限制，不能称为已可用原生沙盒。
