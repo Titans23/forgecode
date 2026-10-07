@@ -1,7 +1,7 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "4082833ff7a81f6555e96111239c87ea32b5a854",
+  "actual_repository_head": "6fb66b0b8b7fc9efee31bb8ded2fd82c19ca099a",
   "next_recommended_task": "F25",
   "current_task": "F25",
   "tasks": {
@@ -526,15 +526,34 @@
       ]
     },
     "F25": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "portable": "not_run",
-        "desktop": "not_run",
-        "sandbox-linux": "not_run",
-        "sandbox-windows": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "desktop": "pass",
+        "desktop-packaged": "blocked",
+        "sandbox-linux": "blocked",
+        "sandbox-windows": "blocked",
+        "regression": "pass",
+        "live_eval": "blocked",
+        "native_sleep_resume": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ],
+      "blocked_reasons": [
+        "Windows 10 development only; Windows 11 x64 and Ubuntu 22.04/24.04 native runners are unavailable.",
+        "Installed frozen Engine assembly remains unavailable until F27/F28; native sandbox cleanup is not inferred from exit/PID.",
+        "Actual OS suspend/resume and Linux pidfd lifecycle acceptance require native runners; clock fixtures are portable behavior checks only.",
+        "Paid public-model API budget, native setup/signing and official Docker daemon environment remain unavailable/unapproved."
+      ]
     },
     "F26": {
       "implementation_status": "todo",

@@ -1940,6 +1940,29 @@
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/integration/test_failures.py"
       ]
+    },
+    "recovery.inspect": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "recovery.inspect.request",
+      "result_schema": "recovery.inspect.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 65536,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_recovery.py"
+      ]
     }
   }
 }

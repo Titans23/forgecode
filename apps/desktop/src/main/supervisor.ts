@@ -1,10 +1,11 @@
 /** One Engine, independent of renderer lifetime. Protocol corruption never triggers automatic replay. */
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { METHODS, MAX_FRAME_BYTES, strictLoads, validate, validateEvent } from '@forgecode/contracts';
+import { METHODS, MAX_FRAME_BYTES, canonicalHash, strictLoads, validate, validateEvent } from '@forgecode/contracts';
 import type { EngineLaunch } from './assets.js';
 
 type Pending = { method: keyof typeof METHODS; resolve: (value: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout };
+class UnconfirmedResponse extends Error {}
 
 async function within<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
   let timer: NodeJS.Timeout;
@@ -18,6 +19,9 @@ export class EngineSupervisor {
   hello: any = null;
   child: ChildProcessWithoutNullStreams | null = null;
   private pending = new Map<string, Pending>();
+  private expired = new Map<string, keyof typeof METHODS>();
+  private unconfirmed = new Map<string, { method: keyof typeof METHODS; params: any }>();
+  private unconfirmedOverflow = false;
   private input = Buffer.alloc(0);
   private sequence = 0;
   private eventQueue: any[] = [];
@@ -25,19 +29,28 @@ export class EngineSupervisor {
   private rendererCount = 0;
   private closing: Promise<{ state: 'confirmed' | 'unknown'; cleanup_state: 'complete' | 'unknown'; reason?: string }> | null = null;
   diagnosticBytes = 0;
+  lateResponses = 0;
 
-  constructor(private launch: EngineLaunch) {
+  constructor(private launch: EngineLaunch, private options: { responseTimeoutMs?: number } = {}) {
     if (!launch.executable || !launch.cwd || !/^[0-9a-f]{64}$/.test(launch.manifestHash)) throw new Error('Supervisor requires verified Main assets');
+    if (options.responseTimeoutMs !== undefined && (!Number.isInteger(options.responseTimeoutMs) || options.responseTimeoutMs < 10 || options.responseTimeoutMs > 15000)) throw new Error('Response deadline must be bounded');
   }
   get pid() { return this.child?.pid ?? null; }
   attachRenderer() { this.rendererCount++; }
   detachRenderer() { this.rendererCount = Math.max(0, this.rendererCount - 1); }
   events() { const result = { events: this.eventQueue.splice(0), gap: this.gap }; this.gap = false; return result; }
+  markEventGap() { this.gap = true; }
+  async refreshHealth() {
+    const health = await this.call('system.health', {});
+    if (health.engine_epoch !== this.hello.engine_epoch) throw new Error('Engine epoch changed without an owned restart');
+    this.hello.readiness = health.readiness;
+    return health;
+  }
 
   async start() {
     if (this.state !== 'idle') throw new Error('Engine is already owned; renderer reload cannot restart it');
     this.state = 'starting';
-    this.child = spawn(this.launch.executable, [...this.launch.arguments], { cwd: this.launch.cwd,
+    this.child = spawn(this.launch.executable, [...this.launch.arguments,'--main-owner-pid',String(process.pid)], { cwd: this.launch.cwd,
       env: { ...this.launch.environment }, shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     this.child.stdout.on('data', (bytes: Buffer) => this.receive(bytes));
     this.child.stderr.on('data', (bytes: Buffer) => { this.diagnosticBytes += bytes.length; });
@@ -65,6 +78,7 @@ export class EngineSupervisor {
     if (this.state !== 'closing' && this.state !== 'closed' && this.state !== 'incompatible') this.state = 'engine_lost';
     for (const request of this.pending.values()) { clearTimeout(request.timer); request.reject(new Error(reason)); }
     this.pending.clear();
+    this.expired.clear();
   }
 
   private receive(bytes: Buffer) {
@@ -89,7 +103,13 @@ export class EngineSupervisor {
         }
         validate('rpc-response', value);
         const request = this.pending.get(value.id);
-        if (!request) throw new Error('Response has no owned request');
+        if (!request) {
+          const method = this.expired.get(value.id);
+          if (!method) throw new Error('Response has no owned request');
+          if (!value.error) validate(METHODS[method].result_schema, value.result);
+          this.expired.delete(value.id); this.lateResponses++;
+          continue; // A validated late response never cancels or repeats accepted work.
+        }
         if (!value.error) validate(METHODS[request.method].result_schema, value.result);
         this.pending.delete(value.id); clearTimeout(request.timer);
         if (value.error) request.reject(new Error(`Engine RPC failed (${value.error.code}, ${value.error.data?.kind ?? 'protocol'})`));
@@ -108,18 +128,53 @@ export class EngineSupervisor {
     const raw = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
     if (raw.length > MAX_FRAME_BYTES || this.child.stdin.writableLength + raw.length > MAX_FRAME_BYTES * 2) return Promise.reject(new Error('Control frame/queue limit exceeded'));
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('Engine action response unconfirmed; query its durable action ID before retry')); }, 15000);
+      const timer = setTimeout(() => {
+        this.pending.delete(id); this.expired.set(id, method);
+        if (this.expired.size > 256) this.expired.delete(this.expired.keys().next().value!);
+        reject(new UnconfirmedResponse('Engine action response unconfirmed; query its durable action ID before retry'));
+      }, method === 'system.initialize' ? 15000 : this.options.responseTimeoutMs ?? 15000);
       this.pending.set(id, { method, resolve, reject, timer });
       this.child!.stdin.write(raw, error => { if (error) this.lost('Engine control write failed'); });
     });
   }
 
-  call(method: keyof typeof METHODS, params: any): Promise<any> {
+  private async durableResult(method: keyof typeof METHODS, params: any) {
+    const action = await this.request('action.get', { method, client_action_id: params.client_action_id });
+    if (action.payload_hash !== canonicalHash(params) || action.result_schema !== METHODS[method].result_schema) throw new Error('Durable action binding changed');
+    validate(METHODS[method].result_schema, action.result);
+    return action.result;
+  }
+
+  async call(method: keyof typeof METHODS, params: any): Promise<any> {
     if (this.state !== 'ready') return Promise.reject(new Error('Engine handshake is unavailable'));
     if (method === 'system.initialize' || method === 'system.shutdown') return Promise.reject(new Error('Lifecycle methods belong to Main supervisor'));
     if (METHODS[method].mutation && ['session.start_turn', 'session.submit', 'run.start'].includes(method) && this.hello.readiness.status === 'blocked') return Promise.reject(new Error('Execution readiness is blocked'));
     if (!this.hello.capabilities.supported_methods.includes(method)) return Promise.reject(new Error('Engine method is not implemented'));
-    return this.request(method, params);
+    validate(METHODS[method].request_schema, params);
+    if (METHODS[method].mutation && !['session.cancel_turn','evaluation.cancel','credentials.clear','connection.delete'].includes(method)) {
+      if (this.unconfirmedOverflow) throw new UnconfirmedResponse('Unconfirmed action limit exceeded; reconcile before restarting Main');
+      for (const [key, previous] of this.unconfirmed) {
+        let result;
+        try { result = await this.durableResult(previous.method, previous.params); }
+        catch { throw new UnconfirmedResponse(`Action ${previous.params.client_action_id} remains unconfirmed; no new mutation was sent`); }
+        this.unconfirmed.delete(key);
+        const content = (value: any) => canonicalHash(Object.fromEntries(Object.entries(value).filter(([name]) => name !== 'client_action_id')));
+        if (previous.method === method && content(previous.params) === content(params)) return result;
+      }
+    }
+    return this.request(method, params).catch(async error => {
+      if (!(error instanceof UnconfirmedResponse) || !METHODS[method].mutation || METHODS[method].timeout_query !== 'action.get' || typeof params.client_action_id !== 'string') throw error;
+      const key = method + ':' + params.client_action_id;
+      if (this.unconfirmed.has(key) || this.unconfirmed.size < 32) this.unconfirmed.set(key, { method, params: strictLoads(JSON.stringify(params)) });
+      else this.unconfirmedOverflow = true;
+      try {
+        const result = await this.durableResult(method, params);
+        this.unconfirmed.delete(key);
+        return result;
+      } catch {
+        throw new UnconfirmedResponse(`Action ${params.client_action_id} remains unconfirmed; retain this ID and reconcile before submitting again`);
+      }
+    });
   }
 
   shutdown(mode: 'cancel' | 'drain'): Promise<{ state: 'confirmed' | 'unknown'; cleanup_state: 'complete' | 'unknown'; reason?: string }> {

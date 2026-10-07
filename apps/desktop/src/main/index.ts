@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, powerMonitor, protocol, session } from 'electron';
 import squirrel from 'electron-squirrel-startup';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -245,7 +245,13 @@ async function ready() {
     currentSession = result.session.session_id;
     if (!sessionSubscription) {
       // Snapshot first, then subscribe. Replay starts at that durable high watermark.
-      const subscription = await live().call('events.subscribe', { scope: { kind: 'all' }, after_cursor: result.event_cursor });
+      let subscription;
+      try { subscription = await live().call('events.subscribe', { scope: { kind: 'all' }, after_cursor: result.event_cursor }); }
+      catch (reason) {
+        if (!(reason as Error).message.includes('INVALID_CURSOR')) throw reason;
+        subscription = await live().call('events.subscribe', { scope: { kind: 'all' } });
+        live().markEventGap();
+      }
       sessionSubscription = subscription.subscription_id;
     }
     return result;
@@ -259,7 +265,7 @@ async function ready() {
   });
   ipcMain.handle('forge:submit', (event, value) => { sender(event); validate('session.submit.request', value); return live().call('session.submit', value); });
   for (const [channel, method] of [['files', 'workspace.files'], ['read-file', 'workspace.read_file'],
-    ['changes', 'workspace.changes'], ['diff', 'workspace.diff'], ['diff-file', 'workspace.diff_file'],
+    ['changes', 'workspace.changes'], ['diff', 'workspace.diff'], ['diff-file', 'workspace.diff_file'], ['recovery-inspect','recovery.inspect'],
     ['observation-spans','observability.spans'],['observation-context','observability.context'],
     ['observation-evidence','observability.evidence'],['observation-usage','observability.usage'],
     ['observation-events','observability.events'],['observation-output','observability.output'],
@@ -320,6 +326,7 @@ async function ready() {
     return live().call('session.start_turn', turn);
   });
   await createWindow();
+  powerMonitor.on('resume', () => { if(engine?.state==='ready') void engine.refreshHealth().catch(() => { failure='系统恢复后连接状态未确认；请查询恢复对账。'; }); });
   if (smoke) await runSmoke();
   if (packagedReport) {
     if (!engine || engine.state !== 'ready') {

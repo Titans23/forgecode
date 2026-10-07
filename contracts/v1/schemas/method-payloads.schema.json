@@ -6074,6 +6074,294 @@
         "reproduction_attempt_id",
         "authority"
       ]
+    },
+    "recovery.inspect.request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "turn_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+            }
+          },
+          "required": [
+            "turn_id"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "attempt_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+            }
+          },
+          "required": [
+            "attempt_id"
+          ]
+        }
+      ]
+    },
+    "recovery.inspect.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "turn",
+                "attempt"
+              ]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ]
+        },
+        "work_item_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "running",
+            "cancel_requested",
+            "reconciling",
+            "finished"
+          ]
+        },
+        "engine_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+        },
+        "owner_epoch": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        },
+        "startup_observation_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unknown_side_effects": {
+          "type": "boolean"
+        },
+        "process_ownership": {
+          "enum": [
+            "unverified_historical",
+            "not_started",
+            "live_engine_only",
+            "cleanup_confirmed"
+          ]
+        },
+        "cleanup_state": {
+          "enum": [
+            "pending",
+            "running",
+            "clean",
+            "residual",
+            "unknown"
+          ]
+        },
+        "cancel_state": {
+          "enum": [
+            "none",
+            "requested",
+            "confirmed",
+            "indeterminate"
+          ]
+        },
+        "deadline_status": {
+          "enum": [
+            "expired",
+            "unverified"
+          ]
+        },
+        "journal": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "enum": [
+                "complete",
+                "partial_tail",
+                "unavailable",
+                "invalid",
+                "not_started"
+              ]
+            },
+            "records": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "projected_records": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "intent_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "unmatched_intents": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "history_gap": {
+              "type": "boolean"
+            },
+            "basis_scope": {
+              "enum": [
+                "journal",
+                "turn"
+              ]
+            }
+          },
+          "required": [
+            "state",
+            "records",
+            "projected_records",
+            "intent_count",
+            "unmatched_intents",
+            "history_gap",
+            "basis_scope"
+          ]
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "enum": [
+                "profile",
+                "attempt"
+              ]
+            },
+            "items": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "artifact_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "size": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "state": {
+                    "enum": [
+                      "valid",
+                      "missing",
+                      "changed"
+                    ]
+                  }
+                },
+                "required": [
+                  "artifact_id",
+                  "sha256",
+                  "size",
+                  "state"
+                ]
+              }
+            },
+            "history_gap": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "scope",
+            "items",
+            "history_gap"
+          ]
+        },
+        "blockers": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "required": [
+        "target",
+        "work_item_id",
+        "state",
+        "engine_epoch",
+        "owner_epoch",
+        "observed_at_utc",
+        "startup_observation_id",
+        "unknown_side_effects",
+        "process_ownership",
+        "cleanup_state",
+        "cancel_state",
+        "deadline_status",
+        "journal",
+        "artifacts",
+        "blockers"
+      ]
     }
   }
 }

@@ -5,6 +5,7 @@ import { mergeMessages, type Message } from '../../state/messages';
 import { Composer } from './Composer';
 import { VirtualList } from './VirtualList';
 import { Diff } from '../../components/diff/Diff';
+import { Recovery } from './Recovery';
 import type { ObservationTarget, ClientLatency } from '../observability/Observability';
 
 export interface Project { workspace_id: string; path?: string; revision?: number; trust?: string; name?: string }
@@ -111,6 +112,7 @@ export function Workspace({ transport, project, status, onSession, onObserve, on
         <option value="">最新任务</option>{snapshot?.turns.map(item => <option key={item.turn_id} value={item.turn_id}>{item.turn_id.slice(-8)} · {item.outcome ?? item.state}</option>)}</select>
       {snapshot?.has_more_turns && <p>此会话还有较早任务；当前页显示最新 100 项。</p>}
       {displayTurn && <button className="secondary" onClick={()=>onObserve({turnId:displayTurn.turn_id})}>查看本轮 Trace</button>}
+      {displayTurn && <Recovery key={displayTurn.turn_id} transport={transport} turnId={displayTurn.turn_id}/>}
       {active && <button className="secondary" disabled={busy} onClick={() => action(async () => { await transport.cancelTurn(turn!.turn_id); })}>取消任务</button>}
       <div className="messages" data-testid="messages"><VirtualList label="会话消息" items={messages} itemKey={message => String(message.sequence)}
         render={message => <button className={'file-row message ' + message.kind} data-message-sequence={message.sequence} onClick={() => setSelectedMessage(message)}>

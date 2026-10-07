@@ -1,6 +1,14 @@
 # ForgeCode V4 交接 — 2026-10-07
 
-- 当前代码完成 F00—F24；下一满足依赖任务 F25，任务卡与规范第 6 / 7 / 8 / 15 章已读。原生平台验收独立 blocked。
+- F24 已推送 6fb66b0b8b7fc9efee31bb8ded2fd82c19ca099a，远端 SHA 已核对；F25 当前实施中，测试父 HEAD 即此 SHA。
+- 当前代码完成 F00—F25；F25 正式 unit 148 / portable 292 / regression 1184 pass，0 skip；development Electron 66 checks pass。
+  F25 未推送，正在形成测试后提交；测试父 HEAD 6fb66b0b8b7fc9efee31bb8ded2fd82c19ca099a。
+  最终 evidence 20261007T020959Z-85c76830 / 20261007T020954Z-8829811e / 20261007T020953Z-c1790ea7 / 20261007T020920Z-86e44ca9 / 20261007T020306Z-4af36e9d / 20261007T020248Z-da48273d / 20261007T021009Z-35508c5a；dirty f5d2c18ae9f4e914cb1629e79d5b6677890bf0ee59b565029a89f066c1c05fc2。
+  migration 014 / committed Journal startup projection / recovery.inspect / readonly recovery UI / unknown cleanup barrier / bounded Main late/action response reconciliation / live parent observation / cursor TTL 与保守预算已实现。
+  实际 Main / Engine 强杀后 DB reconciling + unknown，原 action 重查无新 turn；WAL intent/result 与 artifact 完整性据实际文件核查；PID fixture 不清理无关进程。实际事件摘要 evidence/F25-recovery-observations.json，原始测试数据留 .local。
+  early desktop 014320、cold import / 500 ms fixture 与测试中资产 hash 拒绝的失败过程见 F25 卡；只有最后固定快照证据计最终 pass。
+  packed / native Linux / native Windows 各 blocked 0；actual OS suspend/resume、installed / paid-model / native cleanup 不冒充通过。
+  下一满足依赖 F26，卡和规范 19 / 附录 C 已读；CLI 与 Desktop 已共享实际 workspace lock。缺 legacy preview/backup/confirmed import、顶层未知配置诊断、explicit loopback HTTP/SSE 和 HttpTransport。仅做了阅读，F26 未改代码。
 - F24 已实现 migration 013 / 人工标注版本与 CAS / 有限建议 / 脱敏候选 / 实际新执行复现核验 / 失败页面与 Main 原生导出。
   专项 14 项、含既有 ZIP 回归 49 项 pass；initial desktop 64 checks 的旧 zoom 失败保留，等待实际布局后重验 64 checks pass。
   正式 unit 147 / portable 268 / regression 1159 pass，全部 0 skip；development desktop 64 checks pass。

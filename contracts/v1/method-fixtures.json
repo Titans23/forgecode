@@ -4534,6 +4534,101 @@
         "unexpected_field": true
       },
       "expected": "invalid"
+    },
+    {
+      "schema": "recovery.inspect.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "recovery.inspect.request",
+      "value": {
+        "turn_id": "turn-11111111-1111-4111-8111-111111111111",
+        "pid": 12345
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "recovery.inspect.result",
+      "value": {
+        "target": {
+          "kind": "turn",
+          "id": "turn-11111111-1111-4111-8111-111111111111"
+        },
+        "work_item_id": "work-11111111-1111-4111-8111-111111111111",
+        "state": "reconciling",
+        "engine_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "owner_epoch": "epoch-22222222-2222-4222-8222-222222222222",
+        "observed_at_utc": "2026-10-07T00:00:00Z",
+        "startup_observation_id": null,
+        "unknown_side_effects": true,
+        "process_ownership": "unverified_historical",
+        "cleanup_state": "unknown",
+        "cancel_state": "indeterminate",
+        "deadline_status": "unverified",
+        "journal": {
+          "state": "complete",
+          "records": 3,
+          "projected_records": 3,
+          "intent_count": 1,
+          "unmatched_intents": [
+            "write-once"
+          ],
+          "history_gap": false,
+          "basis_scope": "journal"
+        },
+        "artifacts": {
+          "scope": "profile",
+          "items": [],
+          "history_gap": false
+        },
+        "blockers": [
+          "cleanup_unconfirmed"
+        ]
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "recovery.inspect.result",
+      "value": {
+        "target": {
+          "kind": "turn",
+          "id": "turn-11111111-1111-4111-8111-111111111111"
+        },
+        "work_item_id": "work-11111111-1111-4111-8111-111111111111",
+        "state": "reconciling",
+        "engine_epoch": "epoch-11111111-1111-4111-8111-111111111111",
+        "owner_epoch": "epoch-22222222-2222-4222-8222-222222222222",
+        "observed_at_utc": "2026-10-07T00:00:00Z",
+        "startup_observation_id": null,
+        "unknown_side_effects": true,
+        "process_ownership": "verified_by_pid",
+        "cleanup_state": "unknown",
+        "cancel_state": "indeterminate",
+        "deadline_status": "unverified",
+        "journal": {
+          "state": "complete",
+          "records": 3,
+          "projected_records": 3,
+          "intent_count": 1,
+          "unmatched_intents": [
+            "write-once"
+          ],
+          "history_gap": false,
+          "basis_scope": "journal"
+        },
+        "artifacts": {
+          "scope": "profile",
+          "items": [],
+          "history_gap": false
+        },
+        "blockers": [
+          "cleanup_unconfirmed"
+        ]
+      },
+      "expected": "invalid"
     }
   ]
 }

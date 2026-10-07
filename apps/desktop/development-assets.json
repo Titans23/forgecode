@@ -6,7 +6,7 @@
   },
   "contracts": {
     "path": "forge/application/_generated_contracts.json",
-    "sha256": "3f1438b2938626d39a0dc3f043dcd0f6f4423334a21927528e95e14dc5d9a1cb"
+    "sha256": "3de2e6d3408b3f3bcee5e24ba46863537d1f0698548f450b2de3a7b21786fc45"
   },
   "locks": [
     {
@@ -77,7 +77,7 @@
     },
     {
       "path": "benchmark/core/scheduler.py",
-      "sha256": "179fd6a317f89ed2deef6148107e2b84ac9108465f9c4f7fb5e02fa0a16f71b7"
+      "sha256": "be749812a77ed3358af54fc1db51c7a9106c43086b3c315418b666db0e698117"
     },
     {
       "path": "benchmark/core/spec.py",
@@ -161,7 +161,7 @@
     },
     {
       "path": "forge/application/_generated_contracts.json",
-      "sha256": "3f1438b2938626d39a0dc3f043dcd0f6f4423334a21927528e95e14dc5d9a1cb"
+      "sha256": "3de2e6d3408b3f3bcee5e24ba46863537d1f0698548f450b2de3a7b21786fc45"
     },
     {
       "path": "forge/application/annotations.py",
@@ -265,15 +265,15 @@
     },
     {
       "path": "forge/engine/__main__.py",
-      "sha256": "38c3f32e07f6c54e500679b1a347a905cbbc6ce3d089b30c3691155d667f27c8"
+      "sha256": "23d2ffbe3fe6d3f1fbe081d723201ff30de1fdd0d83e08c92272dbc68e03ba5f"
     },
     {
       "path": "forge/engine/event_stream.py",
-      "sha256": "1705872766f2c8aa6e8798cf392d30df74b04e264a10857443cf4c46db72f39f"
+      "sha256": "fe1de51459d9c165a4124e9e60c400e758c22bf45ff8ead2356a3087d2b44b62"
     },
     {
       "path": "forge/engine/journal_projection.py",
-      "sha256": "33da433d70565a07a30719101cd3ff82be8fd63be28a513dbe08975fcb8e5cb5"
+      "sha256": "0235393ada73f988931a57f8a60ab8f2c356b43076d02d8aeba1e60fe76f5ac7"
     },
     {
       "path": "forge/engine/lifecycle.py",
@@ -281,7 +281,7 @@
     },
     {
       "path": "forge/engine/methods.py",
-      "sha256": "b9b944b770fa7eb65e90366b671a10ffec87dee18e0c49cab31e84ff3ccdf76f"
+      "sha256": "4082adb7f24a17096c085ea5cbc7e77058a7fd03a097a20afd617a0c74330361"
     },
     {
       "path": "forge/engine/migrations/001_initial.sql",
@@ -336,16 +336,28 @@
       "sha256": "02b09bc6c88db9d26533e26564a8d8bcb901d19eebbfd587ca7da30b5d0cb82b"
     },
     {
+      "path": "forge/engine/migrations/014_recovery.sql",
+      "sha256": "3336b24d26663ec578a807052eb6465b1c39320127997274dc0de09b96e78a76"
+    },
+    {
+      "path": "forge/engine/parent_watch.py",
+      "sha256": "19de5465b255d70785659f60cc7ebf93583ff700502eed8465b504c38f700fbe"
+    },
+    {
       "path": "forge/engine/persistence.py",
-      "sha256": "0bfa4933233e750a5a14908fb42ef29ec96f0e42878a82c6cc54f44d082394f9"
+      "sha256": "65c4168385c8827cd340343ec60299b82e26d0bce5f2c8592641eb198528f64e"
+    },
+    {
+      "path": "forge/engine/recovery.py",
+      "sha256": "20d1e17abefce3bc5e03b415db889c8a11d4190dfb20ff59730bbf1ab8a653bb"
     },
     {
       "path": "forge/engine/rpc.py",
-      "sha256": "bb5882324f5929fa668ebe162ac2b390593f3604ed161ed12a52b5b2c7c3b0e5"
+      "sha256": "fbe18d3b1249332935724f845db3ed3453542853495dfef87d796e038b9d9115"
     },
     {
       "path": "forge/engine/scheduler.py",
-      "sha256": "07ba1d39f387059e58df46a36fe38ee07bb97d6309439b2a4b511195e0301595"
+      "sha256": "3ddc30cdaa917bb8b7063ea79a9bd2e942ef9437639ce8bf9a108f143580a31a"
     },
     {
       "path": "forge/engine/test_profile.py",

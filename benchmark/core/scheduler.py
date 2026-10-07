@@ -46,6 +46,8 @@ class EvaluationScheduler:
 
     def claim(self, work_id, *, expected_version):
         with self.store.transaction():
+            if self.store.cleanup_blocked():
+                raise ContractError('Previous cleanup remains unconfirmed', kind='INDETERMINATE', code=-32010)
             if self.store.connection.execute("SELECT 1 FROM work_items WHERE state IN ('running','reconciling') LIMIT 1").fetchone():
                 raise ContractError('Another execution owns the local worker', kind='INDETERMINATE', code=-32010)
             row = self._row(work_id)
@@ -96,6 +98,9 @@ class EvaluationScheduler:
             raise ContractError('Agent outcome is invalid')
         if error_origin not in (None, 'task_logic', *INFRASTRUCTURE_ERRORS):
             raise ContractError('Attempt error origin is invalid')
+        if execution_state == 'cancelled' and cleanup_state != 'clean':
+            execution_state,agent_outcome,error_origin = 'error','indeterminate','runner_crash'
+            reason = 'Cancellation cleanup is unconfirmed; result retained without replay'
         with self.store.transaction():
             row = self._owned(work_id, owner_epoch, expected_version)
             grade = self.store.connection.execute('SELECT * FROM grades WHERE id=? AND attempt_id=?', (grade_id, row['business_id'])).fetchone() if grade_id else None
@@ -197,10 +202,12 @@ class EvaluationScheduler:
         # Trusted executor owns actual runner termination, artifacts and grader; no RPC-supplied command or grade.
         task = asyncio.create_task(executor.execute(work, self))
         self.active[work['id']] = task
-        deadline = asyncio.get_running_loop().time() + work['duration_seconds']
+        from forge.engine.lifecycle import Deadline
+        from time import monotonic
+        deadline = Deadline(work['duration_seconds'],monotonic(),datetime.fromisoformat(work['deadline'].replace('Z','+00:00')))
         try:
             while not task.done():
-                remaining = deadline - asyncio.get_running_loop().time()
+                remaining = deadline.remaining()
                 if remaining <= 0:
                     raise TimeoutError('Attempt wall budget exhausted')
                 await asyncio.wait((task,), timeout=min(5, remaining))

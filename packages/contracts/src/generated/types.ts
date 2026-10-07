@@ -183,6 +183,8 @@ export type FailureCheckReproductionRequest = { "client_action_id": string; "can
 export type FailureCheckReproductionResult = { "candidate_id": string; "observed_status": "blocked" | "reproduced"; "blockers": Array<string>; "reused_existing_action": boolean };
 export type FailureCandidateRequest = { "candidate_id": string };
 export type FailureCandidateResult = { "candidate_id": string; "fixture": Artifact; "created_at": string; "status": "blocked" | "saved_pending_reproduction" | "reproduced"; "blockers": Array<string>; "reproduction_run_id": (string) | (null); "reproduction_attempt_id": (string) | (null); "authority": string };
+export type RecoveryInspectRequest = ({ "turn_id": string }) | ({ "attempt_id": string });
+export type RecoveryInspectResult = { "target": { "kind": "turn" | "attempt"; "id": string }; "work_item_id": string; "state": "queued" | "running" | "cancel_requested" | "reconciling" | "finished"; "engine_epoch": string; "owner_epoch": (string) | (null); "observed_at_utc": string; "startup_observation_id": (string) | (null); "unknown_side_effects": boolean; "process_ownership": "unverified_historical" | "not_started" | "live_engine_only" | "cleanup_confirmed"; "cleanup_state": "pending" | "running" | "clean" | "residual" | "unknown"; "cancel_state": "none" | "requested" | "confirmed" | "indeterminate"; "deadline_status": "expired" | "unverified"; "journal": { "state": "complete" | "partial_tail" | "unavailable" | "invalid" | "not_started"; "records": number; "projected_records": number; "intent_count": number; "unmatched_intents": Array<string>; "history_gap": boolean; "basis_scope": "journal" | "turn" }; "artifacts": { "scope": "profile" | "attempt"; "items": Array<{ "artifact_id": string; "sha256": string; "size": number; "state": "valid" | "missing" | "changed" }>; "history_gap": boolean }; "blockers": Array<string> };
 export type BridgeProbeRequest = { "workspace_id": string; "workspace_path": string };
 export type BridgeProbeResult = CapabilityReport;
 export type BridgePrepareRequest = { "policy": SandboxPolicy; "policy_hash": string; "owner": { "engine_epoch": string; "sandbox_session_id": string; "execution_id": (string) | (null) } };
@@ -320,5 +322,6 @@ export interface MethodMap {
   "failure.save_candidate": { request: FailureSaveCandidateRequest; result: FailureSaveCandidateResult };
   "failure.check_reproduction": { request: FailureCheckReproductionRequest; result: FailureCheckReproductionResult };
   "failure.candidate": { request: FailureCandidateRequest; result: FailureCandidateResult };
+  "recovery.inspect": { request: RecoveryInspectRequest; result: RecoveryInspectResult };
 }
 export type MethodName = keyof MethodMap;

@@ -4,6 +4,7 @@ from hashlib import sha256
 import hmac
 import json
 import secrets
+from time import time
 
 from forge.application.models import ContractError, validate
 from forge.application.sessions import session_view
@@ -21,7 +22,10 @@ def accepted_view(row):
 
 
 class EventStream:
-    def __init__(self, service):
+    def __init__(self, service, *, clock=time, cursor_ttl_seconds=3600):
+        if type(cursor_ttl_seconds) is not int or not 1 <= cursor_ttl_seconds <= 86400:
+            raise ValueError('Cursor lifetime must be bounded')
+        self.clock, self.cursor_ttl_seconds = clock, cursor_ttl_seconds
         self.service = service
         self.store = service.store
         self.subscriptions = {}
@@ -38,8 +42,9 @@ class EventStream:
         self.key = bytes.fromhex(row[0])
 
     def cursor(self, scope, seq):
+        issued = int(self.clock())
         raw = encoded({'generation': self.generation, 'profile': self.service.profile_id,
-                       'scope': scope, 'seq': str(seq)}).encode()
+                       'scope': scope, 'seq': str(seq), 'issued_utc': issued, 'expires_utc': issued+self.cursor_ttl_seconds}).encode()
         return base64.urlsafe_b64encode(raw).decode().rstrip('=') + '.' + hmac.new(self.key, raw, sha256).hexdigest()
 
     def decode_cursor(self, cursor, scope):
@@ -50,11 +55,14 @@ class EventStream:
                 raise ValueError()
             value = json.loads(raw)
             seq = int(value['seq'])
-            if value != {'generation': self.generation, 'profile': self.service.profile_id, 'scope': scope, 'seq': str(seq)} or seq < 0:
+            issued, expires = value['issued_utc'], value['expires_utc']
+            if type(issued) is not int or type(expires) is not int or expires-issued != self.cursor_ttl_seconds or not issued <= self.clock() < expires:
+                raise ValueError()
+            if value != {'generation': self.generation, 'profile': self.service.profile_id, 'scope': scope, 'seq': str(seq), 'issued_utc': issued, 'expires_utc': expires} or seq < 0:
                 raise ValueError()
             return seq
         except (ValueError, KeyError, TypeError, UnicodeError):
-            raise ContractError('Cursor is invalid for this store, profile or scope', kind='INVALID_CURSOR', code=-32010) from None
+            raise ContractError('Cursor is expired or invalid for this store, profile or scope; rebuild the snapshot and mark a history gap', kind='INVALID_CURSOR', code=-32010) from None
 
     def check_scope(self, scope):
         validate('scope', scope)

@@ -40,6 +40,9 @@ class EngineMethods:
         from forge.application.annotations import AnnotationService
         self.annotations=AnnotationService(self)
         self.artifacts.annotations=self.annotations
+        from forge.engine.recovery import RecoveryService
+        self.recovery=RecoveryService(self)
+        self.recovery.reconcile_startup()
         if profile == 'desktop' or interactive_approvals:
             service.approvals = self.approvals
         self.initialized = False
@@ -57,6 +60,7 @@ class EngineMethods:
             'session.create': self.service.create_session, 'session.start_turn': self.start_turn,
             'session.cancel_turn': self.service.cancel_turn, 'session.list': self.list_sessions,
             'session.get': self.get_session, 'action.get': self.get_action,
+            'recovery.inspect': self.recovery.inspect,
             'events.subscribe': self.events.subscribe, 'events.ack': self.events.ack,
             'events.unsubscribe': self.events.unsubscribe, 'observability.events': self.query_events,
             'observability.spans':self.observations.spans,'observability.context':self.observations.context,
@@ -95,6 +99,8 @@ class EngineMethods:
             return {'status': 'blocked', 'reasons': ['database_read_only']}
         if self.store.connection.execute("SELECT 1 FROM work_items WHERE state='reconciling' LIMIT 1").fetchone():
             return {'status': 'blocked', 'reasons': ['previous_execution_requires_reconciliation']}
+        if self.store.cleanup_blocked():
+            return {'status': 'blocked', 'reasons': ['previous_cleanup_unconfirmed']}
         if self.service.mode == 'local-trusted':
             return {'status': 'degraded', 'reasons': ['local-trusted has no OS sandbox isolation',
                 *(['scripted model test profile; no benchmark grades'] if self.profile == 'test' else [])]}

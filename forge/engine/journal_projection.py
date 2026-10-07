@@ -5,7 +5,7 @@ from pathlib import Path
 
 from forge.application.models import ContractError
 from forge.engine.persistence import encoded, new_id, utc_now
-from forge.sessions.store import SessionStore
+from forge.sessions.store import SessionError, SessionStore
 
 
 class JournalProjector:
@@ -83,3 +83,80 @@ class JournalProjector:
                 applied += 1
             self.store.connection.execute('INSERT INTO projection_offsets VALUES(?,?) ON CONFLICT(source_id) DO UPDATE SET last_applied_seq=excluded.last_applied_seq', (source, last))
         return applied
+
+
+def journal_facts(path, *, native_id, project_root, engine_turn_id=None, store=None):
+    """Validate a private existing Journal without repairing bytes or executing it."""
+    import json
+    from forge.sessions.store import SESSION_ID_PATTERN
+    result = {'state': 'unavailable', 'records': 0, 'projected_records': 0, 'intent_count': 0,
+        'unmatched_intents': [], 'history_gap': False, 'basis_scope': 'journal'}
+    try:
+        path = Path(path).absolute()
+        if not SESSION_ID_PATTERN.fullmatch(native_id) or path.resolve(strict=True) != path or path.stat().st_size > 104857600:
+            raise ValueError('Journal ownership/path/size is unverified')
+        raw = path.read_bytes()
+        lines = [line for line in raw.splitlines() if line.strip()]
+        partial = False
+        for index, line in enumerate(lines):
+            try:
+                json.loads(line)
+            except (ValueError, UnicodeError):
+                if index == len(lines)-1 and not raw.endswith(b'\n'):
+                    partial = True
+                else:
+                    raise
+        reader = SessionStore(Path(project_root), data_root=path.parent)
+        records = reader._read_records(path)
+        if not records or records[0].get('type') != 'session_started' or any(r.get('session_id') != native_id for r in records):
+            raise ValueError('Journal identity changed')
+        if len(records) != len(lines)-int(partial):
+            raise ValueError('Concurrent Journal branches require explicit inspection')
+        payloads = []
+        for record in records:
+            if record.get('payload_ref'):
+                ref = Path(record['payload_ref']['path'])
+                target = path.parent / ref
+                if ref.is_absolute() or '..' in ref.parts or target.resolve(strict=True) != target.absolute() or not target.resolve().is_relative_to(path.parent):
+                    raise ValueError('Journal payload ownership is unverified')
+            payload = reader._payload(record, path)
+            if store is not None:
+                previous = store.connection.execute('SELECT record_hash FROM event_provenance WHERE source_id=? AND source_seq=?',
+                    ('journal:'+native_id,record['sequence'])).fetchone()
+                if previous and previous[0] != sha256(encoded({'record':record,'payload':payload}).encode('utf-8')).hexdigest():
+                    raise ValueError('Previously projected Journal record changed')
+            payloads.append(payload)
+        header = payloads[0]
+        if Path(header.get('cwd','')).resolve() != Path(project_root).resolve():
+            raise ValueError('Journal project binding changed')
+        observed = [p['event'] for r,p in zip(records,payloads) if r.get('type') == 'observation' and
+            isinstance(p.get('event'),dict) and p['event'].get('turn_id') == engine_turn_id]
+        intents, finished = set(), set()
+        if observed:
+            result['basis_scope'] = 'turn'
+            for event in observed:
+                identity = event.get('execution_id')
+                if not identity:
+                    continue
+                if event['event_type'] == 'tool.intent':
+                    intents.add(identity)
+                elif event['event_type'] == 'tool.finished' and event['attributes'].get('result') != 'indeterminate':
+                    finished.add(identity)
+        else:
+            # Legacy rows have no Engine turn binding: retain journal scope explicitly.
+            for record, payload in zip(records,payloads):
+                identity = (record.get('turn_id',''), payload.get('tool_call_id'))
+                if not identity[1]:
+                    continue
+                if record.get('type') == 'tool_started':
+                    intents.add(identity)
+                elif record.get('type') == 'tool_completed' and payload.get('status') != 'indeterminate':
+                    finished.add(identity)
+        unmatched = [str(x[1] if isinstance(x,tuple) else x)[:200] for x in sorted(intents-finished)]
+        result.update(state='partial_tail' if partial else 'complete', records=len(records), intent_count=len(intents),
+            unmatched_intents=unmatched[:100], history_gap=len(unmatched)>100)
+        return result
+    except FileNotFoundError:
+        return result
+    except (OSError, ValueError, TypeError, KeyError, SessionError):
+        return {**result, 'state': 'invalid'}

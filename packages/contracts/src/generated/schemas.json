@@ -1647,6 +1647,29 @@
       ],
       "timeout_query": "repeat_read"
     },
+    "recovery.inspect": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 65536,
+      "mutation": false,
+      "request_schema": "recovery.inspect.request",
+      "result_schema": "recovery.inspect.result",
+      "test_refs": [
+        "tests/implementation/integration/test_recovery.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
     "sandbox.cleanup_status": {
       "audience": "renderer",
       "cancellation": "none",
@@ -13021,6 +13044,294 @@
           ],
           "type": "object"
         },
+        "recovery.inspect.request": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "turn_id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "turn_id"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "attempt_id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "attempt_id"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "recovery.inspect.result": {
+          "additionalProperties": false,
+          "properties": {
+            "artifacts": {
+              "additionalProperties": false,
+              "properties": {
+                "history_gap": {
+                  "type": "boolean"
+                },
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "artifact_id": {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+                        "type": "string"
+                      },
+                      "sha256": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      "size": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "state": {
+                        "enum": [
+                          "valid",
+                          "missing",
+                          "changed"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "artifact_id",
+                      "sha256",
+                      "size",
+                      "state"
+                    ],
+                    "type": "object"
+                  },
+                  "maxItems": 100,
+                  "type": "array"
+                },
+                "scope": {
+                  "enum": [
+                    "profile",
+                    "attempt"
+                  ]
+                }
+              },
+              "required": [
+                "scope",
+                "items",
+                "history_gap"
+              ],
+              "type": "object"
+            },
+            "blockers": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 16,
+              "type": "array"
+            },
+            "cancel_state": {
+              "enum": [
+                "none",
+                "requested",
+                "confirmed",
+                "indeterminate"
+              ]
+            },
+            "cleanup_state": {
+              "enum": [
+                "pending",
+                "running",
+                "clean",
+                "residual",
+                "unknown"
+              ]
+            },
+            "deadline_status": {
+              "enum": [
+                "expired",
+                "unverified"
+              ]
+            },
+            "engine_epoch": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+              "type": "string"
+            },
+            "journal": {
+              "additionalProperties": false,
+              "properties": {
+                "basis_scope": {
+                  "enum": [
+                    "journal",
+                    "turn"
+                  ]
+                },
+                "history_gap": {
+                  "type": "boolean"
+                },
+                "intent_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "projected_records": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "records": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "state": {
+                  "enum": [
+                    "complete",
+                    "partial_tail",
+                    "unavailable",
+                    "invalid",
+                    "not_started"
+                  ]
+                },
+                "unmatched_intents": {
+                  "items": {
+                    "maxLength": 200,
+                    "type": "string"
+                  },
+                  "maxItems": 100,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "state",
+                "records",
+                "projected_records",
+                "intent_count",
+                "unmatched_intents",
+                "history_gap",
+                "basis_scope"
+              ],
+              "type": "object"
+            },
+            "observed_at_utc": {
+              "format": "date-time",
+              "maxLength": 64,
+              "type": "string"
+            },
+            "owner_epoch": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "process_ownership": {
+              "enum": [
+                "unverified_historical",
+                "not_started",
+                "live_engine_only",
+                "cleanup_confirmed"
+              ]
+            },
+            "startup_observation_id": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "enum": [
+                "queued",
+                "running",
+                "cancel_requested",
+                "reconciling",
+                "finished"
+              ]
+            },
+            "target": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "turn",
+                    "attempt"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "id"
+              ],
+              "type": "object"
+            },
+            "unknown_side_effects": {
+              "type": "boolean"
+            },
+            "work_item_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*-[0-9a-f-]{36}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "target",
+            "work_item_id",
+            "state",
+            "engine_epoch",
+            "owner_epoch",
+            "observed_at_utc",
+            "startup_observation_id",
+            "unknown_side_effects",
+            "process_ownership",
+            "cleanup_state",
+            "cancel_state",
+            "deadline_status",
+            "journal",
+            "artifacts",
+            "blockers"
+          ],
+          "type": "object"
+        },
         "sandbox.cleanup_status.request": {
           "additionalProperties": false,
           "properties": {
@@ -15178,6 +15489,16 @@
         "cache_write_per_million"
       ],
       "type": "object"
+    },
+    "recovery.inspect.request": {
+      "$id": "urn:forgecode:contracts:v1:recovery.inspect.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/recovery.inspect.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "recovery.inspect.result": {
+      "$id": "urn:forgecode:contracts:v1:recovery.inspect.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/recovery.inspect.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "rpc-request": {
       "$id": "urn:forgecode:contracts:v1:rpc-request",

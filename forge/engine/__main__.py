@@ -17,6 +17,7 @@ def main(argv=None):
     parser.add_argument('--profile', choices=('desktop', 'cli', 'test', 'evaluation'), default='desktop')
     parser.add_argument('--profile-id')
     parser.add_argument('--principal', choices=('main', 'renderer'), default='main')
+    parser.add_argument('--main-owner-pid',type=int,help='Trusted Main parent identity for private desktop lifecycle')
     parser.add_argument('--execution-mode', choices=('strict', 'local-trusted'), default='strict')
     parser.add_argument('--scripted-fixture', type=Path)
     parser.add_argument('--interactive-approvals', action='store_true')
@@ -46,7 +47,11 @@ def main(argv=None):
         import os
         msvcrt.setmode(input_descriptor, os.O_BINARY)
         msvcrt.setmode(output_descriptor, os.O_BINARY)
+    parent_lease=None
     try:
+        if args.main_owner_pid is not None:
+            from forge.engine.parent_watch import ParentLease
+            parent_lease=ParentLease.open(args.main_owner_pid)
         # A dependency accidentally printing cannot corrupt the protocol pipe.
         with redirect_stdout(sys.stderr):
             from forge.application.harness_adapter import LocalTrustedBackend
@@ -72,11 +77,14 @@ def main(argv=None):
                     adapter=HarborAdapter(args.evaluation_benchmark,taskset_root=args.evaluation_taskset,
                         source_root=args.evaluation_source) if args.evaluation_benchmark else None
                     service.evaluation_executor=HarborExecutor(service,adapter=adapter)
-                return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile, interactive_approvals=args.interactive_approvals), principal=args.principal).run(input_descriptor, output_descriptor))
+                return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile, interactive_approvals=args.interactive_approvals), principal=args.principal,parent_lease=parent_lease).run(input_descriptor, output_descriptor))
     except Exception as error:
         print(json.dumps({'status': 'blocked', 'exception_type': type(error).__name__,
                           'kind': str(getattr(error, 'kind', 'INDETERMINATE'))}), file=sys.stderr)
         return 2
+    finally:
+        if parent_lease is not None:
+            parent_lease.close()
 
 
 if __name__ == '__main__':

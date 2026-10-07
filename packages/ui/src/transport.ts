@@ -49,6 +49,7 @@ export interface DesktopOperations {
   session(id: string): Promise<SessionSnapshot>;
   sessions(value: SessionListRequest): Promise<SessionListResult>;
   sessionSnapshot(value: SessionSnapshotRequest): Promise<SessionSnapshotResult>;
+  recoveryInspect(value: EvaluationContract.RecoveryInspectRequest): Promise<EvaluationContract.RecoveryInspectResult>;
   createSession(value: SessionCreateDefaultRequest): Promise<SessionCreateDefaultResult>;
   submit(value: SessionSubmitRequest): Promise<SessionSubmitResult>;
   files(value: WorkspaceFilesRequest): Promise<WorkspaceFilesResult>;
@@ -114,6 +115,7 @@ export class DesktopTransport implements DesktopOperations {
   session(id: string) { return this.bridge().session(id); }
   sessions(value: SessionListRequest) { return this.bridge().sessions(value); }
   sessionSnapshot(value: SessionSnapshotRequest) { return this.bridge().sessionSnapshot(value); }
+  recoveryInspect(value: EvaluationContract.RecoveryInspectRequest) { return this.bridge().recoveryInspect(value); }
   createSession(value: SessionCreateDefaultRequest) { return this.bridge().createSession(value); }
   submit(value: SessionSubmitRequest) { return this.bridge().submit(value); }
   files(value: WorkspaceFilesRequest) { return this.bridge().files(value); }

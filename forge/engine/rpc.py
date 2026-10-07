@@ -115,7 +115,8 @@ def start_reader(descriptor, inbound, loop, stopped):
 
 
 class RpcServer:
-    def __init__(self, methods, *, principal='main'):
+    def __init__(self, methods, *, principal='main',parent_lease=None):
+        self.parent_lease=parent_lease
         self.methods = methods
         self.principal = principal
         self.inbound = asyncio.Queue(maxsize=128)
@@ -234,12 +235,19 @@ class RpcServer:
                 return
             self.output_ready.set()
 
+    async def _watch_parent(self):
+        await self.parent_lease.wait()
+        self.methods.begin_shutdown('cancel','Main process exited; live parent handle signalled')
+        self.work_ready.set()
+        await self.inbound.put(EOF)
+
     async def run(self, input_descriptor, output_descriptor):
         writer = PipeWriter(output_descriptor)
         start_reader(input_descriptor, self.inbound, asyncio.get_running_loop(), self.reader_stopped)
         writing = asyncio.create_task(self._write(writer))
         pumping = asyncio.create_task(self._events())
         scheduling = asyncio.create_task(self.scheduler.run())
+        parent_watch=asyncio.create_task(self._watch_parent()) if self.parent_lease else None
         self.methods.service.exporter.start()
         try:
             while not self.methods.stopping:
@@ -282,7 +290,7 @@ class RpcServer:
         finally:
             self.closed = True
             self.reader_stopped.set()
-            remaining = (pumping, scheduling, writing, *tuple(self.deferred))
+            remaining = (pumping, scheduling, writing, *tuple(self.deferred), *((parent_watch,) if parent_watch else ()))
             for task in remaining:
                 if not task.done():
                     task.cancel()

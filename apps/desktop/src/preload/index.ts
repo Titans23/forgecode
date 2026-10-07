@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('forgeDesktop', Object.freeze({
   session: (sessionId: string) => ipcRenderer.invoke('forge:session', { session_id: sessionId }),
   sessions: (value: unknown) => ipcRenderer.invoke('forge:sessions', value),
   sessionSnapshot: (value: unknown) => ipcRenderer.invoke('forge:session-snapshot', value),
+  recoveryInspect: (value: unknown) => ipcRenderer.invoke('forge:recovery-inspect', value),
   createSession: (value: unknown) => ipcRenderer.invoke('forge:create-session', value),
   submit: (value: unknown) => ipcRenderer.invoke('forge:submit', value),
   files: (value: unknown) => ipcRenderer.invoke('forge:files', value),

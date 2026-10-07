@@ -84,5 +84,10 @@ export async function probeWorkspace(window: BrowserWindow, engine: EngineSuperv
   await js(`Array.from(document.querySelectorAll('button')).find(button=>button.textContent==='取消任务').click()`);
   await until(`document.querySelector('[data-testid=turn-outcome]')?.textContent==='cancelled'`);
   check('gui-cancel-real-turn-preserves-files', (await readFile(resolve(project,'calculator.py'))).equals(preserved));
+  await js(`document.querySelector('[data-testid=inspect-recovery]').click()`);
+  await until(`!!document.querySelector('[data-testid=recovery-report]')`);
+  check('actual-readonly-recovery-report',await js(`document.querySelector('[data-testid=recovery-report]').textContent.includes('Journal')&&document.querySelector('[data-testid=recovery-report]').textContent.includes('清理 clean')`));
+  const recovered=await engine.call('recovery.inspect',{turn_id:(await engine.call('session.get',{session_id:(await js('window.forgeDesktop.status()')).session_id})).turns.at(-1).turn_id});
+  check('actual-recovery-preserves-cancelled-result',recovered.state==='finished'&&recovered.cleanup_state==='clean'&&recovered.cancel_state==='confirmed');
   return checks;
 }

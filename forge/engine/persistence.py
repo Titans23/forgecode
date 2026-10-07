@@ -428,8 +428,17 @@ class Store:
             self.connection.execute('INSERT INTO event_conflicts VALUES(?,?,?,?,?,?,?)',
                 (new_id('conflict'), body['event_id'], source_id, source_seq, row[0] if row else 'missing', incoming, utc_now()))
 
+    def cleanup_blocked(self):
+        """Terminal business state never proves historical resource cleanup."""
+        return bool(self.connection.execute("SELECT 1 FROM turn_lifecycle l JOIN work_items w ON w.business_id=l.turn_id "
+            "WHERE l.cleanup_state!='clean' AND (w.state='finished' OR (w.owner_epoch IS NOT NULL AND w.owner_epoch!=?)) LIMIT 1", (self.epoch,)).fetchone()
+            or self.connection.execute("SELECT 1 FROM attempts a JOIN attempt_details d ON d.attempt_id=a.id JOIN work_items w ON w.id=d.work_item_id "
+            "WHERE a.cleanup_state!='clean' AND (w.state='finished' OR (w.owner_epoch IS NOT NULL AND w.owner_epoch!=?)) LIMIT 1", (self.epoch,)).fetchone())
+
     def claim_work_item(self, work_item_id, *, expected_version, emit_turn_event=False):
         with self.transaction():
+            if self.cleanup_blocked():
+                raise ContractError('Previous cleanup remains unconfirmed', kind='INDETERMINATE', code=-32010)
             if self.connection.execute("SELECT 1 FROM work_items WHERE state='reconciling' LIMIT 1").fetchone():
                 raise ContractError('Previous execution requires reconciliation', kind='INDETERMINATE', code=-32010)
             if self.connection.execute("SELECT 1 FROM work_items WHERE state='running' LIMIT 1").fetchone():
