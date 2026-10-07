@@ -1638,8 +1638,12 @@
       "title": "Renderer 崩溃／重载，Main 和 Engine 仍运行",
       "source": "V3",
       "baseline_expectation": "恢复快照和游标，不重复执行任务",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F25",
       "required_platforms": [
         "windows",
@@ -1648,14 +1652,26 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
     },
     {
       "id": "D09",
@@ -1893,8 +1909,12 @@
       "title": "Main 被强制终止",
       "source": "V3",
       "baseline_expectation": "Engine／后端处理 EOF 与受管进程；残留／未知可追溯",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F25",
       "required_platforms": [
         "windows",
@@ -1903,22 +1923,37 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
     },
     {
       "id": "D16",
       "title": "Engine 在有副作用操作中崩溃",
       "source": "V3",
       "baseline_expectation": "重启先对账，不盲目重放或覆盖用户文件",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F25",
       "required_platforms": [
         "windows",
@@ -1927,14 +1962,26 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
     },
     {
       "id": "D17",
@@ -1977,8 +2024,12 @@
       "title": "系统睡眠后超过任务期限再恢复",
       "source": "V3",
       "baseline_expectation": "期限重新核对，不增加执行预算",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/unit/test_recovery_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F25",
       "required_platforms": [
         "windows",
@@ -1987,14 +2038,26 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
     },
     {
       "id": "D19",
@@ -2644,8 +2707,11 @@
       "title": "相同业务通过 DesktopTransport 与 HttpTransport",
       "source": "V3",
       "baseline_expectation": "契约／授权／状态语义一致，API 不是两套内核",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_http_adapter.py",
+        "tests/implementation/unit/test_web_contracts.py"
+      ],
+      "status": "blocked",
       "owner_task": "F26",
       "required_platforms": [
         "windows",
@@ -2654,22 +2720,35 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ]
     },
     {
       "id": "D36",
       "title": "同配置确定性任务使用 CLI 与 Desktop",
       "source": "V3",
       "baseline_expectation": "执行和成绩一致或差异有证据；无 UI 额外隐式权限",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_application.py"
+      ],
+      "status": "blocked",
       "owner_task": "F26",
       "required_platforms": [
         "windows",
@@ -2678,14 +2757,25 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ]
     },
     {
       "id": "D37",
@@ -2723,8 +2813,10 @@
       "title": "旧 CLI 或第二 Engine 试图写同一持久目录",
       "source": "V3",
       "baseline_expectation": "锁／导入策略明确，未适配旧入口限制被披露",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_compatibility.py"
+      ],
+      "status": "blocked",
       "owner_task": "F26",
       "required_platforms": [
         "windows",
@@ -2733,14 +2825,25 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ]
     },
     {
       "id": "D39",
@@ -3414,19 +3517,34 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/integration/test_desktop_supervisor.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
     },
     {
       "id": "N22",
@@ -3437,19 +3555,34 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
     },
     {
       "id": "N23",
@@ -3459,15 +3592,26 @@
       "required_platforms": [
         "portable"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_gates.py",
+        "tests/implementation/unit/test_ci.py"
+      ],
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261007T094158Z-06aa2a42"
+          ],
+          "reason": "Actual current-source gate/workflow behavior tests passed in unit189; this verifies refusal logic, not supported native product acceptance."
         }
-      }
+      },
+      "development_evidence_ids": [
+        "20261007T094158Z-06aa2a42",
+        "20261007T094233Z-03fcb104",
+        "20261007T094141Z-77705e45"
+      ]
     },
     {
       "id": "N24",

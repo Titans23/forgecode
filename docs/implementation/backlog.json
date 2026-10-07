@@ -1620,12 +1620,35 @@
         "CI 能阻止伪通过，不因 runner 无权限自动降低 required。"
       ],
       "verification_suites": [
+        "contracts",
+        "quality",
         "unit",
-        "portable"
+        "portable",
+        "security",
+        "regression"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T091102Z-09daf086",
+        "20261007T091102Z-8e6ff43d",
+        "20261007T091106Z-512c382e",
+        "20261007T091120Z-317eb14b",
+        "20261007T091154Z-e2bdc90c",
+        "20261007T091959Z-48b1a686",
+        "20261007T092514Z-5ce746ae",
+        "20261007T092514Z-d94d90b3",
+        "20261007T092518Z-06d14b37",
+        "20261007T092531Z-c0a5d09c",
+        "20261007T092604Z-72934450",
+        "20261007T093411Z-97bca409",
+        "20261007T094141Z-120a6785",
+        "20261007T094141Z-77705e45",
+        "20261007T094145Z-f0087cfb",
+        "20261007T094158Z-06aa2a42",
+        "20261007T094233Z-03fcb104",
+        "20261007T095022Z-ac0916fa"
+      ],
       "case_ids": [
         "N23"
       ]

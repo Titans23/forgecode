@@ -35,7 +35,9 @@ def test_real_engine_wait_is_queryable_and_only_exact_main_grant_runs_tool(tmp_p
             if decision == 'restart':
                 binding = {'approval_id': approval['approval_id'], 'binding_hash': approval['binding_hash']}
                 await send(process, 'approval.prepare_decision', binding, request_id='prepare')
-                token = (await receive(process, wanted_id='prepare'))['result']['confirmation_token']
+                prepared = await receive(process, wanted_id='prepare')
+                assert 'result' in prepared, prepared
+                token = prepared['result']['confirmation_token']
                 await stop(process)
                 process = await launch(tmp_path, fixture, interactive_approvals=True)
                 assert (await initialize(process))['result']['readiness']['status'] == 'blocked'
@@ -48,7 +50,9 @@ def test_real_engine_wait_is_queryable_and_only_exact_main_grant_runs_tool(tmp_p
             if decision == 'approve':
                 binding = {'approval_id': approval['approval_id'], 'binding_hash': approval['binding_hash']}
                 await send(process, 'approval.prepare_decision', binding, request_id='prepare')
-                token = (await receive(process, wanted_id='prepare'))['result']['confirmation_token']
+                prepared = await receive(process, wanted_id='prepare')
+                assert 'result' in prepared, prepared
+                token = prepared['result']['confirmation_token']
                 params = {**binding, 'client_action_id': new_id('act'), 'confirmation_token': token, 'decision': 'approve'}
                 await send(process, 'approval.decide', {**params, 'confirmation_token': 'forged' + 'a' * 40}, request_id='forged')
                 assert (await receive(process, wanted_id='forged'))['error']['data']['kind'] == 'UNAUTHORIZED'

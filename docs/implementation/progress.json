@@ -1,8 +1,8 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "08ec4ccbaf55f3a8db6e561e24b1df4ae3303724",
-  "next_recommended_task": "F29",
+  "actual_repository_head": "779d74aa19aad7d083191b69e367e42f77eedd7a",
+  "next_recommended_task": "F30",
   "current_task": null,
   "tasks": {
     "F00": {
@@ -670,13 +670,45 @@
       "blocked_reasons": []
     },
     "F29": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "unit": "not_run",
-        "portable": "not_run"
+        "contracts": "pass",
+        "quality": "pass",
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "security": "blocked",
+        "native_ci": "blocked",
+        "github_hosted_matrix": "not_run",
+        "protected_runner_policy": "blocked",
+        "live_model": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261007T091102Z-09daf086",
+        "20261007T091102Z-8e6ff43d",
+        "20261007T091106Z-512c382e",
+        "20261007T091120Z-317eb14b",
+        "20261007T091154Z-e2bdc90c",
+        "20261007T091959Z-48b1a686",
+        "20261007T092514Z-5ce746ae",
+        "20261007T092514Z-d94d90b3",
+        "20261007T092518Z-06d14b37",
+        "20261007T092531Z-c0a5d09c",
+        "20261007T092604Z-72934450",
+        "20261007T093411Z-97bca409",
+        "20261007T094141Z-120a6785",
+        "20261007T094141Z-77705e45",
+        "20261007T094145Z-f0087cfb",
+        "20261007T094158Z-06aa2a42",
+        "20261007T094233Z-03fcb104",
+        "20261007T095022Z-ac0916fa"
+      ],
+      "blocked_reasons": [
+        "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
+        "GitHub protected environments/reviewers/branch policies and dedicated native runner configuration have not been verified; hosted Actions matrix has not yet run.",
+        "Actual npm official audit records 2 high affected dependency entries; GHSA-86w9-cpqp-85rv remains unresolved. Production release is blocked.",
+        "Administrator SRT setup, production signing/project LICENSE and paid model experiments are not authorized/provided."
+      ]
     },
     "F30": {
       "implementation_status": "todo",

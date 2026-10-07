@@ -601,7 +601,7 @@
     },
     {
       "path": "forge/runtime/workspace.py",
-      "sha256": "63fd66c860396320ff471af1f930f4ee4a1db931749ff19dae78baeba577448c"
+      "sha256": "4dbce2a725122409fbdd5f14ccea557bea335e39b45dc644ecfb8a47d845c413"
     },
     {
       "path": "forge/sandbox/__init__.py",

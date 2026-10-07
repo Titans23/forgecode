@@ -1,6 +1,14 @@
 # ForgeCode V4 交接 — 2026-10-07
 
-- F27 已实现；最终测试父 HEAD 08ec4ccbaf55f3a8db6e561e24b1df4ae3303724，提交／推送 SHA 以实际 git HEAD／远端核对。下一 F29：读取 tasks/F29.md 与规范21/22/24。
+- F29 已通过当前源码验证；提交／推送 SHA 以实际 git HEAD／remote 核验。下一任务 F30，依赖 F12/F17/F18/F25 全 implemented，任务卡和规范9/14/17已读。
+  测试父 HEAD 779d74aa19aad7d083191b69e367e42f77eedd7a；source 722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa / dirty 1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225。
+  contracts2 / quality4 / unit189 / portable341 / regression1274 pass，0 skip/failure/error；本机 fresh CI gate pass。最终6份 evidence 20261007T094141Z-120a6785 / 20261007T094145Z-f0087cfb / 20261007T094158Z-06aa2a42 / 20261007T094233Z-03fcb104 / 20261007T095022Z-ac0916fa / 20261007T094141Z-77705e45，全部18份历史保留并核对真实报告。
+  已修复 gate 对零测试/skip/unknown verdict 的 false pass、当前 HEAD/平台/源码证据绑定、实际锁文件/type/AST/secret/workflow检查；真实 Git 子工作区误读父仓库导致审批 STALE_REVISION 的2项 before fail / 36项 after pass，未放宽审批限制。
+  security actual exit2 blocked（2 high）；GitHub Actions尚未跑，protected environment/reviewers/runner外部配置未核验；native/signing/LICENSE/admin/paid实验不宣称通过。事实索引 evidence/F29-ci-observations.json。
+  F30 已在 ignored .local 独立准备11项真实 Harness/files/TCP候选：before7 fail/4 pass（4行为缺陷+3尚未支持的capability接口）。修复草稿 .local/F30-prepared.patch，尚未写入生产源码；原报告和 hashes .local/F30-prepared-index.json。不得把准备测试当当前产品通过；F30开始后逐项修复/回归。
+
+
+- F27 已推送 779d74aa19aad7d083191b69e367e42f77eedd7a，本地／远端 SHA 已核对。F29 当前实施中：已读任务卡／规范21/22/24，先复现 gate 零测试／skip 伪通过，再补 CI、实际证据复算与安全门禁。F27 最终测试父 HEAD 08ec4ccbaf55f3a8db6e561e24b1df4ae3303724。
   final dirty/source 3a9cf621a750d9a0bd7d9523c72431f9d76a762d6b7d9c65218f568b11936a32。unit160 / portable341 / regression1245 pass，0 skip/failure/error；frozen9 / development66 / installed readonly preview4 / actual installer maker1 pass。
   build v4-f27-08ec4cc-win-x64；manifest SHA 7a89b7187824fd73999ccfdc8b1d42c445d2e61eab3aff62c58eb7a47d0f356f；1860 files / 87 frozen Python distributions / 119 components / 147 license files。
   最终10份 evidence：20261007T045603Z-77e5a97d / 20261007T083904Z-e08a09a3 / 20261007T084739Z-f2a68093 / 20261007T084926Z-6b3ab489 / 20261007T085013Z-844215b0 / 20261007T085101Z-86488a82 / 20261007T085304Z-5c4b0e50 / 20261007T085305Z-9f595b5e / 20261007T085317Z-1601a869 / 20261007T083904Z-d1139af0；此前10份正式历史（含 desktop38 fail）保留。中断的 04:56 portable/regression 无完成报告，不算 pass；恢复后核对进程并补跑。

@@ -5603,7 +5603,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "30ab70fb454ba6edba633bcd1321dfe177e9269072cfdf9c91fbc199d0f8163d"
+      "sha256": "699f7490e314e95139efce3905186673eec70d6ecfcc80bbf2f7778f1dd0ad8a"
     },
     {
       "path": "packages/contracts/dist/browser.d.ts",

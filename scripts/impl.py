@@ -20,6 +20,8 @@ import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from scripts.evidence_gate import source_fingerprint, evaluate_gate
 DOCS = ROOT / 'docs' / 'implementation'
 SYMBOLS = {
     'cli': ('forge/cli.py', ['main', 'create_session_runtime', 'render_streamed_turn']),
@@ -43,7 +45,7 @@ SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'regression': ['tests'], 'packaged': [],
           'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
 SUITES['benchmark-harbor']=[]
-for name in ('engine-packaged','installer-windows','installer-linux'):SUITES[name]=[]
+for name in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security'):SUITES[name]=[]
 TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F15': ['unit', 'portable', 'desktop', 'desktop-packaged']}
 TASK_SUITES['F16'] = ['unit', 'portable', 'desktop', 'desktop-packaged']
 TASK_SUITES['F17'] = ['unit', 'portable']
@@ -57,6 +59,7 @@ TASK_SUITES['F24'] = ['unit', 'portable','desktop','desktop-packaged']
 TASK_SUITES['F25'] = ['unit', 'portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
 TASK_SUITES['F26'] = ['unit','portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
 TASK_SUITES['F27']=['unit','portable','engine-packaged','desktop','desktop-packaged','installer-windows','installer-linux','sandbox-linux','sandbox-windows']
+TASK_SUITES['F29']=['contracts','quality','unit','portable','security']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -97,6 +100,7 @@ CASE_TESTS.update({case:['tests/implementation/integration/test_release_upgrade.
 CASE_TESTS.update({case:['scripts/make_installer.py','scripts/engine_packaged_smoke.py','scripts/desktop_packaged_smoke.py']
     for case in ('D01','D02')})
 
+CASE_TESTS['N23']=['tests/implementation/unit/test_gates.py','tests/implementation/unit/test_ci.py']
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
@@ -248,11 +252,13 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
     native = suite in ('sandbox-linux', 'sandbox-windows')
-    grouped=suite in ('engine-packaged','installer-windows','installer-linux')
+    grouped=suite in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security')
     report_path = output / ('packaging.json' if grouped else f'native-{suite.removeprefix("sandbox-")}.json' if native else 'harbor-probe.json' if suite=='benchmark-harbor' else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
     unavailable = SUITES[suite] is None
     if unavailable:
         argv = []
+    elif suite in ('contracts','quality','security'):
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/ci_checks.py'),'--suite',suite,'--output',str(report_path)]
     elif grouped:
         argv=[sys.executable,'-X','utf8',str(ROOT/('scripts/engine_packaged_smoke.py' if suite=='engine-packaged' else 'scripts/make_installer.py')),'--output',str(report_path)]
         if suite.startswith('installer-'):argv+=['--target','win32-x64' if suite=='installer-windows' else 'linux-x64']
@@ -293,6 +299,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         if (source_directory and path.suffix in {'.py', '.ts', '.mts', '.tsx', '.css', '.html', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
+    source_inventory_hash=source_fingerprint(ROOT)
     with (output / 'stdout.log').open('w', encoding='utf-8') as stdout, (output / 'stderr.log').open('w', encoding='utf-8') as stderr:
         if unavailable:
             exit_code = 1
@@ -306,11 +313,11 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                         exit_code = prepared.returncode
                         break
                 if not exit_code:
-                    result = subprocess.run(argv, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=900)
+                    result = subprocess.run(argv, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=1800 if suite=='regression' else 900)
                     exit_code = result.returncode
             except subprocess.TimeoutExpired:
                 exit_code = 1
-                stderr.write('Verification exceeded 900 seconds.\n')
+                stderr.write(f'Verification exceeded {1800 if suite=="regression" else 900} seconds.\n')
     if unavailable:
         status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
     elif (suite in ('packaged', 'desktop', 'desktop-packaged','benchmark-harbor') or native or grouped) and report_path.is_file():
@@ -330,15 +337,18 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
     case_ids = ({'engine-packaged':['D01','D40','N17','N18'],
-                    'installer-windows':['D01'],'installer-linux':['D02']}[suite] if grouped else
+                    'installer-windows':['D01'],'installer-linux':['D02'],'quality':['N23'],'contracts':['N04'],'security':['N23']}[suite] if grouped else
                     (['C10', 'C11', 'C12'] if suite == 'sandbox-linux' else
                     ['C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07']) if native else [case for case, refs in CASE_TESTS.items()
                     if suite not in ('packaged',) and SUITES[suite] and any(Path(ref).name.startswith('test_') and
                         any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)])
+    if source_fingerprint(ROOT)!=source_inventory_hash:
+        status='fail'
+        counts['reason']='Repository source changed during verification; rerun the suite'
     evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
                 'task_id': task_id, 'case_ids':case_ids,
                 'suite': suite, 'git_commit': head,
-                'dirty_hash': dirty_hash, 'platform': sys.platform, 'os_build': platform.platform(),
+                'dirty_hash': dirty_hash, 'source_inventory_hash':source_inventory_hash, 'platform': sys.platform, 'os_build': platform.platform(),
                 'dependency_lock_hash': lock_hashes, 'command': argv, 'start': started,
                 'preparation_commands': preparation_commands,
                 'end': datetime.now(timezone.utc).isoformat(), 'exit_code': exit_code,
@@ -351,34 +361,8 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     return evidence
 
 
-def gate(name: str) -> dict:
-    progress = json.loads((DOCS / 'progress.json').read_text(encoding='utf-8'))
-    incomplete = [task for task, state in progress['tasks'].items() if state['implementation_status'] != 'implemented']
-    missing_evidence = []
-    unverified = []
-    for task, state in progress['tasks'].items():
-        if state['implementation_status'] != 'implemented':
-            continue
-        if any(status in ('fail', 'not_run') for status in state.get('verification', {}).values()):
-            unverified.append(task)
-        for evidence_id in state['evidence_ids']:
-            path = DOCS / 'evidence' / (evidence_id + '.json')
-            if not path.is_file():
-                missing_evidence.append(evidence_id)
-                continue
-            evidence = json.loads(path.read_text(encoding='utf-8'))
-            report = (ROOT / evidence['report_ref']).resolve()
-            if not report.is_relative_to(ROOT) or not report.is_file() or sha256(report.read_bytes()).hexdigest() != evidence['report_hash']:
-                missing_evidence.append(evidence_id)
-            if evidence.get('status') == 'fail' or (evidence.get('status') == 'pass' and evidence.get('exit_code') != 0):
-                unverified.append(task)
-        if not state['evidence_ids']:
-            missing_evidence.append(task)
-    blockers = {task: state['blocked_reasons'] for task, state in progress['tasks'].items() if state['blocked_reasons']}
-    return {'status': 'fail' if incomplete or missing_evidence or unverified else 'blocked' if name == 'release' and blockers else 'pass',
-            'gate': name, 'incomplete_tasks': incomplete, 'missing_or_changed_evidence': missing_evidence,
-            'failed_or_unverified_tasks': sorted(set(unverified)),
-            'blocked_dependencies': blockers if name == 'release' else {}}
+def gate(name: str, evidence_ids=None) -> dict:
+    return evaluate_gate(ROOT, name, evidence_ids)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -393,7 +377,8 @@ def main(argv: list[str] | None = None) -> int:
     contract_parser = subs.add_parser('contracts', help='Generate shared contracts or check drift')
     contract_parser.add_argument('--check', action='store_true')
     gate_parser = subs.add_parser('gate', help='Check implementation or release evidence without running tasks')
-    gate_parser.add_argument('--name', choices=['implementation', 'release'], required=True)
+    gate_parser.add_argument('--name', choices=['implementation', 'release', 'ci'], required=True)
+    gate_parser.add_argument('--evidence-id', action='append', help='Fresh CI verifier IDs; never infer success from historical checkout reports')
     verify_parser = subs.add_parser('verify', help='Run registered real tests and save evidence')
     selection = verify_parser.add_mutually_exclusive_group(required=True)
     selection.add_argument('--suite', choices=sorted(SUITES))
@@ -414,7 +399,7 @@ def main(argv: list[str] | None = None) -> int:
             result = subprocess.run([sys.executable, str(ROOT / 'scripts/check_contracts.py'), *(['--check'] if args.check else [])], cwd=ROOT)
             return result.returncode
         elif args.command == 'gate':
-            report = gate(args.name)
+            report = gate(args.name, args.evidence_id)
         else:
             if args.task:
                 if args.task not in TASK_SUITES:

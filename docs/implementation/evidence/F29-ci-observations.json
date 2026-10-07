@@ -1,0 +1,534 @@
+{
+  "schema_version": "forge.implementation.facts.v1",
+  "task_id": "F29",
+  "tested_parent_commit": "779d74aa19aad7d083191b69e367e42f77eedd7a",
+  "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa",
+  "tested_dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+  "scope": "Windows 10 development; real offline tools/Harness/stdio; zero public model calls",
+  "final_evidence_ids": [
+    "20261007T094141Z-120a6785",
+    "20261007T094145Z-f0087cfb",
+    "20261007T094158Z-06aa2a42",
+    "20261007T094233Z-03fcb104",
+    "20261007T095022Z-ac0916fa",
+    "20261007T094141Z-77705e45"
+  ],
+  "final_evidence": [
+    {
+      "evidence_id": "20261007T094141Z-120a6785",
+      "task_id": "F29",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_ref": ".local/implementation/20261007T094141Z-120a6785/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "start": "2026-10-07T09:41:41.086859+00:00",
+      "end": "2026-10-07T09:41:45.007652+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094141Z-77705e45",
+      "task_id": null,
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1274,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T094141Z-77705e45/junit.xml",
+      "report_hash": "9869e7d69ea1d8cc045249161544c0ecae0a06ef780c0a641d74cfd087b5b385",
+      "start": "2026-10-07T09:41:41.296538+00:00",
+      "end": "2026-10-07T09:52:45.926914+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094145Z-f0087cfb",
+      "task_id": "F29",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_ref": ".local/implementation/20261007T094145Z-f0087cfb/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "start": "2026-10-07T09:41:45.009654+00:00",
+      "end": "2026-10-07T09:41:58.586178+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094158Z-06aa2a42",
+      "task_id": "F29",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 189,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T094158Z-06aa2a42/junit.xml",
+      "report_hash": "7a3882e17ab9d23e290cd8627262d5208d8df0c1b828ef62c52da1b081383532",
+      "start": "2026-10-07T09:41:58.588180+00:00",
+      "end": "2026-10-07T09:42:33.918851+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094233Z-03fcb104",
+      "task_id": "F29",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 341,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T094233Z-03fcb104/junit.xml",
+      "report_hash": "084a1aaac603d528cd77194c565823115be76e0a598356096419c2b96466d31a",
+      "start": "2026-10-07T09:42:33.921462+00:00",
+      "end": "2026-10-07T09:50:22.569934+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T095022Z-ac0916fa",
+      "task_id": "F29",
+      "suite": "security",
+      "status": "blocked",
+      "tests": {
+        "reason": "Unresolved locked dependency vulnerabilities",
+        "checks": 1
+      },
+      "report_ref": ".local/implementation/20261007T095022Z-ac0916fa/packaging.json",
+      "report_hash": "a92b0cbb790b18ec219a617f40868bed3c8d100c2c4285689dfe5f577fae606e",
+      "start": "2026-10-07T09:50:22.572016+00:00",
+      "end": "2026-10-07T09:50:27.387619+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    }
+  ],
+  "actual_reports_revalidated": 18,
+  "history": [
+    {
+      "evidence_id": "20261007T091102Z-09daf086",
+      "task_id": null,
+      "suite": "regression",
+      "status": "fail",
+      "tests": {
+        "collected": 1272,
+        "skipped": 0,
+        "failures": 2,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T091102Z-09daf086/junit.xml",
+      "report_hash": "fffde0a948b46a9b290dc2bb8cbea875665211ab82fe0f9ba5bbb43ca5c1b031",
+      "start": "2026-10-07T09:11:02.696560+00:00",
+      "end": "2026-10-07T09:22:28.614122+00:00",
+      "dirty_hash": "84a95cfcbb1378077fcf8fa40ac8dc48bde25add989a74d9db669ab9a8b74fd6",
+      "source_inventory_hash": "296cbba284ac5f1c59d05e2ecc5482a06e9e57df5a890ee50ca1e840ab95f969"
+    },
+    {
+      "evidence_id": "20261007T091102Z-8e6ff43d",
+      "task_id": "F29",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_ref": ".local/implementation/20261007T091102Z-8e6ff43d/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "start": "2026-10-07T09:11:02.918047+00:00",
+      "end": "2026-10-07T09:11:06.702853+00:00",
+      "dirty_hash": "84a95cfcbb1378077fcf8fa40ac8dc48bde25add989a74d9db669ab9a8b74fd6",
+      "source_inventory_hash": "296cbba284ac5f1c59d05e2ecc5482a06e9e57df5a890ee50ca1e840ab95f969"
+    },
+    {
+      "evidence_id": "20261007T091106Z-512c382e",
+      "task_id": "F29",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_ref": ".local/implementation/20261007T091106Z-512c382e/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "start": "2026-10-07T09:11:06.704855+00:00",
+      "end": "2026-10-07T09:11:20.101895+00:00",
+      "dirty_hash": "84a95cfcbb1378077fcf8fa40ac8dc48bde25add989a74d9db669ab9a8b74fd6",
+      "source_inventory_hash": "296cbba284ac5f1c59d05e2ecc5482a06e9e57df5a890ee50ca1e840ab95f969"
+    },
+    {
+      "evidence_id": "20261007T091120Z-317eb14b",
+      "task_id": "F29",
+      "suite": "unit",
+      "status": "fail",
+      "tests": {
+        "collected": 187,
+        "skipped": 0,
+        "failures": 1,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T091120Z-317eb14b/junit.xml",
+      "report_hash": "5f6027a465c9cfee795ed56949c32cabd7d11ca26b284e6053ad62445d3f0f2c",
+      "start": "2026-10-07T09:11:20.104425+00:00",
+      "end": "2026-10-07T09:11:54.380470+00:00",
+      "dirty_hash": "84a95cfcbb1378077fcf8fa40ac8dc48bde25add989a74d9db669ab9a8b74fd6",
+      "source_inventory_hash": "296cbba284ac5f1c59d05e2ecc5482a06e9e57df5a890ee50ca1e840ab95f969"
+    },
+    {
+      "evidence_id": "20261007T091154Z-e2bdc90c",
+      "task_id": "F29",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 341,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T091154Z-e2bdc90c/junit.xml",
+      "report_hash": "9e300b629121082dfeb35d62dd56cb27363453f9d1cc60b1d7cf5214e04b4893",
+      "start": "2026-10-07T09:11:54.382470+00:00",
+      "end": "2026-10-07T09:19:59.241524+00:00",
+      "dirty_hash": "84a95cfcbb1378077fcf8fa40ac8dc48bde25add989a74d9db669ab9a8b74fd6",
+      "source_inventory_hash": "296cbba284ac5f1c59d05e2ecc5482a06e9e57df5a890ee50ca1e840ab95f969"
+    },
+    {
+      "evidence_id": "20261007T091959Z-48b1a686",
+      "task_id": "F29",
+      "suite": "security",
+      "status": "blocked",
+      "tests": {
+        "reason": "Unresolved locked dependency vulnerabilities",
+        "checks": 1
+      },
+      "report_ref": ".local/implementation/20261007T091959Z-48b1a686/packaging.json",
+      "report_hash": "68c66d8598b5478c15c0c3bdf7d9297073477af566f8182ba75e24ac2512e34d",
+      "start": "2026-10-07T09:19:59.243524+00:00",
+      "end": "2026-10-07T09:20:04.074757+00:00",
+      "dirty_hash": "84a95cfcbb1378077fcf8fa40ac8dc48bde25add989a74d9db669ab9a8b74fd6",
+      "source_inventory_hash": "296cbba284ac5f1c59d05e2ecc5482a06e9e57df5a890ee50ca1e840ab95f969"
+    },
+    {
+      "evidence_id": "20261007T092514Z-5ce746ae",
+      "task_id": "F29",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_ref": ".local/implementation/20261007T092514Z-5ce746ae/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "start": "2026-10-07T09:25:14.256923+00:00",
+      "end": "2026-10-07T09:25:18.236426+00:00",
+      "dirty_hash": "7fde863213ddc825374b747a3d0fef749d3f79fb84436422d7a058d332197756",
+      "source_inventory_hash": "31dd9ef3e19c6a4fba8ea345cb401ce6f98b0a54a1a0e769fadfdd270864683d"
+    },
+    {
+      "evidence_id": "20261007T092514Z-d94d90b3",
+      "task_id": null,
+      "suite": "regression",
+      "status": "fail",
+      "tests": {
+        "collected": 1272,
+        "skipped": 0,
+        "failures": 1,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T092514Z-d94d90b3/junit.xml",
+      "report_hash": "f43a95399af3bf2579ab8ac94d8394f6a967d88a91ad44b3ecce9d78d7a78cc1",
+      "start": "2026-10-07T09:25:14.256923+00:00",
+      "end": "2026-10-07T09:36:40.923798+00:00",
+      "dirty_hash": "7fde863213ddc825374b747a3d0fef749d3f79fb84436422d7a058d332197756",
+      "source_inventory_hash": "31dd9ef3e19c6a4fba8ea345cb401ce6f98b0a54a1a0e769fadfdd270864683d"
+    },
+    {
+      "evidence_id": "20261007T092518Z-06d14b37",
+      "task_id": "F29",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_ref": ".local/implementation/20261007T092518Z-06d14b37/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "start": "2026-10-07T09:25:18.238427+00:00",
+      "end": "2026-10-07T09:25:31.689962+00:00",
+      "dirty_hash": "7fde863213ddc825374b747a3d0fef749d3f79fb84436422d7a058d332197756",
+      "source_inventory_hash": "31dd9ef3e19c6a4fba8ea345cb401ce6f98b0a54a1a0e769fadfdd270864683d"
+    },
+    {
+      "evidence_id": "20261007T092531Z-c0a5d09c",
+      "task_id": "F29",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 187,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T092531Z-c0a5d09c/junit.xml",
+      "report_hash": "39b96271c16cc6f7442c4daf0d53dbcf34f48311f785a01d395cc1ada42e7cba",
+      "start": "2026-10-07T09:25:31.691964+00:00",
+      "end": "2026-10-07T09:26:04.598677+00:00",
+      "dirty_hash": "7fde863213ddc825374b747a3d0fef749d3f79fb84436422d7a058d332197756",
+      "source_inventory_hash": "31dd9ef3e19c6a4fba8ea345cb401ce6f98b0a54a1a0e769fadfdd270864683d"
+    },
+    {
+      "evidence_id": "20261007T092604Z-72934450",
+      "task_id": "F29",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 341,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T092604Z-72934450/junit.xml",
+      "report_hash": "ca24930de7e416b604d6a95e0cedcd8617af2b8c9bf0baadb4b2df83d3b40578",
+      "start": "2026-10-07T09:26:04.600678+00:00",
+      "end": "2026-10-07T09:34:11.832172+00:00",
+      "dirty_hash": "7fde863213ddc825374b747a3d0fef749d3f79fb84436422d7a058d332197756",
+      "source_inventory_hash": "31dd9ef3e19c6a4fba8ea345cb401ce6f98b0a54a1a0e769fadfdd270864683d"
+    },
+    {
+      "evidence_id": "20261007T093411Z-97bca409",
+      "task_id": "F29",
+      "suite": "security",
+      "status": "blocked",
+      "tests": {
+        "reason": "Unresolved locked dependency vulnerabilities",
+        "checks": 1
+      },
+      "report_ref": ".local/implementation/20261007T093411Z-97bca409/packaging.json",
+      "report_hash": "edbb4c793609d25dd6dd5f8feb3fd9f42e88c72bdd70d5fd7036e40496a7c01f",
+      "start": "2026-10-07T09:34:11.834172+00:00",
+      "end": "2026-10-07T09:34:16.686135+00:00",
+      "dirty_hash": "7fde863213ddc825374b747a3d0fef749d3f79fb84436422d7a058d332197756",
+      "source_inventory_hash": "31dd9ef3e19c6a4fba8ea345cb401ce6f98b0a54a1a0e769fadfdd270864683d"
+    },
+    {
+      "evidence_id": "20261007T094141Z-120a6785",
+      "task_id": "F29",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_ref": ".local/implementation/20261007T094141Z-120a6785/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "start": "2026-10-07T09:41:41.086859+00:00",
+      "end": "2026-10-07T09:41:45.007652+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094141Z-77705e45",
+      "task_id": null,
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1274,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T094141Z-77705e45/junit.xml",
+      "report_hash": "9869e7d69ea1d8cc045249161544c0ecae0a06ef780c0a641d74cfd087b5b385",
+      "start": "2026-10-07T09:41:41.296538+00:00",
+      "end": "2026-10-07T09:52:45.926914+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094145Z-f0087cfb",
+      "task_id": "F29",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_ref": ".local/implementation/20261007T094145Z-f0087cfb/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "start": "2026-10-07T09:41:45.009654+00:00",
+      "end": "2026-10-07T09:41:58.586178+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094158Z-06aa2a42",
+      "task_id": "F29",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 189,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T094158Z-06aa2a42/junit.xml",
+      "report_hash": "7a3882e17ab9d23e290cd8627262d5208d8df0c1b828ef62c52da1b081383532",
+      "start": "2026-10-07T09:41:58.588180+00:00",
+      "end": "2026-10-07T09:42:33.918851+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T094233Z-03fcb104",
+      "task_id": "F29",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 341,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T094233Z-03fcb104/junit.xml",
+      "report_hash": "084a1aaac603d528cd77194c565823115be76e0a598356096419c2b96466d31a",
+      "start": "2026-10-07T09:42:33.921462+00:00",
+      "end": "2026-10-07T09:50:22.569934+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    },
+    {
+      "evidence_id": "20261007T095022Z-ac0916fa",
+      "task_id": "F29",
+      "suite": "security",
+      "status": "blocked",
+      "tests": {
+        "reason": "Unresolved locked dependency vulnerabilities",
+        "checks": 1
+      },
+      "report_ref": ".local/implementation/20261007T095022Z-ac0916fa/packaging.json",
+      "report_hash": "a92b0cbb790b18ec219a617f40868bed3c8d100c2c4285689dfe5f577fae606e",
+      "start": "2026-10-07T09:50:22.572016+00:00",
+      "end": "2026-10-07T09:50:27.387619+00:00",
+      "dirty_hash": "1aee3b2a0141bae42b96d1e566a68cc95531dced4d43ca9aa540649dd4e35225",
+      "source_inventory_hash": "722e3acb06fe54791898705fb7c5872eeba318657fc440c83ce7e241d9dc08aa"
+    }
+  ],
+  "behavior_probes": [
+    {
+      "report_ref": ".local/F29-gate-before.xml",
+      "report_hash": "b35c608e15ca925aa9c73dd8eef161a27149b1f2425659200d29449f71f5bf69",
+      "tests": 9,
+      "failures": 6,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-gate-after.xml",
+      "report_hash": "1626caa21ca3f1364140963ae0a51c3c18c3a4a9da5f072922234b20213a6d13",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-unknown-verdict-before.xml",
+      "report_hash": "76c6203732dc391655451d9c80f7bf789aa55645ef3b6573deb347cf81a00479",
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-focused-final.xml",
+      "report_hash": "c02f7d4030b09c8dc38f0acedd872737e4722ba6def3ed6617b76587a4c369b3",
+      "tests": 27,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-after-compatibility.xml",
+      "report_hash": "fdf984e70eebb0735388b38d2ffbd2af4da6fe6c9d053f084934212a95a50759",
+      "tests": 33,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-approval-deep-reprobe.xml",
+      "report_hash": "d0b611363d830727319757a74d10daaf538ed5353266de5e61d1d84e36cd3a0e",
+      "tests": 3,
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-approval-deep-reprobe-after-setup.xml",
+      "report_hash": "785da579d3ccaf275c6b0faea896d46fb55608729a885f211a2361b9b57ecf9a",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-workspace-scope-before.xml",
+      "report_hash": "dabd53f23f302a2d934ff4dbda96aba745bc2ea8750e2bbd6197568c63ab6dfb",
+      "tests": 2,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "report_ref": ".local/F29-workspace-scope-after.xml",
+      "report_hash": "509fb4e58b07886a3b2e7daaf3de76aa43f8b658f3aad7e0e33c112e65e7c46e",
+      "tests": 36,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "ci_gate": {
+    "report_ref": ".local/F29-ci-gate-final-fixed.json",
+    "status": "pass",
+    "gate": "ci",
+    "incomplete_tasks": [],
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [],
+    "selected_evidence_ids": [
+      "20261007T094141Z-120a6785",
+      "20261007T094145Z-f0087cfb",
+      "20261007T094158Z-06aa2a42",
+      "20261007T094233Z-03fcb104"
+    ]
+  },
+  "approval_regression": {
+    "actual_repeat_error": "STALE_REVISION instead of UNAUTHORIZED for forged nonce",
+    "cause": "Git status discovered parent repository and counted unrelated new evidence as a workspace revision",
+    "fix": "Explicit selected-workspace pathspec and status.relativePaths=true short NUL-delimited records; no approval revision or nonce relaxation",
+    "before": "2 real Git behavior failures",
+    "after": "36 focused real workspace/Engine behavior tests and full1274 regression passed"
+  },
+  "blocked_reasons": [
+    "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
+    "GitHub protected environments/reviewers/branch policies and dedicated native runner configuration have not been verified; hosted Actions matrix has not yet run.",
+    "Actual npm official audit records 2 high affected dependency entries; GHSA-86w9-cpqp-85rv remains unresolved. Production release is blocked.",
+    "Administrator SRT setup, production signing/project LICENSE and paid model experiments are not authorized/provided."
+  ],
+  "paid_model_calls": 0,
+  "github_matrix_status": "not_run"
+}
+

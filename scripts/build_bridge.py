@@ -67,7 +67,7 @@ def main():
     release = json.loads(lock_path.read_text(encoding='utf-8'))
     asset = {'name': 'bridge-runtime-manifest', 'platform': 'all',
              'path': manifest.relative_to(ROOT).as_posix(), 'sha256': sha256(encoded).hexdigest(),
-             'source': 'ForgeCode locked runtime code inventory', 'license': 'Apache-2.0', 'patches': []}
+             'source': 'ForgeCode locked runtime code inventory', 'license': 'NOASSERTION', 'patches': []}
     if args.check:
         if manifest.read_bytes() != encoded or asset not in release['assets']:
             raise ValueError('Bridge runtime inventory differs from the actual compiled/dependency bytes')

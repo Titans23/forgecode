@@ -1,0 +1,77 @@
+name: Portable contracts and integration
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: portable-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12.13'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: '0.12.5'
+      - run: uv sync --locked --all-groups --all-extras
+      - run: npm ci
+      - if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum uv run --locked python scripts/ci_run.py --layer portable
+      - if: runner.os == 'Windows'
+        run: uv run --locked python scripts/ci_run.py --layer portable
+      - name: Retain actual reports on success or failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: portable-${{ matrix.os }}
+          path: |
+            .local/ci/
+            .local/implementation/*/*.xml
+            .local/implementation/*/*.json
+            .local/implementation/*/*.log
+            docs/implementation/evidence/
+          if-no-files-found: error
+          retention-days: 14
+  dependency-security:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12.13'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.21.0'
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: '0.12.5'
+      - run: uv sync --locked --all-groups --all-extras
+      - run: npm ci
+      - run: uv run --locked python scripts/impl.py verify --suite security
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: actual-dependency-security
+          path: |
+            .local/implementation/*/*.json
+            .local/implementation/*/*.log
+            docs/implementation/evidence/
+          if-no-files-found: error

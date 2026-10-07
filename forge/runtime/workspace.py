@@ -201,11 +201,15 @@ class WorkspaceTracker:
             result = await run_process(
                 [
                     'git',
+                    '-c',
+                    'status.relativePaths=true',
                     'status',
-                    '--porcelain=v1',
+                    '--short',
                     '-z',
                     '--untracked-files=all',
                     '--ignored=no',
+                    '--',
+                    '.',
                 ],
                 cwd=self.root,
                 timeout_seconds=30,
@@ -295,7 +299,7 @@ def changed_paths(
 
 
 def parse_porcelain_paths(output: str) -> tuple[str, ...]:
-    '''Extract paths from ``git status --porcelain=v1 -z`` output.'''
+    '''Extract NUL-delimited paths from Git's two-column short status.'''
     records = output.split('\0')
     paths: list[str] = []
     index = 0

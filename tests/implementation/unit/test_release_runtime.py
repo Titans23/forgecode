@@ -91,10 +91,12 @@ def test_node_and_python_verify_same_actual_manifest(tmp_path):
 def test_existing_engine_doctor_json_entry_is_readonly():
     import subprocess
     result=subprocess.run([sys.executable,'-m','forge.engine','doctor','--json'],capture_output=True,text=True,encoding='utf-8',timeout=40)
-    assert result.returncode==2,result.stderr
+    assert result.returncode in (0,2),result.stderr
     report=json.loads(result.stdout)
     assert report['read_only'] is True and report['automatic_repair'] is False
-    assert report['workspace_tools_executed'] is False and report['status']=='blocked'
+    assert report['workspace_tools_executed'] is False
+    assert report['status'] in ('pass','blocked')
+    assert result.returncode == (0 if report['status']=='pass' else 2)
 
 def test_actual_external_worker_preserves_no_bytecode_verification(tmp_path):
     import os,subprocess

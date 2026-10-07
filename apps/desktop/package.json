@@ -11,7 +11,8 @@
     "build:main": "tsc -p tsconfig.main.json",
     "typecheck": "tsc -p tsconfig.main.json --noEmit",
     "start": "node ../../scripts/start_desktop.mjs",
-    "package": "electron-forge package"
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
   "dependencies": {"@forgecode/contracts": "0.1.2", "electron-squirrel-startup": "1.0.1"},
   "devDependencies": {"electron": "44.5.1"}

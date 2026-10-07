@@ -5,6 +5,11 @@
   "workspaces": ["packaging/smoke", "apps/*", "packages/*", "sandbox_bridge"],
   "engines": {"node": ">=22.13.0"},
   "scripts": {
+    "lint": "python scripts/quality.py",
+    "dev:desktop": "npm run start --workspace @forgecode/desktop",
+    "build:desktop": "python scripts/build_desktop.py",
+    "make:desktop": "npm run make --workspace @forgecode/desktop",
+    "test:desktop": "python scripts/impl.py verify --suite desktop",
     "contracts:check": "node packaging/check-contracts.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "release:check": "node packaging/verify-release.mjs",

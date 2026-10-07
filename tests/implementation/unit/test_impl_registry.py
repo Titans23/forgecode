@@ -28,7 +28,7 @@ def test_unknown_and_unimplemented_task_commands_cannot_pass(monkeypatch, capsys
 
 def test_implementation_gate_requires_all_tasks_and_untampered_evidence(tmp_path, monkeypatch):
     impl = load_impl()
-    docs = tmp_path / 'docs'
+    docs = tmp_path / 'docs' / 'implementation'
     (docs / 'evidence').mkdir(parents=True)
     state = {'tasks': {'F00': {'implementation_status': 'implemented', 'evidence_ids': ['test'], 'blocked_reasons': []},
                        'F01': {'implementation_status': 'todo', 'evidence_ids': [], 'blocked_reasons': []}}}
