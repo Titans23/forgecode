@@ -1,5 +1,6 @@
 """Generate runtime schemas and TypeScript types from contracts/v1; --check is read-only."""
 import argparse
+from hashlib import sha256
 import json
 from pathlib import Path
 import re
@@ -88,7 +89,7 @@ def generated_files():
                         '$ref': schemas['event-payloads']['$id'] + '#/$defs/' + name}
     bundle = {'schema_version': 'forge.generated.contracts.v1', 'methods': methods, 'bridge_methods': bridge, 'events': events, 'schemas': schemas}
     encoded = json.dumps(bundle, ensure_ascii=False, sort_keys=True, indent=2) + '\n'
-    declarations = [HEADER, 'export type JSONValue = null | boolean | number | string | JSONValue[] | { [key: string]: JSONValue };\n']
+    declarations = [HEADER, 'export const MANIFEST_HASH = '+json.dumps(sha256(encoded.encode('utf-8')).hexdigest())+' as const;\n', 'export type JSONValue = null | boolean | number | string | JSONValue[] | { [key: string]: JSONValue };\n']
     for name, schema in sorted(schemas.items()):
         if name in ('method-payloads', 'bridge-payloads', 'event-payloads') or name.endswith(('.request', '.result')) or name.startswith('event.'):
             continue

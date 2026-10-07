@@ -9,7 +9,7 @@ import sys
 from forge.application.models import ContractError
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(sys.executable).resolve().parents[2] if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[2]
 
 
 def unavailable(message):
@@ -45,6 +45,15 @@ class TrustedRuntime:
 
 def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
     root = root.resolve(strict=True)
+    if (root/'release-manifest.json').is_file() and (root/'engine').is_dir():
+        from forge.release.runtime import verify_manifest, verify_asset as installed_asset
+        try:
+            manifest=verify_manifest(root)
+            return TrustedRuntime(root,installed_asset(root,manifest['node']),installed_asset(root,manifest['bridge']),
+                sha256((root/'release-manifest.json').read_bytes()).hexdigest())
+        except (OSError,ValueError,KeyError,TypeError):
+            unavailable('Installed runtime group is unavailable or invalid')
+    if getattr(sys,'frozen',False): unavailable('Installed runtime group is required')
     try:
         lock = json.loads((root / 'release-lock.json').read_text(encoding='utf-8'))
         if lock.get('resolution_status') != 'resolved':

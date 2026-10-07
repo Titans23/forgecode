@@ -1373,8 +1373,12 @@
       "title": "Windows 安装版无需用户安装 ForgeCode 自身 Python／Node 即可启动；项目依赖另作诊断",
       "source": "V3",
       "baseline_expectation": "真实干净系统，不能用开发环境 PATH 蒙混",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "scripts/make_installer.py",
+        "scripts/engine_packaged_smoke.py",
+        "scripts/desktop_packaged_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F27",
       "required_platforms": [
         "windows"
@@ -1382,9 +1386,23 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0",
+          "20261007T085101Z-86488a82"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -1392,8 +1410,12 @@
       "title": "Linux deb 在声明系统上安装、启动并运行打包 Engine",
       "source": "V3",
       "baseline_expectation": "记录系统库、桌面、X11／Wayland 与依赖",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "scripts/make_installer.py",
+        "scripts/engine_packaged_smoke.py",
+        "scripts/desktop_packaged_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F27",
       "required_platforms": [
         "linux"
@@ -1401,9 +1423,19 @@
       "release_required": true,
       "platform_verification": {
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e",
+            "20261007T085304Z-5c4b0e50"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "blocked",
+        "evidence_ids": [],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -1487,8 +1519,11 @@
       "title": "打包 sidecar、Bridge 或可信 manifest 被修改",
       "source": "V3",
       "baseline_expectation": "完整性／真实性校验不通过，禁止启动受影响组件",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F27",
       "required_platforms": [
         "windows",
@@ -1497,13 +1532,29 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -2375,8 +2426,10 @@
       "title": "运行中触发升级",
       "source": "V3",
       "baseline_expectation": "不替换正在使用的 Engine／Bridge，明确排空或取消",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_release_upgrade.py"
+      ],
+      "status": "blocked",
       "owner_task": "F27",
       "required_platforms": [
         "windows",
@@ -2385,13 +2438,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T083904Z-e08a09a3"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -2425,8 +2492,11 @@
       "title": "更新来源、签名或校验值不匹配",
       "source": "V3",
       "baseline_expectation": "拒绝更新，不能只信同源 hash 文本",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F27",
       "required_platforms": [
         "windows",
@@ -2435,13 +2505,29 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -2449,8 +2535,10 @@
       "title": "卸载且项目／数据仍在，系统 SRT 可能被其他程序共用",
       "source": "V3",
       "baseline_expectation": "不删除项目，敏感全局卸载需归属检测与授权",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_release_upgrade.py"
+      ],
+      "status": "blocked",
       "owner_task": "F27",
       "required_platforms": [
         "windows",
@@ -2459,13 +2547,27 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T083904Z-e08a09a3"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -2669,8 +2771,11 @@
       "title": "打包环境启动外部 Python／Git／Node 及长实验回放",
       "source": "V3",
       "baseline_expectation": "无私有库污染，整棵进程树开销与事件完整性可测",
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
       "owner_task": "F27",
       "required_platforms": [
         "windows",
@@ -2679,13 +2784,29 @@
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -3147,18 +3268,37 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -3170,18 +3310,37 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {
@@ -3193,18 +3352,34 @@
         "windows",
         "linux"
       ],
-      "implementation_test_refs": [],
-      "status": "not_run",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_release_upgrade.py"
+      ],
+      "status": "blocked",
       "release_required": true,
       "platform_verification": {
         "windows": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
         },
         "linux": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
         }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T083904Z-e08a09a3"
+        ],
+        "eligible_for_native_pass": false
       }
     },
     {

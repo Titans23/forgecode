@@ -43,6 +43,7 @@ SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'regression': ['tests'], 'packaged': [],
           'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
 SUITES['benchmark-harbor']=[]
+for name in ('engine-packaged','installer-windows','installer-linux'):SUITES[name]=[]
 TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F15': ['unit', 'portable', 'desktop', 'desktop-packaged']}
 TASK_SUITES['F16'] = ['unit', 'portable', 'desktop', 'desktop-packaged']
 TASK_SUITES['F17'] = ['unit', 'portable']
@@ -55,6 +56,7 @@ TASK_SUITES['F23'] = ['unit', 'portable','desktop','desktop-packaged']
 TASK_SUITES['F24'] = ['unit', 'portable','desktop','desktop-packaged']
 TASK_SUITES['F25'] = ['unit', 'portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
 TASK_SUITES['F26'] = ['unit','portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
+TASK_SUITES['F27']=['unit','portable','engine-packaged','desktop','desktop-packaged','installer-windows','installer-linux','sandbox-linux','sandbox-windows']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -89,6 +91,11 @@ CASE_TESTS.update({case:['tests/implementation/integration/test_bundles.py'] for
 CASE_TESTS['D35']=['tests/implementation/integration/test_http_adapter.py','tests/implementation/unit/test_web_contracts.py']
 CASE_TESTS['D36']=['tests/implementation/integration/test_application.py']
 CASE_TESTS['D38']=['tests/implementation/integration/test_compatibility.py']
+CASE_TESTS.update({case:['tests/implementation/unit/test_release_runtime.py','scripts/engine_packaged_smoke.py']
+    for case in ('D05','D31','D40','N17','N18')})
+CASE_TESTS.update({case:['tests/implementation/integration/test_release_upgrade.py'] for case in ('D29','D32','N19')})
+CASE_TESTS.update({case:['scripts/make_installer.py','scripts/engine_packaged_smoke.py','scripts/desktop_packaged_smoke.py']
+    for case in ('D01','D02')})
 
 
 class Parser(argparse.ArgumentParser):
@@ -241,10 +248,14 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
     native = suite in ('sandbox-linux', 'sandbox-windows')
-    report_path = output / (f'native-{suite.removeprefix("sandbox-")}.json' if native else 'harbor-probe.json' if suite=='benchmark-harbor' else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
+    grouped=suite in ('engine-packaged','installer-windows','installer-linux')
+    report_path = output / ('packaging.json' if grouped else f'native-{suite.removeprefix("sandbox-")}.json' if native else 'harbor-probe.json' if suite=='benchmark-harbor' else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
     unavailable = SUITES[suite] is None
     if unavailable:
         argv = []
+    elif grouped:
+        argv=[sys.executable,'-X','utf8',str(ROOT/('scripts/engine_packaged_smoke.py' if suite=='engine-packaged' else 'scripts/make_installer.py')),'--output',str(report_path)]
+        if suite.startswith('installer-'):argv+=['--target','win32-x64' if suite=='installer-windows' else 'linux-x64']
     elif suite == 'packaged':
         argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
     elif native:
@@ -277,7 +288,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     for relative in sorted(set(source_files)):
         path = Path(relative)
         source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts'}
-        source_manifest = relative in {'.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
+        source_manifest = relative in {'release-manifest.json','.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
         fixture_input = relative.startswith('tests/implementation/fixtures/')
         if (source_directory and path.suffix in {'.py', '.ts', '.mts', '.tsx', '.css', '.html', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
@@ -302,14 +313,14 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                 stderr.write('Verification exceeded 900 seconds.\n')
     if unavailable:
         status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
-    elif (suite in ('packaged', 'desktop', 'desktop-packaged','benchmark-harbor') or native) and report_path.is_file():
+    elif (suite in ('packaged', 'desktop', 'desktop-packaged','benchmark-harbor') or native or grouped) and report_path.is_file():
         result_report = json.loads(report_path.read_text(encoding='utf-8'))
         status = result_report['status']
         counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status', 'scope', 'eligible_for_native_pass') if key in result_report}
         counts['checks'] = len(result_report.get('checks', []))
         if status == 'pass' and (exit_code != 0 or not counts['checks']):
             status = 'fail'
-        if suite in ('desktop', 'desktop-packaged') and status == 'pass' and any(check.get('status') != 'pass' for check in result_report.get('checks', [])):
+        if (suite in ('desktop', 'desktop-packaged') or grouped) and status == 'pass' and any(check.get('status') != 'pass' for check in result_report.get('checks', [])):
             status = 'fail'
         if native and status == 'pass' and (result_report.get('eligible_for_native_pass') is not True or
                 any(check.get('status') != 'pass' for check in result_report.get('checks', []))):
@@ -318,11 +329,14 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         status, counts = pytest_outcome(exit_code, report_path)
     lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
-    evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
-                'task_id': task_id, 'case_ids': (['C10', 'C11', 'C12'] if suite == 'sandbox-linux' else
+    case_ids = ({'engine-packaged':['D01','D40','N17','N18'],
+                    'installer-windows':['D01'],'installer-linux':['D02']}[suite] if grouped else
+                    (['C10', 'C11', 'C12'] if suite == 'sandbox-linux' else
                     ['C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07']) if native else [case for case, refs in CASE_TESTS.items()
                     if suite not in ('packaged',) and SUITES[suite] and any(Path(ref).name.startswith('test_') and
-                        any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)],
+                        any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)])
+    evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
+                'task_id': task_id, 'case_ids':case_ids,
                 'suite': suite, 'git_commit': head,
                 'dirty_hash': dirty_hash, 'platform': sys.platform, 'os_build': platform.platform(),
                 'dependency_lock_hash': lock_hashes, 'command': argv, 'start': started,

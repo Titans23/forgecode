@@ -55,11 +55,12 @@ class SrtBackend:
             inspect_path(str(self.control_root), absolute=True).assert_current()
             self.control_root.mkdir(parents=True, exist_ok=False)
             try:
-                self.process = await asyncio.create_subprocess_exec(str(runtime.node), str(runtime.entry),
-                    '--control-root', str(self.control_root), '--owner', json.dumps(self.owner, separators=(',', ':')),
+                from forge.release.processes import external_argv, external_options
+                self.process = await asyncio.create_subprocess_exec(*external_argv([str(runtime.node), str(runtime.entry),
+                    '--control-root', str(self.control_root), '--owner', json.dumps(self.owner, separators=(',', ':'))]),
                     cwd=str(runtime.root), env=bridge_environment(self.control_root),
                     stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                    limit=1048577)
+                    limit=1048577,**external_options())
             except OSError as error:
                 raise ContractError('Trusted Bridge could not start', kind='SANDBOX_UNAVAILABLE', code=-32010) from error
             self._reader = asyncio.create_task(self._read())

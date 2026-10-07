@@ -5635,11 +5635,11 @@
     },
     {
       "path": "packages/contracts/dist/generated/types.d.ts",
-      "sha256": "ac93f48aed1822373ba5ebd47842ec5dc00b2cb7e206012816453655d8ade214"
+      "sha256": "b7c7dfb29a6594fe5c57981f8565415189ed96539e10dc22a398a8a450f1e5fb"
     },
     {
       "path": "packages/contracts/dist/generated/types.js",
-      "sha256": "5234a6f84ee6da348c8a3f72548363066344ecf2ff148be769b2c923ec273e76"
+      "sha256": "33122b40879b35e6720f4d301af040930f410dfd0a431d9e0c7a4cdda583729f"
     },
     {
       "path": "packages/contracts/dist/index.d.ts",
@@ -5667,7 +5667,7 @@
     },
     {
       "path": "sandbox_bridge/dist/main.js",
-      "sha256": "cf08e736d68c35cd2e9f43c47dbbcb33837f9be3379d818a1655623e0d0b1499"
+      "sha256": "1ad510d686e92ee9ef847aa8b2d34cdcfe73e46dc240ea8e113ec147ed994e79"
     },
     {
       "path": "sandbox_bridge/dist/output.js",
@@ -5683,7 +5683,7 @@
     },
     {
       "path": "sandbox_bridge/dist/verify-native.js",
-      "sha256": "16c98332a0e167efd08d36750bbc8eaeab438f14029829b35c98940e3aac927f"
+      "sha256": "999ca7ffe9af7b7ae74e1d31fbbc64dcf7037d60b5f265054acb45e764b1b6fa"
     },
     {
       "path": "sandbox_bridge/dist/verify-windows.js",

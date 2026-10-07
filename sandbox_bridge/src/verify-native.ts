@@ -3,13 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer as httpServer } from 'node:http';
 import { createServer as socketServer } from 'node:net';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { canonicalHash, strictLoads, validate } from '@forgecode/contracts';
 import { SrtAdapter } from './srt-adapter.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const installed=basename(dirname(root))==='bridge';
 const checks: any[] = [];
 const check = (id: string, status: 'pass' | 'fail' | 'blocked', observations: any) => checks.push({ id, status, observations });
 const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -40,8 +41,16 @@ export async function verifyNative(platform: 'linux' | 'win32'): Promise<any> {
   const canary = randomUUID();
   await writeFile(resolve(paths.sensitive, 'secret.txt'), canary);
   await writeFile(resolve(paths.outside, 'untouched.txt'), 'original');
-  const lock = JSON.parse(await readFile(resolve(root, 'release-lock.json'), 'utf8'));
-  const assets = Object.fromEntries(lock.assets.filter((a: any) => ['all', `${platform}-x64`].includes(a.platform)).map((a: any) => [a.name, resolve(root, a.path)]));
+  let assets:Record<string,string>;
+  if(installed) {
+    const {verifyInstalled}=await import('../../packaging/verify-installed.mjs');
+    const resources=resolve(root,'../..'), manifest=await verifyInstalled(resources);
+    if(process.versions.node!==manifest.node_version)throw new Error('Installed native runtime mismatch');
+    assets=Object.fromEntries([{...manifest.node,name:'node'},...manifest.native_helpers].map((a:any)=>[a.name,resolve(resources,a.path)]));
+  } else {
+    const lock = JSON.parse(await readFile(resolve(root, 'release-lock.json'), 'utf8'));
+    assets = Object.fromEntries(lock.assets.filter((a: any) => ['all', `${platform}-x64`].includes(a.platform)).map((a: any) => [a.name, resolve(root, a.path)]));
+  }
   const output = new Map<string, Buffer[]>();
   const adapter = new SrtAdapter(root, paths.control, owner, assets, event => {
     const id = event.execution_id as string;

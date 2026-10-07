@@ -2,6 +2,8 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
+import { verifyInstalled } from '../../../../packaging/verify-installed.mjs';
+import { MANIFEST_HASH } from '@forgecode/contracts';
 import { verifyAsset, type Asset } from '../../../../packaging/verify-release.mjs';
 
 export type EngineLaunch = Readonly<{ executable: string; arguments: readonly string[]; cwd: string;
@@ -9,7 +11,7 @@ export type EngineLaunch = Readonly<{ executable: string; arguments: readonly st
 
 function environment(): Record<string, string> {
   const output: Record<string, string> = {};
-  for (const name of ['SystemRoot', 'windir', 'ProgramFiles', 'LOCALAPPDATA', 'HOME', 'TEMP', 'TMP', 'LANG']) {
+  for (const name of ['SystemRoot', 'windir', 'ProgramFiles', 'LOCALAPPDATA', 'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'TEMP', 'TMP', 'LANG']) {
     if (process.env[name]) output[name] = process.env[name]!;
   }
   // Project toolchains are inherited only through PATH; loader/config/key variables are absent.
@@ -45,7 +47,7 @@ export async function loadDevelopmentEngine(root: string, options: { dataDir: st
 
 export async function loadInstalledEngine(resources: string, dataDir: string): Promise<EngineLaunch> {
   if (!isAbsolute(resources) || !isAbsolute(dataDir)) throw new Error('Installed paths must be absolute');
-  const manifest = JSON.parse(await readFile(resolve(resources, 'release-manifest.json'), 'utf8'));
+  const manifest = await verifyInstalled(resources,{contractHash:MANIFEST_HASH});
   if (manifest.schema_version !== 'forge.release.manifest.v1' || !manifest.engine || !Array.isArray(manifest.engine_dependencies) || !manifest.engine_dependencies.length ||
       !/^engine\//.test(manifest.engine.path) || !/^[0-9a-f]{64}$/.test(manifest.contract_manifest_hash)) {
     throw new Error('Installed Engine manifest is incomplete');
@@ -62,7 +64,7 @@ export async function loadSetupRuntime(root: string, installed: boolean) {
   root = await realpath(root);
   let node: string, entry: string, manifestHash: string;
   if (installed) {
-    const manifest = JSON.parse(await readFile(resolve(root, 'release-manifest.json'), 'utf8'));
+    const manifest = await verifyInstalled(root,{contractHash:MANIFEST_HASH});
     if (!manifest.bridge || !manifest.node || !Array.isArray(manifest.bridge_dependencies) || !manifest.bridge_dependencies.length ||
         !/^bridge\//.test(manifest.bridge.path) || !/^runtimes\/node\//.test(manifest.node.path)) throw new Error('Installed setup assets are incomplete');
     for (const asset of manifest.bridge_dependencies) await verifyAsset(root, asset);

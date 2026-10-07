@@ -14,7 +14,7 @@ def verify(output):
     required = [resources / 'engine', resources / 'release-manifest.json']
     missing = [path.relative_to(ROOT).as_posix() for path in required if not path.exists()]
     if missing:
-        return {'status': 'blocked', 'reason': 'F28 fixed frozen Engine assembly is unavailable', 'missing_assets': missing,
+        return {'status': 'blocked', 'reason': 'Native fixed frozen Engine resource group is unavailable', 'missing_assets': missing,
             'eligible_for_native_pass': False, 'checks': []}
     npm = shutil.which('npm')
     if not npm:

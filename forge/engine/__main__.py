@@ -12,6 +12,22 @@ def main(argv=None):
     if arguments and arguments[0] == 'file-worker':
         from forge.sandbox.file_worker import main as worker_main
         return worker_main(arguments[1:])
+    if arguments and arguments[0] in ('process-worker','external-worker'):
+        from forge.release.processes import main as process_main
+        return process_main(arguments[1:],gated=arguments[0]=='process-worker')
+    if arguments and arguments[0]=='doctor':
+        from forge.sandbox.doctor import main as doctor_main
+        return doctor_main(arguments[1:])
+    if arguments and arguments[0]=='upgrade':
+        from forge.release.__main__ import main as upgrade_main
+        return upgrade_main(arguments[1:])
+    if arguments and arguments[0]=='cli':
+        from forge.cli import app
+        app(args=arguments[1:])
+        return 0
+    if arguments and arguments[0]=='office-mcp':
+        from forge.office.mcp_server import main as office_main
+        return office_main()
     parser = argparse.ArgumentParser(description='ForgeCode private JSONL Engine')
     parser.add_argument('--data-dir', required=True, type=Path)
     parser.add_argument('--profile', choices=('desktop', 'cli', 'test', 'evaluation'), default='desktop')

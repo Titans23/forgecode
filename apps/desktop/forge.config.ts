@@ -1,19 +1,22 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import path from 'node:path';
-import { access } from 'node:fs/promises';
+import { verifyInstalled } from '../../packaging/verify-installed.mjs';
 
 const resources = path.resolve(__dirname, '../../.local/desktop-resources');
 
 const config: ForgeConfig = {
   outDir: path.resolve(__dirname, '../../.local/desktop-packages'),
-  packagerConfig: { asar: true, extraResource: [path.join(__dirname, 'ui-assets.json'),
-    path.join(resources, 'engine'), path.join(resources, 'release-manifest.json')] },
+  packagerConfig: { asar: true, extraResource: [...['ui-assets.json','ui','client','contracts','engine','bridge','runtimes','native-helpers','licenses','sbom','release-manifest.json'].map(name=>path.join(resources,name))] },
   hooks: { prePackage: async () => {
-    try { await access(path.join(resources, 'engine')); await access(path.join(resources, 'release-manifest.json')); }
-    catch { throw new Error('Fixed frozen Engine release resources are unavailable; F28 assembly must complete before packaging.'); }
+    await verifyInstalled(resources);
+    if(process.platform==='linux') {
+      const {readFile}=await import('node:fs/promises');
+      const osRelease=await readFile('/etc/os-release','utf8');
+      if(!/^ID=ubuntu$/m.test(osRelease)||!/^VERSION_ID="?22\.04"?$/m.test(osRelease)) throw new Error('deb must build on the oldest supported Ubuntu 22.04 baseline');
+    }
   } },
-  makers: [{ name: '@electron-forge/maker-squirrel', platforms: ['win32'] },
-    { name: '@electron-forge/maker-deb', platforms: ['linux'] }],
+  makers: [{ name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: {name:'ForgeCode'} },
+    { name: '@electron-forge/maker-deb', platforms: ['linux'],config:{options:{maintainer:'ForgeCode contributors',homepage:'https://github.com/Titans23/forgecode'}} }],
   plugins: [{ name: '@electron-forge/plugin-vite', config: {
     build: [{ entry: 'src/main/index.ts', config: 'vite.main.config.mjs' },
       { entry: 'src/preload/index.ts', config: 'vite.preload.config.mjs' }],

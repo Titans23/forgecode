@@ -205,7 +205,7 @@ async function runPackagedInspection() {
 
 async function ready() {
   const root = app.isPackaged ? process.resourcesPath : resolve(app.getAppPath(), '../..');
-  const uiRoot = app.getAppPath();
+  const uiRoot = app.isPackaged ? process.resourcesPath : app.getAppPath();
   const uiManifest = JSON.parse(await readFile(resolve(app.isPackaged ? process.resourcesPath : app.getAppPath(), 'ui-assets.json'), 'utf8'));
   const browserSession = session.fromPartition('forge-desktop');
   browserSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));

@@ -65,11 +65,17 @@ def normalize_windows_status(status):
 
 
 def windows_status_diagnosis(runtime):
-    lock = json.loads((runtime.root / 'release-lock.json').read_text(encoding='utf-8'))
-    helper = runtime.root / next(item['path'] for item in lock['assets'] if item['name'] == 'srt-win' and item['platform'] == 'win32-x64')
     try:
+        from forge.release.processes import external_argv
+        if (runtime.root/'release-manifest.json').is_file():
+            from forge.release.runtime import verify_manifest,verify_asset
+            manifest=verify_manifest(runtime.root)
+            helper=verify_asset(runtime.root,next(a for a in manifest['native_helpers'] if a['name']=='srt-win'))
+        else:
+            lock = json.loads((runtime.root / 'release-lock.json').read_text(encoding='utf-8'))
+            helper = runtime.root / next(item['path'] for item in lock['assets'] if item['name'] == 'srt-win' and item['platform'] == 'win32-x64')
         with tempfile.TemporaryDirectory(prefix='forge-win-status-') as directory:
-            process = subprocess.run([str(helper), '--srt-win', 'status'], env=bridge_environment(Path(directory)),
+            process = subprocess.run(external_argv([str(helper), '--srt-win', 'status']), env=bridge_environment(Path(directory)),
                 capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
         if process.returncode or len(process.stdout) > 65536:
             raise ValueError('Status failed')
@@ -138,8 +144,10 @@ def system_diagnosis():
         except OSError:
             tools['pwsh'] = {'status': 'blocked', 'path': str(shell), 'reason': 'Fixed PowerShell 7 is unavailable'}
         host['system_volume'] = windows_volume(Path(environment['SystemRoot']))
+    from forge.release.toolchains import discover_toolchains
+    project_tools=discover_toolchains()
     return {'schema_version': 'forge.sandbox.diagnosis.v1', 'status': 'blocked', 'read_only': True,
-        'host': host, 'tools': tools, 'system_policy': system_policy, 'kernel_probe': kernel_probe, 'runtime': runtime_info,
+        'host': host, 'tools': tools, 'project_toolchains':project_tools, 'system_policy': system_policy, 'kernel_probe': kernel_probe, 'runtime': runtime_info,
         'windows_status': windows_status,
         'capabilities': unavailable_report(backend_version='0.0.78', reason='Native boundary verification has not run').value,
         'active_sessions': {'state': 'not_observed', 'count': None}, 'cleanup': {'state': 'not_observed'},
@@ -230,10 +238,16 @@ async def run_native_fixture(output, report, target, *, allowed_endpoint=None):
 
 
 async def run_native_process(runtime, directory, owner, report, target, options, lease):
-    process = await asyncio.create_subprocess_exec(str(runtime.node), str(runtime.root / f'sandbox_bridge/dist/verify-{target}.js'),
-        '--fixture', str(directory), '--owner', json.dumps(owner), cwd=runtime.root,
+    from forge.release.processes import external_argv, external_options
+    if (runtime.root/'release-manifest.json').is_file():
+        from forge.release.runtime import verify_manifest,verify_asset
+        manifest=verify_manifest(runtime.root)
+        entry=verify_asset(runtime.root,next(a for a in manifest['bridge_dependencies'] if a['path'].endswith(f'/sandbox_bridge/dist/verify-{target}.js')))
+    else:entry=runtime.root/f'sandbox_bridge/dist/verify-{target}.js'
+    process = await asyncio.create_subprocess_exec(*external_argv([str(runtime.node), str(entry),
+        '--fixture', str(directory), '--owner', json.dumps(owner)]), cwd=runtime.root,
         env=bridge_environment(directory / 'control'), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE, limit=1048577)
+        stderr=asyncio.subprocess.PIPE, limit=1048577,**external_options())
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(json.dumps(options).encode()), 120)
     except asyncio.TimeoutError:
@@ -260,6 +274,7 @@ async def run_native_process(runtime, directory, owner, report, target, options,
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--json',action='store_true',help='Emit the read-only diagnosis as JSON (also the default)')
     parser.add_argument('--system', action='store_true')
     parser.add_argument('--workspace', type=Path)
     parser.add_argument('--native-linux', action='store_true')

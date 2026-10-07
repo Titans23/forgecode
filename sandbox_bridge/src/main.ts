@@ -1,11 +1,13 @@
 /** Only Node builtins load before the installed code inventory is verified. */
 import { createHash } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const bridgeRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const installed = basename(dirname(bridgeRoot)) === 'bridge';
+const root = installed ? resolve(bridgeRoot, '../..') : bridgeRoot;
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 async function verified(asset: any): Promise<string> {
   if (!asset.path || isAbsolute(asset.path) || asset.path.includes('\\')) throw new Error('Invalid installed asset');
@@ -18,15 +20,25 @@ async function verified(asset: any): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const lock = JSON.parse(await readFile(resolve(root, 'release-lock.json'), 'utf8'));
-  const target = `${process.platform}-${process.arch}`;
-  if (lock.resolution_status !== 'resolved' || process.versions.node !== lock.node.version) throw new Error('Pinned runtime mismatch');
   const assets: Record<string, string> = {};
-  for (const asset of lock.assets.filter((item: any) => item.platform === 'all' || item.platform === target)) assets[asset.name] = await verified(asset);
-  if (assets.node !== await realpath(process.execPath) || !assets['bridge-runtime-manifest']) throw new Error('Missing trusted runtime assets');
-  const inventory = JSON.parse(await readFile(assets['bridge-runtime-manifest'], 'utf8'));
-  if (inventory.schema_version !== 'forge.bridge.runtime.v1' || inventory.files.length < 1) throw new Error('Invalid code inventory');
-  for (const asset of inventory.files) await verified(asset);
+  if (installed) {
+    const {verifyInstalled}=await import('../../packaging/verify-installed.mjs');
+    const manifest=await verifyInstalled(root);
+    if(process.versions.node!==manifest.node_version) throw new Error('Pinned installed Node mismatch');
+    if(await verified(manifest.node)!==await realpath(process.execPath)||
+        await realpath(resolve(root,manifest.bridge.path))!==await realpath(resolve(bridgeRoot,'entry.mjs'))) throw new Error('Installed runtime identity mismatch');
+    assets.node=await verified(manifest.node);
+    for(const helper of manifest.native_helpers)assets[helper.name]=await verified(helper);
+  } else {
+    const lock = JSON.parse(await readFile(resolve(root, 'release-lock.json'), 'utf8'));
+    const target = `${process.platform}-${process.arch}`;
+    if (lock.resolution_status !== 'resolved' || process.versions.node !== lock.node.version) throw new Error('Pinned runtime mismatch');
+    for (const asset of lock.assets.filter((item: any) => item.platform === 'all' || item.platform === target)) assets[asset.name] = await verified(asset);
+    if (assets.node !== await realpath(process.execPath) || !assets['bridge-runtime-manifest']) throw new Error('Missing trusted runtime assets');
+    const inventory = JSON.parse(await readFile(assets['bridge-runtime-manifest'], 'utf8'));
+    if (inventory.schema_version !== 'forge.bridge.runtime.v1' || inventory.files.length < 1) throw new Error('Invalid code inventory');
+    for (const asset of inventory.files) await verified(asset);
+  }
   const { strictLoads, validate, ContractError, BRIDGE_METHODS } = await import('@forgecode/contracts');
   if (process.argv.length === 4 && process.argv[2] === '--setup-action') {
     const { runWindowsSetup } = await import('./windows-adapter.js');
@@ -66,7 +78,7 @@ async function main(): Promise<void> {
     queue.push(Buffer.from(JSON.stringify({ protocol: 'forge.bridge.v1', ...value }) + '\n'));
     void pump(); return true;
   }
-  const adapter = new SrtAdapter(root, control, owner, assets, value => {
+  const adapter = new SrtAdapter(bridgeRoot, control, owner, assets, value => {
     validate('bridge-output', value);
     return send({ jsonrpc: '2.0', method: 'bridge.output', params: value }, false);
   });

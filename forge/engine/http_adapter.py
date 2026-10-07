@@ -6,6 +6,7 @@ import hmac
 import json
 from pathlib import Path
 import secrets
+import sys
 import time
 from urllib.parse import parse_qs
 
@@ -257,7 +258,10 @@ def main(argv=None):
         if args.profile!='test':
             from benchmark.adapters.harbor import HarborExecutor
             service.evaluation_executor=HarborExecutor(service)
-        root=Path(__file__).resolve().parents[2]/'apps/desktop'
+        if getattr(sys,'frozen',False):
+            from forge.release.runtime import installed_root
+            root=installed_root()
+        else:root=Path(__file__).resolve().parents[2]/'apps/desktop'
         adapter=HttpAdapter(EngineMethods(service,profile=args.profile),asset_root=root,asset_manifest=root/'ui-assets.json')
         async def run():
             try:

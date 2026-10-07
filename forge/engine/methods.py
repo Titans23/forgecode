@@ -119,7 +119,10 @@ class EngineMethods:
         if params['protocol']['major'] != 1 or params['expected_manifest_hash'] != manifest_hash() or params['profile'] != self.profile:
             raise ContractError('Protocol, contract manifest or profile mismatch', kind='INCOMPATIBLE_PROTOCOL', code=-32010)
         self.initialized = True
-        return {'engine_build': 'forgecode-v4-development', 'engine_epoch': self.store.epoch, 'event_schema': 'forge.events.v1',
+        build='forgecode-v4-development'
+        if getattr(sys,'frozen',False):
+            build=json.loads((Path(sys._MEIPASS)/'forge/release/_build_identity.json').read_bytes())['build_id']
+        return {'engine_build': build, 'engine_epoch': self.store.epoch, 'event_schema': 'forge.events.v1',
             'db_schema': self.store.diagnostics()['schema_version'], 'protocol': {'major': 1, 'minor': 0},
             'manifest_hash': manifest_hash(), 'capabilities': self.capabilities({}), 'readiness': self.readiness()}
 

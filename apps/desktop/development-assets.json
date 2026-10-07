@@ -33,7 +33,7 @@
     },
     {
       "path": "benchmark/adapters/diagnostics.py",
-      "sha256": "60d3384b8b4ce9312026eab8d46fb3c3b20770211fbe81bb98cad6006669800d"
+      "sha256": "9962e6112614d8d2cef6425b0007a2b9df50e260a9f0a56f9ab138d26757f423"
     },
     {
       "path": "benchmark/adapters/docker.py",
@@ -213,7 +213,7 @@
     },
     {
       "path": "forge/application/workspaces.py",
-      "sha256": "b8335d9fcc54b1484e0b5387beba4ba6410c45666bf8a2ad95f57a37e709c6bf"
+      "sha256": "bf1a7d762602959cdc57b2d56be8a3738bbec9411f3722a5a1988225a801c20c"
     },
     {
       "path": "forge/channels/__init__.py",
@@ -273,7 +273,7 @@
     },
     {
       "path": "forge/engine/__main__.py",
-      "sha256": "23d2ffbe3fe6d3f1fbe081d723201ff30de1fdd0d83e08c92272dbc68e03ba5f"
+      "sha256": "a71799bdbad22c90ad731b099579c3021411ba248cbd8382238ffedc1990e284"
     },
     {
       "path": "forge/engine/event_stream.py",
@@ -281,7 +281,7 @@
     },
     {
       "path": "forge/engine/http_adapter.py",
-      "sha256": "5a9b89ade9b47ad7b5f40af3f2d58f923f45c5d29969c90a7b3d69fb6865e2be"
+      "sha256": "38e3e9aa4b0984e760c2a56ff042057b044384b671dbb5834b672460bb8d407d"
     },
     {
       "path": "forge/engine/journal_projection.py",
@@ -293,7 +293,7 @@
     },
     {
       "path": "forge/engine/methods.py",
-      "sha256": "4082adb7f24a17096c085ea5cbc7e77058a7fd03a097a20afd617a0c74330361"
+      "sha256": "5d24c9a590ee7305b080b37e1f666da69c34b7ba9a3ad062992e906602b59679"
     },
     {
       "path": "forge/engine/migrations/001_initial.sql",
@@ -492,6 +492,30 @@
       "sha256": "600f4b54df70a0c97e4ac7e20529888a671dc40242a4e66bc453e569aa2a2f25"
     },
     {
+      "path": "forge/release/__init__.py",
+      "sha256": "3aecfa0590912fe5aac2796495acd9017cddb6fad4f774fc39fbde16d4f7af9e"
+    },
+    {
+      "path": "forge/release/__main__.py",
+      "sha256": "2c7bc5e1a66bff114026da1870b6f2197a4d4a265215e919309018a2983eb51e"
+    },
+    {
+      "path": "forge/release/processes.py",
+      "sha256": "ea6d4e8d0d8e6847d879ca3629d8c5cfe51ee837d8bb9c7557c7d70a0168bf09"
+    },
+    {
+      "path": "forge/release/runtime.py",
+      "sha256": "4afd950c3172f51d77fd8a081fbf3f780328d4555a633571b2d090c89a807efb"
+    },
+    {
+      "path": "forge/release/toolchains.py",
+      "sha256": "668740a82b68ac7d38ec8e4212b1ae08e41f103ec4bd07b530664d84242a3eb5"
+    },
+    {
+      "path": "forge/release/upgrade.py",
+      "sha256": "636e8b0acab6b6ba0563c54fdb5df849ea7668881d744bb6effa439eb1f6f559"
+    },
+    {
       "path": "forge/runtime/acceptance.py",
       "sha256": "e0262652c891796ea567964c74f2f24f5e4da21ac7fb2af215d6a1835f290e2e"
     },
@@ -525,7 +549,7 @@
     },
     {
       "path": "forge/runtime/factory.py",
-      "sha256": "b62bdc87807dd0606479c8236d6a4b4e2e3ea8f9bb3bc9094e8e3a82d8f3db42"
+      "sha256": "92d1effd7f5485bf60ac6e6193eb6b69110b965cedeab959ffcc447ed0420abc"
     },
     {
       "path": "forge/runtime/intent.py",
@@ -593,7 +617,7 @@
     },
     {
       "path": "forge/sandbox/doctor.py",
-      "sha256": "65da4f310b92e03597b35282c794cfabb2494d8c4f75694160d11cefcf71c4e4"
+      "sha256": "35ad1aa9481e5dbc7d17ecd7cd331f9d72683bb1596fcdee093fd62a949b7f3a"
     },
     {
       "path": "forge/sandbox/file_client.py",
@@ -605,7 +629,7 @@
     },
     {
       "path": "forge/sandbox/launcher.py",
-      "sha256": "ea80e93bca697216411ad010608f58818363b65d4d10d76a3906f7651fd1414a"
+      "sha256": "a2fe20d85bd5bf9d91b89942680fe21c45c1a8f58bbf0962945bf2efe516b9a3"
     },
     {
       "path": "forge/sandbox/path_policy.py",
@@ -617,11 +641,11 @@
     },
     {
       "path": "forge/sandbox/process_owner.py",
-      "sha256": "2d145e1074718490bc93cea3a2b44a3d1159e43360c3d78a45e1f7b4a31c031a"
+      "sha256": "30ef31d1573ab3ac354c7091f7d17b0332f92a76bde42d4d81cf3fb12395db5d"
     },
     {
       "path": "forge/sandbox/srt_backend.py",
-      "sha256": "d227f60c5814a2f7f1282dde40113b181d9482de97126ec4e3f70cbd4467899e"
+      "sha256": "8bba29424f059208e3a2f2e6812400526723e886bbec162bef1fb55b8077c110"
     },
     {
       "path": "forge/sandbox/tool_backend.py",
@@ -741,7 +765,7 @@
     },
     {
       "path": "forge/tools/shell.py",
-      "sha256": "9983e73223f7ff28be202ee767a36e804039b18fc1a19611157ec995fad1638c"
+      "sha256": "c59b23eb424bc409c97b19181fb3ef024daf29f9ef65c207dd33ed1569b3342a"
     },
     {
       "path": "forge/tools/task.py",

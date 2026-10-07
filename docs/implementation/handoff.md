@@ -1,6 +1,13 @@
 # ForgeCode V4 交接 — 2026-10-07
 
-- F26 已实现并完成最终验证，当前待提交／推送；提交后以 git HEAD 和 GitHub 远端 SHA 核对。下一任务 F27，依赖全部满足。
+- F27 已实现；最终测试父 HEAD 08ec4ccbaf55f3a8db6e561e24b1df4ae3303724，提交／推送 SHA 以实际 git HEAD／远端核对。下一 F29：读取 tasks/F29.md 与规范21/22/24。
+  final dirty/source 3a9cf621a750d9a0bd7d9523c72431f9d76a762d6b7d9c65218f568b11936a32。unit160 / portable341 / regression1245 pass，0 skip/failure/error；frozen9 / development66 / installed readonly preview4 / actual installer maker1 pass。
+  build v4-f27-08ec4cc-win-x64；manifest SHA 7a89b7187824fd73999ccfdc8b1d42c445d2e61eab3aff62c58eb7a47d0f356f；1860 files / 87 frozen Python distributions / 119 components / 147 license files。
+  最终10份 evidence：20261007T045603Z-77e5a97d / 20261007T083904Z-e08a09a3 / 20261007T084739Z-f2a68093 / 20261007T084926Z-6b3ab489 / 20261007T085013Z-844215b0 / 20261007T085101Z-86488a82 / 20261007T085304Z-5c4b0e50 / 20261007T085305Z-9f595b5e / 20261007T085317Z-1601a869 / 20261007T083904Z-d1139af0；此前10份正式历史（含 desktop38 fail）保留。中断的 04:56 portable/regression 无完成报告，不算 pass；恢复后核对进程并补跑。
+  修正实际 worker 丢失 PYTHONDONTWRITEBYTECODE=1，真实 import 回归与 desktop 原断言重验通过；冻结 Job 强制退出实测清理2个后代，真实 CLI/doctor/Git/Python/Node/Bridge 已实测。
+  Windows Setup.exe 231220224 bytes / SHA 71e849efb4a755cf364b1bf8feb783095636fd32c1c2ead04afd61f9a11f8179，unsigned developer-preview。事实／失败历史见 evidence/F27-release-observations.json；实际产物在 .local/desktop-resources 与 .local/desktop-packages/make。
+  Linux installer / native Windows / native Linux blocked 0 checks；Windows11/Ubuntu clean install、签名、项目 LICENSE、安全、admin setup、paid model 和 F28 verified strict composition 继续 blocked。
+- F26 已推送 08ec4ccbaf55f3a8db6e561e24b1df4ae3303724，远端 SHA 已核对；F27 当前实施中，依赖全部满足。
   测试父 HEAD e37e09a514f3bfdf7888e45ea25a3dcc10d961b3；最终 dirty/source hash 959df5e670e6a2011cf58449f0b52479d2d526d4943ad8d2a48fb4bddce6b0f1。
   unit 149 / portable 334 / 全仓 regression 1227 pass，0 skip / failure / error；development Electron 66 checks pass；npm Node 21 pass、全工作区 typecheck pass。
   最终7份 evidence：20261007T033133Z-af055100 / 20261007T033159Z-d6931948 / 20261007T033910Z-29796944 / 20261007T033951Z-0aa732a8 / 20261007T033951Z-8bd53d99 / 20261007T034003Z-4dd217c8 / 20261007T034015Z-cc9b3ce8。

@@ -1,0 +1,77 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261007T085305Z-9f595b5e",
+  "task_id": "F27",
+  "case_ids": [
+    "C10",
+    "C11",
+    "C12"
+  ],
+  "suite": "sandbox-linux",
+  "git_commit": "08ec4ccbaf55f3a8db6e561e24b1df4ae3303724",
+  "dirty_hash": "3a9cf621a750d9a0bd7d9523c72431f9d76a762d6b7d9c65218f568b11936a32",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "91a33f47d9bd08f8b0feb426f2009797b2696185c1880e944f3bd831ca7240ea",
+    "release-lock.json": "2ee77906878c93ec8fbab40f96911482ad02d874308d38c604c1f355fe135d56"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "forge.sandbox.doctor",
+    "--native-linux",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T085305Z-9f595b5e\\native-linux.json"
+  ],
+  "start": "2026-10-07T08:53:05.094912+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_bridge.py",
+      "--check"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--main-only"
+    ],
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "--target",
+      "ES2022",
+      "--module",
+      "NodeNext",
+      "--strict",
+      "--skipLibCheck",
+      "--newLine",
+      "lf",
+      "--outDir",
+      "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T085305Z-9f595b5e\\main-compile",
+      "D:\\learn_project\\forgecode\\apps\\desktop\\src\\main\\setup_broker.ts"
+    ]
+  ],
+  "end": "2026-10-07T08:53:17.415086+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261007T085305Z-9f595b5e/stdout.log",
+  "stderr_ref": ".local/implementation/20261007T085305Z-9f595b5e/stderr.log",
+  "report_ref": ".local/implementation/20261007T085305Z-9f595b5e/native-linux.json",
+  "report_hash": "014e612eda971f85498f7ba0ebb7d684c97bcced6038ba9a63d6e44c48f1bc86",
+  "status": "blocked",
+  "tests": {
+    "reason": "Supported Ubuntu native runner is unavailable",
+    "eligible_for_native_pass": false,
+    "checks": 0
+  }
+}

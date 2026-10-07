@@ -185,10 +185,11 @@ class WorkspaceService:
         environment = {k: v for k, v in os.environ.items() if k in ('PATH', 'SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT', 'TEMP', 'TMP')}
         environment.update({'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_OPTIONAL_LOCKS': '0', 'GIT_TERMINAL_PROMPT': '0'})
         environment['GIT_CEILING_DIRECTORIES'] = str(root.parent)
-        process = await asyncio.create_subprocess_exec(str(Path(git).resolve()), '--no-optional-locks', '-c', 'core.fsmonitor=false',
+        from forge.release.processes import external_argv, external_options
+        process = await asyncio.create_subprocess_exec(*external_argv([str(Path(git).resolve()), '--no-optional-locks', '-c', 'core.fsmonitor=false',
             '-c', 'core.untrackedCache=false', '-c', 'core.hooksPath=' + str(self.store.data_dir / 'disabled-hooks'),
-            'status', '--porcelain=v1', '-z', '--untracked-files=all', cwd=root, env=environment,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+            'status', '--porcelain=v1', '-z', '--untracked-files=all']), cwd=root, env=environment,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,**external_options())
         async def collect():
             data = bytearray()
             while chunk := await process.stdout.read(65536):

@@ -21,8 +21,9 @@ def doctor():
     docker=shutil.which('docker')
     if docker:
         try:
-            process=subprocess.run([docker,'version','--format','{{json .}}'],capture_output=True,
-                text=True,encoding='utf-8',errors='replace',timeout=8,check=False)
+            from forge.release.processes import external_argv, external_options
+            process=subprocess.run(external_argv([docker,'version','--format','{{json .}}']),capture_output=True,
+                text=True,encoding='utf-8',errors='replace',timeout=8,check=False,**external_options())
             value=json.loads(process.stdout) if process.stdout.strip() else {}
             server=value.get('Server') or {}
             result['docker']={'available':process.returncode==0 and server.get('Os')=='linux',

@@ -169,7 +169,7 @@ def load_runtime_mcp_servers(root: Path) -> dict[str, Any]:
             f'office-{name}',
             InternalStdioServerConfig(
                 command=sys.executable,
-                args=('-m', 'forge.office.mcp_server'),
+                args=('office-mcp',) if getattr(sys,'frozen',False) else ('-m', 'forge.office.mcp_server'),
                 env={
                     'APP_ID': os.environ[config.app_id_env],
                     'APP_SECRET': os.environ[config.app_secret_env],

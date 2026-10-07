@@ -101,20 +101,20 @@ async def _run_process(
     }
     if os.name == 'nt':
         import subprocess
-        from forge.tools.windows_job import GATED_WORKER
+        from forge.release.processes import worker_argv
         if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
             raise TypeError('Shell commands must be strings; executable commands must be lists.')
         process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
         process_options['stdin'] = asyncio.subprocess.PIPE
-        command = [sys.executable, '-c', GATED_WORKER, json.dumps(command), '1' if shell else '0']
+        command = worker_argv(command,shell=shell)
         shell = False
     else:
         process_options['start_new_session'] = True
         if sys.platform.startswith('linux'):
             if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
                 raise TypeError('Shell commands must be strings; executable commands must be lists.')
-            command = [sys.executable, str(Path(__file__).with_name('linux_process_worker.py')),
-                       json.dumps(command), '1' if shell else '0']
+            from forge.release.processes import worker_argv
+            command = worker_argv(command,shell=shell)
             shell = False
     if shell:
         if not isinstance(command, str):

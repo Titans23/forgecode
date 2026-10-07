@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
-  "next_recommended_task": "F27",
-  "current_task": "F27",
+  "actual_repository_head": "08ec4ccbaf55f3a8db6e561e24b1df4ae3303724",
+  "next_recommended_task": "F29",
+  "current_task": null,
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -586,14 +586,76 @@
       ]
     },
     "F27": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "packaged": "not_run",
-        "sandbox-linux": "not_run",
-        "sandbox-windows": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "engine-packaged": "pass",
+        "desktop": "pass",
+        "desktop-packaged": "pass",
+        "installer-windows": "pass",
+        "installer-linux": "blocked",
+        "sandbox-windows": "blocked",
+        "sandbox-linux": "blocked",
+        "native_windows": "blocked",
+        "native_linux": "blocked",
+        "production_signing": "blocked",
+        "project_license": "blocked",
+        "live_eval": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261007T043608Z-a3f7e4d0",
+        "20261007T043609Z-2a2c8fa1",
+        "20261007T043646Z-8020ce62",
+        "20261007T044515Z-f39c709a",
+        "20261007T044650Z-c950e87d",
+        "20261007T044751Z-2c95edf0",
+        "20261007T044851Z-e31b72af",
+        "20261007T045111Z-b66bd36f",
+        "20261007T045111Z-edd846dd",
+        "20261007T045125Z-1f37c050",
+        "20261007T045603Z-77e5a97d",
+        "20261007T083904Z-e08a09a3",
+        "20261007T084739Z-f2a68093",
+        "20261007T084926Z-6b3ab489",
+        "20261007T085013Z-844215b0",
+        "20261007T085101Z-86488a82",
+        "20261007T085304Z-5c4b0e50",
+        "20261007T085305Z-9f595b5e",
+        "20261007T085317Z-1601a869",
+        "20261007T083904Z-d1139af0"
+      ],
+      "current_evidence_ids": [
+        "20261007T045603Z-77e5a97d",
+        "20261007T083904Z-e08a09a3",
+        "20261007T084739Z-f2a68093",
+        "20261007T084926Z-6b3ab489",
+        "20261007T085013Z-844215b0",
+        "20261007T085101Z-86488a82",
+        "20261007T085304Z-5c4b0e50",
+        "20261007T085305Z-9f595b5e",
+        "20261007T085317Z-1601a869",
+        "20261007T083904Z-d1139af0"
+      ],
+      "historical_evidence_ids": [
+        "20261007T043608Z-a3f7e4d0",
+        "20261007T043609Z-2a2c8fa1",
+        "20261007T043646Z-8020ce62",
+        "20261007T044515Z-f39c709a",
+        "20261007T044650Z-c950e87d",
+        "20261007T044751Z-2c95edf0",
+        "20261007T044851Z-e31b72af",
+        "20261007T045111Z-b66bd36f",
+        "20261007T045111Z-edd846dd",
+        "20261007T045125Z-1f37c050"
+      ],
+      "blocked_reasons": [
+        "Host is Windows 10 19045. Windows 11 x64 clean installation/uninstallation and Ubuntu 22.04 native build plus Ubuntu 22.04/24.04 X11/Wayland acceptance remain unavailable.",
+        "Linux installer and both supported native sandbox verifiers returned blocked with zero checks; development frozen/GUI/installer-build passes cannot promote native acceptance.",
+        "Production signing certificate and owner-approved project LICENSE are unavailable; unsigned developer-preview only. GHSA-86w9-cpqp-85rv remains unresolved.",
+        "SRT administrator setup and paid-model budget are not authorized; all smoke models are scripted, zero public-model grades. Verified strict application composition continues in F28."
+      ]
     },
     "F28": {
       "implementation_status": "todo",

@@ -21,13 +21,14 @@ class LocalProcessOwner:
             'stderr': asyncio.subprocess.DEVNULL}
         if os.name == 'nt':
             import subprocess
-            from forge.tools.windows_job import GATED_WORKER, WindowsJob
+            from forge.tools.windows_job import WindowsJob
+            from forge.release.processes import worker_argv
             job = WindowsJob()
-            argv = [sys.executable, '-I', '-c', GATED_WORKER, json.dumps(argv), '0']
+            argv = worker_argv(argv)
             options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
         elif sys.platform.startswith('linux'):
-            argv = [sys.executable, str(Path(__file__).parents[1] / 'tools/linux_process_worker.py'),
-                json.dumps(argv), '0', '--cleanup-on-exit']
+            from forge.release.processes import worker_argv
+            argv = worker_argv(argv,cleanup=True)
             options['start_new_session'] = True
         else:
             raise ValueError('Process ownership requires Windows Job or Linux subreaper')
