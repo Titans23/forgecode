@@ -54,6 +54,7 @@ TASK_SUITES['F22'] = ['unit', 'portable','desktop','desktop-packaged']
 TASK_SUITES['F23'] = ['unit', 'portable','desktop','desktop-packaged']
 TASK_SUITES['F24'] = ['unit', 'portable','desktop','desktop-packaged']
 TASK_SUITES['F25'] = ['unit', 'portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
+TASK_SUITES['F26'] = ['unit','portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -85,6 +86,9 @@ CASE_TESTS.update({case:['tests/implementation/integration/test_recovery.py','te
     'tests/implementation/integration/test_desktop_supervisor.py','tests/implementation/unit/test_engine_lifecycle_deadlines.py',
     'tests/implementation/unit/test_recovery_ui.py','scripts/desktop_smoke.py'] for case in ('D08','D15','D16','D18','N21','N22')})
 CASE_TESTS.update({case:['tests/implementation/integration/test_bundles.py'] for case in ('O10','N15','N16')})
+CASE_TESTS['D35']=['tests/implementation/integration/test_http_adapter.py','tests/implementation/unit/test_web_contracts.py']
+CASE_TESTS['D36']=['tests/implementation/integration/test_application.py']
+CASE_TESTS['D38']=['tests/implementation/integration/test_compatibility.py']
 
 
 class Parser(argparse.ArgumentParser):

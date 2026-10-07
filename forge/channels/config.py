@@ -9,6 +9,7 @@ import re
 from typing import Literal
 
 from dotenv import load_dotenv
+from forge.config import warn_unknown_config_fields
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -217,6 +218,7 @@ def load_channel_settings(
             raise ChannelConfigurationError(
                 f'{path}: top-level channels must be a JSON object.'
             )
+        warn_unknown_config_fields(path, raw, {'channels'})
         for name, value in raw.get('channels', {}).items():
             if not _CHANNEL_NAME.fullmatch(str(name)):
                 raise ChannelConfigurationError(

@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "6fb66b0b8b7fc9efee31bb8ded2fd82c19ca099a",
-  "next_recommended_task": "F25",
-  "current_task": "F25",
+  "actual_repository_head": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
+  "next_recommended_task": "F27",
+  "current_task": "F27",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -556,13 +556,34 @@
       ]
     },
     "F26": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "unit": "not_run",
-        "portable": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "desktop": "pass",
+        "desktop-packaged": "blocked",
+        "sandbox-linux": "blocked",
+        "sandbox-windows": "blocked",
+        "contracts": "pass",
+        "typecheck": "pass",
+        "live_eval": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ],
+      "blocked_reasons": [
+        "Windows 10 development only; Windows 11 x64 and Ubuntu 22.04/24.04 native runners are unavailable.",
+        "Installed frozen Engine assembly and verified strict composition remain pending F27/F28; packaged/native suites ran zero checks.",
+        "Paid public-model API budget, native setup/signing and manual OS acceptance remain unavailable/unapproved; all model clients in this task are explicitly scripted.",
+        "Web defaults to strict with no unverified backend fallback. Repository UI assets and CLI process-memory credentials are development scope, not installed or OS-keystore acceptance."
+      ]
     },
     "F27": {
       "implementation_status": "todo",

@@ -258,7 +258,7 @@ async def run_native_process(runtime, directory, owner, report, target, options,
     return result
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--system', action='store_true')
     parser.add_argument('--workspace', type=Path)
@@ -266,7 +266,7 @@ def main():
     parser.add_argument('--native-windows', action='store_true')
     parser.add_argument('--allowed-endpoint', help='Explicitly authorized HTTP canary URL; no default public traffic')
     parser.add_argument('--output', type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.native_linux and args.native_windows:
         parser.error('Choose exactly one native platform')
     if (args.native_linux or args.native_windows) and not args.output:

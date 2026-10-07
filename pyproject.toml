@@ -25,6 +25,9 @@ dependencies = [
 [project.scripts]
 forge = 'forge.cli:app'
 
+[project.optional-dependencies]
+web = ['aiohttp==3.14.4']
+
 [tool.setuptools.packages.find]
 include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
 exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*']

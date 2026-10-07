@@ -155,6 +155,7 @@ def main(
             MCPConfigurationError,
             ChannelConfigurationError,
             SessionError,
+            BlockingIOError,
         ) as error:
             print_configuration_error(error)
             raise typer.Exit(code=1) from error
@@ -162,6 +163,9 @@ def main(
 
 def print_configuration_error(error: Exception) -> None:
     '''Print actionable model configuration guidance.'''
+    if isinstance(error, BlockingIOError):
+        typer.echo('Project is already in use. Stop the active CLI or desktop turn before trying again.', err=True)
+        return
     if isinstance(error, SessionError):
         typer.echo('Session could not be resumed.', err=True)
         typer.echo(str(error), err=True)
@@ -1303,6 +1307,10 @@ def run_gateway(
         raise typer.Exit(code=1) from error
     except KeyboardInterrupt:
         typer.echo('Gateway stopped.')
+
+
+from forge.compatibility_cli import register as register_compatibility_commands
+register_compatibility_commands(app)
 
 
 if __name__ == '__main__':

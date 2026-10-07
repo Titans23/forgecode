@@ -11,7 +11,7 @@
   "locks": [
     {
       "path": "uv.lock",
-      "sha256": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116"
+      "sha256": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8"
     },
     {
       "path": "package-lock.json",
@@ -192,6 +192,10 @@
       "sha256": "3bad8e4101f2b9d672421d9b353d014ecb6df40f55c9f1819ac255dc3086ed73"
     },
     {
+      "path": "forge/application/legacy_import.py",
+      "sha256": "fdc9e5bc5c0ee041d4f1b8ac1b8006479c1a30b4594bfd9e162f242e25aebc67"
+    },
+    {
       "path": "forge/application/models.py",
       "sha256": "08dba4ed14ccc97499a669c893abe0194b0e5f9081cee8212ba565ce8e5e8eff"
     },
@@ -221,7 +225,7 @@
     },
     {
       "path": "forge/channels/config.py",
-      "sha256": "05a2940d56da28d0c9ac2ceb5384b346ad61ac3bbb5331675983d8e3974e43d6"
+      "sha256": "a777a6a4772b0a82a9497154279d9924e29a799f07e5d2563d07517a9e93c9d4"
     },
     {
       "path": "forge/channels/feishu.py",
@@ -237,11 +241,15 @@
     },
     {
       "path": "forge/cli.py",
-      "sha256": "180c87da3b7c5cf32be4a5b5494146e284241aaf124691d5414d2fd091d2e21b"
+      "sha256": "99b2ce184c860f933d7b1f2c390ea5fbbcae51d20570f40b21d92b27be1934e0"
+    },
+    {
+      "path": "forge/compatibility_cli.py",
+      "sha256": "b07d7b1065d1b869b2f6cc180332620455000cefcfa6403be4898af7d9228518"
     },
     {
       "path": "forge/config.py",
-      "sha256": "a179eeb5a4e6b9870ee1590d2f24a2b3d6bbea22c070dc76e570558717a95ebe"
+      "sha256": "36e1165b4a0f77deb78a06a80325ff31b869773a0ef5e09d73ed910a9182b6c3"
     },
     {
       "path": "forge/context/compactor.py",
@@ -270,6 +278,10 @@
     {
       "path": "forge/engine/event_stream.py",
       "sha256": "fe1de51459d9c165a4124e9e60c400e758c22bf45ff8ead2356a3087d2b44b62"
+    },
+    {
+      "path": "forge/engine/http_adapter.py",
+      "sha256": "5a9b89ade9b47ad7b5f40af3f2d58f923f45c5d29969c90a7b3d69fb6865e2be"
     },
     {
       "path": "forge/engine/journal_projection.py",
@@ -340,6 +352,10 @@
       "sha256": "3336b24d26663ec578a807052eb6465b1c39320127997274dc0de09b96e78a76"
     },
     {
+      "path": "forge/engine/migrations/015_legacy_imports.sql",
+      "sha256": "00276a79061f1247e2070a5f8ea2d2f3a7f1878f35ab70cc4aef2a2f31c8a610"
+    },
+    {
       "path": "forge/engine/parent_watch.py",
       "sha256": "19de5465b255d70785659f60cc7ebf93583ff700502eed8465b504c38f700fbe"
     },
@@ -369,7 +385,7 @@
     },
     {
       "path": "forge/hooks/config.py",
-      "sha256": "e41e41bf332267a27dd598c50a37d58c9017f166dfe285b5fac6b61de90b3216"
+      "sha256": "bc7f7b82b30c8b9c1ebb9d3ba96ab3367019ef3e1398cdc0165e569c239c66f9"
     },
     {
       "path": "forge/hooks/manager.py",
@@ -389,7 +405,7 @@
     },
     {
       "path": "forge/mcp/config.py",
-      "sha256": "ad36778c978344597cdd895b8f0e9ead4bdb74961540535b3e8dc359e4997ece"
+      "sha256": "ce655ee878a4bd77f23f41bdebe8fc98cfca46d4396f5d66efa8e988fd6fef10"
     },
     {
       "path": "forge/mcp/manager.py",
@@ -461,7 +477,7 @@
     },
     {
       "path": "forge/permissions/policy.py",
-      "sha256": "4b47749d5e49013ac504d88b0c6e0ff3512ba051bb213d4d061e90126980f59f"
+      "sha256": "c7c788bec3a80c518168ab54d4e136db809fb873561f39748d0e8a3e8020fff5"
     },
     {
       "path": "forge/permissions/risk.py",
@@ -577,7 +593,7 @@
     },
     {
       "path": "forge/sandbox/doctor.py",
-      "sha256": "9f126179926a9c8ac19639f2c93317d12232ce0d1c51dab14d5f0eb85aaf9ee6"
+      "sha256": "65da4f310b92e03597b35282c794cfabb2494d8c4f75694160d11cefcf71c4e4"
     },
     {
       "path": "forge/sandbox/file_client.py",

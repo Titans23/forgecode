@@ -140,3 +140,14 @@ class ForgeConfig:
             context_window=context_window,
             request_timeout_seconds=request_timeout_seconds,
         )
+
+
+def warn_unknown_config_fields(path: Path, value: Mapping[str, object], supported: set[str]) -> None:
+    """Keep legacy values intact and report only ignored field names."""
+    unknown = sorted(set(value) - supported)
+    if unknown:
+        import warnings
+        names = ', '.join(repr(name[:64]) for name in unknown[:16])
+        warnings.warn(f'{path.name}: unsupported fields {names}; remove them or use supported fields '
+                      f"{', '.join(sorted(supported))}. Values were ignored and the file was preserved.",
+                      UserWarning, stacklevel=2)

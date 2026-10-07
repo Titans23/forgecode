@@ -1,0 +1,60 @@
+{
+  "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
+  "tool_schemas_sha256": "bb78a265b5f414b10a7904fffdade3cb8ea6344682b2f7db33ca6c6181047471",
+  "tools": [
+    "list_directory",
+    "find_files",
+    "read_file",
+    "grep",
+    "load_skill",
+    "read_skill_resource",
+    "create_directory",
+    "remove_directory",
+    "write_file",
+    "replace_text",
+    "apply_patch",
+    "run_command",
+    "verify",
+    "git_status",
+    "git_diff",
+    "explore_repository",
+    "finish_task",
+    "review_delivery"
+  ],
+  "parameters": {
+    "main": [
+      "ctx",
+      "version",
+      "continue_session",
+      "resume",
+      "fork_session",
+      "provider",
+      "model",
+      "base_url"
+    ],
+    "create_session_runtime": [
+      "root",
+      "continue_session",
+      "resume_identifier",
+      "fork_session",
+      "model_override",
+      "task_policy",
+      "execution_profile",
+      "allow_container_writes",
+      "bindings"
+    ],
+    "create_runtime": [
+      "root",
+      "continue_session",
+      "resume_identifier",
+      "fork_session",
+      "model_override",
+      "task_policy",
+      "execution_profile",
+      "allow_container_writes",
+      "conversation_factory",
+      "task_relation",
+      "bindings"
+    ]
+  }
+}

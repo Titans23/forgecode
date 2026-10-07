@@ -76,14 +76,15 @@ def resolve() -> dict:
         assets.append({'name': name, 'platform': target, 'path': path.relative_to(ROOT).as_posix(),
                        'sha256': digest(path), 'source': '@anthropic-ai/sandbox-runtime@0.0.78',
                        'license': 'Apache-2.0', 'patches': []})
-    for name in ('pyinstaller', 'pyinstaller-hooks-contrib'):
+    for name in ('pyinstaller', 'pyinstaller-hooks-contrib', 'aiohttp'):
         item = metadata.metadata(name)
         components.append({'name': name, 'kind': 'python', 'version': metadata.version(name),
                            'source': f'https://pypi.org/project/{name}/{metadata.version(name)}/',
                            'integrity': 'uv.lock (distribution SHA-256)',
                            'license': item.get('License-Expression') or item.get('License'),
                            'minimum_runtime': item.get('Requires-Python'), 'patches': [],
-                           'compatibility_tests': ['python -m PyInstaller packaging/forge_harness_smoke.spec']})
+                           'compatibility_tests': ['python -m pytest tests/implementation/integration/test_http_adapter.py']
+                           if name == 'aiohttp' else ['python -m PyInstaller packaging/forge_harness_smoke.spec']})
     lock = {'schema_version': 'forge.release.lock.v1', 'resolution_status': 'resolved',
             'python': {'version': platform.python_version(), 'minimum': '3.12',
                        'source': 'https://github.com/astral-sh/python-build-standalone',

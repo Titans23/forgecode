@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DesktopTransport, type DesktopStatus } from './transport';
+import { DesktopTransport, type DesktopStatus, type DesktopOperations } from './transport';
 import { Connections } from './pages/settings/Connections';
 import { Workspace, type Project } from './pages/workspace/Workspace';
 import { Observability, type ObservationTarget, type ClientLatency } from './pages/observability/Observability';
@@ -8,7 +8,8 @@ import { Evaluations } from './pages/evaluations/Evaluations';
 import {Failures,type FailureTarget} from './pages/failures/Failures';
 import './style.css';
 
-const transport = new DesktopTransport();
+const webEntry=window.location.protocol==='http:' && window.location.hostname==='127.0.0.1';
+const transport:DesktopOperations = webEntry ? new (await import('./http_transport')).HttpTransport() : new DesktopTransport();
 function App() {
   const [status, setStatus] = useState<DesktopStatus | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -58,14 +59,14 @@ function App() {
     })}>选择项目</button>
     {projects.slice().reverse().map(item => <button className="secondary project" key={item.workspace_id} onClick={() => { setProjectId(item.workspace_id); setPage('workspace'); }}>
       {item.path?.split(/[\\/]/).at(-1) ?? item.name ?? item.workspace_id.slice(-8)} · {item.trust === 'inspect_only' ? '仅查看' : '可执行'}</button>)}
-    <div className="sidebar-foot">V4 · Python Harness<br/>{status?.mode === 'offline-demo' ? '脚本模型开发测试' : '严格执行模式'}</div></aside>
+    <div className="sidebar-foot">V4 · Python Harness<br/>{status?.mode === 'offline-demo' || status?.mode === 'web-scripted' ? '脚本模型开发测试' : status?.mode === 'web-local-trusted' ? '可信本地执行 · 无 OS 隔离' : '严格执行模式'}</div></aside>
     <main><header><div><div className="eyebrow">FORGECODE</div><h1>{page === 'workspace' ? '开发工作区' : page === 'observability' ? '运行观测' : page === 'evaluations' ? '评测实验' : page === 'failures' ? '失败案例' : page === 'settings' ? '连接设置' : page === 'diagnostics' ? '诊断' : '项目'}</h1></div>
       <div className={'connection ' + (connected ? 'online' : '')}>{connected ? 'Engine 已连接' : status?.engine_state ?? '正在连接'}</div></header>
     {(error || status?.failure) && <div role="alert" className="notice">{error ?? status?.failure}</div>}
     {status?.readiness?.status === 'blocked' && <div className="notice">执行环境未就绪，任务启动已禁用。项目文件和历史会话仍可查看。</div>}
     {approvals.map(item => <section key={item.approval_id}><h3>等待授权：{item.tool_name ?? '工具操作'}</h3><p>风险：{item.risk ?? '未知'}</p>
       <button disabled={busy} onClick={() => action(async () => { await transport.requestApproval(item.approval_id); })}>查看原生确认框</button></section>)}
-    {page === 'home' && <section><h2>最近注册的项目</h2><p>通过原生目录选择器打开项目；默认仅查看，执行前需单独授权。</p>
+    {page === 'home' && <section><h2>最近注册的项目</h2><p>{webEntry?'项目与执行授权由可信 CLI 或桌面预先登记。':'通过原生目录选择器打开项目；默认仅查看，执行前需单独授权。'}</p>
       {!projects.length && <p className="muted">尚未注册项目。</p>}
       {projects.slice().reverse().map(item => <p key={item.workspace_id}><button className="secondary" onClick={() => { setProjectId(item.workspace_id); setPage('workspace'); }}>{item.path ?? item.workspace_id}</button></p>)}</section>}
     {page === 'workspace' && <>{project?.trust === 'inspect_only' && <button disabled={busy} onClick={() => action(async () => { await transport.authorizeWorkspace(project.workspace_id); })}>授权项目执行</button>}
@@ -84,7 +85,7 @@ function App() {
       <button className="secondary" disabled={busy} onClick={() => action(async () => setDiagnostics(await transport.diagnoseSandbox()))}>诊断原生沙盒</button>
       <button className="secondary" disabled={busy} onClick={() => action(async () => setDiagnostics(await transport.installSandbox()))}>安装原生沙盒（需原生确认）</button>
       <pre>{JSON.stringify(diagnostics ?? status, null, 2)}</pre><p>原生沙盒安装和签名验收结果另行记录；环境缺失时不会报告通过。</p></section>}
-    <footer>来源：{status?.mode === 'offline-demo' ? 'scripted · local-trusted' : 'desktop · strict'}<span>任务与清理状态由 Engine 提供</span></footer>
+    <footer>来源：{status?.mode === 'offline-demo' ? 'scripted · local-trusted' : webEntry ? status?.mode : 'desktop · strict'}<span>任务与清理状态由 Engine 提供</span></footer>
     </main></div>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

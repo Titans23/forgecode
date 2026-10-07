@@ -48,6 +48,7 @@ def main():
         node = shutil.which('node')
         if node is None:
             raise RuntimeError('Development compiler runtime is unavailable')
+        subprocess.run([node,str(ROOT/'scripts/build_browser_contracts.mjs'),*(['--check'] if args.check else [])],cwd=ROOT,check=True)
         for project in ('packages/contracts', 'sandbox_bridge'):
             subprocess.run([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / project / 'tsconfig.json')], cwd=ROOT, check=True)
     package_lock = json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))

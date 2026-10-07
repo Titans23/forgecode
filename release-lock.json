@@ -282,6 +282,19 @@
       "compatibility_tests": [
         "python -m PyInstaller packaging/forge_harness_smoke.spec"
       ]
+    },
+    {
+      "name": "aiohttp",
+      "kind": "python",
+      "version": "3.14.4",
+      "source": "https://pypi.org/project/aiohttp/3.14.4/",
+      "integrity": "uv.lock (distribution SHA-256)",
+      "license": "Apache-2.0 AND MIT",
+      "minimum_runtime": ">=3.10",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/integration/test_http_adapter.py"
+      ]
     }
   ],
   "assets": [
@@ -336,14 +349,14 @@
       "name": "bridge-runtime-manifest",
       "platform": "all",
       "path": "sandbox_bridge/runtime-manifest.json",
-      "sha256": "86be23fc2877ff5eec006e5acfd8d877bb243aa58488b0c581ee60b1d31d085a",
+      "sha256": "80ab4bfc0e06fe01fe56cba8d40c2c4a72899bb590246b37e2a5725569ccb34e",
       "source": "ForgeCode locked runtime code inventory",
       "license": "Apache-2.0",
       "patches": []
     }
   ],
   "lockfile_hashes": {
-    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
     "package-lock.json": "91a33f47d9bd08f8b0feb426f2009797b2696185c1880e944f3bd831ca7240ea"
   },
   "security": {

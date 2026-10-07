@@ -22,6 +22,7 @@ def main():
     if not node:
         raise RuntimeError('Development Node compiler is unavailable')
     compiler = ROOT / 'node_modules/typescript/bin/tsc'
+    subprocess.run([node,str(ROOT/'scripts/build_browser_contracts.mjs'),*(['--check'] if args.check else [])],cwd=ROOT,check=True)
     for project in ('packages/contracts/tsconfig.json', 'apps/desktop/tsconfig.main.json'):
         subprocess.run([node, str(compiler), '-p', str(ROOT / project)], cwd=ROOT, check=True)
     python = ROOT / '.venv' / ('Scripts/python.exe' if __import__('os').name == 'nt' else 'bin/python')

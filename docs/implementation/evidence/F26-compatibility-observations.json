@@ -1,0 +1,83 @@
+{
+  "scope": "F26 actual Windows 10 development files",
+  "evidence_id": "20261007T033159Z-d6931948",
+  "eligible_for_native_pass": false,
+  "model_origin": "scripted",
+  "databases": {
+    "desktop": {
+      "sha256": "71af820a5d63c6f03161d9eed4e50b6842c35012c85ad859fb7eb2429ec546f3",
+      "turns": [
+        {
+          "state": "finished",
+          "outcome": "completed"
+        }
+      ],
+      "grades": 0,
+      "model_request_rows": 2,
+      "usage_ledger_rows": 2,
+      "sessions": 1,
+      "legacy_mappings": 0,
+      "imported_events": 0
+    },
+    "http": {
+      "sha256": "40ad99638769ce61daf06a9835fa8cd48edac9b58053c398ace75a67cee47213",
+      "turns": [
+        {
+          "state": "finished",
+          "outcome": "completed"
+        }
+      ],
+      "grades": 0,
+      "model_request_rows": 2,
+      "usage_ledger_rows": 2,
+      "sessions": 1,
+      "legacy_mappings": 0,
+      "imported_events": 0
+    },
+    "http_expired_ack": {
+      "sha256": "4674d378c3c92aa3ac0f1c1d90bcd199b464f73f9ddb15830cc78419ec38900c",
+      "turns": [
+        {
+          "state": "finished",
+          "outcome": "completed"
+        },
+        {
+          "state": "finished",
+          "outcome": "completed"
+        }
+      ],
+      "grades": 0,
+      "model_request_rows": 4,
+      "usage_ledger_rows": 4,
+      "sessions": 1,
+      "legacy_mappings": 0,
+      "imported_events": 0
+    },
+    "legacy": {
+      "sha256": "1a6842b89078ba2b06755620419da879db9554e2c906850d51ddca6a214eeaae",
+      "turns": [],
+      "grades": 0,
+      "model_request_rows": 0,
+      "usage_ledger_rows": 0,
+      "sessions": 0,
+      "legacy_mappings": 1,
+      "imported_events": 3
+    }
+  },
+  "http-browser-report.json": {
+    "sha256": "ca045a14662b3086c89f89ea1cf28b84fcca5cac03f3aa2f16932da9aa38cc3a",
+    "report": {
+      "status": "pass",
+      "rendered_result": true,
+      "no_raw_node": true,
+      "no_desktop_bridge": true,
+      "errors": 0,
+      "csp_eval_violations": 0,
+      "eligible_for_native_pass": false,
+      "model_origin": "scripted"
+    }
+  },
+  "http-browser.png": {
+    "sha256": "b35cfd82cadb5471e18048c9eaabd51f9e27922469ff8a0da48f5541a563d00f"
+  }
+}

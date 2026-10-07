@@ -1,14 +1,17 @@
 # ForgeCode V4 交接 — 2026-10-07
 
-- F24 已推送 6fb66b0b8b7fc9efee31bb8ded2fd82c19ca099a，远端 SHA 已核对；F25 当前实施中，测试父 HEAD 即此 SHA。
-- 当前代码完成 F00—F25；F25 正式 unit 148 / portable 292 / regression 1184 pass，0 skip；development Electron 66 checks pass。
-  F25 未推送，正在形成测试后提交；测试父 HEAD 6fb66b0b8b7fc9efee31bb8ded2fd82c19ca099a。
-  最终 evidence 20261007T020959Z-85c76830 / 20261007T020954Z-8829811e / 20261007T020953Z-c1790ea7 / 20261007T020920Z-86e44ca9 / 20261007T020306Z-4af36e9d / 20261007T020248Z-da48273d / 20261007T021009Z-35508c5a；dirty f5d2c18ae9f4e914cb1629e79d5b6677890bf0ee59b565029a89f066c1c05fc2。
-  migration 014 / committed Journal startup projection / recovery.inspect / readonly recovery UI / unknown cleanup barrier / bounded Main late/action response reconciliation / live parent observation / cursor TTL 与保守预算已实现。
-  实际 Main / Engine 强杀后 DB reconciling + unknown，原 action 重查无新 turn；WAL intent/result 与 artifact 完整性据实际文件核查；PID fixture 不清理无关进程。实际事件摘要 evidence/F25-recovery-observations.json，原始测试数据留 .local。
-  early desktop 014320、cold import / 500 ms fixture 与测试中资产 hash 拒绝的失败过程见 F25 卡；只有最后固定快照证据计最终 pass。
-  packed / native Linux / native Windows 各 blocked 0；actual OS suspend/resume、installed / paid-model / native cleanup 不冒充通过。
-  下一满足依赖 F26，卡和规范 19 / 附录 C 已读；CLI 与 Desktop 已共享实际 workspace lock。缺 legacy preview/backup/confirmed import、顶层未知配置诊断、explicit loopback HTTP/SSE 和 HttpTransport。仅做了阅读，F26 未改代码。
+- F26 已实现并完成最终验证，当前待提交／推送；提交后以 git HEAD 和 GitHub 远端 SHA 核对。下一任务 F27，依赖全部满足。
+  测试父 HEAD e37e09a514f3bfdf7888e45ea25a3dcc10d961b3；最终 dirty/source hash 959df5e670e6a2011cf58449f0b52479d2d526d4943ad8d2a48fb4bddce6b0f1。
+  unit 149 / portable 334 / 全仓 regression 1227 pass，0 skip / failure / error；development Electron 66 checks pass；npm Node 21 pass、全工作区 typecheck pass。
+  最终7份 evidence：20261007T033133Z-af055100 / 20261007T033159Z-d6931948 / 20261007T033910Z-29796944 / 20261007T033951Z-0aa732a8 / 20261007T033951Z-8bd53d99 / 20261007T034003Z-4dd217c8 / 20261007T034015Z-cc9b3ce8。
+  legacy readonly scan / exact-byte verified backup / hash-confirmed immutable imported mapping、未知配置保留与诊断、原 CLI golden / delegates、实际 authenticated loopback HTTP/SSE 与同一 React HttpTransport、CSP-safe shared AJV validators 均已实现。
+  真实自然过期 ack 关闭旧订阅、读 actual snapshot、标 gap 并续流；丢失受理响应仅 action.get 对账，不重发副作用。SQLite/Chromium 真实观测索引 evidence/F26-compatibility-observations.json；scripted 模型，0 公共模型成绩。
+  首轮 registry、配置授权丢失与过期游标的实际失败/修正见 F26 卡；20份历史和最终 evidence 全保留，只有最后7份计最终验证。
+  packed / native Linux / native Windows 各 blocked 0；Windows 11 / Ubuntu / admin / signing / paid model / installed strict composition 缺失继续 blocked。Web 默认 strict 无 native backend 不降级；CLI process memory credential 不称 OS keystore。
+  F27 要构建真实 frozen console Engine / file-worker / grouped resource closure / installer与手动升级备份；读取 tasks/F27.md 和规范20。现有 packaging smoke 不是产品 Engine，不沿用假验收。
+- F25 已推送 e37e09a514f3bfdf7888e45ea25a3dcc10d961b3，远端 SHA 已核对。
+  migration 014 / committed Journal startup projection / recovery.inspect / readonly recovery UI / unknown cleanup barrier / bounded Main late/action reconciliation / live parent observation 已实现。
+  unit148 / portable292 / regression1184 / development66 pass，0 skip；原生、packaged、actual suspend/resume、paid model blocked。实际恢复事实见 evidence/F25-recovery-observations.json；细节和失败历史见 F25 卡。
 - F24 已实现 migration 013 / 人工标注版本与 CAS / 有限建议 / 脱敏候选 / 实际新执行复现核验 / 失败页面与 Main 原生导出。
   专项 14 项、含既有 ZIP 回归 49 项 pass；initial desktop 64 checks 的旧 zoom 失败保留，等待实际布局后重验 64 checks pass。
   正式 unit 147 / portable 268 / regression 1159 pass，全部 0 skip；development desktop 64 checks pass。
