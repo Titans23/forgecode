@@ -13,3 +13,8 @@
 main { min-width:0; } section { margin-bottom:18px; } .composer textarea { min-width:0; }
 @media (max-width:800px) { .app { display:block; } .app aside { width:100%; padding:12px; } aside .brand, aside .sidebar-foot, aside .caption { display:none; } aside .nav { width:auto; display:inline-block; } main { padding:20px 12px; } header, .workspace-controls, .composer { flex-wrap:wrap; } .workspace-controls select { max-width:100%; } .diff-columns { grid-template-columns:1fr; } }
 @media (prefers-color-scheme:light) { .app { background:#f3f5f7; color:#202b38; } .app section { background:white; } .app aside { background:#e9edf2; } .composer textarea, .workspace-controls select { background:white; color:#202b38; } }
+.trace-row { display:grid; grid-template-columns:minmax(140px,2fr) minmax(100px,1fr) minmax(90px,1fr); gap:10px; align-items:center; }
+.waterfall { height:12px; background:#303945; overflow:hidden; border-radius:3px; } .waterfall i { display:block; height:100%; background:#79cfad; }
+.trace-row.selected { background:#27382f; } .observed-output,[data-testid=observability] pre { max-height:320px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+[data-testid=observability] select { max-width:100%; padding:8px; background:#151b23; color:inherit; border:1px solid #303945; border-radius:6px; }
+@media (prefers-color-scheme:light) { [data-testid=observability] select { background:white; } .trace-row.selected { background:#d8eadd; } }

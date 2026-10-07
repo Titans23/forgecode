@@ -1098,7 +1098,8 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
       "implementation_status": "implemented",
@@ -1109,7 +1110,8 @@
       "result_schema": "observability.context.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -1146,7 +1148,8 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INVALID_CURSOR"
       ],
       "idempotency_key": null,
       "implementation_status": "implemented",
@@ -1157,11 +1160,12 @@
       "result_schema": "observability.evidence.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
       ],
       "timeout_query": "repeat_read"
     },
-    "observability.spans": {
+    "observability.output": {
       "audience": "renderer",
       "cancellation": "none",
       "commit_point": "none",
@@ -1175,11 +1179,57 @@
       "logging": "metadata_only_no_payload_values",
       "max_output_bytes": 1048576,
       "mutation": false,
+      "request_schema": "observability.output.request",
+      "result_schema": "observability.output.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/integration/test_observability_client.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "observability.spans": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INVALID_CURSOR"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
       "request_schema": "observability.spans.request",
       "result_schema": "observability.spans.result",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "observability.timings": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "observability.timings.request",
+      "result_schema": "observability.timings.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/integration/test_observability_client.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -6715,6 +6765,11 @@
               "pattern": "^[0-9a-f]{64}$",
               "type": "string"
             },
+            "debug_capture": {
+              "additionalProperties": true,
+              "maxProperties": 32,
+              "type": "object"
+            },
             "execution_id": {
               "maxLength": 64,
               "minLength": 1,
@@ -10003,6 +10058,24 @@
               "minLength": 1,
               "type": "string"
             },
+            "event_types": {
+              "items": {
+                "enum": [
+                  "completion.accepted",
+                  "completion.rejected",
+                  "completion.repair_started",
+                  "sandbox.prepared",
+                  "sandbox.denied",
+                  "sandbox.failed",
+                  "sandbox.cleanup_finished",
+                  "verification.invalidated"
+                ]
+              },
+              "maxItems": 32,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
             "limit": {
               "maximum": 100,
               "minimum": 1,
@@ -10158,12 +10231,109 @@
           ],
           "type": "object"
         },
+        "observability.output.request": {
+          "additionalProperties": false,
+          "properties": {
+            "execution_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "turn_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "turn_id",
+            "execution_id"
+          ],
+          "type": "object"
+        },
+        "observability.output.result": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^art-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "reason": {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            "sha256": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 64,
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "size_bytes": {
+              "anyOf": [
+                {
+                  "maximum": 262144,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "enum": [
+                "available",
+                "unavailable",
+                "missing"
+              ]
+            }
+          },
+          "required": [
+            "execution_id",
+            "state",
+            "reason",
+            "artifact_id",
+            "sha256",
+            "size_bytes"
+          ],
+          "type": "object"
+        },
         "observability.spans.request": {
           "additionalProperties": false,
           "properties": {
             "cursor": {
               "maxLength": 4096,
               "minLength": 1,
+              "type": "string"
+            },
+            "execution_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "type": "string"
             },
             "limit": {
@@ -10293,6 +10463,70 @@
             "items",
             "next_cursor",
             "history_gap"
+          ],
+          "type": "object"
+        },
+        "observability.timings.request": {
+          "additionalProperties": false,
+          "properties": {
+            "turn_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "turn_id"
+          ],
+          "type": "object"
+        },
+        "observability.timings.result": {
+          "additionalProperties": false,
+          "properties": {
+            "clock_source": {
+              "const": "local_monotonic"
+            },
+            "engine_duration_nanoseconds": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[0-9]{1,32}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "harness_wall_seconds": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "server_first_token_time": {
+              "type": "null"
+            },
+            "turn_id": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "turn_id",
+            "engine_duration_nanoseconds",
+            "harness_wall_seconds",
+            "clock_source",
+            "server_first_token_time"
           ],
           "type": "object"
         },
@@ -10930,6 +11164,19 @@
               "items": {
                 "additionalProperties": false,
                 "properties": {
+                  "execution_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "kind": {
                     "enum": [
                       "user",
@@ -12408,6 +12655,16 @@
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.evidence.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
+    "observability.output.request": {
+      "$id": "urn:forgecode:contracts:v1:observability.output.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.output.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "observability.output.result": {
+      "$id": "urn:forgecode:contracts:v1:observability.output.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.output.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
     "observability.spans.request": {
       "$id": "urn:forgecode:contracts:v1:observability.spans.request",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.spans.request",
@@ -12416,6 +12673,16 @@
     "observability.spans.result": {
       "$id": "urn:forgecode:contracts:v1:observability.spans.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.spans.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "observability.timings.request": {
+      "$id": "urn:forgecode:contracts:v1:observability.timings.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.timings.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "observability.timings.result": {
+      "$id": "urn:forgecode:contracts:v1:observability.timings.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/observability.timings.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "observability.usage.request": {

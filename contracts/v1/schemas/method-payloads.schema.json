@@ -1346,6 +1346,24 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 100
+        },
+        "event_types": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "completion.accepted",
+              "completion.rejected",
+              "completion.repair_started",
+              "sandbox.prepared",
+              "sandbox.denied",
+              "sandbox.failed",
+              "sandbox.cleanup_finished",
+              "verification.invalidated"
+            ]
+          }
         }
       },
       "required": [
@@ -1402,6 +1420,12 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 100
+        },
+        "execution_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         }
       },
       "required": [
@@ -3640,6 +3664,19 @@
                     "type": "null"
                   }
                 ]
+              },
+              "execution_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -4060,6 +4097,161 @@
       },
       "required": [
         "destination_token"
+      ]
+    },
+    "observability.output.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "turn_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "execution_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      },
+      "required": [
+        "turn_id",
+        "execution_id"
+      ]
+    },
+    "observability.output.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "execution_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "state": {
+          "enum": [
+            "available",
+            "unavailable",
+            "missing"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "artifact_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^art-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "size_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 262144
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "execution_id",
+        "state",
+        "reason",
+        "artifact_id",
+        "sha256",
+        "size_bytes"
+      ]
+    },
+    "observability.timings.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "turn_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      },
+      "required": [
+        "turn_id"
+      ]
+    },
+    "observability.timings.result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "turn_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "engine_duration_nanoseconds": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{1,32}$",
+              "maxLength": 32
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "harness_wall_seconds": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clock_source": {
+          "const": "local_monotonic"
+        },
+        "server_first_token_time": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "turn_id",
+        "engine_duration_nanoseconds",
+        "harness_wall_seconds",
+        "clock_source",
+        "server_first_token_time"
       ]
     }
   }

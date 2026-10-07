@@ -19,6 +19,7 @@ import { CredentialBroker } from './credential_broker.js';
 import { MainConnections } from './connections.js';
 import { probeCredentials } from './credential_probe.js';
 import { probeWorkspace } from './workspace_probe.js';
+import { probeObservability } from './observability_probe.js';
 import { createSetupBroker } from './setup_broker.js';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'forge-app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
@@ -144,7 +145,9 @@ async function runSmoke() {
       await new Promise(r => setTimeout(r, 50));
     }
     check('actual-demo-turn', snapshot?.turns[0]?.outcome === 'completed' && snapshot.turns[0].turn_id === accepted.turn_id);
+    const observedSession=currentSession!;
     checks.push(...await probeWorkspace(window, engine, smoke.directory, resolve(app.getAppPath(), '../..')));
+    checks.push(...await probeObservability(window,engine,observedSession,smoke.directory,smoke.output));
     const reloaded = new Promise<void>(resolve => window!.webContents.once('did-finish-load', () => resolve()));
     window.webContents.reload();
     await reloaded;
@@ -214,7 +217,7 @@ async function ready() {
     const launch = app.isPackaged ? await loadInstalledEngine(root, resolve(app.getPath('userData'), 'engine')) :
       await loadDevelopmentEngine(root, { dataDir: smoke ? resolve(smoke.directory, 'data') : resolve(app.getPath('userData'), 'engine'),
         profile: smoke ? 'test' : 'desktop', ...(smoke ? { fixture: smoke.fixture } : {}) });
-    engine = new EngineSupervisor(launch);
+    engine = new EngineSupervisor(smoke?{...launch,arguments:[...launch.arguments,'--capture-mode','controlled_debug']}:launch);
     await engine.start();
     const dataDir = launch.arguments[launch.arguments.indexOf('--data-dir') + 1];
     if (!isAbsolute(dataDir)) throw new Error('Credential data root must be fixed by Main');
@@ -251,7 +254,11 @@ async function ready() {
   });
   ipcMain.handle('forge:submit', (event, value) => { sender(event); validate('session.submit.request', value); return live().call('session.submit', value); });
   for (const [channel, method] of [['files', 'workspace.files'], ['read-file', 'workspace.read_file'],
-    ['changes', 'workspace.changes'], ['diff', 'workspace.diff'], ['diff-file', 'workspace.diff_file']] as const) {
+    ['changes', 'workspace.changes'], ['diff', 'workspace.diff'], ['diff-file', 'workspace.diff_file'],
+    ['observation-spans','observability.spans'],['observation-context','observability.context'],
+    ['observation-evidence','observability.evidence'],['observation-usage','observability.usage'],
+    ['observation-events','observability.events'],['observation-output','observability.output'],
+    ['observation-timings','observability.timings'],['artifact-chunk','artifact.read_chunk']] as const) {
     ipcMain.handle('forge:' + channel, (event, value) => { sender(event); validate(method + '.request', value); return live().call(method, value); });
   }
   ipcMain.handle('forge:diagnostics', (event, value) => { sender(event); empty(value); return live().call('system.health', {}); });

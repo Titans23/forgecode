@@ -56,6 +56,7 @@ class EngineMethods:
             'events.unsubscribe': self.events.unsubscribe, 'observability.events': self.query_events,
             'observability.spans':self.observations.spans,'observability.context':self.observations.context,
             'observability.evidence':self.observations.evidence,'observability.usage':self.observations.usage,
+            'observability.output':self.observations.output,'observability.timings':self.observations.timings,
             'sandbox.cleanup_status': self.cleanup_status,
             'approval.get': self.approvals.get, 'approval.list': self.list_approvals,
             'approval.prepare_decision': self.approvals.prepare, 'approval.decide': self.approvals.decide,
@@ -288,17 +289,4 @@ class EngineMethods:
         return (self.evaluations.start if method == 'evaluation.start' else self.evaluations.retry)(params)
 
     def query_events(self, params):
-        scope = params['scope']
-        self.events.check_scope(scope)
-        sequence = self.events.decode_cursor(params['cursor'], scope) if 'cursor' in params else 0
-        high = self.store.connection.execute('SELECT COALESCE(MAX(store_seq),0) FROM events').fetchone()[0]
-        if sequence > high:
-            raise ContractError('Cursor is ahead of stored events', kind='INVALID_CURSOR', code=-32010)
-        items = []
-        for event in self.store.events(after=sequence):
-            sequence = int(event['store_seq'])
-            if scope['kind'] == 'all' or event[scope['kind'] + '_id'] == scope['id']:
-                items.append(event)
-            if len(items) >= params.get('limit', 100):
-                break
-        return {'items': items, 'next_cursor': self.events.cursor(scope, sequence) if sequence < high else None, 'history_gap': False}
+        return self.observations.events_page(params)

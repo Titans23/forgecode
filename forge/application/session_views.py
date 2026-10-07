@@ -15,7 +15,7 @@ class TurnMessages:
         self.used = 0
         self.sequence = 0
 
-    def append(self, kind, text, *, tool_name=None, status=None):
+    def append(self, kind, text, *, tool_name=None, status=None, execution_id=None):
         if self.sequence >= 10000 or self.used >= 1048576:
             return
         if self.secret:
@@ -24,8 +24,8 @@ class TurnMessages:
         self.sequence += 1
         self.used += len(text)
         with self.store.transaction():
-            self.store.connection.execute('INSERT INTO turn_messages VALUES(?,?,?,?,?,?)',
-                (self.turn_id, self.sequence, kind, text, tool_name, status))
+            self.store.connection.execute('INSERT INTO turn_messages(turn_id,sequence,kind,text,tool_name,status,execution_id) VALUES(?,?,?,?,?,?,?)',
+                (self.turn_id, self.sequence, kind, text, tool_name, status, execution_id))
             self.store._turn_event('session.message', self.turn_id, {'sequence': self.sequence, 'kind': kind})
 
     def flush(self, final=False):
@@ -50,7 +50,10 @@ class TurnMessages:
             self.flush(final=True)
             call = event.tool_call
             status = 'running' if isinstance(event, ToolExecutionStarted) else ('completed' if event.result.success else 'failed')
-            self.append('tool', call.name, tool_name=call.name, status=status)
+            from forge.observability.events import active
+            boundary=active.get()
+            scope=boundary.recorder.tools.get((boundary.branch.span_id,call.id)) if boundary and isinstance(event,ToolExecutionCompleted) else None
+            self.append('tool', call.name, tool_name=call.name, status=status,execution_id=scope.execution_id if scope else None)
         elif isinstance(event, TurnCompleted):
             self.flush(final=True)
             # The final answer can exist without text deltas (finish_task).
@@ -67,7 +70,7 @@ def snapshot(service, params):
         if turn_id and not store.connection.execute('SELECT 1 FROM turns WHERE id=? AND session_id=?', (turn_id, session['session_id'])).fetchone():
             raise ContractError('Turn belongs to another session', kind='UNAUTHORIZED', code=-32010)
         after = params.get('after_sequence', 0)
-        messages = store.connection.execute('SELECT sequence,kind,text,tool_name,status FROM turn_messages WHERE turn_id=? AND sequence>? '
+        messages = store.connection.execute('SELECT sequence,kind,text,tool_name,status,execution_id FROM turn_messages WHERE turn_id=? AND sequence>? '
             'ORDER BY sequence LIMIT 101', (turn_id, after)).fetchall() if turn_id else []
         configuration = json.loads(store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
             (session['configuration']['snapshot_id'],)).fetchone()[0])

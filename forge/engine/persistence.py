@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import sqlite3
 import tempfile
+import time
 from uuid import uuid4
 
 from forge.application.models import ContractError, canonical_hash, validate, validate_event
@@ -271,6 +272,7 @@ class Store:
             turn_id = new_id('turn')
             result = {'turn_id': turn_id, 'state': 'queued', 'accepted': True, 'reused_existing_action': False}
             self.connection.execute('INSERT INTO turns VALUES(?,?,?,?,?,?,?)', (turn_id, params['session_id'], 'queued', None, encoded(configuration_ref), encoded(params['input']), None))
+            self.connection.execute('INSERT INTO turn_profiles VALUES(?,?)',(turn_id,profile_id))
             observations=getattr(self,'observation_options',None)
             prices=observations.prices if observations else None
             price_snapshot=self._configuration_snapshot(prices.as_dict(),prices.sha256) if prices else None
@@ -300,7 +302,7 @@ class Store:
             identities={**scope.as_dict(),**{k:v for k,v in identities.items() if v is not None}}
         body = {'schema_version': 'forge.events.v1', 'event_id': new_id('evt'), 'event_type': event_type,
             'origin': 'trusted_engine', 'producer_id': producer, 'producer_seq': str(sequence), 'occurred_at_utc': utc_now(),
-            'monotonic_ns': None, 'attributes': attributes, 'artifact_refs': [], 'redaction_version': 'metadata-v1'}
+            'monotonic_ns': str(time.monotonic_ns()) if event_type!='journal.projected' else None, 'attributes': attributes, 'artifact_refs': [], 'redaction_version': 'metadata-v1'}
         body.update({key: identities.get(key) for key in ('workspace_id', 'session_id', 'turn_id', 'run_id', 'trial_id', 'attempt_id', 'execution_id', 'trace_id', 'span_id', 'parent_span_id')})
         return body
 

@@ -107,11 +107,12 @@ class JournalRecorder:
             if request is None:
                 return
             if kind=='model_request_chunk':
-                if attributes['size_bytes'] and 'first_chunk_at' not in request:
+                first=bool(attributes['size_bytes'] and 'first_chunk_at' not in request)
+                if first:
                     request['first_chunk_at']=attributes.get('client_observed_at_utc')
                     request['first_chunk_monotonic']=attributes.get('client_monotonic_ns')
                 request['bytes']+=attributes['size_bytes']
-                if request['bytes']<4096:
+                if request['bytes']<4096 and not first:
                     return
                 self._flush_chunk(request)
                 return
@@ -202,7 +203,8 @@ class JournalRecorder:
 
     def tool_finished(self, call, result, status):
         base=self.tool_attributes(call)
-        self.capture_debug('tool-'+base['execution_id'],{'content':result.content,'metadata':result.metadata})
+        safe_streams={k:result.metadata[k] for k in ('stdout','stderr') if isinstance(result.metadata.get(k),str)}
+        capture=self.capture_debug('tool-'+base['execution_id'],safe_streams) if safe_streams else {'state':'disabled'} if self.options.capture_mode=='metadata' else {'state':'omitted','reason':'no_safe_streams'}
         # Opaque strings never become events, grades or a second budget source.
         streams={k:result.metadata[k] for k in ('stdout','stderr') if isinstance(result.metadata.get(k),str)}
         if not streams:
@@ -217,7 +219,7 @@ class JournalRecorder:
         exit_code=result.metadata.get('exit_code')
         self.emit('tool.finished',{**base,'result':'indeterminate' if status=='indeterminate' else
             'cancelled' if status=='cancelled' else 'success' if result.success else 'failed',
-            'exit_code':exit_code if type(exit_code) is int and -(2**31)<=exit_code<2**31 else None})
+            'exit_code':exit_code if type(exit_code) is int and -(2**31)<=exit_code<2**31 else None,'debug_capture':capture})
         self.last_tools[active.get().branch.span_id]=active.get().scope
 
     def compaction_started(self,scope,messages,reason):

@@ -50,6 +50,7 @@ TASK_SUITES['F18'] = ['unit', 'portable']
 TASK_SUITES['F19'] = ['unit', 'portable']
 TASK_SUITES['F20'] = ['unit', 'portable','benchmark-harbor']
 TASK_SUITES['F21'] = ['unit', 'portable']
+TASK_SUITES['F22'] = ['unit', 'portable','desktop','desktop-packaged']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],

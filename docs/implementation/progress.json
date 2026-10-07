@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "f9574492088892b88da3362b37a44b6c81687e37",
-  "next_recommended_task": "F21",
-  "current_task": "F21",
+  "actual_repository_head": "2a96fc8593b10b2969482e408f42d4bd67151445",
+  "next_recommended_task": "F22",
+  "current_task": "F22",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -437,13 +437,33 @@
       ]
     },
     "F22": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "desktop": "not_run",
-        "portable": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "typecheck": "pass",
+        "development_desktop": "pass",
+        "desktop_packaged": "blocked",
+        "native_linux": "blocked",
+        "native_windows": "blocked",
+        "live_model": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261006T235241Z-462bb220",
+        "20261006T235257Z-7e30a489",
+        "20261006T235747Z-6c832b03",
+        "20261006T235820Z-ebc91bad",
+        "20261006T235820Z-02ca11f4",
+        "20261006T235825Z-e0e8fd6e",
+        "20261006T235829Z-17b9f81e"
+      ],
+      "blocked_reasons": [
+        "Windows 10 development Electron 52 checks passed; Windows 11 x64 and Ubuntu 22.04/24.04 native runners are unavailable.",
+        "F28 fixed frozen Engine assembly unavailable; installed client and native file-dialog acceptance remain unverified.",
+        "Paid API budget authorization, Docker daemon, native sandbox acceptance, signing and G7 dependency security remain blocked; no real model score is claimed."
+      ]
     },
     "F23": {
       "implementation_status": "todo",

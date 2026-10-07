@@ -5,11 +5,13 @@ import { mergeMessages, type Message } from '../../state/messages';
 import { Composer } from './Composer';
 import { VirtualList } from './VirtualList';
 import { Diff } from '../../components/diff/Diff';
+import type { ObservationTarget, ClientLatency } from '../observability/Observability';
 
 export interface Project { workspace_id: string; path?: string; revision?: number; trust?: string; name?: string }
 
-export function Workspace({ transport, project, status, onSession }: {
+export function Workspace({ transport, project, status, onSession, onObserve, onLatency }: {
   transport: DesktopOperations; project: Project | null; status: DesktopStatus | null; onSession(id: string): void;
+  onObserve(value:ObservationTarget):void; onLatency(id:string,value:ClientLatency):void;
 }) {
   const [sessions, setSessions] = useState<SessionListResult | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(status?.session_id ?? null);
@@ -23,6 +25,7 @@ export function Workspace({ transport, project, status, onSession }: {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
   const sequence = useRef(0), currentTurn = useRef<string | null>(null), high = useRef(0n);
+  const clicked = useRef<{turnId:string;at:number;receiptMs:number;first:boolean}|null>(null);
   const [events, setEvents] = useState<Array<{ event_id: string; event_type: string }>>([]);
   const [gap, setGap] = useState(false);
   async function action(operation: () => Promise<void>) {
@@ -56,6 +59,9 @@ export function Workspace({ transport, project, status, onSession }: {
           if (next.messages[0]?.sequence !== 1) { timer = setTimeout(refresh, 0); return; }
         }
         setSnapshot(next); onSession(sessionId);
+        if(clicked.current?.turnId===next.turn_id&&!clicked.current.first&&next.messages.some(message=>message.kind==='assistant'&&message.text.length>0)) {
+          clicked.current.first=true;onLatency(next.turn_id,{receiptMs:clicked.current.receiptMs,firstTextMs:performance.now()-clicked.current.at});
+        }
         setMessages(old => mergeMessages(old, next.messages));
         sequence.current = Math.max(sequence.current, ...next.messages.map(item => item.sequence));
         const previousHigh = high.current || BigInt(next.snapshot_cursor);
@@ -104,14 +110,18 @@ export function Workspace({ transport, project, status, onSession }: {
       <select aria-label="历史任务" value={requestedTurn ?? ''} onChange={event => setRequestedTurn(event.target.value || null)}>
         <option value="">最新任务</option>{snapshot?.turns.map(item => <option key={item.turn_id} value={item.turn_id}>{item.turn_id.slice(-8)} · {item.outcome ?? item.state}</option>)}</select>
       {snapshot?.has_more_turns && <p>此会话还有较早任务；当前页显示最新 100 项。</p>}
+      {displayTurn && <button className="secondary" onClick={()=>onObserve({turnId:displayTurn.turn_id})}>查看本轮 Trace</button>}
       {active && <button className="secondary" disabled={busy} onClick={() => action(async () => { await transport.cancelTurn(turn!.turn_id); })}>取消任务</button>}
       <div className="messages" data-testid="messages"><VirtualList label="会话消息" items={messages} itemKey={message => String(message.sequence)}
         render={message => <button className={'file-row message ' + message.kind} data-message-sequence={message.sequence} onClick={() => setSelectedMessage(message)}>
           {message.kind} {message.tool_name ?? ''} {message.status ?? ''} · {message.text.slice(0, 140)}</button>}/></div>
       <pre className="latest-message">{(selectedMessage ?? messages.at(-1))?.text}</pre>
+      {selectedMessage?.kind==='tool'&&displayTurn&&<button data-testid="tool-trace-link" onClick={()=>onObserve({turnId:displayTurn.turn_id,
+        ...(selectedMessage.execution_id?{executionId:selectedMessage.execution_id}:{})})}>查看工具执行事实</button>}
       {snapshot?.message_limit_reached && <p>消息显示达到采集额度；任务终态与原始 Journal 仍可核查。</p>}
       <Composer disabled={busy || !!active || project?.trust !== 'execution_allowed' || status?.readiness?.status === 'blocked'}
-        submit={text => action(async () => { await transport.submit({ session_id: sessionId, client_action_id: 'act-' + crypto.randomUUID(), input: [{ type: 'text', text }] }); setRequestedTurn(null); })}/>
+        submit={text => action(async () => { const at=performance.now();const accepted=await transport.submit({ session_id: sessionId, client_action_id: 'act-' + crypto.randomUUID(), input: [{ type: 'text', text }] });
+          const receiptMs=performance.now()-at;clicked.current={turnId:accepted.turn_id,at,receiptMs,first:false};onLatency(accepted.turn_id,{receiptMs});setRequestedTurn(null); })}/>
       {displayTurn && <Diff key={displayTurn.turn_id + ':' + displayTurn.state} transport={transport} turnId={displayTurn.turn_id}/>}</section>}
     {files && <section><h3>项目文件 · 内容版本 {files.revision}</h3>{files.history_gap && <p>文件扫描有未访问对象或超出额度。</p>}
       <VirtualList label="项目文件" items={files.items} itemKey={item => item.relative_path}

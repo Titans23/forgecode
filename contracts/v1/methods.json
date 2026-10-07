@@ -599,7 +599,8 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -610,7 +611,8 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
       ]
     },
     "observability.context": {
@@ -621,7 +623,8 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -632,7 +635,8 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
       ]
     },
     "observability.evidence": {
@@ -643,7 +647,8 @@
       "errors": [
         "INVALID_PARAMS",
         "UNAUTHORIZED",
-        "NOT_FOUND"
+        "NOT_FOUND",
+        "INVALID_CURSOR"
       ],
       "commit_point": "none",
       "idempotency_key": null,
@@ -654,7 +659,8 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
-        "tests/implementation/portable/test_contracts_parity.py"
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
       ]
     },
     "observability.usage": {
@@ -1497,6 +1503,50 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "observability.output": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.output.request",
+      "result_schema": "observability.output.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/integration/test_observability_client.py"
+      ]
+    },
+    "observability.timings": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.timings.request",
+      "result_schema": "observability.timings.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/integration/test_observability_client.py"
       ]
     }
   }

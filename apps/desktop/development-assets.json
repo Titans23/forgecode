@@ -6,7 +6,7 @@
   },
   "contracts": {
     "path": "forge/application/_generated_contracts.json",
-    "sha256": "93b49d57664b18c1ab2ae6be1177ad77b379f5c7071bd8b0f53ad44cbac5790a"
+    "sha256": "cb6790118b18f9363ac7e0add9b1d18d44ed90a361d011718eb969ad54e55800"
   },
   "locks": [
     {
@@ -161,7 +161,7 @@
     },
     {
       "path": "forge/application/_generated_contracts.json",
-      "sha256": "93b49d57664b18c1ab2ae6be1177ad77b379f5c7071bd8b0f53ad44cbac5790a"
+      "sha256": "cb6790118b18f9363ac7e0add9b1d18d44ed90a361d011718eb969ad54e55800"
     },
     {
       "path": "forge/application/approvals.py",
@@ -189,11 +189,11 @@
     },
     {
       "path": "forge/application/services.py",
-      "sha256": "201c8fac59a89270e18f4ed62ab21858a677c92c95488837b14b891351e95681"
+      "sha256": "adad251c1ce115e0d17c2b07f5ee5968c4d2e79c43eeda91c2c53240b731bb38"
     },
     {
       "path": "forge/application/session_views.py",
-      "sha256": "4e0bee3741d5ef8b1d5458c40d8b81ecdf0578dd0ab83b822a3a8c4a89daf771"
+      "sha256": "220a9180f95bd29a0c78ed5023d9c4da1be000711c721806f684bf2e197d23e6"
     },
     {
       "path": "forge/application/sessions.py",
@@ -273,7 +273,7 @@
     },
     {
       "path": "forge/engine/methods.py",
-      "sha256": "3b627ceaf0d05546ead55aa4971b47a573077c6fb15d6c503e7572c833065883"
+      "sha256": "ffe724b6a9628a2eeab0919e0f60528d586b9baf5997b156dbf09d18abb4e805"
     },
     {
       "path": "forge/engine/migrations/001_initial.sql",
@@ -316,8 +316,12 @@
       "sha256": "1417fe4b08b744aae5c1a37d01ffaa3951928dd32903004cc5552c254aa30020"
     },
     {
+      "path": "forge/engine/migrations/011_observability_client.sql",
+      "sha256": "e4bdb5beef516fe22a766d9c287f9aa0c5e37cd79ec9c9a08b3e43b3b76d9086"
+    },
+    {
       "path": "forge/engine/persistence.py",
-      "sha256": "8df7795af2474107f9423c92e41cf50563f5edbc9987cad3d9b19f35c781b7cb"
+      "sha256": "0bfa4933233e750a5a14908fb42ef29ec96f0e42878a82c6cc54f44d082394f9"
     },
     {
       "path": "forge/engine/rpc.py",
@@ -389,15 +393,19 @@
     },
     {
       "path": "forge/observability/projection.py",
-      "sha256": "f081c9bcb01dd4de415e59ad4f115cb4bc40f8385b6d7d455dbd43c76ed5954e"
+      "sha256": "af3cc9f9794055ea35a81a29906ac62391e855975958d39047c01f4c9519bb2d"
     },
     {
       "path": "forge/observability/query_views.py",
-      "sha256": "b823c6b2adbaca1d29ac524806f855cb7b65ab4520e0af597047b3c8ece98cd5"
+      "sha256": "b3cace76b2ecb13c236ea93551d8a1acf4252a4ae38dd45dfb35289990ea9b79"
     },
     {
       "path": "forge/observability/recorder.py",
-      "sha256": "7f86a06726f1d4f46216da847d2594e634fd8f3aeb536e42c1a0db7f01a364c7"
+      "sha256": "d0925c3486532013a652524d6e9e19a27e1ffe556cd96b7d19d51d06ddc41ae2"
+    },
+    {
+      "path": "forge/observability/tool_outputs.py",
+      "sha256": "17163744cbcc816346b4685c91749aa1163329ae185e335db7368df6183fcfcb"
     },
     {
       "path": "forge/observability/usage_ledger.py",

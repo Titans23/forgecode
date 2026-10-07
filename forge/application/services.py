@@ -266,6 +266,7 @@ class ApplicationServices:
         projection_error = None
         model_cleanup_error = None
         messages = None
+        observation_timer=None
         try:
             reference = json.loads(turn['config_json'])
             configuration = json.loads(self.store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
@@ -316,8 +317,32 @@ class ApplicationServices:
             with self.store.transaction():
                 self.store.connection.execute('UPDATE sessions SET legacy_ref=? WHERE id=?', (adapter.journal.session_id, session['id']))
                 self.store.connection.execute('UPDATE turns SET native_ref=? WHERE id=?', (adapter.journal.session_id, turn_id))
+            last_projection=0.0
+            last_sequence=-1
+            def project_live():
+                nonlocal last_projection,last_sequence,projection_error
+                if adapter.journal.sequence==last_sequence:return
+                try:
+                    JournalProjector(self.store).project(adapter.journal.path,turn['session_id'],trusted=True)
+                    last_sequence=adapter.journal.sequence;last_projection=asyncio.get_running_loop().time()
+                except Exception as error:
+                    projection_error=error
+                    raise
+            owner=asyncio.current_task()
+            async def observe_quiet_boundaries():
+                while True:
+                    await asyncio.sleep(0.25)
+                    try: project_live()
+                    except Exception:
+                        owner.cancel()
+                        return
+            observation_timer=asyncio.create_task(observe_quiet_boundaries())
             async for event in adapter.stream(json.loads(turn['input_json'])):
                 messages.observe(event)
+                now=asyncio.get_running_loop().time()
+                from forge.runtime.state import ToolExecutionCompleted
+                if now-last_projection>=0.25 or isinstance(event,(ToolExecutionCompleted,TurnCompleted)):
+                    project_live()
                 if isinstance(event, TurnCompleted):
                     result = event.result
             if result is None:
@@ -339,6 +364,9 @@ class ApplicationServices:
         except Exception as error:
             outcome, reason = 'indeterminate' if adapter else 'failed', type(error).__name__
         finally:
+            if observation_timer is not None:
+                observation_timer.cancel()
+                await asyncio.gather(observation_timer,return_exceptions=True)
             if messages is not None:
                 messages.flush(final=True)
             if timer is not None:

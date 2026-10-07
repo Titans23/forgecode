@@ -3,7 +3,11 @@ import type { SessionListRequest, SessionListResult, SessionSnapshotRequest, Ses
   SessionCreateDefaultRequest, SessionCreateDefaultResult, SessionSubmitRequest, SessionSubmitResult,
   WorkspaceFilesRequest, WorkspaceFilesResult, WorkspaceReadFileRequest, WorkspaceReadFileResult,
   WorkspaceChangesRequest, WorkspaceChangesResult, WorkspaceDiffRequest, WorkspaceDiffResult,
-  WorkspaceDiffFileRequest, WorkspaceDiffFileResult, SystemHealthResult } from '@forgecode/contracts';
+  WorkspaceDiffFileRequest, WorkspaceDiffFileResult, SystemHealthResult,
+  ObservabilitySpansRequest, ObservabilitySpansResult, ObservabilityContextRequest, ObservabilityContextResult,
+  ObservabilityEvidenceRequest, ObservabilityEvidenceResult, ObservabilityUsageRequest, ObservabilityUsageResult,
+  ObservabilityEventsRequest, ObservabilityEventsResult, ObservabilityOutputRequest, ObservabilityOutputResult,
+  ObservabilityTimingsRequest, ObservabilityTimingsResult, ArtifactReadChunkRequest, ArtifactReadChunkResult } from '@forgecode/contracts';
 export interface DesktopStatus {
   engine_state: string;
   readiness: { status: string; blockers?: unknown[] } | null;
@@ -50,6 +54,14 @@ export interface DesktopOperations {
   changes(value: WorkspaceChangesRequest): Promise<WorkspaceChangesResult>;
   diff(value: WorkspaceDiffRequest): Promise<WorkspaceDiffResult>;
   diffFile(value: WorkspaceDiffFileRequest): Promise<WorkspaceDiffFileResult>;
+  observationSpans(value: ObservabilitySpansRequest): Promise<ObservabilitySpansResult>;
+  observationContext(value: ObservabilityContextRequest): Promise<ObservabilityContextResult>;
+  observationEvidence(value: ObservabilityEvidenceRequest): Promise<ObservabilityEvidenceResult>;
+  observationUsage(value: ObservabilityUsageRequest): Promise<ObservabilityUsageResult>;
+  observationEvents(value: ObservabilityEventsRequest): Promise<ObservabilityEventsResult>;
+  observationOutput(value: ObservabilityOutputRequest): Promise<ObservabilityOutputResult>;
+  observationTimings(value: ObservabilityTimingsRequest): Promise<ObservabilityTimingsResult>;
+  artifactChunk(value: ArtifactReadChunkRequest): Promise<ArtifactReadChunkResult>;
   diagnostics(): Promise<SystemHealthResult>;
   diagnoseSandbox(): Promise<{ status: string; reason?: string }>;
   installSandbox(): Promise<{ status: string; reason?: string }>;
@@ -85,6 +97,14 @@ export class DesktopTransport implements DesktopOperations {
   changes(value: WorkspaceChangesRequest) { return this.bridge().changes(value); }
   diff(value: WorkspaceDiffRequest) { return this.bridge().diff(value); }
   diffFile(value: WorkspaceDiffFileRequest) { return this.bridge().diffFile(value); }
+  observationSpans(value: ObservabilitySpansRequest) { return this.bridge().observationSpans(value); }
+  observationContext(value: ObservabilityContextRequest) { return this.bridge().observationContext(value); }
+  observationEvidence(value: ObservabilityEvidenceRequest) { return this.bridge().observationEvidence(value); }
+  observationUsage(value: ObservabilityUsageRequest) { return this.bridge().observationUsage(value); }
+  observationEvents(value: ObservabilityEventsRequest) { return this.bridge().observationEvents(value); }
+  observationOutput(value: ObservabilityOutputRequest) { return this.bridge().observationOutput(value); }
+  observationTimings(value: ObservabilityTimingsRequest) { return this.bridge().observationTimings(value); }
+  artifactChunk(value: ArtifactReadChunkRequest) { return this.bridge().artifactChunk(value); }
   diagnostics() { return this.bridge().diagnostics(); }
   diagnoseSandbox() { return this.bridge().diagnoseSandbox(); }
   installSandbox() { return this.bridge().installSandbox(); }

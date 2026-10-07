@@ -917,6 +917,11 @@
               "type": "null"
             }
           ]
+        },
+        "debug_capture": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": true
         }
       },
       "required": [

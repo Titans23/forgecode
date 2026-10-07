@@ -21,11 +21,11 @@ def project(store, body):
         if event_type.endswith(('.finished','.failed')) or event_type in ('context.prepared','completion.accepted','completion.rejected','sandbox.prepared','sandbox.denied','sandbox.cleanup_finished'):
             connection.execute('UPDATE spans SET end=?,attributes=? WHERE trace_id=? AND span_id=?',
                 (body['occurred_at_utc'],json.dumps(span_attributes(body)),*identity))
-        connection.execute('INSERT OR IGNORE INTO span_details VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+        connection.execute('INSERT OR IGNORE INTO span_details(trace_id,span_id,workspace_id,session_id,turn_id,run_id,name,state,first_chunk_at,start_monotonic,end_monotonic,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
             (*identity,body['workspace_id'],body['session_id'],body['turn_id'],body['run_id'],event_type,'running',None,attributes.get('operation_start_monotonic_ns') or body['monotonic_ns'],None,json.dumps(attributes)))
         if event_type=='model.request.chunk':
-            connection.execute('UPDATE span_details SET first_chunk_at=COALESCE(first_chunk_at,?) WHERE trace_id=? AND span_id=?',
-                (attributes.get('first_client_text_chunk_at_utc') or body['occurred_at_utc'],*identity))
+            connection.execute('UPDATE span_details SET first_chunk_at=COALESCE(first_chunk_at,?),first_chunk_monotonic=COALESCE(first_chunk_monotonic,?) WHERE trace_id=? AND span_id=?',
+                (attributes.get('first_client_text_chunk_at_utc') or body['occurred_at_utc'],attributes.get('first_client_text_chunk_monotonic_ns'),*identity))
         ended=connection.execute('SELECT end FROM spans WHERE trace_id=? AND span_id=?',identity).fetchone()[0]
         if ended:
             result=attributes.get('result') or attributes.get('outcome')
