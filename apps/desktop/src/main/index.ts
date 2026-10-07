@@ -12,6 +12,7 @@ import { EngineSupervisor } from './supervisor.js';
 import { ownedTcpListeners } from './listeners.js';
 import { assertSender, empty, businessId, captureSender, nativeOperation } from './ipc.js';
 import { NativeApprovals } from './approvals.js';
+import { NativeFileDialogs } from './dialogs.js';
 import { probeSecurity } from './security_probe.js';
 import { runCredentialWorker } from './credential_worker.js';
 import { CredentialCrypto, credentialEnvironment } from './credential_crypto.js';
@@ -20,6 +21,7 @@ import { MainConnections } from './connections.js';
 import { probeCredentials } from './credential_probe.js';
 import { probeWorkspace } from './workspace_probe.js';
 import { probeObservability } from './observability_probe.js';
+import { probeEvaluations } from './evaluation_probe.js';
 import { createSetupBroker } from './setup_broker.js';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'forge-app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
@@ -148,6 +150,7 @@ async function runSmoke() {
     const observedSession=currentSession!;
     checks.push(...await probeWorkspace(window, engine, smoke.directory, resolve(app.getAppPath(), '../..')));
     checks.push(...await probeObservability(window,engine,observedSession,smoke.directory,smoke.output));
+    checks.push(...await probeEvaluations(window,engine,resolve(app.getAppPath(),'../..'),smoke.directory,smoke.output));
     const reloaded = new Promise<void>(resolve => window!.webContents.once('did-finish-load', () => resolve()));
     window.webContents.reload();
     await reloaded;
@@ -258,7 +261,11 @@ async function ready() {
     ['observation-spans','observability.spans'],['observation-context','observability.context'],
     ['observation-evidence','observability.evidence'],['observation-usage','observability.usage'],
     ['observation-events','observability.events'],['observation-output','observability.output'],
-    ['observation-timings','observability.timings'],['artifact-chunk','artifact.read_chunk']] as const) {
+    ['observation-timings','observability.timings'],['artifact-chunk','artifact.read_chunk'],
+    ['evaluation-templates','evaluation.templates'],['evaluation-template','evaluation.template'],
+    ['evaluation-draft','evaluation.draft'],['evaluation-validate','evaluation.validate'],['evaluation-create','evaluation.create_run'],
+    ['evaluation-start','evaluation.start'],['evaluation-cancel','evaluation.cancel'],['evaluation-retry','evaluation.retry'],
+    ['evaluation-runs','evaluation.list'],['evaluation-snapshot','evaluation.snapshot'],['evaluation-comparison','evaluation.comparison']] as const) {
     ipcMain.handle('forge:' + channel, (event, value) => { sender(event); validate(method + '.request', value); return live().call(method, value); });
   }
   ipcMain.handle('forge:diagnostics', (event, value) => { sender(event); empty(value); return live().call('system.health', {}); });
@@ -273,6 +280,13 @@ async function ready() {
   }
   ipcMain.handle('forge:events', (event, value) => { sender(event); empty(value); return live().events(); });
   const approvals = new NativeApprovals(live);
+  const fileDialogs=new NativeFileDialogs(live);
+  ipcMain.handle('forge:import-experiment-plan',(event,value)=>{sender(event);empty(value);return fileDialogs.importConfiguration(captureSender(()=>window,event));});
+  ipcMain.handle('forge:import-results',(event,value)=>{sender(event);empty(value);return fileDialogs.importResults(captureSender(()=>window,event));});
+  for(const [channel,operation] of [['export-experiment-plan','exportConfiguration'],['export-results','exportResults']] as const) {
+    ipcMain.handle('forge:'+channel,(event,value)=>{sender(event);validate('evaluation.plan_export.request',value);
+      return fileDialogs[operation]((value as {run_id:string}).run_id,captureSender(()=>window,event));});
+  }
   ipcMain.handle('forge:select-project', (event, value) => { sender(event); empty(value); return approvals.selectDirectory(captureSender(() => window, event)); });
   ipcMain.handle('forge:authorize-workspace', (event, value) => { sender(event); const id = onlyId(value, 'workspace_id', 'ws'); return approvals.authorizeWorkspace(id, captureSender(() => window, event)); });
   ipcMain.handle('forge:request-approval', (event, value) => { sender(event); const id = onlyId(value, 'approval_id', 'approval'); return approvals.request(id, captureSender(() => window, event)); });

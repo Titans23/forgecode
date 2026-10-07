@@ -35,6 +35,8 @@ class EngineMethods:
         self.approvals = ApprovalService(service)
         self.confirmations = ConfirmationNonces(self.store)
         self.connections = ConnectionService(service, self.confirmations)
+        from forge.application.evaluation_client import EvaluationClient
+        self.evaluation_client=EvaluationClient(self)
         if profile == 'desktop' or interactive_approvals:
             service.approvals = self.approvals
         self.initialized = False
@@ -70,6 +72,10 @@ class EngineMethods:
             'evaluation.start': lambda p: self.evaluation_mutation('evaluation.start', p), 'evaluation.cancel': self.evaluations.cancel,
             'evaluation.retry': lambda p: self.evaluation_mutation('evaluation.retry', p), 'evaluation.report': self.evaluations.report,
             'evaluation.compare': self.evaluations.compare,
+            'evaluation.templates':self.evaluation_client.templates,'evaluation.template':self.evaluation_client.template,
+            'evaluation.draft':self.evaluation_client.draft,'evaluation.list':self.evaluation_client.list_runs,
+            'evaluation.snapshot':self.evaluation_client.snapshot,'evaluation.comparison':self.evaluation_client.comparison,
+            'evaluation.import_plan':self.evaluation_client.import_plan,'evaluation.plan_export':self.evaluation_client.export_plan,
             'bundle.export':self.artifacts.export,'bundle.import':self.artifacts.import_bundle,
             'artifact.describe':self.artifacts.describe,'artifact.read_chunk':self.artifacts.read_chunk,
             'bundle.prepare_import':self.artifacts.prepare_import,'bundle.prepare_export':self.artifacts.prepare_export,

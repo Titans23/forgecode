@@ -187,7 +187,7 @@ class EvaluationScheduler:
             return
         try:
             _, values, _ = freeze_spec(self.store, work['spec'])
-            issues = executor.validate(work['spec'], values)
+            issues = self.evaluations.compatibility(work['spec'], values)
             if issues:
                 raise ContractError('Executor compatibility changed',kind='UNSUPPORTED_PLATFORM',code=-32010)
         except ContractError as error:

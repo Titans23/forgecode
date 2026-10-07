@@ -27,7 +27,8 @@ class ObservationViews:
         return owner+' AND '+alias+'.'+scope['kind']+'_id=?',(*bindings,scope['id'])
 
     def page(self,params,name,scope,table,where,bindings,view):
-        key={'collection':name,'scope':scope,**({'execution_id':params['execution_id']} if params.get('execution_id') else {})}
+        key={'collection':name,'scope':scope,**({'execution_id':params['execution_id']} if params.get('execution_id') else {}),
+            **({'attempt_id':params['attempt_id']} if params.get('attempt_id') else {})}
         after=self.events.decode_cursor(params['cursor'],key) if params.get('cursor') else 0
         limit=params.get('limit',100)
         rows=self.store.connection.execute('SELECT d.rowid AS position,d.* FROM '+table+' d WHERE ('+where+') AND d.rowid>? ORDER BY d.rowid LIMIT ?',
@@ -48,6 +49,9 @@ class ObservationViews:
         if params.get('execution_id'):
             where+=' AND EXISTS(SELECT 1 FROM execution_spans x WHERE x.trace_id=d.trace_id AND x.span_id=d.span_id AND x.execution_id=?)'
             bindings=(*bindings,params['execution_id'])
+        if params.get('attempt_id'):
+            where+=' AND EXISTS(SELECT 1 FROM attempt_details a WHERE a.trace_id=d.trace_id AND a.attempt_id=?)'
+            bindings=(*bindings,params['attempt_id'])
         def view(row):
             span=self.store.connection.execute('SELECT * FROM spans WHERE trace_id=? AND span_id=?',(row['trace_id'],row['span_id'])).fetchone()
             duration=None

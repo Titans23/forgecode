@@ -22,7 +22,7 @@ def resolve_snapshot(store, reference, schema=None):
     return value
 
 
-def freeze_spec(store, spec):
+def freeze_spec(store, spec, *, check_connection=True):
     spec = deepcopy(validate('run-spec', spec))
     if len(spec['dataset']['task_ids']) * spec['protocol']['repeats'] > 10000:
         raise ContractError('P0 run supports at most 10000 planned trials', kind='ARTIFACT_LIMIT', code=-32010)
@@ -79,7 +79,7 @@ def freeze_spec(store, spec):
         raise ContractError('Denied network must not contain an implicit domain allowlist')
     if spec['model_mode'] == 'scripted_mock' and spec['model']['provider'] != 'scripted_mock':
         raise ContractError('Scripted protocol must identify its synthetic provider')
-    if spec['model_mode'] == 'live':
+    if spec['model_mode'] == 'live' and check_connection:
         connection = store.connection.execute('SELECT * FROM connections WHERE id=?', (spec['model']['connection_id'],)).fetchone()
         if connection is None:
             raise ContractError('Model connection is unavailable', kind='CONNECTION_UNAVAILABLE', code=-32010)

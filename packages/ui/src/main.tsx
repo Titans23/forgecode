@@ -4,6 +4,7 @@ import { DesktopTransport, type DesktopStatus } from './transport';
 import { Connections } from './pages/settings/Connections';
 import { Workspace, type Project } from './pages/workspace/Workspace';
 import { Observability, type ObservationTarget, type ClientLatency } from './pages/observability/Observability';
+import { Evaluations } from './pages/evaluations/Evaluations';
 import './style.css';
 
 const transport = new DesktopTransport();
@@ -11,7 +12,7 @@ function App() {
   const [status, setStatus] = useState<DesktopStatus | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [page, setPage] = useState<'home' | 'workspace' | 'observability' | 'settings' | 'diagnostics'>('home');
+  const [page, setPage] = useState<'home' | 'workspace' | 'observability' | 'evaluations' | 'settings' | 'diagnostics'>('home');
   const [observeTarget,setObserveTarget] = useState<ObservationTarget|null>(null), [selectedSession,setSelectedSession] = useState<string|null>(null);
   const [latency,setLatency] = useState<Record<string,ClientLatency>>({});
   const [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false);
@@ -47,7 +48,7 @@ function App() {
   const project = projects.find(item => item.workspace_id === projectId) ?? null;
   const connected = status?.engine_state === 'ready';
   return <div className="app"><aside><div className="brand"><span className="mark">F</span>ForgeCode</div>
-    {([['home','首页／项目'],['workspace','Agent 工作区'],['observability','运行观测'],['settings','连接设置'],['diagnostics','诊断']] as const).map(([id, label]) =>
+    {([['home','首页／项目'],['workspace','Agent 工作区'],['observability','运行观测'],['evaluations','评测实验'],['settings','连接设置'],['diagnostics','诊断']] as const).map(([id, label]) =>
       <button className={'nav secondary ' + (page === id ? 'active' : '')} key={id} onClick={() => setPage(id)}>{label}</button>)}
     <div className="caption">最近项目</div><button className="secondary" disabled={busy || !connected} onClick={() => action(async () => {
       const selected = await transport.selectProject() as Project;
@@ -56,7 +57,7 @@ function App() {
     {projects.slice().reverse().map(item => <button className="secondary project" key={item.workspace_id} onClick={() => { setProjectId(item.workspace_id); setPage('workspace'); }}>
       {item.path?.split(/[\\/]/).at(-1) ?? item.name ?? item.workspace_id.slice(-8)} · {item.trust === 'inspect_only' ? '仅查看' : '可执行'}</button>)}
     <div className="sidebar-foot">V4 · Python Harness<br/>{status?.mode === 'offline-demo' ? '脚本模型开发测试' : '严格执行模式'}</div></aside>
-    <main><header><div><div className="eyebrow">FORGECODE</div><h1>{page === 'workspace' ? '开发工作区' : page === 'observability' ? '运行观测' : page === 'settings' ? '连接设置' : page === 'diagnostics' ? '诊断' : '项目'}</h1></div>
+    <main><header><div><div className="eyebrow">FORGECODE</div><h1>{page === 'workspace' ? '开发工作区' : page === 'observability' ? '运行观测' : page === 'evaluations' ? '评测实验' : page === 'settings' ? '连接设置' : page === 'diagnostics' ? '诊断' : '项目'}</h1></div>
       <div className={'connection ' + (connected ? 'online' : '')}>{connected ? 'Engine 已连接' : status?.engine_state ?? '正在连接'}</div></header>
     {(error || status?.failure) && <div role="alert" className="notice">{error ?? status?.failure}</div>}
     {status?.readiness?.status === 'blocked' && <div className="notice">执行环境未就绪，任务启动已禁用。项目文件和历史会话仍可查看。</div>}
@@ -74,6 +75,7 @@ function App() {
         onLatency={(id,value)=>setLatency(old=>Object.fromEntries(Object.entries({...old,[id]:{...old[id],...value}}).slice(-1000)))}/></>}
     {page === 'observability' && <Observability key={(observeTarget?.turnId??selectedSession??status?.session_id)+':'+observeTarget?.executionId}
       transport={transport} sessionId={selectedSession??status?.session_id??null} target={observeTarget} latency={latency}/>}
+    {page === 'evaluations' && <Evaluations transport={transport}/>}
     {page === 'settings' && <Connections transport={transport}/>}
     {page === 'diagnostics' && <section><h2>Engine 状态</h2><button onClick={() => action(async () => setDiagnostics(await transport.diagnostics()))}>刷新诊断</button>
       <button className="secondary" disabled={busy} onClick={() => action(async () => setDiagnostics(await transport.diagnoseSandbox()))}>诊断原生沙盒</button>

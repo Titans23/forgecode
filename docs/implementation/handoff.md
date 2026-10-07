@@ -1,6 +1,12 @@
-# ForgeCode V4 交接 — 2026-10-06
+# ForgeCode V4 交接 — 2026-10-07
 
-- 当前代码完成 F00—F22；下一 F23（任务卡、第 15 / 17 / 18 章与真实评测 / Main / UI / RPC 已读）。原生平台验收独立 blocked。
+- 当前代码完成 F00—F23；下一 F24，任务卡与规范第 18 章已读。原生平台验收独立 blocked。
+- F22 已推送 4f9f42216153f465f00d130561cf95573b371b85，远端 SHA 已核对；这是 F23 的测试父 HEAD。
+- F23 已实现四步不可变实验配置、profile 快照归属、真实分页报告、同题 A/B Trace 与不可比告警、Main 原生文件／隐私确认接线。
+  unit 145 / portable 256 / regression 1145，全部 0 skip；Windows 10 development Electron 59 checks pass。
+  最终 evidence 20261007T004628Z-9d6e9f79 / 20261007T004659Z-01d191f0 / 20261007T004716Z-11c7a1ea / 20261007T005211Z-485cb317 / 20261007T005211Z-82b55461 / 20261007T005216Z-cdbc3407 / 20261007T005220Z-8a72deb8；final dirty 850c79a0e7244712b36cabfb1c3d9f1f3252d5d84a880dbba2456f653902e030。
+  初次 TypeScript preparation 与目录加载时序的失败证据保留；被中断的未完成套件不计通过。
+  public model / Docker / F30 spend-policy、native Windows 11 / Ubuntu / installed client / 人工文件对话框仍 blocked。F24 将接真实失败标注、不可变历史与证据绑定复现候选。
 - F21 已推送 2a96fc8593b10b2969482e408f42d4bd67151445，远端 SHA 已核对；F22 测试父 HEAD 即此 SHA，提交后用 git HEAD 核对。
 - F21：安全 ZIP / private staging / 原始包与冲突隔离 / imported_* 只读表 / profile artifact / Main-only file token / offline report 已实现。
   unit 142 / portable 231 / regression 1117，0 skip；Windows 10 development Electron 44 checks pass。

@@ -3172,6 +3172,1058 @@
         "untrusted_extra": true
       },
       "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.templates.request",
+      "value": {},
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.templates.request",
+      "value": {
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.templates.result",
+      "value": {
+        "items": [],
+        "history_gap": false,
+        "requires_configuration_import": true
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.templates.result",
+      "value": {
+        "items": [],
+        "history_gap": false,
+        "requires_configuration_import": true,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.template.request",
+      "value": {
+        "template_id": "run-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.template.request",
+      "value": {
+        "template_id": "run-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.template.result",
+      "value": {
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "defaults": {
+          "attempt_wall_seconds": 120,
+          "trial_wall_seconds": 120,
+          "max_model_requests_per_attempt": 10,
+          "max_tool_calls_per_attempt": 20,
+          "spend_ceiling": "0",
+          "currency": "USD",
+          "spend_policy": "unknown_usage_stop_next_request",
+          "task_ids": [
+            "fixture-pass",
+            "fixture-fail"
+          ],
+          "target_platform": "linux-native",
+          "connection_id": null,
+          "max_delivery_repairs": 0,
+          "max_context_tokens": 4096,
+          "max_output_tokens": 1024,
+          "temperature": null,
+          "top_p": null,
+          "reasoning_effort": null,
+          "compaction_enabled": true,
+          "explore_enabled": true,
+          "repeats": 1,
+          "max_infrastructure_attempts": 1,
+          "infrastructure_retry_categories": [],
+          "feedback": "none",
+          "network_mode": "deny_direct",
+          "allowed_domains": [],
+          "cache_mode": "cold"
+        },
+        "configuration_origin": "trusted_configuration"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.template.result",
+      "value": {
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "defaults": {
+          "attempt_wall_seconds": 120,
+          "trial_wall_seconds": 120,
+          "max_model_requests_per_attempt": 10,
+          "max_tool_calls_per_attempt": 20,
+          "spend_ceiling": "0",
+          "currency": "USD",
+          "spend_policy": "unknown_usage_stop_next_request",
+          "task_ids": [
+            "fixture-pass",
+            "fixture-fail"
+          ],
+          "target_platform": "linux-native",
+          "connection_id": null,
+          "max_delivery_repairs": 0,
+          "max_context_tokens": 4096,
+          "max_output_tokens": 1024,
+          "temperature": null,
+          "top_p": null,
+          "reasoning_effort": null,
+          "compaction_enabled": true,
+          "explore_enabled": true,
+          "repeats": 1,
+          "max_infrastructure_attempts": 1,
+          "infrastructure_retry_categories": [],
+          "feedback": "none",
+          "network_mode": "deny_direct",
+          "allowed_domains": [],
+          "cache_mode": "cold"
+        },
+        "configuration_origin": "trusted_configuration",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.draft.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "template_id": "run-11111111-1111-4111-8111-111111111111",
+        "choices": {
+          "attempt_wall_seconds": 120,
+          "trial_wall_seconds": 120,
+          "max_model_requests_per_attempt": 10,
+          "max_tool_calls_per_attempt": 20,
+          "spend_ceiling": "0",
+          "currency": "USD",
+          "spend_policy": "unknown_usage_stop_next_request",
+          "task_ids": [
+            "fixture-pass",
+            "fixture-fail"
+          ],
+          "target_platform": "linux-native",
+          "connection_id": null,
+          "max_delivery_repairs": 0,
+          "max_context_tokens": 4096,
+          "max_output_tokens": 1024,
+          "temperature": null,
+          "top_p": null,
+          "reasoning_effort": null,
+          "compaction_enabled": true,
+          "explore_enabled": true,
+          "repeats": 1,
+          "max_infrastructure_attempts": 1,
+          "infrastructure_retry_categories": [],
+          "feedback": "none",
+          "network_mode": "deny_direct",
+          "allowed_domains": [],
+          "cache_mode": "cold"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.draft.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "template_id": "run-11111111-1111-4111-8111-111111111111",
+        "choices": {
+          "attempt_wall_seconds": 120,
+          "trial_wall_seconds": 120,
+          "max_model_requests_per_attempt": 10,
+          "max_tool_calls_per_attempt": 20,
+          "spend_ceiling": "0",
+          "currency": "USD",
+          "spend_policy": "unknown_usage_stop_next_request",
+          "task_ids": [
+            "fixture-pass",
+            "fixture-fail"
+          ],
+          "target_platform": "linux-native",
+          "connection_id": null,
+          "max_delivery_repairs": 0,
+          "max_context_tokens": 4096,
+          "max_output_tokens": 1024,
+          "temperature": null,
+          "top_p": null,
+          "reasoning_effort": null,
+          "compaction_enabled": true,
+          "explore_enabled": true,
+          "repeats": 1,
+          "max_infrastructure_attempts": 1,
+          "infrastructure_retry_categories": [],
+          "feedback": "none",
+          "network_mode": "deny_direct",
+          "allowed_domains": [],
+          "cache_mode": "cold"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.draft.result",
+      "value": {
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_origin": "trusted_configuration",
+        "planned_trials": 2
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.draft.result",
+      "value": {
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "configuration_origin": "trusted_configuration",
+        "planned_trials": 2,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.list.request",
+      "value": {},
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.list.request",
+      "value": {
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": null,
+        "history_gap": false
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.list.result",
+      "value": {
+        "items": [],
+        "next_cursor": null,
+        "history_gap": false,
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.snapshot.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.snapshot.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.snapshot.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "created",
+        "origin": "local",
+        "configuration_origin": "trusted_configuration",
+        "read_only": false,
+        "compatible": false,
+        "issues": [],
+        "metrics": {},
+        "trials": [],
+        "attempts": [],
+        "missing_evidence": [],
+        "missing_evidence_count": 0,
+        "next_cursor": null,
+        "history_gap": false,
+        "score_authority": "independent_grader_only"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.snapshot.result",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "spec": {
+          "schema_version": "forge.eval.runspec.v1",
+          "experiment_id": "experiment-11111111-1111-4111-8111-111111111111",
+          "source": {
+            "commit": null,
+            "dirty_diff_sha256": null,
+            "source_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "dependency_lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "model": {
+            "connection_id": "conn-11111111-1111-4111-8111-111111111111",
+            "connection_revision": 1,
+            "provider": "scripted_mock",
+            "requested_model": "fixture-model-v1",
+            "parameters": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "harness": {
+            "prompt_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+            "tool_schema_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "max_delivery_repairs": 0
+          },
+          "dataset": {
+            "name": "eval-mini-bundle",
+            "revision": "fixture-v1",
+            "task_ids": [
+              "fixture-pass",
+              "fixture-fail"
+            ],
+            "task_revisions": {
+              "fixture-pass": "v1",
+              "fixture-fail": "v1"
+            }
+          },
+          "execution": {
+            "target_platform": "linux-native",
+            "environment_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_policy": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "sandbox_capabilities": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "network_cache_configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "concurrency": 1
+          },
+          "protocol": {
+            "repeats": 1,
+            "max_infrastructure_attempts": 1,
+            "feedback": "none",
+            "selection_rule": "last_authorized_attempt",
+            "retain_first_attempt": true
+          },
+          "grader": {
+            "adapter_id": "fixture-assertions",
+            "revision": "v1",
+            "configuration": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "environment": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "budget": {
+            "attempt_wall_seconds": 120,
+            "trial_wall_seconds": 120,
+            "max_model_requests_per_attempt": 10,
+            "max_tool_calls_per_attempt": 20,
+            "spend_ceiling": "0",
+            "currency": "USD",
+            "spend_policy": "unknown_usage_stop_next_request"
+          },
+          "observability": {
+            "event_schema": "forge.events.v1",
+            "capture": "metadata",
+            "pricing_snapshot": {
+              "snapshot_id": "snap-11111111-1111-4111-8111-111111111111",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "export_classification": "metadata_only"
+          },
+          "model_mode": "scripted_mock"
+        },
+        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "created",
+        "origin": "local",
+        "configuration_origin": "trusted_configuration",
+        "read_only": false,
+        "compatible": false,
+        "issues": [],
+        "metrics": {},
+        "trials": [],
+        "attempts": [],
+        "missing_evidence": [],
+        "missing_evidence_count": 0,
+        "next_cursor": null,
+        "history_gap": false,
+        "score_authority": "independent_grader_only",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.comparison.request",
+      "value": {
+        "run_ids": [
+          "run-11111111-1111-4111-8111-111111111111",
+          "run-22222222-2222-4222-8222-222222222222"
+        ],
+        "protocol": {
+          "comparison": "paired_task_set",
+          "metric": "first_attempt_pass_rate"
+        }
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.comparison.request",
+      "value": {
+        "run_ids": [
+          "run-11111111-1111-4111-8111-111111111111",
+          "run-22222222-2222-4222-8222-222222222222"
+        ],
+        "protocol": {
+          "comparison": "paired_task_set",
+          "metric": "first_attempt_pass_rate"
+        },
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.comparison.result",
+      "value": {
+        "comparable": true,
+        "differences": [],
+        "uncertainty": "No statistical improvement inferred."
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.comparison.result",
+      "value": {
+        "comparable": true,
+        "differences": [],
+        "uncertainty": "No statistical improvement inferred.",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.import_plan.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "path": "D:/configuration.json"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.import_plan.request",
+      "value": {
+        "client_action_id": "act-11111111-1111-4111-8111-111111111111",
+        "path": "D:/configuration.json",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.import_plan.result",
+      "value": {
+        "template_id": "plan-11111111-1111-4111-8111-111111111111",
+        "origin": "imported_unverified",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.import_plan.result",
+      "value": {
+        "template_id": "plan-11111111-1111-4111-8111-111111111111",
+        "origin": "imported_unverified",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.plan_export.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.plan_export.request",
+      "value": {
+        "run_id": "run-11111111-1111-4111-8111-111111111111",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
+    },
+    {
+      "schema": "evaluation.plan_export.result",
+      "value": {
+        "plan_artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 1,
+          "media_type": "application/json",
+          "redaction_version": "metadata-v1",
+          "available": true
+        },
+        "configuration_origin": "trusted_configuration",
+        "required_environment": "verified Linux sandbox"
+      },
+      "expected": "valid"
+    },
+    {
+      "schema": "evaluation.plan_export.result",
+      "value": {
+        "plan_artifact": {
+          "artifact_id": "art-11111111-1111-4111-8111-111111111111",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 1,
+          "media_type": "application/json",
+          "redaction_version": "metadata-v1",
+          "available": true
+        },
+        "configuration_origin": "trusted_configuration",
+        "required_environment": "verified Linux sandbox",
+        "unexpected_field": true
+      },
+      "expected": "invalid"
     }
   ]
 }

@@ -30,10 +30,15 @@ class EvaluationService:
         row = self.store.connection.execute('SELECT s.id,s.hash FROM run_details d JOIN configuration_snapshots s ON s.id=d.configuration_id WHERE d.run_id=?', (run_id,)).fetchone()
         return {'snapshot_id': row['id'], 'sha256': row['hash']}
 
+    def compatibility(self, spec, values):
+        from forge.application.evaluation_client import configuration_issues
+        issues=configuration_issues(self.store,self.service.profile_id,spec)
+        return issues+(self.executor.validate(spec,values) if self.executor else [
+            {'task_id':None,'kind':'runner_unavailable','message':'Plan may be saved/exported; no compatible official executor is installed.'}])
+
     def validate(self, params):
         spec, values, digest = freeze_spec(self.store, params['spec'])
-        issues = self.executor.validate(spec, values) if self.executor else [
-            {'task_id': None, 'kind': 'runner_unavailable', 'message': 'Plan may be saved/exported; no compatible official executor is installed.'}]
+        issues = self.compatibility(spec, values)
         ticket = new_id('ticket')
         expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat().replace('+00:00', 'Z')
         result = {'validation_ticket': ticket, 'spec_hash': digest, 'compatible': not issues, 'issues': issues}
@@ -61,6 +66,8 @@ class EvaluationService:
     def create_run(self, params):
         def create():
             spec, _, digest = freeze_spec(self.store, params['spec'])
+            from forge.application.evaluation_client import configuration_issues,REFERENCES
+            configuration_issues(self.store,self.service.profile_id,spec)
             ticket = self.store.connection.execute('SELECT * FROM validation_tickets WHERE id=? AND profile_id=?',
                 (params['validation_ticket'], self.service.profile_id)).fetchone()
             if digest != params['spec_hash'] or not ticket or ticket['spec_hash'] != digest or ticket['expires_at'] <= utc_now() or ticket['consumed_run_id']:
@@ -71,6 +78,9 @@ class EvaluationService:
             self.store.connection.execute("INSERT INTO runs VALUES(?,?,?,?,'created')", (run_id, spec['experiment_id'], digest, encoded(spec)))
             ref = self.store._configuration_snapshot(spec, digest)
             self.store.connection.execute('INSERT INTO run_details VALUES(?,?,?,?)', (run_id, self.service.profile_id, ref['snapshot_id'], utc_now()))
+            for group,key,_ in REFERENCES.values():
+                self.store.connection.execute('INSERT OR IGNORE INTO evaluation_snapshot_origins VALUES(?,?,?)',
+                    (spec[group][key]['snapshot_id'],self.service.profile_id,'trusted_configuration'))
             for task_id in spec['dataset']['task_ids']:
                 for repeat in range(spec['protocol']['repeats']):
                     trial_id = new_id('trial')

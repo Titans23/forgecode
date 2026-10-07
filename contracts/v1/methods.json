@@ -1548,6 +1548,230 @@
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/integration/test_observability_client.py"
       ]
+    },
+    "evaluation.templates": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.templates.request",
+      "result_schema": "evaluation.templates.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.template": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.template.request",
+      "result_schema": "evaluation.template.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.draft": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "evaluation.draft.request",
+      "result_schema": "evaluation.draft.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.list": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.list.request",
+      "result_schema": "evaluation.list.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.snapshot": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.snapshot.request",
+      "result_schema": "evaluation.snapshot.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.comparison": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.comparison.request",
+      "result_schema": "evaluation.comparison.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.import_plan": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "evaluation.import_plan.request",
+      "result_schema": "evaluation.import_plan.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.plan_export": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "evaluation.plan_export.request",
+      "result_schema": "evaluation.plan_export.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
     }
   }
 }

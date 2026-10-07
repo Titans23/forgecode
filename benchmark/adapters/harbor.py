@@ -14,6 +14,7 @@ from benchmark.adapters.protocol import (capture_tree, collect_harbor, file_byte
     NORMALIZATION_VERSION)
 from forge.application.models import ContractError, canonical_hash, strict_loads
 from forge.engine.persistence import new_id
+from benchmark.core.spec import freeze_spec
 
 
 class HarborAdapter:
@@ -171,7 +172,9 @@ class HarborExecutor:
             issues.append({'task_id':None,'kind':'protocol_incompatible','message':'Linux-only public Docker benchmark cannot run as Windows native; export RunSpec'})
         return issues
 
-    async def execute(self,evaluations,work,spec,values):
+    async def execute(self,work,scheduler):
+        evaluations=scheduler.evaluations
+        spec,values=work['spec'],freeze_spec(evaluations.store,work['spec'])[1]
         from benchmark.core.scheduler import emit
         from benchmark.adapters.docker import cleanup_state
         def finish(**facts):
@@ -252,4 +255,5 @@ def export_runspec(spec,values):
         raise ContractError('Export snapshot content differs from immutable RunSpec',kind='STALE_REVISION',code=-32010)
     return {'schema_version':'forge.eval.plan-export.v1','spec':spec,'spec_hash':canonical_hash(spec),
         'resolved_snapshots':values,'execution_label':spec['execution']['target_platform'],
-        'read_only_plan':True,'required_environment':'official Harbor Linux Docker environment'}
+        'read_only_plan':True,'required_environment':('official Harbor Linux Docker environment' if spec['execution']['target_platform']=='official-environment'
+            else spec['execution']['target_platform']+' with matching verified sandbox/toolchain snapshots')}

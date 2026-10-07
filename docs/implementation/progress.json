@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "document_version": "4.0.0",
-  "actual_repository_head": "2a96fc8593b10b2969482e408f42d4bd67151445",
-  "next_recommended_task": "F22",
-  "current_task": "F22",
+  "actual_repository_head": "4f9f42216153f465f00d130561cf95573b371b85",
+  "next_recommended_task": "F24",
+  "current_task": "F23",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -466,13 +466,33 @@
       ]
     },
     "F23": {
-      "implementation_status": "todo",
+      "implementation_status": "implemented",
       "verification": {
-        "desktop": "not_run",
-        "portable": "not_run"
+        "unit": "pass",
+        "portable": "pass",
+        "regression": "pass",
+        "desktop": "pass",
+        "contracts": "pass",
+        "typecheck": "pass",
+        "desktop-packaged": "blocked",
+        "sandbox-linux": "blocked",
+        "sandbox-windows": "blocked",
+        "native_file_dialog": "blocked",
+        "live_model": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261007T004628Z-9d6e9f79",
+        "20261007T004659Z-01d191f0",
+        "20261007T004716Z-11c7a1ea",
+        "20261007T005211Z-485cb317",
+        "20261007T005211Z-82b55461",
+        "20261007T005216Z-cdbc3407",
+        "20261007T005220Z-8a72deb8"
+      ],
+      "blocked_reasons": [
+        "Windows 10 development client passed 59 real Electron checks; Windows 11 and supported Ubuntu, fixed installed Engine and manual native file dialog choices remain unavailable/unverified.",
+        "Docker daemon, paid API authorization and F30 spend/policy reconciliation remain unavailable; offline Harness/Journal/separate-process grader fixtures are not public model results."
+      ]
     },
     "F24": {
       "implementation_status": "todo",

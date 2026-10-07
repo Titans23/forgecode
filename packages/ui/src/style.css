@@ -18,3 +18,8 @@ main { min-width:0; } section { margin-bottom:18px; } .composer textarea { min-w
 .trace-row.selected { background:#27382f; } .observed-output,[data-testid=observability] pre { max-height:320px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
 [data-testid=observability] select { max-width:100%; padding:8px; background:#151b23; color:inherit; border:1px solid #303945; border-radius:6px; }
 @media (prefers-color-scheme:light) { [data-testid=observability] select { background:white; } .trace-row.selected { background:#d8eadd; } }
+.wizard-nav{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}.wizard-step label{display:block;margin:12px 0}.wizard-step input[type=number]{max-width:220px}
+.wizard-step input[type=checkbox],.task-choice input{width:auto;margin-right:8px}.wizard-step fieldset{border:1px solid #8092a544;border-radius:8px}
+.wizard-step fieldset label{display:inline-block;margin-right:16px}.dual-traces{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+.attempt-trace{min-width:0}.attempt-trace p{overflow-wrap:anywhere}.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0}
+.metric-grid>div{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid #8092a544;border-radius:8px}.evaluations code{overflow-wrap:anywhere}

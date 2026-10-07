@@ -1,4 +1,6 @@
 /** UI code depends on named business operations; Electron stays in Main/Preload. */
+import type * as EvaluationContract from '@forgecode/contracts';
+export interface NativeFileResult { cancelled:boolean; saved?:boolean; template_id?:string; run_ids?:string[]; origin?:string }
 import type { SessionListRequest, SessionListResult, SessionSnapshotRequest, SessionSnapshotResult,
   SessionCreateDefaultRequest, SessionCreateDefaultResult, SessionSubmitRequest, SessionSubmitResult,
   WorkspaceFilesRequest, WorkspaceFilesResult, WorkspaceReadFileRequest, WorkspaceReadFileResult,
@@ -62,6 +64,21 @@ export interface DesktopOperations {
   observationOutput(value: ObservabilityOutputRequest): Promise<ObservabilityOutputResult>;
   observationTimings(value: ObservabilityTimingsRequest): Promise<ObservabilityTimingsResult>;
   artifactChunk(value: ArtifactReadChunkRequest): Promise<ArtifactReadChunkResult>;
+  evaluationTemplates(): Promise<EvaluationContract.EvaluationTemplatesResult>;
+  evaluationTemplate(value: EvaluationContract.EvaluationTemplateRequest): Promise<EvaluationContract.EvaluationTemplateResult>;
+  evaluationDraft(value: EvaluationContract.EvaluationDraftRequest): Promise<EvaluationContract.EvaluationDraftResult>;
+  evaluationValidate(value: EvaluationContract.EvaluationValidateRequest): Promise<EvaluationContract.EvaluationValidateResult>;
+  evaluationCreate(value: EvaluationContract.EvaluationCreateRunRequest): Promise<EvaluationContract.EvaluationCreateRunResult>;
+  evaluationStart(value: EvaluationContract.EvaluationStartRequest): Promise<EvaluationContract.EvaluationStartResult>;
+  evaluationCancel(value: EvaluationContract.EvaluationCancelRequest): Promise<EvaluationContract.EvaluationCancelResult>;
+  evaluationRetry(value: EvaluationContract.EvaluationRetryRequest): Promise<EvaluationContract.EvaluationRetryResult>;
+  evaluationRuns(value: EvaluationContract.EvaluationListRequest): Promise<EvaluationContract.EvaluationListResult>;
+  evaluationSnapshot(value: EvaluationContract.EvaluationSnapshotRequest): Promise<EvaluationContract.EvaluationSnapshotResult>;
+  evaluationComparison(value: EvaluationContract.EvaluationComparisonRequest): Promise<EvaluationContract.EvaluationComparisonResult>;
+  importExperimentPlan(): Promise<NativeFileResult>;
+  exportExperimentPlan(runId:string): Promise<NativeFileResult>;
+  importResults(): Promise<NativeFileResult>;
+  exportResults(runId:string): Promise<NativeFileResult>;
   diagnostics(): Promise<SystemHealthResult>;
   diagnoseSandbox(): Promise<{ status: string; reason?: string }>;
   installSandbox(): Promise<{ status: string; reason?: string }>;
@@ -105,6 +122,21 @@ export class DesktopTransport implements DesktopOperations {
   observationOutput(value: ObservabilityOutputRequest) { return this.bridge().observationOutput(value); }
   observationTimings(value: ObservabilityTimingsRequest) { return this.bridge().observationTimings(value); }
   artifactChunk(value: ArtifactReadChunkRequest) { return this.bridge().artifactChunk(value); }
+  evaluationTemplates() { return this.bridge().evaluationTemplates(); }
+  evaluationTemplate(value: EvaluationContract.EvaluationTemplateRequest) { return this.bridge().evaluationTemplate(value); }
+  evaluationDraft(value: EvaluationContract.EvaluationDraftRequest) { return this.bridge().evaluationDraft(value); }
+  evaluationValidate(value: EvaluationContract.EvaluationValidateRequest) { return this.bridge().evaluationValidate(value); }
+  evaluationCreate(value: EvaluationContract.EvaluationCreateRunRequest) { return this.bridge().evaluationCreate(value); }
+  evaluationStart(value: EvaluationContract.EvaluationStartRequest) { return this.bridge().evaluationStart(value); }
+  evaluationCancel(value: EvaluationContract.EvaluationCancelRequest) { return this.bridge().evaluationCancel(value); }
+  evaluationRetry(value: EvaluationContract.EvaluationRetryRequest) { return this.bridge().evaluationRetry(value); }
+  evaluationRuns(value: EvaluationContract.EvaluationListRequest) { return this.bridge().evaluationRuns(value); }
+  evaluationSnapshot(value: EvaluationContract.EvaluationSnapshotRequest) { return this.bridge().evaluationSnapshot(value); }
+  evaluationComparison(value: EvaluationContract.EvaluationComparisonRequest) { return this.bridge().evaluationComparison(value); }
+  importExperimentPlan() { return this.bridge().importExperimentPlan(); }
+  exportExperimentPlan(runId:string) { return this.bridge().exportExperimentPlan(runId); }
+  importResults() { return this.bridge().importResults(); }
+  exportResults(runId:string) { return this.bridge().exportResults(runId); }
   diagnostics() { return this.bridge().diagnostics(); }
   diagnoseSandbox() { return this.bridge().diagnoseSandbox(); }
   installSandbox() { return this.bridge().installSandbox(); }

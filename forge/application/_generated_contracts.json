@@ -892,6 +892,34 @@
       ],
       "timeout_query": "repeat_read"
     },
+    "evaluation.comparison": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "evaluation.comparison.request",
+      "result_schema": "evaluation.comparison.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
     "evaluation.create_run": {
       "audience": "renderer",
       "cancellation": "explicit_domain_cancel",
@@ -916,6 +944,118 @@
         "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "action.get"
+    },
+    "evaluation.draft": {
+      "audience": "renderer",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "service_transaction_before_response",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": "client_action_id",
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": true,
+      "request_schema": "evaluation.draft.request",
+      "result_schema": "evaluation.draft.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "action.get"
+    },
+    "evaluation.import_plan": {
+      "audience": "main",
+      "cancellation": "explicit_domain_cancel",
+      "commit_point": "service_transaction_before_response",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": "client_action_id",
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": true,
+      "request_schema": "evaluation.import_plan.request",
+      "result_schema": "evaluation.import_plan.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "action.get"
+    },
+    "evaluation.list": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "evaluation.list.request",
+      "result_schema": "evaluation.list.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "evaluation.plan_export": {
+      "audience": "main",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "evaluation.plan_export.request",
+      "result_schema": "evaluation.plan_export.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "repeat_read"
     },
     "evaluation.report": {
       "audience": "renderer",
@@ -965,6 +1105,34 @@
       ],
       "timeout_query": "action.get"
     },
+    "evaluation.snapshot": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "evaluation.snapshot.request",
+      "result_schema": "evaluation.snapshot.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
     "evaluation.start": {
       "audience": "renderer",
       "cancellation": "explicit_domain_cancel",
@@ -989,6 +1157,62 @@
         "tests/implementation/integration/test_evaluations.py"
       ],
       "timeout_query": "action.get"
+    },
+    "evaluation.template": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "evaluation.template.request",
+      "result_schema": "evaluation.template.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "repeat_read"
+    },
+    "evaluation.templates": {
+      "audience": "renderer",
+      "cancellation": "none",
+      "commit_point": "none",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "idempotency_key": null,
+      "implementation_status": "implemented",
+      "logging": "metadata_only_no_payload_values",
+      "max_output_bytes": 1048576,
+      "mutation": false,
+      "request_schema": "evaluation.templates.request",
+      "result_schema": "evaluation.templates.result",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ],
+      "timeout_query": "repeat_read"
     },
     "evaluation.validate": {
       "audience": "renderer",
@@ -3920,6 +4144,16 @@
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.compare.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
+    "evaluation.comparison.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.comparison.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.comparison.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.comparison.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.comparison.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.comparison.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
     "evaluation.create_run.request": {
       "$id": "urn:forgecode:contracts:v1:evaluation.create_run.request",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.create_run.request",
@@ -3928,6 +4162,46 @@
     "evaluation.create_run.result": {
       "$id": "urn:forgecode:contracts:v1:evaluation.create_run.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.create_run.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.draft.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.draft.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.draft.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.draft.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.draft.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.draft.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.import_plan.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.import_plan.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.import_plan.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.import_plan.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.import_plan.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.import_plan.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.list.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.list.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.list.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.list.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.list.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.list.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.plan_export.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.plan_export.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.plan_export.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.plan_export.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.plan_export.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.plan_export.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "evaluation.report.request": {
@@ -3950,6 +4224,16 @@
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.retry.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
+    "evaluation.snapshot.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.snapshot.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.snapshot.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.snapshot.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.snapshot.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.snapshot.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
     "evaluation.start.request": {
       "$id": "urn:forgecode:contracts:v1:evaluation.start.request",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.start.request",
@@ -3958,6 +4242,26 @@
     "evaluation.start.result": {
       "$id": "urn:forgecode:contracts:v1:evaluation.start.result",
       "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.start.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.template.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.template.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.template.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.template.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.template.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.template.result",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.templates.request": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.templates.request",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.templates.request",
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "evaluation.templates.result": {
+      "$id": "urn:forgecode:contracts:v1:evaluation.templates.result",
+      "$ref": "urn:forgecode:contracts:v1:method-payloads#/$defs/evaluation.templates.result",
       "$schema": "https://json-schema.org/draft/2020-12/schema"
     },
     "evaluation.validate.request": {
@@ -9352,6 +9656,217 @@
           ],
           "type": "object"
         },
+        "evaluation.choices": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed_domains": {
+              "items": {
+                "maxLength": 253,
+                "type": "string"
+              },
+              "maxItems": 128,
+              "minItems": 0,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "attempt_wall_seconds": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "cache_mode": {
+              "enum": [
+                "cold",
+                "isolated_per_trial",
+                "shared_read_only"
+              ]
+            },
+            "compaction_enabled": {
+              "type": "boolean"
+            },
+            "connection_id": {
+              "anyOf": [
+                {
+                  "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "currency": {
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            },
+            "explore_enabled": {
+              "type": "boolean"
+            },
+            "feedback": {
+              "enum": [
+                "none",
+                "benchmark_defined"
+              ]
+            },
+            "infrastructure_retry_categories": {
+              "items": {
+                "enum": [
+                  "runner_unavailable",
+                  "runner_crash",
+                  "environment_setup",
+                  "provider_unavailable",
+                  "grader_infrastructure"
+                ]
+              },
+              "maxItems": 5,
+              "minItems": 0,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "max_context_tokens": {
+              "maximum": 2000000,
+              "minimum": 4096,
+              "type": "integer"
+            },
+            "max_delivery_repairs": {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "max_infrastructure_attempts": {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_model_requests_per_attempt": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_output_tokens": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_tool_calls_per_attempt": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "network_mode": {
+              "enum": [
+                "deny_direct",
+                "allowlist"
+              ]
+            },
+            "reasoning_effort": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "none",
+                    "minimal",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repeats": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "spend_ceiling": {
+              "maxLength": 32,
+              "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+              "type": "string"
+            },
+            "spend_policy": {
+              "enum": [
+                "preauthorization_with_reservation",
+                "unknown_usage_stop_next_request"
+              ]
+            },
+            "target_platform": {
+              "enum": [
+                "windows-native",
+                "linux-native",
+                "official-environment"
+              ]
+            },
+            "task_ids": {
+              "items": {
+                "maxLength": 256,
+                "type": "string"
+              },
+              "maxItems": 10000,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "temperature": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "top_p": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "trial_wall_seconds": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "attempt_wall_seconds",
+            "trial_wall_seconds",
+            "max_model_requests_per_attempt",
+            "max_tool_calls_per_attempt",
+            "spend_ceiling",
+            "currency",
+            "spend_policy",
+            "task_ids",
+            "target_platform",
+            "connection_id",
+            "max_delivery_repairs",
+            "max_context_tokens",
+            "temperature",
+            "top_p",
+            "max_output_tokens",
+            "reasoning_effort",
+            "compaction_enabled",
+            "explore_enabled",
+            "repeats",
+            "max_infrastructure_attempts",
+            "infrastructure_retry_categories",
+            "feedback",
+            "network_mode",
+            "allowed_domains",
+            "cache_mode"
+          ],
+          "type": "object"
+        },
         "evaluation.compare.request": {
           "additionalProperties": false,
           "properties": {
@@ -9427,6 +9942,77 @@
             "comparable",
             "differences",
             "report_artifact"
+          ],
+          "type": "object"
+        },
+        "evaluation.comparison.request": {
+          "additionalProperties": false,
+          "properties": {
+            "protocol": {
+              "additionalProperties": false,
+              "properties": {
+                "comparison": {
+                  "enum": [
+                    "paired_task_set",
+                    "descriptive"
+                  ]
+                },
+                "metric": {
+                  "enum": [
+                    "first_attempt_pass_rate",
+                    "protocol_success_rate"
+                  ]
+                }
+              },
+              "required": [
+                "comparison",
+                "metric"
+              ],
+              "type": "object"
+            },
+            "run_ids": {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "maxItems": 16,
+              "minItems": 2,
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "run_ids",
+            "protocol"
+          ],
+          "type": "object"
+        },
+        "evaluation.comparison.result": {
+          "additionalProperties": false,
+          "properties": {
+            "comparable": {
+              "type": "boolean"
+            },
+            "differences": {
+              "items": {
+                "maxLength": 512,
+                "type": "string"
+              },
+              "maxItems": 100,
+              "minItems": 0,
+              "type": "array"
+            },
+            "uncertainty": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          },
+          "required": [
+            "comparable",
+            "differences",
+            "uncertainty"
           ],
           "type": "object"
         },
@@ -9511,6 +10097,235 @@
             "trial_ids",
             "state",
             "reused_existing_action"
+          ],
+          "type": "object"
+        },
+        "evaluation.draft.request": {
+          "additionalProperties": false,
+          "properties": {
+            "choices": {
+              "$ref": "#/$defs/evaluation.choices"
+            },
+            "client_action_id": {
+              "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "template_id": {
+              "pattern": "^(run|plan)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "client_action_id",
+            "template_id",
+            "choices"
+          ],
+          "type": "object"
+        },
+        "evaluation.draft.result": {
+          "additionalProperties": false,
+          "properties": {
+            "configuration_origin": {
+              "enum": [
+                "trusted_configuration",
+                "imported_unverified"
+              ]
+            },
+            "planned_trials": {
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "reused_existing_action": {
+              "type": "boolean"
+            },
+            "spec": {
+              "$ref": "urn:forgecode:contracts:v1:run-spec"
+            },
+            "spec_hash": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          "required": [
+            "spec",
+            "spec_hash",
+            "configuration_origin",
+            "planned_trials"
+          ],
+          "type": "object"
+        },
+        "evaluation.import_plan.request": {
+          "additionalProperties": false,
+          "properties": {
+            "client_action_id": {
+              "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "path": {
+              "maxLength": 4096,
+              "type": "string"
+            }
+          },
+          "required": [
+            "client_action_id",
+            "path"
+          ],
+          "type": "object"
+        },
+        "evaluation.import_plan.result": {
+          "additionalProperties": false,
+          "properties": {
+            "origin": {
+              "const": "imported_unverified"
+            },
+            "reused_existing_action": {
+              "type": "boolean"
+            },
+            "source_sha256": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "template_id": {
+              "pattern": "^(run|plan)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "template_id",
+            "origin",
+            "source_sha256"
+          ],
+          "type": "object"
+        },
+        "evaluation.list.request": {
+          "additionalProperties": false,
+          "properties": {
+            "cursor": {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            "limit": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "evaluation.list.result": {
+          "additionalProperties": false,
+          "properties": {
+            "history_gap": {
+              "type": "boolean"
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "dataset": {
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "model_mode": {
+                    "enum": [
+                      "live",
+                      "scripted_mock"
+                    ]
+                  },
+                  "origin": {
+                    "enum": [
+                      "local",
+                      "imported_unverified"
+                    ]
+                  },
+                  "planned_trials": {
+                    "maximum": 10000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "revision": {
+                    "maxLength": 256,
+                    "type": "string"
+                  },
+                  "run_id": {
+                    "pattern": "^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "state": {
+                    "maxLength": 64,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "run_id",
+                  "state",
+                  "origin",
+                  "dataset",
+                  "revision",
+                  "model_mode",
+                  "planned_trials"
+                ],
+                "type": "object"
+              },
+              "maxItems": 100,
+              "minItems": 0,
+              "type": "array"
+            },
+            "next_cursor": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "items",
+            "next_cursor",
+            "history_gap"
+          ],
+          "type": "object"
+        },
+        "evaluation.plan_export.request": {
+          "additionalProperties": false,
+          "properties": {
+            "run_id": {
+              "pattern": "^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "run_id"
+          ],
+          "type": "object"
+        },
+        "evaluation.plan_export.result": {
+          "additionalProperties": false,
+          "properties": {
+            "configuration_origin": {
+              "enum": [
+                "trusted_configuration",
+                "imported_unverified"
+              ]
+            },
+            "plan_artifact": {
+              "$ref": "urn:forgecode:contracts:v1:artifact"
+            },
+            "required_environment": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          "required": [
+            "plan_artifact",
+            "configuration_origin",
+            "required_environment"
           ],
           "type": "object"
         },
@@ -9618,6 +10433,349 @@
           ],
           "type": "object"
         },
+        "evaluation.snapshot.request": {
+          "additionalProperties": false,
+          "properties": {
+            "cursor": {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            "limit": {
+              "maximum": 20,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "run_id": {
+              "pattern": "^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "task_id": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          },
+          "required": [
+            "run_id"
+          ],
+          "type": "object"
+        },
+        "evaluation.snapshot.result": {
+          "additionalProperties": false,
+          "properties": {
+            "attempts": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent_outcome": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "attempt_no": {
+                    "maximum": 10,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "cleanup_state": {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  "error_origin": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "execution_state": {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  "grade_result": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "grade_reward": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "grade_state": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "id": {
+                    "pattern": "^attempt-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "span_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 16,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "trace_complete": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "trace_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 32,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "trial_id": {
+                    "pattern": "^trial-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "trial_id",
+                  "attempt_no",
+                  "execution_state",
+                  "error_origin",
+                  "cleanup_state",
+                  "agent_outcome",
+                  "grade_state",
+                  "grade_result",
+                  "grade_reward",
+                  "trace_complete",
+                  "trace_id",
+                  "span_id"
+                ],
+                "type": "object"
+              },
+              "maxItems": 200,
+              "minItems": 0,
+              "type": "array"
+            },
+            "compatible": {
+              "type": "boolean"
+            },
+            "configuration_origin": {
+              "enum": [
+                "trusted_configuration",
+                "imported_unverified"
+              ]
+            },
+            "history_gap": {
+              "type": "boolean"
+            },
+            "issues": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "message": {
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "task_id",
+                  "kind",
+                  "message"
+                ],
+                "type": "object"
+              },
+              "maxItems": 10000,
+              "minItems": 0,
+              "type": "array"
+            },
+            "metrics": {
+              "maxProperties": 200,
+              "type": "object"
+            },
+            "missing_evidence": {
+              "items": {
+                "pattern": "^art-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "maxItems": 100,
+              "minItems": 0,
+              "type": "array"
+            },
+            "missing_evidence_count": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "next_cursor": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "origin": {
+              "enum": [
+                "local",
+                "imported_unverified"
+              ]
+            },
+            "read_only": {
+              "type": "boolean"
+            },
+            "run_id": {
+              "pattern": "^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "score_authority": {
+              "maxLength": 128,
+              "type": "string"
+            },
+            "spec": {
+              "$ref": "urn:forgecode:contracts:v1:run-spec"
+            },
+            "spec_hash": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "state": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "trials": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "pattern": "^trial-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "repeat_index": {
+                    "maximum": 99,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "run_id": {
+                    "pattern": "^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "selected_attempt_id": {
+                    "anyOf": [
+                      {
+                        "pattern": "^attempt-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "task_id": {
+                    "maxLength": 256,
+                    "type": "string"
+                  },
+                  "task_revision": {
+                    "maxLength": 256,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "run_id",
+                  "task_id",
+                  "task_revision",
+                  "repeat_index",
+                  "selected_attempt_id"
+                ],
+                "type": "object"
+              },
+              "maxItems": 20,
+              "minItems": 0,
+              "type": "array"
+            }
+          },
+          "required": [
+            "run_id",
+            "spec",
+            "spec_hash",
+            "state",
+            "origin",
+            "configuration_origin",
+            "read_only",
+            "compatible",
+            "issues",
+            "metrics",
+            "trials",
+            "attempts",
+            "missing_evidence",
+            "missing_evidence_count",
+            "next_cursor",
+            "history_gap",
+            "score_authority"
+          ],
+          "type": "object"
+        },
         "evaluation.start.request": {
           "additionalProperties": false,
           "properties": {
@@ -9688,6 +10846,118 @@
             "trial_ids",
             "state",
             "reused_existing_action"
+          ],
+          "type": "object"
+        },
+        "evaluation.template.request": {
+          "additionalProperties": false,
+          "properties": {
+            "template_id": {
+              "pattern": "^(run|plan)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "template_id"
+          ],
+          "type": "object"
+        },
+        "evaluation.template.result": {
+          "additionalProperties": false,
+          "properties": {
+            "configuration_origin": {
+              "enum": [
+                "trusted_configuration",
+                "imported_unverified"
+              ]
+            },
+            "defaults": {
+              "$ref": "#/$defs/evaluation.choices"
+            },
+            "spec": {
+              "$ref": "urn:forgecode:contracts:v1:run-spec"
+            }
+          },
+          "required": [
+            "spec",
+            "defaults",
+            "configuration_origin"
+          ],
+          "type": "object"
+        },
+        "evaluation.templates.request": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "evaluation.templates.result": {
+          "additionalProperties": false,
+          "properties": {
+            "history_gap": {
+              "type": "boolean"
+            },
+            "items": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "dataset": {
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "origin": {
+                    "enum": [
+                      "trusted_configuration",
+                      "imported_unverified"
+                    ]
+                  },
+                  "revision": {
+                    "maxLength": 256,
+                    "type": "string"
+                  },
+                  "source_commit": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "task_count": {
+                    "maximum": 10000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "template_id": {
+                    "pattern": "^(run|plan)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "template_id",
+                  "dataset",
+                  "revision",
+                  "task_count",
+                  "source_commit",
+                  "origin"
+                ],
+                "type": "object"
+              },
+              "maxItems": 40,
+              "minItems": 0,
+              "type": "array"
+            },
+            "requires_configuration_import": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "items",
+            "history_gap",
+            "requires_configuration_import"
           ],
           "type": "object"
         },
@@ -10325,6 +11595,10 @@
         "observability.spans.request": {
           "additionalProperties": false,
           "properties": {
+            "attempt_id": {
+              "pattern": "^attempt-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
             "cursor": {
               "maxLength": 4096,
               "minLength": 1,
