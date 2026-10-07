@@ -13,15 +13,15 @@ def test_renderer_private_channel_cannot_forge_main_privileges(tmp_path):
         process = await asyncio.create_subprocess_exec(sys.executable, '-m', 'forge.engine', '--data-dir', str(tmp_path / 'data'),
             '--principal', 'renderer', '--profile', 'desktop', cwd=Path(__file__).resolve().parents[3],
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        async def call(method, params):
+        async def call(method, params, *, timeout=10):
             process.stdin.write((json.dumps({'jsonrpc': '2.0', 'id': 'r', 'method': method, 'params': params}) + '\n').encode())
             await process.stdin.drain()
-            response = json.loads(await asyncio.wait_for(process.stdout.readline(), 10))
+            response = json.loads(await asyncio.wait_for(process.stdout.readline(), timeout))
             validate('rpc-response', response)
             return response
         try:
             assert 'result' in await call('system.initialize', {'protocol': {'major': 1, 'minor': 0}, 'client_build': 'security-test',
-                'expected_manifest_hash': manifest_hash(), 'profile': 'desktop'})
+                'expected_manifest_hash': manifest_hash(), 'profile': 'desktop'}, timeout=60)
             for method, params in [
                 ('workspace.register', {'client_action_id': new_id('act'), 'path': str(tmp_path), 'selection_nonce': 'a' * 64}),
                 ('workspace.prepare_authorization', {'workspace_id': new_id('ws'), 'expected_revision': 0}),

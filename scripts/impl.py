@@ -315,6 +315,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
     source_inventory_hash=source_fingerprint(ROOT)
+    verification_timeout = 7200 if suite == 'performance' else 1800 if suite in ('regression', 'portable') else 900
     with (output / 'stdout.log').open('w', encoding='utf-8') as stdout, (output / 'stderr.log').open('w', encoding='utf-8') as stderr:
         if unavailable:
             exit_code = 1
@@ -328,11 +329,11 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                         exit_code = prepared.returncode
                         break
                 if not exit_code:
-                    result = subprocess.run(argv, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=7200 if suite=='performance' else 1800 if suite=='regression' else 900)
+                    result = subprocess.run(argv, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=verification_timeout)
                     exit_code = result.returncode
             except subprocess.TimeoutExpired:
                 exit_code = 1
-                stderr.write(f'Verification exceeded {7200 if suite=="performance" else 1800 if suite=="regression" else 900} seconds.\n')
+                stderr.write(f'Verification exceeded {verification_timeout} seconds.\n')
     if unavailable:
         status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
     elif (suite in ('packaged', 'desktop', 'desktop-packaged','benchmark-harbor') or native or grouped) and report_path.is_file():

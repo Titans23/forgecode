@@ -99,7 +99,7 @@ def test_real_dispatcher_and_output_transport_without_os_sandbox_claim():
                              'tests/implementation/node/linux-ownership.test.mjs',
                              'tests/implementation/node/windows-adapter.test.mjs'],
         cwd=runtime.root, env=bridge_environment(runtime.root / '.local'), capture_output=True,
-        encoding='utf-8', timeout=45)
+        encoding='utf-8', timeout=90)  # Includes the explicit shell's 60s cold-start deadline and other dispatcher cases.
     assert result.returncode == 0, result.stdout + result.stderr
     assert '# pass ' in result.stdout and '# skipped 0' in result.stdout
 
