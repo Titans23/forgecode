@@ -24,4 +24,3 @@ const ordered=[...samples].sort((a,b)=>a-b);
 console.log(JSON.stringify({status:'pass',scope:'actual React component server rendering; graphical scroll/frame latency unverified',
     items:items.length,rendered_rows:rows,bounded:true,samples_seconds:samples,
     median_seconds:(ordered[9]+ordered[10])/2,p95_seconds:ordered[18]}));
-

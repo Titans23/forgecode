@@ -1800,14 +1800,35 @@
         "实验流程完整可运行；实际成绩有来源，缺授权明确未实测。"
       ],
       "verification_suites": [
+        "contracts",
+        "quality",
+        "unit",
         "portable",
-        "live-eval"
+        "regression",
+        "live-eval",
+        "acceptance"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "todo",
-      "evidence_ids": [],
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T124926Z-ffba8638",
+        "20261007T124931Z-2a076df9",
+        "20261007T124936Z-7652d1a7",
+        "20261007T124946Z-d1af338d",
+        "20261007T124954Z-8a43409a",
+        "20261007T125431Z-8c74ade7",
+        "20261007T125431Z-a30d4f4e",
+        "20261007T125431Z-939926b8",
+        "20261007T125541Z-271c143b",
+        "20261007T125548Z-a7d9525c",
+        "20261007T125611Z-4e7c1bd8",
+        "20261007T131021Z-e5bf3413"
+      ],
       "case_ids": [
         "N24"
+      ],
+      "remaining_implementation": [
+        "Official Harbor frozen RunSpec/source/model/environment binding, verified execution policy and trusted host authorization/per-request ledger integration remain unimplemented; live official execution is refused."
       ]
     },
     {

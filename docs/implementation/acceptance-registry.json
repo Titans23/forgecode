@@ -3647,14 +3647,18 @@
         "portable"
       ],
       "implementation_test_refs": [
-        "tests/implementation/integration/test_benchmark_adapters.py"
+        "tests/implementation/integration/test_delivery_experiment.py",
+        "tests/implementation/integration/test_model_regression.py"
       ],
-      "status": "not_run",
+      "status": "pass",
       "release_required": true,
       "platform_verification": {
         "portable": {
-          "status": "not_run",
-          "evidence_ids": []
+          "status": "pass",
+          "evidence_ids": [
+            "20261007T125431Z-a30d4f4e"
+          ],
+          "scope": "Actual authorization/no-opt-in, frozen conditions and offline result tests on Windows10; default tests make zero model calls"
         }
       }
     }

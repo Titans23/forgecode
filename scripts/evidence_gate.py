@@ -14,7 +14,7 @@ def source_fingerprint(root):
     files={}
     for name in sorted(set(names)):
         path=Path(name)
-        source=path.parts[0] in {'forge','benchmark','scripts','tests','packaging','apps','packages','sandbox_bridge','contracts','.github'}
+        source=path.parts[0] in {'forge','benchmark','scripts','tests','packaging','apps','packages','sandbox_bridge','contracts','.github','experiments'}
         manifest=name in {'release-manifest.json','.gitattributes','.python-version','pyproject.toml','package.json','package-lock.json','release-lock.json','uv.lock'}
         if manifest or source and path.suffix in {'.py','.ts','.mts','.tsx','.css','.html','.js','.mjs','.cjs','.json','.toml','.spec','.sql','.yaml','.yml'} or name.startswith('tests/implementation/fixtures/'):
             files[name]=sha256((root/path).read_bytes()).hexdigest()

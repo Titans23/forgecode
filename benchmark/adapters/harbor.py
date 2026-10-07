@@ -102,8 +102,9 @@ class HarborAdapter:
         issue('policy_unverified','Official task network policy has not been verified against frozen sandbox policy; live execution remains blocked until capability reconciliation')
         if values['environment']['backend_version']!='harbor-0.18.0-docker' or values['grader_environment']['backend_version']!='harbor-0.18.0-docker':
             issue('protocol_incompatible','Frozen environment must describe the actual official Harbor Docker backend')
-        # A key or nonzero ceiling alone is never human budget authorization.
-        issue('paid_api_not_authorized','Real API execution remains disabled until explicit budget authorization and executable spend/policy controls are verified')
+        # Human permission and executable binding/accounting are separate facts.
+        # The upgrade is authorized; this official adapter still lacks that binding.
+        issue('live_authorization_binding_unverified','Official runner has not bound trusted host authorization and per-request accounting to its frozen execution plan')
         return issues
 
     def materialize(self,spec,values,work,directory,*,endpoint):

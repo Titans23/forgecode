@@ -41,7 +41,7 @@
     },
     {
       "path": "benchmark/adapters/harbor.py",
-      "sha256": "5f842bf384cfd9dd9cb166ea7adc6d2dbe1ea070ef02157d501a715d774e8bf0"
+      "sha256": "bb66643d1cd7055a13fd05769cd14b82ace508a3f02abaa5b3c1168f32a97e92"
     },
     {
       "path": "benchmark/adapters/materialize.py",
@@ -72,8 +72,12 @@
       "sha256": "70faabd54f238f61bf5dbeda2f30c04df01059a2ad29a4d86a1c11d6d92ee0c9"
     },
     {
+      "path": "benchmark/core/repair_comparison.py",
+      "sha256": "2157e0317a7756005e55592d51db8f832ebc8613dab44ee730817cb0a61d283c"
+    },
+    {
       "path": "benchmark/core/results.py",
-      "sha256": "52036123fd07ad625326eb713100af666d3f9bc04ffefe8ced05ee69c2845b48"
+      "sha256": "a8ecf8af6eb24ac1cbd65fe0c37e70ead5978de06253d51f7bb2fa3f743a9e71"
     },
     {
       "path": "benchmark/core/scheduler.py",

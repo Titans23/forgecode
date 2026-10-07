@@ -45,6 +45,7 @@ SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
           'regression': ['tests'], 'packaged': [],
           'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
 SUITES['benchmark-harbor']=[]
+SUITES['live-eval']=[]
 for name in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security','hardened','performance','acceptance'):SUITES[name]=[]
 TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F15': ['unit', 'portable', 'desktop', 'desktop-packaged']}
 TASK_SUITES['F16'] = ['unit', 'portable', 'desktop', 'desktop-packaged']
@@ -62,6 +63,7 @@ TASK_SUITES['F27']=['unit','portable','engine-packaged','desktop','desktop-packa
 TASK_SUITES['F28']=['contracts','quality','unit','portable','desktop','engine-packaged','desktop-packaged','hardened','performance','acceptance','installer-windows','installer-linux','sandbox-windows','sandbox-linux','security']
 TASK_SUITES['F29']=['contracts','quality','unit','portable','security']
 TASK_SUITES['F30']=['contracts','quality','unit','portable']
+TASK_SUITES['F31']=['contracts','quality','unit','portable','live-eval']
 CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
                       'tests/implementation/portable/test_contracts_parity.py'],
               'D30': ['tests/implementation/integration/test_storage.py'],
@@ -105,7 +107,7 @@ CASE_TESTS.update({case:['scripts/make_installer.py','scripts/engine_packaged_sm
 CASE_TESTS['N23']=['tests/implementation/unit/test_gates.py','tests/implementation/unit/test_ci.py']
 CASE_TESTS['O04']=['tests/implementation/integration/test_harness_regressions.py','tests/implementation/unit/test_workspace_scope.py']
 CASE_TESTS['N20']=['tests/implementation/unit/test_hardened_artifact.py','scripts/hardened_smoke.py']
-CASE_TESTS['N24']=['tests/implementation/integration/test_benchmark_adapters.py']
+CASE_TESTS['N24']=['tests/implementation/integration/test_delivery_experiment.py','tests/implementation/integration/test_model_regression.py']
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
@@ -257,11 +259,13 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
     native = suite in ('sandbox-linux', 'sandbox-windows')
-    grouped=suite in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security','hardened','performance','acceptance')
+    grouped=suite in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security','hardened','performance','acceptance','live-eval')
     report_path = output / ('packaging.json' if grouped else f'native-{suite.removeprefix("sandbox-")}.json' if native else 'harbor-probe.json' if suite=='benchmark-harbor' else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
     unavailable = SUITES[suite] is None
     if unavailable:
         argv = []
+    elif suite=='live-eval':
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/delivery_experiment.py'),'verify','--output',str(report_path)]
     elif suite in ('contracts','quality','security'):
         argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/ci_checks.py'),'--suite',suite,'--output',str(report_path)]
     elif suite in ('hardened','performance','acceptance'):
@@ -301,7 +305,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     source_files = command(['git', 'ls-files', '--cached', '--others', '--exclude-standard']).splitlines()
     for relative in sorted(set(source_files)):
         path = Path(relative)
-        source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts'}
+        source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts', 'experiments'}
         source_manifest = relative in {'release-manifest.json','.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
         fixture_input = relative.startswith('tests/implementation/fixtures/')
         if (source_directory and path.suffix in {'.py', '.ts', '.mts', '.tsx', '.css', '.html', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
@@ -346,7 +350,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
     case_ids = ({'engine-packaged':['D01','D40','N17','N18'],
                     'installer-windows':['D01'],'installer-linux':['D02'],'quality':['N23'],'contracts':['N04'],'security':['N23'],
-                    'hardened':['N20'],'performance':[],'acceptance':list(CASE_TESTS)}[suite] if grouped else
+                    'hardened':['N20'],'performance':[],'acceptance':list(CASE_TESTS),'live-eval':['N24']}[suite] if grouped else
                     (['C10', 'C11', 'C12'] if suite == 'sandbox-linux' else
                     ['C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07']) if native else [case for case, refs in CASE_TESTS.items()
                     if suite not in ('packaged',) and SUITES[suite] and any(Path(ref).name.startswith('test_') and

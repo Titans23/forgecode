@@ -1,0 +1,92 @@
+{
+  "schema_version": "forge.hosted-ci-observations.v1",
+  "source_commit": "368b60535397a22f84cfa77a8eb19a4315939560",
+  "run_id": 37622858984,
+  "url": "https://github.com/Titans23/forgecode/actions/runs/37622858984",
+  "jobs": [
+    {
+      "id": 112797191597,
+      "name": "dependency-security",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T12:41:49Z",
+      "completed_at": "2026-10-07T12:42:09Z"
+    },
+    {
+      "id": 112797191843,
+      "name": "portable (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T12:41:49Z",
+      "completed_at": "2026-10-07T12:43:04Z"
+    },
+    {
+      "id": 112797191861,
+      "name": "portable (windows-2025)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T12:41:49Z",
+      "completed_at": "2026-10-07T12:43:08Z"
+    },
+    {
+      "id": 112797191974,
+      "name": "portable (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T12:41:50Z",
+      "completed_at": "2026-10-07T12:42:56Z"
+    }
+  ],
+  "actual_failures": {
+    "ubuntu-22.04": "Unit 214: 213 pass, 1 fail. Actual Electron first-import download message precedes the writer JSON.",
+    "ubuntu-24.04": "Unit 214: 213 pass, 1 fail. Same observed Electron message; no native sandbox proof.",
+    "windows-2025": "Contracts pass; quality Node 18 pass/3 fail: PowerShell host-start timeout and two 8.3 versus canonical path comparisons.",
+    "dependency-security": "Actual locked npm audit remains blocked by two high severity dependency entries."
+  },
+  "artifacts": [
+    {
+      "id": 11482936769,
+      "name": "actual-dependency-security",
+      "size_in_bytes": 449818,
+      "sha256": "dcdb38277e76b1bb19b419935e21fcaf671626f120e8f962c68c1f4f8e54fc76"
+    },
+    {
+      "id": 11482249585,
+      "name": "portable-windows-2025",
+      "size_in_bytes": 458549,
+      "sha256": "79215a3d3516c733b92002492d34f29c5c7a767355b6c9f19d8923d012e66044"
+    },
+    {
+      "id": 11481994868,
+      "name": "portable-ubuntu-24.04",
+      "size_in_bytes": 465292,
+      "sha256": "081e50e25b3844c1b531390f9c3aa76af8b9459df952bc89641b46eff497fdc8"
+    },
+    {
+      "id": 11481949922,
+      "name": "portable-ubuntu-22.04",
+      "size_in_bytes": 465263,
+      "sha256": "e3c31931f26a252abbeec9514e7f2e52fa17791272c9352f114e3e5a4420f062"
+    }
+  ],
+  "logs": [
+    {
+      "job": 112797191597,
+      "sha256": "06904b140bac22f97c86c88710f685114a8e5c3952a29a2f7308384042252f7b"
+    },
+    {
+      "job": 112797191843,
+      "sha256": "fdd22d0b6bb8b280108777ecfc955b15f5d9aaba1cd1d2dcdd15ab1a65f0ffed"
+    },
+    {
+      "job": 112797191861,
+      "sha256": "bc902ebabe52c0a7c83153e26cddb721ed5925e111605f7b23111f94e93906a2"
+    },
+    {
+      "job": 112797191974,
+      "sha256": "26b65a4840076e3c4b9e3f8fc0947b44ce6a215a4b7d1a8da05b08ecfdb72857"
+    }
+  ],
+  "candidate_fixes": "Prepared separately for F32; no hosted passing outcome has been observed.",
+  "eligible_for_native_pass": false
+}

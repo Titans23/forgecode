@@ -2,6 +2,7 @@
 from hashlib import sha256
 import json
 from pathlib import Path
+import subprocess
 import pytest
 from tests.implementation.unit.test_impl_audit import load_impl
 
@@ -9,6 +10,19 @@ from tests.implementation.unit.test_impl_audit import load_impl
 def write(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value), encoding='utf-8')
+
+
+def test_changed_experiment_budget_invalidates_source_evidence_but_private_notes_do_not(tmp_path):
+    from scripts.evidence_gate import source_fingerprint
+    root=tmp_path/'owned-repository'
+    subprocess.run(['git','init','--quiet',str(root)],check=True,capture_output=True)
+    configuration=root/'experiments/delivery-repair.json'
+    write(configuration,{'budget':{'max_model_requests_per_attempt':40}})
+    before=source_fingerprint(root)
+    write(root/'.local/diagnostic.json',{'note':'private observation'})
+    assert source_fingerprint(root)==before
+    write(configuration,{'budget':{'max_model_requests_per_attempt':41}})
+    assert source_fingerprint(root)!=before
 
 
 def gate_repo(tmp_path, monkeypatch, *, xml='<testcase classname="test_example" name="actual"/>', declared='pass', exit_code=0):

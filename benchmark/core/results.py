@@ -212,7 +212,7 @@ def read_results(root,manifest):
         try: metrics=compute_metrics(local_trials,local_attempts,local_requests)
         except (ValueError,InvalidOperation) as error: raise ContractError('Invalid usage ledger fact') from error
         reports.append({'schema_version':'forge.eval.report.v1','run_id':run_id,'state':run['state'],'spec_hash':run['spec_hash'],
-            'model_mode':run['spec']['model_mode'],'metrics':metrics,'trials':local_trials,'attempts':local_attempts,
+            'model_mode':run['spec']['model_mode'],'metrics':metrics,'trials':local_trials,'attempts':local_attempts,'requests':local_requests,
             'missing_evidence':[x['artifact_id'] for x in evidence['artifacts'] if x['run_id']==run_id and x['status']!='redacted_copy'],
             'evidence_changes':[x for x in evidence['artifacts'] if x['run_id']==run_id],
             'annotations':[x for x in data['annotations'] if attempts[x['attempt_id']]['trial_id'] in trial_ids],

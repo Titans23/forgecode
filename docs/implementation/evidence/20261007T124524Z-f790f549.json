@@ -1,0 +1,43 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261007T124524Z-f790f549",
+  "task_id": null,
+  "case_ids": [
+    "N24"
+  ],
+  "suite": "live-eval",
+  "git_commit": "368b60535397a22f84cfa77a8eb19a4315939560",
+  "dirty_hash": "4cb4bdb65cf53bfafbf0270535f524e1b1cab56b15c55c7c407f9adb02a6d92d",
+  "source_inventory_hash": "3322504c6099a3110f2f83a7d080e4b65be5fa989dce0343a40d767898f01d26",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a",
+    "release-lock.json": "332e39667e5c849ad70a4bda4296ab8c9eeba8b6b77b0c1c09c3204d09a2a194"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\delivery_experiment.py",
+    "verify",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T124524Z-f790f549\\packaging.json"
+  ],
+  "start": "2026-10-07T12:45:24.424358+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-07T12:45:27.095715+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261007T124524Z-f790f549/stdout.log",
+  "stderr_ref": ".local/implementation/20261007T124524Z-f790f549/stderr.log",
+  "report_ref": ".local/implementation/20261007T124524Z-f790f549/packaging.json",
+  "report_hash": "776dde266ea0da607aac007948c17ca579cfa095d66d9da5be6e355159111d70",
+  "status": "blocked",
+  "tests": {
+    "reason": "Official execution policy verification, authorization binding and per-request accounting remain unavailable.; The preregistration has unresolved source/model/environment snapshots and is not an executable RunSpec.; Linux Docker daemon unavailable; no environment was started",
+    "scope": "real preregistration validation and official runner readiness; zero public-model execution",
+    "eligible_for_native_pass": false,
+    "checks": 6
+  }
+}

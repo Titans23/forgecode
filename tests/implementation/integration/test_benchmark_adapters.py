@@ -105,7 +105,7 @@ def test_windows_target_feedback_sampling_and_unapproved_live_are_explicitly_blo
         assert any('native Windows' in item['message'] for item in issues)
         assert any('feedback' in item['message'] for item in issues)
         assert any('temperature' in item['message'] for item in issues)
-        assert any(item['kind']=='paid_api_not_authorized' for item in issues)
+        assert any(item['kind']=='live_authorization_binding_unverified' for item in issues)
         assert adapter.describe()['legacy_feedback_default']
     finally:methods.store.close()
 
