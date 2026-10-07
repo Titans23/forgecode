@@ -32,8 +32,11 @@ export async function loadDevelopmentEngine(root: string, options: { dataDir: st
   if (manifest.python?.path !== pythonPath) throw new Error('Development Python must use the fixed virtual environment');
   // Linux venv executables normally link to the trusted developer runtime outside the source tree.
   // Only this fixed alias may resolve outside; its actual executable bytes must match the inventory.
-  const executable = await realpath(resolve(root, pythonPath));
-  if (createHash('sha256').update(await readFile(executable)).digest('hex') !== manifest.python.sha256) throw new Error('Development Python integrity mismatch');
+  const executable = resolve(root, pythonPath);
+  const target = await realpath(executable);
+  if (createHash('sha256').update(await readFile(target)).digest('hex') !== manifest.python.sha256) throw new Error('Development Python integrity mismatch');
+  // Launch through the venv alias: invoking its resolved Linux target loses pyvenv.cfg
+  // and the isolated Engine can no longer import the locked environment's packages.
   const contractPath = await verifyAsset(root, manifest.contracts);
   const contractText = (await readFile(contractPath, 'utf8')).replace(/\r\n?/g, '\n');
   const manifestHash = createHash('sha256').update(contractText, 'utf8').digest('hex');

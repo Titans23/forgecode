@@ -9,7 +9,7 @@ import yaml
 from scripts.quality import check_dependency_graph, check_workflow, scan_secrets
 from scripts.ci_run import trusted_native_dispatch
 from scripts.evidence_gate import source_fingerprint, evaluate_gate
-from scripts.ci_bootstrap import hydrate_node
+from scripts.ci_bootstrap import hydrate_node, hydrate_electron
 from tests.implementation.unit.test_gates import gate_repo, write
 
 ROOT=Path(__file__).resolve().parents[3]
@@ -78,6 +78,21 @@ def test_secret_scanner_returns_only_location_without_secret_bytes(tmp_path):
 def test_private_node_hydration_rejects_changed_archive_origin(tmp_path):
     write(tmp_path/'release-lock.json',{'node':{'version':'24.21.0'},'assets':[{'name':'node','platform':'win32-x64','path':'.local/node/node.exe','sha256':'a'*64,'archive_sha256':'b'*64,'source':'https://invalid.example/runtime.zip'}]})
     with pytest.raises(ValueError,match='pinned official'):hydrate_node(tmp_path,'win32')
+
+
+def test_ci_hydrates_actual_locked_electron_binary_without_lazy_module_import():
+    node=hydrate_node(ROOT,sys.platform)
+    executable=hydrate_electron(ROOT,node)
+    assert executable.is_file()
+    package=ROOT/'node_modules/electron'
+    expected=json.loads((ROOT/'package-lock.json').read_bytes())['packages']['node_modules/electron']['version']
+    assert (package/'dist/version').read_text().strip().removeprefix('v')==expected
+
+
+def test_ci_refuses_changed_electron_package_before_running_an_installer(tmp_path):
+    write(tmp_path/'package-lock.json',{'packages':{'node_modules/electron':{'version':'44.5.1'}}})
+    write(tmp_path/'node_modules/electron/package.json',{'version':'0.0.0'})
+    with pytest.raises(ValueError,match='locked version'):hydrate_electron(tmp_path,Path('unused-node'))
 
 
 def fresh_records(tmp_path,monkeypatch):

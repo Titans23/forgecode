@@ -1,6 +1,7 @@
 """F26 compatibility runs actual CLI/Engine Harness paths and preserves source data."""
 import asyncio
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -25,6 +26,15 @@ def test_cli_eval_catalog_matches_existing_actual_catalog():
     result=subprocess.run([sys.executable,'-m','forge.cli','eval','list','--json'],cwd=ROOT,capture_output=True,text=True,timeout=20)
     from benchmark.catalog import BENCHMARKS
     assert result.returncode==0 and json.loads(result.stdout)==json.loads(json.dumps([spec.to_dict() for spec in BENCHMARKS]))
+
+
+def test_cli_catalog_json_preserves_unicode_in_ascii_stdout():
+    environment={**os.environ,'PYTHONIOENCODING':'ascii','PYTHONUTF8':'0'}
+    result=subprocess.run([sys.executable,'-m','forge.cli','eval','list','--json'],cwd=ROOT,
+        env=environment,capture_output=True,text=True,encoding='ascii',timeout=20)
+    from benchmark.catalog import BENCHMARKS
+    assert result.returncode==0,result.stderr
+    assert json.loads(result.stdout)==json.loads(json.dumps([spec.to_dict() for spec in BENCHMARKS]))
 
 
 def test_web_cli_rejects_public_bind_before_creating_data_or_listener(tmp_path):
@@ -206,7 +216,7 @@ def test_existing_cli_signatures_and_original_tool_schemas_match_f25_golden(tmp_
     baseline=json.loads((ROOT/'tests/implementation/fixtures/compatibility-f25.json').read_text())
     registry=create_default_registry(tmp_path)
     encoded=json.dumps(registry.definitions,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
-    assert sha256(encoded).hexdigest()==baseline['tool_schemas_sha256']
+    assert sha256(encoded).hexdigest()==baseline['tool_schemas_sha256_by_os'][os.name]
     assert [value['name'] for value in registry.definitions]==baseline['tools']
     for function in (main,create_session_runtime,create_runtime):
         assert list(inspect.signature(function).parameters)==baseline['parameters'][function.__name__]

@@ -39,7 +39,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == 'list':
         values = [spec.to_dict() for spec in BENCHMARKS]
         if args.as_json:
-            print(json.dumps(values, ensure_ascii=False, indent=2))
+            # Machine-readable JSON must also work in redirected Windows ASCII/codepage streams.
+            print(json.dumps(values, ensure_ascii=True, indent=2))
             return 0
         print('KEY\tSTATUS\tCAPABILITY\tRUNNER')
         for value in values:

@@ -14,6 +14,8 @@
 
 ## 后果
 
+F32实际hosted run37636301297暴露了下一层运行问题，修正保持原平台含义：Python目标字节仍做SHA校验，但开发启动使用固定`.venv/bin/python`别名，使`sys.prefix`保留锁定环境；新的真实子进程检查prefix、base_prefix和Engine导入。参见[Python官方venv说明](https://docs.python.org/3.12/library/venv.html#how-venvs-work)。Electron44实际package.json没有二进制postinstall，CI明确执行其锁定官方installer并检查版本/平台，不能依赖纯文件测试顺带下载。F25原`RunCommandTool.description`含os.name分支，两平台golden分别由原e37e09a源码AST导出，所有工具名称、字段和签名断言保持。catalog JSON使用ASCII转义，解码值不变，真实ASCII stdout子进程验证中文不丢失。原始四job失败ZIP/JUnit/log摘要保留；修正后再做全量和hosted验证。
+
 固定资源可重复恢复，未知或被修改的字节 fail closed。用户得到可运行开发版本与明确缺口；unsigned developer-preview 不会因阶段标签变成正式稳定发行。保留全部失败历史和实际模型请求，费用 unknown、正式 Harbor/holdout/native 缺失分别报告。
 
 ## 最终验证

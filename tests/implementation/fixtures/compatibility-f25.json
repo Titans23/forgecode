@@ -1,6 +1,10 @@
 {
   "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
   "tool_schemas_sha256": "bb78a265b5f414b10a7904fffdade3cb8ea6344682b2f7db33ca6c6181047471",
+  "tool_schemas_sha256_by_os": {
+    "nt": "bb78a265b5f414b10a7904fffdade3cb8ea6344682b2f7db33ca6c6181047471",
+    "posix": "0c7ba6e53338679a98a4794ffb19cdf3c91cbd984aa4b3d5a7c00227a0799847"
+  },
   "tools": [
     "list_directory",
     "find_files",

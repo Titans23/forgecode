@@ -4,9 +4,9 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "79b43a10c7a6b59a1c1fe47ac19441300ca655d6",
+  "actual_repository_head": "dd17e3488103008957ed88bfff764cbe27694a94",
   "next_recommended_task": "F28",
-  "current_task": null,
+  "current_task": "F29",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -1006,7 +1006,8 @@
         "20261007T095022Z-ac0916fa"
       ],
       "blocked_reasons": [
-        "F32 hosted portable matrix is pending upload. Protected environments/reviewers/runner configuration remains unverified; actual security/native/signing/LICENSE conditions are tracked in F28/F32."
+        "Actual F32 run 37636301297 failed: Linux unit223 passed/portable367 passed14 failed; Windows unit223 passed/portable379 passed2 failed; security retains2high. Corrections are in progress, pending focused/full tests and a new hosted matrix.",
+        "Protected environments/reviewers/runner configuration remains unverified; native/signing/LICENSE/security requirements remain in F28/F32."
       ],
       "historical_blocked_reasons": [
         "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
@@ -1014,7 +1015,14 @@
         "Actual npm official audit records 2 high affected dependency entries; GHSA-86w9-cpqp-85rv remains unresolved. Production release is blocked.",
         "Administrator SRT setup, production signing/project LICENSE and paid model experiments are not authorized/provided."
       ],
-      "verification_scope": "Historical task execution; current development-version tests/assets are tracked in F32, authorized live observations in F31."
+      "verification_scope": "Historical task execution; current development-version tests/assets are tracked in F32, authorized live observations in F31.",
+      "current_remediation": {
+        "scope": "F32 actual hosted portability failures",
+        "parent_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+        "status": "in_progress",
+        "first_hosted_ref": "evidence/F32-first-hosted-ci-observations.json",
+        "model_calls": 0
+      }
     },
     "F30": {
       "implementation_status": "implemented",
@@ -1184,7 +1192,7 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Actual frozen test/pre-upload parent; uploaded commit is independently verified with git ls-remote and hosted CI.",
+  "head_recorded_scope": "Actual uploaded F32 commit; four-job run 37636301297 failed. F29/F32 CI corrections are in progress and are not yet uploaded or claimed tested.",
   "gate_notes": {
     "G1-contracts-engine": "Current contracts/quality/unit/portable/regression all pass, zero required skips; actual private Engine, DB, actions and offline repair exercised.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",

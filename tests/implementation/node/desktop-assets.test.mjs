@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { uiAsset, loadInstalledEngine, loadDevelopmentEngine } from '../../../apps/desktop/dist/main/assets.js';
 
 test('fixed UI protocol refuses traversal, wrong origins and replaced assets', async () => {
@@ -45,7 +46,7 @@ test('development Python is fixed to the venv alias and verified at its actual t
   const path = join(directory, 'apps/desktop/development-assets.json');
   await writeFile(path, JSON.stringify(manifest));
   const launch = await loadDevelopmentEngine(directory, { dataDir: join(directory, 'data') });
-  assert.equal(launch.executable, await realpath(python));
+  assert.equal(launch.executable, join(await realpath(directory), relative));
   assert.equal(launch.profile, 'desktop');
   assert.ok(!launch.arguments.includes('--execution-mode'));
   manifest.python.path = 'elsewhere/python.exe';
@@ -54,4 +55,17 @@ test('development Python is fixed to the venv alias and verified at its actual t
   manifest.python.path = relative; manifest.python.sha256 = '0'.repeat(64);
   await writeFile(path, JSON.stringify(manifest));
   await assert.rejects(loadDevelopmentEngine(directory, { dataDir: join(directory, 'data') }), /integrity/);
+});
+
+test('development launch preserves the actual isolated venv and installed Engine imports', async () => {
+  const root = await realpath(resolve(fileURLToPath(new URL('../../..', import.meta.url))));
+  const launch = await loadDevelopmentEngine(root, { dataDir: join(root, '.local/asset-prefix-probe') });
+  const child = spawnSync(launch.executable, ['-I', '-B', '-c',
+    'import json,sys,forge.engine; print(json.dumps({"prefix":sys.prefix,"base":sys.base_prefix,"engine":forge.engine.__file__}))'],
+    { cwd: root, env: launch.environment, encoding: 'utf8', timeout: 30000 });
+  assert.equal(child.status, 0, child.stderr);
+  const actual = JSON.parse(child.stdout);
+  assert.equal(await realpath(actual.prefix), await realpath(join(root, '.venv')));
+  assert.notEqual(await realpath(actual.prefix), await realpath(actual.base));
+  assert.ok(actual.engine.endsWith('engine' + (process.platform === 'win32' ? '\\' : '/') + '__init__.py'));
 });
