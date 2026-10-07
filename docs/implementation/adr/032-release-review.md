@@ -15,3 +15,7 @@
 ## 后果
 
 固定资源可重复恢复，未知或被修改的字节 fail closed。用户得到可运行开发版本与明确缺口；unsigned developer-preview 不会因阶段标签变成正式稳定发行。保留全部失败历史和实际模型请求，费用 unknown、正式 Harbor/holdout/native 缺失分别报告。
+
+## 最终验证
+
+候选79b43a10c7a6b59a1c1fe47ac19441300ca655d6/source bbd5f9a...：unit223、portable381、全仓1348、contracts2、quality4全部通过，零skip。实际冷安装/打包并行首轮的10秒Renderer initialize超时与900秒portable无JUnit失败均保留；只给初始化60秒、Bridge父90秒、portable验证器1800秒，未放宽业务权限或模型/工具预算。相关2专项9.75秒通过，串行port8:41/reg13:37通过。源码副本12命令、24日志hash、3锁和demo原产物已复算。当前implementation/release gate各blocked、0errors：代码缺口与产品资源条件真实保留。

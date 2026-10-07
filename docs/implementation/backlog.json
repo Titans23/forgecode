@@ -1884,7 +1884,8 @@
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
       "implementation_status": "in_progress",
       "evidence_ids": [],
-      "case_ids": []
+      "case_ids": [],
+      "status": "implemented"
     }
   ]
 }

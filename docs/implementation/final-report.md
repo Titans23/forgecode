@@ -1,6 +1,6 @@
 # ForgeCode V4 最终开发审查
 
-本报告区分阶段接口实现、产品验收和真实模型实验。F00 已核对真实 CLI/Harness、入口签名及基线；F01—F31 已按依赖开发、测试并推送至 `codex/forgecode-v4`，F32 正在完成发布审查。完整源码仍有必需代码缺口，不能声明全部 P0 完成。最终 F32 测试、构建及新检出副本的实际结果写入本目录 evidence 与 progress。
+本报告区分阶段接口实现、产品验收和真实模型实验。F00 已核对真实 CLI/Harness、入口签名及基线；F01—F31 已按依赖推进开发阶段、测试并推送至 `codex/forgecode-v4`，F32 的开发发布审查已完成。完整源码仍有必需代码缺口，不能声明全部 P0 完成。最终 F32 测试、构建及新检出副本的实际结果已写入本目录 evidence 与 progress；GitHub 上传及实际远端矩阵另行核对。
 
 ## 三个结论
 
@@ -22,13 +22,17 @@
 
 ## 已完成的测试与实测
 
+F32 最终测试父HEAD79b43a10c7a6b59a1c1fe47ac19441300ca655d6，source bbd5f9a27959a83f651c7208a61b01cc1f4607483e7b7cd4b63eac3c66e571fb：unit223、portable381、regression1348、contracts2、quality4全部通过，零skip/failure/error，fresh本机CIgate通过。21新增行为由实际JUnit统计。首轮1347pass/1Renderer初始化timeout、portable900秒超时无JUnit及frozen预算耗尽均保留，不计最终通过；仅调整host初始化/验证器等待并串行复验，权限断言和10秒请求限制保留。最终22份实际报告独立复算，1份无JUnit历史失败单列。
+
+implementation gate与release gate均blocked，0errors、0incomplete task标签，但明确保留F28/F31必需代码缺口；release当前279条条件，不宣称整体P0完成。详见[F32-development-review-observations.json](evidence/F32-development-review-observations.json)。
+
 F31 冻结源码 `ecb3ee345d41a725e79c1fae9945f4171c111c23315d7ceb6e7131239c8727ec`：unit 215、portable 368、全仓 regression 1327、contracts 2、quality 4，全部通过，零 skipped/failure/error。本机 fresh CI gate 通过；这不替代 GitHub runner 或 native 验收。
 
-F28 实际 frozen Engine 9、packaged desktop 5、installer maker 1、hardened 13、development desktop 66 检查通过。旧产物 `v4-f28-f3c194a-win-x64` 为 unsigned developer-preview，1860 个文件、121 个组件、147 个许可证文件、87 个 frozen Python distribution。F32 将重新构建当前源码并记录自己的清单，旧包不是当前源码证明。
+F28 实际 frozen Engine 9、packaged desktop 5、installer maker 1、hardened 13、development desktop 66 检查通过。旧产物 `v4-f28-f3c194a-win-x64` 为 unsigned developer-preview，1860 个文件、121 个组件、147 个许可证文件、87 个 frozen Python distribution。F32 已实际重建当前运行时代码：build v4-f32-13bc5fd-win-x64，1860 files／121 components／147 license files，manifest SHA 86b8f9a965d26d0b9e82380d612abba6c1a02aa39182c628f7abc184caa36b36。Engine9、packaged5、maker1、hardened13、desktop66全部通过。Setup.exe为231238144 bytes／SHA 5b67f3a392bda16aa6503ffb2f01157b2178daaee43698e60f2f33f70a4a5643，未系统安装、未签名。196个运行时source inventory摘要已复算，后续测试等待修改未改变它们。
 
 110 项验收映射已核对真实 test refs；F31 acceptance 仍缺 156 项所需平台证明。两次固定性能负载均为 100000 events/10000 spans/100 MiB，元数据中位数额外耗时 8.0771% → 5.2103%，仍超过 5% 目标。不得缩减负载或用 SSR 代替图形帧性能宣称达标。
 
-实际 GitHub F28 run 37622858984 的四个 job 失败：Ubuntu 两组各 213 pass/1 fail（纯文件测试冷导入 Electron 下载提示混入 JSON），Windows Node 18 pass/3 fail（PowerShell 冷启动超时及两个短路径别名比较），security 两项 high。F32 针对真实原因修复，上传后必须核验实际矩阵；远端尚未通过时不报告 CI 已绿。
+实际 GitHub F28 run 37622858984 的四个 job 失败：Ubuntu 两组各 213 pass/1 fail（纯文件测试冷导入 Electron 下载提示混入 JSON），Windows Node 18 pass/3 fail（PowerShell 冷启动超时及两个短路径别名比较），security 两项 high。F32 针对真实原因修复，上传后必须核验实际矩阵；远端尚未通过时不报告 CI 已绿。F31实际run37627185380也取回了相同类别失败（Linux各214 pass/1 fail，Windows Node18 pass/3 fail），安全索引为F32-prior-hosted-ci-observations.json。
 
 ## 真实请求与评测限制
 
@@ -42,6 +46,6 @@ F28 连接探测实际 1 请求，335 input/10 output token、最终 usage 完�
 
 入口见 [开发构建说明](../install/development.md)、[安全状态](../security/status.md) 和 [支持矩阵](../platforms/support-matrix.md)。`release-lock.json` 固定资源来源与完整性，`release-manifest.json` 记录实际构建组、源码 inventory、资产/SBOM 和 developer-preview 状态；安装文件保持私有工作目录，不把密钥、session 或用户数据上传。用户授权上传已测试开发版本到 GitHub，不等于生产发布、签名或系统 setup 授权。
 
-新的检出副本实际执行锁定依赖安装、CLI help/version、doctor、offline demo、固定 Node/SRT 资产恢复及固定 Git 任务物化。当前 Windows 10 上的新源码副本验证不称为干净 Windows 11/Ubuntu 系统安装。
+新的检出副本实际执行锁定依赖安装、CLI help/version、doctor、offline demo、固定 Node/SRT 资产恢复及固定 Git 任务物化。当前 Windows 10 上的新源码副本验证不称为干净 Windows 11/Ubuntu 系统安装。候选提交3d4454fb4f67aba92410d49dc2398db564ede68e已在新目录实际完成12条命令；24份原始stdout/stderr摘要、demo原始artifact及三份lock摘要均独立复算通过。固定Node24archive实际新下载，三道pinnedGit任务content/Harbor checksum与预注册一致，模型请求为零；见F32-fresh-source-observations.json。
 
 恢复先读取 progress、任务卡与 handoff，核对当前 HEAD/源码摘要、实际 evidence 和运行进程，继续尚未完成的验证。不得覆盖无关用户变更，也不能把历史通过报告绑定到新的源码。后续必需工作为补原生代码缺口、专用平台验收、性能目标、安全与发行凭据，以及正式 Harbor 执行绑定与 holdout；详情由门禁和 progress 持续列出。

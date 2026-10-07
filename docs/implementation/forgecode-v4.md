@@ -2525,7 +2525,7 @@ G6 是研究成果门禁，不是构建离线可用客户端的前提；未通�
 | S14 | [Electron autoUpdater](https://www.electronjs.org/docs/latest/api/auto-updater) | 不假设 Linux 内置自动更新 |
 | S15 | [Electron Forge Vite plugin](https://www.electronforge.io/config/plugins/vite) | 桌面构建集成候选，按锁定版本验证 |
 
-项目现状输入来自用户确认的 V3 文档与此前讨论，不将其中所有潜在缺陷视为当前分支已证实事实。F00 必须重新核验。此轮未运行 ForgeCode 产品测试、未调用真实模型、未构建平台安装包；只能对交付文档、依赖图、契约样例与包完整性进行静态检查。
+项目现状输入来自用户确认的 V3 文档与此前讨论，不将其中所有潜在缺陷视为当前分支已证实事实。F00 必须重新核验。此句记录原实施包交付时的事实：当时未运行 ForgeCode 产品测试、未调用真实模型、未构建平台安装包；只能对交付文档、依赖图、契约样例与包完整性进行静态检查。后续实际开发与测试以 progress、evidence、handoff 和 final-report 为准，不沿用这段历史作为当前结果。
 
 
 ---

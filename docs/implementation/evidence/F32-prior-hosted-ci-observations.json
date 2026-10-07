@@ -1,0 +1,92 @@
+{
+  "schema_version": "forge.hosted-ci-observations.v1",
+  "source_commit": "13bc5fd803185fdc688c180ec3dd0c416eb725f5",
+  "run_id": 37627185380,
+  "url": "https://github.com/Titans23/forgecode/actions/runs/37627185380",
+  "jobs": [
+    {
+      "id": 112811854552,
+      "name": "dependency-security",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T13:16:23Z",
+      "completed_at": "2026-10-07T13:16:43Z"
+    },
+    {
+      "id": 112811854841,
+      "name": "portable (windows-2025)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T13:16:22Z",
+      "completed_at": "2026-10-07T13:17:56Z"
+    },
+    {
+      "id": 112811854927,
+      "name": "portable (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T13:16:22Z",
+      "completed_at": "2026-10-07T13:17:16Z"
+    },
+    {
+      "id": 112811855020,
+      "name": "portable (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T13:16:23Z",
+      "completed_at": "2026-10-07T13:17:12Z"
+    }
+  ],
+  "actual_failures": {
+    "ubuntu-22.04": "Actual unit 215: 214 pass / 1 fail, Electron automatic first-import download precedes pure file JSON.",
+    "ubuntu-24.04": "Actual unit 215: 214 pass / 1 fail; same observed first-import download.",
+    "windows-2025": "Contracts pass; actual quality Node 18 pass / 3 fail, PowerShell host cold-start timeout and two 8.3 versus canonical path comparisons.",
+    "dependency-security": "Actual npm official audit remains blocked by two high severity dependency entries."
+  },
+  "artifacts": [
+    {
+      "id": 11484697613,
+      "name": "actual-dependency-security",
+      "size_in_bytes": 495225,
+      "sha256": "3cdb520b2af03eab1cdfd328195a1ffed52561206c59088a9a964e65d4c5ac76"
+    },
+    {
+      "id": 11484587267,
+      "name": "portable-ubuntu-24.04",
+      "size_in_bytes": 510673,
+      "sha256": "e762ba9101b0c2ec4486b7f06ea8539e0dd5a1bb60919bd1cdead9d46d14847a"
+    },
+    {
+      "id": 11484164150,
+      "name": "portable-ubuntu-22.04",
+      "size_in_bytes": 510691,
+      "sha256": "e33200013910b9eaf070647b31e01e054e7664fe69cc3b8d5916ec7043eb70cc"
+    },
+    {
+      "id": 11483899842,
+      "name": "portable-windows-2025",
+      "size_in_bytes": 504131,
+      "sha256": "cab8972760bf338f4516f5ee0ff0a4ed5cd3641437c8f10ab428e12854bb76bd"
+    }
+  ],
+  "logs": [
+    {
+      "job": 112811854552,
+      "sha256": "c181824162fbdfbb33ce04b341fc7bd7f0c1c47b754aa88d55cdbffa7d8dddd4"
+    },
+    {
+      "job": 112811854841,
+      "sha256": "9a4cdedc8e5f260ef4b55b19edf3361cc796c6e6cca9e26a31ab500e73ba13cf"
+    },
+    {
+      "job": 112811854927,
+      "sha256": "1bc26a282d5dde6367884b4b0593df576510679e4d0082d9ce5ad3e1dd68d1d0"
+    },
+    {
+      "job": 112811855020,
+      "sha256": "765005128df28a585503135db2e6e98df77559f53354d9994d71a32518367e50"
+    }
+  ],
+  "candidate_fixes": "Public F32 focused Python 50/Node24 21 pass; actual F32 hosted outcome still pending upload.",
+  "eligible_for_native_pass": false
+}

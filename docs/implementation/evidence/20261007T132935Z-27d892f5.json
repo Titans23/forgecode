@@ -1,0 +1,44 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261007T132935Z-27d892f5",
+  "task_id": "F32",
+  "case_ids": [
+    "D01",
+    "D40",
+    "N17",
+    "N18"
+  ],
+  "suite": "engine-packaged",
+  "git_commit": "3d4454fb4f67aba92410d49dc2398db564ede68e",
+  "dirty_hash": "99ca636fdc69177f72993a9057528b06b845563551885ec436188a1d6a9dbe59",
+  "source_inventory_hash": "bdafc692ead990ea3a6036714a413f79348962575627a68c0b5574afdcacf461",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a",
+    "release-lock.json": "332e39667e5c849ad70a4bda4296ab8c9eeba8b6b77b0c1c09c3204d09a2a194"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\engine_packaged_smoke.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T132935Z-27d892f5\\packaging.json"
+  ],
+  "start": "2026-10-07T13:29:35.018301+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-07T13:31:55.429455+00:00",
+  "exit_code": 1,
+  "stdout_ref": ".local/implementation/20261007T132935Z-27d892f5/stdout.log",
+  "stderr_ref": ".local/implementation/20261007T132935Z-27d892f5/stderr.log",
+  "report_ref": ".local/implementation/20261007T132935Z-27d892f5/packaging.json",
+  "report_hash": "0ea13802ea663e86546e23d0d518dc795ed6a8d39615986ecfbab7e117c1672c",
+  "status": "fail",
+  "tests": {
+    "reason": "Actual frozen Harness turn did not complete",
+    "eligible_for_native_pass": false,
+    "checks": 0
+  }
+}

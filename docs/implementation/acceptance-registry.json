@@ -1146,10 +1146,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1172,10 +1171,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1197,10 +1195,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1223,10 +1220,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       },
       "development_evidence_ids": [
@@ -1253,10 +1249,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1278,9 +1273,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1302,9 +1297,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1327,10 +1322,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1353,10 +1347,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -1379,9 +1372,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -2946,9 +2939,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -2969,9 +2962,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -2992,9 +2985,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3016,10 +3009,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3042,10 +3034,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3066,9 +3057,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3306,10 +3297,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3331,10 +3321,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818",
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3355,9 +3344,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3378,9 +3367,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122029Z-b3dc3704"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       }
     },
@@ -3627,9 +3616,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T122040Z-d187f818"
+            "20261007T135321Z-d1841360"
           ],
-          "scope": "Actual final-source Windows 10 behavior tests; no native isolation or public-model score inference"
+          "reason": null
         }
       },
       "development_evidence_ids": [
@@ -3656,9 +3645,9 @@
         "portable": {
           "status": "pass",
           "evidence_ids": [
-            "20261007T125431Z-a30d4f4e"
+            "20261007T135321Z-9ad83267"
           ],
-          "scope": "Actual authorization/no-opt-in, frozen conditions and offline result tests on Windows10; default tests make zero model calls"
+          "reason": null
         }
       }
     }

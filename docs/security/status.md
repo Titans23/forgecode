@@ -12,4 +12,4 @@ Electron 实际 fuse 检查关闭 RunAsNode、NODE_OPTIONS、Node CLI inspect �
 
 仓库不会提交 `.env`、凭证和用户 session/data。原始 Journal/SQLite/artifacts 保留在私有数据目录；导出需选择隐私范围，脱敏副本不覆盖 grader 原始证据。未知请求费用保持 unknown，缺失 grader 证据保持 unscored，写入结果不确定时保持 indeterminate。
 
-依赖以实际 lock 与 npm 官方 audit 为准，未解决的高危项在 evidence 中记录并阻止 production。安装说明与最终报告见 [开发构建说明](../install/development.md)、[平台支持矩阵](../platforms/support-matrix.md) 和 [最终审查](../implementation/final-report.md)。
+依赖以实际 lock 与 npm 官方 audit 为准。F32真实audit为2条high依赖记录：SRT和node-forge，关联同一GHSA-86w9-cpqp-85rv（node-forge <=1.4.0的RSA PKCS#1 v1.5验证问题）。audit给出的fixAvailable为将SRT降至0.0.50，不能在缺少目标平台证明时用强制降级替代当前锁定的0.0.78及其Windows职责；没有伪称已修复，production继续blocked。安装说明与最终报告见 [开发构建说明](../install/development.md)、[平台支持矩阵](../platforms/support-matrix.md) 和 [最终审查](../implementation/final-report.md)。
