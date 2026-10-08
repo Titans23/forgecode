@@ -9,6 +9,11 @@ import sys
 import xml.etree.ElementTree as ET
 
 
+def windows_acceptance_evidence(record):
+    match = re.fullmatch(r'Windows-10-10\.0\.(\d+)(?:-[A-Za-z0-9._-]+)?', record.get('os_build', ''))
+    return record.get('platform') == 'win32' and match is not None and 19045 <= int(match[1]) < 22000
+
+
 def source_fingerprint(root):
     names=subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard'],cwd=root,text=True,encoding='utf-8').splitlines()
     files={}
@@ -135,7 +140,7 @@ def evaluate_gate(root, name, evidence_ids=None):
                         if r['status']!='pass' or case['id'] not in r['case_ids']:raise ValueError('Case is not established by cited passing evidence')
                         if platform!='portable':
                             if report.get('eligible_for_native_pass') is not True:raise ValueError('Development evidence cannot establish native platform acceptance')
-                            if platform=='windows' and (r['platform']!='win32' or 'Windows-11-' not in r['os_build']):raise ValueError('Supported Windows 11 workstation evidence is missing')
+                            if platform=='windows' and not windows_acceptance_evidence(r):raise ValueError('Windows 10 x64 build 19045 or later workstation evidence is missing')
                             if platform=='linux' and r['platform']!='linux':raise ValueError('Native Linux evidence is missing')
                     except (OSError,ValueError,KeyError,TypeError,ET.ParseError) as error:blocked.append(case['id']+'/'+platform+': '+str(error))
         lock=json.loads((root/'release-lock.json').read_bytes())

@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron';
 import { readFile, realpath, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { EngineSupervisor } from './supervisor.js';
+import { probeLayout } from './layout_probe.js';
 
 export async function probeObservability(window:BrowserWindow,engine:EngineSupervisor,sessionId:string,directory:string,output:string){
   const checks:Array<{id:string;status:string}>=[],check=(id:string,passed:boolean)=>checks.push({id,status:passed?'pass':'fail'});
@@ -15,9 +16,9 @@ export async function probeObservability(window:BrowserWindow,engine:EngineSuper
   async function open(){
     await js(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Agent 工作区').click()`);
     await until(`!!Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes(${JSON.stringify(sessionId.slice(-8))}))`);
-    await js(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes(${JSON.stringify(sessionId.slice(-8))})).click()`);
+    await js(`document.querySelector('.workspace-sessions').open=true;Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes(${JSON.stringify(sessionId.slice(-8))})).click()`);
     await until(`!!document.querySelector('[data-message-sequence="${message.sequence}"]')`);
-    await js(`document.querySelector('[data-message-sequence="${message.sequence}"]').click()`);
+    await js(`document.querySelector('.message-history').open=true;document.querySelector('[data-message-sequence="${message.sequence}"]').click()`);
     await until(`!!document.querySelector('[data-testid=tool-trace-link]')`);
     await js(`document.querySelector('[data-testid=tool-trace-link]').click()`);
     await until(`document.querySelector('[data-testid=selected-span]')?.textContent.includes(${JSON.stringify(message.execution_id)})||document.querySelector('[data-testid=selected-span]')&&document.querySelector('[data-span-id]')`);
@@ -41,6 +42,7 @@ export async function probeObservability(window:BrowserWindow,engine:EngineSuper
     const evidence=await engine.call('observability.evidence',{scope:{kind:'turn',id:turnId}}),comparison=evidence.items.find((e:any)=>e.reason==='workspace_content_changed_since_verification').metadata.workspace_comparison;
     check('gui-stale-evidence-actual-content-revision-difference',comparison.current.content_revision>comparison.observed.content_revision&&await js(`document.querySelector('[data-testid=evidence-comparison]').textContent.includes('当前内容版本 ${comparison.current.content_revision}')`));
     check('gui-separated-client-engine-harness-timings',await js(`document.querySelector('[data-testid=observation-timings]').textContent.includes('含排队与清理')&&document.querySelector('[data-testid=observation-timings]').textContent.includes('Harness 执行')`));
+    checks.push(...await probeLayout(window,output,'observability'));
     await writeFile(resolve(output,'observability.png'),(await window.webContents.capturePage()).toPNG());
   }finally{if(await realpath(file)!==file)throw new Error('Fixture path changed');await writeFile(file,original);}
   const loaded=new Promise<void>(r=>window.webContents.once('did-finish-load',()=>r()));window.webContents.reload();await loaded;

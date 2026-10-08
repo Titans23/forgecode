@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, powerMonitor, protocol, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, powerMonitor, protocol, session } from 'electron';
 import squirrel from 'electron-squirrel-startup';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
@@ -101,10 +101,21 @@ async function close() {
 }
 
 async function createWindow() {
+  const overlay = process.platform === 'win32' || process.platform === 'linux';
+  const titleBarColors = () => ({ color: nativeTheme.shouldUseDarkColors ? '#1b1b1a' : '#faf9f6',
+    symbolColor: nativeTheme.shouldUseDarkColors ? '#e8e7e3' : '#292925', height: 48 });
   window = new BrowserWindow({ width: 1240, height: 830, minWidth: 900, minHeight: 650, title: 'ForgeCode',
-    backgroundColor: '#11151b', show: false, webPreferences: { preload: resolve(__dirname, 'preload.js'),
+    ...(overlay ? { titleBarStyle: 'hidden', titleBarOverlay: titleBarColors() } : {}),
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1b1a' : '#faf9f6', autoHideMenuBar: true, show: false, webPreferences: { preload: resolve(__dirname, 'preload.js'),
       contextIsolation: true, sandbox: true, webSecurity: true, nodeIntegration: false,
       devTools: !app.isPackaged, partition: 'forge-desktop' } });
+  const currentWindow = window;
+  const updateTitleBar = () => {
+    currentWindow.setBackgroundColor(titleBarColors().color);
+    if (overlay) currentWindow.setTitleBarOverlay(titleBarColors());
+  };
+  nativeTheme.on('updated', updateTitleBar);
+  currentWindow.once('closed', () => nativeTheme.removeListener('updated', updateTitleBar));
   engine?.attachRenderer();
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event, url) => { if (url !== 'forge-app://ui/index.html') event.preventDefault(); });
@@ -154,7 +165,7 @@ async function runSmoke() {
     }
     check('actual-demo-turn', snapshot?.turns[0]?.outcome === 'completed' && snapshot.turns[0].turn_id === accepted.turn_id);
     const observedSession=currentSession!;
-    checks.push(...await probeWorkspace(window, engine, smoke.directory, resolve(app.getAppPath(), '../..')));
+    checks.push(...await probeWorkspace(window, engine, smoke.directory, resolve(app.getAppPath(), '../..'), smoke.output));
     checks.push(...await probeObservability(window,engine,observedSession,smoke.directory,smoke.output));
     checks.push(...await probeEvaluations(window,engine,resolve(app.getAppPath(),'../..'),smoke.directory,smoke.output));
     checks.push(...await probeFailures(window,engine,smoke.output));

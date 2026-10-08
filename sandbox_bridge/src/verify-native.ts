@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { canonicalHash, strictLoads, validate } from '@forgecode/contracts';
 import { SrtAdapter } from './srt-adapter.js';
+import { windowsSupported } from './windows-adapter.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const installed=basename(dirname(root))==='bridge';
@@ -16,7 +17,7 @@ const check = (id: string, status: 'pass' | 'fail' | 'blocked', observations: an
 const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export async function verifyNative(platform: 'linux' | 'win32'): Promise<any> {
-  if (process.platform !== platform || process.arch !== 'x64' || platform === 'win32' && (Number(os.release().split('.')[2]) < 22000 || !os.version().startsWith('Windows 11'))) return { schema_version: 'forge.native.acceptance.v1',
+  if (process.platform !== platform || process.arch !== 'x64' || platform === 'win32' && !windowsSupported()) return { schema_version: 'forge.native.acceptance.v1',
     status: 'blocked', reason: 'Supported native runner is unavailable', checks, eligible_for_native_pass: false };
   if (process.argv.length !== 6 || process.argv[2] !== '--fixture' || process.argv[4] !== '--owner') throw new Error('Invalid verifier invocation');
   const fixture = resolve(process.argv[3]);
@@ -163,7 +164,7 @@ export async function verifyNative(platform: 'linux' | 'win32'): Promise<any> {
     if (initialized) check(platform === 'win32' ? 'C21' : 'session-cleanup', cleanup.state === 'clean' ? 'pass' : 'blocked', { cleanup });
   }
   if (platform === 'win32') {
-    for (const [id, reason] of Object.entries({ W02: 'Native confirmation/UAC/repeat setup needs an authorized independent GUI VM; not invoked by this verifier',
+    for (const [id, reason] of Object.entries({ W02: 'Native confirmation/UAC/repeat setup needs an authorized interactive Windows 10 workstation; not invoked by this verifier',
       D39: 'UAC rejection/system policy scenario requires a native interactive setup run', W05: 'Native shell and file-worker link parity awaits F11 fixture',
       W06: 'Native file-worker snapshot/special-path acceptance awaits F11 fixture', W07: 'User-level Python/Git discovery and read grant fixture not supplied',
       W08: 'Native replacement-session acceptance awaits verified cleanup', W09: 'Crash ACL/Job ownership reconciliation awaits F25',

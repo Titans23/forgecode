@@ -5,6 +5,7 @@ import {writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import type {EvaluationListResult,EvaluationSnapshotResult,FailureGetResult} from '@forgecode/contracts';
+import {probeLayout} from './layout_probe.js';
 
 export async function probeFailures(window:BrowserWindow,engine:EngineSupervisor,output:string) {
   const checks:any[]=[],check=(id:string,passed:boolean,details:unknown={})=>checks.push({id,status:passed?'pass':'fail',details});
@@ -34,7 +35,9 @@ export async function probeFailures(window:BrowserWindow,engine:EngineSupervisor
     const detail=await engine.call('failure.get',{run_id:run.run_id,attempt_id:attempt});
     check('failure-saved-candidate-not-fake-reproduction',detail.candidates.length===1&&detail.candidates[0].fixture.available&&detail.candidates[0].status==='blocked'&&detail.candidates[0].blockers.includes('no_original_independent_failure'));
     check('failure-native-candidate-export-entry',await js<boolean>("Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='导出回归候选'&&!b.disabled)"));
+    checks.push(...await probeLayout(window,output,'failures'));
     await js("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>{document.querySelector('.failures section:last-child')?.scrollIntoView({block:'end'});r();})))");
+    await new Promise(resolve=>setTimeout(resolve,200));
     await writeFile(join(output,'failures.png'),(await window.webContents.capturePage()).toPNG());
   }catch(error){check('failure-probe-completed',false,{message:(error as Error).message});}
   return checks;

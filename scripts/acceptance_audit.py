@@ -6,7 +6,7 @@ from pathlib import Path,PurePosixPath
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from scripts.evidence_gate import load_evidence,check_evidence
+from scripts.evidence_gate import load_evidence,check_evidence,windows_acceptance_evidence
 
 def audit_mapping(root,cases):
     expected={prefix+f'{i:02d}' for prefix,count in (('C',24),('W',12),('D',40),('O',10),('N',24)) for i in range(1,count+1)}
@@ -39,7 +39,7 @@ def audit_mapping(root,cases):
                         record,report=proofs[identity]
                         if record['status']!='pass' or case['id'] not in record['case_ids']:raise ValueError('Case lacks actual passing verifier evidence')
                         if platform!='portable' and (report.get('eligible_for_native_pass') is not True or
-                            platform=='windows' and (record['platform']!='win32' or 'Windows-11-' not in record['os_build']) or
+                            platform=='windows' and not windows_acceptance_evidence(record) or
                             platform=='linux' and record['platform']!='linux'):raise ValueError('Development evidence cannot prove supported native acceptance')
                     valid=True;reason=None
                 except (OSError,ValueError,KeyError,TypeError) as error:reason=str(error)

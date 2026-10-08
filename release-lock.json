@@ -379,7 +379,7 @@
       "name": "bridge-runtime-manifest",
       "platform": "all",
       "path": "sandbox_bridge/runtime-manifest.json",
-      "sha256": "1006e79f029359375d1880fc2473fbe31811e229c6612ee6d29eeaa3e21573f7",
+      "sha256": "7fa5c2a9e910813326a92616d4821546e68c9b7a43addce92b3d75a9bc8a9c8f",
       "source": "ForgeCode locked runtime code inventory",
       "license": "NOASSERTION",
       "patches": []
@@ -398,7 +398,7 @@
   },
   "platform_requirements": {
     "win32-x64": [
-      "Windows 11 x64",
+      "Windows 10 x64 22H2 (build 19045)",
       "SRT windows-install explicitly authorized by user"
     ],
     "linux-x64": [

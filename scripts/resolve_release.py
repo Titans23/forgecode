@@ -95,7 +95,7 @@ def resolve() -> dict:
             'security': {'status': 'blocked', 'advisories': ['GHSA-86w9-cpqp-85rv'],
                          'reason': 'SRT depends on node-forge 1.4.0; no patched npm release as of 2026-10-06. Production release requires mitigation and regression evidence.'},
             'platform_requirements': {
-                'win32-x64': ['Windows 11 x64', 'SRT windows-install explicitly authorized by user'],
+                'win32-x64': ['Windows 10 x64 22H2 (build 19045)', 'SRT windows-install explicitly authorized by user'],
                 'linux-x64': ['Ubuntu 22.04/24.04 x64', 'bubblewrap', 'socat', 'ripgrep', 'fakeroot/dpkg for deb']}}
     (ROOT / 'release-lock.json').write_text(json.dumps(lock, indent=2) + '\n', encoding='utf-8')
     node = next(a for a in assets if a['name'] == 'node' and a['platform'] == ('win32-x64' if sys.platform == 'win32' else 'linux-x64'))

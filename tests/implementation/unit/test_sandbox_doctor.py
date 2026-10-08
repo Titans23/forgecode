@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -71,3 +72,40 @@ def test_locked_native_status_shape_is_normalized_without_credentials():
     assert 'PRIVATE' not in json.dumps([user, wfp])
     with pytest.raises((KeyError, ValueError)):
         normalize_windows_status({'user': {}, 'wfp': {}})
+
+
+def test_status_uses_verified_development_runtime_despite_old_release_manifest(tmp_path, monkeypatch):
+    from forge.sandbox import doctor
+    (tmp_path / 'release-manifest.json').write_text('{"old_artifact": true}')
+    helper = tmp_path / 'srt-win.exe'
+    helper.write_bytes(b'fixture-helper')
+    (tmp_path / 'release-lock.json').write_text(json.dumps({'assets': [
+        {'name': 'srt-win', 'platform': 'win32-x64', 'path': helper.name}]}))
+    runtime = SimpleNamespace(root=tmp_path, installed=False)
+    calls = []
+    status = {'user': {'user': {'exists': False, 'group_exists': False}, 'cred_present': False},
+              'wfp': {'state': 'cannot-read'}}
+
+    def run(argv, **options):
+        calls.append(argv)
+        return SimpleNamespace(returncode=0, stdout=json.dumps(status).encode())
+
+    monkeypatch.setattr(doctor.subprocess, 'run', run)
+    monkeypatch.setattr(doctor.subprocess, 'CREATE_NO_WINDOW', 0, raising=False)
+    report = doctor.windows_status_diagnosis(runtime)
+    assert report['status'] == 'observed'
+    assert report['user']['provisioned'] is False
+    assert report['read_only'] is True
+    assert calls == [[str(helper), '--srt-win', 'status']]
+
+
+def test_status_rejects_invalid_installed_manifest_without_using_development_assets(tmp_path, monkeypatch):
+    from forge.sandbox import doctor
+    (tmp_path / 'release-manifest.json').write_text('{"old_artifact": true}')
+    runtime = SimpleNamespace(root=tmp_path, installed=True)
+
+    def unexpected(*args, **kwargs):
+        pytest.fail('Invalid installed runtime must not launch a development helper')
+
+    monkeypatch.setattr(doctor.subprocess, 'run', unexpected)
+    assert doctor.windows_status_diagnosis(runtime)['status'] == 'blocked'

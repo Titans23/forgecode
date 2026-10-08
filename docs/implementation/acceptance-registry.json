@@ -182,12 +182,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
         },
         "portable": {
           "status": "pass",
@@ -335,7 +335,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         },
         "linux": {
           "status": "blocked",
@@ -368,7 +368,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         },
         "linux": {
           "status": "blocked",
@@ -401,7 +401,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         },
         "linux": {
           "status": "blocked",
@@ -723,7 +723,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         },
         "linux": {
           "status": "blocked",
@@ -819,12 +819,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
         },
         "portable": {
           "status": "pass",
@@ -856,7 +856,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -880,7 +880,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -904,7 +904,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -928,7 +928,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -952,7 +952,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -976,7 +976,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -1000,7 +1000,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -1024,7 +1024,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -1048,7 +1048,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -1072,7 +1072,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -1096,7 +1096,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -1120,7 +1120,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -1397,7 +1397,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         }
       },
       "development_verification": {
@@ -1506,12 +1506,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "portable": {
           "status": "pass",
@@ -1544,7 +1544,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -1626,12 +1626,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "portable": {
           "status": "pass",
@@ -1663,12 +1663,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -1701,12 +1701,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "portable": {
           "status": "pass",
@@ -1736,12 +1736,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu runners unavailable; Engine portable coverage does not verify UI reducers."
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
         },
         "portable": {
           "status": "pass",
@@ -1814,7 +1814,7 @@
           "evidence_ids": [
             "20261006T171503Z-7e896f69"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -1935,12 +1935,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -1974,12 +1974,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -2050,12 +2050,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -2095,7 +2095,7 @@
           "evidence_ids": [
             "20261006T171503Z-7e896f69"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -2141,7 +2141,7 @@
           "evidence_ids": [
             "20261006T171503Z-7e896f69"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -2184,7 +2184,7 @@
           "evidence_ids": [
             "20261006T191650Z-e24e7d15"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Human native dialogs/IME and installed acceptance not verified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Human native dialogs/IME and installed acceptance remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -2259,7 +2259,7 @@
           "evidence_ids": [
             "20261006T191650Z-e24e7d15"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Human native dialogs/IME and installed acceptance not verified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Human native dialogs/IME and installed acceptance remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -2301,7 +2301,7 @@
           "evidence_ids": [
             "20261006T215639Z-7dfab335"
           ],
-          "reason": "Windows 11/native sandbox environment unavailable; portable real worker mutex test does not certify native isolation."
+          "reason": "Windows 10 local native sandbox prerequisites remain blocked; portable real worker mutex tests do not certify native isolation."
         },
         "linux": {
           "status": "blocked",
@@ -2428,7 +2428,7 @@
           "evidence_ids": [
             "20261006T171503Z-7e896f69"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -2474,7 +2474,7 @@
           "evidence_ids": [
             "20261006T171503Z-7e896f69"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -2515,7 +2515,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -2582,7 +2582,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -2624,7 +2624,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -2666,7 +2666,7 @@
           "evidence_ids": [
             "20261006T191650Z-e24e7d15"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Human native dialogs/IME and installed acceptance not verified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Human native dialogs/IME and installed acceptance remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -2732,12 +2732,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -2769,12 +2769,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -2807,7 +2807,7 @@
           "evidence_ids": [
             "20261006T223455Z-d454cccc"
           ],
-          "reason": "Windows 11 native runner unavailable, zero checks; actual Windows 10 portable test rejects Windows-native selection of Linux-only official task."
+          "reason": "Windows 10 local native sandbox prerequisites remain blocked; the actual portable test rejects Windows-native selection of Linux-only official tasks."
         },
         "portable": {
           "status": "pass",
@@ -2837,12 +2837,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -2875,7 +2875,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -2901,7 +2901,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -3082,7 +3082,7 @@
           "evidence_ids": [
             "20261006T134352Z-ad842262"
           ],
-          "reason": "Actual Windows 10 verifier: unsupported Windows 11 native host, zero checks; pwsh7/account unavailable. No UAC invoked. GUI/shared ACL/Job/replacement-session acceptance requires authorized independent native environment."
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
         }
       }
     },
@@ -3106,12 +3106,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Native Windows 11/Ubuntu and dynamic sensitive-path shell/file-worker verification unavailable; portable checks do not prove OS isolation."
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
         },
         "portable": {
           "status": "pass",
@@ -3179,7 +3179,7 @@
           "evidence_ids": [
             "20261006T171503Z-7e896f69"
           ],
-          "scope": "Windows 11 native runner unavailable; zero native checks. Manual native dialog decisions and installed build unverified."
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
         },
         "linux": {
           "status": "blocked",
@@ -3394,7 +3394,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -3436,7 +3436,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -3477,7 +3477,7 @@
           "evidence_ids": [
             "20261007T085317Z-1601a869"
           ],
-          "reason": "Windows 10 development verification cannot establish Windows 11 clean installation, signed trust or native acceptance."
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
         },
         "linux": {
           "status": "blocked",
@@ -3541,12 +3541,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         }
       },
       "development_evidence_ids": [
@@ -3579,12 +3579,12 @@
         "windows": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         },
         "linux": {
           "status": "blocked",
           "evidence_ids": [],
-          "reason": "Implemented real tests are mapped; supported native Windows11/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25."
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
         }
       },
       "development_evidence_ids": [

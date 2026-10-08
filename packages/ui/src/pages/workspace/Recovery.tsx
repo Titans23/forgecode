@@ -3,7 +3,7 @@ import type {RecoveryInspectResult} from '@forgecode/contracts';
 import type {DesktopOperations} from '../../transport';
 
 export function RecoveryDetails({report}:{report:RecoveryInspectResult}) {
-  return <div data-testid="recovery-report"><h4>恢复对账 · {report.state}</h4>
+  return <div className="recovery-report" data-testid="recovery-report"><h4>恢复对账 · {report.state}</h4>
     <p>{report.unknown_side_effects?'执行结果有未确认部分，禁止自动重放。':'当前没有未确认的执行结果。'}</p>
     <p>取消 {report.cancel_state} · 清理 {report.cleanup_state} · 期限 {report.deadline_status}</p>
     <p>Journal {report.journal.state} · 已投影 {report.journal.projected_records} / {report.journal.records} 条</p>
@@ -26,6 +26,6 @@ export function Recovery({transport,turnId}:{transport:DesktopOperations;turnId:
     catch(reason){setError((reason as Error).message);}
     finally{setBusy(false);}
   }
-  return <div><button className="secondary" data-testid="inspect-recovery" disabled={busy} onClick={inspect}>查看恢复对账</button>
-    {error&&<p role="alert">{error}</p>}{report&&<RecoveryDetails report={report}/>}</div>;
+  return <><button className="secondary" data-testid="inspect-recovery" disabled={busy} onClick={inspect}>查看恢复对账</button>
+    {error&&<p role="alert">{error}</p>}{report&&<RecoveryDetails report={report}/>}</>;
 }

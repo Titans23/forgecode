@@ -1,14 +1,13 @@
 /** The sole adapter to the audited, locked SRT 0.0.78 API. No host execution fallback. */
 import { spawn } from 'node:child_process';
 import { readFile, realpath, stat } from 'node:fs/promises';
-import os from 'node:os';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { SandboxManager, SandboxRuntimeConfigSchema } from '@anthropic-ai/sandbox-runtime';
 import { checkLinuxDependencies } from '@anthropic-ai/sandbox-runtime/dist/sandbox/linux-sandbox-utils.js';
 import { ContractError, canonicalHash, validate } from '@forgecode/contracts';
 import { Executions, type Execution } from './executions.js';
 import { LinuxExecutionOwner } from './linux-ownership.js';
-import { protectedDirectoryPaths, windowsPrerequisites } from './windows-adapter.js';
+import { protectedDirectoryPaths, windowsPrerequisites, windowsSupported } from './windows-adapter.js';
 
 const FEATURES = ['read_isolation', 'write_isolation', 'direct_network_isolation', 'dns_isolation',
   'socket_isolation', 'process_cleanup', 'memory', 'disk', 'pids'];
@@ -96,7 +95,7 @@ export class SrtAdapter {
       throw new ContractError('Workspace identity changed', 'POLICY_DENIED', -32010);
     }
     this.workspace = { id: params.workspace_id, path, identity: `${info.dev}:${info.ino}` };
-    const platform = process.platform === 'win32' && process.arch === 'x64' && Number(os.release().split('.')[2]) >= 22000 && os.version().startsWith('Windows 11') ? 'windows-native'
+    const platform = windowsSupported() ? 'windows-native'
       : process.platform === 'linux' && process.arch === 'x64' ? 'linux-native' : 'unsupported';
     const report: any = { platform, backend: 'srt', backend_version: '0.0.78', read_isolation: 'unavailable',
       write_isolation: false, direct_network_isolation: false, dns_isolation: false, socket_isolation: false,
@@ -104,7 +103,7 @@ export class SrtAdapter {
       readiness: 'unavailable', issues: [], measured_at_utc: new Date().toISOString(),
       verification: Object.fromEntries(FEATURES.map(name => [name, { status: 'unsupported', evidence_refs: [] }])) };
     try {
-      if (platform === 'unsupported') report.issues.push('Supported native hosts require Windows 11 x64 or Ubuntu 22.04/24.04 x64');
+      if (platform === 'unsupported') report.issues.push('Supported native hosts require Windows 10 x64 build 19045 or later or Ubuntu 22.04/24.04 x64');
       else if (platform === 'windows-native') {
         const prerequisite = await windowsPrerequisites(this.assets['srt-win']);
         // The upstream readiness is a prerequisite, never native isolation evidence.

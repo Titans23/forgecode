@@ -12,6 +12,7 @@ from forge.application.models import ContractError
 from forge.engine.persistence import new_id
 from forge.sandbox.srt_backend import SrtBackend
 from forge.sandbox.launcher import verify_runtime, bridge_environment
+from forge.sandbox.capabilities import windows_supported
 
 
 def policy_input(tmp_path):
@@ -109,7 +110,7 @@ def test_fixed_setup_launcher_rejects_parameters_and_unsupported_host_without_UA
     invalid = subprocess.run([str(runtime.node), str(runtime.entry), '--setup-action', 'install --force'],
         cwd=runtime.root, env=bridge_environment(tmp_path), capture_output=True, text=True, encoding='utf-8', timeout=30)
     assert invalid.returncode != 0
-    if sys.platform == 'win32' and sys.getwindowsversion().build >= 22000:
+    if windows_supported():
         # Supported hosts run explicit native setup separately; never invoke install from portable CI.
         action = 'diagnose'
     else:

@@ -1,0 +1,15 @@
+{
+  "schema_version": "forge.implementation.authorization.v1",
+  "recorded_on": "2026-10-08",
+  "scope": "Replace mandatory Windows 11 acceptance with this local Windows 10 workstation",
+  "explicit_human_instruction": "将window11验收改为window10验收即在本机验收即可",
+  "windows_acceptance_target": "Windows 10 x64 22H2 build 19045",
+  "windows11_device_required": false,
+  "linux_acceptance_unchanged": true,
+  "local_administrator_setup_authorized": false,
+  "native_srt_setup_authorized": false,
+  "model_authorization_change": false,
+  "prior_model_authorization_ref": "human-authorization-20261007.json",
+  "prior_ci_setup_authorization_ref": "human-authorization-ci-20261008.json",
+  "historical_evidence_policy": "Keep original OS, source, status and scope; target changes do not promote development evidence to native acceptance."
+}

@@ -36,7 +36,7 @@ function AttemptTrace({transport,run,trial,title}:{transport:DesktopOperations;r
   return <section className="attempt-trace"><h3>{title}</h3>
     {!trial?<p>尚未加载相同 task / repeat 的记录。</p>:<><p>{trial.task_id} · revision {trial.task_revision} · repeat {trial.repeat_index+1}</p>
       <p>首次：{resultLabel(attempts?.first??null)} · 最后获准：{resultLabel(attempts?.selected??null)}</p>
-      <label>查看实际尝试<select value={actualId??''} onChange={e=>{setAttemptId(e.target.value||null);setSelected(null);}}><option value="">尚无 attempt</option>
+      <label className="field">查看实际尝试<select value={actualId??''} onChange={e=>{setAttemptId(e.target.value||null);setSelected(null);}}><option value="">尚无 attempt</option>
         {attempts?.all.map(a=><option key={a.id} value={a.id}>#{a.attempt_no} · {resultLabel(a)} · {a.execution_state} · cleanup {a.cleanup_state}{a.id===trial.selected_attempt_id?' · 选定结果':''}</option>)}</select></label>
       {attempts?.all.map(a=><p className="muted" key={a.id}>#{a.attempt_no} Agent {a.agent_outcome??'未知'} / 独立 grader {resultLabel(a)} / {a.error_origin??'无已记录错误来源'} / cleanup {a.cleanup_state} / trace {a.trace_complete?'完整':'缺口或未完成'}</p>)}
       {run?.read_only?<p className="notice">外部 imported_unverified 结果；可信本机 Trace 不可用。保留原始包用于离线复核。</p>:<>
@@ -104,10 +104,10 @@ export function Evaluations({transport,onFailure}:{transport:DesktopOperations;o
   const retryAllowed=!!snapshot&&!snapshot.read_only&&!!selectedAttempt&&selectedAttempt.cleanup_state==='clean'&&['finished','blocked','error'].includes(selectedAttempt.execution_state)&&
     selectedAttempt.attempt_no<snapshot.spec.protocol.max_infrastructure_attempts&&snapshot.spec.protocol.infrastructure_retry_categories?.includes(selectedAttempt.error_origin as never);
   return <div className="evaluations"><section><h2>实验与结果</h2><p>不可变配置、计划分母与独立 grader。真实模型实验仅在环境、策略和预算许可就绪后启动。</p>
-    <button className="secondary" disabled={busy} onClick={()=>action(async()=>{await refreshCatalog();})}>刷新目录</button>
+    <div className="toolbar"><button className="secondary" disabled={busy} onClick={()=>action(async()=>{await refreshCatalog();})}>刷新目录</button>
     <button className="secondary" disabled={busy} onClick={()=>action(async()=>{const r=await transport.importExperimentPlan();await refreshCatalog();if(r.template_id){setWizard(true);await selectTemplate(r.template_id);}setNotice(r.cancelled?'配置导入已取消。':'已导入来源未验证的配置。');})}>导入实验配置</button>
     <button className="secondary" disabled={busy} onClick={()=>action(async()=>{const r=await transport.importResults();await refreshCatalog();if(r.run_ids?.length)chooseRun(r.run_ids[0]);setNotice(r.cancelled?'结果导入已取消。':'外部结果已导入，来源未验证。');})}>导入结果包</button>
-    <button disabled={busy} onClick={()=>{setWizard(true);setStep(0);}}>新实验</button>
+    <button className="primary-action" disabled={busy} onClick={()=>{setWizard(true);setStep(0);}}>新实验</button></div>
     {error&&<p role="alert" className="notice">{error}</p>}{notice&&<p role="status">{notice}</p>}
     {!templates?.items.length&&<p className="notice">尚无完整实验配置。请导入含 resolved snapshots 的配置，或先通过已有 CLI 保存实验；本机环境缺失不会生成假成绩。</p>}
     <VirtualList label="实验列表" items={runs?.items??[]} itemKey={r=>r.run_id} render={r=><button className="secondary file-row" onClick={()=>chooseRun(r.run_id)}>{r.dataset} · {r.state} · planned {r.planned_trials} · {r.origin} · {r.model_mode} · {r.run_id.slice(-8)}</button>}/>
@@ -115,12 +115,12 @@ export function Evaluations({transport,onFailure}:{transport:DesktopOperations;o
       const items=Array.from(new Map([...runs.items,...next.items].map(r=>[r.run_id,r])).values()).slice(-10000);setRuns({...next,items,history_gap:runs.history_gap||next.history_gap||runs.items.length+next.items.length>10000});})}>更多实验</button>
     {runs?.history_gap&&<p className="notice">实验列表存在缺口，请分页核对。</p>}
   </section>
-  {wizard&&<section><h2>四步实验配置</h2><label>源版本与任务配置<select value={templateId} disabled={busy} onChange={e=>action(()=>selectTemplate(e.target.value))}><option value="">选择完整配置</option>
+  {wizard&&<section><h2>四步实验配置</h2><label className="field">源版本与任务配置<select value={templateId} disabled={busy} onChange={e=>action(()=>selectTemplate(e.target.value))}><option value="">选择完整配置</option>
     {templates?.items.map(t=><option key={t.template_id} value={t.template_id}>{t.dataset} / {t.revision} · {t.task_count} 题 · {t.origin} · {t.source_commit?.slice(0,8)??'commit 未知'}</option>)}</select></label>
-    {template&&choices&&<><nav className="wizard-nav">{['版本与任务','模型与 Harness','兼容目标','配置与预算'].map((s,i)=><button key={s} className={step===i?'':'secondary'} disabled={busy} onClick={()=>setStep(i)}>{i+1} · {s}</button>)}</nav>
+    {template&&choices&&<><nav className="wizard-nav" aria-label="实验配置步骤">{['版本与任务','模型与 Harness','兼容目标','配置与预算'].map((s,i)=><button key={s} aria-current={step===i?'step':undefined} className={step===i?'':'secondary'} disabled={busy} onClick={()=>setStep(i)}>{i+1} · {s}</button>)}</nav>
       <WizardStep step={step} choices={choices} spec={template.spec} connections={connections} change={change} busy={busy} draft={draft} validation={validation}
         check={()=>action(check)} create={()=>action(()=>create())} exportPlan={()=>action(()=>create(true))}/>
-      <button className="secondary" disabled={busy||step===0} onClick={()=>setStep(s=>s-1)}>上一步</button><button disabled={busy||step===3||!choices.task_ids.length} onClick={()=>setStep(s=>s+1)}>下一步</button></>}
+      <div className="wizard-footer"><button className="secondary" disabled={busy||step===0} onClick={()=>setStep(s=>s-1)}>上一步</button><span>第 {step+1} 步，共 4 步</span><button disabled={busy||step===3||!choices.task_ids.length} onClick={()=>setStep(s=>s+1)}>下一步</button></div></>}
   </section>}
   {!wizard&&snapshot&&<><section><h2>{snapshot.spec.dataset.name} · {snapshot.state}</h2><p><code>{snapshot.run_id}</code> · {snapshot.origin} · configuration {snapshot.configuration_origin} · {snapshot.spec.model_mode}</p>
     {snapshot.read_only&&<p className="notice">外部来源未验证，评分是导入的独立 grader 声明；只读结果无法启动或重试。</p>}
@@ -131,20 +131,21 @@ export function Evaluations({transport,onFailure}:{transport:DesktopOperations;o
       ['完成误报率',snapshot.metrics.completion_false_positive],['Trace 完整率',snapshot.metrics.trace_completeness],['实际已知成本',snapshot.metrics.total_known_cost],['估算成本',snapshot.metrics.total_estimated_cost],['费用未知请求',snapshot.metrics.unknown_cost_requests],['每成功成本',snapshot.metrics.cost_per_success]].map(([label,value])=>
       <div key={String(label)}><strong>{String(label)}</strong><span>{metric(value)}</span></div>)}</div>
     {!snapshot.compatible&&snapshot.issues.slice(0,100).map((i,n)=><p className="notice" key={n}>{i.task_id??'整体'} · {i.kind} · {i.message}</p>)}
-    <button disabled={busy||snapshot.read_only||!snapshot.compatible||snapshot.state!=='created'} onClick={()=>action(async()=>{
+    <div className="action-row"><button disabled={busy||snapshot.read_only||!snapshot.compatible||snapshot.state!=='created'} onClick={()=>action(async()=>{
       const current=await transport.evaluationValidate({spec:snapshot.spec});if(!current.compatible)throw new Error(current.issues.map(i=>i.message).join('\n'));
       await transport.evaluationStart({client_action_id:actionId(),run_id:snapshot.run_id});setSnapshot(await transport.evaluationSnapshot({run_id:snapshot.run_id}));})}>启动兼容实验</button>
     <button className="secondary" disabled={busy||snapshot.read_only||!['queued','running','cancel_requested'].includes(snapshot.state)} onClick={()=>action(async()=>{await transport.evaluationCancel({client_action_id:actionId(),run_id:snapshot.run_id,reason:'Desktop user cancelled evaluation'});})}>请求取消</button>
     <button className="secondary" disabled={busy||snapshot.read_only} onClick={()=>action(async()=>{const r=await transport.exportExperimentPlan(snapshot.run_id);setNotice(r.cancelled?'配置导出已取消。':'配置已导出。');})}>导出配置</button>
-    <button className="secondary" disabled={busy||snapshot.read_only} onClick={()=>action(async()=>{const r=await transport.exportResults(snapshot.run_id);setNotice(r.cancelled?'结果导出已取消。':'冻结结果包已导出。');})}>导出结果与隐私确认</button>
+    <button className="secondary" disabled={busy||snapshot.read_only} onClick={()=>action(async()=>{const r=await transport.exportResults(snapshot.run_id);setNotice(r.cancelled?'结果导出已取消。':'冻结结果包已导出。');})}>导出结果与隐私确认</button></div>
     <details><summary>不可变 RunSpec 与 hash</summary><code>{snapshot.spec_hash}</code><pre>{JSON.stringify(snapshot.spec,null,2)}</pre></details>
-    <h3>逐题记录（每页最多 20 个 trial）</h3><VirtualList label="计划 trial 与选定尝试" items={snapshot.trials} itemKey={t=>t.id} render={t=>{
+    <div className="subsection"><h3>逐题记录</h3><p className="muted">每页最多 20 个 trial</p><VirtualList label="计划 trial 与选定尝试" items={snapshot.trials} itemKey={t=>t.id} render={t=>{
       const views=attemptViews(t,snapshot.attempts);return <button className="secondary file-row" onClick={()=>setTrialId(t.id)}>{t.task_id} · repeat {t.repeat_index+1} · 首次 {resultLabel(views.first)} · 选定 {resultLabel(views.selected)} · attempts {views.all.length} · cleanup {views.selected?.cleanup_state??'尚未执行'}</button>;}}/>
-    <button className="secondary" disabled={!cursor} onClick={()=>{setCursor(null);setTrialId(null);}}>回到第一页</button><button className="secondary" disabled={!snapshot.next_cursor} onClick={()=>{setCursor(snapshot.next_cursor);setTrialId(null);}}>下一页 trial</button>
+    <div className="pagination"><button className="secondary" disabled={!cursor} onClick={()=>{setCursor(null);setTrialId(null);}}>回到第一页</button><button className="secondary" disabled={!snapshot.next_cursor} onClick={()=>{setCursor(snapshot.next_cursor);setTrialId(null);}}>下一页 trial</button></div>
+    <div className="action-row">
     <button className="secondary" disabled={busy||!retryAllowed} onClick={()=>action(()=>retry(selectedAttempt!))}>明确授权基础设施重试</button>
-    {selectedAttempt&&onFailure&&<button className="secondary" disabled={busy} onClick={()=>onFailure({run_id:snapshot.run_id,attempt_id:selectedAttempt.id})}>查看失败案例与人工标注</button>}
-    <p className="muted">末次授权 attempt 是选定结果；首次结果、历史失败、所有费用与清理状态继续保留。</p>
-    <label>同题 A/B 对照<select value={partnerId} onChange={e=>setPartnerId(e.target.value)}><option value="">选择另一个实验</option>{runs?.items.filter(r=>r.run_id!==snapshot.run_id).map(r=><option key={r.run_id} value={r.run_id}>{r.dataset} · {r.run_id.slice(-8)} · {r.origin}</option>)}</select></label>
+    {selectedAttempt&&onFailure&&<button className="secondary" disabled={busy} onClick={()=>onFailure({run_id:snapshot.run_id,attempt_id:selectedAttempt.id})}>查看失败案例与人工标注</button>}</div>
+    <p className="muted">末次授权 attempt 是选定结果；首次结果、历史失败、所有费用与清理状态继续保留。</p></div>
+    <label className="field">同题 A/B 对照<select value={partnerId} onChange={e=>setPartnerId(e.target.value)}><option value="">选择另一个实验</option>{runs?.items.filter(r=>r.run_id!==snapshot.run_id).map(r=><option key={r.run_id} value={r.run_id}>{r.dataset} · {r.run_id.slice(-8)} · {r.origin}</option>)}</select></label>
     {comparison&&<><p className={comparison.comparable?'muted':'notice'}>{comparison.comparable?'控制条件可比；尚未推断提升':'不可比警告：'+comparison.differences.join(' / ')}</p><p>{comparison.uncertainty}</p></>}
     {partnerTrial&&selectedTrial&&partnerTrial.task_revision!==selectedTrial.task_revision&&<p className="notice">相同任务 ID 的 revision 不同；不能据此解释提升。</p>}
   </section><div className="dual-traces"><AttemptTrace transport={transport} run={snapshot} trial={selectedTrial} title="A · 实际 Trace"/>

@@ -4,6 +4,8 @@
 
 ## 从源码验证
 
+只想打开已经准备好依赖的客户端：Windows 双击根目录 `Start-ForgeCode.cmd`，或运行 `npm run dev:desktop`。启动、模型连接和项目操作见[桌面客户端使用指南](desktop-quickstart.md)；普通启动无需执行后面的安装包构建流程。
+
 需要锁定的 Python 3.12.13、Node 24.21.0，以及兼容的 npm 和 uv。实际版本与资产摘要见 `release-lock.json`；开发测量还须记录当前 PATH 的实际工具版本。在仓库根目录执行：
 
 ```text
@@ -43,11 +45,13 @@ uv run --no-sync python scripts/impl.py verify --suite desktop-packaged
 uv run --no-sync python scripts/impl.py verify --suite hardened
 ```
 
-安装包由 `scripts/make_installer.py` 创建，`--target` 仅接受 `win32-x64` 或 `linux-x64`。先运行 `--help` 查看必需的输出参数。Linux deb 必须在 Ubuntu 22.04 x64 构建，再在 Ubuntu 22.04/24.04 的 X11 与 Wayland 分别验收。用户指定本阶段先在 Windows 10 x64 验收；Windows 11 workstation、Ubuntu 原生图形及安装验收后续补充。Windows Server 不建立 workstation 验收，当前 Windows 10 实测也不证明 strict SRT 隔离。
+安装包由 `scripts/make_installer.py` 创建，`--target` 仅接受 `win32-x64` 或 `linux-x64`。先运行 `--help` 查看必需的输出参数。Linux deb 必须在 Ubuntu 22.04 x64 构建，再在 Ubuntu 22.04/24.04 的 X11 与 Wayland 分别验收。用户于 2026-10-08 将必需 Windows 验收改为本机 Windows 10 x64 22H2（build 19045）；无需 Windows 11 设备。Ubuntu 原生图形及安装验收仍独立推进。Windows Server 不建立 workstation 验收，当前 Windows 10 实测也不证明 strict SRT 隔离。
 
-不得在缺少签名、安全、native 验收或项目 LICENSE 时把 unsigned developer-preview 转为 production。没有运行管理员安装，SRT setup 需要用户单独授权。
+不得在缺少签名、安全、native 验收或项目 LICENSE 时把 unsigned developer-preview 转为 production。2026-10-08 用户已授权本机管理员设置，实际安装和原生状态见 handoff；授权记录不代表安装或验收通过。
 
 ## 凭证、恢复与评测
+
+F31 已改到另一台 WSL/Docker 电脑执行。交接包中的 `python3 resume_f31.py` 会拉取本分支最新代码并启动当地 Codex，完整步骤见 [F31 跨机交接](../experiments/F31-wsl-handoff.md)。
 
 客户端连接管理由 Main credential broker 管理，Renderer 不提供密钥读回。系统存储不可用或 Linux 返回 basic_text/unknown 时使用内存模式；受控开发 helper roundtrip 不替代目标平台 keystore 验收。不要将 `.env`、连接密钥、个人 session/data 目录提交 GitHub。
 

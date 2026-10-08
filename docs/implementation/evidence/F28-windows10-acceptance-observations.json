@@ -1,0 +1,202 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F28",
+  "scope": "Mandatory Windows acceptance changed to this Windows10 x64 build19045 workstation",
+  "test_parent_commit": "f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234",
+  "tested_source_inventory_hash": "4d92b9fb73db0c5a9b3b73f52aca1ad1aece2c6e51a3de11c62bbc43c452e9e8",
+  "validation_scope": "Full regression uses an isolated checkout of the baseline plus this change on the same physical Windows10 host. Merged workspace has separate focused and actual Electron evidence, preserving the concurrent UI work.",
+  "merged_source_inventory_hash": "a00f3fc8db61bb90b96b42ed461b616d423bcf8da91d5dc9058a5f3447e707df",
+  "authorization_ref": "human-authorization-windows10-20261008.json",
+  "public_model_calls": 0,
+  "administrator_setup": false,
+  "installer_rebuilt": false,
+  "eligible_for_native_pass": false,
+  "focused": {
+    "python_before": {
+      "report_ref": ".local/windows10-acceptance/windows10-red.xml",
+      "sha256": "baf6f62c81a3f98e4ff2557b1672a2e09f34781310fe24fa1b99fbe23c0e57fe",
+      "collected": 16,
+      "failures": 6,
+      "errors": 0,
+      "skipped": 0
+    },
+    "python_after": {
+      "report_ref": ".local/windows10-acceptance/windows10-green.xml",
+      "sha256": "4c461af2ce1232311eb7a442b9ebdb1c286653e7681a9939544d4e8f7498c6a1",
+      "collected": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "node_before": {
+      "report_ref": ".local/windows10-acceptance/windows10-node-red.tap",
+      "sha256": "e6ebe1bb3a08c50f1ff9885af832ce00e15abf1aac5bd0fb20192ab39216d767",
+      "tests": 1,
+      "pass": 0,
+      "fail": 1,
+      "skipped": 0
+    },
+    "node_after": {
+      "report_ref": ".local/windows10-acceptance/windows10-node-green.tap",
+      "sha256": "5b93e98d166bedd7a5d49726a1e8ff6b9b059737dd4790912bca25ad6bae250a",
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "skipped": 0
+    },
+    "actual_storage_after_hydration": {
+      "report_ref": ".local/windows10-acceptance/windows10-storage-green.xml",
+      "sha256": "25e5016f356e7bbd4c8286091378f50fffece0da9b36e3cefe8a099b0b463861",
+      "collected": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "merged_working_tree": {
+      "report_ref": ".local/windows10-acceptance/windows10-merged-focused.xml",
+      "sha256": "dc43ce657ab4f2aef32b8fa4775c6d7afab963f45b789fc2420ef68c0b15168a",
+      "collected": 21,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "regression_subgroups": {
+    "tests.implementation.unit": 236,
+    "tests.implementation.portable": 2,
+    "tests.implementation.integration": 416
+  },
+  "final_evidence": [
+    {
+      "evidence_id": "20261008T083357Z-bfff2438",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_hash": "63db9730778c4d8b91027f0abdb0281d5d7a95fa5df06e9da9451ecbb57b83b0"
+    },
+    {
+      "evidence_id": "20261008T083401Z-1d14d514",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_hash": "b0fa8baef84d5667e8f13c493515add2717d6885c8506d72d5f50e993210b992"
+    },
+    {
+      "evidence_id": "20261008T083429Z-2f1194f6",
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1398,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "d9c475516f4256ce93bb749d87886ef61720d9e30443fae129f861da1d188927"
+    },
+    {
+      "evidence_id": "20261008T084917Z-1091e6ce",
+      "suite": "sandbox-windows",
+      "status": "blocked",
+      "tests": {
+        "reason": "Fixed runtime, PowerShell 7 or native NTFS evidence directory unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      },
+      "report_hash": "79a30f905c916bcca24e27d365659999e5c4b963491e5e94c21909a5800ce1fc"
+    },
+    {
+      "evidence_id": "20261008T084939Z-eddd4cb0",
+      "suite": "acceptance",
+      "status": "blocked",
+      "tests": {
+        "reason": "178 required platform proofs unavailable",
+        "scope": "all 86 legacy plus 24 new case mappings and recomputed existing proofs",
+        "eligible_for_native_pass": false,
+        "checks": 2
+      },
+      "report_hash": "42ba35f2df7f20d177ff39cbe698330e886b92f217cc166b150a1978cee62f24"
+    }
+  ],
+  "merged_desktop_evidence": {
+    "evidence_id": "20261008T084143Z-402469a0",
+    "suite": "desktop",
+    "status": "pass",
+    "tests": {
+      "scope": "development-desktop",
+      "eligible_for_native_pass": false,
+      "checks": 72
+    },
+    "report_hash": "dd7e4aed5d706edddd47aeeb55e390f0bd781122a8185c00f901dcbd6afea9f1",
+    "source_inventory_hash": "a00f3fc8db61bb90b96b42ed461b616d423bcf8da91d5dc9058a5f3447e707df"
+  },
+  "native_prerequisites": {
+    "host": {
+      "system": "Windows",
+      "build": "Windows-10-10.0.19045-SP0",
+      "architecture": "AMD64",
+      "supported_linux": false,
+      "supported_windows": true,
+      "system_volume": {
+        "status": "pass",
+        "filesystem": "NTFS"
+      }
+    },
+    "runtime_status": "pass",
+    "tools": {
+      "pwsh": {
+        "status": "blocked",
+        "path": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        "reason": "Fixed PowerShell 7 is unavailable"
+      }
+    },
+    "srt_status": {
+      "status": "blocked",
+      "reason": "Read-only native status unavailable",
+      "shared_activity": "not_observed"
+    },
+    "status": "blocked",
+    "checks": 0,
+    "reason": "Fixed runtime, PowerShell 7 or native NTFS evidence directory unavailable"
+  },
+  "isolated_acceptance_mapping": {
+    "status": "blocked",
+    "case_count": 110,
+    "blocked_platform_proofs": 178
+  },
+  "isolated_acceptance_scope": "The isolated checkout lacks historical private reports kept by the main workspace; missing reports remain blocked. The current authoritative mapping is recomputed on the merged main workspace below.",
+  "acceptance_mapping": {
+    "status": "blocked",
+    "case_count": 110,
+    "blocked_platform_proofs": 156
+  },
+  "merged_acceptance_evidence": {
+    "evidence_id": "20261008T085032Z-4ca473d5",
+    "suite": "acceptance",
+    "status": "blocked",
+    "tests": {
+      "reason": "156 required platform proofs unavailable",
+      "scope": "all 86 legacy plus 24 new case mappings and recomputed existing proofs",
+      "eligible_for_native_pass": false,
+      "checks": 2
+    },
+    "report_hash": "4501347e019e4c920683f970b3c07b545b21088771e51846ede2d20c01a38c98",
+    "source_inventory_hash": "a00f3fc8db61bb90b96b42ed461b616d423bcf8da91d5dc9058a5f3447e707df"
+  },
+  "reports_recomputed": 7,
+  "interrupted_initial_regression": {
+    "evidence_id": "20261008T082212Z-1ee8484d",
+    "status": "fail",
+    "reason": "Stopped the owned pytest tree after discovering missing Electron caused a skipped real storage test. No complete JUnit or pass; logs retained. Locked Electron was hydrated, storage passed, then the entire regression was rerun."
+  },
+  "unchanged_blockers": [
+    "Native verified promotion, initialized SRT/helper/listener cleanup and dynamic sensitive-path parity.",
+    "Linux Docker daemon, official environment/network enforcement and trusted host request admission.",
+    "Signing, project LICENSE, dependency security, performance target and remaining native/manual/installer evidence."
+  ]
+}

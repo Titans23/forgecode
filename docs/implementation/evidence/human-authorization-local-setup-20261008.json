@@ -1,0 +1,21 @@
+{
+  "schema_version": "forge.human.authorization.v1",
+  "recorded_date": "2026-10-08",
+  "source": "Direct human messages in the current Codex conversation",
+  "verbatim": "我授予你全部权限，同时F31的评测我需要切换到另一个电脑（另一台包含wsl和docker环境）",
+  "handoff_choice": "准备交接包，我在另一台电脑打开仓库继续",
+  "automatic_continuation_request": "我希望根据交接包，另一台电脑可以自动拉取github最新代码然后接着工作",
+  "scope": {
+    "local_windows10_administrator_setup": true,
+    "purpose": "Install the required fixed-path PowerShell 7 and initialize the locked SRT Windows sandbox for F28 local acceptance",
+    "powershell": "Microsoft-signed PowerShell 7.6.6 x64 MSI, fixed Program Files location; no remoting or automatic reboot",
+    "srt": "Existing verified first-install entry for @anthropic-ai/sandbox-runtime 0.0.78; live precheck, no force, credential rotation, uninstall or MITM CA",
+    "f31_execution_host": "Another user-owned computer with WSL and Docker; no remote access supplied",
+    "f31_handoff": "Prepare a standalone entry that clones/fast-forwards the latest GitHub codex/forgecode-v4 branch and starts the receiving computer's Codex with the F31 continuation prompt; credentials and private session data stay on their existing host",
+    "previous_model_authorization": "Existing real-model authorization remains valid; this setup/handoff work requires no model calls"
+  },
+  "notes": [
+    "This supersedes older missing local administrator authorization; it does not claim administrator elevation or setup success.",
+    "Actual UAC and native boundary results must be recorded separately. The package does not grant imported plans execution authority."
+  ]
+}

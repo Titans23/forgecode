@@ -34,7 +34,7 @@ test('explicit script executes only in dispatcher with original shell semantics'
   let shells;
   if (process.platform === 'win32') {
     spec.shell = 'pwsh';
-    // Actual host PowerShell tests only script transport; Windows 11/pwsh7 native acceptance is separate.
+    // Actual host PowerShell tests only script transport; Windows 10/pwsh7 native acceptance is separate.
     shells = { pwsh: resolve(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe') };
     spec.script = "[Console]::OutputEncoding=[Text.UTF8Encoding]::new(); $v=@('中文','a&b','x$(bad)'); [Console]::Write(($v|ConvertTo-Json -Compress))";
   } else {

@@ -1,17 +1,20 @@
 # ForgeCode V4 平台支持与验收状态
 
-截至 2026-10-08 F28/F31 续作，发布仍受阻。用户在 2026-10-07 明确要求当前阶段先在 Windows 10 验收，并授权现有配置中的真实模型测试，金额预算无上限。下列状态区分本阶段实际验收、后续平台和生产发布；Windows 10 结果不转算为 Windows 11 或 Ubuntu。
+截至 2026-10-08，必需 Windows 验收采用本机 Windows 10 x64 build19045。用户随后明确授权本机管理员配置，并将 F31 评测移到另一台 WSL/Docker 电脑；自动拉取 GitHub 并接续的入口见 `docs/experiments/F31-wsl-handoff.md`。Ubuntu 原生桌面验收独立，既有模型授权有效，各项仍需实际环境证据。
 
 | 环境 | 已有实际结果 | 产品验收 |
 |---|---|---|
-| Windows 10 x64 build 19045（当前阶段验收机） | Python CLI/Harness、私有 stdio Engine、SQLite/Journal、真实文件及进程工具、Electron 开发窗、frozen Engine、加固安装目录 smoke，现有配置实际模型连接 | 用户指定的当前验收阶段；生产安装与严格原生沙盒仍未通过 |
-| Windows 11 x64 客户端 | 已有 Windows adapter、Main 入口与 setup broker；实际平台判断排除 Server | blocked：没有干净 VM／设备与 setup 授权 |
+| Windows 10 x64 build 19045（本机，必需验收目标） | 已有 CLI/Harness、Engine、Electron 开发窗、frozen Engine 与安装目录 smoke；OS、运行时、NTFS 可用，SRT 只读状态已取得 | 原生前提 blocked：首次 PowerShell 安装 UAC 返回取消，固定路径缺失；SRT 账户尚未配置；安装／GUI／严格沙盒仍需各自证据 |
 | Ubuntu 22.04 x64 X11／Wayland | Linux adapter、deb 构建基线约束、受控 Bridge/FileWorker 与打包入口 | blocked：没有专用原生／图形验收设备 |
 | Ubuntu 24.04 x64 X11／Wayland | 同上；Linux 包必须在较老 Ubuntu 22.04 构建 | blocked：没有专用原生／图形验收设备 |
 | GitHub Ubuntu 22.04／24.04、Windows Server2025 portable jobs | 已上传64032fe；实际run37723899477三平台各contracts2/quality4/unit226/portable418通过，0skip/failure/error，三个freshCIgate通过，每平台16项新增行为及四artifact/四日志/六JUnit复算通过。获批Electron helper设置仍只适用于指定Ubuntu24 push job；security实际audit仍2high/exit2 | hosted portable通过，不建立原生产品能力；整体workflow仍failure |
-| macOS／Windows Server／WSL | 无产品支持声明；Server 不满足 Windows 11 workstation 判定 | unsupported |
+| macOS／Windows Server／WSL | 无产品支持声明；Server 不满足 Windows workstation 判定 | unsupported |
 
 每个 strict turn 现在创建独立实际 SRT Bridge 和 FileWorker，配置／prepared policy hash 必须一致，准备成功才创建模型。准备失败记录真实 owner-bound cleanup，不自动改用 local-trusted。当前 capability verification 尚不提供可提升为 verified 的完整原生证明，初始化后的边界／后代清理也未完成原生验收，因此 strict 执行继续拒绝。此处既有环境限制，也有尚待原生实现验证的代码限制，不能称为已可用原生沙盒。
+
+既有 Windows 11 运行路径保留，但不再是必需验收平台，也不能替代指定 Windows 10 证据。详见 ADR033；历史报告保留其实际 OS、源码和状态。
+
+本轮 Windows10 同机隔离回归1398、contracts2/quality4通过，零失败／跳过；合并当前工作区后定向21项与真实 Electron72项通过。主工作区验收重算仍有156项必需平台证明 blocked。全部源码范围、原生前提与七份报告复算见 `docs/implementation/evidence/F28-windows10-acceptance-observations.json`；当前结果不更新旧安装包证明。
 
 2026-10-08关闭边界续作source9c0b2502已在当前Windows10完成contracts2/quality4/unit225/portable403/regression1372，0skip/failure/error；关闭后及排队请求禁止启动，并发关闭/取消共享一次清理。证据F28-admission-observations.json。随后e6bda835真实hosted三平台通过，见F28-admission-hosted-observations.json；本轮结果不更新旧安装包证明，也不提升原生能力。
 

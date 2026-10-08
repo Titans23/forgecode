@@ -3,11 +3,18 @@ import { nativeTheme, type BrowserWindow } from 'electron';
 import { readFile, realpath, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { EngineSupervisor } from './supervisor.js';
+import { probeLayout } from './layout_probe.js';
 
-export async function probeWorkspace(window: BrowserWindow, engine: EngineSupervisor, directory: string, sourceRoot: string) {
+export async function probeWorkspace(window: BrowserWindow, engine: EngineSupervisor, directory: string, sourceRoot: string, output: string) {
   const checks: Array<{ id: string; status: string }> = [];
   const check = (id: string, passed: boolean) => checks.push({ id, status: passed ? 'pass' : 'fail' });
   const js = (code: string) => window.webContents.executeJavaScript(code, true);
+  async function screenshot(name: string) {
+    await js('document.fonts.ready');
+    // DOM assertions can finish before Chromium presents the next painted frame.
+    await new Promise(resolve => setTimeout(resolve, 200));
+    await writeFile(resolve(output, name), (await window.webContents.capturePage()).toPNG());
+  }
   async function until(code: string) {
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
@@ -59,11 +66,50 @@ export async function probeWorkspace(window: BrowserWindow, engine: EngineSuperv
   await until(`document.querySelector('[data-testid=reverse-patch]').getBoundingClientRect().height>0`);
   check('diff-selectable-as-text', await js(`(()=>{const element=document.querySelector('[data-testid=reverse-patch]');const range=document.createRange();range.selectNodeContents(element);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);const normalize=value=>value.replace(/\\r\\n/g,'\\n').trimEnd();const passed=normalize(selection.toString())===normalize(element.textContent);selection.removeAllRanges();return passed})()`));
   const oldTheme = nativeTheme.themeSource;
+  check('theme-default-follows-system', oldTheme === 'system');
+  if (process.platform === 'win32' || process.platform === 'linux') {
+    check('actual-native-window-controls-overlay', await js(`navigator.windowControlsOverlay?.visible===true&&navigator.windowControlsOverlay.getTitlebarAreaRect().width<innerWidth`));
+    check('actual-native-titlebar-drag-region', await js(`getComputedStyle(document.querySelector('.page-header')).webkitAppRegion==='drag'&&getComputedStyle(document.querySelector('[data-page=home]')).webkitAppRegion==='no-drag'`));
+  }
   try {
     nativeTheme.themeSource = 'light';
-    await new Promise(resolve => setTimeout(resolve, 50));
-    check('actual-light-theme', await js(`matchMedia('(prefers-color-scheme:light)').matches&&getComputedStyle(document.querySelector('.app')).backgroundColor==='rgb(243, 245, 247)'`));
+    await until(`matchMedia('(prefers-color-scheme:light)').matches&&getComputedStyle(document.querySelector('.app')).backgroundColor==='rgb(250, 249, 246)'`);
+    check('actual-light-theme', await js(`getComputedStyle(document.querySelector('textarea')).color==='rgb(41, 41, 37)'`));
+    await js(`document.querySelector('[data-testid=reverse-patch]').closest('details').open=false;scrollTo(0,0)`);
+    await screenshot('workspace-light.png');
+    await js(`document.querySelector('[data-page=home]').click()`);
+    await until(`!!document.querySelector('.home-start button:not(:disabled)')`);
+    check('home-project-action-ready', await js(`document.querySelector('.home-start button').textContent.includes('打开项目')&&document.querySelectorAll('.recent-project').length>0`));
+    await screenshot('home-light.png');
+    await js(`document.querySelector('[data-page=guide]').click()`);
+    await until(`!!document.querySelector('[data-testid=getting-started]')`);
+    await js(`document.querySelector('.guide-launch').open=true`);
+    check('guide-explains-launch-and-shortcuts', await js(`document.querySelector('.guide-launch').textContent.includes('Start-ForgeCode.cmd')&&document.querySelector('[data-testid=getting-started]').textContent.includes('Shift + Enter')`));
+    await js(`Array.from(document.querySelectorAll('.guide-step button')).find(button=>button.textContent.includes('连接设置')).click()`);
+    await until(`!!document.querySelector('.connection-form')`);
+    check('guide-opens-real-connection-settings', await js(`document.querySelector('[data-page=settings]').getAttribute('aria-current')==='page'`));
+    checks.push(...await probeLayout(window, output, 'connections'));
     nativeTheme.themeSource = 'dark';
+    await until(`matchMedia('(prefers-color-scheme:dark)').matches&&getComputedStyle(document.querySelector('.app')).backgroundColor==='rgb(27, 27, 26)'`);
+    check('actual-dark-form-theme', await js(`getComputedStyle(document.querySelector('.connection-form input')).color==='rgb(232, 231, 227)'&&getComputedStyle(document.querySelector('.connection-form input')).backgroundColor==='rgb(34, 34, 33)'`));
+    await js(`document.querySelector('[data-page=diagnostics]').click()`);
+    await until(`!!document.querySelector('.diagnostics-summary')`);
+    check('diagnostics-starts-with-readable-summary', await js(`document.querySelector('.diagnostics-summary').textContent.includes('受限模式')&&!document.querySelector('.diagnostic-details').open`));
+    checks.push(...await probeLayout(window, output, 'diagnostics'));
+    await js(`Array.from(document.querySelectorAll('button')).find(button=>button.textContent==='刷新诊断').click()`);
+    await until(`document.querySelector('.diagnostic-details').open&&document.querySelector('.diagnostic-details pre').textContent.includes('active_work_items')`);
+    check('diagnostics-expands-actual-health-result', await js(`JSON.parse(document.querySelector('.diagnostic-details pre').textContent).active_work_items===0`));
+    await js(`document.querySelector('[data-page=home]').click();scrollTo(0,0)`);
+    await until(`!!document.querySelector('.home-start')`);
+    await screenshot('home-dark.png');
+    await js(`document.querySelector('[data-page=guide]').click()`);
+    await until(`!!document.querySelector('[data-testid=getting-started]')`);
+    await screenshot('guide-dark.png');
+    await js(`document.querySelector('[data-page=workspace]').click()`);
+    await until(`!!document.querySelector('textarea')&&document.querySelector('[data-testid=turn-outcome]')?.textContent==='completed'`);
+    check('secondary-panels-collapsed-by-default',await js(`Array.from(document.querySelectorAll('.workspace-panel,.workspace-sessions,.message-history')).every(panel=>!panel.open)`));
+    await screenshot('workspace-dark.png');
+    checks.push(...await probeLayout(window, output, 'workspace'));
     for (const zoom of [1, 1.5, 2]) {
       window.webContents.setZoomFactor(zoom);
       await until(`(()=>{document.querySelector('textarea').scrollIntoView({block:'center'});const rect=document.querySelector('textarea').getBoundingClientRect();return rect.top>=0&&rect.bottom<=innerHeight&&rect.left>=0&&rect.right<=innerWidth})()`);

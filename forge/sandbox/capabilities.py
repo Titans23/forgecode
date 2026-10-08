@@ -10,11 +10,11 @@ from forge.application.models import ContractError, validate
 FEATURES = ('read_isolation', 'write_isolation', 'direct_network_isolation', 'dns_isolation',
             'socket_isolation', 'process_cleanup', 'memory', 'disk', 'pids')
 
-def windows11_supported():
+def windows_supported():
     if sys.platform != 'win32':
         return False
     version = sys.getwindowsversion()
-    return version.major == 10 and version.build >= 22000 and version.product_type == 1 and host_platform.machine().lower() in ('amd64','x86_64')
+    return version.major == 10 and version.build >= 19045 and version.product_type == 1 and host_platform.machine().lower() in ('amd64','x86_64')
 
 
 class CapabilityReport:
@@ -63,7 +63,7 @@ class CapabilityReport:
 
 def unavailable_report(*, platform=None, backend_version='unprobed', reason='Native backend has not been verified'):
     if platform is None:
-        platform = 'windows-native' if windows11_supported() else (
+        platform = 'windows-native' if windows_supported() else (
             'linux-native' if sys.platform.startswith('linux') else 'unsupported')
     return CapabilityReport({'platform': platform, 'backend': 'srt', 'backend_version': backend_version,
         'read_isolation': 'unavailable', 'write_isolation': False, 'direct_network_isolation': False,

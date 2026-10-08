@@ -2,12 +2,44 @@
   "schema_version": "forge.implementation.progress.v1",
   "current_authorization_ref": "evidence/human-authorization-20261007.json",
   "ci_setup_authorization_ref": "evidence/human-authorization-ci-20261008.json",
-  "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
+  "windows_acceptance_authorization_ref": "evidence/human-authorization-windows10-20261008.json",
+  "current_acceptance_phase": "Windows 10 x64 22H2 build 19045 on this workstation replaces mandatory Windows 11 acceptance; Ubuntu and official Linux Docker requirements remain independent",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "64032fe475e3eabea06a65bd5653e85c6b173409",
+  "actual_repository_head": "f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234",
   "next_recommended_task": "F28",
-  "current_task": "F31",
+  "current_task": "F28",
+  "windows_acceptance_update": {
+    "status": "local_target_change_verified_native_blocked",
+    "target": "Windows 10 x64 22H2 build 19045 on this workstation",
+    "observations_ref": "evidence/F28-windows10-acceptance-observations.json",
+    "isolated_source_inventory_hash": "4d92b9fb73db0c5a9b3b73f52aca1ad1aece2c6e51a3de11c62bbc43c452e9e8",
+    "merged_source_inventory_hash": "a00f3fc8db61bb90b96b42ed461b616d423bcf8da91d5dc9058a5f3447e707df",
+    "isolated_regression": {
+      "collected": 1398,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "merged_focused_tests": 21,
+    "merged_desktop_checks": 72,
+    "native_windows": "blocked",
+    "native_reason": "Fixed PowerShell7 path is missing; SRT read-only status unavailable. No local administrator setup invoked.",
+    "required_platform_proofs_blocked": 156,
+    "model_calls": 0,
+    "administrator_setup": false,
+    "installer_rebuilt": false,
+    "evidence_ids": [
+      "20261008T083357Z-bfff2438",
+      "20261008T083401Z-1d14d514",
+      "20261008T083429Z-2f1194f6",
+      "20261008T084917Z-1091e6ce",
+      "20261008T084939Z-eddd4cb0",
+      "20261008T084143Z-402469a0",
+      "20261008T085032Z-4ca473d5"
+    ],
+    "verification_scope": "Historical target-change verification; current setup state is local_windows_setup"
+  },
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -38,8 +70,8 @@
         "20261006T093957Z-8e28ebc0"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32.",
-        "Administrator setup, signing and owner-approved project LICENSE remain unavailable/unapproved; actual locked dependency audit retains two high records."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32.",
+        "Local administrator setup is authorized; first PowerShell UAC returned cancellation. Signing and owner-approved project LICENSE remain unavailable; actual locked dependency audit retains two high records."
       ],
       "historical_blocked_reasons": [
         "Host is Windows 10; Windows 11 and Ubuntu 22.04/24.04 native acceptance runners are unavailable.",
@@ -84,7 +116,7 @@
         "20261006T103452Z-166d145d"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "D30 native acceptance requires Windows 11 and Ubuntu 22.04/24.04 runners; only Windows 10 portable storage verification is available."
@@ -108,7 +140,7 @@
         "20261006T105339Z-c4dd0804"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Windows 11/Ubuntu native runners unavailable; tests exercised real tools with scripted models on Windows 10. Paid API experiments lack authorization/budget; no real model results claimed."
@@ -133,7 +165,7 @@
         "20261006T111902Z-ff8046cd"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Windows 11 and Ubuntu native runners unavailable; real Engine subprocess tests ran on Windows 10. UI reducer acceptance awaits desktop implementation. No paid model authorization; scripted model results are not benchmark grades."
@@ -158,7 +190,7 @@
         "20261006T113811Z-54d4f9dd"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Demo uses real host tools with explicit local-trusted mode and scripted model origin. No OS sandbox/desktop/native acceptance or paid-model grades claimed. Remaining five fixture scenarios await their owning tasks."
@@ -182,7 +214,7 @@
       ],
       "blocked_reasons": [
         "Native verified capability promotion, initialized full boundary/process cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified; strict execution refuses. See current F28 conditions.",
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Policy/path compilation and actual Windows 10 file identity/junction behavior verified. Windows 11/Ubuntu OS isolation, dynamic sensitive-file shell/file-worker consistency, and native resource enforcement remain blocked/unverified; no verified native capabilities manufactured."
@@ -207,7 +239,7 @@
       ],
       "blocked_reasons": [
         "Native verified capability promotion, initialized full boundary/process cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified; strict execution refuses. See current F28 conditions.",
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Real locked Node/SRT Bridge and host dispatcher tests passed on Windows 10. Windows 11/Ubuntu native initialization/execution/boundaries, dynamic sensitive-path protection, descendant ownership and ACL cleanup remain blocked/unverified. Strict prepare refuses unverified capabilities; no ordinary-spawn fallback or paid-model result."
@@ -233,7 +265,7 @@
       ],
       "blocked_reasons": [
         "Native verified capability promotion, initialized full boundary/process cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified; strict execution refuses. See current F28 conditions.",
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32.",
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32.",
         "C10 controlled public HTTP canary endpoint authorization and supported native execution are still unavailable."
       ],
       "historical_blocked_reasons": [
@@ -262,7 +294,7 @@
       ],
       "blocked_reasons": [
         "Native verified capability promotion, initialized full boundary/process cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified; strict execution refuses. See current F28 conditions.",
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Final actual Windows 10 unit 117 / portable 61 / regression 918 passed with zero skips; native Windows/Linux verifiers returned blocked with zero checks. Windows 11, PowerShell 7, authorized SRT setup and Ubuntu runners unavailable.",
@@ -291,7 +323,7 @@
       ],
       "blocked_reasons": [
         "Native verified capability promotion, initialized full boundary/process cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified; strict execution refuses. See current F28 conditions.",
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Windows 10 portable helper/Harness IO passed (18 new behaviors; unit 117, portable 79, regression 936, zero skips). Windows 11/Ubuntu native checks are blocked with zero checks; Shell/helper dynamic sensitive-path consistency, OS TOCTOU and installed Engine read grants remain unverified. Strict native prepare still refuses unverified capabilities.",
@@ -319,7 +351,7 @@
       ],
       "blocked_reasons": [
         "Native verified capability promotion, initialized full boundary/process cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified; strict execution refuses. See current F28 conditions.",
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32."
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32."
       ],
       "historical_blocked_reasons": [
         "Windows 10 real Engine/helper/Job/HTTP lifecycle tests passed; unit 124, portable 92, final regression 956, zero skips. Windows 11 and Ubuntu native runners remain unavailable (zero native checks); native SRT Job/ACL/session cleanup remains unverified/unknown. Portable ownership evidence does not promote native capabilities.",
@@ -351,7 +383,7 @@
         "20261006T163202Z-24e933d4"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Actual Windows 10 Electron window and private Engine passed 10 development checks; unit 125, portable 97, final regression 962 with zero skips. Scripted/local-trusted fixture is not a native sandbox or provider benchmark result.",
@@ -384,7 +416,7 @@
         "20261006T171509Z-18a7199e"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Actual Windows 10 development Electron passed 21 checks; real Harness deletion/wait, nonce expiry/forgery, workspace and final argument changes, cancellation and Engine restart were tested. Scripted models exercise real tools; no native isolation or provider benchmark grades.",
@@ -420,7 +452,7 @@
         "20261006T181449Z-45ec1b68"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Windows 10 development Electron passed 29 checks; actual DPAPI encrypted persistence/restart/lock/delete and 997 regression tests passed, zero skips. Real local HTTP and three provider SDK redirect probes used synthetic credentials, no paid model request or benchmark grade.",
@@ -450,16 +482,87 @@
         "20261006T191629Z-b8802a4c",
         "20261006T191645Z-824876b1",
         "20261006T191650Z-e24e7d15",
-        "20261006T191654Z-94a8d24d"
+        "20261006T191654Z-94a8d24d",
+        "20261008T081933Z-bdef7b5b",
+        "20261008T082017Z-8be59488",
+        "20261008T095136Z-b771d395",
+        "20261008T101557Z-7e649923"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Windows 10 development Electron passed 44 checks; unit 127, portable 139 and full regression 1009 passed with zero skips. GUI used actual Harness tools with an explicit scripted/local-trusted fixture; no paid model result or native isolation claim.",
         "Windows 11/Ubuntu/X11/Wayland runners and human native IME/directory/confirmation choices unavailable; frozen installed resources await F28. Administrator setup and paid API budgets remain unapproved. Production dependency security gate remains blocked."
       ],
-      "verification_scope": "Historical task execution; current development-version tests/assets are tracked in F32, authorized live observations in F31."
+      "verification_scope": "Historical F16 evidence is preserved. The 2026-10-08 UI refresh has fresh Windows 10 desktop development and full regression evidence below; installed/native/live-model acceptance remains separate.",
+      "ui_refresh": {
+        "status": "complete_local",
+        "date": "2026-10-08",
+        "base_commit": "f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234",
+        "source_inventory_hash": "0fc96137574ef3ec7b5556520104ce965c8b24432a463af56c1fcbc7a6cfe344",
+        "scope": "User-requested minimal desktop interface, system light/dark themes, first-use guide and source launcher; no F28/F31 runtime policy changes.",
+        "desktop_checks": 72,
+        "regression_tests": 1390,
+        "skipped": 0,
+        "failures": 0,
+        "typecheck": "npm run typecheck: pass",
+        "launcher_check": "Start-ForgeCode.cmd --check: pass",
+        "window_shell": {
+          "status": "complete_local",
+          "date": "2026-10-08",
+          "source_inventory_hash": "e82921aa64d54ea1a4f0745f49c8af7cd5aff1f53ca20d87718333644c2bd779",
+          "evidence_id": "20261008T101557Z-7e649923",
+          "desktop_checks": 116,
+          "layout_checks": 40,
+          "focused_regression_tests": 7,
+          "focused_junit_ref": ".local/ui-shell-20261008/focused-junit.xml",
+          "screenshots_ref": ".local/implementation/20261008T101557Z-7e649923/desktop-run",
+          "scope": "Unified header using Electron native titlebar overlay on Windows/Linux, theme-aware native controls with CSS safe area and drag region, flat page sections, readable diagnostics with expandable real data. Windows development Electron, shared Web entry and typecheck passed. Linux native UI, installed acceptance and a new full-repository regression run are not established by this evidence.",
+          "user_client_restarted": false,
+          "main_thread_interrupted": false
+        },
+        "layout_polish": {
+          "status": "complete_local",
+          "date": "2026-10-08",
+          "source_inventory_hash": "944410cf8d85a8af4b7e3e57298b472d88f20340ce490fce18449d27691be8d9",
+          "evidence_id": "20261008T095136Z-b771d395",
+          "desktop_checks": 107,
+          "new_layout_checks": 35,
+          "focused_regression_tests": 6,
+          "focused_junit_ref": ".local/ui-layout-20261008/focused-junit.xml",
+          "screenshots_ref": ".local/implementation/20261008T095136Z-b771d395/desktop-run",
+          "scope": "Consistent action groups, form labels, responsive two-column forms, wizard navigation, compact bounded lists, typography and system themes. Real populated Electron pages checked at 100/150/200 percent light and 100/200 percent dark; screenshots visually inspected. No full-repository regression rerun or installed/native acceptance claim.",
+          "initial_report_ref": ".local/ui-layout-20261008/run-1/report.json",
+          "initial_observation": "Eight geometry checks detected wizard gaps below 6 CSS pixels after scaling; increased the step spacing to 10px. Other desktop checks passed. Final 107 checks pass; initial failure retained.",
+          "user_client_restarted": false,
+          "main_thread_interrupted": false
+        },
+        "launcher_visibility_fix": {
+          "status": "pass",
+          "observations_ref": "evidence/F16-launcher-visibility-observations.json",
+          "regression_tests": 3,
+          "normal_cmd_window_visible": true,
+          "scope": "Follow-up fix after the UI snapshot: stop hiding the Electron GUI process while keeping build helpers hidden; exact launcher behavior and normal user startup verified. Earlier full regression source scope is unchanged."
+        },
+        "launcher": "Start-ForgeCode.cmd",
+        "guide": "docs/install/desktop-quickstart.md",
+        "screenshots_ref": ".local/implementation/20261008T081933Z-bdef7b5b/desktop-run",
+        "final_evidence_ids": [
+          "20261008T081933Z-bdef7b5b",
+          "20261008T082017Z-8be59488"
+        ],
+        "earlier_regression": {
+          "evidence_id": "20261008T080746Z-1f2ea14a",
+          "status": "fail",
+          "reason": "Stopped the owned pytest tree after the shared Web UI probe timed out looking for the old button.project selector. Original browser failure report/logs are preserved. Updated to button.project-link; targeted real Web test and the final full regression passed."
+        },
+        "model_requests": 0,
+        "administrator_setup": false,
+        "installer_rebuilt": false,
+        "committed_or_pushed": false,
+        "post_verification_note": "After these UI snapshot passes, the active main thread merged Windows 10 acceptance changes into this working tree and continued its own verification. The two reports above apply to source_inventory_hash 0fc9613 only; they are not proof for the subsequently combined source. Side conversation preserved the main-thread changes and did not restart or interrupt its tests."
+      }
     },
     "F17": {
       "implementation_status": "implemented",
@@ -485,7 +588,7 @@
         "20261006T200005Z-56bfc334"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32.",
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32.",
         "Native child tracing and supported-platform keystore/installed-client acceptance remain unverified; F31 usage is actual controlled live evidence with monetary fees unknown."
       ],
       "historical_blocked_reasons": [
@@ -518,7 +621,7 @@
         "20261006T211615Z-e379a908"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32.",
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32.",
         "Native child tracing and supported-platform keystore/installed-client acceptance remain unverified; F31 usage is actual controlled live evidence with monetary fees unknown."
       ],
       "historical_blocked_reasons": [
@@ -618,7 +721,7 @@
         "20261006T231943Z-2e15c738"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Actual Windows 10 unit 142 / portable 231 / regression 1117 passed with zero skips; development Electron 44 checks passed. Native Windows 11 / Ubuntu, frozen installed Engine, native file dialogs and paid model experiments remain unavailable or unauthorized. Synthetic bundle/grades are not public benchmark scores. First portable fixture failure is retained; repaired genuine schema-7 fixture and final full retest passed."
@@ -649,7 +752,7 @@
         "20261006T235829Z-17b9f81e"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Windows 10 development Electron 52 checks passed; Windows 11 x64 and Ubuntu 22.04/24.04 native runners are unavailable.",
@@ -683,7 +786,7 @@
         "20261007T005220Z-8a72deb8"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Windows 10 development client passed 59 real Electron checks; Windows 11 and supported Ubuntu, fixed installed Engine and manual native file dialog choices remain unavailable/unverified.",
@@ -718,7 +821,7 @@
         "20261007T012606Z-e13d7eac"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Windows 10 development Electron passed 64 real checks; Windows 11, supported Ubuntu, installed Engine and manual native file dialog choices remain unavailable/unverified.",
@@ -784,7 +887,7 @@
         "20261007T034015Z-cc9b3ce8"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32.",
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32.",
         "Development CLI/web memory credentials are not OS-keystore proof; strict execution stays closed pending native verification."
       ],
       "historical_blocked_reasons": [
@@ -861,7 +964,7 @@
         "20261007T045125Z-1f37c050"
       ],
       "blocked_reasons": [
-        "Windows10 development/installed-resource checks do not establish Windows11/Ubuntu X11/Wayland, clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
+        "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
       ],
       "historical_blocked_reasons": [
         "Host is Windows 10 19045. Windows 11 x64 clean installation/uninstallation and Ubuntu 22.04 native build plus Ubuntu 22.04/24.04 X11/Wayland acceptance remain unavailable.",
@@ -873,6 +976,7 @@
     },
     "F28": {
       "implementation_status": "in_progress",
+      "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "verification": {
         "unit": "pass",
         "portable": "pass",
@@ -951,14 +1055,26 @@
         "20261008T024343Z-1a8cd4b9",
         "20261008T024357Z-a117115d",
         "20261008T024444Z-e7c0c996",
-        "20261008T025448Z-de3cb67e"
+        "20261008T025448Z-de3cb67e",
+        "20261008T083357Z-bfff2438",
+        "20261008T083401Z-1d14d514",
+        "20261008T083429Z-2f1194f6",
+        "20261008T084917Z-1091e6ce",
+        "20261008T084939Z-eddd4cb0",
+        "20261008T084143Z-402469a0",
+        "20261008T085032Z-4ca473d5",
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63"
       ],
       "current_evidence_ids": [
-        "20261008T024339Z-d6a98c82",
-        "20261008T024343Z-1a8cd4b9",
-        "20261008T024357Z-a117115d",
-        "20261008T024444Z-e7c0c996",
-        "20261008T025448Z-de3cb67e"
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63"
       ],
       "artifact_evidence_ids": [
         "20261007T115336Z-e6b64f9f",
@@ -972,10 +1088,10 @@
         "20261007T120147Z-641572b1"
       ],
       "blocked_reasons": [
-        "Current Windows10 source9c0b2502 passes contracts2/quality4/unit225/portable403/regression1372 with zero failures/skips. Prior installer/fuses and hosted results retain their original artifact/commit scope; Windows11/Ubuntu native acceptance remains unverified.",
+        "Required Windows10 local/Ubuntu native acceptance remains unverified. Windows10 host eligibility is confirmed; fixed PowerShell7 is missing after UAC cancellation; SRT read-only status is observed and the account is unprovisioned. Prior installer/fuses and hosted results retain their original artifact/commit scope.",
         "Terminal execution owner traversal and still-owned child cancellation are covered by portable behavior tests. Strict verified capability promotion, full initialized SRT/helper/listener cleanup and dynamic sensitive-path parity remain code/native-proof gaps.",
         "Full fixed 100000 events / 10000 spans / 100MiB measurements improved metadata overhead 8.07714390646% to 5.210340492313925%, still above 5%. Graphical/packaged native performance unverified.",
-        "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing, owner-approved LICENSE and administrator setup unavailable/unapproved.",
+        "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing and owner-approved LICENSE unavailable; administrator setup authorized, awaiting successful local elevation.",
         "Real-model execution now explicitly authorized with an unbounded monetary budget; actual connectivity 1 request / 335 input / 10 output tokens passed. Cost unknown; official grades zero. Docker daemon and official execution/control snapshots unavailable; F31 continues bounded actual Harness validation."
       ],
       "remaining_implementation": [
@@ -1018,7 +1134,9 @@
         "evidence/F28-close-cleanup-observations.json",
         "evidence/F28-close-hosted-observations.json",
         "evidence/F28-admission-observations.json",
-        "evidence/F28-admission-hosted-observations.json"
+        "evidence/F28-admission-hosted-observations.json",
+        "evidence/F28-windows10-acceptance-observations.json",
+        "evidence/F28-setup-F31-handoff-observations.json"
       ],
       "continuation_history": [
         {
@@ -1050,7 +1168,9 @@
           "hosted_run_id": 37714511897,
           "hosted_observations_ref": "evidence/F28-close-hosted-observations.json"
         }
-      ]
+      ],
+      "local_windows_setup_ref": "local_windows_setup",
+      "latest_verification_scope": "Shared Windows10 source snapshot includes desktop changes, runtime diagnosis and F31 bootstrap; regression1412/contracts2/quality4/desktop116 pass. Native Windows and receiving WSL/Docker acceptance remain blocked."
     },
     "F29": {
       "implementation_status": "implemented",
@@ -1195,7 +1315,7 @@
         "20261007T100111Z-456566b1"
       ],
       "blocked_reasons": [
-        "Required Windows11/Ubuntu native platform acceptance remains unverified; Windows10 development evidence does not promote native capabilities. Current conditions and implementation gaps are tracked in F28/F31/F32.",
+        "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32.",
         "Official Harbor execution remains blocked by the unavailable Linux Docker daemon and unresolved frozen RunSpec/policy/trusted accounting integration. Real-model permission is granted with no monetary ceiling; controlled Windows10 results are separately recorded in F31."
       ],
       "historical_blocked_reasons": [
@@ -1207,6 +1327,7 @@
     },
     "F31": {
       "implementation_status": "in_progress",
+      "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "verification": {
         "contracts": "pass",
         "quality": "pass",
@@ -1243,11 +1364,17 @@
         "20261008T031520Z-a5084c35",
         "20261008T032456Z-b1445ba2",
         "20261008T033824Z-08482720",
-        "20261008T033826Z-896d9c62"
+        "20261008T033826Z-896d9c62",
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63",
+        "20261008T103400Z-38bd2f75"
       ],
       "blocked_reasons": [
-        "Linux Docker daemon unavailable; actual official environment/network enforcement and trusted host per-request admission/authorization integration remain incomplete. Human real-model permission is granted with no monetary ceiling; the new explicit plan/ledger checks do not grant execution.",
-        "Current phase is Windows10; Windows11/Ubuntu native sandbox proof, complete official trace, signing, project LICENSE and dependency security remain blocked.",
+        "Official evaluation has moved to the user's second WSL/Docker computer, whose daemon is not yet measured; actual official environment/network enforcement and trusted host per-request admission/authorization integration remain incomplete. Human real-model permission is granted with no monetary ceiling; the new explicit plan/ledger checks do not grant execution.",
+        "Required Windows acceptance now uses this Windows10 workstation. Windows10/Ubuntu native sandbox proof, complete official trace, signing, project LICENSE and dependency security remain blocked.",
         "Formal independent holdout set/scale is unselected; three inspected tasks support exploratory regression only. Actual billing/pricing is unavailable; all monetary costs unknown."
       ],
       "remaining_implementation": [
@@ -1261,7 +1388,8 @@
         "evidence/F31-frozen-plan-observations.json",
         "evidence/F31-binding-hosted-observations.json",
         "evidence/F31-budget-observations.json",
-        "evidence/F31-budget-hosted-observations.json"
+        "evidence/F31-budget-hosted-observations.json",
+        "evidence/F28-setup-F31-handoff-observations.json"
       ],
       "historical_ci_blockers": [
         "Earlier hosted browser/import/path failures are retained with their original commits. F28 e6bda835 and F31 64032fe each pass all three portable platforms. Current run37723899477 retains dependency-security failure: actual npm audit reports two high entries (exit2)."
@@ -1301,13 +1429,12 @@
         "hosted_new_behavior_tests_per_platform": 16
       },
       "current_evidence_ids": [
-        "20261008T031416Z-66663872",
-        "20261008T031420Z-3589611d",
-        "20261008T031433Z-6b39578b",
-        "20261008T031520Z-a5084c35",
-        "20261008T032456Z-b1445ba2",
-        "20261008T033824Z-08482720",
-        "20261008T033826Z-896d9c62"
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63",
+        "20261008T103400Z-38bd2f75"
       ],
       "continuation_history": [
         {
@@ -1332,7 +1459,9 @@
           "hosted_run_id": 37654014565,
           "hosted_observations_ref": "evidence/F31-binding-hosted-observations.json"
         }
-      ]
+      ],
+      "handoff_ref": "../experiments/F31-wsl-handoff.md",
+      "latest_verification_scope": "Shared Windows10 source snapshot includes desktop changes, runtime diagnosis and F31 bootstrap; regression1412/contracts2/quality4/desktop116 pass. Native Windows and receiving WSL/Docker acceptance remain blocked."
     },
     "F32": {
       "implementation_status": "implemented",
@@ -1403,8 +1532,8 @@
       ],
       "blocked_reasons": [
         "Full P0 implementation remains blocked by explicit F28 native promotion/initialized cleanup/dynamic parity and F31 official execution binding gaps; task review completion does not remove them.",
-        "Current phase is Windows10. Clean Windows11/Ubuntu/native/installed/manual-dialog/suspend-resume proofs remain absent; 156 required platform proofs are blocked.",
-        "Actual security has two high dependency entries; metadata overhead remains 5.210340492313925% > 5%. Unsigned developer-preview, signing/project LICENSE/admin setup remain unavailable/unapproved. No new real-model calls in F32."
+        "Required Windows acceptance now uses this Windows10 workstation. Clean Windows10/Ubuntu/native/installed/manual-dialog/suspend-resume proofs remain absent; platform proof statuses are not promoted by changing the target.",
+        "Actual security has two high dependency entries; metadata overhead remains 5.210340492313925% > 5%. Unsigned developer-preview, signing/project LICENSE unavailable; local administrator setup authorized, awaiting successful elevation. No new real-model calls in F32."
       ],
       "artifact_refs": [
         "evidence/F32-development-review-observations.json",
@@ -1471,11 +1600,61 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Latest implementation and hosted-tested commit 64032fe475e3eabea06a65bd5653e85c6b173409; subsequent documentation-only evidence checkpoint has the same source. Check git HEAD for the documentation commit rather than attributing CI to it.",
+  "head_recorded_scope": "Current base HEAD is f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234; local UI and Windows10 target changes are uncommitted. Full regression uses isolated source4d92b9fb, while merged focused/Desktop evidence uses sourcea00f3fc8. Historical hosted results retain their original commits.",
   "gate_notes": {
     "G1-contracts-engine": "F31 source457c5613 passes local contracts2/quality4/unit226/portable418/regression1388, zero failures/skips; seven formal reports and the precommit local CI gate are recomputed. Uploaded 64032fe independently passes contracts2/quality4/unit226/portable418 and fresh CI gates on all three hosted platforms; four artifacts/four logs/six JUnit reports and all 16 new behaviors per platform are verified. Overall workflow failure remains due to two high dependency entries. Native/official implementation remains incomplete.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",
     "G4-evaluation": "Frozen RunSpec/source/model/prompt/tool-schema binding, explicit unbounded monetary representation, network consistency and durable request attribution have passing offline behavior tests. Official Docker environment/network enforcement and trusted host per-request admission/authorization remain incomplete; Linux Docker daemon absent.",
     "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."
+  },
+  "local_setup_authorization_ref": "evidence/human-authorization-local-setup-20261008.json",
+  "f31_handoff": {
+    "target": "User-owned second computer, WSL with Linux Docker",
+    "status": "bootstrap_tested_receiver_not_run",
+    "entry": "scripts/resume_f31.py",
+    "guide": "../experiments/F31-wsl-handoff.md",
+    "remote": "https://github.com/Titans23/forgecode.git",
+    "branch": "codex/forgecode-v4",
+    "update_policy": "clone or fast-forward only; retain dirty files and local commits",
+    "codex_policy": "inherit receiving user configuration; no credential transfer",
+    "focused_tests": 9,
+    "receiver_execution": "not_run",
+    "model_calls": 0,
+    "observations_ref": "evidence/F28-setup-F31-handoff-observations.json",
+    "source_inventory_hash": "737d0ac7123650d9323f28f3bbef05c4e55b3395d51380d7aa3b3a6de4a20eb6",
+    "regression_tests": 1412,
+    "shared_verification_ids": [
+      "20261008T101859Z-6e75302c",
+      "20261008T101903Z-54075eb9",
+      "20261008T101917Z-6a4f56c2",
+      "20261008T103251Z-83550630",
+      "20261008T103348Z-d69d8d63",
+      "20261008T103400Z-38bd2f75"
+    ]
+  },
+  "local_windows_setup": {
+    "authorization": "granted",
+    "diagnostic_status": "observed",
+    "diagnostic_fix": "Use verified runtime installed flag rather than presence of an old source-root release manifest",
+    "srt_account_provisioned": false,
+    "srt_install_invoked": false,
+    "powershell_version": "7.6.6",
+    "powershell_installer_sha256": "958838ff55091e1c8705d89efed0cc7e8245a3a6ef6c0ccfae20015227108ad8",
+    "powershell_signature": "Valid Microsoft Corporation",
+    "powershell_install": "UAC returned operation cancelled; fixed path still absent",
+    "focused_tests": 18,
+    "native_acceptance": "blocked",
+    "model_calls": 0,
+    "observations_ref": "evidence/F28-setup-F31-handoff-observations.json",
+    "source_inventory_hash": "737d0ac7123650d9323f28f3bbef05c4e55b3395d51380d7aa3b3a6de4a20eb6",
+    "regression_tests": 1412,
+    "desktop_checks": 116,
+    "evidence_ids": [
+      "20261008T101859Z-6e75302c",
+      "20261008T101903Z-54075eb9",
+      "20261008T101917Z-6a4f56c2",
+      "20261008T103251Z-83550630",
+      "20261008T103348Z-d69d8d63"
+    ]
   }
 }

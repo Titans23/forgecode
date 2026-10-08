@@ -12,6 +12,7 @@ import tempfile
 import urllib.request
 from uuid import uuid4
 from forge.release.runtime import digest,verify_manifest
+from forge.sandbox.capabilities import windows_supported
 
 ROOT=Path(__file__).resolve().parents[1]
 def copy(source,destination):
@@ -125,8 +126,8 @@ def assemble(build_id,target,output):
             'dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=ROOT)),
             'source_inventory':build['source_inventory'],
             'source_diff_sha256':sha256(subprocess.check_output(['git','diff','HEAD','--binary'],cwd=ROOT)).hexdigest(),
-            'build_host':build['host'],'native_build_baseline':'blocked' if target=='win32-x64' and platform.release()!='11' else
-                'requires Ubuntu 22.04 native build acceptance' if target=='linux-x64' else 'Windows 11',
+            'build_host':build['host'],'native_build_baseline':'blocked' if target=='win32-x64' and (not windows_supported() or platform.release()!='10') else
+                'requires Ubuntu 22.04 native build acceptance' if target=='linux-x64' else 'Windows 10 x64 build 19045',
             'protocol':'forge.engine.v1','contract_manifest_hash':contract_hash,'database_schema':build['identity']['database_schema'],
             'project_license_status':'present' if project_license.is_file() else 'blocked_missing_project_license',
             'signature':{'status':'unsigned','reason':'No production signing certificate configured'},'channel':'developer-preview',

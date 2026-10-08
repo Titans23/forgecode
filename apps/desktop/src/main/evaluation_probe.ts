@@ -5,6 +5,7 @@ import {join} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
 import type {EngineSupervisor} from './supervisor.js';
 import type {EvaluationListResult} from '@forgecode/contracts';
+import {probeLayout} from './layout_probe.js';
 
 export async function probeEvaluations(window:BrowserWindow,engine:EngineSupervisor,root:string,directory:string,output:string) {
   const checks:any[]=[];const check=(id:string,passed:boolean,details:unknown={})=>checks.push({id,status:passed?'pass':'fail',details});
@@ -36,10 +37,13 @@ export async function probeEvaluations(window:BrowserWindow,engine:EngineSupervi
     await wait(`Array.from(document.querySelectorAll('select option')).some(o=>o.value===${JSON.stringify(imported.template_id)})`);
     await setSelect('源版本与任务配置',imported.template_id);await wait("document.querySelector('[data-wizard-step=\"0\"]')!==null");
     check('evaluation-real-template-origin',await js<boolean>("document.body.textContent.includes('imported_unverified')&&document.body.textContent.includes('desktop-protocol-fixture')"));
-    await click('下一步');await wait("document.querySelector('[data-wizard-step=\"1\"]')!==null");await click('下一步');await wait("document.querySelector('[data-wizard-step=\"2\"]')!==null");
+    await click('下一步');await wait("document.querySelector('[data-wizard-step=\"1\"]')!==null");
+    checks.push(...await probeLayout(window,output,'evaluation-models','.wizard-nav'));
+    await click('下一步');await wait("document.querySelector('[data-wizard-step=\"2\"]')!==null");
     await setSelect('执行目标','windows-native');await click('下一步');await wait("document.querySelector('[data-wizard-step=\"3\"]')!==null");
     await click('检查兼容性与预算');await wait("document.body.textContent.includes('执行 blocked；可保存和导出计划')");
     check('windows-incompatible-keeps-export-entry',await js<boolean>("Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='保存计划并导出配置'&&!b.disabled)&&document.body.textContent.includes('unverified_configuration')"));
+    checks.push(...await probeLayout(window,output,'evaluation-budget','.wizard-nav'));
     await click('保存不可变计划');await wait("document.querySelector('[data-missing-evidence]')!==null");
     const first=(await engine.call('evaluation.list',{})).items.find((r:EvaluationListResult['items'][number])=>r.origin==='local'&&r.dataset==='desktop-protocol-fixture')!;
     const a=await engine.call('evaluation.snapshot',{run_id:first.run_id});
@@ -59,8 +63,10 @@ export async function probeEvaluations(window:BrowserWindow,engine:EngineSupervi
     const source=await engine.call('bundle.prepare_import',{path:destination}),result=await engine.call('bundle.import',{client_action_id:'act-'+randomUUID(),source_token:source.source_token});
     const external=await engine.call('evaluation.snapshot',{run_id:result.run_ids[0]});
     check('actual-bundle-import-remains-readonly-unverified',external.read_only&&external.origin==='imported_unverified'&&(external.metrics.counts as any).planned===2&&!external.attempts.length);
+    checks.push(...await probeLayout(window,output,'evaluations'));
     await writeFile(join(output,'evaluations.png'),(await window.webContents.capturePage()).toPNG());
     await js("document.querySelector('.dual-traces')?.scrollIntoView({block:'end'})");
+    await new Promise(resolve=>setTimeout(resolve,200));
     await writeFile(join(output,'evaluation-comparison.png'),(await window.webContents.capturePage()).toPNG());
   }catch(error){check('evaluation-probe-completed',false,{message:(error as Error).message});}
   return checks;

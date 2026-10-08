@@ -18,6 +18,12 @@ ForgeCode 是一个运行在终端中的 Agent Harness，用于可靠地执行�
 
 V4 开发代码在 `codex/forgecode-v4` 分支，保留上述 CLI 与 Python Harness，加入实际 Electron 客户端、私有 Engine、Bridge/FileWorker、持久事件与评测复算。请按[开发安装与演示](docs/install/development.md)使用锁定工具链和真实命令，并查看[最终审查](docs/implementation/final-report.md)、[平台矩阵](docs/platforms/support-matrix.md)与[安全状态](docs/security/status.md)。当前 Windows 10 为用户指定的开发验收阶段；原生双平台、正式 Harbor、签名及安全条件仍有阻塞，安装包是 unsigned developer-preview。
 
+### 打开桌面客户端
+
+Windows 已准备好依赖后，双击仓库根目录的 **`Start-ForgeCode.cmd`**，等待构建和窗口启动；也可以运行 `npm run dev:desktop`。界面跟随系统切换浅色／深色，左下角有「使用指南」。
+
+首次配置、项目授权及启动问题见 **[桌面客户端使用指南](docs/install/desktop-quickstart.md)**。当前严格执行环境仍有原生验收阻塞，启动界面不表示任务执行环境已就绪。
+
 无需模型费用的 V4 演示：
 
 ```text

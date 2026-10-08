@@ -17,7 +17,7 @@ PIN='11d5960a326750d5838078e36cf38b85af677262'
 
 
 def workflow_file(tmp_path, *, events=None, native=False, protected=False, pinned=True):
-    job={'runs-on':['self-hosted','forgecode-windows11-x64'] if native else 'ubuntu-22.04',
+    job={'runs-on':['self-hosted','forgecode-windows10-x64'] if native else 'ubuntu-22.04',
         'steps':[{'uses':'actions/checkout@'+(PIN if pinned else 'v4'),'with':{'persist-credentials':False}}]}
     if protected:job.update(environment='forgecode-native-acceptance',**{'if':"github.event_name == 'workflow_dispatch' && github.repository == 'Titans23/forgecode' && github.ref == 'refs/heads/main'"})
     path=tmp_path/'workflow.yml';path.write_text(yaml.safe_dump({'on':events or {'pull_request':{}},'permissions':{'contents':'read'},'jobs':{'check':job}}),encoding='utf-8')

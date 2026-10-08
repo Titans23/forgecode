@@ -23,8 +23,8 @@ app.whenReady().then(async()=>{
     const navigated=new Promise(resolve=>window.webContents.once('did-finish-load',resolve));
     await window.webContents.executeJavaScript('document.querySelector("input[type=password]").value='+JSON.stringify(input.credential)+';document.querySelector("form").requestSubmit()');
     await navigated;
-    await until(()=>window.webContents.executeJavaScript('!!document.querySelector("button.project")'));
-    await window.webContents.executeJavaScript('document.querySelector("button.project").click()');
+    await until(()=>window.webContents.executeJavaScript('!!document.querySelector("button.project-link")'));
+    await window.webContents.executeJavaScript('document.querySelector("button.project-link").click()');
     await until(()=>window.webContents.executeJavaScript('!!document.querySelector("textarea[aria-label=任务输入]")&&!document.querySelector("textarea[aria-label=任务输入]").disabled'));
     await window.webContents.executeJavaScript('const input=document.querySelector("textarea");Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value").set.call(input,"Read the value.");input.dispatchEvent(new Event("input",{bubbles:true}))');
     await until(()=>window.webContents.executeJavaScript('!document.querySelector(".composer button").disabled'));

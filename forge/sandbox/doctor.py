@@ -12,7 +12,7 @@ import tempfile
 
 from forge.application.models import ContractError
 from forge.engine.persistence import new_id
-from forge.sandbox.capabilities import unavailable_report,windows11_supported
+from forge.sandbox.capabilities import unavailable_report,windows_supported
 from forge.sandbox.launcher import bridge_environment, verify_runtime
 from forge.sandbox.path_policy import inspect_path
 from forge.sandbox.srt_backend import SrtBackend
@@ -67,7 +67,7 @@ def normalize_windows_status(status):
 def windows_status_diagnosis(runtime):
     try:
         from forge.release.processes import external_argv
-        if (runtime.root/'release-manifest.json').is_file():
+        if runtime.installed:
             from forge.release.runtime import verify_manifest,verify_asset
             manifest=verify_manifest(runtime.root)
             helper=verify_asset(runtime.root,next(a for a in manifest['native_helpers'] if a['name']=='srt-win'))
@@ -89,7 +89,7 @@ def windows_status_diagnosis(runtime):
 
 def system_diagnosis():
     host = {'system': platform.system(), 'build': platform.platform(), 'architecture': platform.machine(),
-            'supported_linux': False, 'supported_windows': windows11_supported()}
+            'supported_linux': False, 'supported_windows': windows_supported()}
     tools = {}
     system_policy = {}
     kernel_probe = {'status': 'not_run', 'reason': 'Supported native namespace probe unavailable'}
@@ -151,7 +151,7 @@ def system_diagnosis():
         'capabilities': unavailable_report(backend_version='0.0.78', reason='Native boundary verification has not run').value,
         'active_sessions': {'state': 'not_observed', 'count': None}, 'cleanup': {'state': 'not_observed'},
         'workspace_tools_executed': False, 'automatic_repair': False,
-        'repair_steps': (['Use Main native setup confirmation on Windows 11; do not automatically refresh existing shared credentials or uninstall shared SRT.',
+        'repair_steps': (['Use Main native setup confirmation on Windows 10 x64 build 19045 or later; do not automatically refresh existing shared credentials or uninstall shared SRT.',
             'PowerShell 7 and NTFS are required. Shared activity and ACL/Job residuals require native evidence; DNS isolation is unavailable.']
             if sys.platform == 'win32' else ['Install audited bubblewrap/socat/ripgrep packages if missing on supported Ubuntu.',
             'Have an administrator review the minimum application-specific namespace policy if blocked; do not disable AppArmor or change global sysctls.'])}
@@ -197,7 +197,7 @@ async def verify_windows(output: Path, *, allowed_endpoint=None):
     report = system_diagnosis()
     if not report['host']['supported_windows']:
         return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked',
-            'reason': 'Supported Windows 11 x64 native runner is unavailable', 'checks': [],
+            'reason': 'Supported Windows 10 x64 build 19045 or later native runner is unavailable', 'checks': [],
             'eligible_for_native_pass': False, 'diagnosis': report}
     if report['runtime']['status'] != 'pass' or report['tools'].get('pwsh', {}).get('status') != 'pass' or windows_volume(output.parent)['status'] != 'pass':
         return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked',
@@ -238,7 +238,7 @@ async def run_native_fixture(output, report, target, *, allowed_endpoint=None):
 
 async def run_native_process(runtime, directory, owner, report, target, options, lease):
     from forge.release.processes import external_argv, external_options
-    if (runtime.root/'release-manifest.json').is_file():
+    if runtime.installed:
         from forge.release.runtime import verify_manifest,verify_asset
         manifest=verify_manifest(runtime.root)
         entry=verify_asset(runtime.root,next(a for a in manifest['bridge_dependencies'] if a['path'].endswith(f'/sandbox_bridge/dist/verify-{target}.js')))

@@ -5675,7 +5675,7 @@
     },
     {
       "path": "sandbox_bridge/dist/srt-adapter.js",
-      "sha256": "a4258b0f9fa2cb978cdd8b48da23e868e7834c22318ff0a4e44c0a81ea793306"
+      "sha256": "1b1023b55727f750aa1f125be1aa1385cae5df57b17c281d16d878786f247608"
     },
     {
       "path": "sandbox_bridge/dist/verify-linux.js",
@@ -5683,7 +5683,7 @@
     },
     {
       "path": "sandbox_bridge/dist/verify-native.js",
-      "sha256": "2ef51be5a1caac76c8183945d2c6049bc55702226597c25fdf1dea03e3ac0384"
+      "sha256": "07de2f1e9d1c99b208c7faeb735315643f0e0dabd1eccc7f9c234d0b0f912cad"
     },
     {
       "path": "sandbox_bridge/dist/verify-windows.js",
@@ -5691,7 +5691,7 @@
     },
     {
       "path": "sandbox_bridge/dist/windows-adapter.js",
-      "sha256": "adb4eed306a1f93c0515d3d7714ac4d861dbcef213ae8225d3d3d308a8b6e206"
+      "sha256": "25abbc402350d6b8a2bf9a3309abac7f7296219a8c53e6ce26bf69f493b38c00"
     },
     {
       "path": "sandbox_bridge/package.json",

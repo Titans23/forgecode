@@ -21,7 +21,7 @@ export function Diff({ transport, turnId }: { transport: DesktopOperations; turn
     try { setFile(await transport.diffFile({ turn_id: turnId, relative_path: relative, expected_revision: view.revision })); setError(null); }
     catch (reason) { setFile(null); setError((reason as Error).message); }
   }
-  return <section data-testid="task-diff"><h3>本轮 Diff <button className="secondary" onClick={() => refresh()}>刷新</button></h3>
+  return <section data-testid="task-diff"><div className="panel-heading"><h3>本轮 Diff</h3><button className="secondary" onClick={() => refresh()}>刷新</button></div>
     {error && <div role="alert" className="notice">{error}。文件可能已被外部修改，请刷新。</div>}
     {view && <><p>任务基线 {view.baseline_revision} · 当前内容版本 {view.revision}</p>
       {view.history_gap && <div className="notice">基线或扫描不完整；恢复预览已受限。</div>}

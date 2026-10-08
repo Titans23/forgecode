@@ -1530,6 +1530,7 @@
     {
       "id": "F28",
       "title": "全量平台、性能和安全验收",
+      "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "depends_on": [
         "F09",
         "F10",
@@ -1560,7 +1561,7 @@
       ],
       "steps": [
         "运行原 86 场景与新增契约场景，按平台保留结果。",
-        "在声明的 Windows／Ubuntu 环境测安装、执行、恢复、secret store。",
+        "在本机 Windows 10 x64 build 19045 及声明的 Ubuntu 环境测安装、执行、恢复、secret store。",
         "测冷启动、事件洪泛、磁盘、UI 和观测开销。",
         "整理缺陷、回归和支持矩阵，不掩盖 blocked。"
       ],
@@ -1650,7 +1651,19 @@
         "20261008T024343Z-1a8cd4b9",
         "20261008T024357Z-a117115d",
         "20261008T024444Z-e7c0c996",
-        "20261008T025448Z-de3cb67e"
+        "20261008T025448Z-de3cb67e",
+        "20261008T083357Z-bfff2438",
+        "20261008T083401Z-1d14d514",
+        "20261008T083429Z-2f1194f6",
+        "20261008T084917Z-1091e6ce",
+        "20261008T084939Z-eddd4cb0",
+        "20261008T084143Z-402469a0",
+        "20261008T085032Z-4ca473d5",
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63"
       ],
       "case_ids": [
         "N20"
@@ -1793,6 +1806,7 @@
     {
       "id": "F31",
       "title": "执行对照实验与生成可复算报告",
+      "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "depends_on": [
         "F20",
         "F21",
@@ -1860,7 +1874,13 @@
         "20261008T031520Z-a5084c35",
         "20261008T032456Z-b1445ba2",
         "20261008T033824Z-08482720",
-        "20261008T033826Z-896d9c62"
+        "20261008T033826Z-896d9c62",
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63",
+        "20261008T103400Z-38bd2f75"
       ],
       "case_ids": [
         "N24"
@@ -1868,7 +1888,8 @@
       "remaining_implementation": [
         "Official Docker environment/network enforcement and trusted host per-request admission/authorization integration remain unimplemented or unverified; live execution stays refused. Durable request accounting attribution checks are implemented but are not that admission gateway.",
         "The current preregistration still needs actual official source/model/environment/grader snapshots and a trusted authorization binding. The explicit unbounded RunSpec representation is now implemented; no missing snapshot or execution permission is inferred."
-      ]
+      ],
+      "handoff_ref": "../experiments/F31-wsl-handoff.md"
     },
     {
       "id": "F32",

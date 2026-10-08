@@ -1,5 +1,10 @@
 # ForgeCode desktop development
 
+Windows users can double-click `Start-ForgeCode.cmd` at the repository root.
+See the [Chinese desktop quickstart](../../docs/install/desktop-quickstart.md)
+for first launch, model connections, project authorization and troubleshooting.
+The interface follows the system light/dark preference.
+
 Run `npm run start --workspace @forgecode/desktop` from the repository after
 the locked Python/npm dependencies are installed. The command builds the fixed
 Main, sandboxed Preload and React assets, then launches Electron. It starts no
@@ -24,5 +29,5 @@ inventory. Installed loading never uses this alias or falls back to Python.
 assets at `.local/desktop-resources/engine` and `release-manifest.json`.
 `verify --suite desktop-packaged` records missing assembly as blocked; after
 assembly it invokes actual Forge packaging and the installed client's read-only
-inspection path. Windows 11/Ubuntu installation, hardened fuses and signing
+inspection path. Windows 10/Ubuntu installation, hardened fuses and signing
 remain separate release acceptance.

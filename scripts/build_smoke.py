@@ -11,6 +11,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from forge.sandbox.capabilities import windows_supported
 
 
 def run(argv: list[str], env: dict | None = None, timeout: int = 300) -> dict:
@@ -63,12 +65,12 @@ def verify() -> dict:
     assert payload['status'] == 'pass' and payload['harness']['frozen']
     assert payload['electron'] == next(c['version'] for c in lock['components'] if c['name'] == 'electron')
     checks.append(electron_probe)
-    native_windows = sys.platform == 'win32' and int(platform.version().split('.')[-1]) >= 22000
+    native_windows = windows_supported() and platform.release() == '10'
     ubuntu = platform.freedesktop_os_release() if sys.platform == 'linux' else {}
     supported_linux = ubuntu.get('ID') == 'ubuntu' and ubuntu.get('VERSION_ID') in {'22.04', '24.04'}
     accepted = native_windows or supported_linux
     return {'status': 'pass' if accepted else 'blocked', 'development_smoke': 'pass',
-            'reason': None if accepted else 'Build smoke passed; this host is outside the declared Windows 11 / Ubuntu acceptance matrix',
+            'reason': None if accepted else 'Build smoke passed; this host is outside the declared Windows 10 / Ubuntu acceptance matrix',
             'platform': platform.platform(), 'checks': checks,
             'security_status': lock['security']['status']}
 

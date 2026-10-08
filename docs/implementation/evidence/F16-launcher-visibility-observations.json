@@ -1,0 +1,57 @@
+{
+  "schema_version": "forge.desktop.launcher.observations.v1",
+  "date": "2026-10-08",
+  "status": "pass",
+  "scope": "Windows 10 source-launcher window visibility; development behavior, not native sandbox acceptance",
+  "eligible_for_native_pass": false,
+  "cause": "The launcher passed windowsHide:true to Electron as well as the build process. Windows hid Electron's first GUI window even after BrowserWindow.show().",
+  "reproduction": [
+    {
+      "windowsHide": true,
+      "visible": false,
+      "report_ref": ".local/desktop-launch-visibility-20261008/hidden/report.json"
+    },
+    {
+      "windowsHide": false,
+      "visible": true,
+      "report_ref": ".local/desktop-launch-visibility-20261008/visible/report.json"
+    }
+  ],
+  "fix": {
+    "file": "scripts/start_desktop.mjs",
+    "sha256": "6b88674a597ae0b0ada0b77992984c18b95fec89f4b8a0ec4c5ca466f520ddf0",
+    "behavior": "Keep build windows hidden and explicitly launch the interactive Electron process with windowsHide:false."
+  },
+  "regression": {
+    "command": ".venv/Scripts/python.exe -X utf8 -m pytest tests/implementation/unit/test_desktop_launcher.py tests/implementation/integration/test_desktop_launcher_window.py -q --tb=short --junitxml=.local/desktop-launch-visibility-20261008/junit.xml",
+    "collected": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "report_ref": ".local/desktop-launch-visibility-20261008/junit.xml",
+    "report_sha256": "9c3ebfa08abb0da1a55cc8dd8e9e70716834ab50c3c368c55eaf0e647cb9c344"
+  },
+  "normal_launch": {
+    "entry": "Start-ForgeCode.cmd",
+    "observed_at_local": "2026-10-08T17:00:53+08:00",
+    "window_title": "ForgeCode",
+    "visible_window_handle_present": true,
+    "responding": true,
+    "stdout_ref": ".local/desktop-launch-visibility-20261008/fixed-launch.stdout.log",
+    "stderr_ref": ".local/desktop-launch-visibility-20261008/fixed-launch.stderr.log"
+  },
+  "recovery": {
+    "old_client_turns": 0,
+    "old_client_work_items": 0,
+    "old_client_attempts": 0,
+    "old_client_model_requests": 0,
+    "action": "The exact hidden normal-client process tree was terminated after its ordinary close signal did not exit. No active work or model requests existed. The same user profile was reopened without deleting data."
+  },
+  "boundaries": {
+    "main_thread_processes_interrupted": false,
+    "administrator_setup": false,
+    "model_requests": 0,
+    "full_regression_rerun": false,
+    "full_regression_note": "This follow-up ran launcher regression and the normal CMD entry. Earlier full-suite and main-thread reports retain their original source scope."
+  }
+}

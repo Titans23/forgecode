@@ -98,11 +98,12 @@ export function Observability({ transport, sessionId, target, latency }: {
   const compare=object(selectedEvidence?.metadata?.workspace_comparison),observed=object(compare.observed),current=object(compare.current);
   const facts=object(selected?.metadata?.facts),contextMeta=object(context?.metadata?.context_metadata),after=object(contextMeta.after);
   const contextFacts=Object.keys(after).length?after:contextMeta;
-  const moreButton=(kind:Collection)=>data.cursors[kind]&&<button disabled={busy} onClick={()=>action(()=>more(kind))}>加载更多{kind}（每页至多 100）</button>;
+  const moreButton=(kind:Collection)=>data.cursors[kind]&&<div className="pagination"><button className="secondary" disabled={busy} onClick={()=>action(()=>more(kind))}>加载更多{kind}（每页至多 100）</button></div>;
   return <div data-testid="observability"><section><h2>运行观测</h2>
-    <select aria-label="观测任务" value={turnId??''} onChange={event=>setTurnId(event.target.value||null)}><option value="">选择任务</option>
-      {snapshot?.turns.map(turn=><option key={turn.turn_id} value={turn.turn_id}>{turn.turn_id.slice(-8)} · {turn.outcome??turn.state}</option>)}</select>
-    <button disabled={busy||!turnId} onClick={()=>action(()=>refresh(true))}>重新核对全部视图</button>
+    <p>查看每次请求、工具执行与验证记录。</p>
+    <div className="toolbar"><label className="field">观测任务<select aria-label="观测任务" value={turnId??''} onChange={event=>setTurnId(event.target.value||null)}><option value="">选择任务</option>
+      {snapshot?.turns.map(turn=><option key={turn.turn_id} value={turn.turn_id}>{turn.turn_id.slice(-8)} · {turn.outcome??turn.state}</option>)}</select></label>
+    <button disabled={busy||!turnId} onClick={()=>action(()=>refresh(true))}>重新核对全部视图</button></div>
     {!turnId&&<p>打开一个会话，或从工具卡查看对应执行。</p>}
     {error&&<p role="alert">查询失败：{error}。游标失效时重新核对视图。</p>}
     {gap&&<p role="alert">历史或采集存在缺口，不能把当前页当作完整 Trace。</p>}
@@ -118,7 +119,7 @@ export function Observability({ transport, sessionId, target, latency }: {
       <p>Engine 受理→终态（含排队与清理）：{milliseconds(timing?.engine_duration_nanoseconds)}；Harness 执行：{timing?.harness_wall_seconds??'未知'} s。</p>
       <p>瀑布使用本地单调时钟；并行 Span 耗时不相加。模型首 chunk 是客户端 SDK 观察时间。</p></section>
     <section id="trace-panel"><h3>Trace 树／瀑布 · 已加载 {data.spans.length}</h3><Trace items={data.spans} selected={selected?.span_id??null} select={span=>{setSelected(span);setOutput({reason:'选择后按需读取 stdout／stderr。'});}}/>{moreButton('spans')}
-      {selected&&<div data-testid="selected-span"><h4>{selected.name} · {selected.state}</h4><p>trace {selected.trace_id} / span {selected.span_id}</p>
+      {selected&&<div className="subsection" data-testid="selected-span"><h4>{selected.name} · {selected.state}</h4><p>trace {selected.trace_id} / span {selected.span_id}</p>
         <pre>{JSON.stringify(safeFacts(facts),null,2)}</pre><p>模型请求→SDK 首个文本 chunk：{(()=>{const start=nanos(selected.metadata?.start_monotonic_ns),first=nanos(selected.metadata?.first_client_text_chunk_monotonic_ns);return start!==null&&first!==null&&first>=start?milliseconds((first-start).toString()):'未知';})()}</p>
         <button disabled={busy||typeof selected.metadata?.execution_id!=='string'} onClick={()=>action(loadOutput)}>按需读取工具输出</button><p data-testid="output-state">{output.reason}</p>
         {Object.entries(output.streams??{}).map(([stream,value])=><div key={stream}><h4>{stream}</h4><pre className="observed-output">{value}</pre></div>)}</div>}
@@ -142,7 +143,7 @@ export function Observability({ transport, sessionId, target, latency }: {
       {data.events.filter(item=>item.event_type.startsWith('completion.')).map(item=><details key={item.event_id} open={item.event_type==='completion.rejected'}><summary>{item.event_type} · {text(item.attributes.reason)}</summary>
         <button onClick={()=>{const span=data.spans.find(s=>s.trace_id===item.trace_id&&s.span_id===item.span_id);if(span){setSelected(span);setOutput({reason:'决定关联的真实 Span；工具输出单独按需读取。'});document.getElementById('trace-panel')?.scrollIntoView();}else setError('决定引用的 Span 未在当前分页加载。');}}>查看决定对应 Trace</button>
         <p>剩余修复 {text(item.attributes.repairs_remaining)} · workspace revision {text(item.attributes.workspace_revision)} / evidence revision {text(item.attributes.evidence_revision)}</p>
-        {Array.isArray(item.attributes.evidence_ids)&&(item.attributes.evidence_ids as string[]).map(id=><button key={id} onClick={()=>{setEvidenceId(id);document.getElementById('evidence-panel')?.scrollIntoView();}}>查看证据 {id.slice(-8)}</button>)}
+        {Array.isArray(item.attributes.evidence_ids)&&<div className="action-row">{(item.attributes.evidence_ids as string[]).map(id=><button className="secondary" key={id} onClick={()=>{setEvidenceId(id);document.getElementById('evidence-panel')?.scrollIntoView();}}>查看证据 {id.slice(-8)}</button>)}</div>}
         <pre>{JSON.stringify((()=>{const report=object(item.attributes.completion_report);return {run_status:report.run_status,agent_assessment:report.agent_assessment,acceptance_status:report.acceptance_status,verification_status:report.verification_status,passed_checks:report.passed_checks,failed_checks:report.failed_checks,historical_checks:report.historical_checks,unmet_requirements:report.unmet_requirements,usage_complete:report.usage_complete,metadata_truncated:report.metadata_truncated,collection_counts:report.collection_counts};})(),null,2)}</pre></details>)}
       {!data.events.length&&<p>当前分页没有完成或沙盒事实；运行中或采集缺失时不能据此断言成功。</p>}
     </section>

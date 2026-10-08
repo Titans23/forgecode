@@ -6,6 +6,12 @@ import { checkWindowsSandboxStatusAsync, installWindowsSandboxAsync, verifyWindo
   type WindowsSandboxStatus } from '@anthropic-ai/sandbox-runtime/dist/sandbox/windows-sandbox-utils.js';
 import { ContractError } from '@forgecode/contracts';
 
+export function windowsSupported(): boolean {
+  const [major, , build] = os.release().split('.').map(Number);
+  return process.platform === 'win32' && process.arch === 'x64' && major === 10 && build >= 19045
+    && /^Windows (10|11)(?:\s|$)/.test(os.version());
+}
+
 export function fixedSetupAction(value: unknown): 'install' | 'repair' | 'diagnose' {
   if (value !== 'install' && value !== 'repair' && value !== 'diagnose') throw new ContractError('Unknown fixed setup action');
   return value;
@@ -60,8 +66,8 @@ export async function windowsPrerequisites(helper: string): Promise<{ status: an
 /** Called only by a fixed trusted Main setup launcher after its native dialog, never Bridge RPC. */
 export async function runWindowsSetup(input: unknown, helper: string): Promise<any> {
   const action = fixedSetupAction(input);
-  if (process.platform !== 'win32' || process.arch !== 'x64' || Number(os.release().split('.')[2]) < 22000) {
-    return { status: 'blocked', action, reason: 'Windows 11 x64 setup host unavailable', administrator_invoked: false };
+  if (!windowsSupported()) {
+    return { status: 'blocked', action, reason: 'Windows 10 x64 build 19045 or later setup host unavailable', administrator_invoked: false };
   }
   if (!isAbsolute(helper)) throw new ContractError('Trusted helper must be absolute');
   const srtWin = { exe: helper, prependArgs: ['--srt-win'] };

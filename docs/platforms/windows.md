@@ -1,8 +1,20 @@
 # Windows 原生沙盒
 
-基准环境为 Windows 11 x64、NTFS、固定 PowerShell 7。Windows 10 可以运行现有 CLI /
-可移植测试，但不能作为 V4 原生平台验收。应用 Node / helper 来自 release-lock 与完整
+基准环境为本机 Windows 10 x64 22H2（build 19045）、NTFS、固定 PowerShell 7。
+用户于 2026-10-08 将必需 Windows 验收目标改为本机，不再要求 Windows 11 设备。
+应用 Node / helper 来自 release-lock 与完整
 运行库存；不从项目 PATH 查找安装器，不使用 WSL / Docker，不安装 MITM CA。
+
+Python 与 Bridge 统一接受 build 19045 起的 x64 工作站，保留既有 Windows 11 运行路径；
+Windows 必需证据门禁只接受本次指定的 Windows 10 原生报告。Server、ARM64 和旧版
+Windows 10 不满足本基准；OS 符合要求不等于隔离能力 verified。
+
+本机已确认 OS、锁定运行时与 NTFS 可用；doctor 已修复误选源码根旧安装版清单的问题，
+SRT 只读状态为 observed，账户/组/凭证尚未配置。固定
+`C:\Program Files\PowerShell\7\pwsh.exe` 仍缺失。用户已明确授权本机管理员设置，
+官方 PowerShell7.6.6 MSI 已核验 hash 与微软签名，但首次 UAC 返回取消，尚未安装。
+补齐 PowerShell 后走已有固定 SRT 首次安装流程，再实测边界、Job/ACL 清理和 GUI；
+用户授权不等于原生 verifier 通过，实际结果见最新 handoff。
 
 `python -m forge.sandbox.doctor --system` 只读获取 OS、卷、运行时 hash、固定 pwsh 路径和
 真实 `srt-win --srt-win status`。BFE `cannot-read` 不等于不存在：SRT 的固定受控 WFP

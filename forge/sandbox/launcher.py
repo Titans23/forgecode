@@ -41,6 +41,7 @@ class TrustedRuntime:
     node: Path
     entry: Path
     manifest_hash: str
+    installed: bool = False
 
 
 def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
@@ -50,7 +51,7 @@ def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
         try:
             manifest=verify_manifest(root)
             return TrustedRuntime(root,installed_asset(root,manifest['node']),installed_asset(root,manifest['bridge']),
-                sha256((root/'release-manifest.json').read_bytes()).hexdigest())
+                sha256((root/'release-manifest.json').read_bytes()).hexdigest(), installed=True)
         except (OSError,ValueError,KeyError,TypeError):
             unavailable('Installed runtime group is unavailable or invalid')
     if getattr(sys,'frozen',False): unavailable('Installed runtime group is required')

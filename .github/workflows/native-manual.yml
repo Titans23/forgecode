@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [forgecode-windows11-x64, forgecode-ubuntu2204-x11, forgecode-ubuntu2204-wayland, forgecode-ubuntu2404-x11, forgecode-ubuntu2404-wayland]
+        device: [forgecode-windows10-x64, forgecode-ubuntu2204-x11, forgecode-ubuntu2204-wayland, forgecode-ubuntu2404-x11, forgecode-ubuntu2404-wayland]
     runs-on: [self-hosted, '${{ matrix.device }}']
     timeout-minutes: 50
     steps:
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [forgecode-windows11-x64, forgecode-ubuntu2204-x11]
+        device: [forgecode-windows10-x64, forgecode-ubuntu2204-x11]
     runs-on: [self-hosted, '${{ matrix.device }}']
     timeout-minutes: 50
     steps:

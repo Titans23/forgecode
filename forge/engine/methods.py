@@ -11,6 +11,7 @@ from forge.application.session_views import create_default_session, submit, snap
 from forge.engine.persistence import utc_now
 from forge.application.sessions import session_view
 from forge.engine.event_stream import EventStream, accepted_view, workspace_view
+from forge.sandbox.capabilities import windows_supported
 
 
 def manifest_hash():
@@ -107,7 +108,7 @@ class EngineMethods:
         return {'status': 'blocked', 'reasons': ['strict_sandbox_backend_not_ready']}
 
     def capabilities(self, params):
-        platform = 'windows-native' if sys.platform == 'win32' and sys.getwindowsversion().build >= 22000 else (
+        platform = 'windows-native' if windows_supported() else (
             'linux-native' if sys.platform.startswith('linux') else 'unsupported')
         return {'platform': platform, 'sandbox': 'unavailable', 'supported_methods': sorted(self.handlers),
             'features': ['durable-actions', 'acked-event-replay', 'snapshot-high-watermark', 'batch-limit-32',
