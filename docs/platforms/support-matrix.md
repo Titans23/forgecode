@@ -1,6 +1,6 @@
 # ForgeCode V4 平台支持与验收状态
 
-截至 F32 开发审查阶段，发布仍受阻。用户在 2026-10-07 明确要求当前阶段先在 Windows 10 验收，并授权现有配置中的真实模型测试，金额预算无上限。下列状态区分本阶段实际验收、后续平台和生产发布；Windows 10 结果不转算为 Windows 11 或 Ubuntu。
+截至 2026-10-08 F28/F31 续作，发布仍受阻。用户在 2026-10-07 明确要求当前阶段先在 Windows 10 验收，并授权现有配置中的真实模型测试，金额预算无上限。下列状态区分本阶段实际验收、后续平台和生产发布；Windows 10 结果不转算为 Windows 11 或 Ubuntu。
 
 | 环境 | 已有实际结果 | 产品验收 |
 |---|---|---|
@@ -8,14 +8,14 @@
 | Windows 11 x64 客户端 | 已有 Windows adapter、Main 入口与 setup broker；实际平台判断排除 Server | blocked：没有干净 VM／设备与 setup 授权 |
 | Ubuntu 22.04 x64 X11／Wayland | Linux adapter、deb 构建基线约束、受控 Bridge/FileWorker 与打包入口 | blocked：没有专用原生／图形验收设备 |
 | Ubuntu 24.04 x64 X11／Wayland | 同上；Linux 包必须在较老 Ubuntu 22.04 构建 | blocked：没有专用原生／图形验收设备 |
-| GitHub Ubuntu 22.04／24.04、Windows Server2025 portable jobs | 已上传e6bda835；实际run37721608025三平台各contracts2/quality4/unit225/portable403通过，0skip/failure/error，三个freshCIgate通过，四artifact/四日志/六JUnit复算通过。获批Electron helper设置仍只适用于指定Ubuntu24 push job；security实际audit仍2high/exit2 | hosted portable通过，不建立原生产品能力；整体workflow仍failure |
+| GitHub Ubuntu 22.04／24.04、Windows Server2025 portable jobs | 已上传64032fe；实际run37723899477三平台各contracts2/quality4/unit226/portable418通过，0skip/failure/error，三个freshCIgate通过，每平台16项新增行为及四artifact/四日志/六JUnit复算通过。获批Electron helper设置仍只适用于指定Ubuntu24 push job；security实际audit仍2high/exit2 | hosted portable通过，不建立原生产品能力；整体workflow仍failure |
 | macOS／Windows Server／WSL | 无产品支持声明；Server 不满足 Windows 11 workstation 判定 | unsupported |
 
 每个 strict turn 现在创建独立实际 SRT Bridge 和 FileWorker，配置／prepared policy hash 必须一致，准备成功才创建模型。准备失败记录真实 owner-bound cleanup，不自动改用 local-trusted。当前 capability verification 尚不提供可提升为 verified 的完整原生证明，初始化后的边界／后代清理也未完成原生验收，因此 strict 执行继续拒绝。此处既有环境限制，也有尚待原生实现验证的代码限制，不能称为已可用原生沙盒。
 
 2026-10-08关闭边界续作source9c0b2502已在当前Windows10完成contracts2/quality4/unit225/portable403/regression1372，0skip/failure/error；关闭后及排队请求禁止启动，并发关闭/取消共享一次清理。证据F28-admission-observations.json。随后e6bda835真实hosted三平台通过，见F28-admission-hosted-observations.json；本轮结果不更新旧安装包证明，也不提升原生能力。
 
-F31本轮source457c5613在同一Windows10环境通过contracts2/quality4/unit226/portable418/regression1388，七份正式报告复算；显式金额政策、冻结网络一致性和账本归属校验均有新增行为实证。live-eval实际检查及156必需原生平台证明仍blocked，本轮未重建安装包或运行新模型。证据F31-budget-observations.json。
+F31本轮source457c5613在同一Windows10环境通过contracts2/quality4/unit226/portable418/regression1388，七份正式报告复算；显式金额政策、冻结网络一致性和账本归属校验均有新增行为实证。live-eval实际检查及156必需原生平台证明仍blocked，本轮未重建安装包或运行新模型。本轮64032fe随后取得三平台实际hosted通过；证据F31-budget-observations.json及F31-budget-hosted-observations.json。
 
 开发演示明确使用离线 scripted model 与 local-trusted，经过实际 Harness、文件修改、测试命令、Journal、SQLite、Main/Preload/UI。它不证明隔离能力或模型成绩。
 

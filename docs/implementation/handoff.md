@@ -10,11 +10,13 @@ F28本轮修复FileWorker关闭边界和Bridge并发取消/关闭重复清理。
 
 F31已完成本轮代码和回归：显式human_unbounded/null金额配置、实际wizard选择、冻结网络策略一致性、持久请求/用量归属校验及合法迟到usage。16项新增行为先失败，修复后77项定向回归通过。实际contracts/Bridge/Desktop重建后冻结source `457c5613302dc9db0828fabee9be6fa68d18db9ee36fa4ee39728337d669e07d`：contracts2/quality4/unit226/portable418/regression1388全pass，0skip/failure/error。live-eval检查blocked，acceptance110映射有效/156平台证明blocked；七份正式报告及fresh本机CIgate复算通过。证据 `evidence/F31-budget-observations.json`，完整ID见progress。工具session1718已退出0，无待等待本机测试进程；私有finalizer已成功。
 
-下一步精确提交上传F31，再取回新commit的实际hosted日志/artifact/JUnit复算。F28已上传e6bda835。当前dirty包含本轮F31源码/测试/生成资源/文档及新F28 hosted观察；只提交本轮明确拥有的文件。
+F31源码已提交上传 `64032fe475e3eabea06a65bd5653e85c6b173409`，ls-remote一致；实际新run37723899477已完成并复算。F28已上传e6bda835。源码哈希与本机完整回归一致；当前仅补文档证据的checkpoint，原有无关未跟踪文件保留。无运行中的本机测试或CI等待，本阶段代码/回归/上传已完成，F28/F31整体仍in_progress。
 
 ## 最近的 hosted 证据
 
-F28 e6bda835的实际run37721608025已完成：Ubuntu22.04/24.04、Windows2025各contracts2/quality4/unit225/portable403通过，0skip/failure/error，三个freshCIgate通过。四artifact/四日志/六JUnit和当前security报告均已复算。安全audit仍2high/exit2，整体workflow failure。公开索引 `evidence/F28-admission-hosted-observations.json`。F31本轮尚无自身hosted结果，不用F28结果替代。
+F31 64032fe的实际run37723899477：Ubuntu22.04/24.04、Windows2025各contracts2/quality4/unit226/portable418通过，0skip/failure/error；三个freshCIgate通过，每平台16项新增行为均在实际JUnit中确认通过。四artifact/四日志/六JUnit及安全audit报告复算通过；security实际2high/exit2，整体workflow failure。索引 `evidence/F31-budget-hosted-observations.json`。这是portable证明，不建立原生产品验收。
+
+此前F28 e6bda835的run37721608025三平台各unit225/portable403及契约/质量/CIgate通过，security同样失败；证据 `evidence/F28-admission-hosted-observations.json`。两次CI均保留实际commit，不用历史产物替代当前证明。
 
 ## 授权与保护
 

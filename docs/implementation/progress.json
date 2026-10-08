@@ -5,7 +5,7 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "e6bda835253425046068cd905db7d819a538b7c5",
+  "actual_repository_head": "64032fe475e3eabea06a65bd5653e85c6b173409",
   "next_recommended_task": "F28",
   "current_task": "F31",
   "tasks": {
@@ -1260,14 +1260,15 @@
         "evidence/F31-prior-hosted-ci-observations.json",
         "evidence/F31-frozen-plan-observations.json",
         "evidence/F31-binding-hosted-observations.json",
-        "evidence/F31-budget-observations.json"
+        "evidence/F31-budget-observations.json",
+        "evidence/F31-budget-hosted-observations.json"
       ],
       "historical_ci_blockers": [
-        "Earlier hosted browser/import/path failures are retained with their original commits. F28 e6bda835 now passes all three portable platforms; F31 source457c5613 awaits its own uploaded-commit matrix. Actual dependency audit still reports two high entries."
+        "Earlier hosted browser/import/path failures are retained with their original commits. F28 e6bda835 and F31 64032fe each pass all three portable platforms. Current run37723899477 retains dependency-security failure: actual npm audit reports two high entries (exit2)."
       ],
       "current_continuation": {
         "parent_commit": "e6bda835253425046068cd905db7d819a538b7c5",
-        "status": "local_verified_ready_upload",
+        "status": "uploaded_hosted_portable_pass",
         "new_behavior_tests": 16,
         "focused_tests": 77,
         "model_calls": 0,
@@ -1286,7 +1287,18 @@
         ],
         "local_ci_gate": "pass",
         "reports_recomputed": 7,
-        "observations_ref": "evidence/F31-budget-observations.json"
+        "observations_ref": "evidence/F31-budget-observations.json",
+        "uploaded_commit": "64032fe475e3eabea06a65bd5653e85c6b173409",
+        "hosted_run_id": 37723899477,
+        "hosted_observations_ref": "evidence/F31-budget-hosted-observations.json",
+        "hosted_workflow_conclusion": "failure",
+        "hosted_portable_status": {
+          "ubuntu-22.04": "pass",
+          "ubuntu-24.04": "pass",
+          "windows-2025": "pass"
+        },
+        "hosted_artifact_recomputation": "pass",
+        "hosted_new_behavior_tests_per_platform": 16
       },
       "current_evidence_ids": [
         "20261008T031416Z-66663872",
@@ -1459,9 +1471,9 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "F28 uploaded commit and F31 completed test parent. F31 source457c5613 passes five local suites; native/official checks remain blocked. The subsequent source commit must be checked independently on hosted CI.",
+  "head_recorded_scope": "Latest implementation and hosted-tested commit 64032fe475e3eabea06a65bd5653e85c6b173409; subsequent documentation-only evidence checkpoint has the same source. Check git HEAD for the documentation commit rather than attributing CI to it.",
   "gate_notes": {
-    "G1-contracts-engine": "Current F31 source457c5613 passes contracts2/quality4/unit226/portable418/regression1388, zero failures/skips. All seven formal reports and a fresh local CI gate are recomputed. F28 e6bda835 independently passed three hosted portable platforms; F31 hosted evidence is pending. Mandatory native/official implementation remains incomplete.",
+    "G1-contracts-engine": "F31 source457c5613 passes local contracts2/quality4/unit226/portable418/regression1388, zero failures/skips; seven formal reports and the precommit local CI gate are recomputed. Uploaded 64032fe independently passes contracts2/quality4/unit226/portable418 and fresh CI gates on all three hosted platforms; four artifacts/four logs/six JUnit reports and all 16 new behaviors per platform are verified. Overall workflow failure remains due to two high dependency entries. Native/official implementation remains incomplete.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",
     "G4-evaluation": "Frozen RunSpec/source/model/prompt/tool-schema binding, explicit unbounded monetary representation, network consistency and durable request attribution have passing offline behavior tests. Official Docker environment/network enforcement and trusted host per-request admission/authorization remain incomplete; Linux Docker daemon absent.",
     "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."
