@@ -14,7 +14,7 @@ export interface Execution {
   done: Promise<void>;
   resolve: () => void;
   timer?: NodeJS.Timeout;
-  cancellation?: Record<string, any>;
+  cancellation?: Promise<Record<string, any>>;
   linuxOwner?: LinuxExecutionOwner;
 }
 

@@ -27,8 +27,14 @@ class FileWorkerClient:
         self._lock = asyncio.Lock()
         self._owners = set()
         self._cleanup_reports = []
+        self._closing = None
+
+    def _require_open(self):
+        if self._closing is not None:
+            raise ContractError('File helper session is closed', kind='SANDBOX_UNAVAILABLE', code=-32010)
 
     async def request(self, operation, **values):
+        self._require_open()
         request_id = 'exec-' + str(uuid4())
         request = {'schema_version': 'forge.file-worker.request.v1', 'request_id': request_id,
             'workspace': self.workspace, 'policy': self.policy, 'policy_hash': self.policy_hash,
@@ -38,6 +44,7 @@ class FileWorkerClient:
         if len(raw) > 589824:
             raise ContractError('File helper request exceeds task stdin quota', kind='ARTIFACT_LIMIT', code=-32010)
         async with self._lock:
+            self._require_open()
             if self.native is not None:
                 output = await self._native_request(request_id, raw)
             else:
@@ -49,6 +56,7 @@ class FileWorkerClient:
                 child = owner.process
                 self._owners.add(owner)
                 try:
+                    self._require_open()  # Close may have started while the owned process was launching.
                     seconds = self._seconds(request)
                     async with asyncio.timeout(seconds + 5):
                         child.stdin.write(raw)
@@ -141,6 +149,11 @@ class FileWorkerClient:
         return (await self.request('snapshot', paths=list(paths), recursive=recursive))['result']
 
     async def close(self):
+        if self._closing is None:
+            self._closing = asyncio.create_task(self._close())
+        return json.loads(json.dumps(await asyncio.shield(self._closing)))
+
+    async def _close(self):
         for owner in list(self._owners):
             self._cleanup_reports.append(await owner.close())
             self._owners.discard(owner)
@@ -149,7 +162,10 @@ class FileWorkerClient:
                 self._cleanup_reports.append(await self.native.close())
             finally:
                 await self.native.aclose()
-        states = {report['state'] for report in self._cleanup_reports}
-        return {'state': 'unknown' if 'unknown' in states else 'residual' if 'residual' in states else 'clean',
-            'scope': 'native-session' if self.native else 'local-trusted-process-tree',
-            'reports': list(self._cleanup_reports)}
+        # The accepted request owns its final cleanup record. Drain it and deny
+        # queued admissions before freezing the one session result.
+        async with self._lock:
+            states = {report['state'] for report in self._cleanup_reports}
+            return {'state': 'unknown' if 'unknown' in states else 'residual' if 'residual' in states else 'clean',
+                'scope': 'native-session' if self.native else 'local-trusted-process-tree',
+                'reports': list(self._cleanup_reports)}

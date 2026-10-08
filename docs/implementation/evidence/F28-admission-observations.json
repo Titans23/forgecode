@@ -1,0 +1,132 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F28",
+  "scope": "Closed FileWorker admission and concurrent Bridge cancellation on actual Windows10 development runtime",
+  "test_parent_commit": "72d7fb89d94de437cd21c5549d5423d7ea7629e3",
+  "tested_source_inventory_hash": "9c0b2502127d0996af6a609bccea9d47cdd707908cc1a230ff1e8cb32185e490",
+  "public_model_calls": 0,
+  "administrator_setup": false,
+  "installer_rebuilt": false,
+  "eligible_for_native_pass": false,
+  "behaviors": [
+    "Close revokes new and queued file/helper requests before their side effects.",
+    "Accepted actual helper is reaped before the shared immutable session cleanup result settles.",
+    "Cancelling a close waiter does not cancel session shutdown or reopen admission.",
+    "Concurrent execution cancel/session close await the same in-flight owner cleanup."
+  ],
+  "focused": {
+    "python_before": {
+      "report_ref": ".local/F28-admission-before.xml",
+      "sha256": "8d64a6de73d6a203d0df66743be7f59c0083029cef2a2b6314234d2c7b05884d",
+      "collected": 3,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0
+    },
+    "python_after": {
+      "report_ref": ".local/F28-admission-after.xml",
+      "sha256": "c5897eb106e66fdd2ab851f01e0f2bcd54cc07df0181d2eb9bcfe8da23c654cf",
+      "collected": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "node_before": {
+      "report_ref": ".local/F28-cancel-before.tap",
+      "sha256": "b726338dee051c8931e79cd2858e130b380a23b146b5e54811e390eec4f5993b",
+      "tests": 1,
+      "pass": 0,
+      "fail": 1,
+      "skipped": 0
+    },
+    "node_after": {
+      "report_ref": ".local/F28-cancel-after.tap",
+      "sha256": "0f73303535ab3d4853926c98092c06b40eb6c7e25de79c128a5b72d67c9b3c11",
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "final_evidence": [
+    {
+      "evidence_id": "20261008T024339Z-d6a98c82",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+    },
+    {
+      "evidence_id": "20261008T024343Z-1a8cd4b9",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_hash": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+    },
+    {
+      "evidence_id": "20261008T024357Z-a117115d",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 225,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "5c5da38bfff9872b01515c3e68a679fb3af60d3db264eb822aba4d6bb7e55527"
+    },
+    {
+      "evidence_id": "20261008T024444Z-e7c0c996",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 403,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "16433ed4347e20fcb54edb589026b2e2308e179e4445dd0708e5282312f2ecf7"
+    },
+    {
+      "evidence_id": "20261008T025448Z-de3cb67e",
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1372,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "535756f7acd124b1e5ab86e0d9e11dadac52d13917175cc8ddad5fd212455d87"
+    }
+  ],
+  "fresh_local_ci_gate": {
+    "status": "pass",
+    "gate": "ci",
+    "incomplete_tasks": [],
+    "implementation_gaps": {},
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [],
+    "selected_evidence_ids": [
+      "20261008T024339Z-d6a98c82",
+      "20261008T024343Z-1a8cd4b9",
+      "20261008T024357Z-a117115d",
+      "20261008T024444Z-e7c0c996"
+    ]
+  },
+  "reports_recomputed": 5,
+  "limitations": [
+    "Three new Python tests use actual local helpers or the existing admission mutex. The new Node owner double only proves cancellation serialization.",
+    "Initialized upstream SRT reset can log and swallow resource cleanup errors; no native clean/verified claim is added.",
+    "Windows11/Ubuntu native boundary, complete SRT cleanup and dynamic sensitive-path parity remain blocked or incomplete.",
+    "Current source still requires hosted verification; earlier CI results remain tied to their earlier commit.",
+    "No paid model, administrator setup, signing, installer rebuild or capability promotion occurred."
+  ]
+}

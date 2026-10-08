@@ -3,7 +3,10 @@ import asyncio
 from hashlib import sha256
 import sys
 
+import pytest
+
 from test_file_worker import fixture
+from forge.application.models import ContractError
 from forge.sandbox.file_client import FileWorkerClient
 from forge.sandbox.tool_backend import FileToolBackend
 from forge.tools import create_default_registry
@@ -58,4 +61,83 @@ def test_flooding_helper_cancel_reclaims_actual_nested_process_and_stops_writes(
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
             await client.close()
+    asyncio.run(run())
+
+
+def test_closed_file_client_cannot_launch_a_new_helper_or_write(tmp_path):
+    root, control, workspace, policy = fixture(tmp_path)
+
+    async def run():
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        report = await client.close()
+        try:
+            with pytest.raises(ContractError, match='closed'):
+                await client.request('tool', name='write_file', arguments={'path': 'late.txt', 'content': 'late'})
+            assert not (root / 'late.txt').exists()
+            assert await client.close() == report
+        finally:
+            await client.close()
+
+    asyncio.run(run())
+
+
+def test_close_rejects_queued_write_and_reaps_the_actual_active_helper(tmp_path):
+    root, control, workspace, policy = fixture(tmp_path)
+    (root / 'heartbeat.py').write_text("import pathlib,time\np=pathlib.Path('heartbeat')\nwhile True:\n p.write_text(str(time.time())); time.sleep(.02)\n")
+
+    async def run():
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        active = asyncio.create_task(client.request('tool', name='run_command',
+            arguments={'command': f'"{sys.executable}" heartbeat.py', 'timeout_seconds': 30}))
+        queued = None
+        try:
+            async with asyncio.timeout(10):
+                while not (root / 'heartbeat').exists():
+                    if active.done():
+                        raise AssertionError(active.result())
+                    await asyncio.sleep(.01)
+            queued = asyncio.create_task(client.request('tool', name='write_file',
+                arguments={'path': 'queued.txt', 'content': 'must not execute'}))
+            await asyncio.sleep(0)
+            reports = await asyncio.wait_for(asyncio.gather(client.close(), client.close()), 8)
+            outcomes = await asyncio.gather(active, queued, return_exceptions=True)
+            assert isinstance(outcomes[1], ContractError), outcomes
+            assert not (root / 'queued.txt').exists()
+            assert reports[0] == reports[1] and reports[0]['state'] == 'clean'
+            heartbeat = (root / 'heartbeat').read_bytes()
+            await asyncio.sleep(.15)
+            assert (root / 'heartbeat').read_bytes() == heartbeat
+            reports[0]['reports'].clear()
+            assert (await client.close())['reports'], 'Callers must not mutate the cached cleanup result'
+        finally:
+            for task in (active, queued):
+                if task is not None:
+                    task.cancel()
+            await asyncio.gather(*(task for task in (active, queued) if task is not None), return_exceptions=True)
+            await client.close()
+
+    asyncio.run(run())
+
+
+def test_cancelled_close_waiter_does_not_reopen_a_queued_helper(tmp_path):
+    root, control, workspace, policy = fixture(tmp_path)
+
+    async def run():
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        # Hold the existing admission mutex to place the real write request in
+        # the queue. No helper or native sandbox behavior is replaced.
+        await client._lock.acquire()
+        request = asyncio.create_task(client.request('tool', name='write_file',
+            arguments={'path': 'queued.txt', 'content': 'must not execute'}))
+        await asyncio.sleep(0)
+        closer = asyncio.create_task(client.close())
+        await asyncio.sleep(0)
+        closer.cancel()
+        await asyncio.gather(closer, return_exceptions=True)
+        client._lock.release()
+        result = await asyncio.gather(request, return_exceptions=True)
+        assert isinstance(result[0], ContractError), result
+        assert (await client.close())['state'] == 'clean'
+        assert not (root / 'queued.txt').exists()
+
     asyncio.run(run())

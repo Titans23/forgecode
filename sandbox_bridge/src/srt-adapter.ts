@@ -6,7 +6,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { SandboxManager, SandboxRuntimeConfigSchema } from '@anthropic-ai/sandbox-runtime';
 import { checkLinuxDependencies } from '@anthropic-ai/sandbox-runtime/dist/sandbox/linux-sandbox-utils.js';
 import { ContractError, canonicalHash, validate } from '@forgecode/contracts';
-import { Executions } from './executions.js';
+import { Executions, type Execution } from './executions.js';
 import { LinuxExecutionOwner } from './linux-ownership.js';
 import { protectedDirectoryPaths, windowsPrerequisites } from './windows-adapter.js';
 
@@ -265,7 +265,11 @@ export class SrtAdapter {
 
   async cancel(params: any): Promise<any> {
     const e = this.executions.get(params.execution_id);
-    if (e.cancellation) return structuredClone(e.cancellation);
+    e.cancellation ??= this.cancelExecution(e, params);
+    return structuredClone(await e.cancellation);
+  }
+
+  private async cancelExecution(e: Execution, params: any): Promise<any> {
     e.abort.abort();
     clearTimeout(e.timer);
     if (e.child && e.child.exitCode === null && e.child.signalCode === null) {
@@ -284,8 +288,7 @@ export class SrtAdapter {
     }
     e.state = e.state === 'finished' ? 'finished' : 'indeterminate';
     const cleanup = e.linuxOwner ? await e.linuxOwner.cleanup() : this.cleanup(e.owner, false);
-    e.cancellation = { execution_id: params.execution_id, confirmed: cleanup.state === 'clean', cleanup };
-    return structuredClone(e.cancellation);
+    return { execution_id: params.execution_id, confirmed: cleanup.state === 'clean', cleanup };
   }
 
   private cleanup(owner: any, untouched: boolean): any {

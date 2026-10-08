@@ -5,8 +5,8 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "12cc51d5d9e22cb7c70d972612186893ca34fd87",
-  "next_recommended_task": "F28",
+  "actual_repository_head": "72d7fb89d94de437cd21c5549d5423d7ea7629e3",
+  "next_recommended_task": "F31",
   "current_task": "F28",
   "tasks": {
     "F00": {
@@ -946,14 +946,19 @@
         "20261008T011759Z-355b65b0",
         "20261008T011817Z-66e79502",
         "20261008T011906Z-3fad7eb6",
-        "20261008T012857Z-c6dfbf8f"
+        "20261008T012857Z-c6dfbf8f",
+        "20261008T024339Z-d6a98c82",
+        "20261008T024343Z-1a8cd4b9",
+        "20261008T024357Z-a117115d",
+        "20261008T024444Z-e7c0c996",
+        "20261008T025448Z-de3cb67e"
       ],
       "current_evidence_ids": [
-        "20261008T011752Z-765e3b92",
-        "20261008T011759Z-355b65b0",
-        "20261008T011817Z-66e79502",
-        "20261008T011906Z-3fad7eb6",
-        "20261008T012857Z-c6dfbf8f"
+        "20261008T024339Z-d6a98c82",
+        "20261008T024343Z-1a8cd4b9",
+        "20261008T024357Z-a117115d",
+        "20261008T024444Z-e7c0c996",
+        "20261008T025448Z-de3cb67e"
       ],
       "artifact_evidence_ids": [
         "20261007T115336Z-e6b64f9f",
@@ -967,7 +972,7 @@
         "20261007T120147Z-641572b1"
       ],
       "blocked_reasons": [
-        "Current Windows10 source passes contracts2/quality4/unit225/portable400/regression1369 with zero failures/skips. Prior installer/fuses results belong to their recorded older artifacts; Windows11/Ubuntu native acceptance remains unverified.",
+        "Current Windows10 source9c0b2502 passes contracts2/quality4/unit225/portable403/regression1372 with zero failures/skips. Prior installer/fuses and hosted results retain their original artifact/commit scope; Windows11/Ubuntu native acceptance remains unverified.",
         "Terminal execution owner traversal and still-owned child cancellation are covered by portable behavior tests. Strict verified capability promotion, full initialized SRT/helper/listener cleanup and dynamic sensitive-path parity remain code/native-proof gaps.",
         "Full fixed 100000 events / 10000 spans / 100MiB measurements improved metadata overhead 8.07714390646% to 5.210340492313925%, still above 5%. Graphical/packaged native performance unverified.",
         "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing, owner-approved LICENSE and administrator setup unavailable/unapproved.",
@@ -977,39 +982,63 @@
         "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
         "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
       ],
-      "implemented_scope": "Windows10 development/runtime review and current terminal-execution cleanup: visit every owner, terminate still-owned live children despite indeterminate state, continue cleanup after individual errors. Full native isolation/cleanup remains incomplete.",
+      "implemented_scope": "Windows10 development acceptance, complete owner traversal, closed FileWorker admission and one shared cleanup task for concurrent/cancelled close waiters; concurrent Bridge cancel/close shares in-flight owner cleanup. Native isolation/initialized-resource cleanup remains incomplete.",
       "current_continuation": {
-        "parent_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
-        "status": "uploaded_hosted_partial_failure",
-        "new_node_behavior_tests": 3,
-        "focused_integration_tests": 6,
+        "parent_commit": "72d7fb89d94de437cd21c5549d5423d7ea7629e3",
+        "status": "locally_verified_ready_to_upload",
+        "new_behavior_tests": 4,
+        "focused_python_tests": 5,
+        "focused_node_tests": 12,
         "model_calls": 0,
         "administrator_setup": false,
         "installer_rebuilt": false,
-        "interrupted_portable": {
-          "run_id": "20261007T164801Z-44b7ebf2",
-          "status": "interrupted_no_junit",
-          "scope": "No evidence record or pass; original partial logs retained."
-        },
-        "browser_diagnostics": "Preserve Electron child exit code and bounded stderr when its browser report is missing; existing success assertions stay required.",
-        "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
+        "source_inventory_hash": "9c0b2502127d0996af6a609bccea9d47cdd707908cc1a230ff1e8cb32185e490",
         "final_evidence_ids": [
-          "20261008T011752Z-765e3b92",
-          "20261008T011759Z-355b65b0",
-          "20261008T011817Z-66e79502",
-          "20261008T011906Z-3fad7eb6",
-          "20261008T012857Z-c6dfbf8f"
+          "20261008T024339Z-d6a98c82",
+          "20261008T024343Z-1a8cd4b9",
+          "20261008T024357Z-a117115d",
+          "20261008T024444Z-e7c0c996",
+          "20261008T025448Z-de3cb67e"
         ],
         "local_ci_gate": "pass",
-        "reports_recomputed": 8,
-        "observations_ref": "evidence/F28-close-cleanup-observations.json",
-        "uploaded_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
-        "hosted_run_id": 37714511897,
-        "hosted_observations_ref": "evidence/F28-close-hosted-observations.json"
+        "reports_recomputed": 5,
+        "observations_ref": "evidence/F28-admission-observations.json"
       },
       "artifact_refs": [
         "evidence/F28-close-cleanup-observations.json",
-        "evidence/F28-close-hosted-observations.json"
+        "evidence/F28-close-hosted-observations.json",
+        "evidence/F28-admission-observations.json"
+      ],
+      "continuation_history": [
+        {
+          "parent_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
+          "status": "uploaded_hosted_partial_failure",
+          "new_node_behavior_tests": 3,
+          "focused_integration_tests": 6,
+          "model_calls": 0,
+          "administrator_setup": false,
+          "installer_rebuilt": false,
+          "interrupted_portable": {
+            "run_id": "20261007T164801Z-44b7ebf2",
+            "status": "interrupted_no_junit",
+            "scope": "No evidence record or pass; original partial logs retained."
+          },
+          "browser_diagnostics": "Preserve Electron child exit code and bounded stderr when its browser report is missing; existing success assertions stay required.",
+          "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
+          "final_evidence_ids": [
+            "20261008T011752Z-765e3b92",
+            "20261008T011759Z-355b65b0",
+            "20261008T011817Z-66e79502",
+            "20261008T011906Z-3fad7eb6",
+            "20261008T012857Z-c6dfbf8f"
+          ],
+          "local_ci_gate": "pass",
+          "reports_recomputed": 8,
+          "observations_ref": "evidence/F28-close-cleanup-observations.json",
+          "uploaded_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
+          "hosted_run_id": 37714511897,
+          "hosted_observations_ref": "evidence/F28-close-hosted-observations.json"
+        }
       ]
     },
     "F29": {
@@ -1384,7 +1413,7 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Workflow commit12cc51d is uploaded and verified by actual run37716477000. Three hosted portable jobs pass; dependency-security still fails with two high entries. The final follow-up commit records evidence/documentation only, preserves source5ab31ee4 and does not establish a new CI run or native/full-regression proof.",
+  "head_recorded_scope": "F28 close/admission continuation tested at this parent; subsequent commit is discovered with git rev-parse. Source/test/runtime fingerprint is recorded independently.",
   "gate_notes": {
     "G1-contracts-engine": "Product source7d77f873 passed contracts2/quality4/unit225/portable400/regression1369. Subsequent workflow-only source5ab31ee4 passes local contracts/quality/unit and actual hosted contracts/quality/unit/portable on all three platforms; historical regression is not relabeled as current-source evidence. F28/F31 mandatory native/official implementation remains incomplete.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",

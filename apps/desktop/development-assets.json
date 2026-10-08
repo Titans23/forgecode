@@ -629,7 +629,7 @@
     },
     {
       "path": "forge/sandbox/file_client.py",
-      "sha256": "f34e56347a653eb41d08a1dfaece8daf082044788da8711c400fd978600d943d"
+      "sha256": "620223a28f5a6c1fc4f6d6cb66be4faa751ef84da44b60851028571d7bfbd42d"
     },
     {
       "path": "forge/sandbox/file_worker.py",

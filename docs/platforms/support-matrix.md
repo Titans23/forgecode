@@ -13,6 +13,8 @@
 
 每个 strict turn 现在创建独立实际 SRT Bridge 和 FileWorker，配置／prepared policy hash 必须一致，准备成功才创建模型。准备失败记录真实 owner-bound cleanup，不自动改用 local-trusted。当前 capability verification 尚不提供可提升为 verified 的完整原生证明，初始化后的边界／后代清理也未完成原生验收，因此 strict 执行继续拒绝。此处既有环境限制，也有尚待原生实现验证的代码限制，不能称为已可用原生沙盒。
 
+2026-10-08关闭边界续作source9c0b2502已在当前Windows10完成contracts2/quality4/unit225/portable403/regression1372，0skip/failure/error；关闭后及排队请求禁止启动，并发关闭/取消共享一次清理。证据F28-admission-observations.json。此结果不更新旧安装包或上述hosted commit的证明，也不提升原生能力。
+
 开发演示明确使用离线 scripted model 与 local-trusted，经过实际 Harness、文件修改、测试命令、Journal、SQLite、Main/Preload/UI。它不证明隔离能力或模型成绩。
 
 F28 两次完整固定负载均为 100000 条事件、10000 个 span、100 MiB 输出。元数据中位数额外耗时从 8.0771% 降为 5.2103%，仍超过 5% 目标；这一项继续 blocked，保留两次原始报告。复测 source Engine 冷启动中位数 3.2679 秒／热 RPC 0.76535 毫秒，SQLite 投影 55.6679 秒，实际 React 列表从 10000 项只渲染 14 行。React SSR 实际使用 PATH Node 22.17.1，与 locked Node 24.21.0 和图形帧性能分开报告。另实际 Windows host run_process 输出 100 MiB，完整归档摘要相同、显示仅 4096 bytes；这不是原生隔离吞吐证明。

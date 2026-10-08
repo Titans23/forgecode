@@ -190,3 +190,30 @@ test('close terminates a real owned child whose execution became indeterminate',
     await closed;
   }
 });
+
+test('concurrent cancel and close share one in-flight owner cleanup', async () => {
+  const adapter = new SrtAdapter(process.cwd(), resolve('.local/control'), owner, {}, () => true);
+  const id = `exec-${randomUUID()}`;
+  const spec = command(process.cwd(), [process.execPath]);
+  const { execution } = adapter.executions.accept(id, spec, canonicalHash(spec));
+  execution.state = 'finished';
+  execution.resolve();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let calls = 0;
+  // A controlled owner double tests serialization, not native cleanup proof.
+  execution.linuxOwner = { stop() {}, async cleanup() {
+    calls++;
+    await gate;
+    return { owner: execution.owner, state: 'unknown', remaining_processes: 0,
+      diagnostic_refs: [], completed_at_utc: null };
+  } };
+  const cancellation = adapter.cancel({ execution_id: id, deadline_utc: new Date(Date.now() + 3000).toISOString() });
+  const closing = adapter.close({ sandbox_session_id: owner.sandbox_session_id });
+  try {
+    assert.equal(calls, 1, 'Concurrent callers must not reset the same native owner twice');
+  } finally {
+    release();
+    await Promise.all([cancellation, closing]);
+  }
+});
