@@ -1,12 +1,13 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "current_authorization_ref": "evidence/human-authorization-20261007.json",
+  "ci_setup_authorization_ref": "evidence/human-authorization-ci-20261008.json",
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
+  "actual_repository_head": "231532fe39d1dc1219fe52c6d8409f2277117df6",
   "next_recommended_task": "F28",
-  "current_task": "F28",
+  "current_task": "F29",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -979,7 +980,7 @@
       "implemented_scope": "Windows10 development/runtime review and current terminal-execution cleanup: visit every owner, terminate still-owned live children despite indeterminate state, continue cleanup after individual errors. Full native isolation/cleanup remains incomplete.",
       "current_continuation": {
         "parent_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
-        "status": "local_full_pass_upload_pending",
+        "status": "uploaded_hosted_partial_failure",
         "new_node_behavior_tests": 3,
         "focused_integration_tests": 6,
         "model_calls": 0,
@@ -1001,10 +1002,14 @@
         ],
         "local_ci_gate": "pass",
         "reports_recomputed": 8,
-        "observations_ref": "evidence/F28-close-cleanup-observations.json"
+        "observations_ref": "evidence/F28-close-cleanup-observations.json",
+        "uploaded_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
+        "hosted_run_id": 37714511897,
+        "hosted_observations_ref": "evidence/F28-close-hosted-observations.json"
       },
       "artifact_refs": [
-        "evidence/F28-close-cleanup-observations.json"
+        "evidence/F28-close-cleanup-observations.json",
+        "evidence/F28-close-hosted-observations.json"
       ]
     },
     "F29": {
@@ -1045,11 +1050,14 @@
         "20261007T143926Z-173a661a",
         "20261007T144011Z-c6c40c46",
         "20261007T144844Z-d7aa5443",
-        "20261007T145332Z-695f9ba9"
+        "20261007T145332Z-695f9ba9",
+        "20261008T020430Z-7ee8b187",
+        "20261008T020433Z-2be6333a",
+        "20261008T020451Z-020a233d"
       ],
       "blocked_reasons": [
-        "Actual hosted run37642586381 attempt2: Ubuntu22.04 and Windows2025 portable pass; Ubuntu24.04 has one missing browser-report failure; dependency-security fails with two high entries. Initial startup_failure retained.",
-        "Security/native/signing/LICENSE and protected runner configuration remain independently blocked."
+        "Actual run37714511897: Ubuntu22.04 and Windows2025 unit225/portable400 pass; Ubuntu24.04 has one Chromium SUID-helper failure (exit-5). The scoped CI-only setup is now explicitly authorized and patched; new hosted execution is pending.",
+        "Security still has two high dependency entries. Native/signing/LICENSE and protected runner configuration remain independently blocked; the CI-only authorization does not authorize local/native SRT setup."
       ],
       "historical_blocked_reasons": [
         "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
@@ -1089,7 +1097,37 @@
       },
       "gate_review_evidence_ids": [
         "20261007T150406Z-81c7bee6"
-      ]
+      ],
+      "current_evidence_ids": [
+        "20261008T020430Z-7ee8b187",
+        "20261008T020433Z-2be6333a",
+        "20261008T020451Z-020a233d"
+      ],
+      "current_continuation": {
+        "scope": "Human-authorized Electron SUID helper configuration in the trusted GitHub Ubuntu24 portable job",
+        "parent_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
+        "status": "local_checks_pass_upload_pending",
+        "source_inventory_hash": "5ab31ee4128b58dbca02937aca4bd1f2dfda08fe6d9abdfbc9e7780be48c4382",
+        "authorization_ref": "evidence/human-authorization-ci-20261008.json",
+        "observations_ref": "evidence/F29-electron-sandbox-setup-observations.json",
+        "final_evidence_ids": [
+          "20261008T020430Z-7ee8b187",
+          "20261008T020433Z-2be6333a",
+          "20261008T020451Z-020a233d"
+        ],
+        "focused_tests": 15,
+        "model_calls": 0,
+        "local_administrator_setup": false,
+        "hosted_administrator_setup": "Authorized only for the four exact workflow conditions; awaiting actual hosted execution",
+        "fresh_local_ci_gate": "not_run_workflow_only_change",
+        "prior_regression": {
+          "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
+          "evidence_id": "20261008T012857Z-c6dfbf8f",
+          "collected": 1369,
+          "status": "pass",
+          "scope": "Previous product source before this workflow-only change; preserved historical scope"
+        }
+      }
     },
     "F30": {
       "implementation_status": "implemented",
@@ -1340,7 +1378,7 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "F31 source commit9ac93b0 is uploaded with actual hosted results. The F28 cleanup/browser-diagnostics candidate has passed all five suites on source7d77f873; current source is ready for a tested development commit/upload.",
+  "head_recorded_scope": "F28 code commit231532f is uploaded; actual hosted run37714511897 confirms the Ubuntu24 SUID-helper failure. The human-authorized workflow-only correction on source5ab31ee4 passed local CI-policy/contracts/quality/unit checks; new hosted validation is pending upload. Historical full regression remains bound to source7d77f873.",
   "gate_notes": {
     "G1-contracts-engine": "Current source7d77f873 passes contracts2/quality4/unit225/portable400/regression1369, zero required skips/failures; F28/F31 mandatory native/official implementation remains incomplete.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",

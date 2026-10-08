@@ -1,0 +1,21 @@
+{
+  "schema_version": "forge.implementation.authorization.v1",
+  "recorded_at": "2026-10-08T02:03:45Z",
+  "scope": "Electron SUID helper configuration for the specified GitHub portable CI job only",
+  "explicit_human_answer": "允许，仅限上述 CI",
+  "repository": "Titans23/forgecode",
+  "branch_ref": "refs/heads/codex/forgecode-v4",
+  "event": "push",
+  "runner": "GitHub-hosted ephemeral ubuntu-24.04",
+  "allowed_operations": [
+    "Hydrate the package-lock-bound Electron distribution using the existing verifier.",
+    "Set node_modules/electron/dist/chrome-sandbox owner to root:root and mode to 4755.",
+    "Verify the actual helper owner/mode before running the existing portable tests."
+  ],
+  "local_administrator_setup_authorized": false,
+  "native_srt_setup_authorized": false,
+  "broader_system_setup_authorized": false,
+  "model_authorization_change": false,
+  "development_upload_authorization": "Existing authorization to upload tested development versions remains in force.",
+  "prior_authorization_ref": "human-authorization-20261007.json"
+}

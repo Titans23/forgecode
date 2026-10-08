@@ -7,7 +7,7 @@
 | 维度 | 结论 | 实际依据与限制 |
 |---|---|---|
 | 代码实现 | 开发路径可运行；完整 P0 受阻 | 真实 Python Harness/CLI、stdio Engine、Bridge/FileWorker、Electron Main/Preload/Renderer、Journal/SQLite、评测与导出接口已接通。F28 的原生 verified promotion、初始化后完整清理及动态敏感路径一致性，F31 的正式 Harbor RunSpec/策略/可信逐请求账本绑定仍未完成。门禁读取 `remaining_implementation`，任务阶段标 implemented 不会解除代码缺口。 |
-| 双平台产品验收 | blocked | 用户当前指定 Windows 10 x64 build 19045；实际开发客户端、frozen Engine、安装目录与 maker smoke 可以运行。Windows 11 workstation、Ubuntu 22.04/24.04 X11/Wayland、原生边界和干净安装/升级/卸载尚无完整证明。没有管理员 setup 授权。签名、项目 LICENSE 和两项高危依赖仍阻止 production。 |
+| 双平台产品验收 | blocked | 用户当前指定 Windows 10 x64 build 19045；实际开发客户端、frozen Engine、安装目录与 maker smoke 可以运行。Windows 11 workstation、Ubuntu 22.04/24.04 X11/Wayland、原生边界和干净安装/升级/卸载尚无完整证明。原生／本机管理员 setup 未授权；仅批准指定 GitHub CI 的 Electron helper 权限设置。签名、项目 LICENSE 和两项高危依赖仍阻止 production。 |
 | 真实模型实验 | Windows 受控回归已完成；正式实验 blocked | 用户明确授权配置中的真实模型，金额预算无上限。F31 第二批六 attempt 使用真实 Harness 和独立 Windows unittest，A 3/3、B 2/3，不能声明修复策略提升。正式 Harbor/原生分数为零；Docker daemon 和正式执行绑定仍缺失。费用 unknown。 |
 
 ## 实际实现与上游复用
@@ -21,6 +21,8 @@
 自动化 offline demo 使用明确标记的 scripted model，并经过真实 Harness、文件变更、测试进程、Journal 和 SQLite。协议 fixture 与纯逻辑测试保持测试来源，不能替代原生沙盒或真实模型成绩。strict 准备失败时在模型创建前拒绝，不降级为 host/local-trusted。
 
 ## 已完成的测试与实测
+
+F28已上传231532f，实际run37714511897：Ubuntu22.04/Windows2025各unit225、portable400通过；Ubuntu24.04 unit225、portable399通过/1失败，security两项high失败。新诊断确认Chromium退出-5，要求实际SUID helper为root所有、mode4755；四ZIP/四日志/六JUnit复算见[F28-close-hosted-observations.json](evidence/F28-close-hosted-observations.json)。用户已批准限定本仓库开发分支push/GitHub临时Ubuntu24 runner的helper设置，补丁已应用，新的hosted结果待上传验证；授权范围见[CI授权记录](evidence/human-authorization-ci-20261008.json)。
 
 F28关闭路径续作最终通过：source7d77f873，contracts2、quality4、unit225、portable400、regression1369，零skip/failure/error，fresh本机CIgatepass。新增3个Node行为（1真实宿主子进程、2控制流替身）先全部失败、修正后通过；另6项真实Bridge/浏览器专项通过。5份当前报告和3份中断前完整报告复算，原中断portable无JUnit不计通过；详见[F28-close-cleanup-observations.json](evidence/F28-close-cleanup-observations.json)。初始化后的完整SRT资源仍不能声明clean，F28/F31保持in_progress；没有重建安装包或新增真实模型/管理员操作。
 

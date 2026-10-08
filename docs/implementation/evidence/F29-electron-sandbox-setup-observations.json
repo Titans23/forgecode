@@ -1,0 +1,85 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F29",
+  "scope": "Human-authorized Electron SUID helper configuration in the trusted GitHub Ubuntu24 portable job",
+  "parent_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
+  "source_inventory_hash": "5ab31ee4128b58dbca02937aca4bd1f2dfda08fe6d9abdfbc9e7780be48c4382",
+  "workflow_ref": ".github/workflows/portable.yml",
+  "authorization_ref": "evidence/human-authorization-ci-20261008.json",
+  "reproduced_failure_ref": "evidence/F28-close-hosted-observations.json",
+  "modification": "After verifying the package-lock-bound Electron distribution, require a regular non-symlink chrome-sandbox helper, set root:root and4755, verify uid/mode, then run the existing portable job.",
+  "required_conditions": {
+    "matrix_os": "ubuntu-24.04",
+    "event_name": "push",
+    "repository": "Titans23/forgecode",
+    "git_ref": "refs/heads/codex/forgecode-v4"
+  },
+  "focused_regression": {
+    "command": [
+      ".venv/Scripts/python.exe",
+      "-X",
+      "utf8",
+      "-m",
+      "pytest",
+      "tests/implementation/unit/test_ci.py",
+      "-q",
+      "--junitxml=.local/F29-ci-scope-regression.xml"
+    ],
+    "report_ref": ".local/F29-ci-scope-regression.xml",
+    "report_hash": "e5e0ee2600395176e020ac9ed8c9e0fa2ab2797d75dc092965fe87d7203e464e",
+    "collected": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "local_evidence": [
+    {
+      "evidence_id": "20261008T020430Z-7ee8b187",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_ref": ".local/implementation/20261008T020430Z-7ee8b187/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+    },
+    {
+      "evidence_id": "20261008T020433Z-2be6333a",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_ref": ".local/implementation/20261008T020433Z-2be6333a/packaging.json",
+      "report_hash": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+    },
+    {
+      "evidence_id": "20261008T020451Z-020a233d",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 225,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261008T020451Z-020a233d/junit.xml",
+      "report_hash": "c71aa8816746e5bef4014f029aa8e07bfec9d9d36dd02eb36f2afb5539f43c33"
+    }
+  ],
+  "report_recomputation": "All three formal report hashes and actual JSON/JUnit counts plus the focused JUnit counts were independently recomputed.",
+  "verification_scope": "This revision changes only the CI workflow and documentation. Local CI policy regression, contracts, quality and unit pass. The real browser behavior fix must pass in hosted Ubuntu24; no local sudo operation, native sandbox qualification, current full regression or fresh local CI gate is claimed.",
+  "previous_full_regression": {
+    "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
+    "evidence_id": "20261008T012857Z-c6dfbf8f",
+    "collected": 1369,
+    "status": "pass",
+    "scope": "Previous product source before this workflow-only change; preserved historical scope"
+  },
+  "hosted_status": "pending_upload",
+  "model_calls": 0,
+  "local_privileged_operations": 0,
+  "native_pass": false
+}

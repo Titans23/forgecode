@@ -2,6 +2,12 @@
 
 ## 当前续作（2026-10-08，Asia/Shanghai）
 
+F28提交231532fe39d1dc1219fe52c6d8409f2277117df6已正常推送并核对远端。实际run37714511897已结束：Ubuntu22.04/Windows2025各unit225、portable400通过；Ubuntu24.04 unit225通过、portable399通过/1失败。新增浏览器诊断确认退出-5，Chromium要求锁定Electron的chrome-sandbox为root所有、mode4755。security仍2high；四artifact、四job日志、六JUnit已下载并复算，公开索引F28-close-hosted-observations.json。
+
+人类已明确回复“允许，仅限上述CI”：唯一管理员设置例外是本仓库codex/forgecode-v4分支push触发的GitHub临时Ubuntu24.04 runner，将锁定Electron helper设置为root:root/4755。补丁已按此四项条件应用，授权证据human-authorization-ci-20261008.json。没有执行本机管理员操作；原生SRT/系统setup仍未授权。F29本机15项CI策略回归、contracts2、quality4、unit225已全部通过，报告hash/count复算一致，0skip/failure/error；下一精确stage/commit/push并等待实际hosted结果。本轮只改变工作流，产品代码保持231532f，上一轮source7d77f873全量regression1369保留原scope，不能冒称新workflow源码指纹的fresh全量证据。
+
+### 前段续作记录（当前状态以上文为准）
+
 F31续作已提交并正常推送9ac93b0c4053bb9d9137b70bf20365005b1e8e6a，ls-remote核对一致。实际run37654014565已结束：Ubuntu22.04和Windows2025各unit225/portable400通过；Ubuntu24.04 unit225通过、portable399通过/1浏览器report缺失失败，security继续失败。四份实际artifact/JUnit与四job日志已取回，公开索引F31-binding-hosted-observations.json；全workflow仍failure。
 
 当前F28修正terminal/indeterminate execution漏清理与单项失败中断后续cleanup：3项Node before全部失败、after全部通过；真实Bridge重建仅更新自身runtime manifest摘要。原session15060随中断结束，portable20261007T164801Z-44b7ebf2只有部分日志、无JUnit/正式evidence；不能记pass。恢复后已确认无原Python/Electron进程，不再轮询旧session。另补浏览器报告缺失时的退出码和有限stderr，现有成功条件保留；6项Bridge/浏览器真实集成通过。新的五套件session70763正在执行，输出.local/F28-close-final-verification.json/log；保持源码/测试/锁/清单冻结，完成后提交上传。旧3份已通过短套件属于source d00c8024，保留而不当新source报告。

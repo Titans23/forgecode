@@ -6,6 +6,8 @@ F29 保留真实 Python Harness／CLI。所有检查调用当前源码与固定�
 
 随后 `scripts/ci_run.py --layer portable` 运行 contracts、quality、unit、portable，逐项保留 evidence，并把本轮 ID 显式传入 `impl.py gate --name ci`。Linux hosted 路径通过现有 `xvfb-run` 为真实 Chromium 集成测试提供图形会话；缺少该工具时命令失败，不自动安装，也不建立原生 X11／Wayland 资格。缺项、另一 HEAD／平台、过期源码 hash、非零退出、报告被改、零测试、required skip、unknown verdict 都会拒绝通过。JUnit testcase 数量由实际 XML 复算；JSON 必须有非空且全部通过的 checks。回归独立执行 `impl.py verify --suite regression`；不将其历史结果冒充本轮 CI 结果。
 
+2026-10-08 的实际 run37714511897 确认 Ubuntu24.04 Chromium 因 SUID helper 权限不正确退出 -5。用户已明确授权唯一的 CI 设置例外：仅 `Titans23/forgecode` 的 `codex/forgecode-v4` 分支 push、GitHub 临时 `ubuntu-24.04` runner，在现有校验器物化锁定 Electron 后，将其实际 `chrome-sandbox` 设置为 `root:root`、`4755` 并检查结果。条件不满足时不执行该步骤；PR、fork、其他分支和本机不取得此授权。没有关闭 Chromium 沙盒或更改全局系统参数。授权记录见 [human-authorization-ci-20261008.json](evidence/human-authorization-ci-20261008.json)；本机／原生 SRT 管理员 setup 仍未授权。
+
 quality 包括真实 Python AST 语法、全工作区 TypeScript、Node 行为测试、contracts 漂移、npm 精确版本与 release lock hash、任务依赖 DAG、任务卡／章节／case 测试引用以及高确定性 secret 模式扫描。扫描只输出路径、行号和种类。模式扫描通过并不表示已穷举所有秘密格式。`npm run lint` 可独立运行离线检查。
 
 `native-manual.yml` 仅允许仓库 `Titans23/forgecode` 的 `main` 分支手动 dispatch。native／packaged 分开，使用已准备的 Windows 11、Ubuntu 22.04／24.04 X11／Wayland 专用 self-hosted runner 与命名 environment；运行入口再次检查事件、仓库和 ref。token 为 contents-read，checkout 不保留 Git 凭据；不可信 fork PR 只能进入 hosted portable 路径。workflow 未配置模型 API 或签名 secrets，也没有系统自动修复。命名 environment 本身不是 server-side protection 的证明：required reviewers、branch policy 和专用 runner 实际配置目前未核验，原生运行保持 blocked。
