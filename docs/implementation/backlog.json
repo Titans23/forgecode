@@ -1853,14 +1853,21 @@
         "20261007T154120Z-2a46ead5",
         "20261007T154135Z-0a1ccbae",
         "20261007T154224Z-82b552ed",
-        "20261007T155239Z-37f6cb63"
+        "20261007T155239Z-37f6cb63",
+        "20261008T031416Z-66663872",
+        "20261008T031420Z-3589611d",
+        "20261008T031433Z-6b39578b",
+        "20261008T031520Z-a5084c35",
+        "20261008T032456Z-b1445ba2",
+        "20261008T033824Z-08482720",
+        "20261008T033826Z-896d9c62"
       ],
       "case_ids": [
         "N24"
       ],
       "remaining_implementation": [
-        "Official network/policy and actual Docker environment reconciliation, trusted host authorization and per-request ledger integration remain unimplemented/unverified; official live execution stays refused.",
-        "The current preregistration still needs real official environment snapshots and a RunSpec representation for explicitly unbounded monetary authorization; no null snapshot or permission is guessed."
+        "Official Docker environment/network enforcement and trusted host per-request admission/authorization integration remain unimplemented or unverified; live execution stays refused. Durable request accounting attribution checks are implemented but are not that admission gateway.",
+        "The current preregistration still needs actual official source/model/environment/grader snapshots and a trusted authorization binding. The explicit unbounded RunSpec representation is now implemented; no missing snapshot or execution permission is inferred."
       ]
     },
     {

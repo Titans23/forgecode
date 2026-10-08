@@ -27,7 +27,11 @@ uv run --no-sync python scripts/delivery_experiment.py freeze --from-plan BASE_P
 
 这不会把预注册中的 null 或无上限金额许可替换成猜测快照或零额度。当前正式预注册仍需真实环境/策略/定价或无上限授权的执行绑定；从其他宿主导入计划依旧是 imported_unverified，需在接收端绑定本地连接并复核环境。
 
+正式RunSpec现在可明确写入`budget.spend_policy="human_unbounded"`与`budget.spend_ceiling=null`；两者必须同时出现。有限政策使用规范金额字符串。wizard可选择该政策，但计划选择不授予执行权；模型请求数、工具次数和时间继续有限。导出、导入和A/B冻结保留这一表示，金额政策不同的两组不可比。
+
 Harbor 物化任务时重新校验源码文件集合、内容与 RunSpec；暂存阶段再检查原快照及实际复制结果。绑定计划不能通过 package 参数换包。Runner在首次模型请求前核对实际provider/model、参数、系统prompt和工具schema，拒绝与冻结计划不符的启动配置。旧CLI仍保留原协议；这些检查不能替代尚缺的官方网络策略证明、宿主授权与逐请求账本。
+
+网络/缓存快照的network mode与domain列表必须匹配冻结沙盒策略，重新计算hash不能绕过该语义检查。现有持久账本拒绝缺少attempt的评测请求，也拒绝改变请求归属的结束/usage确认事件；合法的迟到usage仍可补记原已结束attempt。上述本机离线校验已经实现，正式Docker宿主逐请求授权准入和网络隔离集成仍未完成，不据此启动正式模型实验。
 
 ## 当前 Windows 10 真实 Harness 回归
 

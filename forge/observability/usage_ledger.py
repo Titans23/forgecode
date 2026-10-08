@@ -129,11 +129,14 @@ def calculate_cost(usage,rates):
 
 
 def start_request(store,body):
+    from forge.application.models import ContractError
     a=body['attributes']
+    scope = [body[key] for key in ('run_id', 'trial_id', 'attempt_id')]
+    if any(scope) and not all(scope):
+        raise ContractError('Model request evaluation scope is incomplete',kind='EVENT_CONFLICT',code=-32010)
     attempt=store.connection.execute('SELECT a.id,r.spec_json,d.owner_epoch,d.trace_id,w.state FROM attempts a JOIN trials t ON t.id=a.trial_id JOIN runs r ON r.id=t.run_id JOIN attempt_details d ON d.attempt_id=a.id JOIN work_items w ON w.id=d.work_item_id WHERE a.id=? AND t.run_id=? AND t.id=?',
         (body['attempt_id'],body['run_id'],body['trial_id'])).fetchone() if body['attempt_id'] else None
     if body['attempt_id'] and (attempt is None or attempt['owner_epoch']!=store.epoch or attempt['state'] not in ('running','cancel_requested') or attempt['trace_id']!=body['trace_id']):
-        from forge.application.models import ContractError
         raise ContractError('Model request evaluation identities conflict',kind='EVENT_CONFLICT',code=-32010)
     frozen=store.connection.execute('SELECT pricing_snapshot FROM turn_observation_config WHERE turn_id=?',(body['turn_id'],)).fetchone()
     snapshot=json.loads(attempt['spec_json'])['observability']['pricing_snapshot'] if attempt else json.loads(frozen[0]) if frozen and frozen[0] else None
@@ -157,6 +160,13 @@ def update_request(store,body):
     identity=store.connection.execute('SELECT invocation_id,attempt_no,role FROM model_requests WHERE id=?',(request_id,)).fetchone()
     if tuple(identity)!=(a['invocation_id'],a['attempt_no'],a['role']):
         raise ContractError('Usage attribution differs from the actual request',kind='EVENT_CONFLICT',code=-32010)
+    if any(details[key] != body[key] for key in ('turn_id', 'workspace_id', 'session_id', 'run_id', 'trace_id', 'span_id')) or (
+            details['provider'], details['requested_model']) != (a.get('provider', 'unreported'), a['requested_model']):
+        raise ContractError('Usage scope differs from the actual request',kind='EVENT_CONFLICT',code=-32010)
+    attempt = store.connection.execute('SELECT ar.attempt_id,a.trial_id FROM attempt_requests ar JOIN attempts a ON a.id=ar.attempt_id WHERE ar.request_id=?',
+        (request_id,)).fetchone()
+    if (body['attempt_id'], body['trial_id']) != (tuple(attempt) if attempt else (None, None)):
+        raise ContractError('Usage evaluation scope differs from the actual request',kind='EVENT_CONFLICT',code=-32010)
     raw=a.get('raw_usage')
     observed=a.get('usage')
     # Older trusted events report totals only. Keep the totals without guessing cache prices.

@@ -6,7 +6,7 @@
   },
   "contracts": {
     "path": "forge/application/_generated_contracts.json",
-    "sha256": "3de2e6d3408b3f3bcee5e24ba46863537d1f0698548f450b2de3a7b21786fc45"
+    "sha256": "7793bffca1ecbbef99ff8f6f3a8c987bb975eb3a272d1da0178d632344461314"
   },
   "locks": [
     {
@@ -85,7 +85,7 @@
     },
     {
       "path": "benchmark/core/spec.py",
-      "sha256": "7ebf401073e4a9439dc3e992b2196d5d517a82788c39442f9a30480e5520d2bf"
+      "sha256": "afe356c51fbdb5c3b6d5f46cabbb206b60373023bb0a167245f0aa768b597084"
     },
     {
       "path": "benchmark/harbor/__init__.py",
@@ -165,7 +165,7 @@
     },
     {
       "path": "forge/application/_generated_contracts.json",
-      "sha256": "3de2e6d3408b3f3bcee5e24ba46863537d1f0698548f450b2de3a7b21786fc45"
+      "sha256": "7793bffca1ecbbef99ff8f6f3a8c987bb975eb3a272d1da0178d632344461314"
     },
     {
       "path": "forge/application/annotations.py",
@@ -457,7 +457,7 @@
     },
     {
       "path": "forge/observability/usage_ledger.py",
-      "sha256": "b212890f80057653e1374099a6cda8c2250ebd26dab3f3513c18f37dff50dad4"
+      "sha256": "f6a2b575d370062db6262a4047d22760bc6b51be770c1fad2d88e02cfe5c4930"
     },
     {
       "path": "forge/office/__init__.py",

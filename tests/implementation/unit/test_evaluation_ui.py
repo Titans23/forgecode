@@ -19,3 +19,52 @@ console.log(JSON.stringify({steps:html[0].includes('任务')&&html[1].includes('
 '''
     result=subprocess.run(['node','--input-type=module','-e',script],cwd=Path(__file__).resolve().parents[3],capture_output=True,text=True,timeout=30,check=True)
     assert all(json.loads(result.stdout).values())
+
+
+def test_explicit_unbounded_selection_preserves_finite_request_and_time_limits():
+    script = r'''
+import {rolldown} from 'rolldown';
+import {createRequire} from 'node:module';
+import {readFileSync} from 'node:fs';
+const require=createRequire(process.cwd()+'/package.json');
+async function load(path) {
+  const build=await rolldown({input:path,platform:'node',external:['react'],transform:{jsx:'react'}});
+  const result=await build.generate({format:'cjs'}),module={exports:{}};
+  new Function('module','exports','require',result.output[0].code)(module,module.exports,require);
+  await build.close();return module.exports;
+}
+const {WizardStep}=await load('packages/ui/src/components/run-spec/Wizard.tsx');
+const {budgetProblem}=await load('packages/ui/src/pages/evaluations/state.ts');
+const React=require('react'),{renderToString}=require('react-dom/server');
+const fixture=JSON.parse(readFileSync('contracts/v1/method-fixtures.json','utf8')).cases.find(c=>c.schema==='evaluation.draft.request'&&c.expected==='valid');
+const finite=fixture.value.choices,unbounded={...finite,spend_policy:'human_unbounded',spend_ceiling:null};
+const props={step:3,choices:finite,spec:{},connections:[],change(){},check(){},create(){},exportPlan(){},busy:false,draft:null,validation:null};
+function choose(choices,policy) {
+  let changed;
+  const queue=[WizardStep({...props,choices,change(value){changed=value;}})];
+  while(queue.length) {
+    const element=queue.shift();
+    if(!element||!element.props) continue;
+    if(element.type==='select'&&element.props.value===choices.spend_policy) {
+      element.props.onChange({target:{value:policy}});return changed;
+    }
+    queue.push(...React.Children.toArray(element.props.children));
+  }
+  throw new Error('Explicit spend policy control is absent');
+}
+const selected={...finite,...choose(finite,'human_unbounded')};
+const back={...unbounded,...choose(unbounded,'unknown_usage_stop_next_request')};
+const html=renderToString(React.createElement(WizardStep,{...props,choices:unbounded}));
+console.log(JSON.stringify({
+  valid:budgetProblem(unbounded)===null,
+  ambiguous:budgetProblem({...unbounded,spend_ceiling:'0'})!==null,
+  missing:budgetProblem({...finite,spend_ceiling:null})!==null,
+  bounded:budgetProblem({...unbounded,max_model_requests_per_attempt:0})!==null&&budgetProblem({...unbounded,attempt_wall_seconds:0})!==null,
+  selected:selected.spend_policy==='human_unbounded'&&selected.spend_ceiling===null&&selected.max_model_requests_per_attempt===finite.max_model_requests_per_attempt&&selected.attempt_wall_seconds===finite.attempt_wall_seconds,
+  back:back.spend_policy==='unknown_usage_stop_next_request'&&back.spend_ceiling==='0',
+  meaning:html.includes('须单独授权')&&html.includes('未知费用仍记为未知')&&!html.includes('总支出上限（USD）')
+}));
+'''
+    result = subprocess.run(['node', '--input-type=module', '-e', script], cwd=Path.cwd(),
+        capture_output=True, text=True, encoding='utf-8', timeout=30, check=True)
+    assert all(json.loads(result.stdout).values()), result.stdout

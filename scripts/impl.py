@@ -108,7 +108,9 @@ CASE_TESTS.update({case:['scripts/make_installer.py','scripts/engine_packaged_sm
 CASE_TESTS['N23']=['tests/implementation/unit/test_gates.py','tests/implementation/unit/test_ci.py']
 CASE_TESTS['O04']=['tests/implementation/integration/test_harness_regressions.py','tests/implementation/unit/test_workspace_scope.py']
 CASE_TESTS['N20']=['tests/implementation/unit/test_hardened_artifact.py','scripts/hardened_smoke.py']
-CASE_TESTS['N24']=['tests/implementation/integration/test_delivery_experiment.py','tests/implementation/integration/test_model_regression.py']
+CASE_TESTS['N24']=['tests/implementation/integration/test_delivery_experiment.py','tests/implementation/integration/test_model_regression.py',
+    'tests/implementation/integration/test_frozen_runspec.py','tests/implementation/integration/test_evaluation_budget.py',
+    'tests/implementation/unit/test_evaluation_ui.py']
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):

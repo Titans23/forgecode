@@ -1,11 +1,11 @@
 {
-  "/assets/http_transport-D_pSzG5c.js": {
-    "path": ".vite/renderer/ui/assets/http_transport-D_pSzG5c.js",
-    "sha256": "54d5d77494d99691e73f2f77dd971ac72431361c98b13373ae51655d403188f7"
+  "/assets/http_transport-CYe1cyan.js": {
+    "path": ".vite/renderer/ui/assets/http_transport-CYe1cyan.js",
+    "sha256": "7af70bec428866ecd92e14b404e361bba203de246969678843b0f5c60ff8e2b3"
   },
-  "/assets/index-4P4crTAJ.js": {
-    "path": ".vite/renderer/ui/assets/index-4P4crTAJ.js",
-    "sha256": "b9f3fc0cb6ff4abcbacfc080b7588cfb460c52eb572e334fcb2cb0a76d42f498"
+  "/assets/index-BNC5vzS5.js": {
+    "path": ".vite/renderer/ui/assets/index-BNC5vzS5.js",
+    "sha256": "16427a7df451b25c170eaa9332253f6a1342e11dd80963e2ad7fc05bec826be8"
   },
   "/assets/index-BrVNs3Qw.css": {
     "path": ".vite/renderer/ui/assets/index-BrVNs3Qw.css",
@@ -17,6 +17,6 @@
   },
   "/index.html": {
     "path": ".vite/renderer/ui/index.html",
-    "sha256": "532ea0b453e1e331aee42721fc795cf248da88b16a3659c64e560397ea2afc56"
+    "sha256": "6ac5aa5d2745e35129d168aa3c4520411eb7c787a22a4126ae66550c0e120a0a"
   }
 }

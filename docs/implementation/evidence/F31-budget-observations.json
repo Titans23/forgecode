@@ -1,0 +1,152 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F31",
+  "scope": "Explicit unbounded monetary plan, frozen network consistency and durable request accounting attribution",
+  "test_parent_commit": "e6bda835253425046068cd905db7d819a538b7c5",
+  "tested_source_inventory_hash": "457c5613302dc9db0828fabee9be6fa68d18db9ee36fa4ee39728337d669e07d",
+  "public_model_calls": 0,
+  "administrator_setup": false,
+  "installer_rebuilt": false,
+  "eligible_for_native_pass": false,
+  "new_behavior_tests": 16,
+  "behaviors": [
+    "RunSpec and draft contracts require null spend_ceiling exactly for human_unbounded; all time/request/tool bounds remain required.",
+    "The real wizard explicitly selects money policy, preserves finite execution bounds and does not grant paid execution authority.",
+    "Draft, repair-only A/B freeze, export/import preserve unbounded money without substituting zero; imports remain unverified and blocked.",
+    "Rehashed network configuration must still match its frozen sandbox policy.",
+    "Start events require complete evaluation scope; usage terminals/confirmations must retain original request scope and provider/model attribution.",
+    "Conflicting ledger writes roll back atomically; genuine late usage stays billable to its original ended attempt."
+  ],
+  "focused": {
+    "core_before": {
+      "report_ref": ".local/F31-budget-binding-red.xml",
+      "sha256": "0c0c88fdb7fd470f9e08824764b067a255499c09c79d639efc19c637e39c8cf5",
+      "collected": 15,
+      "failures": 15,
+      "errors": 0,
+      "skipped": 0
+    },
+    "ui_before": {
+      "report_ref": ".local/F31-budget-ui-before.xml",
+      "sha256": "dfbbdad3de25f840ffb74b842a1ad191e0d2bcc840eaa8293f3abbbeb713429a",
+      "collected": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "after": {
+      "report_ref": ".local/F31-budget-focused.xml",
+      "sha256": "69b308b09d85ca9029e728a8c4d45423ed68decf8e713acee512342589efd226",
+      "collected": 77,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "test_preparation": "Two earlier private red runs included an invalid synthetic session ID prefix; corrected to the actual ses- contract before retaining the 15-case behavior red run. All logs retained.",
+  "final_evidence": [
+    {
+      "evidence_id": "20261008T031416Z-66663872",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+    },
+    {
+      "evidence_id": "20261008T031420Z-3589611d",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_hash": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+    },
+    {
+      "evidence_id": "20261008T031433Z-6b39578b",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 226,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "541bf4a5d812342e16b679f37fb3558240dfc6c1a9db7bb168b229265bb2d94d"
+    },
+    {
+      "evidence_id": "20261008T031520Z-a5084c35",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 418,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "2d9a4c89d9b7924aa54f3358067dfb6335d85b719499fa0018b6a5b60ec10952"
+    },
+    {
+      "evidence_id": "20261008T032456Z-b1445ba2",
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1388,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "c96a131f970251f2d80101cded04386be400a0ccda8c218ab0a973a5b6da790d"
+    },
+    {
+      "evidence_id": "20261008T033824Z-08482720",
+      "suite": "live-eval",
+      "status": "blocked",
+      "tests": {
+        "reason": "Official execution policy verification, authorization binding and per-request accounting remain unavailable.; The preregistration has unresolved source/model/environment snapshots and is not an executable RunSpec.; Linux Docker daemon unavailable; no environment was started",
+        "scope": "real preregistration validation and official runner readiness; zero public-model execution",
+        "eligible_for_native_pass": false,
+        "checks": 6
+      },
+      "report_hash": "776dde266ea0da607aac007948c17ca579cfa095d66d9da5be6e355159111d70"
+    },
+    {
+      "evidence_id": "20261008T033826Z-896d9c62",
+      "suite": "acceptance",
+      "status": "blocked",
+      "tests": {
+        "reason": "156 required platform proofs unavailable",
+        "scope": "all 86 legacy plus 24 new case mappings and recomputed existing proofs",
+        "eligible_for_native_pass": false,
+        "checks": 2
+      },
+      "report_hash": "7dd894db9d5a57ab1d51ee073975b29d4048aa9fd83572d71c392049f20eeef7"
+    }
+  ],
+  "fresh_local_ci_gate": {
+    "status": "pass",
+    "gate": "ci",
+    "incomplete_tasks": [],
+    "implementation_gaps": {},
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [],
+    "selected_evidence_ids": [
+      "20261008T031416Z-66663872",
+      "20261008T031420Z-3589611d",
+      "20261008T031433Z-6b39578b",
+      "20261008T031520Z-a5084c35"
+    ]
+  },
+  "reports_recomputed": 7,
+  "limitations": [
+    "Money policy in a portable plan is configuration, never trusted authorization or a bypass around official readiness.",
+    "This change validates durable request accounting attribution; it does not establish trusted-host per-request admission for a Docker runner.",
+    "Official Docker environment/network enforcement and host authorization/request gateway remain unimplemented or unverified; live execution stays blocked.",
+    "Native capability, SRT cleanup/dynamic-path parity, signing/LICENSE/security and performance requirements remain separate.",
+    "No new public model score, provider bill, native proof, administrator setup or installer validation is claimed."
+  ]
+}

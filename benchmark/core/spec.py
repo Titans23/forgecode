@@ -85,6 +85,9 @@ def validate_resolved_spec(spec, values):
     if parameters['top_p'] is not None and Decimal(parameters['top_p']) > 1:
         raise ContractError('top_p is outside the supported interval')
     cache = values['network_cache']
+    network = values['policy']['network']
+    if (network['mode'], network['allowed_domains']) != (cache['network_mode'], cache['allowed_domains']):
+        raise ContractError('Network configuration and frozen sandbox policy differ')
     if cache['cache_mode'] == 'shared_read_only' and cache['cache_snapshot'] is None:
         raise ContractError('Shared cache requires an immutable snapshot')
     if cache['network_mode'] == 'deny_direct' and cache['allowed_domains']:

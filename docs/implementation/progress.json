@@ -5,9 +5,9 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "72d7fb89d94de437cd21c5549d5423d7ea7629e3",
-  "next_recommended_task": "F31",
-  "current_task": "F28",
+  "actual_repository_head": "e6bda835253425046068cd905db7d819a538b7c5",
+  "next_recommended_task": "F28",
+  "current_task": "F31",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -985,7 +985,7 @@
       "implemented_scope": "Windows10 development acceptance, complete owner traversal, closed FileWorker admission and one shared cleanup task for concurrent/cancelled close waiters; concurrent Bridge cancel/close shares in-flight owner cleanup. Native isolation/initialized-resource cleanup remains incomplete.",
       "current_continuation": {
         "parent_commit": "72d7fb89d94de437cd21c5549d5423d7ea7629e3",
-        "status": "locally_verified_ready_to_upload",
+        "status": "uploaded_hosted_portable_pass",
         "new_behavior_tests": 4,
         "focused_python_tests": 5,
         "focused_node_tests": 12,
@@ -1002,12 +1002,23 @@
         ],
         "local_ci_gate": "pass",
         "reports_recomputed": 5,
-        "observations_ref": "evidence/F28-admission-observations.json"
+        "observations_ref": "evidence/F28-admission-observations.json",
+        "uploaded_commit": "e6bda835253425046068cd905db7d819a538b7c5",
+        "hosted_run_id": 37721608025,
+        "hosted_observations_ref": "evidence/F28-admission-hosted-observations.json",
+        "hosted_workflow_conclusion": "failure",
+        "hosted_portable_status": {
+          "windows-2025": "pass",
+          "ubuntu-22.04": "pass",
+          "ubuntu-24.04": "pass"
+        },
+        "hosted_artifact_recomputation": "pass"
       },
       "artifact_refs": [
         "evidence/F28-close-cleanup-observations.json",
         "evidence/F28-close-hosted-observations.json",
-        "evidence/F28-admission-observations.json"
+        "evidence/F28-admission-observations.json",
+        "evidence/F28-admission-hosted-observations.json"
       ],
       "continuation_history": [
         {
@@ -1225,55 +1236,90 @@
         "20261007T154120Z-2a46ead5",
         "20261007T154135Z-0a1ccbae",
         "20261007T154224Z-82b552ed",
-        "20261007T155239Z-37f6cb63"
+        "20261007T155239Z-37f6cb63",
+        "20261008T031416Z-66663872",
+        "20261008T031420Z-3589611d",
+        "20261008T031433Z-6b39578b",
+        "20261008T031520Z-a5084c35",
+        "20261008T032456Z-b1445ba2",
+        "20261008T033824Z-08482720",
+        "20261008T033826Z-896d9c62"
       ],
       "blocked_reasons": [
-        "Linux Docker daemon unavailable; official execution still needs verified environment/network policy and trusted host authorization/per-request accounting. Human real-model permission is granted, with no monetary ceiling.",
+        "Linux Docker daemon unavailable; actual official environment/network enforcement and trusted host per-request admission/authorization integration remain incomplete. Human real-model permission is granted with no monetary ceiling; the new explicit plan/ledger checks do not grant execution.",
         "Current phase is Windows10; Windows11/Ubuntu native sandbox proof, complete official trace, signing, project LICENSE and dependency security remain blocked.",
         "Formal independent holdout set/scale is unselected; three inspected tasks support exploratory regression only. Actual billing/pricing is unavailable; all monetary costs unknown."
       ],
       "remaining_implementation": [
-        "Official network/policy and actual Docker environment reconciliation, trusted host authorization and per-request ledger integration remain unimplemented/unverified; official live execution stays refused.",
-        "The current preregistration still needs real official environment snapshots and a RunSpec representation for explicitly unbounded monetary authorization; no null snapshot or permission is guessed."
+        "Official Docker environment/network enforcement and trusted host per-request admission/authorization integration remain unimplemented or unverified; live execution stays refused. Durable request accounting attribution checks are implemented but are not that admission gateway.",
+        "The current preregistration still needs actual official source/model/environment/grader snapshots and a trusted authorization binding. The explicit unbounded RunSpec representation is now implemented; no missing snapshot or execution permission is inferred."
       ],
-      "implemented_scope": "In progress: complete resolved-plan checks and repair-only portable plan freezing; real source/staging identity and pre-request model/parameter/prompt/tool-schema binding. Historical Windows controlled A/B remains separate from official Harbor.",
+      "implemented_scope": "Explicit unbounded monetary RunSpec/draft/wizard, repair-only export/import preservation, frozen network-policy consistency, and durable request/usage attribution with late confirmation. Previous frozen-source/model/prompt/schema checks and historical Windows A/B remain.",
       "artifact_refs": [
         "evidence/F31-real-model-observations.json",
         "evidence/F31-prior-hosted-ci-observations.json",
         "evidence/F31-frozen-plan-observations.json",
-        "evidence/F31-binding-hosted-observations.json"
+        "evidence/F31-binding-hosted-observations.json",
+        "evidence/F31-budget-observations.json"
       ],
       "historical_ci_blockers": [
-        "Actual hosted F28 matrix failed on Electron cold-import output, Windows path aliases/PowerShell timeout and security. F32 candidate fixes are not yet hosted-verified."
+        "Earlier hosted browser/import/path failures are retained with their original commits. F28 e6bda835 now passes all three portable platforms; F31 source457c5613 awaits its own uploaded-commit matrix. Actual dependency audit still reports two high entries."
       ],
       "current_continuation": {
-        "parent_commit": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
-        "status": "uploaded_hosted_partial_failure",
-        "new_behavior_tests": 18,
+        "parent_commit": "e6bda835253425046068cd905db7d819a538b7c5",
+        "status": "local_verified_ready_upload",
+        "new_behavior_tests": 16,
+        "focused_tests": 77,
         "model_calls": 0,
         "administrator_setup": false,
-        "artifacts_rebuilt": false,
-        "source_inventory_hash": "92c78581312ad297ca5507e7b739e5ffdf6c2bd72d8ac5340656c203d9aae0db",
+        "installer_rebuilt": false,
+        "source_inventory_hash": "457c5613302dc9db0828fabee9be6fa68d18db9ee36fa4ee39728337d669e07d",
+        "private_verification_ref": ".local/F31-budget-verification.json",
         "final_evidence_ids": [
-          "20261007T154114Z-26ded72b",
-          "20261007T154120Z-2a46ead5",
-          "20261007T154135Z-0a1ccbae",
-          "20261007T154224Z-82b552ed",
-          "20261007T155239Z-37f6cb63"
+          "20261008T031416Z-66663872",
+          "20261008T031420Z-3589611d",
+          "20261008T031433Z-6b39578b",
+          "20261008T031520Z-a5084c35",
+          "20261008T032456Z-b1445ba2",
+          "20261008T033824Z-08482720",
+          "20261008T033826Z-896d9c62"
         ],
         "local_ci_gate": "pass",
-        "reports_recomputed": 5,
-        "observations_ref": "evidence/F31-frozen-plan-observations.json",
-        "uploaded_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
-        "hosted_run_id": 37654014565,
-        "hosted_observations_ref": "evidence/F31-binding-hosted-observations.json"
+        "reports_recomputed": 7,
+        "observations_ref": "evidence/F31-budget-observations.json"
       },
       "current_evidence_ids": [
-        "20261007T154114Z-26ded72b",
-        "20261007T154120Z-2a46ead5",
-        "20261007T154135Z-0a1ccbae",
-        "20261007T154224Z-82b552ed",
-        "20261007T155239Z-37f6cb63"
+        "20261008T031416Z-66663872",
+        "20261008T031420Z-3589611d",
+        "20261008T031433Z-6b39578b",
+        "20261008T031520Z-a5084c35",
+        "20261008T032456Z-b1445ba2",
+        "20261008T033824Z-08482720",
+        "20261008T033826Z-896d9c62"
+      ],
+      "continuation_history": [
+        {
+          "parent_commit": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
+          "status": "uploaded_hosted_partial_failure",
+          "new_behavior_tests": 18,
+          "model_calls": 0,
+          "administrator_setup": false,
+          "artifacts_rebuilt": false,
+          "source_inventory_hash": "92c78581312ad297ca5507e7b739e5ffdf6c2bd72d8ac5340656c203d9aae0db",
+          "final_evidence_ids": [
+            "20261007T154114Z-26ded72b",
+            "20261007T154120Z-2a46ead5",
+            "20261007T154135Z-0a1ccbae",
+            "20261007T154224Z-82b552ed",
+            "20261007T155239Z-37f6cb63"
+          ],
+          "local_ci_gate": "pass",
+          "reports_recomputed": 5,
+          "observations_ref": "evidence/F31-frozen-plan-observations.json",
+          "uploaded_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
+          "hosted_run_id": 37654014565,
+          "hosted_observations_ref": "evidence/F31-binding-hosted-observations.json"
+        }
       ]
     },
     "F32": {
@@ -1413,11 +1459,11 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "F28 close/admission continuation tested at this parent; subsequent commit is discovered with git rev-parse. Source/test/runtime fingerprint is recorded independently.",
+  "head_recorded_scope": "F28 uploaded commit and F31 completed test parent. F31 source457c5613 passes five local suites; native/official checks remain blocked. The subsequent source commit must be checked independently on hosted CI.",
   "gate_notes": {
-    "G1-contracts-engine": "Product source7d77f873 passed contracts2/quality4/unit225/portable400/regression1369. Subsequent workflow-only source5ab31ee4 passes local contracts/quality/unit and actual hosted contracts/quality/unit/portable on all three platforms; historical regression is not relabeled as current-source evidence. F28/F31 mandatory native/official implementation remains incomplete.",
+    "G1-contracts-engine": "Current F31 source457c5613 passes contracts2/quality4/unit226/portable418/regression1388, zero failures/skips. All seven formal reports and a fresh local CI gate are recomputed. F28 e6bda835 independently passed three hosted portable platforms; F31 hosted evidence is pending. Mandatory native/official implementation remains incomplete.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",
-    "G4-evaluation": "Resolved RunSpec/source/model/prompt/tool-schema binding now has current passing offline behavior tests. Official environment/network policy, host accounting and unbounded monetary-budget representation remain incomplete; Linux Docker daemon absent.",
+    "G4-evaluation": "Frozen RunSpec/source/model/prompt/tool-schema binding, explicit unbounded monetary representation, network consistency and durable request attribution have passing offline behavior tests. Official Docker environment/network enforcement and trusted host per-request admission/authorization remain incomplete; Linux Docker daemon absent.",
     "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."
   }
 }

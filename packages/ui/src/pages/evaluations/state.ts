@@ -17,7 +17,9 @@ export function budgetProblem(c:Choices):string|null {
     if(!Number.isSafeInteger(value)||value<1) return '预算必须使用正整数。';
   if(c.trial_wall_seconds<c.attempt_wall_seconds) return 'trial 时间不能小于一次 attempt 的时间。';
   if(c.max_context_tokens<=c.max_output_tokens) return '上下文上限必须大于模型输出上限。';
-  if(!/^(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$/.test(c.spend_ceiling)) return '支出上限需要非负十进制字符串。';
+  if(c.spend_policy==='human_unbounded') {
+    if(c.spend_ceiling!==null) return '无上限政策不能同时指定金额上限。';
+  } else if(c.spend_ceiling===null||c.spend_ceiling.length>32||!/^(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$/.test(c.spend_ceiling)) return '支出上限需要非负十进制字符串。';
   if(c.network_mode==='deny_direct'&&c.allowed_domains.length) return '禁止直连网络时，域名列表应为空。';
   return null;
 }

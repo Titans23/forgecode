@@ -843,6 +843,8 @@ Main 的安全测试至少覆盖：恶意 frame 调 IPC、未知业务方法、o
 | 预算 | 每 trial／attempt 的时间、模型／工具次数、总支出控制方式 |
 | 观测 | event schema、采集模式、定价版本、导出分类 |
 
+金额政策由 `spend_policy` 与 `spend_ceiling` 一起冻结：`human_unbounded` 必须配 `null`，两个有限金额模式必须配规范非负十进制字符串，不能把无上限转换为零或缺失值。该字段表示配置选择，不构成可信人类授权；执行前仍由宿主检查授权和逐请求支出控制。模型／工具次数及 trial／attempt 时间继续要求有限正整数。Python、TypeScript 与预算界面使用相同约束。
+
 `evaluation.validate` 返回任务兼容性与配置 hash；创建使用该配置重新校验，并在一个事务中创建全部 trial。即使没有启动任何 worker，分母也已确定。
 
 UI 四步 wizard：选版本和任务 → 选模型及 Harness → 选兼容目标 → 确认不可变配置和预算。网络、缓存和反馈权限不可隐式继承普通会话状态。
@@ -856,6 +858,8 @@ P0 默认本机单 worker、单活跃 attempt。未来扩并发需要显式资�
 基础设施重试仅允许 RunSpec 预先声明的类别与次数；任务逻辑失败不自动刷到成功。默认选择规则为“最后一个获准 attempt 的结果”，同时报告首次 attempt、全部成本和历史记录，不逐题取最好成绩。更改选择规则创建新报告协议，不改原始记录。
 
 **反馈修复发生在一次 Agent attempt 内，计入预算；独立重复建立新 trial；API 重试建立新 model_request。** 三者不可混为 pass@k。
+
+模型请求的评测身份必须包含完整 run／trial／attempt。结束事件及 usage 确认保留已记录请求的 run、trial、attempt、workspace、session、turn、trace、span 和 provider／requested model 归属；冲突写入整体回滚。合法的迟到 usage 可以确认已结束 attempt 的原请求，仍使用原冻结价格和原归属。此账本一致性校验不替代可信宿主在实际模型请求之前的授权准入。
 
 ### 17.3 官方 Runner 适配
 

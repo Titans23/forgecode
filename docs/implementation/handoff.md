@@ -4,30 +4,32 @@
 
 ## 当前工作
 
-用户要求继续 F28/F31，先完成当前环境的代码和回归；外部资源缺失记 blocked，继续独立工作。当前分支 `codex/forgecode-v4`，本轮测试父 HEAD `72d7fb89d94de437cd21c5549d5423d7ea7629e3`；提交后的真实 HEAD 以 git 为准。
+用户要求继续 F28/F31，先完成当前环境的代码和回归；外部资源缺失记 blocked，继续独立工作。当前分支 `codex/forgecode-v4`，F31测试父HEAD为 `e6bda835253425046068cd905db7d819a538b7c5`；提交后的真实HEAD以git为准。
 
-F28 本轮关闭边界修复已完成五套件，工具 session12713 已退出0，无待等待验证进程。source `9c0b2502127d0996af6a609bccea9d47cdd707908cc1a230ff1e8cb32185e490`：contracts2、quality4、unit225、portable403、regression1372全部pass，0skip/failure/error；5份报告复算和fresh本机CIgate通过。证据 `evidence/F28-admission-observations.json`，完整ID见progress F28.current_evidence_ids。本轮未重建安装包、未新增模型请求、未做本机管理员操作。
+F28本轮修复FileWorker关闭边界和Bridge并发取消/关闭重复清理。4项新增行为先失败后通过，实际helper组5/5、Bridge组12/12；Node owner替身只证明串行化。source9c0b2502下contracts2/quality4/unit225/portable403/regression1372全pass，五份报告与fresh本机CIgate复算通过。证据 `evidence/F28-admission-observations.json`。
 
-接下来先精确提交/推送 F28，然后应用私有 F31 准备补丁 `.local/F31-budget-implementation.patch`。私有 `test_f31_budget_binding.py` 的15项真实SQLite/契约/导入导出行为已复现；`test_f31_budget_ui.py` 的实际React控件测试也已复现。准备文件尚不是已合入实现。将测试接入真实 tests 后生成contracts、重建Bridge/Desktop，并运行 `.local/F31-budget-verify.py`。本轮F310真实模型/管理员调用。
+F31已完成本轮代码和回归：显式human_unbounded/null金额配置、实际wizard选择、冻结网络策略一致性、持久请求/用量归属校验及合法迟到usage。16项新增行为先失败，修复后77项定向回归通过。实际contracts/Bridge/Desktop重建后冻结source `457c5613302dc9db0828fabee9be6fa68d18db9ee36fa4ee39728337d669e07d`：contracts2/quality4/unit226/portable418/regression1388全pass，0skip/failure/error。live-eval检查blocked，acceptance110映射有效/156平台证明blocked；七份正式报告及fresh本机CIgate复算通过。证据 `evidence/F31-budget-observations.json`，完整ID见progress。工具session1718已退出0，无待等待本机测试进程；私有finalizer已成功。
+
+下一步精确提交上传F31，再取回新commit的实际hosted日志/artifact/JUnit复算。F28已上传e6bda835。当前dirty包含本轮F31源码/测试/生成资源/文档及新F28 hosted观察；只提交本轮明确拥有的文件。
 
 ## 最近的 hosted 证据
 
-实际 GitHub run37716477000（12cc51d）：Ubuntu22.04、Ubuntu24.04、Windows2025各contracts2/quality4/unit225/portable400通过，0skip/failure/error；三个fresh CI gate和浏览器用例通过。安全audit仍2high/exit2，整体workflow failure。该结果不属于新的F28关闭边界源码。索引 `evidence/F29-electron-sandbox-hosted-observations.json`。
+F28 e6bda835的实际run37721608025已完成：Ubuntu22.04/24.04、Windows2025各contracts2/quality4/unit225/portable403通过，0skip/failure/error，三个freshCIgate通过。四artifact/四日志/六JUnit和当前security报告均已复算。安全audit仍2high/exit2，整体workflow failure。公开索引 `evidence/F28-admission-hosted-observations.json`。F31本轮尚无自身hosted结果，不用F28结果替代。
 
 ## 授权与保护
 
 - 已授权测试过的开发版本上传、现有配置真实模型及金额无上限；费用未知保留unknown，请求/工具/时间仍有限。
 - 唯一管理员设置例外：Titans23/forgecode、codex/forgecode-v4分支push、GitHub临时Ubuntu24.04 runner、锁定Electron helper的root:root/4755。记录 `evidence/human-authorization-ci-20261008.json`。本机/原生SRT setup未授权。
-- 原始模型两批10attempt/83请求及全部失败保留，不挑选重跑。历史完整批次A3/3、B2/3，不是正式Harbor/native证明。
+- 本轮F28/F31均0新增模型请求、0本机管理员操作、未重建安装包。历史模型两批10attempt/83请求及失败保留，完整批次A3/3、B2/3不是正式Harbor/native证明。
 - 保留用户 `.forge`、无关未跟踪文件、旧四份10:33 evidence。侧聊只清理已完成且无引用的旧pytest tmp；不改源码或当前测试产物。
 
-## 剩余门禁
+## 剩余门禁与资源
 
 F28/F31均in_progress。F28仍缺原生verified promotion、完整初始化SRT/helper/listener清理及动态敏感路径一致性。锁定上游reset会记录并吞掉部分清理错误，不能凭resolved Promise宣布clean。
 
-F31下一小步补齐显式无上限金额表示、冻结网络一致性和账本归属校验；正式Docker环境/网络隔离与可信宿主逐请求准入/授权仍未完成，不以账本校验冒称执行授权。
+F31正式Docker环境/网络隔离与可信宿主逐请求准入/授权仍未完成；账本归属校验不建立该执行权限。预注册仍需实际官方source/model/environment/grader快照，正式独立holdout任务和规模待选择，已有模型授权不重复申请。
 
-Windows11 x64工作站、Ubuntu22/24 x64 X11/Wayland原生设备和Linux Docker daemon缺失；签名/LICENSE、2项high依赖和metadata额外开销5.2103%>5%仍受阻。新原生管理员动作需具体申请。
+具体环境资源：可连接且server OS为linux的Docker daemon；Windows11 x64工作站；Ubuntu22.04/24.04 x64 X11/Wayland原生图形设备。目标设备可用后再列出具体管理员setup命令和权限范围。签名/LICENSE、2项high依赖和metadata额外开销5.2103%>5%仍受阻。
 
 ## 恢复读取
 

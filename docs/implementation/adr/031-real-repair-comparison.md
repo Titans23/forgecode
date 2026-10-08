@@ -7,3 +7,7 @@
 只有repair cap0/2允许不同；离线bundle复算校验全部snapshot/hash、计划分母、最后获准attempt及原始requests，禁止best-of，缺grade不生成区间。完整真实批次A3/3、B2/3，无收益声明；统计以三个task cluster探索性报告，费用没有账单／价格来源时unknown。
 
 首批因为客户端资源清单在实验中刷新而source_changed，真实4attempt／33请求保留；另起冻结完整6attempt／50请求，不挑选最好结果。跟踪原始证据摘要与安全索引，源码／资源先构建再冻结，之后仅运行只读核对和验证。
+
+RunSpec与draft共同支持`spend_policy=human_unbounded`、`spend_ceiling=null`，有限金额模式保留规范十进制字符串。不能通过省略金额或填零表达无上限，也不能通过导入该政策获得执行权；时间和次数仍有限。实际wizard显式选择政策并同步金额字段，共享生成的Python/TypeScript契约约束冲突组合。
+
+网络配置即使重新计算hash，也必须与冻结sandbox policy的mode/domain列表一致；这只建立配置一致性，不建立Docker网络隔离证明。账本使用已记录request的归属校验结束事件和迟到usage，拒绝跨run/attempt/trace或provider/model的冲突；事务回滚保留unknown，合法迟到确认仍计入原attempt。该改动没有实现Harbor的可信宿主逐请求准入，正式执行仍等待该集成及真实Docker环境验证。

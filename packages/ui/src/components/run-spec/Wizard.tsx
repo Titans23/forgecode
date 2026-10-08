@@ -45,9 +45,15 @@ export function WizardStep({step,choices:c,spec,connections,change,check,create,
       {number('max_infrastructure_attempts','最多基础设施尝试（含首次）',1,10)}
       <fieldset><legend>预先允许的基础设施重试类别</legend>{(['runner_unavailable','runner_crash','environment_setup','provider_unavailable','grader_infrastructure'] as const).map(v=><label key={v}>
         <input type="checkbox" checked={c.infrastructure_retry_categories.includes(v)} disabled={busy} onChange={e=>change({infrastructure_retry_categories:e.target.checked?[...c.infrastructure_retry_categories,v]:c.infrastructure_retry_categories.filter(k=>k!==v)})}/>{v}</label>)}</fieldset>
-      <label>总支出上限（USD）<input value={c.spend_ceiling} disabled={busy} onChange={e=>change({spend_ceiling:e.target.value})}/></label>
+      <label>支出控制方式<select value={c.spend_policy} disabled={busy} onChange={e=>{
+        const policy=e.target.value as Choices['spend_policy'];
+        change({spend_policy:policy,spend_ceiling:policy==='human_unbounded'?null:c.spend_ceiling??'0'});
+      }}><option value="unknown_usage_stop_next_request">有限金额，未知费用停止下一请求</option>
+        <option value="preauthorization_with_reservation">有限金额，每次请求预留预算</option>
+        <option value="human_unbounded">金额无上限（须单独授权）</option></select></label>
+      {c.spend_policy!=='human_unbounded'&&<label>总支出上限（USD）<input value={c.spend_ceiling??''} disabled={busy} onChange={e=>change({spend_ceiling:e.target.value})}/></label>}
       <p>计划 {c.task_ids.length*c.repeats} 个 trial，最多 {c.task_ids.length*c.repeats*c.max_infrastructure_attempts} 次 attempt。修复共享父预算；重试保留全部费用与首次结果。</p>
-      <p>结果选择：最后一个获准 attempt。未知费用将停止下一请求；真实 API 执行另需预算授权与支出控制就绪。</p>
+      <p>结果选择：最后一个获准 attempt。{c.spend_policy==='human_unbounded'?'金额无上限，未知费用仍记为未知；':c.spend_policy==='preauthorization_with_reservation'?'每次请求须先预留预算；':'未知费用将停止下一请求；'}真实 API 执行另需预算授权与支出控制就绪。</p>
       {budgetProblem(c)&&<p role="alert" className="notice">{budgetProblem(c)}</p>}
       <button disabled={busy||!!budgetProblem(c)} onClick={check}>检查兼容性与预算</button>
       {draft&&<p>配置 hash：<code>{draft.spec_hash}</code> · {draft.configuration_origin} · planned {draft.planned_trials}</p>}

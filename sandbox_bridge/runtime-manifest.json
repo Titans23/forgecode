@@ -5627,19 +5627,19 @@
     },
     {
       "path": "packages/contracts/dist/generated/browser_validators.js",
-      "sha256": "47ce1e0326e59de957a8d5651ad0b9d673d4d26cc8c904fa028794a83c9232f1"
+      "sha256": "be5e656a287c61831ea06905ea9ffd578694b2efcfc65e57b2f27ed6806c516e"
     },
     {
       "path": "packages/contracts/dist/generated/schemas.json",
-      "sha256": "7a228aced7d3ac14354abadcbd454913c4b3d4bcc1f1ed61af994ef91ed14f45"
+      "sha256": "0d4487333e1278545531b1c27c6756b2aae369de1c47dbff8a13ff04c17787c9"
     },
     {
       "path": "packages/contracts/dist/generated/types.d.ts",
-      "sha256": "b7c7dfb29a6594fe5c57981f8565415189ed96539e10dc22a398a8a450f1e5fb"
+      "sha256": "0fdfe1542b939f29b5ec94faf7db05353f8121dfb05e38463d6036103c9052c1"
     },
     {
       "path": "packages/contracts/dist/generated/types.js",
-      "sha256": "33122b40879b35e6720f4d301af040930f410dfd0a431d9e0c7a4cdda583729f"
+      "sha256": "6b777a631250cccd0405a8277291a0b9ad41cf80a4acb2ac2d6483743bce7d0a"
     },
     {
       "path": "packages/contracts/dist/index.d.ts",
