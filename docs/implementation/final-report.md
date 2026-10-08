@@ -22,7 +22,9 @@
 
 ## 已完成的测试与实测
 
-F28已上传231532f，实际run37714511897：Ubuntu22.04/Windows2025各unit225、portable400通过；Ubuntu24.04 unit225、portable399通过/1失败，security两项high失败。新诊断确认Chromium退出-5，要求实际SUID helper为root所有、mode4755；四ZIP/四日志/六JUnit复算见[F28-close-hosted-observations.json](evidence/F28-close-hosted-observations.json)。用户已批准限定本仓库开发分支push/GitHub临时Ubuntu24 runner的helper设置，补丁已应用，新的hosted结果待上传验证；授权范围见[CI授权记录](evidence/human-authorization-ci-20261008.json)。
+F29的限定CI修正已上传12cc51d，实际run37716477000：Ubuntu22.04/Ubuntu24.04/Windows2025各contracts2、quality4、unit225、portable400通过，0skip/failure/error，三个freshCIgate和浏览器用例通过。用户批准的helper设置仅在本仓库开发分支push/GitHub临时Ubuntu24 runner执行成功，其余runner未执行；[CI授权记录](evidence/human-authorization-ci-20261008.json)和[实际hosted复算](evidence/F29-electron-sandbox-hosted-observations.json)均保留。安全审计仍两项high，整体workflow为failure。最终跟进提交只保存文档/证据，产品/工作流源码指纹不变，不声称新CI运行。
+
+修正前F28提交231532f的实际run37714511897：Ubuntu22.04/Windows2025各unit225、portable400通过；Ubuntu24.04 unit225、portable399通过/1失败。新诊断确认Chromium退出-5，要求实际SUID helper为root所有、mode4755；原失败的四ZIP/四日志/六JUnit复算见[F28-close-hosted-observations.json](evidence/F28-close-hosted-observations.json)，不删除历史失败。
 
 F28关闭路径续作最终通过：source7d77f873，contracts2、quality4、unit225、portable400、regression1369，零skip/failure/error，fresh本机CIgatepass。新增3个Node行为（1真实宿主子进程、2控制流替身）先全部失败、修正后通过；另6项真实Bridge/浏览器专项通过。5份当前报告和3份中断前完整报告复算，原中断portable无JUnit不计通过；详见[F28-close-cleanup-observations.json](evidence/F28-close-cleanup-observations.json)。初始化后的完整SRT资源仍不能声明clean，F28/F31保持in_progress；没有重建安装包或新增真实模型/管理员操作。
 

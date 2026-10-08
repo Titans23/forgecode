@@ -168,7 +168,8 @@
     "scope": "Only the repository's codex/forgecode-v4 push on the ephemeral GitHub Ubuntu24.04 runner; set the locked Electron helper owner/mode, without disabling the sandbox.",
     "proposal_validation": "git apply --check passed before authorization; the exact scoped workflow patch was applied after the human approved it.",
     "authorization_ref": "evidence/human-authorization-ci-20261008.json",
-    "execution_status": "Awaiting the new hosted run; no local privileged operation performed."
+    "execution_status": "Completed successfully only in the authorized Ubuntu24 job of run37716477000 at commit12cc51d; no local privileged operation performed.",
+    "execution_observations_ref": "evidence/F29-electron-sandbox-hosted-observations.json"
   },
   "model_calls": 0,
   "eligible_for_native_pass": false,

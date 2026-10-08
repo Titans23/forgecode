@@ -5,9 +5,9 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "231532fe39d1dc1219fe52c6d8409f2277117df6",
+  "actual_repository_head": "12cc51d5d9e22cb7c70d972612186893ca34fd87",
   "next_recommended_task": "F28",
-  "current_task": "F29",
+  "current_task": "F28",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -1024,7 +1024,8 @@
         "native_ci": "blocked",
         "github_hosted_matrix": "fail",
         "protected_runner_policy": "blocked",
-        "live_model": "blocked"
+        "live_model": "blocked",
+        "github_hosted_portable_matrix": "pass"
       },
       "evidence_ids": [
         "20261007T091102Z-09daf086",
@@ -1056,8 +1057,8 @@
         "20261008T020451Z-020a233d"
       ],
       "blocked_reasons": [
-        "Actual run37714511897: Ubuntu22.04 and Windows2025 unit225/portable400 pass; Ubuntu24.04 has one Chromium SUID-helper failure (exit-5). The scoped CI-only setup is now explicitly authorized and patched; new hosted execution is pending.",
-        "Security still has two high dependency entries. Native/signing/LICENSE and protected runner configuration remain independently blocked; the CI-only authorization does not authorize local/native SRT setup."
+        "Actual run37716477000 passes all three hosted portable jobs with contracts2/quality4/unit225/portable400 and fresh gates per platform. Independent dependency-security retains two high entries, so the overall workflow remains failure.",
+        "Native/signing/LICENSE and protected runner configuration remain independently blocked; the CI-only authorization does not authorize local/native SRT setup."
       ],
       "historical_blocked_reasons": [
         "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
@@ -1106,7 +1107,7 @@
       "current_continuation": {
         "scope": "Human-authorized Electron SUID helper configuration in the trusted GitHub Ubuntu24 portable job",
         "parent_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
-        "status": "local_checks_pass_upload_pending",
+        "status": "completed_portable_pass_security_blocked",
         "source_inventory_hash": "5ab31ee4128b58dbca02937aca4bd1f2dfda08fe6d9abdfbc9e7780be48c4382",
         "authorization_ref": "evidence/human-authorization-ci-20261008.json",
         "observations_ref": "evidence/F29-electron-sandbox-setup-observations.json",
@@ -1118,7 +1119,7 @@
         "focused_tests": 15,
         "model_calls": 0,
         "local_administrator_setup": false,
-        "hosted_administrator_setup": "Authorized only for the four exact workflow conditions; awaiting actual hosted execution",
+        "hosted_administrator_setup": "Verified successful only in the authorized GitHub Ubuntu24 push job; skipped on Ubuntu22 and Windows",
         "fresh_local_ci_gate": "not_run_workflow_only_change",
         "prior_regression": {
           "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
@@ -1126,7 +1127,12 @@
           "collected": 1369,
           "status": "pass",
           "scope": "Previous product source before this workflow-only change; preserved historical scope"
-        }
+        },
+        "uploaded_commit": "12cc51d5d9e22cb7c70d972612186893ca34fd87",
+        "hosted_run_id": 37716477000,
+        "hosted_observations_ref": "evidence/F29-electron-sandbox-hosted-observations.json",
+        "hosted_portable_matrix": "pass",
+        "overall_workflow": "failure_dependency_security"
       }
     },
     "F30": {
@@ -1378,9 +1384,9 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "F28 code commit231532f is uploaded; actual hosted run37714511897 confirms the Ubuntu24 SUID-helper failure. The human-authorized workflow-only correction on source5ab31ee4 passed local CI-policy/contracts/quality/unit checks; new hosted validation is pending upload. Historical full regression remains bound to source7d77f873.",
+  "head_recorded_scope": "Workflow commit12cc51d is uploaded and verified by actual run37716477000. Three hosted portable jobs pass; dependency-security still fails with two high entries. The final follow-up commit records evidence/documentation only, preserves source5ab31ee4 and does not establish a new CI run or native/full-regression proof.",
   "gate_notes": {
-    "G1-contracts-engine": "Current source7d77f873 passes contracts2/quality4/unit225/portable400/regression1369, zero required skips/failures; F28/F31 mandatory native/official implementation remains incomplete.",
+    "G1-contracts-engine": "Product source7d77f873 passed contracts2/quality4/unit225/portable400/regression1369. Subsequent workflow-only source5ab31ee4 passes local contracts/quality/unit and actual hosted contracts/quality/unit/portable on all three platforms; historical regression is not relabeled as current-source evidence. F28/F31 mandatory native/official implementation remains incomplete.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",
     "G4-evaluation": "Resolved RunSpec/source/model/prompt/tool-schema binding now has current passing offline behavior tests. Official environment/network policy, host accounting and unbounded monetary-budget representation remain incomplete; Linux Docker daemon absent.",
     "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."

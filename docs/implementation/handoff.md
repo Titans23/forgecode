@@ -1,10 +1,14 @@
-# ForgeCode V4 交接 — 2026-10-07
+# ForgeCode V4 交接 — 2026-10-08
 
 ## 当前续作（2026-10-08，Asia/Shanghai）
 
-F28提交231532fe39d1dc1219fe52c6d8409f2277117df6已正常推送并核对远端。实际run37714511897已结束：Ubuntu22.04/Windows2025各unit225、portable400通过；Ubuntu24.04 unit225通过、portable399通过/1失败。新增浏览器诊断确认退出-5，Chromium要求锁定Electron的chrome-sandbox为root所有、mode4755。security仍2high；四artifact、四job日志、六JUnit已下载并复算，公开索引F28-close-hosted-observations.json。
+最新工作流提交12cc51d5d9e22cb7c70d972612186893ca34fd87已正常推送并核对远端。实际run37716477000已完成：Ubuntu22.04、Ubuntu24.04、Windows2025分别contracts2/quality4/unit225/portable400通过，0skip/failure/error，三个freshCIgate与真实浏览器用例均通过。四artifact、四job日志、六JUnit及JSON检查已取回复算，公开索引F29-electron-sandbox-hosted-observations.json。独立安全审计仍为2high/exit2，整体workflow为failure。
 
-人类已明确回复“允许，仅限上述CI”：唯一管理员设置例外是本仓库codex/forgecode-v4分支push触发的GitHub临时Ubuntu24.04 runner，将锁定Electron helper设置为root:root/4755。补丁已按此四项条件应用，授权证据human-authorization-ci-20261008.json。没有执行本机管理员操作；原生SRT/系统setup仍未授权。F29本机15项CI策略回归、contracts2、quality4、unit225已全部通过，报告hash/count复算一致，0skip/failure/error；下一精确stage/commit/push并等待实际hosted结果。本轮只改变工作流，产品代码保持231532f，上一轮source7d77f873全量regression1369保留原scope，不能冒称新workflow源码指纹的fresh全量证据。
+人类已明确回复“允许，仅限上述CI”：唯一管理员设置例外是本仓库codex/forgecode-v4分支push触发的GitHub临时Ubuntu24.04 runner，将锁定Electron helper设置为root:root/4755。实际job/API证明该步骤只在获批Ubuntu24执行成功，其他两个job跳过设置；每个测试套件本身均0skip。授权记录human-authorization-ci-20261008.json。本机/原生SRT/系统setup仍未授权，本轮0本机管理员操作、0模型请求。
+
+source5ab31ee4的本机15项CI专项、contracts2、quality4、unit225也已全部通过。工作流之外产品代码保持231532f；上一轮source7d77f873的全量regression1369保留原scope，不转为新源码指纹的fresh全量证据。F28原失败run37714511897保留了真实SUID配置诊断、四artifact/四log/六JUnit；F29已修复该CI问题。最终后续提交只保存证据/文档，使用[skip ci]避免为记录同一结果再启动一轮；不声称该文档提交取得新CI通过。
+
+当前没有未结束的验证/模型工具会话。下一核心任务仍为F28完整初始化SRT资源清理、原生verified promotion和动态敏感路径一致性，以及F31正式环境/网络策略/可信逐请求账本绑定；F28/F31保持in_progress。Windows11/Ubuntu原生证明、Docker daemon、签名/LICENSE、安全依赖与性能目标仍有缺口。现有模型授权/金额无上限保持，不重跑既有成绩；无关未跟踪文件和旧四份证据继续保留。
 
 ### 前段续作记录（当前状态以上文为准）
 

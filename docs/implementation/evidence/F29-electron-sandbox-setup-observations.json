@@ -70,7 +70,7 @@
     }
   ],
   "report_recomputation": "All three formal report hashes and actual JSON/JUnit counts plus the focused JUnit counts were independently recomputed.",
-  "verification_scope": "This revision changes only the CI workflow and documentation. Local CI policy regression, contracts, quality and unit pass. The real browser behavior fix must pass in hosted Ubuntu24; no local sudo operation, native sandbox qualification, current full regression or fresh local CI gate is claimed.",
+  "verification_scope": "This revision changes only the CI workflow and documentation. Local CI policy regression, contracts, quality and unit pass; the real browser behavior passes in all three hosted jobs. The GitHub Ubuntu24 runner performed the authorized helper setup. No local sudo operation, native sandbox qualification, current full regression or fresh local CI gate is claimed.",
   "previous_full_regression": {
     "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
     "evidence_id": "20261008T012857Z-c6dfbf8f",
@@ -78,8 +78,12 @@
     "status": "pass",
     "scope": "Previous product source before this workflow-only change; preserved historical scope"
   },
-  "hosted_status": "pending_upload",
+  "hosted_status": "completed_portable_pass_security_blocked",
   "model_calls": 0,
   "local_privileged_operations": 0,
-  "native_pass": false
+  "native_pass": false,
+  "uploaded_commit": "12cc51d5d9e22cb7c70d972612186893ca34fd87",
+  "hosted_run_id": 37716477000,
+  "hosted_observations_ref": "evidence/F29-electron-sandbox-hosted-observations.json",
+  "hosted_summary": "Three hosted platforms each pass contracts2/quality4/unit225/portable400, zero failures/errors/skips, with fresh CI gates. All three actual browser cases pass. SUID helper setup executed only in the authorized Ubuntu24 push job. The overall workflow still fails because the actual audit has two high entries."
 }

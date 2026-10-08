@@ -10,6 +10,8 @@ F29 保留真实 Python Harness／CLI。所有检查调用当前源码与固定�
 
 quality 包括真实 Python AST 语法、全工作区 TypeScript、Node 行为测试、contracts 漂移、npm 精确版本与 release lock hash、任务依赖 DAG、任务卡／章节／case 测试引用以及高确定性 secret 模式扫描。扫描只输出路径、行号和种类。模式扫描通过并不表示已穷举所有秘密格式。`npm run lint` 可独立运行离线检查。
 
+限定设置已随 `12cc51d` 上传并实测：run37716477000 的三个 portable job 均通过 contracts2/quality4/unit225/portable400，零测试跳过/失败/错误；原 Ubuntu24 浏览器用例通过。设置步骤仅在获批 job 执行成功。独立 audit 仍有 2high，整体 workflow 仍 failure；原始报告及执行范围复算见 [F29-electron-sandbox-hosted-observations.json](evidence/F29-electron-sandbox-hosted-observations.json)。
+
 `native-manual.yml` 仅允许仓库 `Titans23/forgecode` 的 `main` 分支手动 dispatch。native／packaged 分开，使用已准备的 Windows 11、Ubuntu 22.04／24.04 X11／Wayland 专用 self-hosted runner 与命名 environment；运行入口再次检查事件、仓库和 ref。token 为 contents-read，checkout 不保留 Git 凭据；不可信 fork PR 只能进入 hosted portable 路径。workflow 未配置模型 API 或签名 secrets，也没有系统自动修复。命名 environment 本身不是 server-side protection 的证明：required reviewers、branch policy 和专用 runner 实际配置目前未核验，原生运行保持 blocked。
 
 `impl.py gate --name implementation` 使用每个 task／suite／platform 的最新真实证据，保留历史失败；最新失败不能被旧通过遮蔽。F29 完成后还要求当前源码有 contracts／quality／unit／portable／regression 的通过证据。`--name release` 另外核对 required case／platform evidence，拒绝用开发 smoke 替代原生资格，并要求实际安全审计、production 签名核验、项目 LICENSE。未完成任务返回 fail；资源缺失与安全问题返回 blocked，均为非零。
