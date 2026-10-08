@@ -22,6 +22,10 @@
 
 ## 已完成的测试与实测
 
+F28关闭路径续作最终通过：source7d77f873，contracts2、quality4、unit225、portable400、regression1369，零skip/failure/error，fresh本机CIgatepass。新增3个Node行为（1真实宿主子进程、2控制流替身）先全部失败、修正后通过；另6项真实Bridge/浏览器专项通过。5份当前报告和3份中断前完整报告复算，原中断portable无JUnit不计通过；详见[F28-close-cleanup-observations.json](evidence/F28-close-cleanup-observations.json)。初始化后的完整SRT资源仍不能声明clean，F28/F31保持in_progress；没有重建安装包或新增真实模型/管理员操作。
+
+最新已上传F31提交9ac93b0的真实run37654014565：Ubuntu22.04与Windows2025各unit225/portable400通过；Ubuntu24.04 unit225通过、portable399通过/1浏览器report缺失失败，security失败。公开索引[F31-binding-hosted-observations.json](evidence/F31-binding-hosted-observations.json)保留四平台作业的实际日志/包摘要；workflow未通过。F28当前正在继续修复关闭时遗漏终态执行资源的代码问题，正式原生清理证明仍缺失。
+
 2026-10-08续作：F31新增18项行为，统一resolved RunSpec语义校验、离线A/B freeze、实际源码/暂存校验和首请求前model/参数/prompt/tool-schema绑定。父HEAD3a51097、source92c78581312ad297ca5507e7b739e5ffdf6c2bd72d8ac5340656c203d9aae0db，contracts2／quality4／unit225／portable400／regression1369全pass，零skip/failure/error，五份报告复算与fresh本机CIgate通过。本轮0新增模型请求，未重建安装包；正式环境/网络策略、可信宿主逐请求账本与无上限预算执行表示仍有缺口，F31保持in_progress。详见[F31-frozen-plan-observations.json](evidence/F31-frozen-plan-observations.json)。
 
 前次F32修正已随3a51097正常上传并核对。实际run37642586381首次startup_failure；单次官方rerun的attempt2有Ubuntu22.04与Windows2025 portable通过，Ubuntu24.04一个浏览器report缺失失败，security两项high失败。完整artifact/JUnit/log摘要见[F32-remediation-hosted-observations.json](evidence/F32-remediation-hosted-observations.json)。以下旧段落的“待上传/正在执行”只描述对应历史阶段，不是当前状态。

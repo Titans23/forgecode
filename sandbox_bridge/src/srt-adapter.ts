@@ -268,7 +268,7 @@ export class SrtAdapter {
     if (e.cancellation) return structuredClone(e.cancellation);
     e.abort.abort();
     clearTimeout(e.timer);
-    if (e.child && e.state === 'running') {
+    if (e.child && e.child.exitCode === null && e.child.signalCode === null) {
       // Only a still-owned ChildProcess and its anchored process group are signalled.
       try {
         if (process.platform === 'linux' && e.child.pid && e.child.exitCode === null) process.kill(-e.child.pid, 'SIGTERM');
@@ -278,7 +278,7 @@ export class SrtAdapter {
       let timer!: NodeJS.Timeout;
       await Promise.race([e.done, new Promise<void>(r => { timer = setTimeout(r, timeout); })]);
       clearTimeout(timer);
-      if (e.child.exitCode === null) {
+      if (e.child.exitCode === null && e.child.signalCode === null) {
         try { e.child.kill('SIGKILL'); } catch { /* Remains unknown until native descendant verification. */ }
       }
     }
@@ -298,13 +298,18 @@ export class SrtAdapter {
     if (this.closing) return structuredClone(await this.closing);
     this.closing = (async () => {
       if (this.preparing) await this.preparing.catch(() => undefined);
-      for (const [id, e] of this.executions.values) if (e.state === 'running' || e.state === 'accepted') {
-        await this.cancel({ execution_id: id, reason: 'session-close', deadline_utc: new Date(Date.now() + 3000).toISOString() });
+      let cleanupFailed = false;
+      // A finished wrapper can leave descendants; an indeterminate launch can
+      // still own a live child. Visit every owner, even after one cleanup fails.
+      for (const id of this.executions.values.keys()) {
+        try { await this.cancel({ execution_id: id, reason: 'session-close', deadline_utc: new Date(Date.now() + 3000).toISOString() }); }
+        catch { cleanupFailed = true; }
       }
       for (const e of this.executions.values.values()) e.linuxOwner?.stop();
       if (this.initialized) {
-        try { await SandboxManager.reset(); } catch { throw new ContractError('SRT reset failed; cleanup is unknown', 'CLEANUP_FAILED', -32010); }
+        try { await SandboxManager.reset(); } catch { cleanupFailed = true; }
       }
+      if (cleanupFailed) throw new ContractError('Session cleanup failed; remaining resources are unknown', 'CLEANUP_FAILED', -32010);
       // Upstream reset is best effort. Only a never-initialized/never-launched session can be asserted clean here.
       return this.cleanup(this.owner, !this.initialized && !this.launchAttempted);
     })();

@@ -5675,7 +5675,7 @@
     },
     {
       "path": "sandbox_bridge/dist/srt-adapter.js",
-      "sha256": "6285bb86738b6014aea7bce02bdd102e5656b1e437e51671b1788e27b0c717b1"
+      "sha256": "ea8df47427ae922b05d44632913100005e35c672e16df75f7536fe33337f6c3b"
     },
     {
       "path": "sandbox_bridge/dist/verify-linux.js",

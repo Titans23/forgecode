@@ -99,7 +99,10 @@ def test_actual_browser_login_csp_and_shared_ui_execute_the_scripted_task(tmp_pa
             try:stdout,stderr=await asyncio.wait_for(child.communicate(payload.encode()),65)
             finally:
                 if child.returncode is None:child.kill();await child.wait()
-            report=json.loads((tmp_path/'http-browser-report.json').read_text())
+            report_path=tmp_path/'http-browser-report.json'
+            assert report_path.is_file(), (f'Electron browser produced no report (exit={child.returncode}): '
+                +stderr.decode('utf-8',errors='replace')[-8000:])
+            report=json.loads(report_path.read_text())
             assert child.returncode==0 and report['status']=='pass',json.dumps(report)+stderr.decode()
             assert report['rendered_result'] and report['csp_eval_violations']==0
             assert len(clients[0].calls)==2 and (tmp_path/'http-browser.png').is_file()

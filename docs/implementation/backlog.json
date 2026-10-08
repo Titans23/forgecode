@@ -1591,7 +1591,7 @@
         "security"
       ],
       "non_goals": "不要扩大到本任务未声明的 P1 范围。",
-      "implementation_status": "implemented",
+      "implementation_status": "in_progress",
       "evidence_ids": [
         "20261007T103717Z-676f1bad",
         "20261007T111308Z-47ed56ff",
@@ -1637,10 +1637,22 @@
         "20261007T122057Z-9dbacf36",
         "20261007T122029Z-b3dc3704",
         "20261007T122019Z-9e16aa46",
-        "20261007T123505Z-c2af5541"
+        "20261007T123505Z-c2af5541",
+        "20261007T164621Z-6976811f",
+        "20261007T164628Z-75fcdc2b",
+        "20261007T164653Z-7fcc9efa",
+        "20261008T011752Z-765e3b92",
+        "20261008T011759Z-355b65b0",
+        "20261008T011817Z-66e79502",
+        "20261008T011906Z-3fad7eb6",
+        "20261008T012857Z-c6dfbf8f"
       ],
       "case_ids": [
         "N20"
+      ],
+      "remaining_implementation": [
+        "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
+        "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
       ]
     },
     {

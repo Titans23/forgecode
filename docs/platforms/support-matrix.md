@@ -8,7 +8,7 @@
 | Windows 11 x64 客户端 | 已有 Windows adapter、Main 入口与 setup broker；实际平台判断排除 Server | blocked：没有干净 VM／设备与 setup 授权 |
 | Ubuntu 22.04 x64 X11／Wayland | Linux adapter、deb 构建基线约束、受控 Bridge/FileWorker 与打包入口 | blocked：没有专用原生／图形验收设备 |
 | Ubuntu 24.04 x64 X11／Wayland | 同上；Linux 包必须在较老 Ubuntu 22.04 构建 | blocked：没有专用原生／图形验收设备 |
-| GitHub Ubuntu 22.04／24.04、Windows Server2025 portable jobs | 已上传3a51097；实际run37642586381 attempt2：Ubuntu22.04/Windows2025各unit225、portable382通过，Ubuntu24.04 unit225通过、portable381通过/1浏览器report缺失失败；security继续2high。初次startup_failure及全部重跑artifact/log保留 | hosted portable CI不建立原生产品能力；当前workflow仍failure |
+| GitHub Ubuntu 22.04／24.04、Windows Server2025 portable jobs | 已上传9ac93b0；实际run37654014565：Ubuntu22.04/Windows2025各unit225、portable400通过，Ubuntu24.04 unit225通过、portable399通过/1浏览器report缺失失败；security继续失败。前次3a51097 startup_failure及重跑结果也保留 | hosted portable CI不建立原生产品能力；当前workflow仍failure |
 | macOS／Windows Server／WSL | 无产品支持声明；Server 不满足 Windows 11 workstation 判定 | unsupported |
 
 每个 strict turn 现在创建独立实际 SRT Bridge 和 FileWorker，配置／prepared policy hash 必须一致，准备成功才创建模型。准备失败记录真实 owner-bound cleanup，不自动改用 local-trusted。当前 capability verification 尚不提供可提升为 verified 的完整原生证明，初始化后的边界／后代清理也未完成原生验收，因此 strict 执行继续拒绝。此处既有环境限制，也有尚待原生实现验证的代码限制，不能称为已可用原生沙盒。

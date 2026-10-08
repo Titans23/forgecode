@@ -1,0 +1,170 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F28",
+  "scope": "Bridge session-close ownership cleanup and retained browser startup diagnostics; portable behavior only",
+  "test_parent_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
+  "tested_source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
+  "status": "local_full_pass",
+  "model_calls": 0,
+  "administrator_setup": false,
+  "installer_rebuilt": false,
+  "eligible_for_native_pass": false,
+  "changes": [
+    "Close visits finished and indeterminate executions as well as active ones.",
+    "Cancellation signals only the still-owned live ChildProcess; process state labels do not suppress termination.",
+    "A cleanup failure does not prevent remaining owners and SRT reset from being attempted; failure is returned as CLEANUP_FAILED.",
+    "Missing browser reports now expose the actual child exit code and bounded stderr; existing browser/UI/CSP assertions remain required."
+  ],
+  "behavior_tests": {
+    "before": {
+      "node_collected": 3,
+      "node_failures": 3
+    },
+    "after": {
+      "node_collected": 3,
+      "node_failures": 0,
+      "node_skipped": 0
+    },
+    "scope": {
+      "real_owned_host_child": 1,
+      "explicit_control_flow_doubles": 2,
+      "native_boundary_tests": 0
+    },
+    "focused_integration": {
+      "collected": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "development_reports": [
+    {
+      "path": ".local/F28-close-before.tap",
+      "sha256": "048eb9deec5b0dff310c76cca4de1935e8d9ca36b7b10ab7a2f15c6e0d1f89d7",
+      "bytes": 2643
+    },
+    {
+      "path": ".local/F28-close-after.tap",
+      "sha256": "bf4db567d47887c5fc0de1e46428706074b08da979721c24e8bb218f95d64af7",
+      "bytes": 798
+    },
+    {
+      "path": ".local/F28-close-focused.xml",
+      "sha256": "7037cfea6df827850219637fd048f8ffc2b34b29bd4e291b461763b22bb9af10",
+      "bytes": 1033
+    },
+    {
+      "path": ".local/F28-close-browser-focused.xml",
+      "sha256": "af1eee1a4cb213d7a21449353a47657451ae0fad196841bda8a5d5590a616731",
+      "bytes": 1199
+    },
+    {
+      "path": ".local/implementation/20261007T164801Z-44b7ebf2/stdout.log",
+      "sha256": "cd508efdf41149ab54dadf7ff9f88a5bf2a1527a930dcb86db744a8937c9eefb",
+      "bytes": 699
+    },
+    {
+      "path": ".local/implementation/20261007T164801Z-44b7ebf2/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "interruption": {
+    "portable_run_id": "20261007T164801Z-44b7ebf2",
+    "status": "interrupted_no_junit_or_evidence_record",
+    "source_inventory_hash": "d00c8024e1108f94e8f247f5d0967571fad5f0222dd80ec3822829de9818f1dc",
+    "retained_completed_evidence_ids": [
+      "20261007T164621Z-6976811f",
+      "20261007T164628Z-75fcdc2b",
+      "20261007T164653Z-7fcc9efa"
+    ],
+    "note": "The prior process was absent after the session interruption. Partial logs are retained and do not count as a pass; verification restarted on the changed browser-diagnostics source."
+  },
+  "remaining_conditions": [
+    "Strict native capability promotion and full initialized SRT/helper/listener cleanup remain unverified; initialized cleanup is never promoted to clean by this change.",
+    "Dynamic sensitive-path Shell/File parity, Windows11/Ubuntu native acceptance, metadata overhead, security, signing, owner-selected LICENSE and administrator setup remain open."
+  ],
+  "final_evidence": [
+    {
+      "evidence_id": "20261008T011752Z-765e3b92",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+    },
+    {
+      "evidence_id": "20261008T011759Z-355b65b0",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_hash": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+    },
+    {
+      "evidence_id": "20261008T011817Z-66e79502",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 225,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "9b3597d9a375cf26a3c84793632b7b126c8c4be43875151acbf184ecf3b85e86"
+    },
+    {
+      "evidence_id": "20261008T011906Z-3fad7eb6",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 400,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "cbade7160cf1d89c2f369d6b503c7dd43599ecb34a107a81157bf049e24a3329"
+    },
+    {
+      "evidence_id": "20261008T012857Z-c6dfbf8f",
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1369,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "dcc54c48d0341c0d8a8f154789d044267d106c932912151df03e75aaefaa366a"
+    }
+  ],
+  "fresh_local_ci_gate": {
+    "status": "pass",
+    "gate": "ci",
+    "incomplete_tasks": [],
+    "implementation_gaps": {},
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [],
+    "selected_evidence_ids": [
+      "20261008T011752Z-765e3b92",
+      "20261008T011759Z-355b65b0",
+      "20261008T011817Z-66e79502",
+      "20261008T011906Z-3fad7eb6"
+    ]
+  },
+  "report_recomputation": {
+    "current_reports": 5,
+    "retained_prior_reports": 3,
+    "status": "pass"
+  },
+  "acceptance_mapping": {
+    "cases": 110,
+    "status": "pass",
+    "required_platform_proofs_blocked": 156
+  }
+}

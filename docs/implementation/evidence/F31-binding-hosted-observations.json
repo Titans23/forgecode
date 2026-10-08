@@ -1,0 +1,151 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F31",
+  "scope": "Actual hosted matrix for the frozen-plan binding development commit",
+  "head_sha": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
+  "run_id": 37654014565,
+  "workflow_url": "https://github.com/Titans23/forgecode/actions/runs/37654014565",
+  "status": "completed",
+  "conclusion": "failure",
+  "run_attempt": 1,
+  "jobs": [
+    {
+      "id": 112904404573,
+      "name": "portable (windows-2025)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-07T16:41:28Z",
+      "completed_at": "2026-10-07T16:50:34Z"
+    },
+    {
+      "id": 112904404900,
+      "name": "portable (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T16:41:30Z",
+      "completed_at": "2026-10-07T16:46:59Z"
+    },
+    {
+      "id": 112904404970,
+      "name": "dependency-security",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T16:41:28Z",
+      "completed_at": "2026-10-07T16:41:51Z"
+    },
+    {
+      "id": 112904404979,
+      "name": "portable (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-07T16:41:28Z",
+      "completed_at": "2026-10-07T16:47:06Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 11498123163,
+      "name": "portable-windows-2025",
+      "size_in_bytes": 618916,
+      "sha256": "c4caff99979996c2e94c365eaff0bf9441887de56bfd1f20f769af62843394fd",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261007T164312Z-2bcdf90e/junit.xml",
+          "path": "artifact-11498123163-e90909b9.xml",
+          "sha256": "2786b27199a7723aa03b9de1b092b4b9d976dc8813fb65afd385d9b54d47497e",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261007T164340Z-5148ca1a/junit.xml",
+          "path": "artifact-11498123163-b2db232a.xml",
+          "sha256": "ea350e5ded1bf20c77343a12a448fbe7235d1c2d24f06a0fd09da8b277bc74a3",
+          "collected": 400,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "id": 11497887985,
+      "name": "portable-ubuntu-24.04",
+      "size_in_bytes": 617018,
+      "sha256": "994d10a878a6f4de56a053f7b3dbfce33d350c2bef696fd333599049f8676b56",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261007T164211Z-32116f9b/junit.xml",
+          "path": "artifact-11497887985-8990db36.xml",
+          "sha256": "8c819bb43edd29c057070372e8b44dbe427d37dc2ca43f9d5d657053742a7dc7",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261007T164232Z-f4441650/junit.xml",
+          "path": "artifact-11497887985-b0027cd1.xml",
+          "sha256": "ed117b67b439904f1a47ca269b452a9ed1ce9343ad61007abac74051156346f2",
+          "collected": 400,
+          "failures": [
+            {
+              "name": "test_actual_browser_login_csp_and_shared_ui_execute_the_scripted_task",
+              "reason": "Electron child did not produce http-browser-report.json. The retained test traceback lacks child exit diagnostics; root cause remains unverified."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11497527715,
+      "name": "actual-dependency-security",
+      "size_in_bytes": 587440,
+      "sha256": "6f89871c89550e6c83240648549f5d06f5ffed64cd3dcc1478cb1e359f5612af",
+      "junit": []
+    },
+    {
+      "id": 11497348512,
+      "name": "portable-ubuntu-22.04",
+      "size_in_bytes": 616095,
+      "sha256": "75655f1a930c020697d562ca6df5b99b3eee195261bf0bea457803180bfc6390",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261007T164213Z-515a278e/junit.xml",
+          "path": "artifact-11497348512-aa0fef8c.xml",
+          "sha256": "85a0e36cd5c8a262f79093a55acbf6058186cff241df0a6c50a565036fa2d139",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261007T164236Z-a997cadf/junit.xml",
+          "path": "artifact-11497348512-5774a2b4.xml",
+          "sha256": "7e2cfc27b6dfea2db63ba662ec189550888c107f65ca597693c188fc8cf9c01b",
+          "collected": 400,
+          "failures": []
+        }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "job": 112904404573,
+      "path": ".local/F31-binding-hosted-final/job-112904404573.log",
+      "sha256": "84aebfd877512a061b880e5eff21799b77b18e787c095e4b7ee3d83c19e8b223"
+    },
+    {
+      "job": 112904404900,
+      "path": ".local/F31-binding-hosted-final/job-112904404900.log",
+      "sha256": "830896b9799c209870b84274ed844902665ce8be841658572073bf59fbd1832f"
+    },
+    {
+      "job": 112904404970,
+      "path": ".local/F31-binding-hosted-final/job-112904404970.log",
+      "sha256": "50128b031c9aadbff31b9ab616672b69a90abce1d217e8686efc9433eb854b52"
+    },
+    {
+      "job": 112904404979,
+      "path": ".local/F31-binding-hosted-final/job-112904404979.log",
+      "sha256": "51a4b4850866a2eae9ffa05dca32d4e2c84b68dcdb21104b08ebca00244410ea"
+    }
+  ],
+  "raw_root": ".local/F31-binding-hosted-final",
+  "eligible_for_native_pass": false,
+  "model_calls": 0,
+  "interpretation": "Ubuntu22.04 and Windows2025 pass unit225 and portable400; Ubuntu24.04 passes unit225 and399 portable cases, with the same browser report failure seen on the previous source. Dependency security still fails. No native or overall CI pass is claimed."
+}

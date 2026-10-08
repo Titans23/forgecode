@@ -4,9 +4,9 @@
   "current_acceptance_phase": "Windows 10 x64 build 19045 per explicit human instruction; Windows 11/Ubuntu acceptance follows later",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
+  "actual_repository_head": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
   "next_recommended_task": "F28",
-  "current_task": "F31",
+  "current_task": "F28",
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
@@ -871,7 +871,7 @@
       "verification_scope": "Historical task execution; current development-version tests/assets are tracked in F32, authorized live observations in F31."
     },
     "F28": {
-      "implementation_status": "implemented",
+      "implementation_status": "in_progress",
       "verification": {
         "unit": "pass",
         "portable": "pass",
@@ -937,15 +937,22 @@
         "20261007T122057Z-9dbacf36",
         "20261007T122029Z-b3dc3704",
         "20261007T122019Z-9e16aa46",
-        "20261007T123505Z-c2af5541"
+        "20261007T123505Z-c2af5541",
+        "20261007T164621Z-6976811f",
+        "20261007T164628Z-75fcdc2b",
+        "20261007T164653Z-7fcc9efa",
+        "20261008T011752Z-765e3b92",
+        "20261008T011759Z-355b65b0",
+        "20261008T011817Z-66e79502",
+        "20261008T011906Z-3fad7eb6",
+        "20261008T012857Z-c6dfbf8f"
       ],
       "current_evidence_ids": [
-        "20261007T122040Z-d187f818",
-        "20261007T122029Z-b3dc3704",
-        "20261007T122019Z-9e16aa46",
-        "20261007T122050Z-66356479",
-        "20261007T122057Z-9dbacf36",
-        "20261007T123505Z-c2af5541"
+        "20261008T011752Z-765e3b92",
+        "20261008T011759Z-355b65b0",
+        "20261008T011817Z-66e79502",
+        "20261008T011906Z-3fad7eb6",
+        "20261008T012857Z-c6dfbf8f"
       ],
       "artifact_evidence_ids": [
         "20261007T115336Z-e6b64f9f",
@@ -959,8 +966,8 @@
         "20261007T120147Z-641572b1"
       ],
       "blocked_reasons": [
-        "Current Windows10 phase passed 214 unit / 355 portable / 1313 regression, zero skips; actual Engine/package/maker/fuses checks pass. Windows11/Ubuntu clean/native acceptance remains subsequent and unverified.",
-        "Strict verified capability promotion, initialized complete boundary/process cleanup and dynamic sensitive-path parity remain code/native-proof gaps. Strict refuses; no fake sandbox pass.",
+        "Current Windows10 source passes contracts2/quality4/unit225/portable400/regression1369 with zero failures/skips. Prior installer/fuses results belong to their recorded older artifacts; Windows11/Ubuntu native acceptance remains unverified.",
+        "Terminal execution owner traversal and still-owned child cancellation are covered by portable behavior tests. Strict verified capability promotion, full initialized SRT/helper/listener cleanup and dynamic sensitive-path parity remain code/native-proof gaps.",
         "Full fixed 100000 events / 10000 spans / 100MiB measurements improved metadata overhead 8.07714390646% to 5.210340492313925%, still above 5%. Graphical/packaged native performance unverified.",
         "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing, owner-approved LICENSE and administrator setup unavailable/unapproved.",
         "Real-model execution now explicitly authorized with an unbounded monetary budget; actual connectivity 1 request / 335 input / 10 output tokens passed. Cost unknown; official grades zero. Docker daemon and official execution/control snapshots unavailable; F31 continues bounded actual Harness validation."
@@ -969,7 +976,36 @@
         "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
         "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
       ],
-      "implemented_scope": "Actual Windows10 development/runtime composition, asset hardening/build/observability paths and controlled performance measurement; not complete verified native isolation."
+      "implemented_scope": "Windows10 development/runtime review and current terminal-execution cleanup: visit every owner, terminate still-owned live children despite indeterminate state, continue cleanup after individual errors. Full native isolation/cleanup remains incomplete.",
+      "current_continuation": {
+        "parent_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
+        "status": "local_full_pass_upload_pending",
+        "new_node_behavior_tests": 3,
+        "focused_integration_tests": 6,
+        "model_calls": 0,
+        "administrator_setup": false,
+        "installer_rebuilt": false,
+        "interrupted_portable": {
+          "run_id": "20261007T164801Z-44b7ebf2",
+          "status": "interrupted_no_junit",
+          "scope": "No evidence record or pass; original partial logs retained."
+        },
+        "browser_diagnostics": "Preserve Electron child exit code and bounded stderr when its browser report is missing; existing success assertions stay required.",
+        "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
+        "final_evidence_ids": [
+          "20261008T011752Z-765e3b92",
+          "20261008T011759Z-355b65b0",
+          "20261008T011817Z-66e79502",
+          "20261008T011906Z-3fad7eb6",
+          "20261008T012857Z-c6dfbf8f"
+        ],
+        "local_ci_gate": "pass",
+        "reports_recomputed": 8,
+        "observations_ref": "evidence/F28-close-cleanup-observations.json"
+      },
+      "artifact_refs": [
+        "evidence/F28-close-cleanup-observations.json"
+      ]
     },
     "F29": {
       "implementation_status": "implemented",
@@ -1131,14 +1167,15 @@
       "artifact_refs": [
         "evidence/F31-real-model-observations.json",
         "evidence/F31-prior-hosted-ci-observations.json",
-        "evidence/F31-frozen-plan-observations.json"
+        "evidence/F31-frozen-plan-observations.json",
+        "evidence/F31-binding-hosted-observations.json"
       ],
       "historical_ci_blockers": [
         "Actual hosted F28 matrix failed on Electron cold-import output, Windows path aliases/PowerShell timeout and security. F32 candidate fixes are not yet hosted-verified."
       ],
       "current_continuation": {
         "parent_commit": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
-        "status": "local_full_pass_upload_pending",
+        "status": "uploaded_hosted_partial_failure",
         "new_behavior_tests": 18,
         "model_calls": 0,
         "administrator_setup": false,
@@ -1153,7 +1190,10 @@
         ],
         "local_ci_gate": "pass",
         "reports_recomputed": 5,
-        "observations_ref": "evidence/F31-frozen-plan-observations.json"
+        "observations_ref": "evidence/F31-frozen-plan-observations.json",
+        "uploaded_commit": "9ac93b0c4053bb9d9137b70bf20365005b1e8e6a",
+        "hosted_run_id": 37654014565,
+        "hosted_observations_ref": "evidence/F31-binding-hosted-observations.json"
       },
       "current_evidence_ids": [
         "20261007T154114Z-26ded72b",
@@ -1300,9 +1340,9 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "HEAD3a51097 is uploaded and its actual hosted result is recorded. The F31 resolved-plan continuation has completed all five local suites on source92c78581 and is pending a tested development commit/upload.",
+  "head_recorded_scope": "F31 source commit9ac93b0 is uploaded with actual hosted results. The F28 cleanup/browser-diagnostics candidate has passed all five suites on source7d77f873; current source is ready for a tested development commit/upload.",
   "gate_notes": {
-    "G1-contracts-engine": "Current contracts/quality/unit/portable/regression all pass, zero required skips; actual private Engine, DB, actions and offline repair exercised.",
+    "G1-contracts-engine": "Current source7d77f873 passes contracts2/quality4/unit225/portable400/regression1369, zero required skips/failures; F28/F31 mandatory native/official implementation remains incomplete.",
     "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",
     "G4-evaluation": "Resolved RunSpec/source/model/prompt/tool-schema binding now has current passing offline behavior tests. Official environment/network policy, host accounting and unbounded monetary-budget representation remain incomplete; Linux Docker daemon absent.",
     "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."

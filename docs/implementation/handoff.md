@@ -2,6 +2,12 @@
 
 ## 当前续作（2026-10-08，Asia/Shanghai）
 
+F31续作已提交并正常推送9ac93b0c4053bb9d9137b70bf20365005b1e8e6a，ls-remote核对一致。实际run37654014565已结束：Ubuntu22.04和Windows2025各unit225/portable400通过；Ubuntu24.04 unit225通过、portable399通过/1浏览器report缺失失败，security继续失败。四份实际artifact/JUnit与四job日志已取回，公开索引F31-binding-hosted-observations.json；全workflow仍failure。
+
+当前F28修正terminal/indeterminate execution漏清理与单项失败中断后续cleanup：3项Node before全部失败、after全部通过；真实Bridge重建仅更新自身runtime manifest摘要。原session15060随中断结束，portable20261007T164801Z-44b7ebf2只有部分日志、无JUnit/正式evidence；不能记pass。恢复后已确认无原Python/Electron进程，不再轮询旧session。另补浏览器报告缺失时的退出码和有限stderr，现有成功条件保留；6项Bridge/浏览器真实集成通过。新的五套件session70763正在执行，输出.local/F28-close-final-verification.json/log；保持源码/测试/锁/清单冻结，完成后提交上传。旧3份已通过短套件属于source d00c8024，保留而不当新source报告。
+
+最终验证更新：session70763已结束exit0，source7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af的contracts2/quality4/unit225/portable400/regression1369全pass，0skip/failure/error，freshCIgatepass。5当前+3中断前完整报告复算通过，110映射有效、156平台证明仍blocked；原中断portable不计入完整报告。最终ID：20261008T011752Z-765e3b92、011759Z-355b65b0、011817Z-66e79502、011906Z-3fad7eb6、012857Z-c6dfbf8f。下一精确stage本轮5个代码/测试/清单文件及文档/evidence，commit/push，核对远端并取得新Ubuntu24浏览器退出诊断；不重建旧安装包，不运行管理员setup或付费模型。
+
 旧聊天已返回 completed/idle，明确释放工作区；当前聊天接管。3a51097 已正常fast-forward推送并用ls-remote核对。对应GitHub run37642586381首次startup_failure、0 jobs/0 check-runs；官方API单次rerun返回201。attempt2实际Ubuntu22.04/Windows2025 portable通过，Ubuntu24.04一个真实浏览器测试未产出report，security仍2high失败。四个job日志、四份artifact ZIP和JUnit摘要已取回，索引F32-remediation-hosted-observations.json。现有失败栈未保留Electron退出诊断，不能推断具体根因，也不称workflow全绿。
 
 当前F31源码/RunSpec绑定补齐进行中：共享resolved snapshot语义检查；离线freeze生成A/B/read-only计划和清单；真实冻结/暂存包含catalog且核验完整内容；物化前重验；首模型请求前检查model/参数/prompt/tool schema。F31仍in_progress；官方政策、宿主授权/逐请求账本、无上限正式预算表示、Docker/环境证明仍未完成。0新增模型请求/管理员操作。之前实际83请求和A3/3、B2/3历史保持，不重跑挑成绩。
