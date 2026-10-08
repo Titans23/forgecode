@@ -8,6 +8,8 @@
 
 F31 使用独立启动器 `scripts/resume_f31.py`：在接收端 WSL 自动克隆或快进拉取 GitHub `codex/forgecode-v4` 最新提交，打印 HEAD，继承当地 Codex 配置并提交接续任务；已有未提交文件、不同仓库/分支或本地独有提交会阻断更新并完整保留。入口与说明会装入小型交接 ZIP，不复制凭证、会话、node_modules 或私有原始报告。继续入口：[F31 WSL 交接](../experiments/F31-wsl-handoff.md)。另一台设备还未实际连接或运行，不能把本机启动器测试写成 WSL / Docker 通过。
 
+上述源码已提交并上传 `942ea7187d91ab248d7795c55239c475cb078150`，远端分支核对一致。启动器已实际从 GitHub 克隆旧 HEAD，再快进到这个新提交；ZIP 内原样入口的再次 fetch 也通过。交接包 `.local/f31-handoff-20261008/F31-WSL-handoff-20261008.zip`（5759 bytes，SHA-256 `8239a5574eaac5b6dedfec58591755fc3fb0b43c2ec718d5b20366548ef7d2e1`）只含启动器、README 和清单。当前 GitHub run37764658064 曾观测为进行中，未计 hosted pass；后续文档 checkpoint 的实际 HEAD 以 git 为准。
+
 F28 已找到并修复 SRT 诊断误报：源码根的旧 release-manifest 被 doctor 错当成当前安装版；现在沿用 verify_runtime 确认的 installed 标记，native verifier 同样选择对应入口。真实只读查询已返回 observed，账户/组/凭证均未配置；WFP cannot-read 不代表过滤器不存在。2 项诊断行为测试及既有定向合计18 pass，启动器的9项真实本地 Git/CLI 参数测试通过，均无模型请求。
 
 当前合并源码 `737d0ac7123650d9323f28f3bbef05c4e55b3395d51380d7aa3b3a6de4a20eb6` 已完成 contracts2、quality4、完整 regression1412（零失败/跳过）和真实 Electron development116 项检查；包含此前 Windows10 目标与全部当前界面修改。native-windows 实测仍 blocked/0checks，live-eval 在原机仍 blocked。6份正式报告已复算，索引 `evidence/F28-setup-F31-handoff-observations.json`；正式测试进程已结束。本轮未重建安装包、未发模型请求。
@@ -24,7 +26,7 @@ PowerShell7.6.6 x64 MSI 已从微软官方 GitHub 下载，官方 SHA-256 与本
 
 本次 UI 测试快照 `0fc96137574ef3ec7b5556520104ce965c8b24432a463af56c1fcbc7a6cfe344` 的 Electron development 检查 72 项通过（`20261008T081933Z-bdef7b5b`），同一源码的完整回归 1390 pass／0 skip/failure/error（`20261008T082017Z-8be59488`）。全工作区 typecheck、启动依赖检查通过；浅深色实拍在该 desktop evidence 的 `desktop-run` 中，已目视核查。本侧聊测试进程已结束，细节见 progress 的 F16.ui_refresh 与任务卡。前次回归因 Web 测试仍定位旧项目按钮而停止，记录 `20261008T080746Z-1f2ea14a` 不计通过；选择器已更新，单项及完整回归通过。本侧聊没有模型请求、管理员设置、提交或推送。
 
-当前这些源码改动尚未提交；实际基底 HEAD 为 `f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234`。下述 F28/F31 历史证据仍对应其记录的源码，不能自动作为本次界面的安装包或原生验收。
+上述 UI 验证当时的基底 HEAD 为 `f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234`，其修改现已随共享提交942ea71上传。下述 F28/F31 历史证据仍对应其记录的源码，不能自动作为本次界面的安装包或原生验收。
 
 在上述 UI 验证结束后，主聊天已合入 Windows 10 验收相关修改并继续验证，当前合并源码哈希已变化。本侧聊保留主线修改和运行进程，不把 UI 快照报告作为后续合并工作区的证明；主线最新状态以其验证记录为准。
 
@@ -36,7 +38,7 @@ PowerShell7.6.6 x64 MSI 已从微软官方 GitHub 下载，官方 SHA-256 与本
 
 原生诊断确认 Windows10/AMD64、锁定运行时与 NTFS，通过 OS 准入；固定 PowerShell7 缺失、SRT 只读状态未取得，native 仍 blocked／0 checks，未提升任何 capability。主工作区验收重算 110 映射有效、156 项必需平台证明 blocked；隔离目录因没有旧私有报告而得到178，原报告保留。首轮缺 Electron 导致跳过后中止，补齐锁定 Electron、实际 storage 复测通过，再完整重跑1398；不将首次运行计为通过。七份正式报告已复算，索引 `evidence/F28-windows10-acceptance-observations.json`。
 
-本轮无模型调用、无本机管理员操作、未重建安装包；测试进程均已结束。修改已在当前工作区，尚未提交／推送；既有 UI 和本轮 Windows 目标修改各自证据保留。后续可继续 F28/F31 独立代码工作；Windows 管理员步骤需先补齐固定 PowerShell7 安装并核对共享 SRT 状态，再确认最小 setup 范围。官方评测仍需 Linux Docker，Ubuntu 原生图形验收独立推进。
+该目标调整阶段无模型调用、本机管理员操作或安装包重建，测试进程均已结束，当时尚未提交；现已合入共享提交942ea71，证据各自保留。后续新增的系统授权、UAC 尝试、诊断修复与 F31 跨机安排见本页顶部；Ubuntu 原生图形验收仍独立推进。
 
 ## 此前 F28/F31 源码阶段
 

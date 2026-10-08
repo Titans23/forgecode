@@ -77,7 +77,14 @@
     "guide": "docs/experiments/F31-wsl-handoff.md",
     "policy": "clone/fast-forward only, reject dirty or locally ahead repository, inherit receiver Codex configuration",
     "real_github_clone_observed": "f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234",
-    "private_data_transferred": false
+    "private_data_transferred": false,
+    "real_github_fast_forward_observed": "942ea7187d91ab248d7795c55239c475cb078150",
+    "github_probe_scope": "Actual Windows10 temporary checkout with update-only; no receiving WSL, Codex or model execution",
+    "package_ref": ".local/f31-handoff-20261008/F31-WSL-handoff-20261008.zip",
+    "package_sha256": "8239a5574eaac5b6dedfec58591755fc3fb0b43c2ec718d5b20366548ef7d2e1",
+    "package_bytes": 5759,
+    "package_member_bytes_verified": true,
+    "packaged_entry_fetch": "pass"
   },
   "verification_status": "available_local_checks_pass_native_and_remote_resources_blocked",
   "formal_evidence_ids": [
@@ -157,5 +164,14 @@
     }
   ],
   "reports_recomputed": 6,
-  "installer_rebuilt": false
+  "installer_rebuilt": false,
+  "uploaded_code_commit": "942ea7187d91ab248d7795c55239c475cb078150",
+  "hosted_ci_observation": {
+    "run_id": 37764658064,
+    "head_sha": "942ea7187d91ab248d7795c55239c475cb078150",
+    "status": "in_progress",
+    "conclusion": null,
+    "url": "https://github.com/Titans23/forgecode/actions/runs/37764658064",
+    "scope": "Observed after code push; not a passing hosted result"
+  }
 }

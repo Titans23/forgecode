@@ -6,7 +6,7 @@
   "current_acceptance_phase": "Windows 10 x64 22H2 build 19045 on this workstation replaces mandatory Windows 11 acceptance; Ubuntu and official Linux Docker requirements remain independent",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234",
+  "actual_repository_head": "942ea7187d91ab248d7795c55239c475cb078150",
   "next_recommended_task": "F28",
   "current_task": "F28",
   "windows_acceptance_update": {
@@ -561,7 +561,8 @@
         "administrator_setup": false,
         "installer_rebuilt": false,
         "committed_or_pushed": false,
-        "post_verification_note": "After these UI snapshot passes, the active main thread merged Windows 10 acceptance changes into this working tree and continued its own verification. The two reports above apply to source_inventory_hash 0fc9613 only; they are not proof for the subsequently combined source. Side conversation preserved the main-thread changes and did not restart or interrupt its tests."
+        "post_verification_note": "After these UI snapshot passes, the active main thread merged Windows 10 acceptance changes into this working tree and continued its own verification. The two reports above apply to source_inventory_hash 0fc9613 only; they are not proof for the subsequently combined source. Side conversation preserved the main-thread changes and did not restart or interrupt its tests.",
+        "shared_uploaded_code_commit": "942ea7187d91ab248d7795c55239c475cb078150"
       }
     },
     "F17": {
@@ -1610,7 +1611,7 @@
   "local_setup_authorization_ref": "evidence/human-authorization-local-setup-20261008.json",
   "f31_handoff": {
     "target": "User-owned second computer, WSL with Linux Docker",
-    "status": "bootstrap_tested_receiver_not_run",
+    "status": "uploaded_and_packaged_receiver_not_run",
     "entry": "scripts/resume_f31.py",
     "guide": "../experiments/F31-wsl-handoff.md",
     "remote": "https://github.com/Titans23/forgecode.git",
@@ -1630,7 +1631,12 @@
       "20261008T103251Z-83550630",
       "20261008T103348Z-d69d8d63",
       "20261008T103400Z-38bd2f75"
-    ]
+    ],
+    "uploaded_code_commit": "942ea7187d91ab248d7795c55239c475cb078150",
+    "package_ref": ".local/f31-handoff-20261008/F31-WSL-handoff-20261008.zip",
+    "package_sha256": "8239a5574eaac5b6dedfec58591755fc3fb0b43c2ec718d5b20366548ef7d2e1",
+    "github_clone_and_fast_forward": "pass on original Windows host",
+    "codex_receiver_started": false
   },
   "local_windows_setup": {
     "authorization": "granted",
@@ -1655,6 +1661,8 @@
       "20261008T101917Z-6a4f56c2",
       "20261008T103251Z-83550630",
       "20261008T103348Z-d69d8d63"
-    ]
-  }
+    ],
+    "uploaded_code_commit": "942ea7187d91ab248d7795c55239c475cb078150"
+  },
+  "repository_head_note": "Verified uploaded source commit; this transfer-record update is a later documentation-only checkpoint. Use git rev-parse HEAD for the actual checkout."
 }
