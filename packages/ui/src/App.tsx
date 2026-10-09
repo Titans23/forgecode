@@ -65,7 +65,8 @@ export function App({transport, webEntry = false}: {transport: DesktopOperations
     <button key={id} className={'nav ' + (page === id ? 'active' : '')} data-page={id}
       aria-current={page === id ? 'page' : undefined} onClick={() => setPage(id)}><Icon name={icon}/><span>{labels[id]}</span></button>;
   const localExecution = status?.mode === 'desktop-local-trusted' || status?.mode === 'web-local-trusted';
-  const executionMode = status?.mode === 'offline-demo' || status?.mode === 'web-scripted' ? '离线演示' : localExecution ? '本机执行 · 无 OS 隔离' : '严格沙盒模式';
+  const workspaceExecution = status?.mode === 'desktop-workspace-write' || status?.mode === 'web-workspace-write';
+  const executionMode = status?.mode === 'offline-demo' || status?.mode === 'web-scripted' ? '离线演示' : localExecution ? '本机执行 · 无 OS 隔离' : workspaceExecution ? '原生沙盒：写入限制' : '严格沙盒模式';
   const readinessReason = status?.readiness?.reasons?.[0];
   const blockedReason = readinessReason === 'strict_sandbox_backend_not_ready'
     ? '当前版本的严格沙盒尚未就绪，重复诊断或安装不会解除任务限制。'
@@ -142,10 +143,11 @@ export function App({transport, webEntry = false}: {transport: DesktopOperations
         {page === 'diagnostics' && <section className="diagnostics"><div className="diagnostics-heading"><span className="intro-icon"><Icon name="shield" size={26}/></span><h2>执行环境</h2></div>
           <div className="diagnostics-summary">
             <div><span>引擎连接</span><strong><i className={connected ? 'status-dot ready' : 'status-dot'}/>{connected ? '已连接' : status?.failure ? '连接异常' : '正在连接'}</strong></div>
-            <div><span>执行环境</span><strong><i className={status?.readiness?.status === 'ready' ? 'status-dot ready' : 'status-dot'}/>{status?.readiness?.status === 'blocked' ? '尚未就绪' : status?.readiness?.status === 'ready' ? '已就绪' : status?.readiness?.status === 'degraded' ? localExecution ? '可执行（无隔离）' : '演示环境' : '待检测'}</strong></div>
+            <div><span>执行环境</span><strong><i className={status?.readiness?.status === 'ready' ? 'status-dot ready' : 'status-dot'}/>{status?.readiness?.status === 'blocked' ? '尚未就绪' : status?.readiness?.status === 'ready' ? '已就绪' : status?.readiness?.status === 'degraded' ? localExecution ? '可执行（无隔离）' : workspaceExecution ? '执行前自检（有限写入限制）' : '演示环境' : '待检测'}</strong></div>
             <div><span>当前模式</span><strong>{executionMode}</strong></div>
           </div>
           {status?.readiness?.status === 'blocked' && <p className="diagnostics-hint"><Icon name="shield" size={16}/>{blockedReason}</p>}
+          {workspaceExecution && <p className="diagnostics-hint">读取和网络沿用宿主能力；不承诺动态敏感文件读取隔离。实际原生边界自检失败时任务被阻止，正式评测不使用此模式。</p>}
           {localExecution && <p className="diagnostics-hint">命令可访问当前用户可访问的文件和网络。项目授权与操作审批仍保留，本模式不代表沙盒验收通过。</p>}
           <div className="actions"><button disabled={busy} onClick={() => action(async () => showDiagnostics(await transport.diagnostics()))}><Icon name="refresh" size={16}/>刷新诊断</button>
           <button className="secondary" disabled={busy} onClick={() => action(async () => showDiagnostics(await transport.diagnoseSandbox()))}><Icon name="shield" size={16}/>诊断原生沙盒</button>

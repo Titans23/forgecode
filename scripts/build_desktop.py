@@ -16,15 +16,17 @@ def asset(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--main-only', action='store_true')
+    parser.add_argument('--no-build', action='store_true', help='Inspect previously built assets without invoking compilers')
     parser.add_argument('--check', action='store_true', help='Compare inventories without changing their contents')
     args = parser.parse_args()
     node = shutil.which('node')
     if not node:
         raise RuntimeError('Development Node compiler is unavailable')
     compiler = ROOT / 'node_modules/typescript/bin/tsc'
-    subprocess.run([node,str(ROOT/'scripts/build_browser_contracts.mjs'),*(['--check'] if args.check else [])],cwd=ROOT,check=True)
-    for project in ('packages/contracts/tsconfig.json', 'apps/desktop/tsconfig.main.json'):
-        subprocess.run([node, str(compiler), '-p', str(ROOT / project)], cwd=ROOT, check=True)
+    if not args.no_build:
+        subprocess.run([node,str(ROOT/'scripts/build_browser_contracts.mjs'),*(['--check'] if args.check else [])],cwd=ROOT,check=True)
+        for project in ('packages/contracts/tsconfig.json', 'apps/desktop/tsconfig.main.json'):
+            subprocess.run([node, str(compiler), '-p', str(ROOT / project)], cwd=ROOT, check=True)
     python = ROOT / '.venv' / ('Scripts/python.exe' if __import__('os').name == 'nt' else 'bin/python')
     manifest = {'schema_version': 'forge.desktop.development-assets.v1', 'python': asset(python),
         'contracts': asset(ROOT / 'forge/application/_generated_contracts.json'),
@@ -42,9 +44,10 @@ def main():
             path.write_bytes(encoded)
     inventory(ROOT / 'apps/desktop/development-assets.json', manifest)
     if not args.main_only:
-        for name in ('main', 'preload', 'renderer'):
-            subprocess.run([node, str(ROOT / 'node_modules/vite/bin/vite.js'), 'build', '--config',
-                str(ROOT / f'apps/desktop/vite.{name}.config.mjs')], cwd=ROOT / 'apps/desktop', check=True)
+        if not args.no_build:
+            for name in ('main', 'preload', 'renderer'):
+                subprocess.run([node, str(ROOT / 'node_modules/vite/bin/vite.js'), 'build', '--config',
+                    str(ROOT / f'apps/desktop/vite.{name}.config.mjs')], cwd=ROOT / 'apps/desktop', check=True)
         ui = ROOT / 'apps/desktop/.vite/renderer/ui'
         files = {'/' + path.relative_to(ui).as_posix(): {
             'path': path.relative_to(ROOT / 'apps/desktop').as_posix(),

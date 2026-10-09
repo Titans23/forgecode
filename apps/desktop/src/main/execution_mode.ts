@@ -2,9 +2,9 @@
 import { randomUUID } from 'node:crypto';
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises';
 
-export type ExecutionMode = 'strict' | 'local-trusted';
+export type ExecutionMode = 'strict' | 'local-trusted' | 'workspace-write';
 export function executionMode(value: unknown): ExecutionMode {
-  if (value !== 'strict' && value !== 'local-trusted') throw new Error('Invalid execution mode');
+  if (value !== 'strict' && value !== 'local-trusted' && value !== 'workspace-write') throw new Error('Invalid execution mode');
   return value;
 }
 

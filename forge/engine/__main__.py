@@ -34,7 +34,7 @@ def main(argv=None):
     parser.add_argument('--profile-id')
     parser.add_argument('--principal', choices=('main', 'renderer'), default='main')
     parser.add_argument('--main-owner-pid',type=int,help='Trusted Main parent identity for private desktop lifecycle')
-    parser.add_argument('--execution-mode', choices=('strict', 'local-trusted'), default='strict')
+    parser.add_argument('--execution-mode', choices=('strict', 'local-trusted', 'workspace-write'), default='strict')
     parser.add_argument('--scripted-fixture', type=Path)
     parser.add_argument('--interactive-approvals', action='store_true')
     parser.add_argument('--pricing-file',type=Path)
@@ -54,7 +54,7 @@ def main(argv=None):
     if args.scripted_fixture and args.profile != 'test':
         print(json.dumps({'status': 'invalid_configuration', 'reason': 'scripted fixture requires test profile'}), file=sys.stderr)
         return 3
-    if args.execution_mode == 'local-trusted' and (args.profile == 'evaluation' or
+    if args.execution_mode != 'strict' and (args.profile == 'evaluation' or
             args.profile == 'desktop' and (args.principal != 'main' or args.main_owner_pid is None)):
         print(json.dumps({'status': 'invalid_configuration', 'reason': 'Local desktop execution requires its owning Main; evaluation requires strict sandbox'}), file=sys.stderr)
         return 3
@@ -71,31 +71,27 @@ def main(argv=None):
             parent_lease=ParentLease.open(args.main_owner_pid)
         # A dependency accidentally printing cannot corrupt the protocol pipe.
         with redirect_stdout(sys.stderr):
-            from forge.application.harness_adapter import LocalTrustedBackend
-            from forge.application.services import ApplicationServices
-            from forge.sandbox.application_backend import NativeBackendFactory
+            from forge.engine.bootstrap import create_application
             from forge.engine.methods import EngineMethods
             from forge.engine.persistence import Store
             from forge.engine.rpc import RpcServer
-            from forge.engine.test_profile import MemoryCredentials, load_scripted_profile
+            from forge.engine.test_profile import load_scripted_profile
             from forge.observability.export_queue import ObservationOptions
             from forge.observability.usage_ledger import PriceBook
             from forge.application.models import strict_loads
             prices=PriceBook(strict_loads(args.pricing_file.read_bytes())) if args.pricing_file else None
             observations=ObservationOptions(capture_mode=args.capture_mode,prices=prices,endpoint=args.otlp_endpoint,metadata_export_confirmed=args.export_metadata)
             scripted = load_scripted_profile(args.scripted_fixture) if args.scripted_fixture else None
-            credentials, factory = (scripted.credentials, scripted.model_client_factory) if scripted else (MemoryCredentials(), None)
+            adapter = None
+            if args.evaluation_benchmark:
+                from benchmark.adapters.harbor import HarborAdapter
+                adapter = HarborAdapter(args.evaluation_benchmark, taskset_root=args.evaluation_taskset,
+                    source_root=args.evaluation_source)
             with Store(args.data_dir) as store:
-                service = ApplicationServices(store, profile_id=args.profile_id or args.profile + '-profile', credentials=credentials,
-                    mode=args.execution_mode, backend=LocalTrustedBackend() if args.execution_mode == 'local-trusted' else None,
-                    backend_factory=NativeBackendFactory(store.data_dir) if args.execution_mode=='strict' else None,
-                    model_client_factory=factory, task_relation='new' if factory else None,
-                    approval_handler=scripted.approval_handler if scripted and not args.interactive_approvals else None,observation_options=observations)
-                if args.profile!='test':
-                    from benchmark.adapters.harbor import HarborAdapter, HarborExecutor
-                    adapter=HarborAdapter(args.evaluation_benchmark,taskset_root=args.evaluation_taskset,
-                        source_root=args.evaluation_source) if args.evaluation_benchmark else None
-                    service.evaluation_executor=HarborExecutor(service,adapter=adapter)
+                service = create_application(store, profile=args.profile, mode=args.execution_mode,
+                    profile_id=args.profile_id, native_execution=True, scripted=scripted,
+                    interactive_approvals=args.interactive_approvals, observation_options=observations,
+                    evaluation_adapter=adapter)
                 return asyncio.run(RpcServer(EngineMethods(service, profile=args.profile, interactive_approvals=args.interactive_approvals), principal=args.principal,parent_lease=parent_lease).run(input_descriptor, output_descriptor))
     except Exception as error:
         print(json.dumps({'status': 'blocked', 'exception_type': type(error).__name__,

@@ -257,7 +257,9 @@ def pytest_outcome(exit_code: int, report: Path) -> tuple[str, dict]:
     return 'pass', counts
 
 
-def verify(suite: str, task_id: str | None = None) -> dict:
+def verify(suite: str, task_id: str | None = None, *, prepared_source_hash: str | None = None) -> dict:
+    if prepared_source_hash is not None and prepared_source_hash != source_fingerprint(ROOT):
+        raise ValueError("Prepared validation batch has changed source; prepare it again")
     evidence_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid4().hex[:8]
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
@@ -273,6 +275,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
         argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/release_review.py'),'--output',str(report_path)]
     elif suite in ('contracts','quality','security'):
         argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/ci_checks.py'),'--suite',suite,'--output',str(report_path)]
+        if prepared_source_hash: argv += ['--prepared-source-hash', prepared_source_hash]
     elif suite in ('hardened','performance','acceptance'):
         script={'hardened':'hardened_smoke.py','performance':'performance_probe.py','acceptance':'acceptance_audit.py'}[suite]
         argv=[sys.executable,'-X','utf8',str(ROOT/'scripts'/script),'--output',str(report_path)]
@@ -294,7 +297,10 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                 '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
     started = datetime.now(timezone.utc).isoformat()
     preparation_commands = []
-    if suite in ('unit', 'portable', 'regression', 'sandbox-linux', 'sandbox-windows', 'desktop'):
+    if prepared_source_hash:
+        preparation_commands = [[sys.executable,str(ROOT/'scripts/build_bridge.py'),'--check','--no-build'],
+            [sys.executable,str(ROOT/'scripts/build_desktop.py'),'--check','--no-build']]
+    elif suite in ('unit', 'portable', 'regression', 'sandbox-linux', 'sandbox-windows', 'desktop'):
         node = shutil.which('node')
         if node:
             preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
@@ -310,6 +316,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
     source_files = command(['git', 'ls-files', '--cached', '--others', '--exclude-standard']).splitlines()
     for relative in sorted(set(source_files)):
         path = Path(relative)
+        if not (ROOT / path).is_file(): continue
         source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts', 'experiments'}
         source_manifest = relative in {'release-manifest.json','.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
         fixture_input = relative.startswith(('tests/implementation/fixtures/', 'packaging/linux/'))
@@ -369,7 +376,7 @@ def verify(suite: str, task_id: str | None = None) -> dict:
                 'suite': suite, 'git_commit': head,
                 'dirty_hash': dirty_hash, 'source_inventory_hash':source_inventory_hash, 'platform': sys.platform, 'os_build': platform.platform(),
                 'dependency_lock_hash': lock_hashes, 'command': argv, 'start': started,
-                'preparation_commands': preparation_commands,
+                'preparation_commands': preparation_commands, 'prepared_source_hash': prepared_source_hash,
                 'end': datetime.now(timezone.utc).isoformat(), 'exit_code': exit_code,
                 'stdout_ref': (output / 'stdout.log').relative_to(ROOT).as_posix(),
                 'stderr_ref': (output / 'stderr.log').relative_to(ROOT).as_posix(),

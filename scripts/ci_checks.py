@@ -7,13 +7,17 @@ import subprocess
 import sys
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+from scripts.evidence_gate import source_fingerprint
 
 
-def run(suite, output):
+def run(suite, output, prepared_source_hash=None):
+    if prepared_source_hash is not None and prepared_source_hash != source_fingerprint(ROOT):
+        raise ValueError("Prepared validation batch source changed")
     node=shutil.which('node');npm=shutil.which('npm')
     if not node or not npm:return {'status':'blocked','reason':'Locked build Node/npm are unavailable','checks':[]}
     if suite=='contracts':commands=[[sys.executable,str(ROOT/'scripts/check_contracts.py'),'--check'],[npm,'run','contracts:check']]
-    elif suite=='quality':commands=[[sys.executable,str(ROOT/'scripts/quality.py')],[npm,'run','typecheck'],[npm,'run','test:unit'],[node,str(ROOT/'packaging/verify-release.mjs')]]
+    elif suite=='quality':commands=[[sys.executable,str(ROOT/'scripts/quality.py')],[npm,'run','typecheck'],([node,'--test',*[str(p) for p in sorted((ROOT/'tests/implementation/node').glob('*.test.mjs'))]] if prepared_source_hash else [npm,'run','test:unit']),[node,str(ROOT/'packaging/verify-release.mjs')]]
     else:commands=[[npm,'audit','--json','--registry=https://registry.npmjs.org']]
     checks=[]
     for i,argv in enumerate(commands):
@@ -36,9 +40,9 @@ def run(suite, output):
 
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--suite',choices=('contracts','quality','security'),required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--suite',choices=('contracts','quality','security'),required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prepared-source-hash');a=p.parse_args()
     a.output=a.output.resolve();a.output.parent.mkdir(parents=True,exist_ok=True)
-    try:r=run(a.suite,a.output)
+    try:r=run(a.suite,a.output,a.prepared_source_hash)
     except (OSError,ValueError,subprocess.TimeoutExpired) as error:r={'status':'fail','reason':str(error),'checks':[]}
     a.output.write_text(json.dumps(r,indent=2)+'\n',encoding='utf-8');print(json.dumps(r));return {'pass':0,'blocked':2,'fail':1}[r['status']]
 if __name__=='__main__':raise SystemExit(main())

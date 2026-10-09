@@ -34,6 +34,7 @@ class FileAccess:
         if not root.path.is_dir() or f'{info.st_dev}:{info.st_ino}' != workspace['file_identity']:
             fail('STALE_FILE', 'Workspace identity changed')
         fs = policy['filesystem']
+        self.windows_acl = os.name == 'nt' and fs['read_mode'] == 'host_default'
         # File tools have an explicit read scope, even when the OS backend has
         # broader default reads. This does not promote its read capability.
         self.policy = PathPolicy(root, 'strict_allowlist_required',

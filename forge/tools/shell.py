@@ -91,6 +91,7 @@ async def _run_process(
     command, *, cwd, timeout_seconds, input_text, shell, max_output_bytes, process_job, artifact_root,
 ) -> ProcessResult:
     started = perf_counter()
+    windows_acl = getattr(file_access_guard.get(), 'windows_acl', False)
     stdin = asyncio.subprocess.PIPE if input_text is not None else None
     process_options: dict[str, object] = {
         'cwd': cwd,
@@ -104,7 +105,7 @@ async def _run_process(
         from forge.release.processes import worker_argv
         if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
             raise TypeError('Shell commands must be strings; executable commands must be lists.')
-        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | (0 if windows_acl else subprocess.CREATE_NO_WINDOW)
         process_options['stdin'] = asyncio.subprocess.PIPE
         command = worker_argv(command,shell=shell)
         shell = False
@@ -123,7 +124,13 @@ async def _run_process(
     else:
         if isinstance(command, str):
             raise TypeError('Executable commands must be argument lists.')
-        process = await asyncio.create_subprocess_exec(*command, **process_options)
+        if windows_acl:
+            # DSH's Low token cannot reopen Python's overlapped named pipes.
+            # Anonymous pipes inherit the same token and remain in the owned Job.
+            from forge.tools.windows_job import AnonymousPipeProcess
+            process = await AnonymousPipeProcess.start(command, **process_options)
+        else:
+            process = await asyncio.create_subprocess_exec(*command, **process_options)
     if process_job is not None:
         try:
             process_job.assign(process.pid)

@@ -40,5 +40,8 @@ def main():
     hydrate_electron(ROOT,node)
     for script in ('scripts/check_contracts.py','scripts/build_bridge.py','scripts/build_desktop.py'):
         subprocess.run([sys.executable,str(ROOT/script)],cwd=ROOT,check=True)
+    subprocess.run([str(node),str(ROOT/'node_modules/typescript/bin/tsc'),'--target','ES2022',
+        '--module','NodeNext','--strict','--skipLibCheck','--newLine','lf',
+        '--outDir',str(ROOT/'.local/ci/main-compile'),str(ROOT/'apps/desktop/src/main/setup_broker.ts')],cwd=ROOT,check=True)
     print(json.dumps({'status':'pass','scope':'locked private build assets; no system setup'}))
 if __name__=='__main__':main()

@@ -11,7 +11,7 @@ import sys
 
 
 REMOTE = 'https://github.com/Titans23/forgecode.git'
-BRANCH = 'codex/forgecode-v4'
+BRANCH = 'main'
 PROMPT = '''继续 ForgeCode F31。这是用户选择的另一台 WSL + Docker 评测电脑。
 先读取 AGENTS.md、docs/implementation/PLANS.md、progress.json、handoff.md、
 docs/implementation/tasks/F31.md 和 docs/experiments/F31-wsl-handoff.md，

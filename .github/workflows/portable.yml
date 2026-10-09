@@ -30,7 +30,7 @@ jobs:
       - run: uv sync --locked --all-groups --all-extras
       - run: npm ci
       - name: Configure locked Electron sandbox on the trusted Ubuntu runner
-        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'push' && github.repository == 'Titans23/forgecode' && github.ref == 'refs/heads/codex/forgecode-v4'
+        if: matrix.os == 'ubuntu-24.04' && github.event_name == 'push' && github.repository == 'Titans23/forgecode' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/forgecode-consolidation')
         shell: bash
         run: |
           uv run --no-sync python -c "from pathlib import Path; from scripts.ci_bootstrap import hydrate_electron; import shutil; hydrate_electron(Path.cwd(), Path(shutil.which('node')))"

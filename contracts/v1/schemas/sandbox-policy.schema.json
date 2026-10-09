@@ -24,7 +24,8 @@
         "read_mode": {
           "enum": [
             "backend_default_with_protected_paths",
-            "strict_allowlist_required"
+            "strict_allowlist_required",
+            "host_default"
           ]
         },
         "read_roots": {
@@ -77,7 +78,8 @@
         "mode": {
           "enum": [
             "deny_direct",
-            "allowlist"
+            "allowlist",
+            "inherit"
           ]
         },
         "allowed_domains": {

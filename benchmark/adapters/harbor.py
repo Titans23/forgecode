@@ -175,6 +175,8 @@ class HarborExecutor:
         self.service,self.adapter=service,adapter
 
     def validate(self,spec,values):
+        if self.service.mode != 'strict':
+            return [{'task_id':None,'kind':'protocol_incompatible','message':'Official evaluation requires strict Harbor/Docker execution'}]
         issues=self.adapter.validate(spec,values) if self.adapter else [{'task_id':None,'kind':'runner_unavailable',
             'message':'Official taskset and frozen candidate must be materialized in trusted Engine configuration'}]
         if spec['execution']['target_platform']=='windows-native':

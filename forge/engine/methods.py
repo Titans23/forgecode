@@ -102,6 +102,8 @@ class EngineMethods:
             return {'status': 'blocked', 'reasons': ['previous_execution_requires_reconciliation']}
         if self.store.cleanup_blocked():
             return {'status': 'blocked', 'reasons': ['previous_cleanup_unconfirmed']}
+        if self.service.mode == 'workspace-write':
+            return {'status': 'degraded', 'reasons': ['workspace-write offers partial native write restrictions; each turn requires a real boundary probe']}
         if self.service.mode == 'local-trusted':
             return {'status': 'degraded', 'reasons': ['local-trusted has no OS sandbox isolation',
                 *(['scripted model test profile; no benchmark grades'] if self.profile == 'test' else [])]}

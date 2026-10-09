@@ -17,7 +17,7 @@ def digest(path):
 
 def dependency_paths(lock):
     packages = lock['packages']
-    pending = ['node_modules/@anthropic-ai/sandbox-runtime', 'node_modules/ajv', 'node_modules/ajv-formats']
+    pending = ['node_modules/@anthropic-ai/sandbox-runtime', 'node_modules/ajv', 'node_modules/ajv-formats', 'node_modules/@deepseek-ai/dsh-sandbox-windows-acl']
     seen = set()
     while pending:
         path = pending.pop()
@@ -25,7 +25,7 @@ def dependency_paths(lock):
             continue
         seen.add(path)
         package = packages[path]
-        for name in package.get('dependencies', {}):
+        for name in package.get('dependencies', {}) | package.get('peerDependencies', {}):
             parent = path
             candidates = [parent + '/node_modules/' + name]
             while '/node_modules/' in parent:
@@ -33,6 +33,8 @@ def dependency_paths(lock):
                 candidates.append(parent + '/node_modules/' + name)
             candidates.append('node_modules/' + name)
             candidate = next((value for value in candidates if value in packages), None)
+            if candidate is None and package.get('peerDependenciesMeta', {}).get(name, {}).get('optional'):
+                continue
             if candidate is None:
                 raise ValueError(f'Locked runtime dependency is unresolved: {name}')
             pending.append(candidate)

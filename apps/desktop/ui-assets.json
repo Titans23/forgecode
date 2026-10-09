@@ -1,11 +1,11 @@
 {
-  "/assets/http_transport-CUYqT7x8.js": {
-    "path": ".vite/renderer/ui/assets/http_transport-CUYqT7x8.js",
-    "sha256": "03c87cae45a4c833160c38e3be5927ca4e26a0417837481b04085099279d2602"
+  "/assets/http_transport-wsEsoZmW.js": {
+    "path": ".vite/renderer/ui/assets/http_transport-wsEsoZmW.js",
+    "sha256": "0f12f8f4744aa28b5b558dbb5977a803b63afbcfc5ffba304159998dbfa570d4"
   },
-  "/assets/index-CGF9rgYT.js": {
-    "path": ".vite/renderer/ui/assets/index-CGF9rgYT.js",
-    "sha256": "ed5a4563d64d7762d1611d36b09c4301f7ef6cbe6d19fe43b6ac78dd803458ca"
+  "/assets/index-Cjf4NN_l.js": {
+    "path": ".vite/renderer/ui/assets/index-Cjf4NN_l.js",
+    "sha256": "eca8b052f81c5d7b83188168c13d37e39a5608198167791f70e5088b47768b21"
   },
   "/assets/index-E98Z7tTV.css": {
     "path": ".vite/renderer/ui/assets/index-E98Z7tTV.css",
@@ -17,6 +17,6 @@
   },
   "/index.html": {
     "path": ".vite/renderer/ui/index.html",
-    "sha256": "9ecbedcb6921b7b64f3932639436287758084d9f3fe79ec59b50e3c06fc886dc"
+    "sha256": "65a8caaa0678ed63515646bd2e2fce961c6923073d104ea842280c2901e62636"
   }
 }

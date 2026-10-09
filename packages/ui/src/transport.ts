@@ -34,7 +34,7 @@ export interface ConnectionPage {
   protection: { mode: string; backend: string; available: boolean; state: string; stored_in_memory: number };
 }
 export interface DesktopOperations {
-  chooseExecutionMode(): Promise<{ mode: 'strict' | 'local-trusted'; restart_required: boolean }>;
+  chooseExecutionMode(): Promise<{ mode: 'strict' | 'local-trusted' | 'workspace-write'; restart_required: boolean }>;
   status(): Promise<DesktopStatus>;
   projects(): Promise<{ items: Array<{ workspace_id: string; name?: string; [key: string]: unknown }> }>;
   selectProject(): Promise<unknown>;

@@ -28,6 +28,35 @@ export function commandArgv(command: any, shells: Record<string, string>, tools:
     : [shell, '-c', command.script];
 }
 
+export function decodeLaunchPayload(raw: Buffer) {
+  const payload = strictLoads(raw) as any;
+  if (!payload || Object.keys(payload).sort().join(',') !== 'command,shells,tools' || !payload.shells || typeof payload.shells !== 'object'
+      || !payload.tools || Object.keys(payload.tools).sort().join(',')!=='git,rg' || !Object.values(payload.tools).every(p=>typeof p==='string'&&isAbsolute(p))) {
+    throw new Error('Invalid execution payload');
+  }
+  validate('command-spec', payload.command);
+  const input = payload.command.stdin_base64 === undefined ? undefined : Buffer.from(payload.command.stdin_base64, 'base64');
+  if (input && input.toString('base64') !== payload.command.stdin_base64) throw new Error('Noncanonical task stdin');
+  return { payload, input };
+}
+
+export function commandEnvironment(command: any, tools: Record<string,string>) {
+  const environment = { ...process.env, ...command.environment };
+  const pathKeys=Object.keys(environment).filter(name=>name.toUpperCase()==='PATH');
+  const inheritedPath=pathKeys.map(name=>environment[name]).filter(Boolean).join(delimiter);
+  for(const name of pathKeys)delete environment[name];
+  environment.PATH=[...new Set(Object.values(tools).map(path=>dirname(path as string))),inheritedPath].filter(Boolean).join(delimiter);
+  if(process.platform==='win32') {
+    for(const name of Object.keys(environment))if(name.toUpperCase()==='PATHEXT')delete environment[name];
+    environment.PATHEXT='.COM;.EXE;.BAT;.CMD';
+  }
+  // Host control variables are absent; preserve only SRT's own restricted proxy/profile overlays.
+  for (const name of Object.keys(environment)) {
+    if (/^(NODE_|PYTHON|LD_|DYLD_|ELECTRON_)|(?:KEY|SECRET|PASSWORD|CREDENTIAL)/i.test(name)) delete environment[name];
+  }
+  return environment;
+}
+
 export async function dispatch(): Promise<void> {
   const chunks: Buffer[] = [];
   let total = 0;
@@ -40,28 +69,9 @@ export async function dispatch(): Promise<void> {
       chunks.push(chunk);
     }
   }
-  const payload = strictLoads(Buffer.concat(chunks)) as any;
-  if (!payload || Object.keys(payload).sort().join(',') !== 'command,shells,tools' || !payload.shells || typeof payload.shells !== 'object'
-      || !payload.tools || Object.keys(payload.tools).sort().join(',')!=='git,rg' || !Object.values(payload.tools).every(p=>typeof p==='string'&&isAbsolute(p))) {
-    throw new Error('Invalid execution payload');
-  }
-  validate('command-spec', payload.command);
-  const input = payload.command.stdin_base64 === undefined ? undefined : Buffer.from(payload.command.stdin_base64, 'base64');
-  if (input && input.toString('base64') !== payload.command.stdin_base64) throw new Error('Noncanonical task stdin');
+  const { payload, input } = decodeLaunchPayload(Buffer.concat(chunks));
   const argv = commandArgv(payload.command, payload.shells, payload.tools);
-  const environment = { ...process.env, ...payload.command.environment };
-  const pathKeys=Object.keys(environment).filter(name=>name.toUpperCase()==='PATH');
-  const inheritedPath=pathKeys.map(name=>environment[name]).filter(Boolean).join(delimiter);
-  for(const name of pathKeys)delete environment[name];
-  environment.PATH=[...new Set(Object.values(payload.tools).map(path=>dirname(path as string))),inheritedPath].filter(Boolean).join(delimiter);
-  if(process.platform==='win32') {
-    for(const name of Object.keys(environment))if(name.toUpperCase()==='PATHEXT')delete environment[name];
-    environment.PATHEXT='.COM;.EXE;.BAT;.CMD';
-  }
-  // Host control variables are absent; preserve only SRT's own restricted proxy/profile overlays.
-  for (const name of Object.keys(environment)) {
-    if (/^(NODE_|PYTHON|LD_|DYLD_|ELECTRON_)|(?:KEY|SECRET|PASSWORD|CREDENTIAL)/i.test(name)) delete environment[name];
-  }
+  const environment = commandEnvironment(payload.command, payload.tools);
   const child = spawn(argv[0], argv.slice(1), { cwd: payload.command.cwd, env: environment,
     shell: false, windowsHide: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'inherit', 'inherit'] });
   if (child.stdin) {
@@ -79,5 +89,5 @@ export async function dispatch(): Promise<void> {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  dispatch().catch(() => { process.stderr.write('ForgeCode dispatcher failed\n'); process.exitCode = 125; });
+  dispatch().catch(error => { process.stderr.write('ForgeCode dispatcher failed: ' + (error?.code ?? error?.name ?? 'unknown') + ' (' + String(error?.syscall ?? 'validation').split(' ')[0] + ')' + '\n'); process.exitCode = 125; });
 }

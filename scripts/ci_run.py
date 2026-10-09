@@ -8,6 +8,7 @@ import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from scripts.impl import verify, gate
+from scripts.evidence_gate import source_fingerprint
 
 
 def trusted_native_dispatch(environment):
@@ -27,8 +28,9 @@ def main():
             subprocess.run([sys.executable,str(ROOT/'scripts'/script),'--build-id',build],cwd=ROOT,check=True)
         suites=['engine-packaged','desktop-packaged','installer-windows' if sys.platform=='win32' else 'installer-linux']
     records=[];output=ROOT/'.local/ci'/('run-'+a.layer+'.json');output.parent.mkdir(parents=True,exist_ok=True)
+    prepared_source_hash = source_fingerprint(ROOT)
     for suite in suites:
-        record=verify(suite,'F29');records.append(record)
+        record=verify(suite,'F29',prepared_source_hash=prepared_source_hash);records.append(record)
         output.write_text(json.dumps({'layer':a.layer,'evidence':records},indent=2)+'\n',encoding='utf-8')
         if record['status']!='pass':print(json.dumps({'status':record['status'],'suite':suite,'evidence_id':record['evidence_id']}));return 2 if record['status']=='blocked' else 1
     result=gate('ci',[r['evidence_id'] for r in records]) if a.layer=='portable' else {'status':'pass','scope':'actual '+a.layer+' checks; release gate remains separate'}

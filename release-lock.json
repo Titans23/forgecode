@@ -441,7 +441,7 @@
       "name": "bridge-runtime-manifest",
       "platform": "all",
       "path": "sandbox_bridge/runtime-manifest.json",
-      "sha256": "d5d662c880185dadfc2fa9eca44418fbac0ff8699413c55e5986393174636fe1",
+      "sha256": "f590362b38adda84748d5439bceaa3fb69ff596496f6dc72fab331cbd0106e5b",
       "source": "ForgeCode locked runtime code inventory",
       "license": "NOASSERTION",
       "patches": []
@@ -449,7 +449,7 @@
   ],
   "lockfile_hashes": {
     "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
-    "package-lock.json": "4c18fd0565e59dc9cf4e46ed1de1c6cb510cd4ec8ab4dfeea9cd60d8040b8a25"
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4"
   },
   "security": {
     "status": "blocked",

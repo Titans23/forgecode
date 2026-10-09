@@ -68,3 +68,15 @@ test('unconfirmed shutdown and malformed selections never grant local execution'
     await assert.rejects(readExecutionMode(file), /Invalid execution mode/);
   }
 }));
+
+
+test('workspace-write is explicit, survives restart and does not bypass cleanup confirmation', () => fixture(async file => {
+  const operations = { assertIdle: async () => {}, choose: async () => 'workspace-write',
+    shutdown: async () => ({ state: 'confirmed', cleanup_state: 'unknown' }) };
+  await assert.rejects(changeExecutionMode(file, 'strict', operations), /清理/);
+  assert.equal(await readExecutionMode(file), 'strict');
+  const result = await changeExecutionMode(file, 'strict', { ...operations,
+    shutdown: async () => ({ state: 'confirmed', cleanup_state: 'complete' }) });
+  assert.deepEqual(result, { mode: 'workspace-write', restart_required: true });
+  assert.equal(await readExecutionMode(file), 'workspace-write');
+}));

@@ -27,7 +27,7 @@ def test_desktop_mode_consent_persistence_and_shutdown_boundary():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize('mode', ['strict', 'local-trusted'])
+@pytest.mark.parametrize('mode', ['strict', 'local-trusted', 'workspace-write'])
 def test_real_desktop_engine_reports_the_explicit_mode_without_native_claim(tmp_path, mode):
     async def run():
         process = await asyncio.create_subprocess_exec(sys.executable, '-m', 'forge.engine', '--data-dir', str(tmp_path / 'data'),
@@ -50,9 +50,10 @@ def test_real_desktop_engine_reports_the_explicit_mode_without_native_claim(tmp_
 
 
 @pytest.mark.parametrize('profile,principal,owner', [('evaluation', 'main', True), ('desktop', 'renderer', True), ('desktop', 'main', False)])
-def test_local_desktop_mode_cannot_replace_evaluation_or_renderer_admission(tmp_path, profile, principal, owner):
+@pytest.mark.parametrize('mode', ['local-trusted', 'workspace-write'])
+def test_local_desktop_mode_cannot_replace_evaluation_or_renderer_admission(tmp_path, profile, principal, owner, mode):
     args = [sys.executable, '-m', 'forge.engine', '--data-dir', str(tmp_path / 'data'), '--profile', profile,
-            '--principal', principal, '--execution-mode', 'local-trusted']
+            '--principal', principal, '--execution-mode', mode]
     if owner:
         args += ['--main-owner-pid', str(os.getpid())]
     result = subprocess.run(args, cwd=ROOT, input=b'', capture_output=True, timeout=20)

@@ -128,3 +128,19 @@ def test_ci_rejects_changed_source_and_another_platform(tmp_path,monkeypatch):
     path=tmp_path/'docs/implementation/evidence'/(''+ids[0]+'.json')
     record=json.loads(path.read_bytes());record['platform']='darwin';write(path,record)
     assert evaluate_gate(tmp_path,'ci',ids)['status']=='fail'
+
+def test_prepared_batch_refuses_source_changed_after_build(tmp_path,monkeypatch):
+    from scripts import impl,ci_checks
+    monkeypatch.setattr(impl,'source_fingerprint',lambda root:'current-source')
+    monkeypatch.setattr(ci_checks,'source_fingerprint',lambda root:'current-source')
+    with pytest.raises(ValueError,match='changed source'):impl.verify('unit',prepared_source_hash='stale-source')
+    with pytest.raises(ValueError,match='source changed'):ci_checks.run('quality',tmp_path/'report.json','stale-source')
+
+
+def test_deleted_source_is_removed_from_fingerprint(tmp_path):
+    subprocess.run(['git','init','-q',str(tmp_path)],check=True)
+    (tmp_path/'forge').mkdir();source=tmp_path/'forge/unused.py';source.write_text('obsolete = True\n')
+    subprocess.run(['git','add','forge/unused.py'],cwd=tmp_path,check=True)
+    previous=source_fingerprint(tmp_path)
+    source.unlink()
+    assert source_fingerprint(tmp_path)!=previous

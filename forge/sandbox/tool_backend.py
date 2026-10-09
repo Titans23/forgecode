@@ -13,13 +13,13 @@ PROCESS_TOOLS = frozenset({'run_command', 'verify'})
 class FileToolBackend:
     def __init__(self, client):
         self.observer = client
-        self.mode = 'strict' if client.native is not None else 'local-trusted'
+        self.mode = client.native.mode if client.native is not None else 'local-trusted'
         self._observed = {}
 
     def check_ready(self, policy, *, required_mode):
         if self.mode != required_mode or canonical_hash(policy) != self.observer.policy_hash:
             raise ContractError('Tool backend does not match the frozen execution policy', kind='SANDBOX_UNAVAILABLE', code=-32010)
-        if self.mode == 'strict':
+        if self.mode != 'local-trusted':
             prepared = self.observer.native._prepared
             if prepared is None or prepared.sha256 != self.observer.policy_hash:
                 raise ContractError('Restricted helper requires a prepared native session', kind='SANDBOX_UNAVAILABLE', code=-32010)
@@ -61,7 +61,7 @@ class FileToolBackend:
                 for path, value in reply['observations'].items():
                     self._observed[path] = value['sha256']
                 return replace(result, metadata={**result.metadata, 'execution_boundary':
-                    'srt-file-worker' if self.mode == 'strict' else 'local-trusted-file-worker'})
+                    'srt-file-worker' if self.mode == 'strict' else self.mode + '-file-worker'})
             except ContractError as error:
                 return ToolResult.fail(error.kind, str(error), metadata={'execution_boundary': self.mode + '-file-worker'})
         # These tools mutate trusted task state or dispatch Explore with this same

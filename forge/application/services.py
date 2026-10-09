@@ -32,8 +32,8 @@ class ApplicationServices:
     def __init__(self, store, *, profile_id, credentials: CredentialProvider, mode='strict', backend=None,
                  model_client_factory=None, recorder=None, approval_handler=None, task_relation=None, observation_options=None,
                  backend_factory=None):
-        if mode not in ('strict', 'local-trusted'):
-            raise ValueError('Execution mode must be strict or local-trusted')
+        if mode not in ('strict', 'local-trusted', 'workspace-write'):
+            raise ValueError('Execution mode must be strict, workspace-write or local-trusted')
         self.store = store
         self.profile_id = profile_id
         self.credentials = credentials
@@ -405,7 +405,7 @@ class ApplicationServices:
                         cleanup = {'state': 'unknown', 'reason': 'invalid_backend_cleanup_report'}
                 except (Exception, asyncio.CancelledError) as error:
                     cleanup = {'state': 'unknown', 'reason': type(error).__name__}
-            elif self.mode == 'strict' and not cleanup.get('reports'):
+            elif self.mode != 'local-trusted' and not cleanup.get('reports'):
                 cleanup = {'state': 'unknown', 'reason': 'native_cleanup_observation_unavailable'}
             if model_cleanup_error:
                 cleanup = {'state': 'unknown', 'model_cleanup_error': model_cleanup_error, 'backend': cleanup}

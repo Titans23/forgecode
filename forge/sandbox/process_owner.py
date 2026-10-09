@@ -1,4 +1,4 @@
-"""Live local-trusted process ownership. This grants no native sandbox capability."""
+"""Owned process trees. Process ownership alone grants no sandbox capability."""
 import asyncio
 import json
 import os
@@ -12,13 +12,13 @@ class LocalProcessOwner:
         self._closing = None
 
     @classmethod
-    async def start(cls, argv, *, cwd, environment, output=False):
+    async def start(cls, argv, *, cwd, environment, output=False, capture_stderr=False):
         if not isinstance(argv, list) or not argv or not all(isinstance(x, str) for x in argv):
             raise ValueError('Owned launch requires an explicit argument list')
         job = None
         options = {'cwd': cwd, 'env': environment, 'stdin': asyncio.subprocess.PIPE,
             'stdout': asyncio.subprocess.PIPE if output else asyncio.subprocess.DEVNULL,
-            'stderr': asyncio.subprocess.DEVNULL}
+            'stderr': asyncio.subprocess.PIPE if capture_stderr else asyncio.subprocess.DEVNULL}
         if os.name == 'nt':
             import subprocess
             from forge.tools.windows_job import WindowsJob
@@ -50,7 +50,7 @@ class LocalProcessOwner:
             raise
 
     async def _close(self):
-        report = {'state': 'unknown', 'scope': 'local-trusted-process-tree'}
+        report = {'state': 'unknown', 'scope': 'owned-process-tree'}
         try:
             async with asyncio.timeout(2):
                 if self.job:

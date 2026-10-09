@@ -53,7 +53,7 @@ export class HttpTransport implements DesktopOperations {
     const value=await this.json(await this.fetcher(this.origin+'/api/v1/session',
       {credentials:'same-origin',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)}));
     validate('system.health.result',value.health);
-    if(typeof value.csrf!=='string'||value.csrf.length<40||!['strict','local-trusted'].includes(value.mode)||!['cli','test'].includes(value.profile))
+    if(typeof value.csrf!=='string'||value.csrf.length<40||!['strict','local-trusted','workspace-write'].includes(value.mode)||!['cli','test'].includes(value.profile))
       throw new ContractError('Web session metadata is invalid');
     this.csrf=value.csrf;return value;
   }

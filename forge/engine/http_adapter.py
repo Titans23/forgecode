@@ -225,7 +225,7 @@ class HttpAdapter:
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Explicit opt-in ForgeCode loopback Web service. No remote bind.')
     parser.add_argument('--data-dir',required=True,type=Path)
-    parser.add_argument('--execution-mode',choices=('strict','local-trusted'),default='strict')
+    parser.add_argument('--execution-mode',choices=('strict','local-trusted','workspace-write'),default='strict')
     parser.add_argument('--profile',choices=('cli','test'),default='cli')
     parser.add_argument('--profile-id')
     parser.add_argument('--scripted-fixture',type=Path,help='Offline test profile only')
@@ -235,18 +235,14 @@ def main(argv=None):
     args=parser.parse_args(argv)
     if args.scripted_fixture and args.profile!='test':parser.error('scripted fixture requires test profile')
     if args.authorize_project and not args.project:parser.error('authorization requires a CLI-selected project')
-    from forge.application.harness_adapter import LocalTrustedBackend
-    from forge.application.services import ApplicationServices
+    from forge.engine.bootstrap import create_application
     from forge.engine.methods import EngineMethods
     from forge.engine.persistence import Store
-    from forge.engine.test_profile import MemoryCredentials,load_scripted_profile
+    from forge.engine.test_profile import load_scripted_profile
     fixture=load_scripted_profile(args.scripted_fixture) if args.scripted_fixture else None
-    credentials=fixture.credentials if fixture else MemoryCredentials()
     with Store(args.data_dir) as store:
-        service=ApplicationServices(store,profile_id=args.profile_id or args.profile+'-profile',credentials=credentials,
-            mode=args.execution_mode,backend=LocalTrustedBackend() if args.execution_mode=='local-trusted' else None,
-            model_client_factory=fixture.model_client_factory if fixture else None,
-            approval_handler=fixture.approval_handler if fixture else None,task_relation='new' if fixture else None)
+        service=create_application(store, profile=args.profile, mode=args.execution_mode,
+            profile_id=args.profile_id, native_execution=args.execution_mode == 'workspace-write', scripted=fixture)
         if args.project:
             workspace=service.open_workspace(args.project)
             if args.authorize_project and workspace['trust']!='execution_allowed':
@@ -254,10 +250,7 @@ def main(argv=None):
         if args.from_cli_config:
             from forge.config import ForgeConfig
             config=ForgeConfig.from_env()
-            identifier=service.put_connection(config);credentials.values[identifier]=config.api_key
-        if args.profile!='test':
-            from benchmark.adapters.harbor import HarborExecutor
-            service.evaluation_executor=HarborExecutor(service)
+            identifier=service.put_connection(config);service.credentials.values[identifier]=config.api_key
         if getattr(sys,'frozen',False):
             from forge.release.runtime import installed_root
             root=installed_root()

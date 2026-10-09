@@ -291,7 +291,7 @@ async function ready() {
 
   ipcMain.handle('forge:status', (event, value) => { sender(event); empty(value); return {
     engine_state: engine?.state ?? 'engine_lost', readiness: engine?.hello?.readiness ?? null,
-    mode: smoke ? 'offline-demo' : selectedMode === 'local-trusted' ? 'desktop-local-trusted' : 'desktop', session_id: currentSession, failure }; });
+    mode: smoke ? 'offline-demo' : selectedMode === 'strict' ? 'desktop' : 'desktop-' + selectedMode, session_id: currentSession, failure }; });
   ipcMain.handle('forge:projects', (event, value) => { sender(event); empty(value); return live().call('workspace.list', { limit: 100 }); });
   ipcMain.handle('forge:session', (event, value) => { sender(event); const session_id = onlyId(value, 'session_id', 'ses'); return live().call('session.get', { session_id }); });
   ipcMain.handle('forge:sessions', (event, value) => { sender(event); validate('session.list.request', value); return live().call('session.list', value); });
@@ -349,11 +349,11 @@ async function ready() {
           },
           choose: async () => {
             const choice = await dialog.showMessageBox(guard(), { type: 'warning', title: '选择执行模式',
-              message: '本机执行模式没有 OS 沙盒隔离。',
-              detail: '命令将以当前 Windows/Linux 用户权限运行，可访问该账户可访问的文件和网络。项目授权与操作审批仍保留。严格沙盒未就绪时会阻止任务。切换后自动重启，历史记录保留；请新建会话使用新模式。',
-              buttons: ['取消', '使用本机执行并重启', '使用严格沙盒并重启'], defaultId: 0, cancelId: 0, noLink: true });
+              message: '选择执行边界。原生沙盒提供有限的写入限制。',
+              detail: '原生沙盒限制工作区写入，读取和网络沿用宿主权限，存在平台能力限制；首次执行将核验实际边界。工作区写入授权会跨会话保留。无隔离本机模式的命令将以当前 Windows/Linux 用户权限运行，可访问该账户可访问的文件和网络。项目授权与操作审批仍保留。严格沙盒未就绪时会阻止任务。切换后自动重启，历史记录保留；请新建会话使用新模式。',
+              buttons: ['取消', '使用本机执行并重启', '使用严格沙盒并重启', '使用原生沙盒：写入限制并重启'], defaultId: 0, cancelId: 0, noLink: true });
             guard();
-            const mode = choice.response === 1 ? 'local-trusted' : choice.response === 2 ? 'strict' : null;
+            const mode = choice.response === 1 ? 'local-trusted' : choice.response === 2 ? 'strict' : choice.response === 3 ? 'workspace-write' : null;
             changingMode = mode !== null && mode !== selectedMode;
             return mode;
           },

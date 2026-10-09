@@ -261,3 +261,16 @@ def test_official_docker_stop_preserves_unknown_when_upstream_swallows_down_fail
     assert receipts[-1]['delete_requested'] is True
     assert 'deleted' not in receipts[-1]
     assert cleanup_state(receipts) == 'unknown'
+
+def test_docker_cleanup_requires_same_daemon_and_empty_resource_queries():
+    from benchmark.adapters.docker import cleanup_state
+    empty={'daemon_id':'fixture-daemon','project':'owned-fixture','containers':[],'volumes':[],'networks':[]}
+    before={**empty,'containers':['container-fixture'],'volumes':['anonymous-fixture']}
+    rows=[{'resource_id':'a','phase':'start_intent'}, {'resource_id':'a','phase':'baseline','inventory':empty},
+        {'resource_id':'a','phase':'stop_returned','delete_requested':True},
+        {'resource_id':'a','phase':'resource_query','before':before,'after':empty}]
+    assert cleanup_state(rows)=='clean'
+    assert cleanup_state([*rows[:-1],{**rows[-1],'after':{**empty,'volumes':['anonymous-fixture']}}])=='residual'
+    assert cleanup_state([*rows[:-1],{**rows[-1],'after':{**empty,'daemon_id':'different'}}])=='unknown'
+    assert cleanup_state([*rows,{'resource_id':'a','phase':'query_failed'}])=='unknown'
+    assert cleanup_state([*rows,{'resource_id':'b','phase':'start_intent'}])=='unknown'

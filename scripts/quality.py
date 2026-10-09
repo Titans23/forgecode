@@ -92,6 +92,7 @@ def check_project(root):
     findings=[];syntax=0
     for name in sorted(set(names)):
         p=root/name
+        if not p.is_file(): continue
         if Path(name).parts[0] in {'.forge','build','update_implementation_pack'} or p.suffix.lower() not in {'.py','.spec','.ts','.mts','.tsx','.js','.mjs','.cjs','.json','.toml','.yaml','.yml','.md','.env','.txt'}:continue
         findings.extend(scan_secrets(p))
         if p.suffix in ('.py','.spec'):ast.parse(p.read_text(encoding='utf-8-sig'),filename=name);syntax+=1
