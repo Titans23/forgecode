@@ -3,6 +3,7 @@ import asyncio
 import base64
 import json
 from pathlib import Path
+from forge.storage_paths import private_storage_path
 import shutil
 import subprocess
 import sys
@@ -73,7 +74,7 @@ def test_actual_missing_or_changed_debug_capture_is_explicit_even_after_cached_v
     methods,turn,execution,_=observed(tmp_path)
     try:
         methods.observations.output({'turn_id':turn,'execution_id':execution})
-        path=next((methods.store.data_dir/'harness').rglob('tool-'+execution+'.json'))
+        path=next(private_storage_path(methods.store.data_dir/'harness').rglob('tool-'+execution+'.json'))
         if change=='missing': path.unlink()
         else: path.write_text('{"stdout":"changed actual bytes"}')
         result=methods.observations.output({'turn_id':turn,'execution_id':execution})

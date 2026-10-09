@@ -489,8 +489,6 @@ def scope_path_matches(path: str, pattern: str) -> bool:
     return fnmatchcase(candidate, normalized)
 
 
-def file_read_paths(unit: list[dict[str, Any]]) -> set[str]:
-    return {path for path, _, _ in file_read_spans(unit)}
 
 
 def file_read_spans(

@@ -94,9 +94,9 @@ def create_default_session(service, params):
     policy_id, budget_id = 'policy-'+identity, 'budget-'+identity
     if not service.store.connection.execute('SELECT 1 FROM policies WHERE id=?', (policy_id,)).fetchone():
         service.put_policy({'schema_version': 'forge.sandbox.policy.v1', 'policy_id': policy_id, 'workspace_id': params['workspace_id'],
-            'filesystem': {'read_mode': 'backend_default_with_protected_paths', 'read_roots': [root], 'write_roots': [root],
+            'filesystem': {'read_mode': 'host_default' if service.mode == 'workspace-write' else 'backend_default_with_protected_paths', 'read_roots': [root], 'write_roots': [root],
                 'protected_paths': [], 'deny_overrides_allow': True, 'reject_unsafe_links': True},
-            'network': {'mode': 'deny_direct', 'allowed_domains': [], 'dns_isolation_required': False},
+            'network': {'mode': 'inherit' if service.mode == 'workspace-write' else 'deny_direct', 'allowed_domains': [], 'dns_isolation_required': False},
             'limits': {'memory_bytes': None, 'disk_bytes': None, 'pids': None, 'wall_time_seconds': 300,
                 'command_output_bytes': 1048576, 'session_artifact_bytes': 104857600},
             'environment_keys': [], 'fallback': 'deny', 'session_mutation': 'replace_session'})

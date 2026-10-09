@@ -3,11 +3,12 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
-from benchmark.core.bundle import selected_file
+from forge.file_selection import selected_file
 from forge.application.models import ContractError, strict_loads
 from forge.engine.persistence import encoded
 from forge.observability.export_queue import redact
 from forge.sessions.store import SessionStore
+from forge.storage_paths import private_storage_path
 
 
 def output(views,params):
@@ -28,7 +29,7 @@ def output(views,params):
     if capture.get('local_name')!=expected_name or not row['native_ref']:
         return {**result,'state':'missing','reason':'capture_binding_missing'}
     directory=SessionStore(Path(row['canonical_path']),data_root=store.data_dir/'harness').directory
-    path=directory/'controlled-debug'/row['trace_id']/(expected_name+'.json')
+    path=private_storage_path(directory/'controlled-debug'/row['trace_id']/(expected_name+'.json'))
     try:
         with selected_file(path) as source: raw=source.read(262145)
         if len(raw)>262144 or len(raw)!=capture['size_bytes'] or sha256(raw).hexdigest()!=capture['sha256']:

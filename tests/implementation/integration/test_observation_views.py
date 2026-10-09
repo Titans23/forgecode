@@ -1,5 +1,6 @@
 """F18 runs real Harness, SQLite, provider SDK HTTP and collector HTTP boundaries."""
 import asyncio
+from forge.storage_paths import private_storage_path
 from decimal import Decimal
 import json
 import threading
@@ -38,8 +39,13 @@ def test_real_request_ledger_frozen_prices_and_replay_recompute_once(tmp_path):
         assert Decimal(usage['cost_decimal'])==sum(Decimal(r[0]) for r in store.connection.execute('SELECT cost FROM usage_ledger'))
         assert usage['roles']['main']['requests']==2 and usage['pricing_snapshot']
         native=store.connection.execute('SELECT native_ref FROM turns WHERE id=?',(turn['turn_id'],)).fetchone()[0]
-        path=next((store.data_dir/'harness').rglob(native+'.jsonl'))
+        path=next(private_storage_path(store.data_dir/'harness').rglob(native+'.jsonl'))
         assert JournalProjector(store).project(path,params['session_id'],trusted=True)==0
+        outside=private_storage_path(tmp_path/'untrusted-journal.jsonl')
+        outside.write_bytes(path.read_bytes())
+        with pytest.raises(ContractError) as error:
+            JournalProjector(store).project(outside,params['session_id'],trusted=True)
+        assert error.value.kind=='POLICY_DENIED'
         assert query.usage({'scope':{'kind':'all'}})['cost_decimal']=='0.000174'
         spans=query.spans({'scope':{'kind':'turn','id':turn['turn_id']},'limit':1})
         validate('observability.spans.result',spans)
@@ -408,7 +414,7 @@ def test_debug_capture_is_opt_in_local_and_redacts_literal_credential(tmp_path,m
     try:
         turn=service.start_turn(params)
         asyncio.run(service.execute_turn(turn['turn_id']))
-        files=list((store.data_dir/'harness').rglob('controlled-debug/**/*.json'))
+        files=list(private_storage_path(store.data_dir/'harness').rglob('controlled-debug/**/*.json'))
         assert bool(files)==(mode=='controlled_debug')
         for path in files:
             assert b'sensitive-do-not-persist' not in path.read_bytes()

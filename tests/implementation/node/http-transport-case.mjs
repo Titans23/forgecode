@@ -60,17 +60,19 @@ try {
     await transport.sessionSnapshot({session_id:turn.session_id});
     const accepted=await transport.submit({session_id:turn.session_id,client_action_id:turn.client_action_id,input:turn.input});
     validate('session.submit.result',accepted);
-    let snapshot;const until=Date.now()+15000;
+    let snapshot;const events=[];const until=Date.now()+15000;
     do {
       snapshot=await transport.sessionSnapshot({session_id:turn.session_id});
       validate('session.snapshot.result',snapshot);
+      // Consume and acknowledge as the real UI does; a slow turn must not
+      // accidentally exercise expiry before the explicit expiry phase.
+      events.push(...(await transport.events()).events);
       if(snapshot.turns[0]?.state==='finished')break;
       await new Promise(resolve=>setTimeout(resolve,30));
     }while(Date.now()<until);
     assert.equal(snapshot.turns[0].outcome,'completed');
     const messages=mergeMessages([],snapshot.messages);
     assert.deepEqual(mergeMessages(messages,snapshot.messages),messages);
-    let events=[];
     for(let index=0;index<30;index++){
       events.push(...(await transport.events()).events);
       if(events.some(value=>value.event_type==='turn.finished'))break;

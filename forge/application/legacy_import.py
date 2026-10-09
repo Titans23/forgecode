@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 from uuid import NAMESPACE_URL, uuid5
 
-from benchmark.core.bundle import selected_file
+from forge.file_selection import selected_file
 from forge.application.models import ContractError, canonical_hash
 from forge.engine.journal_projection import journal_facts
 from forge.engine.persistence import encoded, new_id, sync_directory, utc_now

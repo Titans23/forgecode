@@ -6,6 +6,7 @@ from pathlib import Path
 from forge.application.models import ContractError
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.sessions.store import SessionError, SessionStore
+from forge.storage_paths import private_storage_path
 
 
 class JournalProjector:
@@ -26,7 +27,7 @@ class JournalProjector:
 
     def _project(self, path: Path, session_id: str | None, *, trusted, attempt_id=None):
         path = Path(path).resolve(strict=True)
-        if trusted and not path.is_relative_to((self.store.data_dir/'harness').resolve()):
+        if trusted and not private_storage_path(path).is_relative_to(private_storage_path((self.store.data_dir/'harness').resolve())):
             raise ContractError('Trusted Journal must be in the private Harness directory',kind='POLICY_DENIED',code=-32010)
         session = self.store.connection.execute('SELECT * FROM sessions WHERE id=?', (session_id,)).fetchone()
         attempt = self.store.connection.execute('SELECT a.id,a.trial_id,t.run_id,d.trace_id FROM attempts a JOIN trials t ON t.id=a.trial_id JOIN attempt_details d ON d.attempt_id=a.id WHERE a.id=?', (attempt_id,)).fetchone() if attempt_id else None

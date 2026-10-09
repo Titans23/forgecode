@@ -8,6 +8,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import time
+from time import monotonic_ns
 from uuid import uuid4
 
 from forge.application.models import ContractError, canonical_hash, validate, validate_event
@@ -116,12 +117,11 @@ class Store:
                     if self.connection.execute("SELECT 1 FROM sqlite_master WHERE name='attempt_details'").fetchone():
                         self.connection.execute("UPDATE attempts SET cleanup_state='unknown' WHERE id IN (SELECT business_id FROM work_items WHERE kind='attempt' AND state='reconciling')")
                         self.connection.execute("UPDATE runs SET state='indeterminate' WHERE id IN (SELECT t.run_id FROM trials t JOIN attempts a ON a.trial_id=t.id JOIN attempt_details d ON d.attempt_id=a.id JOIN work_items w ON w.id=d.work_item_id WHERE w.state='reconciling')")
-                        from benchmark.core.scheduler import emit
                         for row in self.connection.execute("SELECT a.id,a.trial_id,t.run_id,d.trace_id,d.span_id FROM attempts a JOIN trials t ON t.id=a.trial_id JOIN attempt_details d ON d.attempt_id=a.id JOIN work_items w ON w.id=d.work_item_id WHERE w.state='reconciling'").fetchall():
                             trace,span=uuid4().hex,uuid4().hex[:16]
                             self.connection.execute('INSERT INTO attempt_recovery VALUES(?,?,?,?,?)',(row['id'],self.epoch,trace,span,row['trace_id']))
                             self.connection.execute('UPDATE attempt_details SET recovery_trace_id=? WHERE attempt_id=?',(trace,row['id']))
-                            emit(self,'recovery.started',{'original_turn_id':None,'original_attempt_id':row['id'],'unknown_side_effects':True,
+                            self.emit_event('recovery.started',{'original_turn_id':None,'original_attempt_id':row['id'],'unknown_side_effects':True,
                                 'reason':'previous_engine_exited','cleanup_state':'unknown','trace_links':[{'trace_id':row['trace_id'],'span_id':row['span_id']}] if row['trace_id'] else []},
                                 run_id=row['run_id'],trial_id=row['trial_id'],attempt_id=row['id'],trace_id=trace,span_id=span)
                     if self.connection.execute("SELECT 1 FROM sqlite_master WHERE name='turn_lifecycle'").fetchone():
@@ -136,6 +136,15 @@ class Store:
         except BaseException:
             self.close()
             raise
+
+    def emit_event(self, event_type, attributes, *, run_id, trial_id, attempt_id=None, trace_id=None, span_id=None):
+        """Append within the caller's transaction, preserving producer sequence order."""
+        producer = self.connection.execute("SELECT value FROM store_meta WHERE key='producer_id'").fetchone()[0]
+        sequence = self.connection.execute('SELECT COALESCE(MAX(source_seq),0)+1 FROM events WHERE source_id=?', (producer,)).fetchone()[0]
+        body = self.event_body(event_type, producer, sequence, attributes, run_id=run_id, trial_id=trial_id,
+            attempt_id=attempt_id, trace_id=trace_id, span_id=span_id)
+        body['monotonic_ns'] = str(monotonic_ns())
+        return self._insert_event(body, producer, sequence)
 
     def _diagnostic_mode(self, reason):
         self.failure = reason

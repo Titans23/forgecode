@@ -4,7 +4,7 @@ from hashlib import sha256
 import json
 
 from benchmark.adapters.harbor import export_runspec
-from benchmark.core.bundle import selected_file
+from forge.file_selection import selected_file
 from benchmark.core.metrics import compare_specs
 from benchmark.core.spec import REFERENCES, freeze_spec, resolve_snapshot
 from forge.application.models import ContractError, canonical_hash, validate, strict_loads

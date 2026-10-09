@@ -9,7 +9,8 @@ import secrets
 import tempfile
 import time
 
-from benchmark.core.bundle import MAX_TOTAL, file_identity, safe_name, selected_file, staged_bundle, write_bundle
+from benchmark.core.bundle import MAX_TOTAL, safe_name, staged_bundle, write_bundle
+from forge.file_selection import file_identity, selected_file
 from benchmark.core.results import CATEGORIES, identity, read_results
 from forge.application.models import ContractError, canonical_hash, strict_loads, validate
 from forge.engine.persistence import encoded, new_id, sync_directory, utc_now

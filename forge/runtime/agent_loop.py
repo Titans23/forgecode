@@ -1075,22 +1075,6 @@ def verification_from_result(
         return None
 
 
-def verification_is_current(
-    evidence: VerificationEvidence | None,
-    tracker: WorkspaceTracker,
-) -> bool:
-    '''Return whether evidence still describes the current execution state.'''
-    return bool(
-        evidence is not None
-        and evidence.success
-        and evidence.freshness == 'current'
-        and evidence.workspace_revision == tracker.revision
-        and evidence.environment_epoch == getattr(
-            tracker,
-            'environment_epoch',
-            0,
-        )
-    )
 
 
 def optional_int(value: object) -> int | None:

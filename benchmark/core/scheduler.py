@@ -11,12 +11,8 @@ from benchmark.core.spec import INFRASTRUCTURE_ERRORS, freeze_spec
 
 
 def emit(store, event_type, attributes, *, run_id, trial_id, attempt_id=None, trace_id=None, span_id=None):
-    producer = store.connection.execute("SELECT value FROM store_meta WHERE key='producer_id'").fetchone()[0]
-    sequence = store.connection.execute('SELECT COALESCE(MAX(source_seq),0)+1 FROM events WHERE source_id=?', (producer,)).fetchone()[0]
-    body = store.event_body(event_type, producer, sequence, attributes, run_id=run_id, trial_id=trial_id,
+    return store.emit_event(event_type, attributes, run_id=run_id, trial_id=trial_id,
         attempt_id=attempt_id, trace_id=trace_id, span_id=span_id)
-    body['monotonic_ns'] = str(monotonic_ns())
-    return store._insert_event(body, producer, sequence)
 
 
 class EvaluationScheduler:

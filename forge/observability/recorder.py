@@ -155,8 +155,9 @@ class JournalRecorder:
         import json
         import os
         from forge.observability.export_queue import redact
+        from forge.storage_paths import private_storage_path
         try:
-            directory=self.journal.path.parent/'controlled-debug'/self.root.trace_id
+            directory=private_storage_path(self.journal.path.parent/'controlled-debug'/self.root.trace_id)
             directory.mkdir(parents=True,exist_ok=True,mode=0o700)
             raw=json.dumps(redact(value,self.secrets),ensure_ascii=False,allow_nan=False).encode('utf-8')
             used=sum(path.stat().st_size for path in directory.glob('*.json'))
