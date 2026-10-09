@@ -1,8 +1,30 @@
-# ForgeCode V4 当前交接
+# ForgeCode 当前交接
 
 最新入口在本页顶部；阶段历史保留于下文及 `archive/handoff-72d7fb8-20261008.md`。progress、backlog、任务卡与实际 evidence 保留全部引用，历史通过不替代当前源码验证。
 
-## 新机已恢复并接续（2026-10-09）
+## 目录合并与轻量沙盒：实现已验证，main 等待安全门禁处置（2026-10-09）
+
+Windows 唯一活动目录为 `D:\projects\forgecode`，WSL 独立目录为 `/home/titans/learn_project/forgecode`。整合分支 `codex/forgecode-consolidation` 已推送，实现提交为 `84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21`；[PR #1](https://github.com/Titans23/forgecode/pull/1) 保持草稿。GitHub main 尚未合入，原因是批准方案要求的依赖安全检查仍失败；没有强推或改写历史。
+
+两端旧 V4 目录已完整移入各自 `.local/archives/forgecode-v4-20261009`。Windows 的 `.local/consolidation-20261009/` 保存原目录和 V4 的 Git bundle、patch、1331 文件源码快照及 216 条私有文件备份，摘要复核一致。原 `.env`、会话、用户配置及旧 Git 历史可恢复；旧 V4 本身没有 `.env`，并非迁移丢失。恢复检查点为 `cf432236e721682a45fc83c3112db31c8dc82d00`，迁移补丁已经纳入，禁止再次应用。活动配置和依赖使用最终目录，Linux 保留自己的 `.venv`、Node、运行资产清单与证据。
+
+已完成五个无调用函数及空模块删除、通用文件身份检查移出 benchmark、Store 与 scheduler 解耦、stdio/Web 共用应用组装，以及每批构建一次后只读校验。现有 CLI/Harness、研究工作台、兼容接口和用户数据保留。细节见 [合并记录](consolidation-plan.md) 与 [ADR036](adr/036-consolidation-and-workspace-write.md)。
+
+默认 `strict` 保持；新增显式 `workspace-write`，界面显示“原生沙盒：写入限制”。Windows 直接使用锁定 DSH ACL runner，Linux 使用现有 SRT/bubblewrap。读取和网络沿用宿主能力，写入限制为 partial，动态 `.env` 不承诺 OS 读取隔离。切换仍通过原生确认、停止、清理和重启，初始化失败拒绝执行。工作区常驻授权与临时资源分别记录，实际进程及临时资源无法核实即 unknown。F31 拒绝 `workspace-write` 和 `local-trusted`。
+
+验证结果按源码与平台分别记录于 [本轮证据](evidence/F28-F31-consolidation-observations-20261009.json)：
+
+- Windows10 本机完整回归 **1469 pass / 0 fail / 0 error / 0 skip**，contracts2、quality4 通过，54 项故障定向验证通过。修复了本轮前的 1445 pass / 5 fail 基线；整合期间 1466/1 和 1464/3 两次失败报告保留。产品请求、工具和时间预算未放宽。
+- Windows10 与 WSL Ubuntu26.04 分别完成 **12 项真实轻量原生检查**，覆盖内外写入、链接、stdin、取消、超时、后代进程及临时资源。另有真实进程配合临时删除故障注入，确认返回 unknown；这些结果不提升 strict 能力。
+- WSL 最终源码独立构建，55 项定向回归及 contracts2/quality4 通过。当前执行身份仍不能访问 Docker socket；Windows Docker Desktop 的 Linux server 可用不替代 WSL 证据。Harbor 清理代码已加入 daemon/project/container/network/volume 实际查询，但真实 Docker 清理和正式实验仍 blocked。
+- 实现提交的受信任 GitHub push：Windows2025、Ubuntu22.04、Ubuntu24.04 各 contracts2、quality4、unit286、portable438 通过，三份 fresh CI gate 与原始报告已复核。PR 的 Ubuntu24.04 两项 Electron 检查因无 root/4755 helper 失败；其合并预览源码树与通过的 push 相同。管理员 helper 设置仍只适用于已有授权的受信任 push，没有关闭 Electron sandbox 或跳过测试。
+- 实际 Windows 开发桌面132检查在前一提交242b831的源码快照通过，单独保留；本轮未重建或升级安装包。原机1446回归与 strict 原生11pass/1fail/11blocked为历史，不改写成新机通过。
+
+当前依赖审计仍为 **2 条 high**，来自 SRT/node-forge 对应的同一 [GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv)，核对时无已发布修复版本。没有降级依赖、屏蔽公告或放宽审计。按用户的“规定 CI 检查通过后合入”条件，main 合并等待安全问题修复或用户明确批准一次开发主线例外。
+
+strict 的动态敏感名称边界与完整 SRT 清理继续关闭；新机 SRT 账户/凭据缺失，WFP cannot-read 不能当无过滤器。Ubuntu 目标桌面/干净安装、签名/项目 LICENSE、历史性能超额及 F31 网络强制隔离、可信逐请求准入、实际快照/holdout 等门禁保留。模型凭据只在本机配置，本轮公网模型请求为零，无管理员安装或用户容器操作。后续继续当前整合目录，不再使用旧 V4 入口；PR 合入前不要运行以 main 为目标的 F31 自动更新。
+
+## 目录合并前的恢复历史（2026-10-09）
 
 当前 Windows 工作目录为 `D:\projects\forgecode-v4`，WSL Ubuntu-26.04 为 `/home/titans/learn_project/forgecode-v4`。原 `D:\projects\forgecode` 的 main、`.env`、`.forge` 与用户数据保持原样。两端均从 GitHub `codex/forgecode-v4` 的 `cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819` 新建干净 clone，检查后各应用一次交接补丁；六份包内文件摘要、158 个恢复文件以及恢复树 `8ad78b5e75dc40aa12570958c0ea0e73931c29b6` 已核对。**这些目录已恢复，后续不要再次应用补丁。** 当前未提交增量同时包含原交接内容与本轮修复。
 

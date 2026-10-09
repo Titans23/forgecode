@@ -2,6 +2,8 @@
 
 当前 channel 为 unsigned `developer-preview`。生产发布受到原生平台验收、依赖安全、签名及项目 LICENSE 条件阻挡；验证开发目录和安装包构建不建立生产信任。
 
+2026-10-09 整合版新增显式 `workspace-write`：Windows 使用锁定 DSH ACL runner，Linux 复用 SRT/bubblewrap，写入限制标为 partial；读取和网络沿用宿主能力。原生确认、请求／工具／时间预算及 strict 默认保留。清理核实所拥有进程和临时资源，无法确认即 unknown。F31 拒绝此模式和 local-trusted。当前平台证据与合并门禁见 [当前交接](../implementation/handoff.md)，不沿用旧机 setup 状态。
+
 客户端通过 Main/Preload 的具名接口访问私有 stdio Engine。Renderer 无任意文件、Shell、RPC 或密钥读回接口；Main 校验当前窗口、frame、origin 与 schema。静态 UI 使用固定资源协议、CSP 和共享 schema 的预编译校验器；目录选择、审批和文件导出由 Main 进行。原子导出拒绝覆盖已有文件、链接祖先和失效窗口授权。
 
 每个 strict turn 单独创建 Bridge 与 FileWorker，绑定 workspace、owner、immutable policy hash。准备成功之前不创建模型；失败保留真实 cleanup 报告。当前原生能力没有完整 verified promotion，初始化后的隔离、动态敏感路径与后代清理仍待实现验证，因此 strict 执行继续拒绝。当前开发演示的 local-trusted 仅证明真实 Harness/工具/Journal 路径。

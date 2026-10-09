@@ -1,0 +1,53 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261009T103219Z-e68694ea",
+  "task_id": "F28",
+  "case_ids": [],
+  "suite": "desktop",
+  "git_commit": "242b831b382e82deac6c098425fd9962760e604d",
+  "dirty_hash": "dd0f01d340d26bcad72e7df249b63fe028d0bb2f77e3523683e32bff63531093",
+  "source_inventory_hash": "a97dd6a1926539e1d157313bef5252bd7ea7e5e7e0de3acff1dbdbb9e3c83942",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\projects\\forgecode\\scripts\\desktop_smoke.py",
+    "--output",
+    "D:\\projects\\forgecode\\.local\\implementation\\20261009T103219Z-e68694ea\\desktop-smoke.json"
+  ],
+  "start": "2026-10-09T10:32:19.598898+00:00",
+  "preparation_commands": [
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "a97dd6a1926539e1d157313bef5252bd7ea7e5e7e0de3acff1dbdbb9e3c83942",
+  "end": "2026-10-09T10:33:37.844063+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261009T103219Z-e68694ea/stdout.log",
+  "stderr_ref": ".local/implementation/20261009T103219Z-e68694ea/stderr.log",
+  "report_ref": ".local/implementation/20261009T103219Z-e68694ea/desktop-smoke.json",
+  "report_hash": "13366154b83077caeb8280383f23c48542f9d3f9660720e132016a1053ba7c00",
+  "status": "pass",
+  "tests": {
+    "scope": "development-desktop",
+    "eligible_for_native_pass": false,
+    "checks": 132
+  }
+}

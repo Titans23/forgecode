@@ -1,0 +1,58 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261009T102612Z-d764f467",
+  "task_id": "F31",
+  "case_ids": [
+    "N23"
+  ],
+  "suite": "quality",
+  "git_commit": "cf432236e721682a45fc83c3112db31c8dc82d00",
+  "dirty_hash": "f6cc59a71319ad2c7a435f221f19386be611d439e08205f90485a5d1c0292ad5",
+  "source_inventory_hash": "42cd3cfffc02c61b6d7627d7de22eebb4d311c1e52c33855fdd7c3743f050f95",
+  "platform": "linux",
+  "os_build": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "/home/titans/learn_project/forgecode/.venv/bin/python",
+    "-X",
+    "utf8",
+    "/home/titans/learn_project/forgecode/scripts/ci_checks.py",
+    "--suite",
+    "quality",
+    "--output",
+    "/home/titans/learn_project/forgecode/.local/implementation/20261009T102612Z-d764f467/packaging.json",
+    "--prepared-source-hash",
+    "42cd3cfffc02c61b6d7627d7de22eebb4d311c1e52c33855fdd7c3743f050f95"
+  ],
+  "start": "2026-10-09T10:26:12.184454+00:00",
+  "preparation_commands": [
+    [
+      "/home/titans/learn_project/forgecode/.venv/bin/python",
+      "/home/titans/learn_project/forgecode/scripts/build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "/home/titans/learn_project/forgecode/.venv/bin/python",
+      "/home/titans/learn_project/forgecode/scripts/build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "42cd3cfffc02c61b6d7627d7de22eebb4d311c1e52c33855fdd7c3743f050f95",
+  "end": "2026-10-09T10:26:26.142210+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261009T102612Z-d764f467/stdout.log",
+  "stderr_ref": ".local/implementation/20261009T102612Z-d764f467/stderr.log",
+  "report_ref": ".local/implementation/20261009T102612Z-d764f467/packaging.json",
+  "report_hash": "42047838dab6d4c7e883315ea0cdeeb540f9e4c4065eeb4f0dd788d27fb211a3",
+  "status": "pass",
+  "tests": {
+    "scope": "actual quality commands",
+    "checks": 4
+  }
+}

@@ -16,7 +16,7 @@ ForgeCode 是一个运行在终端中的 Agent Harness，用于可靠地执行�
 
 当前发行版本以 [`pyproject.toml`](pyproject.toml) 为准，目前是 `0.1.2`。详细源码审阅见 [`report.md`](docs/architecture/report.md)，最新分析和目录约定见[文档导航](docs/README.md)；本文只保留安装、使用、架构和评测入口，避免重复维护实现细节与历史 Benchmark 数字。
 
-V4 开发代码在 `codex/forgecode-v4` 分支，保留上述 CLI 与 Python Harness，加入实际 Electron 客户端、私有 Engine、Bridge/FileWorker、持久事件与评测复算。请按[开发安装与演示](docs/install/development.md)使用锁定工具链和真实命令，并查看[最终审查](docs/implementation/final-report.md)、[平台矩阵](docs/platforms/support-matrix.md)与[安全状态](docs/security/status.md)。当前 Windows 10 为用户指定的开发验收阶段；原生双平台、正式 Harbor、签名及安全条件仍有阻塞，安装包是 unsigned developer-preview。
+ForgeCode 整合代码在 `codex/forgecode-consolidation` 分支，验收后合入 `main`，保留上述 CLI 与 Python Harness，加入实际 Electron 客户端、私有 Engine、Bridge/FileWorker、持久事件与评测复算。请按[开发安装与演示](docs/install/development.md)使用锁定工具链和真实命令，并查看[最终审查](docs/implementation/final-report.md)、[平台矩阵](docs/platforms/support-matrix.md)与[安全状态](docs/security/status.md)。当前 Windows 10 为用户指定的开发验收阶段；原生双平台、正式 Harbor、签名及安全条件仍有阻塞，安装包是 unsigned developer-preview。
 
 ### 打开桌面客户端
 

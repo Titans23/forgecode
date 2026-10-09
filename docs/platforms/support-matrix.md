@@ -1,5 +1,7 @@
 # ForgeCode V4 平台支持与验收状态
 
+2026-10-09 目录合并后的当前范围：新增显式 `workspace-write`，Windows10 与 WSL Ubuntu26.04 分别完成 12 项原生写入限制检查，能力保持 partial。读取和网络沿用宿主能力，strict 仍默认并遵守原门禁，F31 拒绝两个非 strict 模式。旧目录与安装版结论属于下方历史；当前源码、平台、回归及 CI 状态集中见 [当前交接](../implementation/handoff.md) 和 [ADR036](../implementation/adr/036-consolidation-and-workspace-write.md)。
+
 2026-10-09 新增用户明确选择的桌面 `local-trusted`，用于当前用户权限下的日常执行，UI 持续标明无 OS 隔离。默认 strict、原生验收和 F31 官方环境要求保留。入口见[桌面指南](../install/desktop-quickstart.md)，实现与测试范围见 [ADR035](../implementation/adr/035-optional-desktop-local-execution.md) 和[本轮证据](../implementation/evidence/F28-desktop-local-mode-observations.json)。Linux 代码接入不等于 Linux 安装版已实测。
 
 2026-10-08 追加交付条件：按用户要求，正式支持的 Windows10／Ubuntu22.04、24.04 默认桌面环境必须仅经 ForgeCode 安装／首次使用流程获得可用原生沙盒。Windows 随包供应核心运行时与工具，Ubuntu 安装流程自动解析系统依赖并配置本应用所需策略；允许正常系统授权，禁止要求用户手工补组件或执行配置命令来通过标准验收。此项已写入 [方案](../implementation/sandbox-redesign.md) 和 F28 S1/S4，**实现及干净系统验证待完成**；项目 SDK 和独立 F31 Docker 评测仍另行准备。

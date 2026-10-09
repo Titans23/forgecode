@@ -1,8 +1,12 @@
 # ForgeCode：迁移到 Windows 10 + WSL / Docker 电脑
 
+## 当前接续入口（目录合并后）
+
+Windows 活动目录已统一为 `D:\projects\forgecode`，WSL 为 `/home/titans/learn_project/forgecode`；整合分支 `codex/forgecode-consolidation`，目标主线 `main`。已恢复的 working-tree.patch 不再应用；旧 V4 恢复步骤仅作历史。最新源码、备份、轻量模式及验证状态见 [当前交接](handoff.md) 顶部、[合并记录](consolidation-plan.md) 和 [ADR036](adr/036-consolidation-and-workspace-write.md)。
+
 更新于 2026-10-09。本文件是新会话的快速入口。**接收端现已恢复并实测**，Windows 原生继续 F28，WSL/Linux Docker 继续 F31；下方迁移步骤及原机状态作为历史保留。
 
-## 接收端当前状态：不要重复应用补丁
+## 目录合并前的恢复记录：不要重复应用补丁
 
 - Windows 当前工作目录：`D:\projects\forgecode-v4`；原 `D:\projects\forgecode` 保留未动。WSL：`Ubuntu-26.04` 中 `/home/titans/learn_project/forgecode-v4`，独立 `.venv`、`node_modules` 与 `.local`。
 - GitHub 分支仍为 `codex/forgecode-v4`，实际远端与 clone 基底一致为 `cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819`。补丁 SHA256 为 `775fc3b3fb1fe744ec176807ae518e5d12b2dd64fec768d77a079d30dd26fac0`，六份包内文件和 158 个恢复文件核对通过，恢复树为 `8ad78b5e75dc40aa12570958c0ea0e73931c29b6`。当前代码已在恢复树上继续修改，不能 reset 或重套原补丁。

@@ -1,6 +1,8 @@
 # F31：在另一台 WSL / Docker 电脑继续
 
-2026-10-09 接收端已实际接续：`Ubuntu-26.04` 的 `/home/titans/learn_project/forgecode-v4` 已恢复 GitHub 基底及交接补丁，当前为有意保留的脏工作区；不要再次运行自动更新或重套补丁。独立 Python/Node 依赖已准备，96 项定向测试及 contracts/quality 通过；WSL 当前用户访问 `/var/run/docker.sock` 被拒绝，正式 live-eval 仍 blocked。Windows Docker Desktop 的 Linux server 可用不替代这个执行身份的证据。当前结果、模型调用为零及剩余门禁见 [新机证据](../implementation/evidence/F28-F31-new-host-observations-20261009.json)。下文为原迁移流程与协议要求。
+当前接续使用 `/home/titans/learn_project/forgecode` 的 `codex/forgecode-consolidation`；旧 V4 目录已完整归档。两端源码已对齐到整合提交，Linux 保留自己的构建清单与依赖。PR #1 验收合入 main 前，继续现有整合目录，不运行下文以 main 为目标的自动更新流程。正式 Docker/模型门禁仍关闭，最新结果见 [当前 handoff](../implementation/handoff.md)。
+
+目录合并前的恢复记录（2026-10-09）：`Ubuntu-26.04` 的 `/home/titans/learn_project/forgecode-v4` 已恢复 GitHub 基底及交接补丁，当前为有意保留的脏工作区；不要再次运行自动更新或重套补丁。独立 Python/Node 依赖已准备，96 项定向测试及 contracts/quality 通过；WSL 当前用户访问 `/var/run/docker.sock` 被拒绝，正式 live-eval 仍 blocked。Windows Docker Desktop 的 Linux server 可用不替代这个执行身份的证据。当前结果、模型调用为零及剩余门禁见 [新机证据](../implementation/evidence/F28-F31-new-host-observations-20261009.json)。下文为原迁移流程与协议要求。
 
 用户于 2026-10-08 选择将 F31 正式评测移至另一台具有 WSL 和 Docker 的电脑，并要求交接入口自动拉取 GitHub 最新代码后继续。2026-10-09 又将后续全部工作迁到这台 Windows10 电脑：F28 在目标 Windows 原生环境继续，F31 在当地 WSL/Linux Docker 继续，替代留在原电脑的安排。先读 [新机总交接](../implementation/handoff-win10-wsl-20261009.md)，恢复随包未提交增量后再继续。当前真实进度以 `docs/implementation/handoff.md`、`progress.json` 和 `tasks/F31.md` 为准；本文件不是评测通过报告。
 
@@ -18,7 +20,7 @@ F28 S1 已开始接入 Windows 私有工具与 Ubuntu 安装配置，实际代�
 python3 resume_f31.py
 ```
 
-需要 WSL 内可用的 Git、Python 3 和已安装并登录的 Codex CLI。脚本自动克隆或快进更新 `https://github.com/Titans23/forgecode.git` 的 `codex/forgecode-v4` 分支到 `~/learn_project/forgecode`，打印实际 HEAD，随后启动 Codex 并提交接续任务。已有目录必须属于该仓库和分支且没有未提交内容、本地独有提交；否则保留所有文件并说明原因，不 reset、stash 或强推。
+需要 WSL 内可用的 Git、Python 3 和已安装并登录的 Codex CLI。脚本自动克隆或快进更新 `https://github.com/Titans23/forgecode.git` 的 `main` 分支到 `~/learn_project/forgecode`，打印实际 HEAD，随后启动 Codex 并提交接续任务。已有目录必须属于该仓库和分支且没有未提交内容、本地独有提交；否则保留所有文件并说明原因，不 reset、stash 或强推。
 
 可用 `--workspace ~/其他目录/forgecode` 指定目录，或 `--update-only` 只拉代码。未安装 Codex 时，代码仍会准备好；在当地 Codex 中打开该目录，发送“按 docs/experiments/F31-wsl-handoff.md 继续 F31”即可。CLI 使用当地账户、模型和权限设置，不复制原机登录数据。[Codex CLI 参数](https://learn.chatgpt.com/docs/developer-commands?surface=cli)。
 

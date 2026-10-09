@@ -1,0 +1,58 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261009T111134Z-1d79786f",
+  "task_id": "F28",
+  "case_ids": [
+    "N23"
+  ],
+  "suite": "security",
+  "git_commit": "84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21",
+  "dirty_hash": "2c79055b1edc3a1d82eba46b773b41424fa0fcc1cbea6de194572f785a8664b6",
+  "source_inventory_hash": "28c00d4802a8a35b54905a4ab1f01b9517eb6355a8f2a7d16396e0339246ad85",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\projects\\forgecode\\scripts\\ci_checks.py",
+    "--suite",
+    "security",
+    "--output",
+    "D:\\projects\\forgecode\\.local\\implementation\\20261009T111134Z-1d79786f\\packaging.json",
+    "--prepared-source-hash",
+    "28c00d4802a8a35b54905a4ab1f01b9517eb6355a8f2a7d16396e0339246ad85"
+  ],
+  "start": "2026-10-09T11:11:34.275499+00:00",
+  "preparation_commands": [
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "28c00d4802a8a35b54905a4ab1f01b9517eb6355a8f2a7d16396e0339246ad85",
+  "end": "2026-10-09T11:11:44.288056+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261009T111134Z-1d79786f/stdout.log",
+  "stderr_ref": ".local/implementation/20261009T111134Z-1d79786f/stderr.log",
+  "report_ref": ".local/implementation/20261009T111134Z-1d79786f/packaging.json",
+  "report_hash": "d64953c4484eb4a9560f9ebcbeee14e6e5c47b5f38c50292b298148d4d5c2721",
+  "status": "blocked",
+  "tests": {
+    "reason": "Unresolved locked dependency vulnerabilities",
+    "checks": 1
+  }
+}

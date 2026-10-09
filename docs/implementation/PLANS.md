@@ -24,3 +24,7 @@
 更新 progress、当前任务卡与 handoff；记录 HEAD、dirty 文件、真实命令、限制、下一项。不得在 handoff 放 API key、原始敏感输出或未脱敏私人代码。没有进展也如实记录。
 
 管理员操作、真实 API 支出与发布上传需要明确授权。资源缺失时说明 blocked 并继续无依赖任务，不自动降级安全，也不重复问已经给出的架构选择。
+
+## 2026-10-09 当前合并实施
+
+本轮按用户批准的 [合并与减重方案](consolidation-plan.md) 和 [ADR036](adr/036-consolidation-and-workspace-write.md) 接续。活动目录统一为 Windows `D:\projects\forgecode` 与 WSL `/home/titans/learn_project/forgecode`，旧 V4 目录已归档。整合分支 `codex/forgecode-consolidation` 完成验收后正常合入 main，不强推。资源不足的能力保持关闭；回归失败及未通过的依赖安全检查如实保留，合入条件以用户本轮计划和实际 CI 为准。

@@ -1,0 +1,58 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261009T102515Z-982cb1ab",
+  "task_id": "F28",
+  "case_ids": [
+    "N04"
+  ],
+  "suite": "contracts",
+  "git_commit": "cf432236e721682a45fc83c3112db31c8dc82d00",
+  "dirty_hash": "0298163563b01e58601ce8ae7b2014b9c176d7bf0035dfc30daeb5dc816362e7",
+  "source_inventory_hash": "a97dd6a1926539e1d157313bef5252bd7ea7e5e7e0de3acff1dbdbb9e3c83942",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\projects\\forgecode\\scripts\\ci_checks.py",
+    "--suite",
+    "contracts",
+    "--output",
+    "D:\\projects\\forgecode\\.local\\implementation\\20261009T102515Z-982cb1ab\\packaging.json",
+    "--prepared-source-hash",
+    "a97dd6a1926539e1d157313bef5252bd7ea7e5e7e0de3acff1dbdbb9e3c83942"
+  ],
+  "start": "2026-10-09T10:25:15.467592+00:00",
+  "preparation_commands": [
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "a97dd6a1926539e1d157313bef5252bd7ea7e5e7e0de3acff1dbdbb9e3c83942",
+  "end": "2026-10-09T10:25:25.215337+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261009T102515Z-982cb1ab/stdout.log",
+  "stderr_ref": ".local/implementation/20261009T102515Z-982cb1ab/stderr.log",
+  "report_ref": ".local/implementation/20261009T102515Z-982cb1ab/packaging.json",
+  "report_hash": "f710eb84b37fc27ae04808296da81d17918ee0f734e78c7e72d16de2db51194a",
+  "status": "pass",
+  "tests": {
+    "scope": "actual contracts commands",
+    "checks": 2
+  }
+}
