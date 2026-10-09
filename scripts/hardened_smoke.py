@@ -42,7 +42,7 @@ def verify(output):
     output=Path(output).resolve()
     if not output.is_relative_to(ROOT/'.local'):raise ValueError('Hardened smoke reports require owned local evidence storage')
     output.parent.mkdir(parents=True,exist_ok=True)
-    executable=ROOT/'.local/desktop-packages'/('ForgeCode-'+sys.platform+'-x64')/('ForgeCode.exe' if sys.platform=='win32' else 'ForgeCode')
+    executable=ROOT/'.local/desktop-packages'/('ForgeCode-'+sys.platform+'-x64')/('ForgeCode.exe' if sys.platform=='win32' else 'forgecode')
     if not executable.is_file():return {'status':'blocked','reason':'Actual installed desktop artifact is unavailable','checks':[],'eligible_for_native_pass':False}
     from forge.release.runtime import digest,verify_asset
     wire=read_fuses(executable);checks=hardened_checks(wire,sys.platform)

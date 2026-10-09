@@ -1,0 +1,45 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261007T103355Z-bb8cd159",
+  "task_id": null,
+  "case_ids": [
+    "D01",
+    "D40",
+    "N17",
+    "N18"
+  ],
+  "suite": "engine-packaged",
+  "git_commit": "f3c194ae7eebca392fb1db8511903013e554c933",
+  "dirty_hash": "e8ffb8bf1096ea4ef6fcf0b76d2f01a95eac51b13e52b650f11ea88211a3c1e1",
+  "source_inventory_hash": "156f58d5ab37d0eacff1550d554f15f0ccac174396811659c83bc1757505bd3e",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a",
+    "release-lock.json": "ce0dbb37f4614642fec7f8aeb3e79a91a2f0e7df033f960f3cb26cdd337db495"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\engine_packaged_smoke.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T103355Z-bb8cd159\\packaging.json"
+  ],
+  "start": "2026-10-07T10:33:55.528724+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-07T10:35:36.193458+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261007T103355Z-bb8cd159/stdout.log",
+  "stderr_ref": ".local/implementation/20261007T103355Z-bb8cd159/stderr.log",
+  "report_ref": ".local/implementation/20261007T103355Z-bb8cd159/packaging.json",
+  "report_hash": "13ac1d4244e4c0d135156f6f3bda8d03174c6de6346c4f0b4c56262ed84afbce",
+  "status": "fail",
+  "tests": {
+    "scope": "Windows 10 development frozen components",
+    "eligible_for_native_pass": false,
+    "checks": 9,
+    "reason": "Repository source changed during verification; rerun the suite"
+  }
+}

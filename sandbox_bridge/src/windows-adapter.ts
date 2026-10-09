@@ -2,7 +2,7 @@
 import { lstatSync } from 'node:fs';
 import { basename, isAbsolute, sep } from 'node:path';
 import os from 'node:os';
-import { checkWindowsSandboxStatusAsync, installWindowsSandboxAsync, verifyWindowsWfpEgress,
+import { checkWindowsSandboxStatusAsync, installWindowsSandboxAsync,
   type WindowsSandboxStatus } from '@anthropic-ai/sandbox-runtime/dist/sandbox/windows-sandbox-utils.js';
 import { ContractError } from '@forgecode/contracts';
 
@@ -49,18 +49,22 @@ export function protectedDirectoryPaths(paths: string[]): string[] {
   });
 }
 
+export function windowsAccountReady(status: WindowsSandboxStatus): boolean {
+  const user = status.user;
+  // A fresh 0.0.78 install belongs to ordinary Users. The actual runner's
+  // restricted token, ACLs and WFP need separate native boundary checks.
+  return user.provisioned && user.credPresent && user.groupExists && user.inSandboxGroup && user.hiddenFromLogon
+    && !!user.sid && !!user.realUserSid && user.sid !== user.realUserSid;
+}
+
 export async function windowsPrerequisites(helper: string): Promise<{ status: any; ready: boolean }> {
   if (!isAbsolute(helper)) throw new ContractError('Trusted helper must be absolute');
+  if (!isAbsolute(process.env.LOCALAPPDATA ?? '')) throw new ContractError('Trusted Windows broker state directory is unavailable', 'SETUP_REQUIRED', -32010);
   const srtWin = { exe: helper, prependArgs: ['--srt-win'] };
   const status = await checkWindowsSandboxStatusAsync({ srtWin });
-  let ready = status.user.provisioned && status.user.credPresent && status.user.inSandboxGroup && status.user.hiddenFromLogon &&
-    !status.user.inBuiltinUsers && status.user.sid !== status.user.realUserSid;
-  if (ready) {
-    // BFE enumeration may be admin-only. The fixed controlled listener is the actual prerequisite check.
-    await verifyWindowsWfpEgress({ srtWin });
-    ready = true;
-  }
-  return { status: redactWindowsStatus(status), ready };
+  // Read-only probe. SandboxManager.initialize performs the active WFP fence
+  // check in the fixed native validation phase, before any canary is launched.
+  return { status: redactWindowsStatus(status), ready: windowsAccountReady(status) };
 }
 
 /** Called only by a fixed trusted Main setup launcher after its native dialog, never Bridge RPC. */

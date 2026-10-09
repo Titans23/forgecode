@@ -1,6 +1,7 @@
 """Actual frozen Engine, helper, Bridge and project executables; no model API."""
 import argparse
 import asyncio
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 import os
@@ -21,7 +22,7 @@ async def run_engine(executable,manifest,directory):
     params,fixture=seed_demo(demo)
     environment={k:os.environ[k] for k in ('SystemRoot','WINDIR','TEMP','TMP','HOME','USERPROFILE','HOMEDRIVE','HOMEPATH') if k in os.environ}
     environment['PATH']=str(Path(environment.get('SystemRoot','C:/Windows'))/'System32') if sys.platform=='win32' else '/usr/bin:/bin'
-    project_git=shutil.which('git')
+    project_git=verify_asset(ROOT/'.local/desktop-resources',manifest['tools']['git']['entry']) if sys.platform=='win32' else shutil.which('git')
     if not project_git:raise ValueError('Project Git is required for patch verification')
     environment['PYTHONDONTWRITEBYTECODE']='1'
     environment['PATH']+=os.pathsep+str(Path(project_git).resolve().parent)
@@ -97,6 +98,7 @@ def verify(output):
     executable=verify_asset(resources,manifest['engine'])
     directory=output.parent/'frozen-smoke';directory.mkdir(parents=True,exist_ok=False)
     checks=[asyncio.run(clean_start(executable,manifest,directory)),asyncio.run(run_engine(executable,manifest,directory))]
+    if sys.platform=='win32':checks.extend(verify_bundled_tools(resources,manifest,executable,directory))
     diagnosis=subprocess.run([str(executable),'doctor','--json'],cwd=directory,capture_output=True,text=True,encoding='utf-8',timeout=60)
     diagnosed=json.loads(diagnosis.stdout)
     if diagnosis.returncode!=2 or diagnosed.get('read_only') is not True or diagnosed['runtime']['status']!='pass':
@@ -130,6 +132,34 @@ def verify(output):
     return {'status':'pass','scope':'Windows 10 development frozen components' if sys.platform=='win32' else 'native build development components',
         'eligible_for_native_pass':False,'model_origin':'scripted','checks':checks,'manifest_sha256':sha256((resources/'release-manifest.json').read_bytes()).hexdigest(),
         'build_id':manifest['build_id'],'host':manifest['build_host']}
+
+def verify_bundled_tools(resources,manifest,executable,directory):
+    """Real installed binaries under a minimal PATH; does not assert isolation."""
+    from forge.sandbox.launcher import bridge_environment
+    fixture=directory/'bundled tools 中文';fixture.mkdir()
+    environment=bridge_environment(fixture)
+    environment.update(GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL=str(fixture/'empty.gitconfig'))
+    (fixture/'empty.gitconfig').write_text('',encoding='utf-8')
+    (fixture/'空 格.txt').write_text('installed-tool-needle\n',encoding='utf-8')
+    tools={name:verify_asset(resources,manifest['tools'][name]['entry']) for name in ('powershell','git','ripgrep')}
+    checks=[run_foreign(executable,[str(path),'--version'],fixture,name='actual-bundled-'+name,environment=dict(environment))
+            for name,path in tools.items()]
+    dispatcher=verify_asset(resources,next(a for a in manifest['bridge_dependencies'] if a['path'].endswith('/sandbox_bridge/dist/dispatcher.js')))
+    payload={'command':{'mode':'shell_script','shell':'pwsh','cwd':str(fixture),'environment':{},
+        'deadline_utc':(datetime.now(timezone.utc)+timedelta(seconds=60)).isoformat().replace('+00:00','Z'),
+        'output_limit_bytes':65536,'script':"[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); "
+            "git init --quiet --initial-branch=main; if ($LASTEXITCODE -ne 0) { exit 91 }; "
+            "git -c core.quotepath=false status --porcelain; if ($LASTEXITCODE -ne 0) { exit 92 }; "
+            "rg --fixed-strings installed-tool-needle '空 格.txt'; if ($LASTEXITCODE -ne 0) { exit 93 }; exit 23"},
+        'shells':{'pwsh':str(tools['powershell'])},'tools':{'git':str(tools['git']),'rg':str(tools['ripgrep'])}}
+    result=subprocess.run([str(verify_asset(resources,manifest['node'])),str(dispatcher)],input=json.dumps(payload),
+        cwd=fixture,env=environment,capture_output=True,encoding='utf-8',timeout=60)
+    if result.returncode!=23 or '空 格.txt' not in result.stdout or 'installed-tool-needle' not in result.stdout:
+        raise ValueError('Installed private Shell/Git/ripgrep failed under the minimal system PATH: '+result.stderr[-500:])
+    checks.append({'name':'actual-installed-dispatcher-bundled-shell-git-rg-minimal-path','status':'pass',
+        'exit_code':23,'unicode_paths':True,'native_isolation_verified':False})
+    return checks
+
 
 def verify_external_cleanup(executable,directory):
     import ctypes

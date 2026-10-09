@@ -6,7 +6,7 @@ import { createServer as socketServer } from 'node:net';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
-import { canonicalHash, strictLoads, validate } from '@forgecode/contracts';
+import { ContractError, canonicalHash, strictLoads, validate } from '@forgecode/contracts';
 import { SrtAdapter } from './srt-adapter.js';
 import { windowsSupported } from './windows-adapter.js';
 
@@ -48,9 +48,18 @@ export async function verifyNative(platform: 'linux' | 'win32'): Promise<any> {
     const resources=resolve(root,'../..'), manifest=await verifyInstalled(resources);
     if(process.versions.node!==manifest.node_version)throw new Error('Installed native runtime mismatch');
     assets=Object.fromEntries([{...manifest.node,name:'node'},...manifest.native_helpers].map((a:any)=>[a.name,resolve(resources,a.path)]));
+    for(const [name,tool] of Object.entries(manifest.tools??{}) as [string,any][]) {
+      assets[name]=resolve(resources,tool.entry.path);
+      assets[`tool-root-${name}`]=resolve(resources,tool.root);
+    }
   } else {
     const lock = JSON.parse(await readFile(resolve(root, 'release-lock.json'), 'utf8'));
     assets = Object.fromEntries(lock.assets.filter((a: any) => ['all', `${platform}-x64`].includes(a.platform)).map((a: any) => [a.name, resolve(root, a.path)]));
+    const {verifyToolBundle}=await import('../../packaging/verify-installed.mjs');
+    for(const bundle of lock.tool_bundles??[]) if(bundle.platform===`${platform}-x64`) {
+      assets[bundle.name]=await verifyToolBundle(root,bundle);
+      assets[`tool-root-${bundle.name}`]=resolve(root,bundle.path);
+    }
   }
   const output = new Map<string, Buffer[]>();
   const adapter = new SrtAdapter(root, paths.control, owner, assets, event => {
@@ -117,6 +126,9 @@ export async function verifyNative(platform: 'linux' | 'win32'): Promise<any> {
       }
       if (checks.at(-1).status === 'pass') {
         if (platform === 'win32') {
+          const launchRoot = resolve(process.env.LOCALAPPDATA!, 'ForgeCode', 'launch-payloads', owner.sandbox_session_id);
+          const inputBoundary = await run(`const fs=require('node:fs');const root=${JSON.stringify(launchRoot)};const path=require('node:path');const files=fs.readdirSync(root).filter(p=>p.endsWith('.json'));let wrote=false,removed=false;for(const p of files){try{fs.writeFileSync(path.join(root,p),'tampered');wrote=true}catch{}try{fs.unlinkSync(path.join(root,p));removed=true}catch{}}process.stdout.write(JSON.stringify({files:files.length,wrote,removed}));`);
+          check('launch-payload-read-only', inputBoundary.files === 1 && !inputBoundary.wrote && !inputBoundary.removed ? 'pass' : 'fail', inputBoundary);
           const long = await run("const fs=require('node:fs');const p='long/'+('a'.repeat(100))+'/'+('b'.repeat(100))+'/'+('c'.repeat(50));let ok=false;try{fs.mkdirSync(p,{recursive:true});fs.writeFileSync(p+'/crlf.txt','line1\\r\\n中文\\r\\n');ok=fs.readFileSync(p+'/crlf.txt','utf8')==='line1\\r\\n中文\\r\\n'}catch{}process.stdout.write(JSON.stringify({ok}));");
           check('windows-long-path-crlf', long.ok ? 'pass' : 'fail', long);
           const id = `exec-${randomUUID()}`;
@@ -156,7 +168,8 @@ export async function verifyNative(platform: 'linux' | 'win32'): Promise<any> {
       }
     }
   } catch (error) {
-    check('native-operation', 'fail', { kind: (error as any).kind ?? 'COMMAND_FAILED' });
+    check('native-operation', 'fail', { kind: (error as any).kind ?? 'COMMAND_FAILED',
+      reason: error instanceof ContractError ? error.message : 'Native implementation failed before a validated result' });
   } finally {
     if (http.listening) await new Promise<void>(r => http.close(() => r()));
     if (unix.listening) await new Promise<void>(r => unix.close(() => r()));

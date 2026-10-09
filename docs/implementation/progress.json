@@ -6,9 +6,46 @@
   "current_acceptance_phase": "Windows 10 x64 22H2 build 19045 on this workstation replaces mandatory Windows 11 acceptance; Ubuntu and official Linux Docker requirements remain independent",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "942ea7187d91ab248d7795c55239c475cb078150",
+  "actual_repository_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
   "next_recommended_task": "F28",
   "current_task": "F28",
+  "machine_transfer": {
+    "date": "2026-10-09",
+    "status": "handoff_prepared_target_not_verified",
+    "handoff_ref": "handoff-win10-wsl-20261009.md",
+    "observations_ref": "evidence/F28-F31-transfer-observations-20261009.json",
+    "source_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+    "verified_remote_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+    "target": "Another Windows 10 workstation with user-reported WSL and Docker; F28 on native Windows, F31 in WSL/Linux Docker",
+    "target_environment_verified": false,
+    "source_transfer": "Fetch GitHub, then check/apply the handoff working-tree.patch; latest uncommitted S1/local-mode/shared UI work is not on GitHub",
+    "archive_ref": ".local/handoff-win10-wsl-20261009/ForgeCode-handoff-20261009.zip",
+    "verification_ref": ".local/handoff-win10-wsl-20261009/transfer-verification.json",
+    "last_sandbox_continuation": "Read-only source investigation only; no new sandbox fix, native run, setup or model call after the 0.1.3 checkpoint",
+    "credentials_and_machine_state_included": false,
+    "historical_private_reports_included": false
+  },
+  "sandbox_redesign": {
+    "date": "2026-10-08",
+    "status": "s1_implemented_regression_pass_native_boundary_failed",
+    "plan_ref": "sandbox-redesign.md",
+    "adr_ref": "adr/034-sandbox-execution-and-runtime.md",
+    "observations_ref": "evidence/F28-sandbox-design-observations.json",
+    "oobe_requirement_ref": "evidence/F28-sandbox-oobe-observations.json",
+    "implementation_observations_ref": "evidence/F28-sandbox-s1-observations.json",
+    "installation_requirement": "On supported default Windows/Ubuntu desktops, install only ForgeCode; the product supplies dependencies and core tools and performs first-run setup/verification. No manual dependency installation or configuration commands. Normal OS authorization remains required.",
+    "base_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+    "upstream_commits": {
+      "deepseek-ai/deepseek-harness": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+      "earendil-works/pi": "ce950d78f424dcaf9f5d6a03ce80ab141130eb1d"
+    },
+    "next_slice": "F28: S3 native dynamic-sensitive-file test failed on the actual Windows package; keep S2 admission closed pending backend name protection and cleanup. S4 clean Windows/Ubuntu acceptance remains open; completed regression1437 does not establish native safety.",
+    "independent_slice": "F31 S5: official environment and trusted host request admission; live gates unchanged",
+    "runtime_code_changed": true,
+    "native_capabilities_promoted": false,
+    "model_calls": 0,
+    "administrator_setup": true
+  },
   "windows_acceptance_update": {
     "status": "local_target_change_verified_native_blocked",
     "target": "Windows 10 x64 22H2 build 19045 on this workstation",
@@ -71,7 +108,7 @@
       ],
       "blocked_reasons": [
         "Required Windows10 local/Ubuntu native platform acceptance remains unverified; development evidence does not promote native capabilities. Windows11 is no longer mandatory. Current prerequisites and implementation gaps are tracked in F28/F31/F32.",
-        "Local administrator setup is authorized; first PowerShell UAC returned cancellation. Signing and owner-approved project LICENSE remain unavailable; actual locked dependency audit retains two high records."
+        "Authorized fixed SRT setup succeeded and core tools are bundled; complete native acceptance remains open. Signing and owner-approved project LICENSE remain unavailable; actual locked dependency audit retains two high records."
       ],
       "historical_blocked_reasons": [
         "Host is Windows 10; Windows 11 and Ubuntu 22.04/24.04 native acceptance runners are unavailable.",
@@ -486,7 +523,14 @@
         "20261008T081933Z-bdef7b5b",
         "20261008T082017Z-8be59488",
         "20261008T095136Z-b771d395",
-        "20261008T101557Z-7e649923"
+        "20261008T101557Z-7e649923",
+        "20261008T110655Z-711b933d",
+        "20261008T110806Z-c8735833",
+        "20261008T111053Z-8b6f42a1",
+        "20261008T113307Z-439267fb",
+        "20261008T113608Z-797906aa",
+        "20261008T115949Z-37ef1811",
+        "20261008T120243Z-42f4dbd9"
       ],
       "blocked_reasons": [
         "Windows10 local acceptance is required; development/installed-resource checks alone do not establish Windows10/Ubuntu X11/Wayland clean installation or manual native dialog/IME acceptance. Actual current package proof is tracked in F32."
@@ -495,7 +539,7 @@
         "Windows 10 development Electron passed 44 checks; unit 127, portable 139 and full regression 1009 passed with zero skips. GUI used actual Harness tools with an explicit scripted/local-trusted fixture; no paid model result or native isolation claim.",
         "Windows 11/Ubuntu/X11/Wayland runners and human native IME/directory/confirmation choices unavailable; frozen installed resources await F28. Administrator setup and paid API budgets remain unapproved. Production dependency security gate remains blocked."
       ],
-      "verification_scope": "Historical F16 evidence is preserved. The 2026-10-08 UI refresh has fresh Windows 10 desktop development and full regression evidence below; installed/native/live-model acceptance remains separate.",
+      "verification_scope": "Latest UI copy refinement: 46 actual shared-UI Web/Electron checks (40 layout), 6 focused UI regression tests and UI typecheck pass. Built into private preview assets while main runtime implementation is active. Earlier desktop/full-regression reports retain their recorded source scope; native/installed/live-model acceptance remains separate.",
       "ui_refresh": {
         "status": "complete_local",
         "date": "2026-10-08",
@@ -508,17 +552,36 @@
         "failures": 0,
         "typecheck": "npm run typecheck: pass",
         "launcher_check": "Start-ForgeCode.cmd --check: pass",
+        "soft_surfaces": {
+          "status": "complete_local",
+          "date": "2026-10-08",
+          "observations_ref": "evidence/F16-soft-surfaces-observations.json",
+          "stylesheet_sha256": "7c85cbb5136f35d9b519f4653d91373e54049bd4790b0f84c2c4d7323f511189",
+          "shared_ui_checks": 46,
+          "layout_checks": 40,
+          "focused_regression_tests": 6,
+          "screenshots_ref": ".local/ui-copy-20261008/run-1",
+          "scope": "Rounded controls/canvas and concise home, connections, guide and input copy. Duplicate slogans, field guidance and empty-conversation prompts removed; credential-removal warning, execution limits and approval flow retained. Actual HTTP adapter/Harness and private Electron window; no native shell or full-repository rerun. Shared Main/Engine build assets and running user client untouched."
+        },
         "window_shell": {
           "status": "complete_local",
           "date": "2026-10-08",
-          "source_inventory_hash": "e82921aa64d54ea1a4f0745f49c8af7cd5aff1f53ca20d87718333644c2bd779",
-          "evidence_id": "20261008T101557Z-7e649923",
-          "desktop_checks": 116,
-          "layout_checks": 40,
+          "base_commit": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+          "source_inventory_hash": "f5bf9682a1e6bc13ffef720bc50bfa8c07c8db3673f5d4fd8ba89f8fa1ef8a78",
+          "evidence_id": "20261008T120243Z-42f4dbd9",
+          "previous_evidence_id": "20261008T113608Z-797906aa",
+          "initial_evidence_ids": [
+            "20261008T110655Z-711b933d",
+            "20261008T110806Z-c8735833"
+          ],
+          "initial_observation": "Initial keyboard probe omitted the Enter character event and did not explicitly focus the test window; both runs timed out. Complete focused key sequence and actual mouse expansion pass. Failed reports retained.",
+          "desktop_checks": 132,
+          "layout_checks": 50,
           "focused_regression_tests": 7,
-          "focused_junit_ref": ".local/ui-shell-20261008/focused-junit.xml",
-          "screenshots_ref": ".local/implementation/20261008T101557Z-7e649923/desktop-run",
-          "scope": "Unified header using Electron native titlebar overlay on Windows/Linux, theme-aware native controls with CSS safe area and drag region, flat page sections, readable diagnostics with expandable real data. Windows development Electron, shared Web entry and typecheck passed. Linux native UI, installed acceptance and a new full-repository regression run are not established by this evidence.",
+          "focused_junit_ref": ".local/ui-detail-20261008/focused-junit.xml",
+          "screenshots_ref": ".local/implementation/20261008T120243Z-42f4dbd9/desktop-run",
+          "scope": "Preserves the accepted cool-white/slate and teal design, system themes and native 48px toolbar. Refines icons, labels, empty states, connection explanations and composer keyboard hints. Two new real interaction checks verify the running-task explanation and restored shortcuts after cancellation; existing navigation, draft/session, layout and security checks remain. Windows development Electron, shared Web entry, typecheck and quality passed for this source. No new dependency; no Linux/installed acceptance or new full-repository regression claim.",
+          "detail_probe_observation": "20261008T115949Z-37ef1811 stopped after 79 passing checks because the observability probe still searched for the former Agent workspace label. Updated both lookups to the existing navigation data attribute; final 132 checks passed. Failed report retained.",
           "user_client_restarted": false,
           "main_thread_interrupted": false
         },
@@ -977,6 +1040,13 @@
     },
     "F28": {
       "implementation_status": "in_progress",
+      "design_plan_ref": "sandbox-redesign.md",
+      "planned_slices": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "verification": {
         "unit": "pass",
@@ -990,7 +1060,7 @@
         "installer-windows": "pass",
         "hardened": "pass",
         "installer-linux": "blocked",
-        "sandbox-windows": "blocked",
+        "sandbox-windows": "fail",
         "sandbox-linux": "blocked",
         "security": "blocked",
         "desktop": "pass",
@@ -1068,14 +1138,46 @@
         "20261008T101903Z-54075eb9",
         "20261008T101917Z-6a4f56c2",
         "20261008T103251Z-83550630",
-        "20261008T103348Z-d69d8d63"
+        "20261008T103348Z-d69d8d63",
+        "20261008T145801Z-2e0ff3b4",
+        "20261008T145801Z-850f9cfc",
+        "20261008T133501Z-29f3b0ff",
+        "20261008T145922Z-9cbc2aba",
+        "20261008T145801Z-b8bc1897",
+        "20261008T150300Z-f9824a1f",
+        "20261008T150300Z-fedd3657",
+        "20261008T150301Z-05695dd7",
+        "20261008T150301Z-2f3e3a47",
+        "20261008T150301Z-3526ae99",
+        "20261008T151508Z-fef89426",
+        "20261008T152141Z-4e8ea0ed",
+        "20261008T152141Z-7c4157db",
+        "20261008T152141Z-c6ff5444",
+        "20261008T162534Z-2a1c62e2",
+        "20261008T162534Z-2b8ff220",
+        "20261008T162535Z-7542eeae",
+        "20261008T162644Z-1f0ffa89",
+        "20261008T164537Z-5890a375",
+        "20261008T164537Z-92a8cdd8",
+        "20261008T164537Z-f7a5f679",
+        "20261008T164851Z-2aad0a1f",
+        "20261008T165127Z-4847212c",
+        "20261008T165127Z-64a400ea",
+        "20261008T165453Z-3140ec18",
+        "20261008T165453Z-56b0de72",
+        "20261008T165453Z-6cd363ff",
+        "20261008T165741Z-65bee22e",
+        "20261008T170118Z-df30be6a"
       ],
       "current_evidence_ids": [
-        "20261008T101859Z-6e75302c",
-        "20261008T101903Z-54075eb9",
-        "20261008T101917Z-6a4f56c2",
-        "20261008T103251Z-83550630",
-        "20261008T103348Z-d69d8d63"
+        "20261008T162534Z-2a1c62e2",
+        "20261008T165453Z-3140ec18",
+        "20261008T165453Z-56b0de72",
+        "20261008T164537Z-f7a5f679",
+        "20261008T164537Z-92a8cdd8",
+        "20261008T165453Z-6cd363ff",
+        "20261008T170118Z-df30be6a",
+        "20261008T165741Z-65bee22e"
       ],
       "artifact_evidence_ids": [
         "20261007T115336Z-e6b64f9f",
@@ -1086,50 +1188,53 @@
         "20261007T120202Z-8d7621a8",
         "20261007T120225Z-5cf027ff",
         "20261007T120248Z-d0af77b5",
-        "20261007T120147Z-641572b1"
+        "20261007T120147Z-641572b1",
+        "20261008T145801Z-b8bc1897",
+        "20261008T150300Z-f9824a1f",
+        "20261008T150300Z-fedd3657",
+        "20261008T150301Z-05695dd7",
+        "20261008T150301Z-2f3e3a47",
+        "20261008T150301Z-3526ae99",
+        "20261008T151508Z-fef89426"
       ],
       "blocked_reasons": [
-        "Required Windows10 local/Ubuntu native acceptance remains unverified. Windows10 host eligibility is confirmed; fixed PowerShell7 is missing after UAC cancellation; SRT read-only status is observed and the account is unprovisioned. Prior installer/fuses and hosted results retain their original artifact/commit scope.",
+        "Actual final Windows10 native report is fail: 11 pass, 1 fail, 11 blocked. Dynamic session-created .env remains readable. Private tools/setup/initialization and bounded read-only launch payload work; complete native admission remains closed. Ubuntu and clean installation still need target evidence; see S1 observations.",
         "Terminal execution owner traversal and still-owned child cancellation are covered by portable behavior tests. Strict verified capability promotion, full initialized SRT/helper/listener cleanup and dynamic sensitive-path parity remain code/native-proof gaps.",
         "Full fixed 100000 events / 10000 spans / 100MiB measurements improved metadata overhead 8.07714390646% to 5.210340492313925%, still above 5%. Graphical/packaged native performance unverified.",
-        "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing and owner-approved LICENSE unavailable; administrator setup authorized, awaiting successful local elevation.",
+        "Actual npm official audit retains two high dependency entries (GHSA-86w9-cpqp-85rv). Unsigned developer-preview; signing and owner-approved LICENSE unavailable. Authorized fixed local setup has succeeded; it does not establish native isolation.",
         "Real-model execution now explicitly authorized with an unbounded monetary budget; actual connectivity 1 request / 335 input / 10 output tokens passed. Cost unknown; official grades zero. Docker daemon and official execution/control snapshots unavailable; F31 continues bounded actual Harness validation."
       ],
       "remaining_implementation": [
         "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
-        "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
+        "Dynamic-sensitive-file protection failed on the actual Windows package. Full initialized SRT/helper/listener cleanup and complete Shell/File parity remain unimplemented/unverified.",
+        "ADR034 S1 supply/setup code is implemented. S2 native proof admission, S3 boundary/cleanup closure and S4 clean-system out-of-box acceptance remain incomplete; Ubuntu configuration still requires target-system proof."
       ],
-      "implemented_scope": "Windows10 development acceptance, complete owner traversal, closed FileWorker admission and one shared cleanup task for concurrent/cancelled close waiters; concurrent Bridge cancel/close shares in-flight owner cleanup. Native isolation/initialized-resource cleanup remains incomplete.",
+      "implemented_scope": "Existing owner/admission fixes plus S1 bundled core tools, complete inventories, Linux deb setup and Windows first-use wiring; fixed Known Folder environment, responsive Git inspection and single-pass release hashing. Windows launch payload adapts pinned SRT stdin behavior. Native isolation/initialized-resource cleanup remains incomplete; see F28-sandbox-s1-observations.json for current source evidence.",
       "current_continuation": {
-        "parent_commit": "72d7fb89d94de437cd21c5549d5423d7ea7629e3",
-        "status": "uploaded_hosted_portable_pass",
-        "new_behavior_tests": 4,
-        "focused_python_tests": 5,
-        "focused_node_tests": 12,
-        "model_calls": 0,
-        "administrator_setup": false,
-        "installer_rebuilt": false,
-        "source_inventory_hash": "9c0b2502127d0996af6a609bccea9d47cdd707908cc1a230ff1e8cb32185e490",
+        "status": "optional_local_execution_implemented_and_windows_updated",
+        "adr_ref": "adr/035-optional-desktop-local-execution.md",
+        "observations_ref": "evidence/F28-desktop-local-mode-observations.json",
+        "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+        "desktop_version": "0.1.3",
+        "regression_tests": 1446,
+        "regression_failures": 0,
+        "regression_errors": 0,
+        "regression_skipped": 0,
+        "public_model_calls": 0,
+        "native_capabilities_promoted": false,
+        "build_id": "v4-local-mode-20261009-win-x64",
         "final_evidence_ids": [
-          "20261008T024339Z-d6a98c82",
-          "20261008T024343Z-1a8cd4b9",
-          "20261008T024357Z-a117115d",
-          "20261008T024444Z-e7c0c996",
-          "20261008T025448Z-de3cb67e"
+          "20261008T162534Z-2a1c62e2",
+          "20261008T165453Z-3140ec18",
+          "20261008T165453Z-56b0de72",
+          "20261008T164537Z-f7a5f679",
+          "20261008T164537Z-92a8cdd8",
+          "20261008T165453Z-6cd363ff",
+          "20261008T170118Z-df30be6a",
+          "20261008T165741Z-65bee22e"
         ],
-        "local_ci_gate": "pass",
-        "reports_recomputed": 5,
-        "observations_ref": "evidence/F28-admission-observations.json",
-        "uploaded_commit": "e6bda835253425046068cd905db7d819a538b7c5",
-        "hosted_run_id": 37721608025,
-        "hosted_observations_ref": "evidence/F28-admission-hosted-observations.json",
-        "hosted_workflow_conclusion": "failure",
-        "hosted_portable_status": {
-          "windows-2025": "pass",
-          "ubuntu-22.04": "pass",
-          "ubuntu-24.04": "pass"
-        },
-        "hosted_artifact_recomputation": "pass"
+        "upload_status": "not_uploaded",
+        "verification_scope": "Full regression covers source 6fdfa2e8. Subsequent changes are two inspection assertions/capture timing, an optional packaged-test timeout argument (source default remains 90s, packaged run uses the existing 300s task budget), and assembled release metadata. Frozen Engine source inventory remains identical. Each formal report keeps its own source hash."
       },
       "artifact_refs": [
         "evidence/F28-close-cleanup-observations.json",
@@ -1137,7 +1242,9 @@
         "evidence/F28-admission-observations.json",
         "evidence/F28-admission-hosted-observations.json",
         "evidence/F28-windows10-acceptance-observations.json",
-        "evidence/F28-setup-F31-handoff-observations.json"
+        "evidence/F28-setup-F31-handoff-observations.json",
+        "evidence/F28-sandbox-s1-observations.json",
+        "evidence/F28-desktop-local-mode-observations.json"
       ],
       "continuation_history": [
         {
@@ -1168,10 +1275,93 @@
           "uploaded_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
           "hosted_run_id": 37714511897,
           "hosted_observations_ref": "evidence/F28-close-hosted-observations.json"
+        },
+        {
+          "parent_commit": "72d7fb89d94de437cd21c5549d5423d7ea7629e3",
+          "status": "uploaded_hosted_portable_pass",
+          "new_behavior_tests": 4,
+          "focused_python_tests": 5,
+          "focused_node_tests": 12,
+          "model_calls": 0,
+          "administrator_setup": false,
+          "installer_rebuilt": false,
+          "source_inventory_hash": "9c0b2502127d0996af6a609bccea9d47cdd707908cc1a230ff1e8cb32185e490",
+          "final_evidence_ids": [
+            "20261008T024339Z-d6a98c82",
+            "20261008T024343Z-1a8cd4b9",
+            "20261008T024357Z-a117115d",
+            "20261008T024444Z-e7c0c996",
+            "20261008T025448Z-de3cb67e"
+          ],
+          "local_ci_gate": "pass",
+          "reports_recomputed": 5,
+          "observations_ref": "evidence/F28-admission-observations.json",
+          "uploaded_commit": "e6bda835253425046068cd905db7d819a538b7c5",
+          "hosted_run_id": 37721608025,
+          "hosted_observations_ref": "evidence/F28-admission-hosted-observations.json",
+          "hosted_workflow_conclusion": "failure",
+          "hosted_portable_status": {
+            "windows-2025": "pass",
+            "ubuntu-22.04": "pass",
+            "ubuntu-24.04": "pass"
+          },
+          "hosted_artifact_recomputation": "pass"
+        },
+        {
+          "parent_commit": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+          "status": "s1_implemented_regression_pass_native_boundary_failed",
+          "observations_ref": "evidence/F28-sandbox-s1-observations.json",
+          "source_inventory_hash": "9aeab88cb1bdf078482e54243da5e6ac19af8f72fb4d16b99af7160053277628",
+          "artifact_source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4",
+          "final_evidence_ids": [
+            "20261008T152141Z-4e8ea0ed",
+            "20261008T152141Z-7c4157db",
+            "20261008T152141Z-c6ff5444"
+          ],
+          "artifact_evidence_ids": [
+            "20261008T145801Z-b8bc1897",
+            "20261008T150300Z-f9824a1f",
+            "20261008T150300Z-fedd3657",
+            "20261008T150301Z-05695dd7",
+            "20261008T150301Z-2f3e3a47",
+            "20261008T150301Z-3526ae99",
+            "20261008T151508Z-fef89426"
+          ],
+          "regression_tests": 1437,
+          "regression_failures": 0,
+          "regression_errors": 0,
+          "regression_skipped": 0,
+          "native_windows": "fail",
+          "native_checks": {
+            "pass": 11,
+            "fail": 1,
+            "blocked": 11
+          },
+          "capabilities_promoted": false,
+          "model_calls": 0,
+          "administrator_setup": true,
+          "installer_rebuilt": true,
+          "build_id": "v4-sandbox-s1-20261008f-win-x64",
+          "build_manifest_sha256": "8d5d8f23445c62e0291f4bf40c730fa8046248e815557b6c64459880a1501d56",
+          "runtime_input_consistency": ".local/sandbox-s1-20261008/runtime-source-consistency.json",
+          "current_ci_gate": "not_rerun",
+          "hosted_ci": "not_run",
+          "upload_status": "not_uploaded",
+          "owner_recovery": "Matching markers recovered after owned ACL/DB/process verification; no helper/holder remains. Ten empty SDK placeholders retained; general cleanup not accepted."
         }
       ],
       "local_windows_setup_ref": "local_windows_setup",
-      "latest_verification_scope": "Shared Windows10 source snapshot includes desktop changes, runtime diagnosis and F31 bootstrap; regression1412/contracts2/quality4/desktop116 pass. Native Windows and receiving WSL/Docker acceptance remain blocked."
+      "latest_verification_scope": "Shared Windows10 source snapshot includes desktop changes, runtime diagnosis and F31 bootstrap; regression1412/contracts2/quality4/desktop116 pass. Native Windows and receiving WSL/Docker acceptance remain blocked.",
+      "current_artifact_evidence_ids": [
+        "20261008T145801Z-b8bc1897",
+        "20261008T150300Z-f9824a1f",
+        "20261008T150300Z-fedd3657",
+        "20261008T150301Z-05695dd7",
+        "20261008T150301Z-2f3e3a47",
+        "20261008T150301Z-3526ae99",
+        "20261008T151508Z-fef89426"
+      ],
+      "verification_scope": "Full regression covers source 6fdfa2e8. Subsequent changes are two inspection assertions/capture timing, an optional packaged-test timeout argument (source default remains 90s, packaged run uses the existing 300s task budget), and assembled release metadata. Frozen Engine source inventory remains identical. Each formal report keeps its own source hash."
     },
     "F29": {
       "implementation_status": "implemented",
@@ -1328,6 +1518,10 @@
     },
     "F31": {
       "implementation_status": "in_progress",
+      "design_plan_ref": "sandbox-redesign.md",
+      "planned_slices": [
+        "S5"
+      ],
       "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "verification": {
         "contracts": "pass",
@@ -1601,10 +1795,10 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Current base HEAD is f34bad970161ae5ef4dbbffcaa3ede4a3eaa2234; local UI and Windows10 target changes are uncommitted. Full regression uses isolated source4d92b9fb, while merged focused/Desktop evidence uses sourcea00f3fc8. Historical hosted results retain their original commits.",
+  "head_recorded_scope": "Base HEAD cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819. Current merged working source9aeab88cb1bdf078482e54243da5e6ac19af8f72fb4d16b99af7160053277628 passes regression1437/contracts2/quality4. F artifact/native source d755ef80 preceded a test-only Windows lock-timing correction; frozen runtime input hashes remain identical. S1 and unrelated UI work remain uncommitted/unpushed; historical hosted results stay scoped to their original commits.",
   "gate_notes": {
-    "G1-contracts-engine": "F31 source457c5613 passes local contracts2/quality4/unit226/portable418/regression1388, zero failures/skips; seven formal reports and the precommit local CI gate are recomputed. Uploaded 64032fe independently passes contracts2/quality4/unit226/portable418 and fresh CI gates on all three hosted platforms; four artifacts/four logs/six JUnit reports and all 16 new behaviors per platform are verified. Overall workflow failure remains due to two high dependency entries. Native/official implementation remains incomplete.",
-    "G3-desktop-observability": "Windows10 development desktop66 and installed preview5 pass; required supported-platform/manual/keystore/native evidence remains absent.",
+    "G1-contracts-engine": "Current local S1 source9aeab88c passes full regression1437/contracts2/quality4 with zero failures/errors/skips. No fresh unit/portable CI gate or hosted run. Earlier F31 source457c5613 and commit64032fe pass their recorded local/hosted contracts/unit/portable gates; those reports are historical. Native/official implementation remains incomplete.",
+    "G3-desktop-observability": "S1 F snapshot d755ef80 passes actual Windows10 development desktop132 and installed preview5; later test-only timing correction leaves runtime inputs unchanged. Supported-platform/manual/keystore/native and clean installation evidence remains incomplete.",
     "G4-evaluation": "Frozen RunSpec/source/model/prompt/tool-schema binding, explicit unbounded monetary representation, network consistency and durable request attribution have passing offline behavior tests. Official Docker environment/network enforcement and trusted host per-request admission/authorization remain incomplete; Linux Docker daemon absent.",
     "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."
   },
@@ -1642,12 +1836,17 @@
     "authorization": "granted",
     "diagnostic_status": "observed",
     "diagnostic_fix": "Use verified runtime installed flag rather than presence of an old source-root release manifest",
-    "srt_account_provisioned": false,
-    "srt_install_invoked": false,
+    "srt_account_provisioned": true,
+    "srt_install_invoked": true,
+    "latest_observations_ref": "evidence/F28-sandbox-s1-observations.json",
+    "current_runtime": "Product-private PowerShell 7.6.6, MinGit 2.56.0.2 and ripgrep 15.2.0; no manual MSI prerequisite",
+    "setup_state": "installed",
+    "current_native_status": "fail: 11 pass / 1 fail / 11 blocked; dynamic-sensitive-file readable",
+    "historical_verification_scope": "The source hash, 1412 tests and evidence_ids below belong to the earlier setup/handoff checkpoint. Current S1 source, artifact and tests are in latest_observations_ref.",
     "powershell_version": "7.6.6",
     "powershell_installer_sha256": "958838ff55091e1c8705d89efed0cc7e8245a3a6ef6c0ccfae20015227108ad8",
     "powershell_signature": "Valid Microsoft Corporation",
-    "powershell_install": "UAC returned operation cancelled; fixed path still absent",
+    "powershell_install": "Historical MSI attempt was cancelled; current product uses the verified private ZIP bundle. Fixed SRT setup later succeeded once; do not reinstall or rotate shared credentials.",
     "focused_tests": 18,
     "native_acceptance": "blocked",
     "model_calls": 0,
@@ -1664,5 +1863,31 @@
     ],
     "uploaded_code_commit": "942ea7187d91ab248d7795c55239c475cb078150"
   },
-  "repository_head_note": "Verified uploaded source commit; this transfer-record update is a later documentation-only checkpoint. Use git rev-parse HEAD for the actual checkout."
+  "repository_head_note": "Current checkout base verified by git; S1 working-tree implementation is not yet uploaded. Historical uploaded_code_commit remains scoped to its transfer record; the receiving launcher only fetches committed GitHub content.",
+  "desktop_local_execution": {
+    "status": "optional_local_execution_implemented_and_windows_updated",
+    "adr_ref": "adr/035-optional-desktop-local-execution.md",
+    "observations_ref": "evidence/F28-desktop-local-mode-observations.json",
+    "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+    "desktop_version": "0.1.3",
+    "regression_tests": 1446,
+    "regression_failures": 0,
+    "regression_errors": 0,
+    "regression_skipped": 0,
+    "public_model_calls": 0,
+    "native_capabilities_promoted": false,
+    "build_id": "v4-local-mode-20261009-win-x64",
+    "final_evidence_ids": [
+      "20261008T162534Z-2a1c62e2",
+      "20261008T165453Z-3140ec18",
+      "20261008T165453Z-56b0de72",
+      "20261008T164537Z-f7a5f679",
+      "20261008T164537Z-92a8cdd8",
+      "20261008T165453Z-6cd363ff",
+      "20261008T170118Z-df30be6a",
+      "20261008T165741Z-65bee22e"
+    ],
+    "upload_status": "not_uploaded",
+    "verification_scope": "Full regression covers source 6fdfa2e8. Subsequent changes are two inspection assertions/capture timing, an optional packaged-test timeout argument (source default remains 90s, packaged run uses the existing 300s task budget), and assembled release metadata. Frozen Engine source inventory remains identical. Each formal report keeps its own source hash."
+  }
 }

@@ -11,7 +11,7 @@ import sys
 import tempfile
 import urllib.request
 from uuid import uuid4
-from forge.release.runtime import digest,verify_manifest
+from forge.release.runtime import digest,verify_manifest,verify_tool_bundle,tool_inventory
 from forge.sandbox.capabilities import windows_supported
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -39,6 +39,23 @@ def asset(root,p):
     if p.is_symlink():a['symlink']=os.readlink(p)
     return a
 
+def copy_tool_bundles(root, stage, lock, target):
+    groups = {}
+    for bundle in lock.get('tool_bundles', []):
+        if bundle['platform'] != target: continue
+        verify_tool_bundle(root, bundle)
+        name = bundle['name']
+        destination = ('runtimes/powershell/' if name == 'powershell' else 'tools/' + name + '/') + bundle['version']
+        for entry in tool_inventory(root, bundle):
+            source = root / bundle['path'] / entry['path']
+            copy(source, stage / destination / entry['path'])
+            if source.name.casefold().startswith(('license', 'copying', 'notice', 'unlicense', 'thirdpartynotices')):
+                copy(source, stage / 'licenses/native-tools' / name / entry['path'])
+        groups[name] = {'root': destination, 'entry_path': destination + '/' + bundle['entry']}
+    if target == 'win32-x64' and set(groups) != {'powershell', 'git', 'ripgrep'}:
+        raise ValueError('Windows release requires bundled PowerShell, Git and ripgrep')
+    return groups
+
 def assemble(build_id,target,output):
     if target!=sys.platform+'-x64':raise ValueError('Native Engine assembly must run on its target platform')
     build_path=ROOT/'.local/engine-build'/build_id
@@ -59,6 +76,7 @@ def assemble(build_id,target,output):
     stage=Path(tempfile.mkdtemp(prefix='.release-',dir=output.parent))
     bridge=stage/'bridge'/build_id
     engine=stage/'engine'/build_id
+    (stage/'tools').mkdir()
     shutil.copytree(build['directory'],engine,symlinks=True)
     try:
         for a in inventory['files']:copy(ROOT/a['path'],bridge/a['path'])
@@ -70,6 +88,9 @@ def assemble(build_id,target,output):
         if digest(ROOT/node_asset['path'])!=node_asset['sha256']:raise ValueError('Locked Node binary differs')
         node=stage/'runtimes/node'/lock['node']['version']/Path(node_asset['path']).name
         copy(ROOT/node_asset['path'],node)
+        tool_groups = copy_tool_bundles(ROOT, stage, lock, target)
+        if target == 'linux-x64':
+            copy(ROOT/'packaging/linux/forgecode-userns',stage/'linux/forgecode-userns')
         helpers=[]
         for a in lock['assets']:
             if a['name'] in ('srt-win','apply-seccomp','java-proxy-agent') and a['platform'] in (target,'all'):
@@ -88,12 +109,15 @@ def assemble(build_id,target,output):
         (stage/'ui-assets.json').write_text(json.dumps(ui,indent=2)+'\n',encoding='utf-8',newline='\n')
         copy(ROOT/'apps/desktop/.vite/build/main.js',stage/'client/main.js')
         copy(ROOT/'apps/desktop/.vite/build/preload.js',stage/'client/preload.js')
-        licenses=stage/'licenses';licenses.mkdir()
+        licenses=stage/'licenses';licenses.mkdir(exist_ok=True)
         project_license=ROOT/'LICENSE'
         if project_license.is_file():copy(project_license,licenses/'ForgeCode-LICENSE')
         else:(licenses/'ForgeCode-NOTICE.txt').write_text('No project LICENSE file was present in the source checkout. This developer preview asserts no project redistribution license; production distribution requires an owner-approved license.\n',encoding='utf-8')
         copy(ROOT/'uv.lock',stage/'sbom/uv.lock');copy(ROOT/'package-lock.json',stage/'sbom/package-lock.json')
         components=list(lock['components'])
+        components.extend({key: value for key, value in bundle.items() if key not in ('path', 'inventory', 'strip_prefix', 'entry')}
+                          | {'kind': 'bundled-tool', 'scope': 'application-runtime'}
+                          for bundle in lock.get('tool_bundles', []) if bundle['platform'] == target)
         for d in build['distributions']:
             item={k:v for k,v in d.items() if k!='license_files'};components.append(item)
             for i,p in enumerate(d['license_files']):
@@ -121,7 +145,8 @@ def assemble(build_id,target,output):
         executable=engine/('forge-engine.exe' if target=='win32-x64' else 'forge-engine')
         all_assets=[asset(stage,p) for p in sorted(files(stage))]
         lookup={a['path']:a for a in all_assets}
-        manifest={'schema_version':'forge.release.manifest.v1','build_id':build_id,'version':'0.1.2','platform':target,
+        manifest={'schema_version':'forge.release.manifest.v1','build_id':build_id,
+            'version':json.loads((ROOT/'apps/desktop/package.json').read_bytes())['version'],'platform':target,
             'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
             'dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=ROOT)),
             'source_inventory':build['source_inventory'],
@@ -135,6 +160,7 @@ def assemble(build_id,target,output):
             'security':lock['security'],'node_version':lock['node']['version'],
             'engine':lookup[executable.relative_to(stage).as_posix()],'bridge':lookup[(bridge/'entry.mjs').relative_to(stage).as_posix()],
             'node':lookup[node.relative_to(stage).as_posix()],
+            'tools':{name: {'root': tool['root'], 'entry': lookup[tool['entry_path']]} for name, tool in tool_groups.items()},
             'engine_dependencies':[a for a in all_assets if a['path'].startswith('engine/') and a['path']!=executable.relative_to(stage).as_posix()],
             'bridge_dependencies':[a for a in all_assets if a['path'].startswith('bridge/')],
             'native_helpers':[{**lookup[p.relative_to(stage).as_posix()],'name':a['name']} for a,p in helpers],

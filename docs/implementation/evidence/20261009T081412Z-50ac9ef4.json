@@ -1,0 +1,43 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261009T081412Z-50ac9ef4",
+  "task_id": null,
+  "case_ids": [
+    "N24"
+  ],
+  "suite": "live-eval",
+  "git_commit": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "dirty_hash": "41383d03da01aca7a54a963889643077f35a9b6ceb92dd095eeef0a7ad73c871",
+  "source_inventory_hash": "d120f2ec2dff0c8c843ff79c5f419e7aeee50753d43f4cde7f1bd5007251cfc0",
+  "platform": "linux",
+  "os_build": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "4c18fd0565e59dc9cf4e46ed1de1c6cb510cd4ec8ab4dfeea9cd60d8040b8a25",
+    "release-lock.json": "5339132862272350cb402586946053175355ef8c71db2c4ba5298c2fa58b0e09"
+  },
+  "command": [
+    "/home/titans/learn_project/forgecode-v4/.venv/bin/python3",
+    "-X",
+    "utf8",
+    "/home/titans/learn_project/forgecode-v4/scripts/delivery_experiment.py",
+    "verify",
+    "--output",
+    "/home/titans/learn_project/forgecode-v4/.local/implementation/20261009T081412Z-50ac9ef4/packaging.json"
+  ],
+  "start": "2026-10-09T08:14:12.613734+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-09T08:14:13.841999+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261009T081412Z-50ac9ef4/stdout.log",
+  "stderr_ref": ".local/implementation/20261009T081412Z-50ac9ef4/stderr.log",
+  "report_ref": ".local/implementation/20261009T081412Z-50ac9ef4/packaging.json",
+  "report_hash": "9c5a299138a43131a654551ab0a948db74186b1cc2ad38babded5394f5de63e0",
+  "status": "blocked",
+  "tests": {
+    "reason": "Official execution policy verification, authorization binding and per-request accounting remain unavailable.; The preregistration has unresolved source/model/environment snapshots and is not an executable RunSpec.; Linux Docker daemon unavailable; no environment was started",
+    "scope": "real preregistration validation and official runner readiness; zero public-model execution",
+    "eligible_for_native_pass": false,
+    "checks": 6
+  }
+}

@@ -1,10 +1,18 @@
 # F31：在另一台 WSL / Docker 电脑继续
 
-用户于 2026-10-08 选择将 F31 正式评测移至另一台具有 WSL 和 Docker 的电脑，并要求交接入口自动拉取 GitHub 最新代码后继续。Windows 10 本机 F28 原生验收仍留在原电脑。当前真实进度始终以 `docs/implementation/handoff.md`、`progress.json` 和 `tasks/F31.md` 为准；本文件是接手入口，不是评测通过报告。
+2026-10-09 接收端已实际接续：`Ubuntu-26.04` 的 `/home/titans/learn_project/forgecode-v4` 已恢复 GitHub 基底及交接补丁，当前为有意保留的脏工作区；不要再次运行自动更新或重套补丁。独立 Python/Node 依赖已准备，96 项定向测试及 contracts/quality 通过；WSL 当前用户访问 `/var/run/docker.sock` 被拒绝，正式 live-eval 仍 blocked。Windows Docker Desktop 的 Linux server 可用不替代这个执行身份的证据。当前结果、模型调用为零及剩余门禁见 [新机证据](../implementation/evidence/F28-F31-new-host-observations-20261009.json)。下文为原迁移流程与协议要求。
+
+用户于 2026-10-08 选择将 F31 正式评测移至另一台具有 WSL 和 Docker 的电脑，并要求交接入口自动拉取 GitHub 最新代码后继续。2026-10-09 又将后续全部工作迁到这台 Windows10 电脑：F28 在目标 Windows 原生环境继续，F31 在当地 WSL/Linux Docker 继续，替代留在原电脑的安排。先读 [新机总交接](../implementation/handoff-win10-wsl-20261009.md)，恢复随包未提交增量后再继续。当前真实进度以 `docs/implementation/handoff.md`、`progress.json` 和 `tasks/F31.md` 为准；本文件不是评测通过报告。
+
+F28 S1 已开始接入 Windows 私有工具与 Ubuntu 安装配置，实际代码/打包/原生状态见 [S1 证据](../implementation/evidence/F28-sandbox-s1-observations.json)。它不解除 F31 的官方网络、宿主逐请求授权和 F28 依赖门禁；新机仍先运行无模型诊断。GitHub 启动器只取得已推送的提交，原机未提交工作区不会自动传输，必须核对实际 HEAD 与 handoff。
+
+原机 F 构建已取得 11 项原生通过，同时实测动态新建 `.env` 可读，原生整体为 fail，另 11 项 blocked。不要在接收端把“已装 Docker”记为这一 F28 边界问题的解决；S5 无模型实现可以独立继续，正式评测依赖仍保持。
+
+2026-10-09 桌面新增用户明确选择的本机执行模式（[ADR035](../implementation/adr/035-optional-desktop-local-execution.md)），用于当前用户权限下的日常任务，无 OS 隔离。F31 evaluation 继续拒绝此模式；接收端仍按下面的官方 Docker 和授权要求推进。
 
 ## 启动
 
-在 WSL 终端进入交接包解压目录，执行：
+旧版 F31 启动器用于干净 GitHub 检出。在 2026-10-09 总交接包中，先用 `--update-only` 拉取，按总交接恢复 `working-tree.patch`，再直接在源码目录打开 Codex；应用补丁后再次自动更新会如实拒绝脏工作区。没有待恢复补丁的日常干净检出可在 WSL 终端执行：
 
 ```bash
 python3 resume_f31.py
@@ -16,7 +24,7 @@ python3 resume_f31.py
 
 ## 接手任务
 
-1. 读取 AGENTS.md、实施 PLANS、规范 0–3 与 17–18 章、progress、handoff、F31 任务卡及本文件。核对 HEAD、git status 和依赖锁；保留既有 Python Harness / CLI。
+1. 读取 AGENTS.md、实施 PLANS、规范 0–3 与 17–18 章、progress、handoff、F31 任务卡及本文件；再读 [沙盒改进方案](../implementation/sandbox-redesign.md) 第 7—9 节与 [ADR034](../implementation/adr/034-sandbox-execution-and-runtime.md)。核对 HEAD、git status 和依赖锁；保留既有 Python Harness / CLI。F31 实施 S5，文件/命令/验证统一进入官方 attempt 环境；本机 F28 的随包 Shell 与原生迁移不由 Docker 替代。
 2. 确认当前 Python 和 Docker 都在 WSL/Linux 路径中运行，`docker version --format '{{.Server.Os}}'` 必须成功输出 `linux`。记录 WSL 发行版、内核、Docker client/server 版本和 context。WSL / Docker 可用于官方容器评测，不建立 Windows 或 Ubuntu 原生桌面验收。
 3. 按 `docs/install/development.md` 与 `release-lock.json` 安装固定版本。基础顺序为 `uv python install 3.12.13`、`uv sync --locked --all-groups --all-extras`、锁定 Node/npm 下的 `npm ci --ignore-scripts`、`node node_modules/electron/install.js`、`uv run --no-sync python scripts/materialize_release.py --output .local/runtime-assets.json`、Bridge/Desktop 构建。不要从 Windows 复制 .venv、node_modules 或原生运行时。
 4. 先运行下面的无模型检查，保存真实输出；缺失环境先标 blocked 并继续无依赖实现。
@@ -32,4 +40,4 @@ uv run --no-sync python scripts/impl.py verify --suite live-eval
 7. 只比较修复上限 0/2，其余预算与条件一致；单 worker 交错运行，保留全部 attempt、usage、未知费用与独立 grader 产物，采用最后获准 attempt。三道已检查任务只作预实验／回归；正式独立 holdout 与 48/120 trial 规模尚待确定，不能把历史 A3/3、B2/3当作正式 Harbor 成绩。
 8. 先补行为测试，再改代码并跑回归，更新任务、progress、证据与 handoff。真实结果按 `docs/experiments/delivery-repair.md` 导出与离线复算。原电脑的私有 `.local` 原始日志未迁移；如需复算历史批次，明确记录原始产物仍在原机，不能假称当前可复核。
 
-本交接包只带启动器与说明，不带 API key、.env、.forge、会话、登录缓存或评测结果。启动器拉取到的实际提交及接收端环境才是下一轮工作的起点。
+2026-10-08 的旧包只带启动器与说明；2026-10-09 的总交接包另带经过检查的源码补丁。两者均不带 API key、.env、.forge、会话、登录缓存或私有评测产物。实际拉取的提交、恢复的补丁和接收端环境共同决定下一轮起点。

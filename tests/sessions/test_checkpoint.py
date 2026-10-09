@@ -1,6 +1,7 @@
 '''Tests for M4 file-level edit checkpoints.'''
 
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -9,6 +10,30 @@ from forge.sessions.checkpoint import (
     CheckpointError,
     CheckpointStore,
 )
+
+
+def test_checkpoint_capture_and_restore_in_long_control_directory(tmp_path):
+    root = tmp_path / 'project'
+    root.mkdir()
+    target = root / 'app.py'
+    target.write_bytes(b'before\r\n')
+    directory = tmp_path / 'long-control'
+    while len(str(directory)) < 280:
+        directory /= 'nested-checkpoint-storage-12345678'
+    store = CheckpointStore(root, directory)
+    try:
+        checkpoint = store.begin()
+        store.capture_before(checkpoint, ('app.py',))
+        target.write_bytes(b'after\r\n')
+        store.record_after(checkpoint, ('app.py',))
+        assert store.latest_restorable() == checkpoint
+        assert store.restore(checkpoint) == ('app.py',)
+        assert target.read_bytes() == b'before\r\n'
+        assert not list(store.directory.rglob('.forge-*.tmp'))
+    finally:
+        assert directory.resolve().is_relative_to(tmp_path.resolve())
+        if store.directory.exists():
+            shutil.rmtree(store.directory)
 
 
 def test_checkpoint_restores_modified_and_created_files(

@@ -13,7 +13,7 @@ export function createSetupBroker(runtime: VerifiedRuntime) {
   }
   const { node, entry, root } = runtime;
   const environment = Object.fromEntries(Object.entries(runtime.environment).filter(([name]) =>
-    ['PATH', 'SystemRoot', 'windir', 'ProgramFiles', 'HOME', 'TEMP', 'TMP', 'LANG'].includes(name)));
+    ['PATH', 'SystemRoot', 'windir', 'ProgramFiles', 'LOCALAPPDATA', 'HOME', 'TEMP', 'TMP', 'LANG'].includes(name)));
   let running = false;
   async function launch(action: SetupAction): Promise<any> {
     return new Promise((resolve, reject) => {

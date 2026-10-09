@@ -12,6 +12,7 @@ from forge.application.models import ContractError, canonical_hash
 from forge.engine.journal_projection import journal_facts
 from forge.engine.persistence import encoded, new_id, sync_directory, utc_now
 from forge.sessions.store import SESSION_ID_PATTERN, SessionStore
+from forge.storage_paths import private_storage_path
 
 
 MAX_FILE=104857600
@@ -38,6 +39,7 @@ def read_bytes(path, root):
 class LegacyImporter:
     def __init__(self, store, *, profile_id):
         self.store,self.profile_id=store,profile_id
+        self.backup_root=private_storage_path(store.data_dir)/'legacy-backups'
 
     def scan(self, project, source):
         project=Path(project).resolve(strict=True)
@@ -98,7 +100,7 @@ class LegacyImporter:
         body={key:value for key,value in plan.items() if key!='sha256'}
         if canonical_hash(body)!=plan.get('sha256') or plan.get('profile_id')!=self.profile_id:
             raise ContractError('Legacy backup manifest identity changed',kind='MANIFEST_MISMATCH',code=-32010)
-        base=self.store.data_dir/'legacy-backups';base.mkdir(exist_ok=True,mode=0o700)
+        base=self.backup_root;base.mkdir(exist_ok=True,mode=0o700)
         if base.resolve()!=base:raise ContractError('Legacy backup directory redirects storage',kind='POLICY_DENIED',code=-32010)
         destination=base/plan['sha256']
         expected={entry['source_key']+'/'+item['relative_path']:item for entry in plan['entries'] for item in entry['files']}
@@ -127,7 +129,7 @@ class LegacyImporter:
             data=read_bytes(destination/relative,destination)
             if sha256(data).hexdigest()!=item['sha256'] or len(data)!=item['size_bytes']:
                 raise ContractError('Legacy backup content changed',kind='MANIFEST_MISMATCH',code=-32010)
-        return destination.relative_to(self.store.data_dir).as_posix()
+        return destination.relative_to(base.parent).as_posix()
 
     def prepare(self,project,source):
         if self.store.read_only:raise ContractError('Readonly Engine cannot prepare migration',kind='INCOMPATIBLE_PROTOCOL',code=-32010)
@@ -153,7 +155,7 @@ class LegacyImporter:
                     (entry['legacy_id'],workspace['id'],self.profile_id,entry['source_key'],entry['source_path'],
                      entry['source_sha256'],entry['native_session_id'],entry['native_schema'],entry['record_count'],
                      preview['backup_key'],entry['state'],timestamp))
-                path=self.store.data_dir/preview['backup_key']/entry['source_key']/Path(entry['source_path']).name
+                path=self.backup_root.parent/preview['backup_key']/entry['source_key']/Path(entry['source_path']).name
                 reader=SessionStore(Path(project),data_root=self.store.data_dir)
                 producer=new_id('producer')
                 source_id='import:legacy:'+sha256((self.profile_id+':'+entry['source_key']).encode()).hexdigest()
@@ -181,7 +183,8 @@ class LegacyImporter:
         row=self.store.connection.execute('SELECT * FROM legacy_imports WHERE id=? AND profile_id=?',(legacy_id,self.profile_id)).fetchone()
         if row is None:raise ContractError('Imported legacy history not found',kind='NOT_FOUND',code=-32010)
         try:
-            manifest=json.loads(read_bytes(self.store.data_dir/row['backup_key']/'manifest.json',self.store.data_dir/row['backup_key']))
+            backup=self.backup_root.parent/row['backup_key']
+            manifest=json.loads(read_bytes(backup/'manifest.json',backup))
             if 'legacy-backups/'+manifest['sha256']!=row['backup_key']:
                 raise ValueError('Mapping and manifest disagree')
             self._backup(manifest)

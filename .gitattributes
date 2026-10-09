@@ -8,3 +8,6 @@ packages/contracts/src/generated/* text eol=lf
 /package.json text eol=lf
 packages/contracts/package.json text eol=lf
 sandbox_bridge/** text eol=lf
+packaging/tool-inventories/** text eol=lf
+packaging/verify-installed.* text eol=lf
+packaging/linux/** text eol=lf

@@ -14,6 +14,68 @@
     "license": "MIT",
     "patches": []
   },
+  "tool_bundles": [
+    {
+      "name": "powershell",
+      "platform": "win32-x64",
+      "version": "7.6.6",
+      "path": ".local/release-runtime/powershell-7.6.6-win32-x64",
+      "entry": "pwsh.exe",
+      "inventory": "packaging/tool-inventories/powershell-7.6.6-win32-x64.json",
+      "inventory_sha256": "bcd60156a722a0401390f919018c7ab8fb533cc8ecb84531c3276c69969f1a2d",
+      "source": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
+      "archive_sha256": "02fe458be20493fbdf43f61ea20610b811ee6c738ab1676c61b9cfcd1a33c860",
+      "archive_size": 106328873,
+      "strip_prefix": "",
+      "license": "MIT",
+      "upstream_release": "https://github.com/PowerShell/PowerShell/releases/tag/v7.6.6",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/unit/test_bundled_tools.py",
+        "python scripts/impl.py verify --suite sandbox-windows"
+      ]
+    },
+    {
+      "name": "git",
+      "platform": "win32-x64",
+      "version": "2.56.0.2",
+      "path": ".local/release-runtime/git-2.56.0.2-win32-x64",
+      "entry": "cmd/git.exe",
+      "inventory": "packaging/tool-inventories/git-2.56.0.2-win32-x64.json",
+      "inventory_sha256": "f75d504c9ebbc04f4ed7c35e92e3743a5825ef593d01b13bb218a26397fbd7f0",
+      "source": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.2/MinGit-2.56.0.2-64-bit.zip",
+      "archive_sha256": "da35e72aa21c005a5a0d298cfbae110bc1609a815730ea0dde84b01a1b3cd3be",
+      "archive_size": 39806486,
+      "strip_prefix": "",
+      "license": "GPL-2.0-only",
+      "upstream_release": "https://github.com/git-for-windows/git/releases/tag/v2.56.0.windows.2",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/unit/test_bundled_tools.py",
+        "python scripts/impl.py verify --suite sandbox-windows"
+      ]
+    },
+    {
+      "name": "ripgrep",
+      "platform": "win32-x64",
+      "version": "15.2.0",
+      "path": ".local/release-runtime/ripgrep-15.2.0-win32-x64",
+      "entry": "rg.exe",
+      "inventory": "packaging/tool-inventories/ripgrep-15.2.0-win32-x64.json",
+      "inventory_sha256": "4893333cd68f8bfbc0f1dbcc7b1d319270d64364f49a61b64d57f697d97ceb04",
+      "source": "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip",
+      "archive_sha256": "71b2fef860abe467217a538ff31de02f5258807c0129f771846f87bd029aafc5",
+      "archive_size": 1789611,
+      "strip_prefix": "ripgrep-15.2.0-x86_64-pc-windows-msvc/",
+      "license": "MIT OR Unlicense",
+      "upstream_release": "https://github.com/BurntSushi/ripgrep/releases/tag/15.2.0",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/unit/test_bundled_tools.py",
+        "python scripts/impl.py verify --suite sandbox-windows"
+      ]
+    }
+  ],
   "components": [
     {
       "name": "@electron/fuses",
@@ -379,7 +441,7 @@
       "name": "bridge-runtime-manifest",
       "platform": "all",
       "path": "sandbox_bridge/runtime-manifest.json",
-      "sha256": "7fa5c2a9e910813326a92616d4821546e68c9b7a43addce92b3d75a9bc8a9c8f",
+      "sha256": "d5d662c880185dadfc2fa9eca44418fbac0ff8699413c55e5986393174636fe1",
       "source": "ForgeCode locked runtime code inventory",
       "license": "NOASSERTION",
       "patches": []
@@ -387,7 +449,7 @@
   ],
   "lockfile_hashes": {
     "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
-    "package-lock.json": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a"
+    "package-lock.json": "4c18fd0565e59dc9cf4e46ed1de1c6cb510cd4ec8ab4dfeea9cd60d8040b8a25"
   },
   "security": {
     "status": "blocked",

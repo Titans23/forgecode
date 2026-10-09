@@ -54,8 +54,9 @@ def main(argv=None):
     if args.scripted_fixture and args.profile != 'test':
         print(json.dumps({'status': 'invalid_configuration', 'reason': 'scripted fixture requires test profile'}), file=sys.stderr)
         return 3
-    if args.execution_mode == 'local-trusted' and args.profile not in ('test', 'cli'):
-        print(json.dumps({'status': 'invalid_configuration', 'reason': 'desktop/evaluation require strict sandbox'}), file=sys.stderr)
+    if args.execution_mode == 'local-trusted' and (args.profile == 'evaluation' or
+            args.profile == 'desktop' and (args.principal != 'main' or args.main_owner_pid is None)):
+        print(json.dumps({'status': 'invalid_configuration', 'reason': 'Local desktop execution requires its owning Main; evaluation requires strict sandbox'}), file=sys.stderr)
         return 3
     input_descriptor, output_descriptor = sys.stdin.fileno(), sys.stdout.fileno()
     if sys.platform == 'win32':

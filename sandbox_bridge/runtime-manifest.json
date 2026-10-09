@@ -5654,12 +5654,20 @@
       "sha256": "4d36f4e28055bed16a2d13c2e79b6c5222997b42b9b25324cdef38e1a54b9718"
     },
     {
+      "path": "packaging/verify-installed.mjs",
+      "sha256": "b68fe142017f098dd8ed705d90d7fce36a789e775dc4d145df10f3c344beb58c"
+    },
+    {
       "path": "sandbox_bridge/dist/dispatcher.js",
-      "sha256": "759c611a7bb3c04e7f09f57d2e7ab19a14e023124754832ead2a694ca16c0b07"
+      "sha256": "c3d60bc40e3d4846d74a8a3bc8c46dd01c9525aabed8140758c569154d2e260b"
     },
     {
       "path": "sandbox_bridge/dist/executions.js",
       "sha256": "6fb96d0bbfa5c245a4f8d50c9e8626c871f155a6399925470f940105a7761136"
+    },
+    {
+      "path": "sandbox_bridge/dist/launch-payload.js",
+      "sha256": "a18f7987df8ca700eeac79985dc47a4a54c73567358d7eb268605d682d89b9ea"
     },
     {
       "path": "sandbox_bridge/dist/linux-ownership.js",
@@ -5667,7 +5675,7 @@
     },
     {
       "path": "sandbox_bridge/dist/main.js",
-      "sha256": "1ad510d686e92ee9ef847aa8b2d34cdcfe73e46dc240ea8e113ec147ed994e79"
+      "sha256": "2e7afe80b755897150ef62f874c909dc28c55f288fb1a43cbe0cbda4b5bfcfcf"
     },
     {
       "path": "sandbox_bridge/dist/output.js",
@@ -5675,7 +5683,7 @@
     },
     {
       "path": "sandbox_bridge/dist/srt-adapter.js",
-      "sha256": "1b1023b55727f750aa1f125be1aa1385cae5df57b17c281d16d878786f247608"
+      "sha256": "cda2f921c0ff57b128dd626acaa66c669c623acfc095b9270dadbd66d4dfef08"
     },
     {
       "path": "sandbox_bridge/dist/verify-linux.js",
@@ -5683,7 +5691,7 @@
     },
     {
       "path": "sandbox_bridge/dist/verify-native.js",
-      "sha256": "07de2f1e9d1c99b208c7faeb735315643f0e0dabd1eccc7f9c234d0b0f912cad"
+      "sha256": "b3450d507d18ade61c82513291bd895141e38dfad383f3aca5101a8d5ec6ef04"
     },
     {
       "path": "sandbox_bridge/dist/verify-windows.js",
@@ -5691,7 +5699,7 @@
     },
     {
       "path": "sandbox_bridge/dist/windows-adapter.js",
-      "sha256": "25abbc402350d6b8a2bf9a3309abac7f7296219a8c53e6ce26bf69f493b38c00"
+      "sha256": "736329847e32fe0ffa4c6c468603c155d6dfac54c4f3d9ea8586f3b50b9a310d"
     },
     {
       "path": "sandbox_bridge/package.json",

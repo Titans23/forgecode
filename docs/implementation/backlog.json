@@ -1530,6 +1530,14 @@
     {
       "id": "F28",
       "title": "全量平台、性能和安全验收",
+      "handoff_ref": "handoff-win10-wsl-20261009.md",
+      "design_plan_ref": "sandbox-redesign.md",
+      "planned_slices": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "depends_on": [
         "F09",
@@ -1550,6 +1558,10 @@
         "F30"
       ],
       "chapters": [
+        3,
+        11,
+        12,
+        20,
         21,
         24
       ],
@@ -1560,6 +1572,9 @@
         "docs/platforms/support-matrix.md"
       ],
       "steps": [
+        "按 ADR035 提供用户明确选择的桌面本机执行，无 OS 隔离；验证确认、空闲切换、正常重启和历史策略保留，不解除 strict/F31 门禁。",
+        "按沙盒改进方案 S1 完成 Windows 锁定 PowerShell/Git/ripgrep 供应、Ubuntu deb 依赖与专属配置、统一路径和首次使用流程，再按 S2 补齐固定原生证明与 prepare 准入。",
+        "按 S3 完成 Shell/File 动态敏感路径一致性和 owner 清理，按 S4 验证干净系统仅安装 ForgeCode 到首个受限任务及安装版迁移；保持 strict，失败不降级。",
         "运行原 86 场景与新增契约场景，按平台保留结果。",
         "在本机 Windows 10 x64 build 19045 及声明的 Ubuntu 环境测安装、执行、恢复、secret store。",
         "测冷启动、事件洪泛、磁盘、UI 和观测开销。",
@@ -1568,10 +1583,15 @@
       "tests": [
         "所列 acceptance registry 每项有测试映射和证据。",
         "native 与 packaged 验证不能只含 Mock。",
-        "生产 fuse 配置有独立 smoke。"
+        "生产 fuse 配置有独立 smoke。",
+        "随包 Shell 缺失/篡改和未验证证据拒绝；无系统 PowerShell 的安装版可用性必须实际验证。",
+        "Shell/File 对动态敏感对象结论一致；初始化/取消/崩溃后残留按真实所有权核查。",
+        "干净 Windows/Ubuntu 无预装应用运行时或核心工具，仅经 ForgeCode 安装和正常系统授权后完成受限文件/Shell/Git 任务；无需手工补依赖或配置。",
+        "依赖下载中断、授权拒绝可经安装流程重试；应用专属系统配置的安装/升级/卸载不影响共享策略，拒绝时无不受限任务启动。"
       ],
       "acceptance": [
-        "所有 P0 必需平台／安全项通过，或明确发布受阻。"
+        "所有 P0 必需平台／安全项通过，或明确发布受阻。",
+        "正式支持系统达到单一安装流程开箱即用；手工修复教程不代替通过证据。"
       ],
       "verification_suites": [
         "contracts",
@@ -1663,15 +1683,48 @@
         "20261008T101903Z-54075eb9",
         "20261008T101917Z-6a4f56c2",
         "20261008T103251Z-83550630",
-        "20261008T103348Z-d69d8d63"
+        "20261008T103348Z-d69d8d63",
+        "20261008T152141Z-4e8ea0ed",
+        "20261008T152141Z-7c4157db",
+        "20261008T152141Z-c6ff5444",
+        "20261008T145801Z-b8bc1897",
+        "20261008T150300Z-f9824a1f",
+        "20261008T150300Z-fedd3657",
+        "20261008T150301Z-05695dd7",
+        "20261008T150301Z-2f3e3a47",
+        "20261008T150301Z-3526ae99",
+        "20261008T151508Z-fef89426",
+        "20261008T145801Z-2e0ff3b4",
+        "20261008T145801Z-850f9cfc",
+        "20261008T133501Z-29f3b0ff",
+        "20261008T145922Z-9cbc2aba",
+        "20261008T162534Z-2a1c62e2",
+        "20261008T162534Z-2b8ff220",
+        "20261008T162535Z-7542eeae",
+        "20261008T162644Z-1f0ffa89",
+        "20261008T164537Z-5890a375",
+        "20261008T164537Z-92a8cdd8",
+        "20261008T164537Z-f7a5f679",
+        "20261008T164851Z-2aad0a1f",
+        "20261008T165127Z-4847212c",
+        "20261008T165127Z-64a400ea",
+        "20261008T165453Z-3140ec18",
+        "20261008T165453Z-56b0de72",
+        "20261008T165453Z-6cd363ff",
+        "20261008T165741Z-65bee22e",
+        "20261008T170118Z-df30be6a"
       ],
       "case_ids": [
         "N20"
       ],
       "remaining_implementation": [
         "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
-        "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
-      ]
+        "Dynamic-sensitive-file protection failed on the actual Windows package (11 pass / 1 fail / 11 blocked). Full initialized cleanup and complete Shell/File parity remain unimplemented/unverified; keep native admission closed.",
+        "ADR034 S1 supply/setup code is implemented; see evidence/F28-sandbox-s1-observations.json. S2 native proof admission, S3 boundary/cleanup closure and S4 clean-system out-of-box acceptance remain incomplete; Ubuntu configuration still needs target-system proof."
+      ],
+      "implementation_observations_ref": "evidence/F28-sandbox-s1-observations.json",
+      "latest_verification": "Current source9aeab88c: regression1437/contracts2/quality4 pass with zero failures/errors/skips. F build artifact checks and desktop132 retain source d755ef80; only a test changed later and runtime inputs match. Native Windows fail: 11 pass / 1 fail / 11 blocked; no capability promotion. S1 remains uncommitted/unpushed.",
+      "desktop_local_execution_ref": "evidence/F28-desktop-local-mode-observations.json"
     },
     {
       "id": "F29",
@@ -1806,6 +1859,11 @@
     {
       "id": "F31",
       "title": "执行对照实验与生成可复算报告",
+      "handoff_ref": "handoff-win10-wsl-20261009.md",
+      "design_plan_ref": "sandbox-redesign.md",
+      "planned_slices": [
+        "S5"
+      ],
       "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
       "depends_on": [
         "F20",
@@ -1825,7 +1883,7 @@
         "实验 artifact 索引"
       ],
       "steps": [
-        "冻结任务和 A/B 配置，做无费用协议验证。",
+        "按沙盒改进方案 S5 完成官方容器网络/工具边界与宿主逐请求准入，再冻结任务和 A/B 配置，做无费用协议验证。",
         "取得用户明确预算／key／环境许可后预实验并锁规模。",
         "正式交错运行，保留所有 attempt、usage 与 grader 产物。",
         "逐题配对和 task-cluster 区间，报告回退、成本与限制。"
@@ -1834,7 +1892,9 @@
         "未授权执行返回 blocked。",
         "相同 bundle 离线复算一致。",
         "A/B 非目标配置差异被检测。",
-        "真实结果不使用 Mock 或 best-of 历史替换。"
+        "真实结果不使用 Mock 或 best-of 历史替换。",
+        "文件、命令、verify 位于同一官方 attempt 环境；任务不可取得 Docker socket、隐藏 grader 或控制面凭证。",
+        "网络拒绝、逐请求授权/有限预算及 owner 清理在新机实际验证；WSL 结果不计 Windows 原生证据。"
       ],
       "acceptance": [
         "实验流程完整可运行；实际成绩有来源，缺授权明确未实测。"

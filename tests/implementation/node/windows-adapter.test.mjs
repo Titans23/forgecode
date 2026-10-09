@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { resolve, sep } from 'node:path';
-import { fixedSetupAction, setupDisposition, protectedDirectoryPaths, redactWindowsStatus } from '../../../sandbox_bridge/dist/windows-adapter.js';
+import { fixedSetupAction, setupDisposition, protectedDirectoryPaths, redactWindowsStatus, windowsAccountReady } from '../../../sandbox_bridge/dist/windows-adapter.js';
 import { SrtAdapter } from '../../../sandbox_bridge/dist/srt-adapter.js';
 
 test('Windows 10 desktop metadata reaches prerequisite diagnosis without native verification', async t => {
@@ -61,6 +61,17 @@ test('status removes certificates and unknown credential fields', () => {
     wfp: { state: 'installed', filters: 2, token: 'PRIVATE' } });
   assert.ok(!JSON.stringify(safe).includes('PRIVATE'));
   assert.equal(safe.user.provisioned, true);
+});
+
+test('fresh SDK account metadata is a prerequisite only; identity and credentials remain mandatory', () => {
+  const user={provisioned:true,credPresent:true,groupExists:true,inSandboxGroup:true,hiddenFromLogon:true,
+    inBuiltinUsers:true,sid:'sandbox',realUserSid:'host'};
+  assert.equal(windowsAccountReady({user}),true);
+  for(const key of ['provisioned','credPresent','groupExists','inSandboxGroup','hiddenFromLogon']) {
+    assert.equal(windowsAccountReady({user:{...user,[key]:false}}),false);
+  }
+  assert.equal(windowsAccountReady({user:{...user,sid:'host'}}),false);
+  assert.equal(windowsAccountReady({user:{...user,realUserSid:undefined}}),false);
 });
 
 test('directory denies preserve .git worktree files and distinguish missing control directories', () => {

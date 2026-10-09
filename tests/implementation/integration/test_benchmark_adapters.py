@@ -222,12 +222,42 @@ def test_frozen_harbor_harness_runs_real_tools_and_tests_without_extra_repair_bu
     finally:methods.store.close()
 
 
-def test_cleanup_requires_all_actual_owned_resources_and_confirmed_delete():
+def test_cleanup_receipts_do_not_promote_an_unverified_stop_to_clean():
     from benchmark.adapters.docker import cleanup_state
     assert cleanup_state([])=='unknown'
     first=[{'resource_id':'a','phase':'start_intent'},{'resource_id':'a','phase':'started'},
         {'resource_id':'a','phase':'stopped','deleted':True}]
-    assert cleanup_state(first)=='clean'
+    assert cleanup_state(first)=='unknown'
     assert cleanup_state(first+[{'resource_id':'b','phase':'start_intent'}])=='unknown'
     assert cleanup_state([{'resource_id':'forged','phase':'stopped','deleted':True}])=='unknown'
     assert cleanup_state([*first[:-1],{**first[-1],'deleted':False}])=='unknown'
+
+
+def test_official_docker_stop_preserves_unknown_when_upstream_swallows_down_failure(tmp_path):
+    import logging
+    from benchmark.adapters.docker import EvaluationDockerEnvironment, cleanup_state
+    environment = object.__new__(EvaluationDockerEnvironment)
+    environment._receipt_path = tmp_path / 'cleanup.jsonl'
+    environment._receipt_id = 'owned-fixture'
+    environment._keep_containers = False
+    environment.logger = logging.getLogger(__name__)
+    async def prepare():
+        pass
+    calls = []
+    async def fail_down(command, **kwargs):
+        calls.append(command)
+        raise RuntimeError('synthetic daemon unavailable')
+    environment.prepare_logs_for_host = prepare
+    environment._run_docker_compose_command = fail_down
+    environment._cleanup_mounts_compose_file = lambda: None
+    environment._cleanup_resources_compose_file = lambda: None
+    environment._cleanup_egress_control_services_compose_file = lambda: None
+    environment._receipt('start_intent')
+    # Runs pinned Harbor's actual stop implementation. No Docker resource is created.
+    asyncio.run(environment.stop(delete=True))
+    assert calls == [['down', '--rmi', 'local', '--volumes', '--remove-orphans']]
+    receipts = [json.loads(row) for row in environment._receipt_path.read_text().splitlines()]
+    assert receipts[-1]['phase'] == 'stop_returned'
+    assert receipts[-1]['delete_requested'] is True
+    assert 'deleted' not in receipts[-1]
+    assert cleanup_state(receipts) == 'unknown'

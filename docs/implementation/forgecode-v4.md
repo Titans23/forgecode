@@ -8,6 +8,8 @@
 > 本交付是实施规范、任务卡、契约种子和状态模板，不包含已经实现的客户端或沙盒。所有开发任务初始为 `todo`，所有产品测试初始为 `not_run`。
 > “必须／不得”是验收要求；“建议”允许在 ADR 中记录等价替代。文档中的新命令需要由对应任务实现后才可运行。
 
+2026-10-08 沙盒实施补充：依据用户要求参考 DSH/Pi，新增 [改进方案](sandbox-redesign.md) 与 [ADR034](adr/034-sandbox-execution-and-runtime.md)。S1 私有工具供应、Ubuntu 安装配置和 Windows 首次使用接线已落地，完整能力准入和干净系统验收尚未完成；实际范围见 [S1 证据](evidence/F28-sandbox-s1-observations.json)，不能将设计目标当作当前原生能力。
+
 ---
 
 ## 阅读导航
@@ -67,6 +69,8 @@
 ### 1.1 P0：本次必须实现的闭环
 
 用户在 Windows 10 x64 22H2（build 19045，本机验收）或 Ubuntu 22.04／24.04 x86-64 安装客户端，选择项目、配置模型连接、完成原生沙盒诊断后，可以发起代码任务；看到流式消息、工具调用、Diff、审批、验证证据与费用；能够正确取消、恢复查看；能够创建固定实验、执行兼容任务、导入公开 benchmark 结果并进行逐题对比。
+
+依据用户 2026-10-08 的开箱即用要求，正式支持系统的应用依赖、核心工具和沙盒初始化必须由 ForgeCode 安装／首次使用流程完成。用户无需另装 PowerShell、Node、Python、Git 或沙盒组件，无需复制环境配置命令；只需正常系统权限确认、模型配置及项目选择。默认系统下仍需手工修复环境则不满足 P0 交付。项目特有 SDK 独立准备；普通任务不依赖 Docker／WSL。具体供应和干净系统验收见 ADR034 及 [改进方案](sandbox-redesign.md) 第 4 节。
 
 Windows 日常任务必须原生执行，不通过 WSL 或 Docker 冒充。Linux 专用的官方评测仍使用其规定环境，Windows 客户端通过导出 RunSpec／导入结果包接入，不改变评分协议。
 
@@ -521,6 +525,8 @@ ApplicationServices.query_trace(TraceQuery) -> TracePage
 
 旧的无隔离本地执行可以保留为明确的 `local-trusted` 模式，**不能成为 strict sandbox 失败后的自动后备，也不能显示为沙盒通过**。桌面默认 strict，评测保存真实 mode。Mock 只允许测试／demo profile，UI 显示“模拟模型”，禁止形成真实 benchmark 成绩。
 
+2026-10-09 用户明确选择新增桌面可选本机执行模式，见 [ADR035](adr/035-optional-desktop-local-execution.md)。Main 原生确认说明无 OS 隔离，空闲且退出清理确认后保存模式并重启；侧栏、工作区和环境诊断展示真实模式。旧会话不改变策略，切换后新建会话。项目授权、审批与预算继续执行；F31 evaluation 仍只接受 strict，不能用本机模式解除原生验收或官方评测门禁。
+
 ### 9.3 Model／Tool 回调
 
 每次实际模型网络尝试创建 request ID；如果 SDK 内置重试不可观测，关闭其隐藏重试并在公共 adapter 实施可记录的有界重试，或明确标记 request visibility 为 partial，不假装每次调用已完整统计。
@@ -636,13 +642,23 @@ P0 不启用 TLS MITM，不自动安装 CA，不禁用证书或吊销校验换�
 
 取消链：Engine request → Bridge cancel → 后端受管执行关闭 → 后代进程核查 → cleanup report → confirmed event。超时未确认保留 unknown／indeterminate。已有后台服务在 grader 期间存活，final deadline 到达才强制清理；不延长 Agent 预算。
 
+### 11.9 DSH／Pi 参考后的实施约束
+
+复用实际 `ToolExecutionBackend`、`NativeBackendFactory`、`FileToolBackend`、`SandboxBackend` 与独立 SRT Bridge，不另建通用执行环境框架。Shell 的发现／供应与 OS 隔离分离；文件、命令、verify、Explore 必须受同一 owner 与冻结策略约束，宿主扩展不自动获得沙盒标签。
+
+前提 `readiness` 与逐项 `verification` 分开。固定可信 native verifier 可运行内置 canary 来建立证明，不能接受任意项目脚本或外来“已验证”报告。证明绑定当前运行时／helper／OS／策略适用范围，prepare 再核对实际 workspace 身份和会话 grants；不适用、过期、失败或清理未确认时不得对模型开放执行。保留现有能力字段和 evidence_refs，不引入第二套 full/partial 状态源。
+
+P0 保留 SRT 为桌面原生后端，Harbor 为官方评测路径；不增加 DSH 的 Windows 写入限制后端或 Pi 的无隔离自动回退。动态敏感路径、网络及完整清理仍按本章要求验收。实施顺序、可行性停止条件和源码接入见 [改进方案](sandbox-redesign.md) 第 5—9 节。
+
 ---
 
 ## 12. Windows／Linux 原生落地与诊断
 
 ### 12.1 Windows 实施要求
 
-Windows 10 x64 22H2（build 19045）、NTFS、PowerShell 7 是必需 Windows 验收基准。依据用户 2026-10-08 的明确指令，在当前本机完成验收，不再要求另备 Windows 11 设备。安装程序打包 ForgeCode 的 Python／Node／helper，项目工具链独立诊断。
+Windows 10 x64 22H2（build 19045）、NTFS 是必需 Windows 验收基准。依据用户 2026-10-08 的明确指令，在当前本机完成验收，不再要求另备 Windows 11 设备。依据 ADR034，目标安装包除 Python／Node／helper 外，还供应锁定的 PowerShell 7 完整运行时与核心 Git/ripgrep，普通用户无需另装这些组件；项目特有工具链独立诊断。
+
+当前源码已使用受验证的私有 PowerShell/Git/ripgrep，doctor、Bridge、dispatcher、native verifier 使用统一解析结果；不自动回退 PowerShell 5.1、项目 PATH 或普通 spawn。完整安装版原生验收仍待完成，旧包不自动升级。随包运行时不免除 SRT 系统初始化所需的真实 UAC，也不自动提升沙盒能力。
 
 SRT 的原生实现涉及专用低权限身份、会话文件 ACL 与网络边界；其当前文档也说明会话级授权及系统 DNS 的限制。[S05] ForgeCode 不重写这些系统机制，而是校验实际版本、安装状态、所有权、策略效果和清理结果。
 
@@ -660,9 +676,9 @@ SRT 所用代理认证 token 与模型 API key 区别对待：前者可能为任
 
 ### 12.3 Linux 实施要求
 
-在 Ubuntu 22.04、24.04 分别测试 bubblewrap／socat／ripgrep 与实际 user namespace、seccomp 能力。系统拒绝所需能力时报告 SETUP_REQUIRED／CAPABILITY_UNSATISFIED。
+Ubuntu 22.04、24.04 的 deb 必须声明并由标准安装流程自动安装 bubblewrap／socat／ripgrep／git 等实际系统依赖，私有 Python／Node、Bridge、SRT 与 helper 随应用供应。依赖约束经双版本兼容验证，实际系统包版本记录在诊断与证据中。不得将核心依赖缺失转为要求用户逐项另装软件。
 
-**不得自动执行全局关闭 AppArmor 或 user namespace 限制的命令，也不得用 Electron `--no-sandbox` 作为安装成功手段。** 提供经过审核的最小范围系统配置说明，管理员未批准则保留 blocked。
+安装流程按需配置并加载 ForgeCode 专属 AppArmor profile，随后由普通用户身份自动验证实际 user namespace、seccomp、文件和网络能力。**不得全局关闭 AppArmor 或 user namespace 限制，也不得用 Electron `--no-sandbox` 作为安装成功手段。** 用户通过系统安装授权界面批准必要配置，无需编辑配置或执行命令。企业策略禁止或权限拒绝报告 SETUP_REQUIRED／CAPABILITY_UNSATISFIED；默认支持系统仍需手工修复则安装验收失败。具体 profile 的可行性须原生实测，文档目标不代表实现已通过。
 
 Job／process group／namespace 的所有权需与 execution ID 关联。PID 只能作为观测字段；重启时不能凭 PID 还在就 kill。若后端无法确认属于本任务的进程，输出 residual／unknown，禁止全局按名称杀进程。
 
@@ -970,12 +986,14 @@ resources/
   engine/<build>/forge-engine[.exe] + onedir dependencies
   bridge/<build>/entry.mjs + runtime dependencies
   runtimes/node/<version>/node[.exe]
+  runtimes/powershell/<version>/pwsh.exe + dependencies  # Windows；ADR034 待实施
+  tools/<platform>/<locked-tool-version>/...           # Windows Git/ripgrep；ADR034 待实施
   native-helpers/<platform>/...
   release-manifest.json
   licenses/
 ```
 
-应用自身不要求用户全局安装 Python／Node，项目工具链单独说明。Python 引擎按每个平台构建，PyInstaller 产物不是跨 OS 通用文件。[S12]
+应用自身不要求用户全局安装 Python／Node，项目工具链单独说明。Windows PowerShell/Git/ripgrep 已接入 ADR034 的私有供应路径；ZIP 来源、精确版本、完整目录、许可和完整性已纳入 release-lock／manifest／SBOM，随 Engine／Bridge 成组升级，不在运行时下载 latest。平台兼容、沙盒身份与干净系统可用性仍须分别验收。Python 引擎按每个平台构建，PyInstaller 产物不是跨 OS 通用文件。[S12]
 
 ### 20.2 Python 打包要求
 
@@ -989,7 +1007,9 @@ Linux 打包保持 onedir 所需链接，分发归档不得把其错误变为非
 
 ### 20.3 Windows／Linux 安装
 
-Windows 使用 Squirrel installer；处理安装、更新、卸载启动参数时不启动 Agent。沙盒全局 setup 单独由用户批准，不把普通安装成功等同沙盒可用。Linux 提供 deb，依赖诊断与桌面快捷方式；在最老承诺支持的构建基线构建并在两个 Ubuntu 版本测试。
+Windows 使用 Squirrel installer；处理安装、更新、卸载启动参数时不启动 Agent。必要的沙盒 setup 集成到首次使用流程，说明用途后由系统 UAC 授权并运行固定操作，再自动自检，不要求用户另开终端或到高级设置手动初始化。Linux 提供 deb 和桌面快捷方式，依赖解析与应用专属系统配置纳入标准安装过程；在最老承诺支持的构建基线构建并在两个 Ubuntu 版本测试。
+
+干净目标系统从仅安装 ForgeCode 到首个受限文件／Shell／Git 任务通过是必需验收，包含依赖下载中断、权限拒绝后的正常重试和升级／卸载不破坏共享组件。安装器退出成功与沙盒自检通过分别记录；固定自检不消耗模型调用。可联网获取声明依赖，应用更新策略不因此改变。
 
 每个产物写 build ID、source commit、dirty 状态、component hashes、licenses、SBOM／依赖清单。没有签名证书可构建开发预览，但不得称为已签名正式版；不要尝试关闭系统安装告警。
 
@@ -2212,7 +2232,7 @@ python scripts/model_regression.py --authorize-real-model --task-root .local/f20
 
 ### F28 · 全量平台、性能和安全验收
 
-**依赖：** F09, F10, F11, F12, F14, F15, F16, F18, F21, F22, F23, F24, F25, F26, F27, F30。**规范章节：** 21, 24。
+**依赖：** F09, F10, F11, F12, F14, F15, F16, F18, F21, F22, F23, F24, F25, F26, F27, F30。**规范章节：** 3, 11, 12, 20, 21, 24。
 
 **默认文件／职责：**
 
@@ -2223,20 +2243,27 @@ python scripts/model_regression.py --authorize-real-model --task-root .local/f20
 
 **实施步骤：**
 
-1. 运行原 86 场景与新增契约场景，按平台保留结果。
-2. 在声明的 Windows／Ubuntu 环境测安装、执行、恢复、secret store。
-3. 测冷启动、事件洪泛、磁盘、UI 和观测开销。
-4. 整理缺陷、回归和支持矩阵，不掩盖 blocked。
+1. 按沙盒改进方案 S1 完成 Windows 锁定 PowerShell/Git/ripgrep 供应、Ubuntu deb 依赖与专属配置、统一路径和首次使用流程，再按 S2 补齐固定原生证明与 prepare 准入。
+2. 按 S3 完成 Shell/File 动态敏感路径一致性和 owner 清理，按 S4 验证干净系统仅安装 ForgeCode 到首个受限任务及安装版迁移；保持 strict，失败不降级。
+3. 运行原 86 场景与新增契约场景，按平台保留结果。
+4. 在本机 Windows 10 x64 build 19045 及声明的 Ubuntu 环境测安装、执行、恢复、secret store。
+5. 测冷启动、事件洪泛、磁盘、UI 和观测开销。
+6. 整理缺陷、回归和支持矩阵，不掩盖 blocked。
 
 **新增行为测试：**
 
 - 所列 acceptance registry 每项有测试映射和证据。
 - native 与 packaged 验证不能只含 Mock。
 - 生产 fuse 配置有独立 smoke。
+- 随包 Shell 缺失/篡改和未验证证据拒绝；无系统 PowerShell 的安装版可用性必须实际验证。
+- Shell/File 对动态敏感对象结论一致；初始化/取消/崩溃后残留按真实所有权核查。
+- 干净 Windows/Ubuntu 无预装应用运行时或核心工具，仅经 ForgeCode 安装和正常系统授权后完成受限文件/Shell/Git 任务；无需手工补依赖或配置。
+- 依赖下载中断、授权拒绝可经安装流程重试；应用专属系统配置的安装/升级/卸载不影响共享策略，拒绝时无不受限任务启动。
 
 **完成标准：**
 
 - 所有 P0 必需平台／安全项通过，或明确发布受阻。
+- 正式支持系统达到单一安装流程开箱即用；手工修复教程不代替通过证据。
 
 **验收命令：** F02 建立入口后运行 `python scripts/impl.py verify --task F28`；实际底层命令、平台与结果写入 evidence。F00 在该入口建立前使用第 2 章通用命令。
 

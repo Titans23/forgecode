@@ -29,7 +29,7 @@ app.whenReady().then(async()=>{
     await window.webContents.executeJavaScript('const input=document.querySelector("textarea");Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value").set.call(input,"Read the value.");input.dispatchEvent(new Event("input",{bubbles:true}))');
     await until(()=>window.webContents.executeJavaScript('!document.querySelector(".composer button").disabled'));
     await window.webContents.executeJavaScript('document.querySelector(".composer button").click()');
-    await until(()=>window.webContents.executeJavaScript('document.querySelector("[data-testid=turn-outcome]")?.textContent==="completed"'));
+    await until(()=>window.webContents.executeJavaScript('document.querySelector("[data-testid=turn-outcome]")?.dataset.outcome==="completed"'));
     const report=await window.webContents.executeJavaScript('({rendered_result:document.querySelector(".latest-message")?.textContent.includes("The value is B."),no_raw_node:typeof window.require==="undefined",no_desktop_bridge:typeof window.forgeDesktop==="undefined",errors:document.querySelectorAll("[role=alert]").length})');
     if(!report.rendered_result||!report.no_raw_node||!report.no_desktop_bridge||report.errors||evalViolations)throw new Error('Actual Web UI result or CSP checks failed');
     await window.webContents.executeJavaScript('document.querySelector("[data-testid=turn-outcome]").scrollIntoView({block:"center"});new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');

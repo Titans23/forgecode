@@ -28,14 +28,12 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
 
     async def stop(self,delete):
         await super().stop(delete)
-        self._receipt('stopped',deleted=delete is True)
+        # Pinned Harbor logs and suppresses compose stop/down failures.
+        self._receipt('stop_returned',delete_requested=delete is True)
 
 
 def cleanup_state(receipts):
-    resources={}
-    for row in receipts:
-        resources.setdefault(row['resource_id'],[]).append(row)
-    if not resources:
-        return 'unknown'
-    return 'clean' if all(any(row['phase']=='start_intent' for row in rows) and rows[-1]['phase']=='stopped' and rows[-1].get('deleted') is True
-        for rows in resources.values()) else 'unknown'
+    # Neither legacy `stopped/deleted` nor `stop_returned` receipts contain an
+    # independently observed inventory of remaining owned Docker resources.
+    # Keep them unknown until actual owner reconciliation is implemented.
+    return 'unknown'

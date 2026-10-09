@@ -42,7 +42,7 @@ def windows_volume(path):
     filesystem = ctypes.create_unicode_buffer(32)
     flags = ctypes.c_uint32()
     maximum = ctypes.c_uint32()
-    success = ctypes.windll.kernel32.GetVolumeInformationW(str(Path(path).anchor), None, 0, None,
+    success = ctypes.windll.kernel32.GetVolumeInformationW(str(Path(path).absolute().anchor), None, 0, None,
         ctypes.byref(maximum), ctypes.byref(flags), filesystem, len(filesystem))
     return {'status': 'pass' if success and filesystem.value == 'NTFS' else 'blocked',
         'filesystem': filesystem.value if success else 'not_observed'}
@@ -99,7 +99,7 @@ def system_diagnosis():
             host['supported_linux'] = host['supported'] and platform.machine() == 'x86_64'
         except OSError:
             host['distribution'] = 'unavailable'
-        for name in ('bwrap', 'socat', 'rg', 'bash', 'sh'):
+        for name in ('bwrap', 'socat', 'rg', 'git', 'bash', 'sh'):
             path = Path('/bin' if name in ('bash', 'sh') else '/usr/bin') / name
             try:
                 actual = path.resolve(strict=True)
@@ -137,11 +137,10 @@ def system_diagnosis():
         windows_status = windows_status_diagnosis(runtime)
         with tempfile.TemporaryDirectory(prefix='forge-win-tools-') as directory:
             environment = bridge_environment(Path(directory))
-        shell = Path(environment['ProgramFiles']) / 'PowerShell' / '7' / 'pwsh.exe'
-        try:
-            tools['pwsh'] = {'status': 'pass', 'path': str(shell), 'sha256': sha256(shell.read_bytes()).hexdigest()}
-        except OSError:
-            tools['pwsh'] = {'status': 'blocked', 'path': str(shell), 'reason': 'Fixed PowerShell 7 is unavailable'}
+        for name, key in [('pwsh', 'powershell'), ('git', 'git'), ('rg', 'ripgrep')]:
+            tool = runtime.tools.get(key)
+            tools[name] = ({'status': 'pass', 'path': str(tool), 'sha256': sha256(tool.read_bytes()).hexdigest()}
+                           if tool else {'status': 'blocked', 'reason': 'Bundled application tool is unavailable'})
         host['system_volume'] = windows_volume(Path(environment['SystemRoot']))
     from forge.release.toolchains import discover_toolchains
     project_tools=discover_toolchains()
@@ -152,9 +151,9 @@ def system_diagnosis():
         'active_sessions': {'state': 'not_observed', 'count': None}, 'cleanup': {'state': 'not_observed'},
         'workspace_tools_executed': False, 'automatic_repair': False,
         'repair_steps': (['Use Main native setup confirmation on Windows 10 x64 build 19045 or later; do not automatically refresh existing shared credentials or uninstall shared SRT.',
-            'PowerShell 7 and NTFS are required. Shared activity and ACL/Job residuals require native evidence; DNS isolation is unavailable.']
-            if sys.platform == 'win32' else ['Install audited bubblewrap/socat/ripgrep packages if missing on supported Ubuntu.',
-            'Have an administrator review the minimum application-specific namespace policy if blocked; do not disable AppArmor or change global sysctls.'])}
+            'Bundled PowerShell/Git/ripgrep and NTFS are required. Use the ForgeCode installer to restore missing application assets; DNS isolation is unavailable.']
+            if sys.platform == 'win32' else ['Use the ForgeCode deb installation flow to resolve missing system dependencies.',
+            'The installer owns application-specific namespace policy; do not disable AppArmor or change global sysctls.'])}
 
 
 async def workspace_diagnosis(path):
@@ -211,15 +210,47 @@ async def verify_windows(output: Path, *, allowed_endpoint=None):
     return await run_native_fixture(output, report, 'windows', allowed_endpoint=allowed_endpoint)
 
 
+def prepare_windows_fixture(directory):
+    """Keep the host able to inspect files created by the separate sandbox user.
+
+    Windows mkdtemp grants inheritable OWNER RIGHTS, which follow a new file's
+    owner. Add only this controller's SID to our fresh, empty synthetic fixture.
+    """
+    if sys.platform != 'win32':
+        raise OSError('Windows fixture ACL preparation requires Windows')
+    import win32api
+    import win32con
+    import win32security
+    from ntsecuritycon import FILE_ALL_ACCESS
+    from forge.sandbox.path_policy import inspect_path
+    token = inspect_path(str(directory), absolute=True)
+    if any(directory.iterdir()):
+        raise ValueError('Native fixture must be fresh and empty')
+    process_token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+    try:
+        sid = win32security.GetTokenInformation(process_token, win32security.TokenUser)[0]
+    finally:
+        process_token.Close()
+    descriptor = win32security.GetFileSecurity(str(directory), win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION)
+    if descriptor.GetSecurityDescriptorOwner() != sid:
+        raise ValueError('Native fixture belongs to another controller')
+    acl = descriptor.GetSecurityDescriptorDacl()
+    acl.AddAccessAllowedAceEx(win32security.ACL_REVISION, win32con.OBJECT_INHERIT_ACE | win32con.CONTAINER_INHERIT_ACE, FILE_ALL_ACCESS, sid)
+    token.assert_current()
+    win32security.SetNamedSecurityInfo(str(directory), win32security.SE_FILE_OBJECT, win32security.DACL_SECURITY_INFORMATION, None, None, acl, None)
+
+
 async def run_native_fixture(output, report, target, *, allowed_endpoint=None):
     runtime = verify_runtime()
     # Retain this synthetic fixture for evidence/residual inspection, including failed initialization.
-    directory = output.parent / f'native-{target}-fixture'
-    directory.mkdir(exist_ok=False)
+    # Evidence commonly lives beneath the development installation. The actual
+    # workspace/control fixture must not: production rejects overlapping roots.
+    directory = Path(tempfile.mkdtemp(prefix=f'forge-native-{target}-'))
     owner = {'engine_epoch': new_id('epoch'), 'sandbox_session_id': new_id('sandbox'), 'execution_id': None}
     lease = None
     options = {'allowed_endpoint': allowed_endpoint}
     if target == 'windows':
+        prepare_windows_fixture(directory)
         from forge.sandbox.windows_worker import WindowsWorkerLease, windows_worker_root
         worker_root = windows_worker_root()
         options['worker_root'] = str(worker_root)

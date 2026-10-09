@@ -12,6 +12,8 @@ import re
 from typing import Any, Iterable
 from uuid import uuid4
 
+from forge.storage_paths import private_storage_path
+
 
 CHECKPOINT_PATTERN = re.compile(r'checkpoint-[0-9a-f]{20}')
 
@@ -36,8 +38,10 @@ class CheckpointStore:
 
     def __init__(self, root: Path, directory: Path) -> None:
         self.root = root.resolve()
-        self.directory = directory
-        self.blob_directory = directory / 'blobs'
+        # Checkpoint hashes can push the private control path past MAX_PATH
+        # even when the project path is short and Windows long paths are off.
+        self.directory = private_storage_path(directory)
+        self.blob_directory = self.directory / 'blobs'
 
     @classmethod
     def for_session(

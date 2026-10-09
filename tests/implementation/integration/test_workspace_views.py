@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 import sys
+import threading
 
 import pytest
 
@@ -21,6 +22,41 @@ def prepared(tmp_path):
     service, store, vault, clients, params, turn = setup(tmp_path)
     methods = EngineMethods(service, profile='test')
     return service, store, vault, clients, params, turn, methods.workspaces
+
+
+def test_slow_git_integrity_check_keeps_readonly_workspace_requests_responsive(tmp_path, monkeypatch):
+    from pathlib import Path
+    from forge.release import toolchains
+    _, store, _, _, params, _, views = prepared(tmp_path)
+    git = shutil.which('git')
+    assert git, 'Real Git is required for this behavior test'
+    entered, release = threading.Event(), threading.Event()
+
+    def checking(name):
+        assert name == 'git'
+        entered.set()
+        if not release.wait(5):
+            raise RuntimeError('Git verification blocked the request loop')
+        return Path(git).resolve()
+
+    monkeypatch.setattr(toolchains, 'core_tool', checking)
+
+    async def run():
+        pending = asyncio.create_task(views.original_dirty(params['workspace_id']))
+        try:
+            assert await asyncio.to_thread(entered.wait, 5)
+            assert not pending.done()
+            page = await views.files({'workspace_id': params['workspace_id']})
+            assert any(item['relative_path'] == 'value.txt' for item in page['items'])
+            assert not pending.done()
+        finally:
+            release.set()
+            await pending
+
+    try:
+        asyncio.run(run())
+    finally:
+        store.close()
 
 
 def test_inspect_files_paging_content_revision_and_guarded_chunks(tmp_path):

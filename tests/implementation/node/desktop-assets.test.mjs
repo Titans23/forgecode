@@ -49,6 +49,11 @@ test('development Python is fixed to the venv alias and verified at its actual t
   assert.equal(launch.executable, join(await realpath(directory), relative));
   assert.equal(launch.profile, 'desktop');
   assert.ok(!launch.arguments.includes('--execution-mode'));
+  const local = await loadDevelopmentEngine(directory, { dataDir: join(directory, 'data'), executionMode: 'local-trusted' });
+  assert.equal(local.profile, 'desktop');
+  assert.equal(local.arguments[local.arguments.indexOf('--execution-mode') + 1], 'local-trusted');
+  assert.ok(!local.arguments.includes('--scripted-fixture'));
+  await assert.rejects(loadDevelopmentEngine(directory, { dataDir: join(directory, 'data'), executionMode: 'automatic' }), /Invalid execution mode/);
   manifest.python.path = 'elsewhere/python.exe';
   await writeFile(path, JSON.stringify(manifest));
   await assert.rejects(loadDevelopmentEngine(directory, { dataDir: join(directory, 'data') }), /fixed virtual environment/);

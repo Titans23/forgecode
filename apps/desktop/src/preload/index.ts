@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('forgeDesktop', Object.freeze({
   importResults: () => ipcRenderer.invoke('forge:import-results'),
   exportResults: (id:string) => ipcRenderer.invoke('forge:export-results',{run_id:id}),
   diagnostics: () => ipcRenderer.invoke('forge:diagnostics'),
+  chooseExecutionMode: () => ipcRenderer.invoke('forge:choose-execution-mode'),
   diagnoseSandbox: () => ipcRenderer.invoke('forge:sandbox-diagnosis'),
   installSandbox: () => ipcRenderer.invoke('forge:install-sandbox'),
   startDemo: () => ipcRenderer.invoke('forge:start-demo'),

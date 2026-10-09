@@ -29,6 +29,10 @@ async function main(): Promise<void> {
         await realpath(resolve(root,manifest.bridge.path))!==await realpath(resolve(bridgeRoot,'entry.mjs'))) throw new Error('Installed runtime identity mismatch');
     assets.node=await verified(manifest.node);
     for(const helper of manifest.native_helpers)assets[helper.name]=await verified(helper);
+    for(const [name,tool] of Object.entries(manifest.tools??{}) as [string,any][]) {
+      assets[name]=await verified(tool.entry);
+      assets[`tool-root-${name}`]=resolve(root,tool.root);
+    }
   } else {
     const lock = JSON.parse(await readFile(resolve(root, 'release-lock.json'), 'utf8'));
     const target = `${process.platform}-${process.arch}`;
@@ -38,6 +42,11 @@ async function main(): Promise<void> {
     const inventory = JSON.parse(await readFile(assets['bridge-runtime-manifest'], 'utf8'));
     if (inventory.schema_version !== 'forge.bridge.runtime.v1' || inventory.files.length < 1) throw new Error('Invalid code inventory');
     for (const asset of inventory.files) await verified(asset);
+    const {verifyToolBundle}=await import('../../packaging/verify-installed.mjs');
+    for(const bundle of lock.tool_bundles??[]) if(bundle.platform===target) {
+      assets[bundle.name]=await verifyToolBundle(root,bundle);
+      assets[`tool-root-${bundle.name}`]=resolve(root,bundle.path);
+    }
   }
   const { strictLoads, validate, ContractError, BRIDGE_METHODS } = await import('@forgecode/contracts');
   if (process.argv.length === 4 && process.argv[2] === '--setup-action') {

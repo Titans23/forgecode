@@ -10,13 +10,14 @@ import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
 import urllib.request
 from uuid import uuid4
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from forge.release.runtime import verify_asset
+from forge.release.runtime import verify_asset, relative_tool_path, tool_directory, tool_inventory, verify_tool_bundle, verify_tool_files
 from forge.release.processes import foreign_environment
 
 
@@ -45,6 +46,63 @@ def runtime_member(archive,version,target,archive_hash,binary_hash):
             content=bundle.extractfile(info).read()
     if sha256(content).hexdigest()!=binary_hash:raise ValueError('Pinned Node member hash differs')
     return content
+
+
+def materialize_tool_bundle(root, bundle):
+    root = Path(root).resolve(strict=True)
+    directory = tool_directory(root, bundle)
+    entries = tool_inventory(root, bundle)
+    if directory.exists():
+        verify_tool_bundle(root, bundle)
+        return False
+    size = bundle['archive_size']
+    if type(size) is not int or not 0 < size <= 256 * 1024 * 1024:
+        raise ValueError('Tool archive size exceeds quota')
+    cache = root / '.local/release-downloads' / (bundle['archive_sha256'] + '.zip')
+    if cache.is_file():
+        archive = cache.read_bytes()
+    else:
+        request = urllib.request.Request(bundle['source'], headers={'User-Agent': 'ForgeCode-runtime-materializer'})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            archive = response.read(size + 1)
+    if len(archive) != size or sha256(archive).hexdigest() != bundle['archive_sha256']:
+        raise ValueError('Pinned tool archive integrity mismatch')
+    expected = {entry['path']: entry for entry in entries}
+    prefix = bundle.get('strip_prefix', '')
+    if prefix:
+        relative_tool_path(prefix.rstrip('/'))
+        if not prefix.endswith('/'): raise ValueError('Invalid archive prefix')
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.tool-stage-', dir=directory.parent) as temporary:
+        stage = Path(temporary) / 'contents'
+        stage.mkdir()
+        with zipfile.ZipFile(io.BytesIO(archive)) as package:
+            seen = set()
+            total = 0
+            for member in package.infolist():
+                relative_tool_path(member.filename.rstrip('/'))
+                if not member.filename.startswith(prefix): raise ValueError('Unexpected tool archive prefix')
+                name = member.filename[len(prefix):]
+                if member.is_dir(): continue
+                relative_tool_path(name)
+                if name.casefold() in seen or name not in expected or stat.S_IFMT(member.external_attr >> 16) not in (0, stat.S_IFREG):
+                    raise ValueError('Unexpected, duplicate or linked tool archive member')
+                seen.add(name.casefold())
+                total += member.file_size
+                if member.file_size != expected[name]['size_bytes'] or total > 1024 * 1024 * 1024:
+                    raise ValueError('Tool archive expanded size mismatch')
+                content = package.read(member)
+                if sha256(content).hexdigest() != expected[name]['sha256']:
+                    raise ValueError('Tool archive member integrity mismatch')
+                output = stage / name
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_bytes(content)
+        verify_tool_files(stage, entries)
+        if tool_directory(root, bundle) != directory or directory.exists():
+            raise ValueError('Tool destination changed during extraction')
+        stage.rename(directory)
+    verify_tool_bundle(root, bundle)
+    return True
 
 
 def materialize(root=ROOT,*,target=None):
@@ -76,15 +134,20 @@ def materialize(root=ROOT,*,target=None):
             if target=='linux-x64':path.chmod(0o755)
         finally:temporary.unlink(missing_ok=True)
         downloaded=True
+    tool_downloads = {}
+    for bundle in lock.get('tool_bundles', []):
+        if bundle['platform'] == target:
+            tool_downloads[bundle['name']] = materialize_tool_bundle(root, bundle)
     for asset in assets:locked_asset(root,asset)
     actual=subprocess.check_output([str(path),'--version'],env=foreign_environment(),text=True,timeout=15).strip()
     if actual!='v'+version:raise ValueError('Private Node runtime returned another version')
     if lock_path.read_bytes()!=original:raise ValueError('Release lock changed during materialization')
     return {'status':'pass','scope':'actual pinned private runtime/assets; no setup or native capability promotion',
         'eligible_for_native_pass':False,'target':target,'node':actual,'downloaded':downloaded,
-        'lock_sha256':sha256(original).hexdigest(),'public_model_calls':0,
+        'lock_sha256':sha256(original).hexdigest(),'public_model_calls':0,'tool_downloads':tool_downloads,
         'checks':[{'id':'locked-native-assets-hash','status':'pass'},{'id':'actual-private-node-version','status':'pass'},
-            {'id':'release-lock-unchanged','status':'pass'}]}
+            {'id':'release-lock-unchanged','status':'pass'},
+            *[{'id':'complete-private-tool-'+name,'status':'pass'} for name in tool_downloads]]}
 
 
 def main():

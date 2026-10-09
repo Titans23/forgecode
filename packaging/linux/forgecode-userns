@@ -1,0 +1,16 @@
+# ForgeCode owns only these root-installed application paths.
+# This grants user namespaces; SRT still enforces task filesystem/network policy.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile forgecode-desktop /usr/lib/forgecode/forgecode flags=(unconfined) {
+  userns,
+}
+
+profile forgecode-node /usr/lib/forgecode/resources/runtimes/node/*/node flags=(unconfined) {
+  userns,
+}
+
+profile forgecode-engine /usr/lib/forgecode/resources/engine/*/forge-engine flags=(unconfined) {
+  userns,
+}

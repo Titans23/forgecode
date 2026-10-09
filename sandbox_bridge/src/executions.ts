@@ -13,6 +13,7 @@ export interface Execution {
   abort: AbortController;
   done: Promise<void>;
   resolve: () => void;
+  launchSettled?: Promise<void>;
   timer?: NodeJS.Timeout;
   cancellation?: Promise<Record<string, any>>;
   linuxOwner?: LinuxExecutionOwner;

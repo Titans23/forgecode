@@ -13,10 +13,15 @@ def test_control_environment_drops_project_loading_and_credentials(tmp_path):
     environment = bridge_environment(tmp_path, source={
         'PATH': str(tmp_path / 'evil'), 'NODE_OPTIONS': '--require evil.js',
         'PYTHONPATH': 'evil', 'LD_PRELOAD': 'evil', 'API_KEY': 'secret',
+        'LOCALAPPDATA': str(tmp_path / 'evil'),
         'HTTP_PROXY': 'http://secret@evil.invalid', 'SRT_DEBUG': '1'})
     assert environment['HOME'] == str(tmp_path)
     assert str(tmp_path / 'evil') not in environment['PATH']
     assert not set(environment) & {'NODE_OPTIONS', 'PYTHONPATH', 'LD_PRELOAD', 'API_KEY', 'HTTP_PROXY', 'SRT_DEBUG'}
+    if __import__('sys').platform == 'win32':
+        from forge.sandbox.windows_worker import windows_local_app_data
+        assert environment['LOCALAPPDATA'] == str(windows_local_app_data())
+        assert environment['PATHEXT'] == '.COM;.EXE;.BAT;.CMD'
 
 
 def test_asset_integrity_and_boundary_are_checked_before_execution(tmp_path):

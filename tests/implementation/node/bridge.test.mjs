@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { linkSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -10,13 +10,15 @@ import { canonicalHash, validate } from '../../../packages/contracts/dist/index.
 import { OutputCapture } from '../../../sandbox_bridge/dist/output.js';
 import { Executions } from '../../../sandbox_bridge/dist/executions.js';
 import { SrtAdapter, fixedDispatcherCommand, mapSrtError } from '../../../sandbox_bridge/dist/srt-adapter.js';
+import { createLaunchDirectory, writeLaunchPayload } from '../../../sandbox_bridge/dist/launch-payload.js';
 
 const owner = { engine_epoch: `epoch-${randomUUID()}`, sandbox_session_id: `sandbox-${randomUUID()}`, execution_id: null };
 const command = (cwd, argv) => ({ mode: 'argv', argv, cwd, environment: {},
   deadline_utc: new Date(Date.now() + 10000).toISOString(), output_limit_bytes: 65536 });
 const dispatcher = resolve('sandbox_bridge/dist/dispatcher.js');
 function run(spec, shells = {}, timeout = 10000) {
-  return spawnSync(process.execPath, [dispatcher], { input: JSON.stringify({ command: spec, shells }),
+  return spawnSync(process.execPath, [dispatcher], { input: JSON.stringify({ command: spec, shells,
+    tools: {git:process.execPath,rg:process.execPath} }),
     env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot }, encoding: 'utf8', timeout });
 }
 
@@ -26,6 +28,20 @@ test('actual dispatcher preserves empty, quotes, Chinese, metacharacters and mul
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), values);
   assert.throws(() => validate('command-spec', command(process.cwd(), [''])));
+});
+
+test('core argv uses the supplied owned executable instead of ambient PATH', () => {
+  // Node stands in for the Git executable to expose which argv entry actually ran.
+  const result=run(command(process.cwd(),['git','-e','process.stdout.write("owned-tool")']));
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(result.stdout,'owned-tool');
+});
+
+test('dispatcher rejects a nonabsolute core tool before task execution', () => {
+  const spec=command(process.cwd(),[process.execPath,'-e','process.stdout.write("must-not-run")']);
+  const result=spawnSync(process.execPath,[dispatcher],{input:JSON.stringify({command:spec,shells:{},tools:{git:'project-git',rg:process.execPath}})});
+  assert.equal(result.status,125);
+  assert.equal(result.stdout.length,0);
 });
 
 test('explicit script executes only in dispatcher with original shell semantics', () => {
@@ -51,11 +67,70 @@ test('actual dispatcher forwards binary task stdin without interpreting it as co
   const input = Buffer.from([0, 255, ...Buffer.from('中文\r\n{"jsonrpc":"2.0"}')]);
   const spec = command(process.cwd(), [process.execPath, '-e', 'process.stdin.pipe(process.stdout)']);
   spec.stdin_base64 = input.toString('base64');
-  const child = spawnSync(process.execPath, [dispatcher], { input: JSON.stringify({ command: spec, shells: {} }), timeout: 10000 });
+  const child = spawnSync(process.execPath, [dispatcher], { input: JSON.stringify({ command: spec, shells: {},
+    tools: {git:process.execPath,rg:process.execPath} }), timeout: 10000 });
   assert.equal(child.status, 0, child.stderr.toString());
   assert.deepEqual(child.stdout, input);
   assert.equal(run({ ...spec, stdin_base64: 'Zh==' }).status, 125);
   assert.throws(() => validate('command-spec', { ...spec, stdin_base64: 'not base64' }));
+});
+
+test('file transport works with closed stdin and preserves binary worker input', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'forge-launch-'));
+  try {
+    const directory = await createLaunchDirectory(root, owner.sandbox_session_id);
+    await assert.rejects(createLaunchDirectory(root, owner.sandbox_session_id), /EEXIST/);
+    const input = Buffer.from([0, 255, ...Buffer.from('中文\r\n')]);
+    const spec = { ...command(root, [process.execPath, '-e', 'process.stdin.pipe(process.stdout)']), stdin_base64: input.toString('base64') };
+    const payload = await writeLaunchPayload(directory, `exec-${randomUUID()}`, Buffer.from(JSON.stringify({ command: spec, shells: {},
+      tools: { git: process.execPath, rg: process.execPath } })));
+    const argv = [dispatcher, '--payload-file', payload.path, '--payload-sha256', payload.sha256];
+    const result = spawnSync(process.execPath, argv, { stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 });
+    assert.equal(result.status, 0, result.stderr.toString());
+    assert.deepEqual(result.stdout, input);
+    // These are actual dispatcher launches: altered content cannot start the task.
+    writeFileSync(payload.path, '{}');
+    const changed = spawnSync(process.execPath, argv, { timeout: 10000 });
+    assert.equal(changed.status, 125);
+    assert.equal(changed.stdout.length, 0);
+    assert.ok(fixedDispatcherCommand(process.execPath, dispatcher, true, payload).includes('--payload-file'));
+    assert.ok(!fixedDispatcherCommand(process.execPath, dispatcher, true, payload).includes('stdin.pipe'));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('launch files reject overwrite, hard links and oversize input before dispatch', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'forge-launch-'));
+  try {
+    const directory = await createLaunchDirectory(root, owner.sandbox_session_id);
+    const id = `exec-${randomUUID()}`;
+    const payload = await writeLaunchPayload(directory, id, Buffer.from('{}'));
+    await assert.rejects(writeLaunchPayload(directory, id, Buffer.from('{}')), /EEXIST/);
+    await assert.rejects(writeLaunchPayload(directory, `exec-${randomUUID()}`, Buffer.alloc(1048577)), /Invalid launch/);
+    linkSync(payload.path, resolve(directory, 'linked'));
+    const result = spawnSync(process.execPath, [dispatcher, '--payload-file', payload.path, '--payload-sha256', payload.sha256], { timeout: 10000 });
+    assert.equal(result.status, 125);
+    assert.equal(result.stdout.length, 0);
+    assert.throws(() => fixedDispatcherCommand(process.execPath, dispatcher, true, { path: payload.path, sha256: 'bad' }));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('fixed outer shell preserves the task nonzero exit code', async () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'forge-launch-exit-'));
+  try {
+    const raw = Buffer.from(JSON.stringify({ command: command(root, [process.execPath, '-e', 'process.exit(23)']), shells: {},
+      tools: { git: process.execPath, rg: process.execPath } }));
+    let result;
+    if (process.platform === 'win32') {
+      const directory = await createLaunchDirectory(root, owner.sandbox_session_id);
+      const payload = await writeLaunchPayload(directory, `exec-${randomUUID()}`, raw);
+      const shell = resolve(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
+      result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
+        fixedDispatcherCommand(process.execPath, dispatcher, true, payload)], { timeout: 10000 });
+    } else {
+      result = spawnSync('/bin/sh', ['-c', fixedDispatcherCommand(process.execPath, dispatcher, false)], { input: raw, timeout: 10000 });
+    }
+    assert.equal(result.status, 23, result.stderr.toString());
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('task prints forged approval/grade RPC only into an owned output data envelope', () => {

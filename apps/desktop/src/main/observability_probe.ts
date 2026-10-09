@@ -14,7 +14,7 @@ export async function probeObservability(window:BrowserWindow,engine:EngineSuper
   if(!message)throw new Error('Actual completed verify execution is missing');
   const usage=await engine.call('observability.usage',{scope:{kind:'turn',id:turnId}});
   async function open(){
-    await js(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Agent 工作区').click()`);
+    await js(`document.querySelector('[data-page=workspace]').click()`);
     await until(`!!Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes(${JSON.stringify(sessionId.slice(-8))}))`);
     await js(`document.querySelector('.workspace-sessions').open=true;Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes(${JSON.stringify(sessionId.slice(-8))})).click()`);
     await until(`!!document.querySelector('[data-message-sequence="${message.sequence}"]')`);
@@ -46,7 +46,7 @@ export async function probeObservability(window:BrowserWindow,engine:EngineSuper
     await writeFile(resolve(output,'observability.png'),(await window.webContents.capturePage()).toPNG());
   }finally{if(await realpath(file)!==file)throw new Error('Fixture path changed');await writeFile(file,original);}
   const loaded=new Promise<void>(r=>window.webContents.once('did-finish-load',()=>r()));window.webContents.reload();await loaded;
-  await until(`!!Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Agent 工作区')`);await open();
+  await until(`!!document.querySelector('[data-page=workspace]')`);await open();
   const after=await engine.call('observability.usage',{scope:{kind:'turn',id:turnId}});
   check('gui-reload-ledger-does-not-double-cost',JSON.stringify(after)===JSON.stringify(usage));
   check('gui-trace-list-bounded-dom',await js(`Array.from(document.querySelectorAll('.virtual-list')).every(list=>list.querySelectorAll('[data-virtual-row]').length<=20)`));

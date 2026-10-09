@@ -10,7 +10,6 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
-import shutil
 import stat
 import time
 
@@ -179,8 +178,12 @@ class WorkspaceService:
 
     async def original_dirty(self, workspace_id):
         root = self.paths(workspace_id).workspace.path
-        git = shutil.which('git')
-        if not git or Path(git).resolve().is_relative_to(root):
+        from forge.release.toolchains import core_tool
+        try:
+            git = await asyncio.to_thread(core_tool, 'git')
+        except (ContractError, OSError, ValueError):
+            return {'status': 'unavailable', 'items': []}
+        if git.is_relative_to(root):
             return {'status': 'unavailable', 'items': []}
         environment = {k: v for k, v in os.environ.items() if k in ('PATH', 'SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT', 'TEMP', 'TMP')}
         environment.update({'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_OPTIONAL_LOCKS': '0', 'GIT_TERMINAL_PROMPT': '0'})

@@ -10,7 +10,7 @@ from forge.engine.persistence import DirectoryLock, validate_data_directory
 from forge.sandbox.path_policy import inspect_path
 
 
-def windows_worker_root():
+def windows_local_app_data():
     if os.name != 'nt':
         raise ContractError('Windows worker requires a native host', kind='UNSUPPORTED_PLATFORM', code=-32010)
     # Resolve the current user's known folder through the OS, never project/inherited APPDATA.
@@ -22,11 +22,17 @@ def windows_worker_root():
     if shell.SHGetKnownFolderPath(ctypes.byref(folder_id), 0, None, ctypes.byref(pointer)) != 0:
         raise ContractError('Trusted local application folder unavailable', kind='SANDBOX_UNAVAILABLE', code=-32010)
     try:
-        directory = Path(ctypes.wstring_at(pointer)) / 'ForgeCode' / 'sandbox-worker-v1'
+        directory = Path(ctypes.wstring_at(pointer))
     finally:
         free = ctypes.WinDLL('ole32').CoTaskMemFree
         free.argtypes = [ctypes.c_void_p]
         free(pointer)
+    inspect_path(str(directory), absolute=True).assert_current()
+    return directory
+
+
+def windows_worker_root():
+    directory = windows_local_app_data() / 'ForgeCode' / 'sandbox-worker-v1'
     inspect_path(str(directory), absolute=True).assert_current()
     return directory
 

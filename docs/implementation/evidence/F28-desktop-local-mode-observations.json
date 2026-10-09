@@ -1,0 +1,289 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "date": "2026-10-09",
+  "status": "optional_local_execution_implemented_and_windows_updated",
+  "authorization": "用户明确选择：新增可选本机执行模式，明确提示无 OS 隔离",
+  "adr_ref": "docs/implementation/adr/035-optional-desktop-local-execution.md",
+  "base_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+  "public_model_calls": 0,
+  "administrator_setup_invoked": false,
+  "native_capabilities_promoted": false,
+  "default_mode": "strict",
+  "optional_mode": "local-trusted",
+  "automatic_fallback": false,
+  "history_policy_mutated": false,
+  "official_evaluation_mode": "strict",
+  "build_id": "v4-local-mode-20261009-win-x64",
+  "desktop_version": "0.1.3",
+  "manifest_sha256": "c2487a9fbc02d46c1ce097be5a0f81d9dc367b7262d2de42893b2c776ee9fa38",
+  "installer": {
+    "path": ".local/desktop-packages/make/squirrel.windows/x64/ForgeCode-0.1.3 Setup.exe",
+    "sha256": "8269e00cb8d629049745e89b4e954eb1162dda711daae770f08284dd5c2fdb3c",
+    "size_bytes": 376080896,
+    "signature_status": "unsigned"
+  },
+  "installed_update_ref": ".local/desktop-local-mode-20261009/installed-update.json",
+  "backup_ref": ".local/desktop-local-mode-20261009/upgrade-backup-report.json",
+  "regression": {
+    "collected": 1446,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  },
+  "focused_tests": 14,
+  "focused_report_ref": ".local/desktop-local-mode-20261009/focused-final.xml",
+  "frozen_real_repair": {
+    "status": "pass",
+    "mode": "local-trusted",
+    "provider_requests": 6,
+    "approval_checked": true,
+    "verification_before_after": [
+      false,
+      true
+    ],
+    "eligible_for_native_pass": false
+  },
+  "bundled_tools": {
+    "status": "pass",
+    "scope": "actual Main launch environment, system-only inherited PATH",
+    "checks": [
+      {
+        "name": "pwsh.exe",
+        "status": "pass",
+        "version": "PowerShell 7.6.6"
+      },
+      {
+        "name": "git.exe",
+        "status": "pass",
+        "version": "git version 2.56.0.windows.2"
+      },
+      {
+        "name": "rg.exe",
+        "status": "pass",
+        "version": "ripgrep 15.2.0 (rev e89fff89ac)"
+      }
+    ]
+  },
+  "verification_scope": "Full regression covers source 6fdfa2e8. Subsequent changes are two inspection assertions/capture timing, an optional packaged-test timeout argument (source default remains 90s, packaged run uses the existing 300s task budget), and assembled release metadata. Frozen Engine source inventory remains identical. Each formal report keeps its own source hash.",
+  "changes_after_regression": [
+    "apps/desktop/src/main/index.ts",
+    "apps/desktop/src/main/workspace_probe.ts",
+    "release-manifest.json",
+    "tests/implementation/integration/test_desktop_execution_mode.py"
+  ],
+  "formal_reports": [
+    {
+      "evidence_id": "20261008T162534Z-2a1c62e2",
+      "suite": "regression",
+      "status": "pass",
+      "source_inventory_hash": "6fdfa2e88fdcaa344045cbe53561e28143d5fdaf53644ac2710b696793650af0",
+      "report_ref": ".local/implementation/20261008T162534Z-2a1c62e2/junit.xml",
+      "report_hash": "4a69ce041af526f4df378d859cc19256ecbc5cb629d5b0fba4aa314105f60604",
+      "tests": {
+        "collected": 1446,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      }
+    },
+    {
+      "evidence_id": "20261008T162534Z-2b8ff220",
+      "suite": "contracts",
+      "status": "pass",
+      "source_inventory_hash": "6fdfa2e88fdcaa344045cbe53561e28143d5fdaf53644ac2710b696793650af0",
+      "report_ref": ".local/implementation/20261008T162534Z-2b8ff220/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      }
+    },
+    {
+      "evidence_id": "20261008T162535Z-7542eeae",
+      "suite": "quality",
+      "status": "pass",
+      "source_inventory_hash": "6fdfa2e88fdcaa344045cbe53561e28143d5fdaf53644ac2710b696793650af0",
+      "report_ref": ".local/implementation/20261008T162535Z-7542eeae/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      }
+    },
+    {
+      "evidence_id": "20261008T162644Z-1f0ffa89",
+      "suite": "desktop",
+      "status": "fail",
+      "source_inventory_hash": "6fdfa2e88fdcaa344045cbe53561e28143d5fdaf53644ac2710b696793650af0",
+      "report_ref": ".local/implementation/20261008T162644Z-1f0ffa89/desktop-smoke.json",
+      "report_hash": "9d6ab39857549a5d9eb0bc377867aa34f45dc680ac965a617bf03cd58224af35",
+      "tests": {
+        "scope": "development-desktop",
+        "eligible_for_native_pass": false,
+        "checks": 132
+      }
+    },
+    {
+      "evidence_id": "20261008T164537Z-5890a375",
+      "suite": "quality",
+      "status": "pass",
+      "source_inventory_hash": "ef65b67482e7c81fea6f121eda74cdaa22a6e9a6705c5aa44190c25684fac77b",
+      "report_ref": ".local/implementation/20261008T164537Z-5890a375/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      }
+    },
+    {
+      "evidence_id": "20261008T164537Z-92a8cdd8",
+      "suite": "engine-packaged",
+      "status": "pass",
+      "source_inventory_hash": "ef65b67482e7c81fea6f121eda74cdaa22a6e9a6705c5aa44190c25684fac77b",
+      "report_ref": ".local/implementation/20261008T164537Z-92a8cdd8/packaging.json",
+      "report_hash": "95641c52a0de99b213055b68300ae9af54d6c459ebc1164d994125399b6e8c23",
+      "tests": {
+        "scope": "Windows 10 development frozen components",
+        "eligible_for_native_pass": false,
+        "checks": 13
+      }
+    },
+    {
+      "evidence_id": "20261008T164537Z-f7a5f679",
+      "suite": "desktop",
+      "status": "pass",
+      "source_inventory_hash": "ef65b67482e7c81fea6f121eda74cdaa22a6e9a6705c5aa44190c25684fac77b",
+      "report_ref": ".local/implementation/20261008T164537Z-f7a5f679/desktop-smoke.json",
+      "report_hash": "13366154b83077caeb8280383f23c48542f9d3f9660720e132016a1053ba7c00",
+      "tests": {
+        "scope": "development-desktop",
+        "eligible_for_native_pass": false,
+        "checks": 132
+      }
+    },
+    {
+      "evidence_id": "20261008T164851Z-2aad0a1f",
+      "suite": "desktop-packaged",
+      "status": "pass",
+      "source_inventory_hash": "29fe7828aa9bb9227b27f766cdd6899d4530e6e061fb126b7c3a1ebabdabdb6c",
+      "report_ref": ".local/implementation/20261008T164851Z-2aad0a1f/desktop-smoke.json",
+      "report_hash": "5fa82d6586f93151a1855dea34d228bc47d114a36b83911999807dda758db228",
+      "tests": {
+        "scope": "installed-readonly-preview",
+        "eligible_for_native_pass": false,
+        "checks": 14
+      }
+    },
+    {
+      "evidence_id": "20261008T165127Z-4847212c",
+      "suite": "contracts",
+      "status": "pass",
+      "source_inventory_hash": "29fe7828aa9bb9227b27f766cdd6899d4530e6e061fb126b7c3a1ebabdabdb6c",
+      "report_ref": ".local/implementation/20261008T165127Z-4847212c/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      }
+    },
+    {
+      "evidence_id": "20261008T165127Z-64a400ea",
+      "suite": "hardened",
+      "status": "pass",
+      "source_inventory_hash": "29fe7828aa9bb9227b27f766cdd6899d4530e6e061fb126b7c3a1ebabdabdb6c",
+      "report_ref": ".local/implementation/20261008T165127Z-64a400ea/packaging.json",
+      "report_hash": "370fb0613a80804d9b75e9d33f79b6b78e02a1a108dd9a077ae149ff9b1bf6a5",
+      "tests": {
+        "scope": "actual hardened unsigned developer artifact; not supported-platform acceptance",
+        "eligible_for_native_pass": false,
+        "checks": 13
+      }
+    },
+    {
+      "evidence_id": "20261008T165453Z-3140ec18",
+      "suite": "contracts",
+      "status": "pass",
+      "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+      "report_ref": ".local/implementation/20261008T165453Z-3140ec18/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      }
+    },
+    {
+      "evidence_id": "20261008T165453Z-56b0de72",
+      "suite": "quality",
+      "status": "pass",
+      "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+      "report_ref": ".local/implementation/20261008T165453Z-56b0de72/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      }
+    },
+    {
+      "evidence_id": "20261008T165453Z-6cd363ff",
+      "suite": "desktop-packaged",
+      "status": "pass",
+      "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+      "report_ref": ".local/implementation/20261008T165453Z-6cd363ff/desktop-smoke.json",
+      "report_hash": "5fa82d6586f93151a1855dea34d228bc47d114a36b83911999807dda758db228",
+      "tests": {
+        "scope": "installed-readonly-preview",
+        "eligible_for_native_pass": false,
+        "checks": 14
+      }
+    },
+    {
+      "evidence_id": "20261008T165741Z-65bee22e",
+      "suite": "installer-windows",
+      "status": "pass",
+      "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+      "report_ref": ".local/implementation/20261008T165741Z-65bee22e/packaging.json",
+      "report_hash": "643bfc356871c6f350bafda14b2a587ceebbe8894f801bc6fe38a63f054c937b",
+      "tests": {
+        "scope": "native developer-preview installer build",
+        "eligible_for_native_pass": false,
+        "checks": 1
+      }
+    },
+    {
+      "evidence_id": "20261008T170118Z-df30be6a",
+      "suite": "hardened",
+      "status": "pass",
+      "source_inventory_hash": "1087541d7f52a2f4cc7d665d434ec8bae51c4de2881944426f399898113f76b3",
+      "report_ref": ".local/implementation/20261008T170118Z-df30be6a/packaging.json",
+      "report_hash": "8b91dfae9478f73897856100b11173efa6eb2d9b5333e601d6e496202bdc85ef",
+      "tests": {
+        "scope": "actual hardened unsigned developer artifact; not supported-platform acceptance",
+        "eligible_for_native_pass": false,
+        "checks": 13
+      }
+    }
+  ],
+  "final_evidence_ids": [
+    "20261008T162534Z-2a1c62e2",
+    "20261008T165453Z-3140ec18",
+    "20261008T165453Z-56b0de72",
+    "20261008T164537Z-f7a5f679",
+    "20261008T164537Z-92a8cdd8",
+    "20261008T165453Z-6cd363ff",
+    "20261008T170118Z-df30be6a",
+    "20261008T165741Z-65bee22e"
+  ],
+  "previous_failures": [
+    "Initial desktop probe still expected the old degraded label; corrected to actual demo wording, 132 checks then passed.",
+    "Standalone unassembled frozen binary correctly rejected missing release resources.",
+    "Initial frozen repair reached successful patch and post-repair verify before its 90-second harness timeout; retained fixture is not counted as pass. Final assembled run completed under the existing 300-second task budget.",
+    "Initial packaged DOM checks passed but captures preceded compositor paint; explicit paint wait added and final package inspected again."
+  ],
+  "remaining": [
+    "Strict native dynamic-sensitive-file protection and initialized SRT cleanup remain unresolved; prior Windows native failure is retained.",
+    "Ubuntu native desktop/installer acceptance and F31 official WSL/Docker evaluation still require the target environment.",
+    "Production signing/license/security gates remain separate; this is an unsigned developer preview."
+  ],
+  "git_upload": "not_committed_or_pushed; unrelated shared workspace changes preserved"
+}

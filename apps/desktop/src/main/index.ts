@@ -24,6 +24,8 @@ import { probeObservability } from './observability_probe.js';
 import { probeEvaluations } from './evaluation_probe.js';
 import { probeFailures } from './failure_probe.js';
 import { createSetupBroker } from './setup_broker.js';
+import { firstUseSetup } from './first_use_setup.js';
+import { changeExecutionMode, readExecutionMode, type ExecutionMode } from './execution_mode.js';
 
 if (app.isPackaged && process.argv.some(arg => /^--(?:inspect(?:-brk|-port)?|remote-debugging-(?:port|pipe))(?:=|$)/.test(arg))) {
   console.error('FORGE_INSTALLED_DEBUG_DENIED');
@@ -44,6 +46,8 @@ let currentSession: string | null = null;
 let sessionSubscription: string | null = null;
 let smoke: any = null;
 let packagedReport: string | null = null;
+let selectedMode: ExecutionMode = 'strict';
+let changingMode = false;
 const execute = promisify(execFile);
 
 function argument(name: string): string | undefined {
@@ -84,34 +88,39 @@ function onlyId(value: unknown, key: string, prefix: string): string {
   }
   return businessId(value, key, schema);
 }
-function live(): EngineSupervisor { if (!engine || stopping) throw new Error('Engine is unavailable'); return engine; }
+function live(): EngineSupervisor { if (!engine || stopping || changingMode) throw new Error('Engine is unavailable or changing execution mode'); return engine; }
 function connectionManager(): MainConnections { live(); if (!connections) throw new Error('Connection storage is unavailable'); return connections; }
 
-async function close() {
-  if (stopping) return;
-  stopping = true;
+async function stopEngine(mode: 'cancel' | 'drain') {
   connections?.broker.close();
-  const report = engine ? await engine.shutdown('cancel') : { state: 'unknown', cleanup_state: 'unknown', reason: failure ?? 'Engine unavailable' };
+  const report = engine ? await engine.shutdown(mode) : { state: 'unknown', cleanup_state: 'unknown', reason: failure ?? 'Engine unavailable' };
   const data = app.getPath('userData');
   try {
     await mkdir(data, { recursive: true });
     await writeFile(resolve(data, 'last-shutdown.json'), JSON.stringify({ ...report, time: new Date().toISOString() }) + '\n');
   } catch { console.error('Shutdown observation could not be persisted; recovery needs reconciliation.'); }
+  return report;
+}
+
+async function close() {
+  if (stopping || changingMode) return;
+  stopping = true;
+  try { await stopEngine('cancel'); }
   finally { finalClose = true; app.quit(); }
 }
 
 async function createWindow() {
   const overlay = process.platform === 'win32' || process.platform === 'linux';
-  const titleBarColors = () => ({ color: nativeTheme.shouldUseDarkColors ? '#1b1b1a' : '#faf9f6',
-    symbolColor: nativeTheme.shouldUseDarkColors ? '#e8e7e3' : '#292925', height: 48 });
+  const titleBarColors = () => ({ color: nativeTheme.shouldUseDarkColors ? '#12171d' : '#f5f7f9',
+    symbolColor: nativeTheme.shouldUseDarkColors ? '#e6edef' : '#27343c', height: 48 });
   window = new BrowserWindow({ width: 1240, height: 830, minWidth: 900, minHeight: 650, title: 'ForgeCode',
     ...(overlay ? { titleBarStyle: 'hidden', titleBarOverlay: titleBarColors() } : {}),
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1b1a' : '#faf9f6', autoHideMenuBar: true, show: false, webPreferences: { preload: resolve(__dirname, 'preload.js'),
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#171d23' : '#ffffff', autoHideMenuBar: true, show: false, webPreferences: { preload: resolve(__dirname, 'preload.js'),
       contextIsolation: true, sandbox: true, webSecurity: true, nodeIntegration: false,
       devTools: !app.isPackaged, partition: 'forge-desktop' } });
   const currentWindow = window;
   const updateTitleBar = () => {
-    currentWindow.setBackgroundColor(titleBarColors().color);
+    currentWindow.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#171d23' : '#ffffff');
     if (overlay) currentWindow.setTitleBarOverlay(titleBarColors());
   };
   nativeTheme.on('updated', updateTitleBar);
@@ -131,7 +140,7 @@ async function createWindow() {
     if (finalClose) return;
     event.preventDefault();
     void (async () => {
-      if (stopping) return;
+      if (stopping || changingMode) return;
       const health = engine?.state === 'ready' ? await engine.call('system.health', {}).catch(() => null) : null;
       if (health?.active_work_items > 0 && !smoke) {
         const result = await dialog.showMessageBox(window!, { type: 'question', title: '任务正在运行',
@@ -206,8 +215,23 @@ async function runPackagedInspection() {
   const check = (id: string, passed: boolean) => checks.push({ id, status: passed ? 'pass' : 'fail' });
   try {
     const status = await window.webContents.executeJavaScript('window.forgeDesktop.status()');
-    check('installed-engine-handshake', status.engine_state === 'ready' && status.mode === 'desktop' &&
+    check('installed-engine-handshake', status.engine_state === 'ready' && status.mode === (selectedMode === 'strict' ? 'desktop' : 'desktop-local-trusted') &&
       engine.hello.capabilities.features.includes('provider-model') && !engine.hello.capabilities.features.includes('scripted-model'));
+    check('installed-explicit-mode-readiness', status.readiness.status === (selectedMode === 'strict' ? 'blocked' : 'degraded') &&
+      engine.hello.capabilities.sandbox === 'unavailable');
+    await window.webContents.executeJavaScript("document.querySelector('[data-page=diagnostics]').click()");
+    let content = '';
+    for (let attempt = 0; attempt < 50; attempt++) {
+      content = await window.webContents.executeJavaScript('document.body.innerText');
+      if (content.includes('切换执行模式…') && content.includes(selectedMode === 'strict' ? '重复诊断或安装不会解除任务限制' : '可执行（无隔离）')) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    check('installed-mode-ui', content.includes('切换执行模式…') && (selectedMode === 'strict'
+      ? content.includes('重复诊断或安装不会解除任务限制') && !content.includes('可执行（无隔离）')
+      : content.includes('本机执行 · 无 OS 隔离') && content.includes('可执行（无隔离）') && content.includes('不代表沙盒验收通过')));
+    // DOM assertions precede Chromium's compositor; capture the painted diagnostics, not the initial frame.
+    await new Promise(resolve => setTimeout(resolve, 350));
+    await writeFile(resolve(packagedReport, '..', 'execution-mode.png'), (await window.webContents.capturePage()).toPNG());
     const security = await window.webContents.executeJavaScript('window.forgeDesktop.security()');
     check('installed-window-sandbox', security.contextIsolated === true && security.sandboxed === true);
     const crypto = new CredentialCrypto({ executable: process.execPath,
@@ -229,7 +253,7 @@ async function runPackagedInspection() {
     const report = await engine.shutdown('cancel');
     check('installed-owned-shutdown', report.state === 'confirmed' && report.cleanup_state === 'complete');
     await writeFile(packagedReport, JSON.stringify({ status: checks.every(x => x.status === 'pass') ? 'pass' : 'fail',
-      scope: 'installed-readonly-preview', eligible_for_native_pass: false, checks }, null, 2));
+      scope: 'installed-readonly-preview', execution_mode: selectedMode, eligible_for_native_pass: false, checks }, null, 2));
   } catch { await writeFile(packagedReport, JSON.stringify({ status: 'fail', reason: 'Installed inspection failed', checks })); }
   finally { await close(); }
 }
@@ -250,9 +274,10 @@ async function ready() {
     } catch { return new Response('Resource unavailable', { status: 404 }); }
   });
   try {
-    const launch = app.isPackaged ? await loadInstalledEngine(root, resolve(app.getPath('userData'), 'engine')) :
+    selectedMode = smoke ? 'local-trusted' : await readExecutionMode(resolve(app.getPath('userData'), 'execution-mode.json'));
+    const launch = app.isPackaged ? await loadInstalledEngine(root, resolve(app.getPath('userData'), 'engine'), selectedMode) :
       await loadDevelopmentEngine(root, { dataDir: smoke ? resolve(smoke.directory, 'data') : resolve(app.getPath('userData'), 'engine'),
-        profile: smoke ? 'test' : 'desktop', ...(smoke ? { fixture: smoke.fixture } : {}) });
+        profile: smoke ? 'test' : 'desktop', executionMode: selectedMode, ...(smoke ? { fixture: smoke.fixture } : {}) });
     engine = new EngineSupervisor(smoke?{...launch,arguments:[...launch.arguments,'--capture-mode','controlled_debug']}:launch);
     await engine.start();
     const dataDir = launch.arguments[launch.arguments.indexOf('--data-dir') + 1];
@@ -266,7 +291,7 @@ async function ready() {
 
   ipcMain.handle('forge:status', (event, value) => { sender(event); empty(value); return {
     engine_state: engine?.state ?? 'engine_lost', readiness: engine?.hello?.readiness ?? null,
-    mode: smoke ? 'offline-demo' : 'desktop', session_id: currentSession, failure }; });
+    mode: smoke ? 'offline-demo' : selectedMode === 'local-trusted' ? 'desktop-local-trusted' : 'desktop', session_id: currentSession, failure }; });
   ipcMain.handle('forge:projects', (event, value) => { sender(event); empty(value); return live().call('workspace.list', { limit: 100 }); });
   ipcMain.handle('forge:session', (event, value) => { sender(event); const session_id = onlyId(value, 'session_id', 'ses'); return live().call('session.get', { session_id }); });
   ipcMain.handle('forge:sessions', (event, value) => { sender(event); validate('session.list.request', value); return live().call('session.list', value); });
@@ -308,7 +333,37 @@ async function ready() {
     ['failure-list','failure.list'],['failure-get','failure.get'],['failure-annotate','failure.annotate'],['failure-save-candidate','failure.save_candidate'],['failure-check-reproduction','failure.check_reproduction'],['failure-candidate','failure.candidate']] as const) {
     ipcMain.handle('forge:' + channel, (event, value) => { sender(event); validate(method + '.request', value); return live().call(method, value); });
   }
-  ipcMain.handle('forge:diagnostics', (event, value) => { sender(event); empty(value); return live().call('system.health', {}); });
+  ipcMain.handle('forge:diagnostics', (event, value) => { sender(event); empty(value); return live().refreshHealth(); });
+  ipcMain.handle('forge:choose-execution-mode', (event, value) => {
+    sender(event); empty(value); const guard = captureSender(() => window, event);
+    if (smoke || packagedReport) throw new Error('Execution mode changes are unavailable in inspection profiles');
+    return nativeOperation(async () => {
+      try {
+        const result = await changeExecutionMode(resolve(app.getPath('userData'), 'execution-mode.json'), selectedMode, {
+          assertIdle: async () => {
+            guard();
+            if (stopping || !engine || engine.state !== 'ready') throw new Error('请先恢复引擎连接，再切换执行模式。');
+            const health = await engine.refreshHealth();
+            guard();
+            if (health.active_work_items !== 0) throw new Error('请先结束当前任务并核对执行状态，再切换执行模式。');
+          },
+          choose: async () => {
+            const choice = await dialog.showMessageBox(guard(), { type: 'warning', title: '选择执行模式',
+              message: '本机执行模式没有 OS 沙盒隔离。',
+              detail: '命令将以当前 Windows/Linux 用户权限运行，可访问该账户可访问的文件和网络。项目授权与操作审批仍保留。严格沙盒未就绪时会阻止任务。切换后自动重启，历史记录保留；请新建会话使用新模式。',
+              buttons: ['取消', '使用本机执行并重启', '使用严格沙盒并重启'], defaultId: 0, cancelId: 0, noLink: true });
+            guard();
+            const mode = choice.response === 1 ? 'local-trusted' : choice.response === 2 ? 'strict' : null;
+            changingMode = mode !== null && mode !== selectedMode;
+            return mode;
+          },
+          shutdown: () => stopEngine('drain')
+        });
+        if (result.restart_required) { stopping = true; finalClose = true; app.relaunch(); app.quit(); }
+        return result;
+      } finally { changingMode = false; }
+    });
+  });
   for (const [channel, action] of [['sandbox-diagnosis', 'diagnose'], ['install-sandbox', 'install']] as const) {
     ipcMain.handle('forge:' + channel, (event, value) => {
       sender(event); empty(value); const guard = captureSender(() => window, event);
@@ -357,7 +412,16 @@ async function ready() {
     return live().call('session.start_turn', turn);
   });
   await createWindow();
-  powerMonitor.on('resume', () => { if(engine?.state==='ready') void engine.refreshHealth().catch(() => { failure='系统恢复后连接状态未确认；请查询恢复对账。'; }); });
+  if (app.isPackaged && selectedMode === 'strict' && process.platform === 'win32' && !smoke && !packagedReport) {
+    const setupWindow = window!;
+    void nativeOperation(async () => {
+      const runtime = await loadSetupRuntime(root, true);
+      const setup = createSetupBroker(runtime);
+      await firstUseSetup(resolve(app.getPath('userData'), 'sandbox-setup-prompt.json'), action => setup(action, setupWindow,
+        () => { if (window !== setupWindow || stopping || setupWindow.isDestroyed()) throw new Error('Setup window is unavailable'); }));
+    }).catch(() => { failure = '沙盒初始化未完成，请在设置中重试。'; });
+  }
+  powerMonitor.on('resume', () => { if(engine?.state==='ready') void engine.refreshHealth().catch(() => { failure='系统恢复后连接状态未确认；请在工作区核对执行状态。'; }); });
   if (smoke) await runSmoke();
   if (packagedReport) {
     if (!engine || engine.state !== 'ready') {

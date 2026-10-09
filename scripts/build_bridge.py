@@ -52,7 +52,7 @@ def main():
         for project in ('packages/contracts', 'sandbox_bridge'):
             subprocess.run([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / project / 'tsconfig.json')], cwd=ROOT, check=True)
     package_lock = json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))
-    files = {'package.json', 'sandbox_bridge/package.json', 'packages/contracts/package.json'}
+    files = {'package.json', 'sandbox_bridge/package.json', 'packages/contracts/package.json', 'packaging/verify-installed.mjs'}
     for directory in (*dependency_paths(package_lock), 'sandbox_bridge/dist', 'packages/contracts/dist'):
         for path in (ROOT / directory).rglob('*'):
             if path.is_file():

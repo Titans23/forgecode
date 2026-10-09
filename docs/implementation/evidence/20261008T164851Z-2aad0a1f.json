@@ -1,0 +1,39 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261008T164851Z-2aad0a1f",
+  "task_id": null,
+  "case_ids": [],
+  "suite": "desktop-packaged",
+  "git_commit": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "dirty_hash": "7148908d40fe13d82148f867339eb0905cb6e4a3931d7e106cbdfb6b22d26dff",
+  "source_inventory_hash": "29fe7828aa9bb9227b27f766cdd6899d4530e6e061fb126b7c3a1ebabdabdb6c",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "4c18fd0565e59dc9cf4e46ed1de1c6cb510cd4ec8ab4dfeea9cd60d8040b8a25",
+    "release-lock.json": "f5e9754d203152815b94dc7f353d5c0b294da36b09590778e42b5835f411cb6f"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\desktop_packaged_smoke.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261008T164851Z-2aad0a1f\\desktop-smoke.json"
+  ],
+  "start": "2026-10-08T16:48:51.209959+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-08T16:50:23.587602+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261008T164851Z-2aad0a1f/stdout.log",
+  "stderr_ref": ".local/implementation/20261008T164851Z-2aad0a1f/stderr.log",
+  "report_ref": ".local/implementation/20261008T164851Z-2aad0a1f/desktop-smoke.json",
+  "report_hash": "5fa82d6586f93151a1855dea34d228bc47d114a36b83911999807dda758db228",
+  "status": "pass",
+  "tests": {
+    "scope": "installed-readonly-preview",
+    "eligible_for_native_pass": false,
+    "checks": 14
+  }
+}

@@ -1,10 +1,11 @@
 /** Fixed Main-owned assets. Development and installed launch paths never fall back to one another. */
 import { createHash } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { delimiter, dirname, isAbsolute, resolve } from 'node:path';
 import { verifyInstalled } from '../../../../packaging/verify-installed.mjs';
 import { MANIFEST_HASH } from '@forgecode/contracts';
 import { verifyAsset, type Asset } from '../../../../packaging/verify-release.mjs';
+import { executionMode, type ExecutionMode } from './execution_mode.js';
 
 export type EngineLaunch = Readonly<{ executable: string; arguments: readonly string[]; cwd: string;
   environment: Readonly<Record<string, string>>; manifestHash: string; profile: 'desktop' | 'test' }>;
@@ -20,7 +21,7 @@ function environment(): Record<string, string> {
   return output;
 }
 
-export async function loadDevelopmentEngine(root: string, options: { dataDir: string; profile?: 'desktop' | 'test'; fixture?: string }): Promise<EngineLaunch> {
+export async function loadDevelopmentEngine(root: string, options: { dataDir: string; profile?: 'desktop' | 'test'; fixture?: string; executionMode?: ExecutionMode }): Promise<EngineLaunch> {
   if (!isAbsolute(root) || !isAbsolute(options.dataDir)) throw new Error('Main paths must be absolute');
   root = await realpath(root);
   const manifest = JSON.parse(await readFile(resolve(root, 'apps/desktop/development-assets.json'), 'utf8'));
@@ -44,12 +45,14 @@ export async function loadDevelopmentEngine(root: string, options: { dataDir: st
   if (profile === 'test' && !options.fixture || profile !== 'test' && options.fixture) throw new Error('Scripted fixture requires explicit development test profile');
   const args = ['-I', '-B', '-m', 'forge.engine', '--data-dir', options.dataDir, '--profile', profile, '--principal', 'main'];
   if (options.fixture) args.push('--execution-mode', 'local-trusted', '--scripted-fixture', await realpath(options.fixture));
+  else if (executionMode(options.executionMode ?? 'strict') === 'local-trusted') args.push('--execution-mode', 'local-trusted');
   return Object.freeze({ executable, arguments: Object.freeze(args), cwd: root,
     environment: Object.freeze(environment()), manifestHash, profile });
 }
 
-export async function loadInstalledEngine(resources: string, dataDir: string): Promise<EngineLaunch> {
+export async function loadInstalledEngine(resources: string, dataDir: string, selectedMode: ExecutionMode = 'strict'): Promise<EngineLaunch> {
   if (!isAbsolute(resources) || !isAbsolute(dataDir)) throw new Error('Installed paths must be absolute');
+  const mode = executionMode(selectedMode);
   const manifest = await verifyInstalled(resources,{contractHash:MANIFEST_HASH});
   if (manifest.schema_version !== 'forge.release.manifest.v1' || !manifest.engine || !Array.isArray(manifest.engine_dependencies) || !manifest.engine_dependencies.length ||
       !/^engine\//.test(manifest.engine.path) || !/^[0-9a-f]{64}$/.test(manifest.contract_manifest_hash)) {
@@ -57,8 +60,16 @@ export async function loadInstalledEngine(resources: string, dataDir: string): P
   }
   for (const asset of manifest.engine_dependencies) await verifyAsset(resources, asset);
   const executable = await verifyAsset(resources, manifest.engine);
-  return Object.freeze({ executable, arguments: Object.freeze(['--data-dir', dataDir, '--profile', 'desktop', '--principal', 'main']),
-    cwd: resources, environment: Object.freeze(environment()), manifestHash: manifest.contract_manifest_hash, profile: 'desktop' });
+  const args = ['--data-dir', dataDir, '--profile', 'desktop', '--principal', 'main'];
+  const env = environment();
+  if (mode === 'local-trusted') {
+    args.push('--execution-mode', mode);
+    // The complete bundles were verified above. Supply core tools to local Shell commands too.
+    if (process.platform === 'win32') env.PATH = [...['powershell', 'git', 'ripgrep']
+      .map(name => dirname(resolve(resources, manifest.tools[name].entry.path))), env.PATH ?? ''].join(delimiter);
+  }
+  return Object.freeze({ executable, arguments: Object.freeze(args), cwd: resources,
+    environment: Object.freeze(env), manifestHash: manifest.contract_manifest_hash, profile: 'desktop' });
 }
 
 /** Setup uses the same fixed, hashed runtime closure; it accepts no UI paths. */

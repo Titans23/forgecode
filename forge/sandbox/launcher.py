@@ -1,5 +1,5 @@
 """Verify the installation before creating a Node process; never resolve it from PATH."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 import json
 import os
@@ -42,6 +42,7 @@ class TrustedRuntime:
     entry: Path
     manifest_hash: str
     installed: bool = False
+    tools: dict[str, Path] = field(default_factory=dict)
 
 
 def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
@@ -51,7 +52,8 @@ def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
         try:
             manifest=verify_manifest(root)
             return TrustedRuntime(root,installed_asset(root,manifest['node']),installed_asset(root,manifest['bridge']),
-                sha256((root/'release-manifest.json').read_bytes()).hexdigest(), installed=True)
+                sha256((root/'release-manifest.json').read_bytes()).hexdigest(), installed=True,
+                tools={name: installed_asset(root, tool['entry']) for name, tool in manifest.get('tools', {}).items()})
         except (OSError,ValueError,KeyError,TypeError):
             unavailable('Installed runtime group is unavailable or invalid')
     if getattr(sys,'frozen',False): unavailable('Installed runtime group is required')
@@ -75,7 +77,9 @@ def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
         # Every JS dependency is inventoried, not just the top-level entry script.
         if 'sandbox_bridge/dist/dispatcher.js' not in paths or 'packages/contracts/dist/index.js' not in paths:
             unavailable('Installed Bridge code inventory is incomplete')
-        return TrustedRuntime(root, assets['node'], entry, sha256(manifest.read_bytes()).hexdigest())
+        from forge.release.runtime import verify_tool_bundle
+        tools = {bundle['name']: verify_tool_bundle(root, bundle) for bundle in lock.get('tool_bundles', []) if bundle['platform'] == target}
+        return TrustedRuntime(root, assets['node'], entry, sha256(manifest.read_bytes()).hexdigest(), tools=tools)
     except (OSError, ValueError, KeyError, TypeError):
         unavailable('Trusted runtime manifest is unavailable or invalid')
 
@@ -91,8 +95,10 @@ def bridge_environment(control: Path, *, source=None) -> dict:
             unavailable('Cannot identify Windows system directory')
         windows = Path(buffer.value)
         program_files = Path(windows.anchor) / 'Program Files'
+        from forge.sandbox.windows_worker import windows_local_app_data
         environment.update(SystemRoot=str(windows), WINDIR=str(windows), ProgramFiles=str(program_files),
-                           USERPROFILE=str(control), PATH=str(windows / 'System32'))
+                           LOCALAPPDATA=str(windows_local_app_data()), USERPROFILE=str(control),
+                           PATH=str(windows / 'System32'), PATHEXT='.COM;.EXE;.BAT;.CMD')
     else:
         environment['PATH'] = '/usr/bin:/bin'
     return environment

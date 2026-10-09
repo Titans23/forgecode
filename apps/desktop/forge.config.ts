@@ -8,7 +8,9 @@ const resources = path.resolve(__dirname, '../../.local/desktop-resources');
 
 const config: ForgeConfig = {
   outDir: path.resolve(__dirname, '../../.local/desktop-packages'),
-  packagerConfig: { asar: true, extraResource: [...['ui-assets.json','ui','client','contracts','engine','bridge','runtimes','native-helpers','licenses','sbom','release-manifest.json'].map(name=>path.join(resources,name))] },
+  packagerConfig: { asar: true, ...(process.platform==='linux'?{executableName:'forgecode'}:{}),
+    extraResource: [...['ui-assets.json','ui','client','contracts','engine','bridge','runtimes','tools','native-helpers','licenses','sbom','release-manifest.json'].map(name=>path.join(resources,name)),
+      ...(process.platform==='linux'?[path.join(resources,'linux')]:[])] },
   hooks: { prePackage: async () => {
     await verifyInstalled(resources);
     if(process.platform==='linux') {
@@ -18,7 +20,12 @@ const config: ForgeConfig = {
     }
   } },
   makers: [{ name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: {name:'ForgeCode'} },
-    { name: '@electron-forge/maker-deb', platforms: ['linux'],config:{options:{maintainer:'ForgeCode contributors',homepage:'https://github.com/Titans23/forgecode'}} }],
+    { name: '@electron-forge/maker-deb', platforms: ['linux'],config:{options:{name:'forgecode',bin:'forgecode',
+      maintainer:'ForgeCode contributors',homepage:'https://github.com/Titans23/forgecode',
+      // electron-installer-debian appends these to its Electron runtime dependencies.
+      depends:['bubblewrap','socat','ripgrep','git','bash','apparmor'],
+      scripts:{postinst:path.resolve(__dirname,'../../packaging/linux/postinst'),
+        prerm:path.resolve(__dirname,'../../packaging/linux/prerm')}}} }],
   plugins: [new FusesPlugin({
     version: FuseVersion.V1,
     [FuseV1Options.RunAsNode]: false,

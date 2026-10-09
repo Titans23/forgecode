@@ -183,6 +183,7 @@ export class HttpTransport implements DesktopOperations {
   exportResults(..._args: Parameters<DesktopOperations['exportResults']>): Promise<never> { return this.nativeRequired(); }
   diagnoseSandbox(..._args: Parameters<DesktopOperations['diagnoseSandbox']>): Promise<never> { return this.nativeRequired(); }
   installSandbox(..._args: Parameters<DesktopOperations['installSandbox']>): Promise<never> { return this.nativeRequired(); }
+  chooseExecutionMode(..._args: Parameters<DesktopOperations['chooseExecutionMode']>): Promise<never> { return this.nativeRequired(); }
   startDemo(..._args: Parameters<DesktopOperations['startDemo']>): Promise<never> { return this.nativeRequired(); }
   private async subscribe(cursor?:string) {
     if(!this.subscription){

@@ -19,13 +19,13 @@ export async function probeLayout(window: BrowserWindow, output: string, page: s
           const overlay=navigator.windowControlsOverlay;
           if(overlay?.visible){
             const safe=overlay.getTitlebarAreaRect();
-            for(const e of document.querySelectorAll('.brand,.header-context h1,.header-context .connection')){
+            for(const e of document.querySelectorAll('.header-tools > *,.header-heading,.header-open-project')){
               if(!e.checkVisibility())continue;
               const r=e.getBoundingClientRect();
               if(r.left<safe.x-1||r.right>safe.right+1)issues.push('Header overlaps native window controls');
             }
           }
-          const controls=Array.from(document.querySelectorAll('main button,main select,main input:not([type=checkbox]):not([type=radio]),main textarea'))
+          const controls=Array.from(document.querySelectorAll('.page-header button,main button,main select,main input:not([type=checkbox]):not([type=radio]),main textarea'))
             .filter(e=>e.checkVisibility()&&!e.closest('.virtual-list'))
             .map(e=>({e,r:e.getBoundingClientRect(),name:(e.getAttribute('aria-label')||e.textContent||e.closest('label')?.textContent||e.tagName).trim().slice(0,50)}));
           for(const {e,r,name} of controls){
@@ -34,6 +34,7 @@ export async function probeLayout(window: BrowserWindow, output: string, page: s
           }
           for(let i=0;i<controls.length;i++)for(let j=i+1;j<controls.length;j++){
             const a=controls[i],b=controls[j];
+            if(a.e.closest('.page-header')!==b.e.closest('.page-header'))continue;
             const x=Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left);
             const y=Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top);
             if((x>1&&y> -6)||(y>1&&x> -6))issues.push('Controls touch: '+a.name+' / '+b.name);

@@ -12,7 +12,7 @@ import type { SessionListRequest, SessionListResult, SessionSnapshotRequest, Ses
   ObservabilityTimingsRequest, ObservabilityTimingsResult, ArtifactReadChunkRequest, ArtifactReadChunkResult } from '@forgecode/contracts';
 export interface DesktopStatus {
   engine_state: string;
-  readiness: { status: string; blockers?: unknown[] } | null;
+  readiness: { status: string; reasons?: string[]; blockers?: unknown[] } | null;
   mode: string;
   session_id: string | null;
   failure: string | null;
@@ -34,6 +34,7 @@ export interface ConnectionPage {
   protection: { mode: string; backend: string; available: boolean; state: string; stored_in_memory: number };
 }
 export interface DesktopOperations {
+  chooseExecutionMode(): Promise<{ mode: 'strict' | 'local-trusted'; restart_required: boolean }>;
   status(): Promise<DesktopStatus>;
   projects(): Promise<{ items: Array<{ workspace_id: string; name?: string; [key: string]: unknown }> }>;
   selectProject(): Promise<unknown>;
@@ -154,6 +155,7 @@ export class DesktopTransport implements DesktopOperations {
   importResults() { return this.bridge().importResults(); }
   exportResults(runId:string) { return this.bridge().exportResults(runId); }
   diagnostics() { return this.bridge().diagnostics(); }
+  chooseExecutionMode() { return this.bridge().chooseExecutionMode(); }
   diagnoseSandbox() { return this.bridge().diagnoseSandbox(); }
   installSandbox() { return this.bridge().installSandbox(); }
   startDemo() { return this.bridge().startDemo(); }

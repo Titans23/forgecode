@@ -100,7 +100,6 @@ export function Observability({ transport, sessionId, target, latency }: {
   const contextFacts=Object.keys(after).length?after:contextMeta;
   const moreButton=(kind:Collection)=>data.cursors[kind]&&<div className="pagination"><button className="secondary" disabled={busy} onClick={()=>action(()=>more(kind))}>加载更多{kind}（每页至多 100）</button></div>;
   return <div data-testid="observability"><section><h2>运行观测</h2>
-    <p>查看每次请求、工具执行与验证记录。</p>
     <div className="toolbar"><label className="field">观测任务<select aria-label="观测任务" value={turnId??''} onChange={event=>setTurnId(event.target.value||null)}><option value="">选择任务</option>
       {snapshot?.turns.map(turn=><option key={turn.turn_id} value={turn.turn_id}>{turn.turn_id.slice(-8)} · {turn.outcome??turn.state}</option>)}</select></label>
     <button disabled={busy||!turnId} onClick={()=>action(()=>refresh(true))}>重新核对全部视图</button></div>

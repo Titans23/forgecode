@@ -19,6 +19,37 @@ def test_release_detection_does_not_guess_from_similar_distribution(text, suppor
     assert linux_release(text)['supported'] is supported
 
 
+def test_relative_evidence_path_has_the_same_volume_as_absolute_path(tmp_path, monkeypatch):
+    from forge.sandbox.doctor import windows_volume
+    monkeypatch.chdir(tmp_path)
+    assert windows_volume(Path('.')) == windows_volume(tmp_path)
+
+
+def test_windows_fixture_only_adds_inherited_controller_access_to_a_fresh_owned_directory(tmp_path):
+    from forge.sandbox.doctor import prepare_windows_fixture
+    if sys.platform != 'win32':
+        with pytest.raises(OSError, match='requires Windows'):
+            prepare_windows_fixture(tmp_path)
+        return
+    import win32security
+    from ntsecuritycon import FILE_ALL_ACCESS
+    before = win32security.GetFileSecurity(str(tmp_path), win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION)
+    original = [before.GetSecurityDescriptorDacl().GetAce(i) for i in range(before.GetSecurityDescriptorDacl().GetAceCount())]
+    prepare_windows_fixture(tmp_path)
+    child = tmp_path/'child'
+    child.mkdir()
+    acl = win32security.GetFileSecurity(str(child), win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
+    assert any(acl.GetAce(i)[-1] == before.GetSecurityDescriptorOwner() and
+               acl.GetAce(i)[0][1] & win32security.INHERITED_ACE and
+               acl.GetAce(i)[1] == FILE_ALL_ACCESS for i in range(acl.GetAceCount()))
+    parent = win32security.GetFileSecurity(str(tmp_path), win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
+    actual = [parent.GetAce(i) for i in range(parent.GetAceCount())]
+    assert len(actual) == len(original) + 1
+    assert all(ace in actual for ace in original)
+    with pytest.raises(ValueError, match='fresh and empty'):
+        prepare_windows_fixture(tmp_path)
+
+
 def test_actual_read_only_system_diagnosis_never_installs_or_claims_verified():
     report = system_diagnosis()
     assert report['read_only'] is True

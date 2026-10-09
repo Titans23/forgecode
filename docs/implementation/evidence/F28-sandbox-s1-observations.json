@@ -1,0 +1,376 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "date": "2026-10-08",
+  "status": "s1_implemented_regression_pass_native_boundary_failed",
+  "scope": "ADR034 S1 runtime supply and first-use implementation verified; native dynamic-sensitive-file boundary failed and full acceptance remains incomplete",
+  "base_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "plan_ref": "docs/implementation/sandbox-redesign.md",
+  "administrator_setup_authorized": true,
+  "administrator_setup_invoked": true,
+  "srt_setup_state": "installed",
+  "public_model_calls": 0,
+  "native_capabilities_promoted": false,
+  "bundled_versions": {
+    "powershell": "7.6.6",
+    "git": "2.56.0.2",
+    "ripgrep": "15.2.0"
+  },
+  "implemented": [
+    "Official pinned Windows ZIP assets with complete dependency inventories, archive checksums, licenses and release manifest/SBOM groups",
+    "Private Shell/Git/ripgrep paths for Bridge, dispatcher, doctor and core Git status; no automatic system-tool fallback",
+    "Ubuntu deb core dependencies and application-specific AppArmor install/remove scripts with actual-deb content gate",
+    "Packaged Windows first-use fixed setup, retry suppression after cancellation, unchanged strict admission",
+    "Windows Known Folder LOCALAPPDATA and fixed PATHEXT in the trusted broker environment",
+    "Git integrity checks off the request loop; full installed verification hashes each listed asset once while retaining extra-file/link rejection",
+    "Windows owner-bound, read-only 1 MiB launch payload because pinned SRT consumes stdin; integrity/link/overwrite rejection and exact-file cleanup",
+    "Explicit outer PowerShell exit-code forwarding and fresh synthetic Windows fixture controller-SID inheritance"
+  ],
+  "focused_verification": {
+    "workspace_and_recovery": {
+      "passed": 36,
+      "report_ref": ".local/sandbox-s1-20261008/responsive-workspace-final.xml"
+    },
+    "supply_and_hardening_gates": {
+      "passed": 28,
+      "report_ref": ".local/sandbox-s1-20261008/supply-gates.xml"
+    },
+    "runtime_integrity": {
+      "passed": 23,
+      "report_ref": ".local/sandbox-s1-20261008/runtime-integrity-final2.xml"
+    },
+    "note": "Focused suites overlap with each other and full regression; counts must not be summed. Final current-source regression passed all 1437 tests with zero failures, errors or skips.",
+    "doctor_and_fixture": {
+      "passed": 16,
+      "report_ref": ".local/sandbox-s1-20261008/doctor-fixture-final2.xml"
+    },
+    "bridge_windows": {
+      "passed": 23,
+      "scope": "Actual dispatcher/outer-shell and adapter behavior; native results are separately recorded"
+    },
+    "cli_and_durable_locking": {
+      "passed": 28,
+      "report_ref": ".local/sandbox-s1-20261008/cli-lock-corrected.xml"
+    }
+  },
+  "native_observations": {
+    "development_layout": "Fixed setup succeeded. Missing trusted LOCALAPPDATA was repaired. A later native initialization timed out at 120 seconds; narrowly owned ACL/DB/marker recovery was measured and retained.",
+    "assembly_layout": "The private staging-derived resource directory allows only owner/system/admin. The SRT account could not launch the helper for the WFP probe (0x80070005); Secondary Logon was actually Running. No ACL brokers/holders were added. This is not a complete installed-package test.",
+    "general_cleanup_acceptance": "blocked",
+    "raw_directory": ".local/sandbox-s1-20261008",
+    "actual_final_package": "11 pass, 1 fail, 11 blocked using actual frozen Engine/locked Bridge/SRT/private tools on Windows10. Session-created dynamic/.env remained readable; no capability promotion.",
+    "final_scoped_recovery": "Inspected 3465 paths. Brokers/holders/working ACEs zero, helper processes zero; archived and removed 3 known synthetic files and 5 task-owned directories. Own launch directory was removed. Retained 10 empty SDK placeholder records/directories. Released only the matching marker; general cleanup remains blocked."
+  },
+  "remaining": [
+    "S2 evidence admission must remain closed while the native S3 dynamic-sensitive-file feasibility check fails",
+    "S3 backend-level dynamic-name protection and complete initialized owner/resource cleanup; a polling watcher cannot establish the OS boundary",
+    "Windows10 clean installation and Ubuntu22.04/24.04 native installation/graphical acceptance",
+    "F31 S5 official Docker network and trusted host request admission on the receiving computer"
+  ],
+  "upload_status": "not_uploaded",
+  "source_inventory_hash": "9aeab88cb1bdf078482e54243da5e6ac19af8f72fb4d16b99af7160053277628",
+  "build": {
+    "build_id": "v4-sandbox-s1-20261008f-win-x64",
+    "files": 2956,
+    "manifest_sha256": "8d5d8f23445c62e0291f4bf40c730fa8046248e815557b6c64459880a1501d56",
+    "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+  },
+  "formal_reports": {
+    "regression": {
+      "id": "20261008T152141Z-4e8ea0ed",
+      "status": "pass",
+      "source_inventory_hash": "9aeab88cb1bdf078482e54243da5e6ac19af8f72fb4d16b99af7160053277628",
+      "tests": {
+        "collected": 1437,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "raw_report": ".local/implementation/20261008T152141Z-4e8ea0ed/junit.xml",
+      "report_sha256": "7b91627324f25f8bc29fdc9e6bdd92a530621b2767e238e03bbace13cab87df7"
+    },
+    "contracts": {
+      "id": "20261008T152141Z-7c4157db",
+      "status": "pass",
+      "source_inventory_hash": "9aeab88cb1bdf078482e54243da5e6ac19af8f72fb4d16b99af7160053277628",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "raw_report": ".local/implementation/20261008T152141Z-7c4157db/packaging.json",
+      "report_sha256": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+    },
+    "quality": {
+      "id": "20261008T152141Z-c6ff5444",
+      "status": "pass",
+      "source_inventory_hash": "9aeab88cb1bdf078482e54243da5e6ac19af8f72fb4d16b99af7160053277628",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "raw_report": ".local/implementation/20261008T152141Z-c6ff5444/packaging.json",
+      "report_sha256": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b"
+    }
+  },
+  "native_windows": {
+    "status": "fail",
+    "checks": {
+      "pass": 11,
+      "fail": 1,
+      "blocked": 11
+    },
+    "passed": [
+      "W01",
+      "W12",
+      "N07",
+      "W03",
+      "launch-payload-read-only",
+      "windows-long-path-crlf",
+      "W04",
+      "protected-read-and-outside-write",
+      "C11",
+      "C12",
+      "named-pipe"
+    ],
+    "failed": [
+      {
+        "id": "dynamic-sensitive-file",
+        "status": "fail",
+        "observations": {
+          "readable": true
+        }
+      }
+    ],
+    "blocked": [
+      "C10",
+      "W10",
+      "C21",
+      "W02",
+      "D39",
+      "W05",
+      "W06",
+      "W07",
+      "W08",
+      "W09",
+      "W11"
+    ],
+    "runtime_manifest_hash": "8d5d8f23445c62e0291f4bf40c730fa8046248e815557b6c64459880a1501d56",
+    "capabilities_promoted": false,
+    "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+  },
+  "raw_evidence": [
+    {
+      "ref": ".local/sandbox-s1-20261008/setup-install.json",
+      "sha256": "d998262f1b5c73e749f62f0fe46074915a5bbd074636c715a39c816716bb73fe"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/native-windows-packaged.json",
+      "sha256": "313f389c35c4a061508816faf0a4cdb482e9b0296a160b895dc59387e1e760bf"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/packaged-native-trace.json",
+      "sha256": "2d95266d51c0b6bd90e852173d9cec79bb38973cb766deaed8b89295eef8de51"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/trace-reconciliation.json",
+      "sha256": "69b20debd787d3aa42dd457c99a218b71505d546af6b51e95c66400a77938c21"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/native-windows-payload.json",
+      "sha256": "8fc88af27fa6fb5fed9c685a6b42a768ea685fa10b8a8a364452a5b9849adcca"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/payload-canary-removal.json",
+      "sha256": "b4ae191a5fad168070c877b0f42b5b08bcebff369f5597a86e7eaa7d1fc9f526"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/payload-reconciliation.json",
+      "sha256": "3649f42663feeb35c5cdf5c5c704dc20c9b9f68f3fa4faa4bc112f6d146d7d8a"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/native-windows-final.json",
+      "sha256": "74b864c5631c9bbb8fc872e44b8d80b2ff393b6fd05e7019baf1f78814dbcde2"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/final-reconciliation.json",
+      "sha256": "40a0cf15583b1e5f41582d555e51b1f08ca8901ec6abbdd712e9fd43a3c4f95c"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/sources/srt-win/logon.rs",
+      "sha256": "1bd52b19b81a39fe725170c7dd87bdb40938f90388f629c44b1975e828db1ac7"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/sources/srt-win/runner.rs",
+      "sha256": "ad3ff6c7249ad0e30fbac8894ee41ab5b6eb86f6aebc4ec529b232dbec586b03"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/doctor-fixture-final2.xml",
+      "sha256": "bbc7dbb333ac2ef6f918df085c5e3f39c51b69aa180302e96c8a8cd8107d44c6"
+    },
+    {
+      "ref": ".local/sandbox-s1-20261008/runtime-source-consistency.json",
+      "sha256": "1004cae2d566f3bc927de56b362a3327829883ecc81b485288603b9eaa9dacde"
+    }
+  ],
+  "interrupted_verification": [
+    {
+      "run_id": "20261008T131347Z-40c59a1e",
+      "status": "interrupted_no_pass"
+    },
+    {
+      "run_id": "20261008T135824Z-9f192e33",
+      "status": "interrupted_for_manifest_verification_fix_no_pass"
+    },
+    {
+      "run_id": "20261008T144122Z-2cce2d01",
+      "status": "interrupted_for_native_fixture_and_exit_code_fixes_no_pass"
+    }
+  ],
+  "validation_scope": "Unsigned developer preview. Current source: contracts2, quality4 and full regression1437 passed. The earlier F artifact checks and desktop132 are separately source-bound and runtime inputs were compared. No fresh unit/portable CI gate, clean installation, complete native security, hosted CI or live benchmark pass is claimed.",
+  "prior_formal_reports": {
+    "quality": {
+      "id": "20261008T145801Z-2e0ff3b4",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "raw_report": ".local/implementation/20261008T145801Z-2e0ff3b4/packaging.json",
+      "report_sha256": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    },
+    "contracts": {
+      "id": "20261008T145801Z-850f9cfc",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "raw_report": ".local/implementation/20261008T145801Z-850f9cfc/packaging.json",
+      "report_sha256": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    }
+  },
+  "artifact_reports": {
+    "installer-windows": {
+      "id": "20261008T145801Z-b8bc1897",
+      "status": "pass",
+      "tests": {
+        "scope": "native developer-preview installer build",
+        "eligible_for_native_pass": false,
+        "checks": 1
+      },
+      "raw_report": ".local/implementation/20261008T145801Z-b8bc1897/packaging.json",
+      "report_sha256": "7e2b037d7c3202afcd5cfe74c323aa4a04348c1907c3a1fec341488910dd330e",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    },
+    "engine-packaged": {
+      "id": "20261008T150300Z-f9824a1f",
+      "status": "pass",
+      "tests": {
+        "scope": "Windows 10 development frozen components",
+        "eligible_for_native_pass": false,
+        "checks": 13
+      },
+      "raw_report": ".local/implementation/20261008T150300Z-f9824a1f/packaging.json",
+      "report_sha256": "f4087cf562e7bbc8e2b2da525815554fc2852af491cad173ac19a6bb2e85ab64",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    },
+    "desktop-packaged": {
+      "id": "20261008T150300Z-fedd3657",
+      "status": "pass",
+      "tests": {
+        "scope": "installed-readonly-preview",
+        "eligible_for_native_pass": false,
+        "checks": 5
+      },
+      "raw_report": ".local/implementation/20261008T150300Z-fedd3657/desktop-smoke.json",
+      "report_sha256": "16c511c1d0a198c3164aa97ee54c8c4c7210c7ebb66be90b5f977e6fdf33db2b",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    },
+    "security": {
+      "id": "20261008T150301Z-05695dd7",
+      "status": "blocked",
+      "tests": {
+        "reason": "Unresolved locked dependency vulnerabilities",
+        "checks": 1
+      },
+      "raw_report": ".local/implementation/20261008T150301Z-05695dd7/packaging.json",
+      "report_sha256": "89535a60003752858c506a517a41e0af843a6511358cb164a8be79ec219314e3",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    },
+    "installer-linux": {
+      "id": "20261008T150301Z-2f3e3a47",
+      "status": "blocked",
+      "tests": {
+        "reason": "Native installer target OS is unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      },
+      "raw_report": ".local/implementation/20261008T150301Z-2f3e3a47/packaging.json",
+      "report_sha256": "1c60fae9cac2cb794dcde69a4bb21ec4c087cdb102eecc6c75a732158cf18719",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    },
+    "hardened": {
+      "id": "20261008T150301Z-3526ae99",
+      "status": "pass",
+      "tests": {
+        "scope": "actual hardened unsigned developer artifact; not supported-platform acceptance",
+        "eligible_for_native_pass": false,
+        "checks": 13
+      },
+      "raw_report": ".local/implementation/20261008T150301Z-3526ae99/packaging.json",
+      "report_sha256": "bc9300bfad7ab86d1dcc98500bb0892b13ae63030398f332400f7629ca7c387c",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4"
+    },
+    "desktop": {
+      "id": "20261008T151508Z-fef89426",
+      "status": "pass",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4",
+      "tests": {
+        "scope": "development-desktop",
+        "eligible_for_native_pass": false,
+        "checks": 132
+      },
+      "raw_report": ".local/implementation/20261008T151508Z-fef89426/desktop-smoke.json",
+      "report_sha256": "13366154b83077caeb8280383f23c48542f9d3f9660720e132016a1053ba7c00"
+    }
+  },
+  "artifact_reuse_scope": {
+    "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4",
+    "current_source_inventory_hash": "9aeab88cb1bdf078482e54243da5e6ac19af8f72fb4d16b99af7160053277628",
+    "change": "Only the Windows killed-owner lock-release timing assertion in tests/implementation/integration/test_compatibility.py changed after the F artifact/native runs. Product runtime inputs did not change.",
+    "verification_ref": ".local/sandbox-s1-20261008/runtime-source-consistency.json",
+    "verification_sha256": "1004cae2d566f3bc927de56b362a3327829883ecc81b485288603b9eaa9dacde",
+    "frozen_python_source_files": 196,
+    "compiled_bridge_files": 1438,
+    "status": "pass",
+    "limitation": "Earlier artifact/native reports remain bound to their recorded source snapshot. This input comparison does not relabel them as fresh current-source CI/native acceptance."
+  },
+  "prior_failed_regressions": [
+    {
+      "run_id": "20261008T133501Z-29f3b0ff",
+      "failures": 2,
+      "reason": "Blocking Git verification in request loop; fixed and focused 36-test run passed. This old report also detected source changes."
+    },
+    {
+      "run_id": "20261008T145922Z-9cbc2aba",
+      "source_inventory_hash": "d755ef806bedd34fd1cedac9daae213e712688fe1308cfcd43af3e29438e8bf4",
+      "collected": 1437,
+      "passed": 1436,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "raw_report": ".local/implementation/20261008T145922Z-9cbc2aba/junit.xml",
+      "report_sha256": "2115adf7e4a171d584870a47612bf1496c3dd84b1cb9959b7f31ad3e72e842d9",
+      "reason": "Windows may delay releasing file locks after a killed process exits. The test immediately attempted a CLI restart; its first durable write correctly failed closed while the OS still held the byte-range lock.",
+      "correction": "Test-only: still assert rejection while the peer is alive; kill/wait the peer, probe actual OS lock acquisition for at most 5 seconds, then make one CLI attempt. No product lock breaking, automatic model retry or weaker live-owner exclusion.",
+      "reference": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfile",
+      "isolated_rechecks_before_correction": [
+        ".local/sandbox-s1-20261008/cli-lock-recheck.xml",
+        ".local/sandbox-s1-20261008/cli-lock-depth2.xml"
+      ],
+      "final_focused_report": ".local/sandbox-s1-20261008/cli-lock-corrected.xml",
+      "final_regression_id": "20261008T152141Z-4e8ea0ed"
+    }
+  ]
+}

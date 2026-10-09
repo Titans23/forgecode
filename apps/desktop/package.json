@@ -1,7 +1,7 @@
 {
   "name": "@forgecode/desktop",
   "productName": "ForgeCode",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "ForgeCode desktop client with a private Python Engine",
   "author": "ForgeCode contributors",
   "private": true,
