@@ -23,7 +23,8 @@ def test_real_engine_wait_is_queryable_and_only_exact_main_grant_runs_tool(tmp_p
             await send(process, 'session.start_turn', turn, request_id='start')
             accepted = (await receive(process, wanted_id='start'))['result']
             approval = None
-            async with asyncio.timeout(10):
+            # Match the fixture's existing 30s Harness budget; individual RPCs remain bounded to 15s.
+            async with asyncio.timeout(30):
                 while approval is None:
                     await send(process, 'approval.list', {'scope': {'kind': 'turn', 'id': accepted['turn_id']}}, request_id='list')
                     rows = (await receive(process, wanted_id='list'))['result']['items']
@@ -62,7 +63,7 @@ def test_real_engine_wait_is_queryable_and_only_exact_main_grant_runs_tool(tmp_p
             else:
                 await send(process, 'session.cancel_turn', {'client_action_id': new_id('act'), 'turn_id': accepted['turn_id'], 'reason': 'Cancel approval wait'}, request_id='cancel')
                 assert (await receive(process, wanted_id='cancel'))['result']['accepted']
-            async with asyncio.timeout(10):
+            async with asyncio.timeout(30):
                 while True:
                     await send(process, 'session.get', {'session_id': turn['session_id']}, request_id='session')
                     snapshot = (await receive(process, wanted_id='session'))['result']

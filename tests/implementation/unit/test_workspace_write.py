@@ -49,6 +49,7 @@ def test_initialization_failure_cannot_admit_execution_or_fallback(tmp_path,monk
     policy,backend=fixture(tmp_path)
     def unavailable(*args):raise ContractError('owned fixture missing runtime',kind='SANDBOX_UNAVAILABLE')
     monkeypatch.setattr(module,'verify_runtime',unavailable)
+    monkeypatch.setattr(module,'windows_supported',lambda: True)  # Test missing runtime separately from OS admission.
     async def run():
         with pytest.raises(ContractError,match='missing runtime'):await backend.prepare(policy)
         assert backend._prepared is None and not backend._executions
@@ -73,3 +74,17 @@ def test_official_executor_refuses_both_non_strict_modes_before_model_access():
         executor=object.__new__(HarborExecutor);executor.service=SimpleNamespace(mode=mode)
         issues=executor.validate({}, {})
         assert issues[0]['kind']=='protocol_incompatible'
+
+
+def test_unsupported_windows_host_refuses_before_runtime_or_processes(tmp_path, monkeypatch):
+    import forge.sandbox.workspace_backend as module
+    policy,backend=fixture(tmp_path)
+    monkeypatch.setattr(module,'sys',SimpleNamespace(platform='win32'))
+    monkeypatch.setattr(module,'windows_supported',lambda: False)
+    async def run():
+        with pytest.raises(ContractError) as caught:
+            await backend.prepare(policy)
+        assert caught.value.kind=='SANDBOX_UNAVAILABLE'
+        assert backend._prepared is None and not backend._executions and not backend.control_root.exists()
+        assert (await backend.close())['state']=='clean'
+    asyncio.run(run())

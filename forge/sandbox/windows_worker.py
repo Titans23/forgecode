@@ -94,10 +94,12 @@ def grant_controller_access(directory):
     process_token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
     try:
         sid = win32security.GetTokenInformation(process_token, win32security.TokenUser)[0]
+        default_owner = win32security.GetTokenInformation(process_token, win32security.TokenOwner)
     finally:
         process_token.Close()
     descriptor = win32security.GetFileSecurity(str(directory), win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION)
-    if descriptor.GetSecurityDescriptorOwner() != sid:
+    # Elevated tokens may create directories owned by their default owner group.
+    if descriptor.GetSecurityDescriptorOwner() not in (sid, default_owner):
         raise ValueError('Private directory belongs to another controller')
     acl = descriptor.GetSecurityDescriptorDacl()
     acl.AddAccessAllowedAceEx(win32security.ACL_REVISION, win32con.OBJECT_INHERIT_ACE | win32con.CONTAINER_INHERIT_ACE, FILE_ALL_ACCESS, sid)

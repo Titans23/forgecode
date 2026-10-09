@@ -31,18 +31,27 @@ def test_windows_fixture_only_adds_inherited_controller_access_to_a_fresh_owned_
         with pytest.raises(OSError, match='requires Windows'):
             prepare_windows_fixture(tmp_path)
         return
+    import win32api
+    import win32con
     import win32security
     from ntsecuritycon import FILE_ALL_ACCESS
+    handle = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+    try:
+        controller = win32security.GetTokenInformation(handle, win32security.TokenUser)[0]
+    finally:
+        handle.Close()
     before = win32security.GetFileSecurity(str(tmp_path), win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION)
     original = [before.GetSecurityDescriptorDacl().GetAce(i) for i in range(before.GetSecurityDescriptorDacl().GetAceCount())]
     prepare_windows_fixture(tmp_path)
     child = tmp_path/'child'
     child.mkdir()
     acl = win32security.GetFileSecurity(str(child), win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
-    assert any(acl.GetAce(i)[-1] == before.GetSecurityDescriptorOwner() and
+    assert any(acl.GetAce(i)[-1] == controller and
                acl.GetAce(i)[0][1] & win32security.INHERITED_ACE and
                acl.GetAce(i)[1] == FILE_ALL_ACCESS for i in range(acl.GetAceCount()))
-    parent = win32security.GetFileSecurity(str(tmp_path), win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
+    after = win32security.GetFileSecurity(str(tmp_path), win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION)
+    assert after.GetSecurityDescriptorOwner() == before.GetSecurityDescriptorOwner()
+    parent = after.GetSecurityDescriptorDacl()
     actual = [parent.GetAce(i) for i in range(parent.GetAceCount())]
     assert len(actual) == len(original) + 1
     assert all(ace in actual for ace in original)
@@ -140,3 +149,17 @@ def test_status_rejects_invalid_installed_manifest_without_using_development_ass
 
     monkeypatch.setattr(doctor.subprocess, 'run', unexpected)
     assert doctor.windows_status_diagnosis(runtime)['status'] == 'blocked'
+
+
+def test_controller_grant_rejects_foreign_owner_before_changing_acl(tmp_path, monkeypatch):
+    if sys.platform != 'win32':
+        return
+    import win32security
+    from forge.sandbox.windows_worker import grant_controller_access
+    foreign = win32security.ConvertStringSidToSid('S-1-5-21-123456789-123456789-123456789-1001')
+    monkeypatch.setattr(win32security, 'GetFileSecurity', lambda *args: SimpleNamespace(GetSecurityDescriptorOwner=lambda: foreign))
+    changed=[]
+    monkeypatch.setattr(win32security, 'SetNamedSecurityInfo', lambda *args: changed.append(args))
+    with pytest.raises(ValueError, match='another controller'):
+        grant_controller_access(tmp_path)
+    assert changed == []

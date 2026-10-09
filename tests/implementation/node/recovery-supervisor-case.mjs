@@ -62,7 +62,13 @@ try {
       // Cold Harness imports may still be completing. Reconciliation remains readonly.
       engine.options.responseTimeoutMs=15000;
       accepted=await engine.call('session.start_turn',{...input.turn,client_action_id:'act-'+randomUUID()});
-    } else accepted=await engine.call('session.start_turn',input.turn);
+    } else {
+      const pending=engine.call('session.start_turn',input.turn);
+      // Only the deliberately lost response gets the short timer. Durable,
+      // readonly reconciliation keeps the supervisor's normal bounded deadline.
+      engine.options.responseTimeoutMs=15000;
+      accepted=await pending;
+    }
     assert.ok(held);
     const action=await engine.call('action.get',{method:'session.start_turn',client_action_id:input.turn.client_action_id});
     assert.equal(action.result.turn_id,accepted.turn_id);

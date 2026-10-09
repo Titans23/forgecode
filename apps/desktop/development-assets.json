@@ -669,7 +669,7 @@
     },
     {
       "path": "forge/sandbox/windows_worker.py",
-      "sha256": "32a5355ea47c6fa818694da2ecfeea35e1550c8ac6fa189c865d0e480a7743f4"
+      "sha256": "fae7e68abd289f7074410295ad800781a822376eea798a9969fa4db389539072"
     },
     {
       "path": "forge/sandbox/workspace_backend.py",
