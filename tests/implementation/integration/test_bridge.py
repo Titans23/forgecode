@@ -37,7 +37,7 @@ def test_real_bridge_probe_has_no_manufactured_native_verification(tmp_path):
             'sandbox_session_id': new_id('sandbox'), 'execution_id': None}, tmp_path / 'control')
         try:
             report = await backend.probe()
-            assert report.value['backend_version'] == '0.0.78'
+            assert report.value['backend'] == 'strict-unavailable'
             assert all(v['status'] != 'verified' for v in report.value['verification'].values())
             with pytest.raises(ContractError) as error:
                 await backend.prepare(policy)
@@ -87,7 +87,7 @@ def test_actual_launcher_ignores_inherited_node_loader_and_proxy(tmp_path, monke
             'sandbox_session_id': new_id('sandbox'), 'execution_id': None}, tmp_path / 'control')
         try:
             report = await backend.probe()
-            assert report.value['backend_version'] == '0.0.78'
+            assert report.value['backend'] == 'strict-unavailable'
             assert not marker.exists()
         finally:
             await backend.aclose()
@@ -99,6 +99,7 @@ def test_real_dispatcher_and_output_transport_without_os_sandbox_claim():
     result = subprocess.run([str(runtime.node), '--test', '--test-reporter=tap', 'tests/implementation/node/bridge.test.mjs',
                              'tests/implementation/node/linux-ownership.test.mjs',
                              'tests/implementation/node/srt-lifecycle.test.mjs',
+                             'tests/implementation/node/bubblewrap.test.mjs',
                              'tests/implementation/node/windows-adapter.test.mjs'],
         cwd=runtime.root, env=bridge_environment(runtime.root / '.local'), capture_output=True,
         encoding='utf-8', timeout=90)  # Includes the explicit shell's 60s cold-start deadline and other dispatcher cases.

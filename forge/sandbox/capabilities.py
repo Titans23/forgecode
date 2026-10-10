@@ -65,7 +65,7 @@ def unavailable_report(*, platform=None, backend_version='unprobed', reason='Nat
     if platform is None:
         platform = 'windows-native' if windows_supported() else (
             'linux-native' if sys.platform.startswith('linux') else 'unsupported')
-    return CapabilityReport({'platform': platform, 'backend': 'srt', 'backend_version': backend_version,
+    return CapabilityReport({'platform': platform, 'backend': 'strict-unavailable', 'backend_version': backend_version,
         'read_isolation': 'unavailable', 'write_isolation': False, 'direct_network_isolation': False,
         'dns_isolation': False, 'socket_isolation': False, 'process_cleanup': False,
         'resource_enforcement': {name: 'unavailable' for name in ('memory', 'disk', 'pids')},

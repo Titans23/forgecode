@@ -23,22 +23,6 @@ class PolicySnapshot:
     def value(self):
         return json.loads(self.normalized_json)
 
-    def srt_config(self, capabilities):
-        value = self.value
-        capabilities.require(value)
-        if value['filesystem']['read_mode'] == 'strict_allowlist_required':
-            raise ContractError('Locked SRT cannot prove a strict read allowlist', kind='CAPABILITY_UNSATISFIED', code=-32010)
-        if any(value['limits'][name] and value['limits'][name]['enforcement'] == 'hard_required'
-               for name in ('memory_bytes', 'disk_bytes', 'pids')):
-            raise ContractError('SRT config alone cannot enforce hard resource limits', kind='CAPABILITY_UNSATISFIED', code=-32010)
-        protected = value['filesystem']['protected_paths']
-        root = str(self.paths.workspace.path)
-        patterns = [str(Path(root) / '**' / name) for name in ('.env', '.env.*', 'credentials', 'credentials.json', 'id_rsa', 'id_ed25519')]
-        return {'filesystem': {'denyRead': protected + patterns, 'allowRead': [],
-                    'allowWrite': value['filesystem']['write_roots'], 'denyWrite': protected + patterns, 'allowGitConfig': False},
-                'network': {'allowedDomains': value['network']['allowed_domains'], 'deniedDomains': [],
-                    'strictAllowlist': True, 'allowUnixSockets': [], 'allowAllUnixSockets': False, 'allowLocalBinding': False}}
-
 
 def normalize_domain(value):
     try:

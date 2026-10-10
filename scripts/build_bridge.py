@@ -17,7 +17,9 @@ def digest(path):
 
 def dependency_paths(lock):
     packages = lock['packages']
-    pending = ['node_modules/@anthropic-ai/sandbox-runtime', 'node_modules/ajv', 'node_modules/ajv-formats', 'node_modules/@deepseek-ai/dsh-sandbox-windows-acl']
+    if any(path.endswith(('/node-forge', '/@anthropic-ai/sandbox-runtime')) for path in packages):
+        raise ValueError('Removed sandbox dependencies must not re-enter the delivery lockfile')
+    pending = ['node_modules/ajv', 'node_modules/ajv-formats', 'node_modules/@deepseek-ai/dsh-sandbox-windows-acl']
     seen = set()
     while pending:
         path = pending.pop()

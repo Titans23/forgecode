@@ -1,4 +1,4 @@
-"""Explicit workspace-write through locked DSH/SRT and existing owned process trees."""
+"""Explicit workspace-write through DSH/bubblewrap and existing owned process trees."""
 import asyncio
 import base64
 from datetime import datetime, timedelta, timezone
@@ -56,8 +56,25 @@ class WorkspaceWriteBackend:
         snapshot = compile_policy(policy, self.workspace, control_roots=(self.control_root,))
         self.runtime = verify_runtime(self.trusted_root)
         self.bridge_root = self.runtime.entry.parent if self.runtime.installed else self.runtime.root
-        self.backend_name = 'dsh-windows-acl' if sys.platform == 'win32' else 'srt-bubblewrap'
-        self.backend_version = '0.2.1-alpha.1' if sys.platform == 'win32' else '0.0.78'
+        self.backend_name = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap'
+        self.backend_version = '0.2.1-alpha.1'
+        if sys.platform == 'linux':
+            binary = Path('/usr/bin/bwrap').resolve(strict=True)
+            info = binary.stat()
+            if not binary.is_file() or info.st_uid != 0 or info.st_mode & 0o022:
+                raise ContractError('Untrusted bubblewrap executable', kind='SANDBOX_UNAVAILABLE', code=-32010)
+            process = await asyncio.create_subprocess_exec(str(binary), '--version',
+                env=bridge_environment(self.control_root), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            try:
+                async with asyncio.timeout(5):
+                    output, _ = await process.communicate()
+                if process.returncode != 0 or not output.startswith(b'bubblewrap '):
+                    raise ValueError('Could not determine bubblewrap version')
+                self.backend_version = output.decode('ascii').strip().removeprefix('bubblewrap ')
+            finally:
+                if process.returncode is None:
+                    process.kill()
+                    await process.wait()
         self.runner = self.bridge_root / 'sandbox_bridge/dist/workspace-runner.js'
         root = Path(self.workspace['canonical_path'])
         for protected in (self.runtime.root, self.control_root):
@@ -244,9 +261,11 @@ class WorkspaceWriteBackend:
         return {'execution_id':execution_id,'confirmed':report['state']=='clean','cleanup':report}
 
     def _report(self, state, owner=None):
-        return {'owner':owner or self.owner,'state':state,'remaining_processes':0,
-            'diagnostic_refs':['workspace-grant-standing-by-design' if sys.platform == 'win32' else 'owned-mount-namespace-and-temp'],
+        report = {'owner':owner or self.owner,'state':state,'remaining_processes':0,
+            'diagnostic_refs':[],
             'completed_at_utc':datetime.now(timezone.utc).isoformat().replace('+00:00','Z') if state=='clean' else None}
+        validate('cleanup-report', report)
+        return report
 
     async def close(self):
         if self._closing is None: self._closing = asyncio.create_task(self._close())

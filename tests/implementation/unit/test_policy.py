@@ -42,11 +42,9 @@ def declared_capabilities():
 def test_write_limit_does_not_become_read_allowlist_and_hash_is_frozen(tmp_path):
     root, workspace, policy = policy_input(tmp_path)
     snapshot = compile_policy(policy, workspace)
-    config = snapshot.srt_config(declared_capabilities())
-    assert config['filesystem']['allowWrite'] == [str(root)]
-    assert config['filesystem']['allowRead'] == []
-    assert config['network']['allowedDomains'] == []
-    assert config['network']['allowLocalBinding'] is False
+    declared_capabilities().require(snapshot.value)
+    assert snapshot.value['filesystem']['write_roots'] == [str(root)]
+    assert snapshot.value['filesystem']['read_mode'] == 'backend_default_with_protected_paths'
     assert snapshot.sha256 == canonical_hash(snapshot.value)
     policy['filesystem']['write_roots'].clear()
     copy = snapshot.value
@@ -66,17 +64,16 @@ def test_stronger_requirements_fail_before_backend_start(tmp_path, requirement):
         policy['limits'][key] = {'value': 1024, 'enforcement': 'hard_required'}
     snapshot = compile_policy(policy, workspace)
     with pytest.raises(ContractError) as error:
-        snapshot.srt_config(declared_capabilities())
+        declared_capabilities().require(snapshot.value)
     assert error.value.kind == 'CAPABILITY_UNSATISFIED'
 
 
-def test_srt_adapter_refuses_strict_read_even_if_another_backend_claims_it(tmp_path):
-    _, workspace, policy = policy_input(tmp_path)
+def test_workspace_backend_refuses_strict_read(tmp_path):
+    from forge.sandbox.workspace_backend import require_workspace_policy
+    _, _, policy = policy_input(tmp_path)
     policy['filesystem']['read_mode'] = 'strict_allowlist_required'
-    caps = declared_capabilities().value
-    caps['read_isolation'] = 'strict_allowlist'
-    with pytest.raises(ContractError, match='strict read'):
-        compile_policy(policy, workspace).srt_config(CapabilityReport(caps))
+    with pytest.raises(ContractError, match='read/network/hard-resource'):
+        require_workspace_policy(policy)
 
 
 def test_unverified_capability_booleans_cannot_authorize_execution(tmp_path):
@@ -84,11 +81,11 @@ def test_unverified_capability_booleans_cannot_authorize_execution(tmp_path):
     caps = declared_capabilities().value
     caps.pop('verification')
     with pytest.raises(ContractError, match='verified'):
-        compile_policy(policy, workspace).srt_config(CapabilityReport(caps))
+        CapabilityReport(caps).require(compile_policy(policy, workspace).value)
     caps = declared_capabilities().value
     caps['verification']['write_isolation'] = {'status': 'partial', 'evidence_refs': ['partial-input']}
     with pytest.raises(ContractError):
-        compile_policy(policy, workspace).srt_config(CapabilityReport(caps))
+        CapabilityReport(caps).require(compile_policy(policy, workspace).value)
 
 
 def test_unavailable_report_truthfully_keeps_all_native_features_unsupported():
@@ -97,14 +94,14 @@ def test_unavailable_report_truthfully_keeps_all_native_features_unsupported():
     assert all(item['status'] == 'unsupported' and item['evidence_refs'] == [] for item in report.value['verification'].values())
 
 
-def test_srt_config_cannot_discard_a_verified_hard_resource_requirement(tmp_path):
-    _, workspace, policy = policy_input(tmp_path)
+def test_workspace_backend_cannot_discard_a_hard_resource_requirement(tmp_path):
+    from forge.sandbox.workspace_backend import require_workspace_policy
+    _, _, policy = policy_input(tmp_path)
+    policy['filesystem']['read_mode'] = 'host_default'
+    policy['network']['mode'] = 'inherit'
     policy['limits']['memory_bytes'] = {'value': 1024, 'enforcement': 'hard_required'}
-    caps = declared_capabilities().value
-    caps['resource_enforcement']['memory'] = 'hard'
-    caps['verification']['memory'] = {'status': 'verified', 'evidence_refs': ['unit-resource-input-only']}
-    with pytest.raises(ContractError, match='hard resource'):
-        compile_policy(policy, workspace).srt_config(CapabilityReport(caps))
+    with pytest.raises(ContractError, match='hard-resource'):
+        require_workspace_policy(policy)
 
 
 def test_best_effort_does_not_claim_hard_resource_enforcement(tmp_path):

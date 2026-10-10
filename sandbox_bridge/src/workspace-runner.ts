@@ -5,6 +5,7 @@ import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readLaunchPayload } from './launch-payload.js';
 import { commandArgv, commandEnvironment, decodeLaunchPayload } from './dispatcher.js';
+import { bubblewrapArgv } from './bubblewrap.js';
 
 async function directory(path: string): Promise<string> {
   if (!isAbsolute(path)) throw new Error('Absolute owned directory required');
@@ -30,18 +31,15 @@ async function main() {
   const workspace = await directory(args[1]), temp = await directory(args[3]);
   const raw = await readLaunchPayload(args.slice(4));
   if (process.platform === 'linux') {
-    const { wrapCommandWithSandboxLinux, cleanupBwrapMountPoints } = await import('@anthropic-ai/sandbox-runtime/dist/sandbox/linux-sandbox-utils.js');
-    const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
-    const command = [process.execPath, resolve(dirname(fileURLToPath(import.meta.url)), 'dispatcher.js'), ...args.slice(4)].map(quote).join(' ');
-    const wrapped = await wrapCommandWithSandboxLinux({ command, needsNetworkRestriction: false,
-      readConfig: { denyOnly: [] }, writeConfig: { allowOnly: [workspace, temp], denyWithinAllow: [] },
-      binShell: '/bin/bash', bwrapPath: '/usr/bin/bwrap', ripgrepConfig: { command: '/usr/bin/rg' },
-      setEnvVars: { TMPDIR: temp, TMP: temp, TEMP: temp }, allowGitConfig: false });
-    const child = spawn('/bin/bash', ['-c', wrapped], { cwd: workspace, stdio: 'inherit', shell: false });
+    const binary = await realpath('/usr/bin/bwrap');
+    const info = await lstat(binary);
+    if (!info.isFile() || info.uid !== 0 || (info.mode & 0o022)) throw new Error('Untrusted bubblewrap executable');
+    const command = [resolve(dirname(fileURLToPath(import.meta.url)), 'dispatcher.js'), ...args.slice(4)];
+    const child = spawn(binary, bubblewrapArgv(workspace, temp, process.execPath, command),
+      { cwd: workspace, stdio: 'inherit', shell: false });
     process.exitCode = await new Promise<number>((resolve, reject) => {
       child.once('error', reject); child.once('close', code => resolve(code ?? 125));
     });
-    cleanupBwrapMountPoints();
     return;
   }
   const { AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } = await import('@deepseek-ai/dsh-sandbox-windows-acl');
@@ -54,7 +52,7 @@ async function main() {
   tempGrant.add(temp);
   const { payload } = decodeLaunchPayload(raw);
   const argv = commandArgv(payload.command, payload.shells, payload.tools);
-  const environment = commandEnvironment(payload.command, payload.tools);
+  const environment = commandEnvironment(payload.command, payload.tools, temp);
   for (const key of Object.keys(process.env)) if (!(key in environment)) delete process.env[key];
   Object.assign(process.env, environment);
   process.chdir(payload.command.cwd);

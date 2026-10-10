@@ -88,3 +88,38 @@ def test_unsupported_windows_host_refuses_before_runtime_or_processes(tmp_path, 
         assert backend._prepared is None and not backend._executions and not backend.control_root.exists()
         assert (await backend.close())['state']=='clean'
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('fault', ['temp-delete', 'temp-revoke'])
+def test_failed_resource_reconciliation_remains_unknown(tmp_path, monkeypatch, fault):
+    """Fault injection exercises reporting only, never establishes native capability."""
+    from datetime import datetime, timedelta, timezone
+    import forge.sandbox.workspace_backend as module
+    _, backend = fixture(tmp_path)
+    backend.control_root.mkdir()
+    backend.runtime = SimpleNamespace(node=Path('/fixed/node'), tools={'powershell':Path('/fixed/pwsh'), 'git':Path('/fixed/git'), 'ripgrep':Path('/fixed/rg')})
+    backend.runner = Path('/fixed/runner')
+    async def failed_start(*args, **kwargs):
+        raise OSError('injected launch failure')
+    monkeypatch.setattr(module.LocalProcessOwner, 'start', failed_start)
+    async def failed_revoke(temp):
+        raise OSError('injected ACL revoke failure')
+    async def no_revoke(temp):
+        pass
+    if fault == 'temp-revoke':
+        monkeypatch.setattr(module, 'sys', SimpleNamespace(platform='win32'))
+        import forge.sandbox.windows_worker as worker
+        monkeypatch.setattr(worker, 'grant_controller_access', lambda directory: None)
+        monkeypatch.setattr(backend, '_revoke_temp', failed_revoke)
+    else:
+        monkeypatch.setattr(backend, '_revoke_temp', no_revoke)
+        def failed_delete(*args): raise OSError('injected resource inspection/delete failure')
+        monkeypatch.setattr(module.shutil, 'rmtree', failed_delete)
+    async def run():
+        entry = backend._accept(new_id('exec'), {'deadline_utc':(datetime.now(timezone.utc)+timedelta(seconds=5)).isoformat(),
+            'output_limit_bytes':128}, publish=False)
+        await entry['task']
+        assert entry['cleanup']['state']=='unknown' and entry['cleanup']['completed_at_utc'] is None
+        assert list(backend.control_root.glob('temp-exec-*'))
+        assert (await backend.close())['state']=='unknown'
+    asyncio.run(run())

@@ -39,10 +39,9 @@ def verify() -> dict:
     node = str(ROOT / node_asset['path'])
     checks.append(run([node, str(ROOT / 'packaging' / 'verify-release.mjs')]))
     node_probe = run([node, '--input-type=module', '-e',
-                      "import {SandboxRuntimeConfigSchema} from '@anthropic-ai/sandbox-runtime';"
-                      "const config=SandboxRuntimeConfigSchema.safeParse({network:{allowedDomains:[],deniedDomains:[]},"
-                      "filesystem:{denyRead:[],allowWrite:[],denyWrite:[]}});"
-                      "if(!config.success)process.exit(1);console.log(JSON.stringify({node:process.version,config:true}));"])
+                      "import {bubblewrapArgv} from './sandbox_bridge/dist/bubblewrap.js';"
+                      "const args=bubblewrapArgv('/work','/temp','/node',[]);"
+                      "if(!args.includes('--unshare-pid'))process.exit(1);console.log(JSON.stringify({node:process.version,config:true}));"])
     assert json.loads(node_probe['stdout'])['node'] == 'v' + lock['node']['version']
     checks.append(node_probe)
     checks.append(run([sys.executable, '-X', 'utf8', '-m', 'PyInstaller', '--noconfirm',

@@ -11,12 +11,9 @@ import sys
 import tempfile
 
 from forge.application.models import ContractError
-from forge.engine.persistence import new_id
 from forge.sandbox.capabilities import unavailable_report,windows_supported
 from forge.sandbox.launcher import bridge_environment, verify_runtime
 from forge.sandbox.path_policy import inspect_path
-from forge.sandbox.srt_backend import SrtBackend
-from forge.application.models import canonical_hash, strict_loads
 
 
 def linux_release(text):
@@ -48,43 +45,9 @@ def windows_volume(path):
         'filesystem': filesystem.value if success else 'not_observed'}
 
 
-def normalize_windows_status(status):
-    # Audited raw srt-win ABI; mirrors locked SDK mapUserStatus/mapWfpStatus without exposing PEM/credentials.
-    wrapper = status['user']
-    raw = wrapper['user']
-    user = {key: raw[source] for key, source in {'provisioned': 'exists', 'sid': 'sid', 'groupExists': 'group_exists',
-        'groupSid': 'group_sid', 'inBuiltinUsers': 'in_builtin_users', 'inSandboxGroup': 'in_sandbox_group',
-        'hiddenFromLogon': 'hidden_from_logon'}.items() if source in raw and raw[source] is not None}
-    user.update({key: wrapper[source] for key, source in {'credPresent': 'cred_present', 'markerVersion': 'marker_version',
-        'realUserSid': 'real_user_sid'}.items() if source in wrapper and wrapper[source] is not None})
-    if not isinstance(user.get('provisioned'), bool) or not isinstance(user.get('credPresent'), bool):
-        raise ValueError('Native account status fields unavailable')
-    wfp = {key: status['wfp'][source] for key, source in {'state': 'state', 'filters': 'filters',
-        'portRange': 'port_range', 'userSid': 'user_sid'}.items() if source in status['wfp'] and status['wfp'][source] is not None}
-    return user, wfp
-
-
 def windows_status_diagnosis(runtime):
-    try:
-        from forge.release.processes import external_argv
-        if runtime.installed:
-            from forge.release.runtime import verify_manifest,verify_asset
-            manifest=verify_manifest(runtime.root)
-            helper=verify_asset(runtime.root,next(a for a in manifest['native_helpers'] if a['name']=='srt-win'))
-        else:
-            lock = json.loads((runtime.root / 'release-lock.json').read_text(encoding='utf-8'))
-            helper = runtime.root / next(item['path'] for item in lock['assets'] if item['name'] == 'srt-win' and item['platform'] == 'win32-x64')
-        with tempfile.TemporaryDirectory(prefix='forge-win-status-') as directory:
-            process = subprocess.run(external_argv([str(helper), '--srt-win', 'status']), env=bridge_environment(Path(directory)),
-                capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
-        if process.returncode or len(process.stdout) > 65536:
-            raise ValueError('Status failed')
-        status = strict_loads(process.stdout)
-        user, wfp = normalize_windows_status(status)
-        return {'status': 'observed', 'helper': str(helper), 'helper_sha256': sha256(helper.read_bytes()).hexdigest(),
-            'user': user, 'wfp': wfp, 'shared_activity': 'not_observed', 'read_only': True}
-    except (OSError, ValueError, KeyError, TypeError, ContractError, subprocess.TimeoutExpired):
-        return {'status': 'blocked', 'reason': 'Read-only native status unavailable', 'shared_activity': 'not_observed'}
+    return {'status': 'not_applicable', 'reason': 'Strict runtime removed; workspace-write needs no SRT account or WFP setup',
+            'shared_activity': 'not_observed', 'read_only': True}
 
 
 def system_diagnosis():
@@ -99,7 +62,7 @@ def system_diagnosis():
             host['supported_linux'] = host['supported'] and platform.machine() == 'x86_64'
         except OSError:
             host['distribution'] = 'unavailable'
-        for name in ('bwrap', 'socat', 'rg', 'git', 'bash', 'sh'):
+        for name in ('bwrap', 'rg', 'git', 'bash', 'sh'):
             path = Path('/bin' if name in ('bash', 'sh') else '/usr/bin') / name
             try:
                 actual = path.resolve(strict=True)
@@ -144,13 +107,15 @@ def system_diagnosis():
         host['system_volume'] = windows_volume(Path(environment['SystemRoot']))
     from forge.release.toolchains import discover_toolchains
     project_tools=discover_toolchains()
+    capabilities = unavailable_report(backend_version='unprobed', reason='Workspace boundary verification runs at session initialization').value
+    capabilities['backend'] = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap' if sys.platform == 'linux' else 'unsupported'
     return {'schema_version': 'forge.sandbox.diagnosis.v1', 'status': 'blocked', 'read_only': True,
         'host': host, 'tools': tools, 'project_toolchains':project_tools, 'system_policy': system_policy, 'kernel_probe': kernel_probe, 'runtime': runtime_info,
         'windows_status': windows_status,
-        'capabilities': unavailable_report(backend_version='0.0.78', reason='Native boundary verification has not run').value,
+        'capabilities': capabilities, 'execution_mode': 'workspace-write', 'strict_execution': 'unavailable',
         'active_sessions': {'state': 'not_observed', 'count': None}, 'cleanup': {'state': 'not_observed'},
         'workspace_tools_executed': False, 'automatic_repair': False,
-        'repair_steps': (['Use Main native setup confirmation on Windows 10 x64 build 19045 or later; do not automatically refresh existing shared credentials or uninstall shared SRT.',
+        'repair_steps': (['Select workspace-write using Main native confirmation; strict execution is unavailable in this build.',
             'Bundled PowerShell/Git/ripgrep and NTFS are required. Use the ForgeCode installer to restore missing application assets; DNS isolation is unavailable.']
             if sys.platform == 'win32' else ['Use the ForgeCode deb installation flow to resolve missing system dependencies.',
             'The installer owns application-specific namespace policy; do not disable AppArmor or change global sysctls.'])}
@@ -161,119 +126,27 @@ async def workspace_diagnosis(path):
     info = token.path.stat()
     if not token.path.is_dir():
         raise ContractError('Workspace must be a directory')
-    workspace = {'id': new_id('ws'), 'canonical_path': str(token.path), 'file_identity': f'{info.st_dev}:{info.st_ino}'}
     report = system_diagnosis()
-    with tempfile.TemporaryDirectory(prefix='forge-doctor-') as directory:
-        backend = SrtBackend(workspace, {'engine_epoch': new_id('epoch'), 'sandbox_session_id': new_id('sandbox'),
-            'execution_id': None}, Path(directory) / 'bridge')
-        try:
-            report['capabilities'] = (await backend.probe()).value
-            report['workspace'] = {'path': str(token.path), 'file_identity': workspace['file_identity'],
-                'mode': 'inspect-only', 'filesystem_device': info.st_dev}
-        finally:
-            await backend.aclose()
+    report['workspace'] = {'path': str(token.path), 'file_identity': f'{info.st_dev}:{info.st_ino}',
+        'mode': 'inspect-only', 'filesystem_device': info.st_dev}
     return report
 
 
 async def verify_linux(output: Path, *, allowed_endpoint=None):
     report = system_diagnosis()
-    if not report['host']['supported_linux']:
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked',
-            'reason': 'Supported Ubuntu native runner is unavailable', 'checks': [],
-            'eligible_for_native_pass': False, 'diagnosis': report}
-    if report['runtime']['status'] != 'pass' or any(item['status'] != 'pass' for item in report['tools'].values()):
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked',
-            'reason': 'Fixed trusted native dependencies are unavailable', 'checks': [],
-            'eligible_for_native_pass': False, 'diagnosis': report}
-    if report['kernel_probe']['status'] != 'pass':
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked', 'checks': [],
-            'reason': 'Kernel/system policy blocked the actual fixed bwrap user namespace probe',
-            'eligible_for_native_pass': False, 'diagnosis': report}
-    return await run_native_fixture(output, report, 'linux', allowed_endpoint=allowed_endpoint)
+    return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked', 'checks': [],
+        'reason': 'Strict runtime removed; use workspace-write acceptance' if report['host']['supported_linux']
+                  else 'Supported Ubuntu native runner is unavailable',
+        'eligible_for_native_pass': False, 'diagnosis': report}
 
 
 async def verify_windows(output: Path, *, allowed_endpoint=None):
-    report = system_diagnosis()
-    if not report['host']['supported_windows']:
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked',
-            'reason': 'Supported Windows 10 x64 build 19045 or later native runner is unavailable', 'checks': [],
-            'eligible_for_native_pass': False, 'diagnosis': report}
-    if report['runtime']['status'] != 'pass' or report['tools'].get('pwsh', {}).get('status') != 'pass' or windows_volume(output.parent)['status'] != 'pass':
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked',
-            'reason': 'Fixed runtime, PowerShell 7 or native NTFS evidence directory unavailable', 'checks': [],
-            'eligible_for_native_pass': False, 'diagnosis': report}
-    status = report['windows_status']
-    if status.get('status') != 'observed' or not status.get('user', {}).get('provisioned') or not status['user'].get('credPresent'):
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked',
-            'reason': 'SRT native setup unavailable; administrator installation has not been invoked', 'checks': [],
-            'eligible_for_native_pass': False, 'diagnosis': report}
-    return await run_native_fixture(output, report, 'windows', allowed_endpoint=allowed_endpoint)
+    return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked', 'checks': [],
+        'reason': 'Strict runtime removed; use workspace-write acceptance',
+        'eligible_for_native_pass': False, 'diagnosis': system_diagnosis()}
 
 
-# Kept as the native acceptance helper's public name.
 from forge.sandbox.windows_worker import grant_controller_access as prepare_windows_fixture
-
-
-async def run_native_fixture(output, report, target, *, allowed_endpoint=None):
-    runtime = verify_runtime()
-    # Retain this synthetic fixture for evidence/residual inspection, including failed initialization.
-    # Evidence commonly lives beneath the development installation. The actual
-    # workspace/control fixture must not: production rejects overlapping roots.
-    directory = Path(tempfile.mkdtemp(prefix=f'forge-native-{target}-'))
-    owner = {'engine_epoch': new_id('epoch'), 'sandbox_session_id': new_id('sandbox'), 'execution_id': None}
-    lease = None
-    options = {'allowed_endpoint': allowed_endpoint}
-    if target == 'windows':
-        prepare_windows_fixture(directory)
-        from forge.sandbox.windows_worker import WindowsWorkerLease, windows_worker_root
-        worker_root = windows_worker_root()
-        options['worker_root'] = str(worker_root)
-        binding = canonical_hash({'owner': owner, 'fixture': str(directory), 'manifest_hash': runtime.manifest_hash, 'options': options})
-        try:
-            lease = WindowsWorkerLease(worker_root, owner, binding)
-        except ContractError as error:
-            return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked', 'checks': [],
-                'reason': str(error), 'eligible_for_native_pass': False, 'diagnosis': report}
-    try:
-        return await run_native_process(runtime, directory, owner, report, target, options, lease)
-    finally:
-        if lease:
-            lease.close()  # Unknown/abnormal completion preserves marker; only measured clean can release it.
-
-
-async def run_native_process(runtime, directory, owner, report, target, options, lease):
-    from forge.release.processes import external_argv, external_options
-    if runtime.installed:
-        from forge.release.runtime import verify_manifest,verify_asset
-        manifest=verify_manifest(runtime.root)
-        entry=verify_asset(runtime.root,next(a for a in manifest['bridge_dependencies'] if a['path'].endswith(f'/sandbox_bridge/dist/verify-{target}.js')))
-    else:entry=runtime.root/f'sandbox_bridge/dist/verify-{target}.js'
-    process = await asyncio.create_subprocess_exec(*external_argv([str(runtime.node), str(entry),
-        '--fixture', str(directory), '--owner', json.dumps(owner)]), cwd=runtime.root,
-        env=bridge_environment(directory / 'control'), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE, limit=1048577,**external_options())
-    try:
-        stdout, stderr = await asyncio.wait_for(process.communicate(json.dumps(options).encode()), 120)
-    except asyncio.TimeoutError:
-        process.kill()
-        await process.communicate()
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'blocked', 'checks': [],
-            'reason': 'Native verifier timed out; exact owned verifier stopped, descendant cleanup requires reconciliation',
-            'eligible_for_native_pass': False, 'fixture': str(directory), 'owner': owner, 'diagnosis': report}
-    try:
-        result = json.loads(stdout)
-        if result['schema_version'] != 'forge.native.acceptance.v1' or result['status'] not in ('pass', 'blocked', 'fail') or not isinstance(result['checks'], list):
-            raise ValueError('Invalid native report')
-        if result['status'] == 'pass' and (process.returncode or not result['checks'] or any(item['status'] != 'pass' for item in result['checks'])):
-            raise ValueError('Unproven native pass')
-    except (ValueError, KeyError):
-        return {'schema_version': 'forge.native.acceptance.v1', 'status': 'fail', 'checks': [],
-                'reason': 'Native verifier did not return a valid nonempty acceptance report', 'eligible_for_native_pass': False,
-                'diagnostic_stderr_bytes': len(stderr), 'diagnosis': report}
-    result.update(diagnosis=report, fixture=str(directory), diagnostic_stderr_bytes=len(stderr), runtime_manifest_hash=runtime.manifest_hash)
-    if lease:
-        lease.close(result.get('cleanup'))
-    return result
 
 
 def main(argv=None):

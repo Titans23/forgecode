@@ -68,14 +68,6 @@ def resolve() -> dict:
                        'path': path.relative_to(ROOT).as_posix(), 'sha256': digest(path),
                        'source': f'{source}/{filename}', 'archive_sha256': checksums[filename],
                        'license': 'MIT', 'patches': []})
-    vendor = ROOT / 'node_modules' / '@anthropic-ai' / 'sandbox-runtime' / 'vendor'
-    for name, relative, target in [('srt-win', 'srt-win/x64/srt-win.exe', 'win32-x64'),
-                                    ('apply-seccomp', 'seccomp/x64/apply-seccomp', 'linux-x64'),
-                                    ('java-proxy-agent', 'java-proxy-agent/srt-proxy-agent.jar', 'all')]:
-        path = vendor / relative
-        assets.append({'name': name, 'platform': target, 'path': path.relative_to(ROOT).as_posix(),
-                       'sha256': digest(path), 'source': '@anthropic-ai/sandbox-runtime@0.0.78',
-                       'license': 'Apache-2.0', 'patches': []})
     for name in ('pyinstaller', 'pyinstaller-hooks-contrib', 'aiohttp'):
         item = metadata.metadata(name)
         components.append({'name': name, 'kind': 'python', 'version': metadata.version(name),
@@ -92,11 +84,11 @@ def resolve() -> dict:
             'node': {'version': NODE_VERSION, 'source': source, 'license': 'MIT', 'patches': []},
             'components': components, 'assets': assets,
             'lockfile_hashes': {name: digest(ROOT / name) for name in ('uv.lock', 'package-lock.json')},
-            'security': {'status': 'blocked', 'advisories': ['GHSA-86w9-cpqp-85rv'],
-                         'reason': 'SRT depends on node-forge 1.4.0; no patched npm release as of 2026-10-06. Production release requires mitigation and regression evidence.'},
+            'security': {'status': 'not_run', 'advisories': [],
+                         'reason': 'Run the mandatory dependency audit for this exact lockfile before acceptance.'},
             'platform_requirements': {
-                'win32-x64': ['Windows 10 x64 22H2 (build 19045)', 'SRT windows-install explicitly authorized by user'],
-                'linux-x64': ['Ubuntu 22.04/24.04 x64', 'bubblewrap', 'socat', 'ripgrep', 'fakeroot/dpkg for deb']}}
+                'win32-x64': ['Windows 10 x64 22H2 (build 19045)', 'NTFS workspace and private temporary storage'],
+                'linux-x64': ['Ubuntu 22.04/24.04 x64', 'bubblewrap', 'ripgrep', 'fakeroot/dpkg for deb']}}
     (ROOT / 'release-lock.json').write_text(json.dumps(lock, indent=2) + '\n', encoding='utf-8')
     node = next(a for a in assets if a['name'] == 'node' and a['platform'] == ('win32-x64' if sys.platform == 'win32' else 'linux-x64'))
     actual = subprocess.check_output([str(ROOT / node['path']), '--version'], text=True).strip()

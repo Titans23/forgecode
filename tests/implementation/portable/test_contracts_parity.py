@@ -81,28 +81,16 @@ def test_python_and_typescript_validate_the_same_real_fixtures_and_hash():
     assert actual['requests'] == expected_requests
 
 
-def test_compiled_adapter_settings_match_locked_srt_schemas(tmp_path):
-    from forge.sandbox.capabilities import CapabilityReport, unavailable_report
-    from forge.sandbox.policy import compile_policy
-    from forge.testing.demo import seed_demo
-    from forge.engine.persistence import Store
-    directory = tmp_path / 'demo'
-    directory.mkdir()
-    params, _ = seed_demo(directory)
-    with Store(directory / 'data') as store:
-        workspace = dict(store.connection.execute('SELECT * FROM workspaces WHERE id=?', (params['workspace_id'],)).fetchone())
-        policy = json.loads(store.connection.execute('SELECT normalized_json FROM policies WHERE id=?', (params['policy_id'],)).fetchone()[0])
-    declared = unavailable_report(platform='linux-native', backend_version='0.0.78').value
-    declared.update(read_isolation='protected_paths', write_isolation=True, direct_network_isolation=True,
-        socket_isolation=True, process_cleanup=True, readiness='ready')
-    for name in ('read_isolation', 'write_isolation', 'direct_network_isolation', 'socket_isolation', 'process_cleanup'):
-        declared['verification'][name] = {'status': 'verified', 'evidence_refs': ['unit-schema-input-only']}
-    config = compile_policy(policy, workspace).srt_config(CapabilityReport(declared))
+def test_lightweight_policy_uses_shared_contract_without_srt():
+    policy = json.loads((ROOT/'contracts/v1/examples/sandbox-policy.valid.json').read_text(encoding='utf-8'))
+    policy['filesystem']['read_mode'] = 'host_default'
+    policy['network'].update(mode='inherit', allowed_domains=[], dns_isolation_required=False)
+    from forge.sandbox.workspace_backend import require_workspace_policy
+    require_workspace_policy(policy)
     program = """import fs from 'node:fs';
-import {FilesystemConfigSchema, NetworkConfigSchema} from './node_modules/@anthropic-ai/sandbox-runtime/dist/sandbox/sandbox-config.js';
-const value = JSON.parse(fs.readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify({filesystem: FilesystemConfigSchema.parse(value.filesystem), network: NetworkConfigSchema.parse(value.network)}));"""
-    result = subprocess.run([shutil.which('node'), '--input-type=module', '-e', program], input=json.dumps(config),
-        capture_output=True, text=True, encoding='utf-8', cwd=ROOT, timeout=30)
+import {validate} from './packages/contracts/dist/index.js';
+const policy=JSON.parse(fs.readFileSync(0,'utf8'));validate('sandbox-policy',policy);console.log(JSON.stringify(policy));"""
+    result=subprocess.run([shutil.which('node'),'--input-type=module','-e',program],input=json.dumps(policy),
+        capture_output=True,text=True,encoding='utf-8',cwd=ROOT,timeout=30)
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == config
+    assert json.loads(result.stdout) == policy

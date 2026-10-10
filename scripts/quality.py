@@ -80,6 +80,8 @@ def check_project(root):
                 symbols={n.name for n in ast.walk(ast.parse(p.read_text(encoding='utf-8-sig'))) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef))}
                 if any(name.split('[')[0] not in symbols for name in parts[1:]):raise ValueError('Acceptance test symbol missing: '+case['id'])
     package=json.loads((root/'package.json').read_bytes());lock=json.loads((root/'package-lock.json').read_bytes())
+    if any(path.endswith(('/node-forge','/@anthropic-ai/sandbox-runtime')) for path in lock['packages']):
+        raise ValueError('SRT/node-forge are excluded from ForgeCode delivery dependencies')
     for field in ('dependencies','devDependencies'):
         if package[field]!=lock['packages'][''][field]:raise ValueError('npm manifest differs from lock: '+field)
         for name,version in package[field].items():

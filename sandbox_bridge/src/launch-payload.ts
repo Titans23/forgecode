@@ -1,6 +1,4 @@
-/** Windows SRT 0.0.78 consumes its runner stdin instead of forwarding task input.
- * This per-session directory is granted read-only access by the native adapter.
- */
+/** Bounded immutable launch payloads, separate from task stdin. */
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, open, realpath, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';

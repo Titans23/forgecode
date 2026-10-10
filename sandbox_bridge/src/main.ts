@@ -51,7 +51,7 @@ async function main(): Promise<void> {
   const { strictLoads, validate, ContractError, BRIDGE_METHODS } = await import('@forgecode/contracts');
   if (process.argv.length === 4 && process.argv[2] === '--setup-action') {
     const { runWindowsSetup } = await import('./windows-adapter.js');
-    const result = await runWindowsSetup(process.argv[3], assets['srt-win']);
+    const result = await runWindowsSetup(process.argv[3]);
     await new Promise<void>((resolve, reject) => process.stdout.write(JSON.stringify(result) + '\n', error => error ? reject(error) : resolve()));
     process.exitCode = result.status === 'pass' ? 0 : 2;
     return;

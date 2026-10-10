@@ -1,4 +1,4 @@
-/** Trusted task entry, always invoked *inside* SRT by the adapter.
+/** Trusted task entry, invoked inside the selected native boundary.
  * Input is an execution payload, never Engine/Bridge control stdin.
  */
 import { spawn } from 'node:child_process';
@@ -40,7 +40,7 @@ export function decodeLaunchPayload(raw: Buffer) {
   return { payload, input };
 }
 
-export function commandEnvironment(command: any, tools: Record<string,string>) {
+export function commandEnvironment(command: any, tools: Record<string,string>, temp?: string) {
   const environment = { ...process.env, ...command.environment };
   const pathKeys=Object.keys(environment).filter(name=>name.toUpperCase()==='PATH');
   const inheritedPath=pathKeys.map(name=>environment[name]).filter(Boolean).join(delimiter);
@@ -50,10 +50,13 @@ export function commandEnvironment(command: any, tools: Record<string,string>) {
     for(const name of Object.keys(environment))if(name.toUpperCase()==='PATHEXT')delete environment[name];
     environment.PATHEXT='.COM;.EXE;.BAT;.CMD';
   }
-  // Host control variables are absent; preserve only SRT's own restricted proxy/profile overlays.
+  // Management and credential variables never become task input.
   for (const name of Object.keys(environment)) {
-    if (/^(NODE_|PYTHON|LD_|DYLD_|ELECTRON_)|(?:KEY|SECRET|PASSWORD|CREDENTIAL)/i.test(name)) delete environment[name];
+    if (/^(NODE_|PYTHON|LD_|DYLD_|ELECTRON_)|(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i.test(name)) delete environment[name];
   }
+  if (temp) Object.assign(environment, { HOME: temp, USERPROFILE: temp, TMPDIR: temp, TMP: temp, TEMP: temp,
+    XDG_CACHE_HOME: resolve(temp, 'cache'), npm_config_cache: resolve(temp, 'npm'),
+    PIP_CACHE_DIR: resolve(temp, 'pip'), UV_CACHE_DIR: resolve(temp, 'uv'), PYTHONDONTWRITEBYTECODE: '1' });
   return environment;
 }
 
@@ -71,7 +74,7 @@ export async function dispatch(): Promise<void> {
   }
   const { payload, input } = decodeLaunchPayload(Buffer.concat(chunks));
   const argv = commandArgv(payload.command, payload.shells, payload.tools);
-  const environment = commandEnvironment(payload.command, payload.tools);
+  const environment = commandEnvironment(payload.command, payload.tools, process.env.TMPDIR);
   const child = spawn(argv[0], argv.slice(1), { cwd: payload.command.cwd, env: environment,
     shell: false, windowsHide: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'inherit', 'inherit'] });
   if (child.stdin) {

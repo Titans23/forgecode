@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { canonicalHash, validate } from '../../../packages/contracts/dist/index.js';
 import { OutputCapture } from '../../../sandbox_bridge/dist/output.js';
 import { Executions } from '../../../sandbox_bridge/dist/executions.js';
-import { SrtAdapter, fixedDispatcherCommand, mapSrtError } from '../../../sandbox_bridge/dist/srt-adapter.js';
+import { fixedDispatcherCommand } from '../../../sandbox_bridge/dist/srt-adapter.js';
 import { createLaunchDirectory, writeLaunchPayload } from '../../../sandbox_bridge/dist/launch-payload.js';
 
 const owner = { engine_epoch: `epoch-${randomUUID()}`, sandbox_session_id: `sandbox-${randomUUID()}`, execution_id: null };
@@ -190,105 +190,8 @@ test('same execution ID returns existing handle and actual dispatcher side effec
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
-test('wrapper includes only fixed dispatcher paths and SRT errors use machine codes', () => {
+test('fixed wrapper rejects untrusted relative executables', () => {
   const root = process.platform === 'win32' ? 'C:/fixed root/中文' : '/fixed root/中文';
   assert.ok(fixedDispatcherCommand(resolve(root, 'node'), resolve(root, 'dispatch.js')).includes('dispatch.js'));
   assert.throws(() => fixedDispatcherCommand('node', 'project-script'));
-  assert.equal(mapSrtError({ code: 'not_provisioned' }).kind, 'SETUP_REQUIRED');
-  assert.equal(mapSrtError({ message: 'Permission denied' }).kind, 'COMMAND_FAILED');
-});
-
-test('session close cleans terminal execution owners once without claiming native cleanup', async () => {
-  const adapter = new SrtAdapter(process.cwd(), resolve('.local/control'), owner, {}, () => true);
-  adapter.launchAttempted = true;
-  const cleaned = [];
-  for (const state of ['finished', 'indeterminate']) {
-    const id = `exec-${randomUUID()}`;
-    const spec = command(process.cwd(), [process.execPath]);
-    const { execution } = adapter.executions.accept(id, spec, canonicalHash(spec));
-    execution.state = state;
-    execution.resolve();
-    // This double verifies orchestration only; no native boundary is simulated.
-    execution.linuxOwner = { stop() {}, async cleanup() {
-      cleaned.push(state);
-      return { owner: execution.owner, state: 'unknown', remaining_processes: 0,
-        diagnostic_refs: [], completed_at_utc: null };
-    } };
-  }
-  const result = await adapter.close({ sandbox_session_id: owner.sandbox_session_id });
-  assert.deepEqual(cleaned, ['finished', 'indeterminate']);
-  assert.equal(result.state, 'unknown');
-  assert.deepEqual(await adapter.close({ sandbox_session_id: owner.sandbox_session_id }), result);
-  assert.equal(cleaned.length, 2);
-});
-
-test('session close continues remaining cleanup after one execution fails', async () => {
-  const adapter = new SrtAdapter(process.cwd(), resolve('.local/control'), owner, {}, () => true);
-  let cleaned = 0;
-  for (const fail of [true, false]) {
-    const id = `exec-${randomUUID()}`;
-    const spec = command(process.cwd(), [process.execPath]);
-    const { execution } = adapter.executions.accept(id, spec, canonicalHash(spec));
-    execution.state = 'finished';
-    execution.resolve();
-    execution.linuxOwner = { stop() {}, async cleanup() {
-      cleaned++;
-      if (fail) throw new Error('Cleanup unavailable');
-      return { state: 'unknown' };
-    } };
-  }
-  await assert.rejects(adapter.close({ sandbox_session_id: owner.sandbox_session_id }),
-    error => error.kind === 'CLEANUP_FAILED');
-  assert.equal(cleaned, 2);
-});
-
-test('close terminates a real owned child whose execution became indeterminate', { timeout: 15000 }, async () => {
-  const adapter = new SrtAdapter(process.cwd(), resolve('.local/control'), owner, {}, () => true);
-  const id = `exec-${randomUUID()}`;
-  const spec = command(process.cwd(), [process.execPath]);
-  const { execution } = adapter.executions.accept(id, spec, canonicalHash(spec));
-  const child = spawn(process.execPath, ['-e', 'process.stdout.write("ready");setInterval(()=>{},1000)'],
-    { detached: process.platform === 'linux', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
-  const closed = once(child, 'close');
-  execution.child = child;
-  execution.state = 'indeterminate';
-  adapter.launchAttempted = true;
-  child.once('close', () => execution.resolve());
-  try {
-    await once(child.stdout, 'data', { signal: AbortSignal.timeout(10000) });
-    const result = await adapter.close({ sandbox_session_id: owner.sandbox_session_id });
-    assert.ok(child.exitCode !== null || child.signalCode !== null, 'Owned child must be stopped');
-    assert.equal(result.state, 'unknown');
-    await closed;
-  } finally {
-    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-    await closed;
-  }
-});
-
-test('concurrent cancel and close share one in-flight owner cleanup', async () => {
-  const adapter = new SrtAdapter(process.cwd(), resolve('.local/control'), owner, {}, () => true);
-  const id = `exec-${randomUUID()}`;
-  const spec = command(process.cwd(), [process.execPath]);
-  const { execution } = adapter.executions.accept(id, spec, canonicalHash(spec));
-  execution.state = 'finished';
-  execution.resolve();
-  let release;
-  const gate = new Promise(resolve => { release = resolve; });
-  let calls = 0;
-  // A controlled owner double tests serialization, not native cleanup proof.
-  execution.linuxOwner = { stop() {}, async cleanup() {
-    calls++;
-    await gate;
-    return { owner: execution.owner, state: 'unknown', remaining_processes: 0,
-      diagnostic_refs: [], completed_at_utc: null };
-  } };
-  const cancellation = adapter.cancel({ execution_id: id, deadline_utc: new Date(Date.now() + 3000).toISOString() });
-  const closing = adapter.close({ sandbox_session_id: owner.sandbox_session_id });
-  try {
-    assert.equal(calls, 1, 'Concurrent callers must not reset the same native owner twice');
-  } finally {
-    release();
-    await Promise.all([cancellation, closing]);
-  }
 });

@@ -108,22 +108,6 @@
       ]
     },
     {
-      "name": "@anthropic-ai/sandbox-runtime",
-      "kind": "npm",
-      "version": "0.0.78",
-      "source": "https://registry.npmjs.org/@anthropic-ai/sandbox-runtime/-/sandbox-runtime-0.0.78.tgz",
-      "integrity": "sha512-YAIcybXTp7MZkBjasnkR1E3yxnf7u6kUkyW0vZrtsAZ9tyJGMaugWETmquPZs0YvW0sR0VnZeMfS0gsN/wQiVQ==",
-      "license": "Apache-2.0",
-      "minimum_runtime": {
-        "node": ">=20.11.0"
-      },
-      "patches": [],
-      "compatibility_tests": [
-        "npm run test:unit",
-        "npm run package:smoke"
-      ]
-    },
-    {
       "name": "ajv",
       "kind": "npm",
       "version": "8.20.0",
@@ -411,37 +395,10 @@
       "patches": []
     },
     {
-      "name": "srt-win",
-      "platform": "win32-x64",
-      "path": "node_modules/@anthropic-ai/sandbox-runtime/vendor/srt-win/x64/srt-win.exe",
-      "sha256": "b1927893da83a1cb28054f63c8b2bc61ac4303cf63dd92c0182f79c5c414d26d",
-      "source": "@anthropic-ai/sandbox-runtime@0.0.78",
-      "license": "Apache-2.0",
-      "patches": []
-    },
-    {
-      "name": "apply-seccomp",
-      "platform": "linux-x64",
-      "path": "node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/x64/apply-seccomp",
-      "sha256": "a6fdbdbe5875d32183754f1895c6e550300808e6297a07b569664b8beb2c5f17",
-      "source": "@anthropic-ai/sandbox-runtime@0.0.78",
-      "license": "Apache-2.0",
-      "patches": []
-    },
-    {
-      "name": "java-proxy-agent",
-      "platform": "all",
-      "path": "node_modules/@anthropic-ai/sandbox-runtime/vendor/java-proxy-agent/srt-proxy-agent.jar",
-      "sha256": "506a2995d055d5c3046b55c9a51cf905e9f24f535bce39c61b9b5ba0955424f9",
-      "source": "@anthropic-ai/sandbox-runtime@0.0.78",
-      "license": "Apache-2.0",
-      "patches": []
-    },
-    {
       "name": "bridge-runtime-manifest",
       "platform": "all",
       "path": "sandbox_bridge/runtime-manifest.json",
-      "sha256": "f590362b38adda84748d5439bceaa3fb69ff596496f6dc72fab331cbd0106e5b",
+      "sha256": "3a5d0da759b51188486c1f9b3a9f6cf6bb7d7d0461cd16550542ab354ad35248",
       "source": "ForgeCode locked runtime code inventory",
       "license": "NOASSERTION",
       "patches": []
@@ -449,24 +406,20 @@
   ],
   "lockfile_hashes": {
     "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
-    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4"
+    "package-lock.json": "ac23f5737c447f934913994025b74a60fcc536eaf775d4afcb350dbb5eeff19a"
   },
   "security": {
-    "status": "blocked",
-    "advisories": [
-      "GHSA-86w9-cpqp-85rv"
-    ],
-    "reason": "SRT depends on node-forge 1.4.0; no patched npm release as of 2026-10-06. Production release requires mitigation and regression evidence."
+    "status": "not_run",
+    "advisories": [],
+    "reason": "Dependency closure changed; mandatory audit must be rerun."
   },
   "platform_requirements": {
     "win32-x64": [
-      "Windows 10 x64 22H2 (build 19045)",
-      "SRT windows-install explicitly authorized by user"
+      "Windows 10 x64 22H2 (build 19045)"
     ],
     "linux-x64": [
       "Ubuntu 22.04/24.04 x64",
       "bubblewrap",
-      "socat",
       "ripgrep",
       "fakeroot/dpkg for deb"
     ]

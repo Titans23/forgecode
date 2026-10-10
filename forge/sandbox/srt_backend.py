@@ -40,7 +40,6 @@ class SrtBackend:
         self.discarded_transport_bytes = 0
         self._discarded_by_execution = {}
         self.stderr_bytes = 0
-        self._worker_lease = None
         self._observation = None
         self._execution_observations = {}
         self._phase_start = None
@@ -140,12 +139,7 @@ class SrtBackend:
         return CapabilityReport(result)
 
     async def prepare(self, policy):
-        worker_root = None
-        if sys.platform == 'win32':
-            from forge.sandbox.windows_worker import windows_worker_root
-            worker_root = windows_worker_root()
-        roots = (str(self.control_root),) + ((str(worker_root),) if worker_root else ())
-        snapshot = compile_policy(policy, self.workspace, control_roots=roots)
+        snapshot = compile_policy(policy, self.workspace, control_roots=(str(self.control_root),))
         from forge.observability.events import current, active
         from forge.sandbox.capabilities import unavailable_report
         recorder=current()
@@ -157,10 +151,6 @@ class SrtBackend:
             if recorder:
                 self._observation=(*self._observation[:3],capabilities.value)
             capabilities.require(snapshot.value)
-            snapshot.srt_config(capabilities)
-            if worker_root and self._worker_lease is None:
-                from forge.sandbox.windows_worker import WindowsWorkerLease
-                self._worker_lease = WindowsWorkerLease(worker_root, self.owner, snapshot.sha256)
             result = await self._request('prepare', {'policy': snapshot.value, 'policy_hash': snapshot.sha256, 'owner': self.owner})
             validate('bridge.prepare.result', result)
             self._prepared = snapshot
@@ -174,7 +164,7 @@ class SrtBackend:
     def _observe(self, event_type, *, reason=None, cleanup=None):
         if self._observation:
             recorder,scope,policy_hash,capabilities=self._observation
-            recorder.emit(event_type,{'backend':'srt','capabilities':capabilities,'policy_hash':policy_hash,
+            recorder.emit(event_type,{'backend':'strict-unavailable','capabilities':capabilities,'policy_hash':policy_hash,
                 'owner':self.owner,'reason':reason,'cleanup':cleanup,
                 **({'operation_started_at_utc':self._phase_start[0],'operation_start_monotonic_ns':self._phase_start[1]} if self._phase_start else {})},scope=scope,origin='trusted_bridge')
 
@@ -253,8 +243,6 @@ class SrtBackend:
                 self._phase_start=(datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),str(monotonic_ns()))
             self._cleanup = await self._request('close', {'sandbox_session_id': self.owner['sandbox_session_id']})
             validate('cleanup-report', self._cleanup)
-            if self._worker_lease:
-                self._worker_lease.close(self._cleanup)
             self._observe('sandbox.cleanup_finished',cleanup=self._cleanup)
         return json.loads(json.dumps(self._cleanup))
 
@@ -277,5 +265,3 @@ class SrtBackend:
             for task in pending:
                 task.cancel()
             await asyncio.gather(*readers, return_exceptions=True)
-            if self._worker_lease:
-                self._worker_lease.close(self._cleanup)
