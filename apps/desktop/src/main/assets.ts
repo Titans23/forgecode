@@ -53,13 +53,14 @@ export async function loadDevelopmentEngine(root: string, options: { dataDir: st
 export async function loadInstalledEngine(resources: string, dataDir: string, selectedMode: ExecutionMode = 'strict'): Promise<EngineLaunch> {
   if (!isAbsolute(resources) || !isAbsolute(dataDir)) throw new Error('Installed paths must be absolute');
   const mode = executionMode(selectedMode);
+  resources = await realpath(resources);
   const manifest = await verifyInstalled(resources,{contractHash:MANIFEST_HASH});
   if (manifest.schema_version !== 'forge.release.manifest.v1' || !manifest.engine || !Array.isArray(manifest.engine_dependencies) || !manifest.engine_dependencies.length ||
       !/^engine\//.test(manifest.engine.path) || !/^[0-9a-f]{64}$/.test(manifest.contract_manifest_hash)) {
     throw new Error('Installed Engine manifest is incomplete');
   }
-  for (const asset of manifest.engine_dependencies) await verifyAsset(resources, asset);
-  const executable = await verifyAsset(resources, manifest.engine);
+  // verifyInstalled already hashed the complete grouped Engine closure.
+  const executable = resolve(resources, manifest.engine.path);
   const args = ['--data-dir', dataDir, '--profile', 'desktop', '--principal', 'main'];
   const env = environment();
   args.push('--execution-mode', mode);

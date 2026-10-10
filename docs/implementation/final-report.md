@@ -1,5 +1,7 @@
 # ForgeCode V4 最终开发审查
 
+2026-10-10 更新：本报告正文保留此前 F32 阶段审查。当前源码已统一到 ForgeCode，轻量方案取代日常 strict 默认，移除 SRT/node-forge；F31 按用户决定暂缓。最新实现、分平台证据、回归及 PR 合并门禁集中见 [当前交接](handoff.md)、[progress](progress.json) 和 [轻量证据](evidence/F28-lightweight-sandbox-observations-20261010.json)。历史安全漏洞、旧目录和模式描述不能用于判断当前状态。
+
 本报告区分阶段接口实现、产品验收和真实模型实验。F00 已核对真实 CLI/Harness、入口签名及基线；F01—F31 已按依赖推进开发阶段、测试并推送至 `codex/forgecode-v4`，F32 的开发发布审查已完成。完整源码仍有必需代码缺口，不能声明全部 P0 完成。最终 F32 测试、构建及新检出副本的实际结果已写入本目录 evidence 与 progress；GitHub 上传及实际远端矩阵另行核对。
 
 ## 三个结论

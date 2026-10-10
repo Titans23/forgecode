@@ -9,8 +9,12 @@ Run `npm run start --workspace @forgecode/desktop` from the repository after
 the locked Python/npm dependencies are installed. The command builds the fixed
 Main, sandboxed Preload and React assets, then launches Electron. It starts no
 development HTTP server. The normal desktop profile uses the real provider
-adapter and strict readiness; missing verified native sandbox capability blocks
-execution before any model request.
+adapter. A new profile requests native confirmation for workspace-write; cancel
+keeps it read-only, and existing preferences remain unchanged. Linux requires
+system bubblewrap; Windows uses the bundled DSH ACL runner. Initialization failure
+blocks execution without fallback. Strict execution is unavailable in this build.
+Reads/network inherit host access, and write restriction remains partial. Windows
+Node piped grandchildren are unsupported; inherited/file stdio is available.
 
 For the genuine offline repair demonstration and window checks, run
 `.venv/Scripts/python.exe scripts/impl.py verify --suite desktop`

@@ -48,7 +48,9 @@ test('development Python is fixed to the venv alias and verified at its actual t
   const launch = await loadDevelopmentEngine(directory, { dataDir: join(directory, 'data') });
   assert.equal(launch.executable, join(await realpath(directory), relative));
   assert.equal(launch.profile, 'desktop');
-  assert.ok(!launch.arguments.includes('--execution-mode'));
+  assert.equal(launch.arguments[launch.arguments.indexOf('--execution-mode') + 1], 'strict');
+  const workspace = await loadDevelopmentEngine(directory, { dataDir: join(directory, 'data'), executionMode: 'workspace-write' });
+  assert.equal(workspace.arguments[workspace.arguments.indexOf('--execution-mode') + 1], 'workspace-write');
   const local = await loadDevelopmentEngine(directory, { dataDir: join(directory, 'data'), executionMode: 'local-trusted' });
   assert.equal(local.profile, 'desktop');
   assert.equal(local.arguments[local.arguments.indexOf('--execution-mode') + 1], 'local-trusted');

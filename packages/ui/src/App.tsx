@@ -147,7 +147,7 @@ export function App({transport, webEntry = false}: {transport: DesktopOperations
             <div><span>当前模式</span><strong>{executionMode}</strong></div>
           </div>
           {status?.readiness?.status === 'blocked' && <p className="diagnostics-hint"><Icon name="shield" size={16}/>{blockedReason}</p>}
-          {workspaceExecution && <p className="diagnostics-hint">读取和网络沿用宿主能力；不承诺动态敏感文件读取隔离。实际原生边界自检失败时任务被阻止，正式评测不使用此模式。</p>}
+          {workspaceExecution && <p className="diagnostics-hint">读取和网络沿用宿主能力；不承诺动态敏感文件读取隔离或硬链接隔离。Windows 暂不支持 Node 管道式子进程捕获，可使用继承标准流或文件输出。实际原生边界自检失败时任务被阻止，正式评测不使用此模式。</p>}
           {localExecution && <p className="diagnostics-hint">命令可访问当前用户可访问的文件和网络。项目授权与操作审批仍保留，本模式不代表沙盒验收通过。</p>}
           <div className="actions"><button disabled={busy} onClick={() => action(async () => showDiagnostics(await transport.diagnostics()))}><Icon name="refresh" size={16}/>刷新诊断</button>
           <button className="secondary" disabled={busy} onClick={() => action(async () => showDiagnostics(await transport.diagnoseSandbox()))}><Icon name="shield" size={16}/>诊断原生沙盒</button>

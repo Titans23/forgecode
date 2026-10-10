@@ -6,7 +6,7 @@
   "current_acceptance_phase": "Windows 10 x64 22H2 build 19045 on this workstation replaces mandatory Windows 11 acceptance; Ubuntu and official Linux Docker requirements remain independent",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+  "actual_repository_head": "f1cda0f23cd6b4e85992c4ccaf310f37f8919bc5",
   "next_recommended_task": "F28",
   "current_task": "F28",
   "machine_transfer": {
@@ -26,26 +26,26 @@
     "historical_private_reports_included": false
   },
   "sandbox_redesign": {
-    "date": "2026-10-09",
-    "status": "workspace_write_implemented_strict_still_blocked",
+    "date": "2026-10-10",
+    "status": "lightweight_local_validation_pass_hosted_pending",
     "plan_ref": "sandbox-redesign.md",
     "adr_ref": "adr/034-sandbox-execution-and-runtime.md",
     "observations_ref": "evidence/F28-sandbox-design-observations.json",
     "oobe_requirement_ref": "evidence/F28-sandbox-oobe-observations.json",
-    "implementation_observations_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
-    "installation_requirement": "On supported default Windows/Ubuntu desktops, install only ForgeCode; the product supplies dependencies and core tools and performs first-run setup/verification. No manual dependency installation or configuration commands. Normal OS authorization remains required.",
+    "implementation_observations_ref": "evidence/F28-lightweight-sandbox-observations-20261010.json",
+    "installation_requirement": "New desktop configurations require native confirmation for workspace-write. Windows supplies DSH runner/core tools; Ubuntu packaging declares system bubblewrap. Clean target-OS installation remains a separate gate.",
     "base_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
     "upstream_commits": {
       "deepseek-ai/deepseek-harness": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
       "earendil-works/pi": "ce950d78f424dcaf9f5d6a03ce80ab141130eb1d"
     },
-    "next_slice": "Keep main blocked by required dependency security. No additional refactor or sandbox expansion; strict native and F31 remain closed.",
-    "independent_slice": "F31 S5: official environment and trusted host request admission; live gates unchanged",
+    "next_slice": "Finish current full regression and required hosted checks, then merge normally. No additional sandbox expansion.",
+    "independent_slice": "F31 deferred by user; official experiments closed",
     "runtime_code_changed": true,
     "native_capabilities_promoted": false,
     "model_calls": 0,
     "administrator_setup": false,
-    "current_adr_ref": "adr/036-consolidation-and-workspace-write.md"
+    "current_adr_ref": "adr/037-lightweight-sandbox-without-srt.md"
   },
   "windows_acceptance_update": {
     "status": "local_target_change_verified_native_blocked",
@@ -1053,13 +1053,12 @@
         "contracts": "pass",
         "quality": "pass",
         "regression": "pass",
-        "hosted_trusted_push_portable": "pass",
-        "hosted_pull_request_ubuntu24": "pass",
-        "strict_native": "blocked",
+        "security": "pass",
         "workspace_write_windows": "pass",
         "workspace_write_wsl": "pass",
+        "strict_native": "blocked",
         "official_live_evaluation": "blocked",
-        "security": "blocked"
+        "hosted_current_source": "pending"
       },
       "evidence_ids": [
         "20261007T103717Z-676f1bad",
@@ -1167,16 +1166,17 @@
         "20261009T111228Z-d9989aef",
         "20261009T114324Z-9c3ad646",
         "20261009T114329Z-8bc7c76e",
-        "20261009T114344Z-b593b12b"
+        "20261009T114344Z-b593b12b",
+        "20261010T081208Z-2fc555b0",
+        "20261010T081218Z-29db7d24",
+        "20261010T081241Z-1b6fd1fe",
+        "20261010T081727Z-8403b440"
       ],
       "current_evidence_ids": [
-        "20261009T111101Z-dfad5f51",
-        "20261009T111110Z-e761f68e",
-        "20261009T111134Z-1d79786f",
-        "20261009T111228Z-d9989aef",
-        "20261009T114324Z-9c3ad646",
-        "20261009T114329Z-8bc7c76e",
-        "20261009T114344Z-b593b12b"
+        "20261010T081208Z-2fc555b0",
+        "20261010T081218Z-29db7d24",
+        "20261010T081241Z-1b6fd1fe",
+        "20261010T081727Z-8403b440"
       ],
       "artifact_evidence_ids": [
         "20261007T115336Z-e6b64f9f",
@@ -1197,30 +1197,24 @@
         "20261008T151508Z-fef89426"
       ],
       "blocked_reasons": [
-        "Strict dynamic sensitive-file boundary and complete initialized SRT/helper/listener cleanup remain unresolved. Old machine 11 pass / 1 fail / 11 blocked retained; receiving host strict accounts/credentials absent and WFP status cannot-read.",
-        "Dependency audit reports two high entries; no upstream patched node-forge release. Required security prevents main merge under approved plan.",
-        "Ubuntu22.04/24.04 native graphical/clean installer acceptance, signing and project LICENSE remain unavailable. Historical metadata overhead 5.210340492313925% remains above 5%."
+        "Windows Node/libuv piped grandchildren are unsupported (EPERM); inherited/file stdio works.",
+        "Dynamic hard links are not an inode-isolation guarantee; WSL outside inode modification was observed. Writes remain partial; reads/network inherit host rights.",
+        "Historical ordinary-task 15-second baseline-preparation delay was not reproduced or established fixed; retain its prior record.",
+        "Historical metadata overhead 5.210340492313925% exceeds the unchanged 5% threshold.",
+        "Ubuntu22.04/24.04 native GUI/clean installation resources are unavailable; WSL/CI do not replace them.",
+        "Signing and project LICENSE remain independent production blockers.",
+        "Strict compatibility is intentionally execution-unavailable under ADR037; no strong-isolation work in this scope."
       ],
       "remaining_implementation": [
-        "ADR034 strict verified admission, dynamic sensitive-name Shell/File parity and full initialized cleanup remain incomplete; workspace-write is explicitly partial.",
-        "Clean supported-system installation/native graphical acceptance and remaining performance/release conditions need their own proof."
+        "Native target-OS installation/GUI, signing/LICENSE and existing performance acceptance remain separate.",
+        "Windows pipe support and strong isolation are not implemented; do not promote partial capability."
       ],
-      "implemented_scope": "Consolidated source/private preservation; internal Windows long-path regression fixes; neutral file identity module/shared assembly; once-per-batch builds; explicit DSH Windows ACL and Linux SRT workspace-write with native preparation and owned process/temp cleanup, mode switching and budgets retained.",
+      "implemented_scope": "Direct bubblewrap and pinned Windows DSH ACL workspace-write; native first-use confirmation; SRT/node-forge/helper removal; honest capability/cleanup; actual workloads; frozen worker and cold-start verification fixes; original CLI/Harness/data semantics retained.",
       "current_continuation": {
-        "status": "portable_closeout_verified_main_blocked_by_required_security",
-        "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
-        "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
-        "focused_tests": 38,
-        "hosted_push_run": 38017506481,
-        "hosted_pr_run": 38017511192,
-        "hosted_portable_platforms": [
-          "windows-2025",
-          "ubuntu-22.04",
-          "ubuntu-24.04"
-        ],
-        "security": "blocked",
-        "reused_runtime_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
-        "model_calls": 0,
+        "status": "lightweight_local_validation_pass_hosted_pending",
+        "observations_ref": "evidence/F28-lightweight-sandbox-observations-20261010.json",
+        "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+        "public_model_calls": 0,
         "local_administrator_setup": false,
         "strict_capabilities_promoted": false
       },
@@ -1234,7 +1228,8 @@
         "evidence/F28-sandbox-s1-observations.json",
         "evidence/F28-desktop-local-mode-observations.json",
         "evidence/F28-F31-consolidation-observations-20261009.json",
-        "evidence/F28-F31-closeout-observations-20261010.json"
+        "evidence/F28-F31-closeout-observations-20261010.json",
+        "evidence/F28-lightweight-sandbox-observations-20261010.json"
       ],
       "continuation_history": [
         {
@@ -1364,12 +1359,30 @@
           ],
           "upload_status": "not_uploaded",
           "verification_scope": "Full regression covers source 6fdfa2e8. Subsequent changes are two inspection assertions/capture timing, an optional packaged-test timeout argument (source default remains 90s, packaged run uses the existing 300s task budget), and assembled release metadata. Frozen Engine source inventory remains identical. Each formal report keeps its own source hash."
+        },
+        {
+          "status": "portable_closeout_verified_main_blocked_by_required_security",
+          "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+          "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
+          "focused_tests": 38,
+          "hosted_push_run": 38017506481,
+          "hosted_pr_run": 38017511192,
+          "hosted_portable_platforms": [
+            "windows-2025",
+            "ubuntu-22.04",
+            "ubuntu-24.04"
+          ],
+          "security": "blocked",
+          "reused_runtime_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+          "model_calls": 0,
+          "local_administrator_setup": false,
+          "strict_capabilities_promoted": false
         }
       ],
       "local_windows_setup_ref": "local_windows_setup",
-      "latest_verification_scope": "Current implementation and platform-specific reports in consolidation observations. Historical installed/native reports are preserved; no cross-platform promotion.",
+      "latest_verification_scope": "Current lightweight evidence is scoped separately from historical strict, native target installation and official experiments. CI/merge status comes from the linked PR.",
       "current_artifact_evidence_ids": [],
-      "verification_scope": "Current implementation and platform-specific reports in consolidation observations. Historical installed/native reports are preserved; no cross-platform promotion.",
+      "verification_scope": "Current lightweight evidence is scoped separately from historical strict, native target installation and official experiments. CI/merge status comes from the linked PR.",
       "historical_verification_before_consolidation": {
         "unit": "pass",
         "portable": "pass",
@@ -1390,9 +1403,9 @@
         "live_connectivity": "pass",
         "official_live_evaluation": "blocked"
       },
-      "current_observations_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+      "current_observations_ref": "evidence/F28-lightweight-sandbox-observations-20261010.json",
       "consolidation_adr_ref": "adr/036-consolidation-and-workspace-write.md",
-      "current_verification_note": "Full regression, contracts, quality and trusted push portable pass; dependency security blocks plan-compliant main merge.",
+      "current_verification_note": "Current lightweight evidence is scoped separately from historical strict, native target installation and official experiments. CI/merge status comes from the linked PR.",
       "historical_state_before_consolidation": {
         "current_continuation": {
           "status": "optional_local_execution_implemented_and_windows_updated",
@@ -1666,13 +1679,12 @@
         "contracts": "pass",
         "quality": "pass",
         "regression": "pass",
-        "hosted_trusted_push_portable": "pass",
-        "hosted_pull_request_ubuntu24": "pass",
-        "strict_native": "blocked",
+        "security": "pass",
         "workspace_write_windows": "pass",
         "workspace_write_wsl": "pass",
+        "strict_native": "blocked",
         "official_live_evaluation": "blocked",
-        "security": "blocked"
+        "hosted_current_source": "pending"
       },
       "evidence_ids": [
         "20261007T124926Z-ffba8638",
@@ -1711,15 +1723,18 @@
         "20261009T111228Z-d9989aef",
         "20261009T114324Z-9c3ad646",
         "20261009T114329Z-8bc7c76e",
-        "20261009T114344Z-b593b12b"
+        "20261009T114344Z-b593b12b",
+        "20261010T081208Z-2fc555b0",
+        "20261010T081218Z-29db7d24",
+        "20261010T081241Z-1b6fd1fe",
+        "20261010T081727Z-8403b440"
       ],
       "blocked_reasons": [
-        "WSL current identity receives permission denied on Docker socket. Windows Docker Desktop server is separate evidence; no access bypass or user container changes.",
-        "Official network enforcement/trusted host per-request admission and source/model/environment/grader snapshots remain incomplete; independent holdout not selected. Strict native F28 requirements, dependency security/signing/LICENSE also open."
+        "Deferred by explicit user decision; official experiments remain closed.",
+        "WSL Docker access, official network enforcement/trusted host admission, frozen source/model/environment/grader evidence and holdout remain unresolved. No Docker or paid model experiment was run."
       ],
       "remaining_implementation": [
-        "Obtain usable authorized WSL Docker environment, then establish actual container/volume cleanup and official network enforcement.",
-        "Complete trusted per-request admission/authorization and actual frozen snapshots/independent holdout before formal models; no lightweight mode substitution."
+        "Deferred official Harbor/host admission work; lightweight mode is rejected and cannot satisfy this gate."
       ],
       "implemented_scope": "Existing Harness/RunSpec/request attribution retained; Docker daemon/project/container/network/named and anonymous volume verification added; Harbor stop return alone never proves clean; workspace-write/local-trusted rejected for official evaluation.",
       "artifact_refs": [
@@ -1731,37 +1746,25 @@
         "evidence/F31-budget-hosted-observations.json",
         "evidence/F28-setup-F31-handoff-observations.json",
         "evidence/F28-F31-consolidation-observations-20261009.json",
-        "evidence/F28-F31-closeout-observations-20261010.json"
+        "evidence/F28-F31-closeout-observations-20261010.json",
+        "evidence/F28-lightweight-sandbox-observations-20261010.json"
       ],
       "historical_ci_blockers": [
         "Earlier hosted browser/import/path failures are retained with their original commits. F28 e6bda835 and F31 64032fe each pass all three portable platforms. Current run37723899477 retains dependency-security failure: actual npm audit reports two high entries (exit2)."
       ],
       "current_continuation": {
-        "status": "portable_closeout_verified_main_blocked_by_required_security",
-        "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
-        "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
-        "focused_tests": 38,
-        "hosted_push_run": 38017506481,
-        "hosted_pr_run": 38017511192,
-        "hosted_portable_platforms": [
-          "windows-2025",
-          "ubuntu-22.04",
-          "ubuntu-24.04"
-        ],
-        "security": "blocked",
-        "reused_runtime_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
-        "model_calls": 0,
+        "status": "deferred_by_user",
+        "observations_ref": "evidence/F28-lightweight-sandbox-observations-20261010.json",
+        "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+        "public_model_calls": 0,
         "local_administrator_setup": false,
         "strict_capabilities_promoted": false
       },
       "current_evidence_ids": [
-        "20261009T111101Z-dfad5f51",
-        "20261009T111110Z-e761f68e",
-        "20261009T111134Z-1d79786f",
-        "20261009T111228Z-d9989aef",
-        "20261009T114324Z-9c3ad646",
-        "20261009T114329Z-8bc7c76e",
-        "20261009T114344Z-b593b12b"
+        "20261010T081208Z-2fc555b0",
+        "20261010T081218Z-29db7d24",
+        "20261010T081241Z-1b6fd1fe",
+        "20261010T081727Z-8403b440"
       ],
       "continuation_history": [
         {
@@ -1819,10 +1822,28 @@
           },
           "hosted_artifact_recomputation": "pass",
           "hosted_new_behavior_tests_per_platform": 16
+        },
+        {
+          "status": "portable_closeout_verified_main_blocked_by_required_security",
+          "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+          "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
+          "focused_tests": 38,
+          "hosted_push_run": 38017506481,
+          "hosted_pr_run": 38017511192,
+          "hosted_portable_platforms": [
+            "windows-2025",
+            "ubuntu-22.04",
+            "ubuntu-24.04"
+          ],
+          "security": "blocked",
+          "reused_runtime_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+          "model_calls": 0,
+          "local_administrator_setup": false,
+          "strict_capabilities_promoted": false
         }
       ],
       "handoff_ref": "../experiments/F31-wsl-handoff.md",
-      "latest_verification_scope": "Current implementation and platform-specific reports in consolidation observations. Historical installed/native reports are preserved; no cross-platform promotion.",
+      "latest_verification_scope": "Current lightweight evidence is scoped separately from historical strict, native target installation and official experiments. CI/merge status comes from the linked PR.",
       "historical_verification_before_consolidation": {
         "contracts": "pass",
         "quality": "pass",
@@ -1835,9 +1856,9 @@
         "native_linux": "blocked",
         "acceptance": "blocked"
       },
-      "current_observations_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+      "current_observations_ref": "evidence/F28-lightweight-sandbox-observations-20261010.json",
       "consolidation_adr_ref": "adr/036-consolidation-and-workspace-write.md",
-      "current_verification_note": "Full regression, contracts, quality and trusted push portable pass; dependency security blocks plan-compliant main merge.",
+      "current_verification_note": "Current lightweight evidence is scoped separately from historical strict, native target installation and official experiments. CI/merge status comes from the linked PR.",
       "historical_state_before_consolidation": {
         "current_continuation": {
           "parent_commit": "e6bda835253425046068cd905db7d819a538b7c5",
@@ -1893,7 +1914,7 @@
         "implemented_scope": "Explicit unbounded monetary RunSpec/draft/wizard, repair-only export/import preservation, frozen network-policy consistency, and durable request/usage attribution with late confirmation. Previous frozen-source/model/prompt/schema checks and historical Windows A/B remain.",
         "latest_verification_scope": "Shared Windows10 source snapshot includes desktop changes, runtime diagnosis and F31 bootstrap; regression1412/contracts2/quality4/desktop116 pass. Native Windows and receiving WSL/Docker acceptance remain blocked."
       },
-      "verification_scope": "Current implementation and platform-specific reports in consolidation observations. Historical installed/native reports are preserved; no cross-platform promotion."
+      "verification_scope": "Current lightweight evidence is scoped separately from historical strict, native target installation and official experiments. CI/merge status comes from the linked PR."
     },
     "F32": {
       "implementation_status": "implemented",
@@ -2032,14 +2053,14 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Verified closeout code commit; final documentation commit may follow. Runtime/native evidence retains its original commit and platform.",
+  "head_recorded_scope": "Parent commit before the third lightweight batch; source_inventory_hash identifies the validated runtime content. Consult PR #1 for final commit and merge state.",
   "gate_notes": {
-    "G1-contracts-engine": "Implementation 84a2c30 Windows regression 1469 pass, contracts2/quality4 pass. Hosted trusted push three portable platforms pass with recomputed reports; dependency security remains blocked.",
-    "G3-desktop-observability": "Actual Windows development Electron132 passes on earlier 242b831 source, separately scoped. Installed/clean native desktop acceptance not rerun.",
-    "G4-evaluation": "Docker resource query cleanup and non-strict refusal implemented/offline tested. WSL current identity cannot access Docker socket; official network and trusted host admission remain incomplete. Windows Docker availability is independent.",
-    "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing.",
-    "G2-native-sandbox": "Explicit workspace-write native 12 checks pass separately on Windows10 and WSL. Partial write restriction does not establish strict verified capability; old dynamic .env failure/full cleanup unknown retained.",
-    "G7-release": "Actual dependency security two high; signing/LICENSE and remaining native/official prerequisites remain blocked. Main merge awaits explicit security disposition."
+    "G1-contracts-engine": "Final lightweight source contracts2/quality4/security1/regression1467 pass; zero failures/errors/skips, five warnings retained. Historical results retain original source scope.",
+    "G3-desktop-observability": "Actual installed21, frozen13 and hardened13 pass; fresh-directory startup47.7s after duplicate hashing fix. Historical baseline waiting/performance gaps remain.",
+    "G4-evaluation": "F31 deferred by user; official execution remains closed and refuses non-strict modes.",
+    "G6-real-experiment": "No new public model calls; historical experimental results retained; F31 deferred.",
+    "G2-native-sandbox": "Windows19 and WSL18 actual workspace-write checks pass with partial writes, host reads/network, hard-link and Node pipe limits. Strict stays unavailable.",
+    "G7-release": "SRT/node-forge removed; required audit is zero vulnerabilities. Native target installation, signing, project LICENSE and historical performance gates remain independent blockers."
   },
   "local_setup_authorization_ref": "evidence/human-authorization-local-setup-20261008.json",
   "f31_handoff": {
@@ -2065,7 +2086,7 @@
     "model_calls": 0,
     "administrator_setup": false
   },
-  "repository_head_note": "PR #1 contains tested closeout fixes. main remains unmerged because mandatory dependency-security fails; no security exception or reduced standard applied.",
+  "repository_head_note": "Parent commit before the third lightweight batch; source_inventory_hash identifies the validated runtime content. Consult PR #1 for final commit and merge state.",
   "desktop_local_execution": {
     "status": "optional_local_execution_implemented_and_windows_updated",
     "adr_ref": "adr/035-optional-desktop-local-execution.md",
@@ -2094,38 +2115,19 @@
   },
   "consolidation": {
     "date": "2026-10-10",
-    "plan_ref": "consolidation-plan.md",
-    "adr_ref": "adr/036-consolidation-and-workspace-write.md",
     "branch": "codex/forgecode-consolidation",
     "target_branch": "main",
-    "status": "portable_closeout_verified_main_blocked_by_required_security",
+    "status": "local_validation_pass_hosted_pending",
     "windows_directory": "D:/projects/forgecode",
     "wsl_directory": "/home/titans/learn_project/forgecode",
+    "archived_old_directories": true,
     "recovery_checkpoint": "cf432236e721682a45fc83c3112db31c8dc82d00",
     "private_backup_ref": ".local/consolidation-20261009/manifest.json",
-    "workspace_write_windows_checks": 12,
-    "workspace_write_wsl_checks": 12,
-    "strict_capabilities_promoted": false,
-    "public_model_calls": 0,
-    "administrator_setup": false,
-    "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
-    "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
+    "observations_ref": "evidence/F28-lightweight-sandbox-observations-20261010.json",
+    "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
     "pull_request": "https://github.com/Titans23/forgecode/pull/1",
-    "archived_old_directories": true,
-    "full_regression": {
-      "collected": 1469,
-      "skipped": 0,
-      "failures": 0,
-      "errors": 0
-    },
-    "windows_source_inventory_hash": "28c00d4802a8a35b54905a4ab1f01b9517eb6355a8f2a7d16396e0339246ad85",
-    "wsl_source_inventory_hash": "3ac4c28ffd5f2868e95aaac0d21c3da8efa2383d2e9fdb533d27e9787c711f19",
-    "main_merged": false,
-    "merge_blocker": "Required dependency-security: two high records for GHSA-86w9-cpqp-85rv; no published patched node-forge release. Current push and PR portable matrices pass.",
-    "implementation_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
-    "full_regression_scope": "1469 on 84a2c30, reused because product/runtime/dependency blobs are unchanged; closeout test/workflow coverage is recorded separately.",
-    "closeout_windows_source_inventory_hash": "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e",
-    "closeout_focused_tests": 38
+    "merge_status_source": "GitHub PR #1 is authoritative for the current head/checks/merge state; this repository record is the pre-push validation snapshot.",
+    "merge_policy": "Normal merge only after complete regression and required hosted checks pass; no force push or security waiver."
   },
   "historical_state_before_consolidation": {
     "actual_repository_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
@@ -2219,5 +2221,93 @@
       "G4-evaluation": "Frozen RunSpec/source/model/prompt/tool-schema binding, explicit unbounded monetary representation, network consistency and durable request attribution have passing offline behavior tests. Official Docker environment/network enforcement and trusted host per-request admission/authorization remain incomplete; Linux Docker daemon absent.",
       "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing."
     }
+  },
+  "historical_state_before_lightweight": {
+    "consolidation": {
+      "date": "2026-10-10",
+      "plan_ref": "consolidation-plan.md",
+      "adr_ref": "adr/036-consolidation-and-workspace-write.md",
+      "branch": "codex/forgecode-consolidation",
+      "target_branch": "main",
+      "status": "portable_closeout_verified_main_blocked_by_required_security",
+      "windows_directory": "D:/projects/forgecode",
+      "wsl_directory": "/home/titans/learn_project/forgecode",
+      "recovery_checkpoint": "cf432236e721682a45fc83c3112db31c8dc82d00",
+      "private_backup_ref": ".local/consolidation-20261009/manifest.json",
+      "workspace_write_windows_checks": 12,
+      "workspace_write_wsl_checks": 12,
+      "strict_capabilities_promoted": false,
+      "public_model_calls": 0,
+      "administrator_setup": false,
+      "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+      "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
+      "pull_request": "https://github.com/Titans23/forgecode/pull/1",
+      "archived_old_directories": true,
+      "full_regression": {
+        "collected": 1469,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "windows_source_inventory_hash": "28c00d4802a8a35b54905a4ab1f01b9517eb6355a8f2a7d16396e0339246ad85",
+      "wsl_source_inventory_hash": "3ac4c28ffd5f2868e95aaac0d21c3da8efa2383d2e9fdb533d27e9787c711f19",
+      "main_merged": false,
+      "merge_blocker": "Required dependency-security: two high records for GHSA-86w9-cpqp-85rv; no published patched node-forge release. Current push and PR portable matrices pass.",
+      "implementation_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+      "full_regression_scope": "1469 on 84a2c30, reused because product/runtime/dependency blobs are unchanged; closeout test/workflow coverage is recorded separately.",
+      "closeout_windows_source_inventory_hash": "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e",
+      "closeout_focused_tests": 38
+    },
+    "sandbox_redesign": {
+      "date": "2026-10-09",
+      "status": "workspace_write_implemented_strict_still_blocked",
+      "plan_ref": "sandbox-redesign.md",
+      "adr_ref": "adr/034-sandbox-execution-and-runtime.md",
+      "observations_ref": "evidence/F28-sandbox-design-observations.json",
+      "oobe_requirement_ref": "evidence/F28-sandbox-oobe-observations.json",
+      "implementation_observations_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+      "installation_requirement": "On supported default Windows/Ubuntu desktops, install only ForgeCode; the product supplies dependencies and core tools and performs first-run setup/verification. No manual dependency installation or configuration commands. Normal OS authorization remains required.",
+      "base_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+      "upstream_commits": {
+        "deepseek-ai/deepseek-harness": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+        "earendil-works/pi": "ce950d78f424dcaf9f5d6a03ce80ab141130eb1d"
+      },
+      "next_slice": "Keep main blocked by required dependency security. No additional refactor or sandbox expansion; strict native and F31 remain closed.",
+      "independent_slice": "F31 S5: official environment and trusted host request admission; live gates unchanged",
+      "runtime_code_changed": true,
+      "native_capabilities_promoted": false,
+      "model_calls": 0,
+      "administrator_setup": false,
+      "current_adr_ref": "adr/036-consolidation-and-workspace-write.md"
+    },
+    "gate_notes": {
+      "G1-contracts-engine": "Implementation 84a2c30 Windows regression 1469 pass, contracts2/quality4 pass. Hosted trusted push three portable platforms pass with recomputed reports; dependency security remains blocked.",
+      "G3-desktop-observability": "Actual Windows development Electron132 passes on earlier 242b831 source, separately scoped. Installed/clean native desktop acceptance not rerun.",
+      "G4-evaluation": "Docker resource query cleanup and non-strict refusal implemented/offline tested. WSL current identity cannot access Docker socket; official network and trusted host admission remain incomplete. Windows Docker availability is independent.",
+      "G6-real-experiment": "Actual F31 six controlled interleaved attempts retained with independent tests and negative exploratory result; formal trace/official/holdout/native evidence is missing.",
+      "G2-native-sandbox": "Explicit workspace-write native 12 checks pass separately on Windows10 and WSL. Partial write restriction does not establish strict verified capability; old dynamic .env failure/full cleanup unknown retained.",
+      "G7-release": "Actual dependency security two high; signing/LICENSE and remaining native/official prerequisites remain blocked. Main merge awaits explicit security disposition."
+    }
+  },
+  "lightweight_sandbox": {
+    "status": "local_validation_pass_hosted_pending",
+    "adr_ref": "adr/037-lightweight-sandbox-without-srt.md",
+    "observations_ref": "evidence/F28-lightweight-sandbox-observations-20261010.json",
+    "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+    "windows_native_checks": 19,
+    "wsl_native_checks": 18,
+    "installed_checks": 21,
+    "frozen_checks": 13,
+    "hardened_checks": 13,
+    "installer_checks": 3,
+    "lock_entries_before": 314,
+    "lock_entries_after": 309,
+    "audit_vulnerabilities": 0,
+    "strict": "execution_unavailable",
+    "f31": "deferred",
+    "public_model_calls": 0,
+    "local_administrator_setup": false,
+    "regression_tests": 1467,
+    "regression_warnings": 5
   }
 }

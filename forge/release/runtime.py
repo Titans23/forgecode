@@ -133,7 +133,7 @@ def _verify_asset(root,asset):
         raise ValueError('Resource integrity mismatch: '+value)
     return actual
 
-def verify_manifest(root, *, production=False, target=None, expected_contract=None):
+def verify_manifest(root, *, production=False, target=None, expected_contract=None, engine_worker=False):
     root=Path(root).resolve(strict=True)
     raw=(root/'release-manifest.json').read_bytes()
     if len(raw)>16*1024*1024: raise ValueError('Release manifest exceeds quota')
@@ -156,7 +156,12 @@ def verify_manifest(root, *, production=False, target=None, expected_contract=No
         path=asset['path']
         if path.casefold() in known: raise ValueError('Duplicate release resource')
         known[path.casefold()]=asset
-        _verify_asset(root,asset)
+        # A fixed worker loads the frozen Engine closure, not Electron, Bridge,
+        # private Node or tool bundles. Service startup still verifies everything.
+        if not engine_worker or path.startswith('engine/') or path == 'contracts/manifest.json':
+            _verify_asset(root,asset)
+        else:
+            relative_tool_path(path)
     for name,prefix in [('engine','engine/'+build+'/'),('bridge','bridge/'+build+'/'),('node','runtimes/node/')]:
         a=m.get(name,{})
         if not a.get('path','').startswith(prefix) or known.get(a['path'].casefold())!=a:
@@ -164,7 +169,7 @@ def verify_manifest(root, *, production=False, target=None, expected_contract=No
     for name in ('engine_dependencies','bridge_dependencies','native_helpers','ui_assets'):
         for a in m.get(name,[]):
             if known.get(a['path'].casefold())!=a: raise ValueError('Grouped dependency is absent from inventory')
-    for name in m.get('tools', {}):
+    for name in (() if engine_worker else m.get('tools', {})):
         directory, entries, _ = _installed_tool_group(root, m, name)
         # Every listed byte was verified above. Still reject extra DLLs/links,
         # but do not hash the same complete tool bundle twice per worker launch.

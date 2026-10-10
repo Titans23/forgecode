@@ -1,5 +1,7 @@
 # ForgeCode V4 平台支持与验收状态
 
+2026-10-10 当前范围以 [ADR037](../implementation/adr/037-lightweight-sandbox-without-srt.md) 和 [轻量证据](../implementation/evidence/F28-lightweight-sandbox-observations-20261010.json) 为准：新配置经原生确认使用 workspace-write；Windows10 的 DSH ACL 实测 19 项通过，WSL Ubuntu26.04 的系统 bubblewrap 实测 18 项通过，均只证明所声明的 partial 写入限制。读取和网络沿用宿主权限，动态硬链接不隔离；Windows Node 管道捕获不支持。strict 执行不可用，F31 暂缓。SRT/node-forge 已移除，当前 npm audit 为零漏洞。Ubuntu22.04/24.04 原生 GUI/安装、签名、许可和历史性能缺口仍独立 blocked。下文为各阶段历史，不代表当前默认值、依赖状态或交付资产。
+
 2026-10-09 目录合并后的当前范围：新增显式 `workspace-write`，Windows10 与 WSL Ubuntu26.04 分别完成 12 项原生写入限制检查，能力保持 partial。读取和网络沿用宿主能力，strict 仍默认并遵守原门禁，F31 拒绝两个非 strict 模式。旧目录与安装版结论属于下方历史；当前源码、平台、回归及 CI 状态集中见 [当前交接](../implementation/handoff.md) 和 [ADR036](../implementation/adr/036-consolidation-and-workspace-write.md)。
 
 2026-10-09 新增用户明确选择的桌面 `local-trusted`，用于当前用户权限下的日常执行，UI 持续标明无 OS 隔离。默认 strict、原生验收和 F31 官方环境要求保留。入口见[桌面指南](../install/desktop-quickstart.md)，实现与测试范围见 [ADR035](../implementation/adr/035-optional-desktop-local-execution.md) 和[本轮证据](../implementation/evidence/F28-desktop-local-mode-observations.json)。Linux 代码接入不等于 Linux 安装版已实测。

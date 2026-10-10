@@ -8647,7 +8647,7 @@
     },
     {
       "path": "packaging/verify-installed.mjs",
-      "sha256": "b68fe142017f098dd8ed705d90d7fce36a789e775dc4d145df10f3c344beb58c"
+      "sha256": "c6d88552b287349ae7828a04e9bc20d4b7557270377b26122c6e8c78e8c9cfb6"
     },
     {
       "path": "sandbox_bridge/dist/bubblewrap.js",

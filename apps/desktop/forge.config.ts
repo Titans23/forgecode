@@ -9,7 +9,7 @@ const resources = path.resolve(__dirname, '../../.local/desktop-resources');
 const config: ForgeConfig = {
   outDir: path.resolve(__dirname, '../../.local/desktop-packages'),
   packagerConfig: { asar: true, ...(process.platform==='linux'?{executableName:'forgecode'}:{}),
-    extraResource: [...['ui-assets.json','ui','client','contracts','engine','bridge','runtimes','tools','native-helpers','licenses','sbom','release-manifest.json'].map(name=>path.join(resources,name)),
+    extraResource: [...['ui-assets.json','ui','client','contracts','engine','bridge','runtimes','tools','licenses','sbom','release-manifest.json'].map(name=>path.join(resources,name)),
       ...(process.platform==='linux'?[path.join(resources,'linux')]:[])] },
   hooks: { prePackage: async () => {
     await verifyInstalled(resources);

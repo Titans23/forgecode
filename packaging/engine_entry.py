@@ -10,7 +10,8 @@ def main():
         from forge.release.runtime import verify_manifest
         root=Path(sys.executable).resolve().parents[2]
         identity=json.loads((Path(sys._MEIPASS)/'forge/release/_build_identity.json').read_bytes())
-        manifest=verify_manifest(root,expected_contract=identity['contract_manifest_hash'])
+        worker = len(sys.argv) > 1 and sys.argv[1] in ('process-worker', 'external-worker', 'file-worker')
+        manifest=verify_manifest(root,expected_contract=identity['contract_manifest_hash'],engine_worker=worker)
         if manifest['build_id']!=identity['build_id'] or manifest['database_schema']!=identity['database_schema']:
             raise ValueError('Frozen Engine component version mismatch')
     from forge.engine.__main__ import main as engine_main

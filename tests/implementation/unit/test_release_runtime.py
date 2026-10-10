@@ -40,6 +40,36 @@ def test_missing_resource_is_rejected_with_loader_boundary_error(tmp_path):
     with pytest.raises(ValueError, match='Resource is unavailable'):
         verify_manifest(tmp_path)
 
+
+def test_fixed_worker_verifies_all_engine_bytes_without_reading_unloaded_ui(tmp_path, monkeypatch):
+    import forge.release.runtime as runtime
+    release_tree(tmp_path)
+    original = runtime.digest
+    reads = []
+    def observed(path):
+        reads.append(path.relative_to(tmp_path).as_posix())
+        return original(path)
+    monkeypatch.setattr(runtime, 'digest', observed)
+    assert runtime.verify_manifest(tmp_path, engine_worker=True)
+    assert set(reads) == {'engine/build/forge-engine', 'engine/build/lib.so', 'contracts/manifest.json'}
+    (tmp_path/'ui/index.html').write_bytes(b'changed')
+    assert runtime.verify_manifest(tmp_path, engine_worker=True)
+    with pytest.raises(ValueError, match='integrity'):
+        runtime.verify_manifest(tmp_path)
+    (tmp_path/'engine/build/lib.so').write_bytes(b'changed')
+    with pytest.raises(ValueError, match='integrity'):
+        runtime.verify_manifest(tmp_path, engine_worker=True)
+
+
+def test_fixed_worker_still_rejects_contract_and_group_mismatch(tmp_path):
+    manifest = release_tree(tmp_path)
+    with pytest.raises(ValueError, match='contract'):
+        verify_manifest(tmp_path, engine_worker=True, expected_contract='f'*64)
+    manifest['bridge']['path'] = 'elsewhere/entry.mjs'
+    (tmp_path/'release-manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+    with pytest.raises(ValueError, match='Grouped'):
+        verify_manifest(tmp_path, engine_worker=True)
+
 @pytest.mark.parametrize('field,value',[('protocol','future'),('platform','darwin-x64'),('build_id','other')])
 def test_component_version_mismatch(tmp_path,field,value):
     m=release_tree(tmp_path); m[field]=value
@@ -103,6 +133,39 @@ def test_existing_engine_doctor_json_entry_is_readonly():
     assert report['workspace_tools_executed'] is False
     assert report['status'] in ('pass','blocked')
     assert result.returncode == (0 if report['status']=='pass' else 2)
+
+
+@pytest.mark.parametrize('damage', ['bytes', 'extra', 'duplicate'])
+def test_installed_node_verifier_keeps_tool_closure_checks(tmp_path, damage):
+    import shutil, subprocess
+    manifest = release_tree(tmp_path)
+    entries = []
+    for index in range(20):
+        path = f'tools/git/version/{index}.dll'
+        target = tmp_path/path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        content = f'loadable-{index}'.encode()
+        target.write_bytes(content)
+        entries.append({'path': path, 'sha256': sha256(content).hexdigest(), 'size_bytes': len(content)})
+    manifest['files'].extend(entries)
+    manifest['tools'] = {'git': {'root': 'tools/git/version', 'entry': entries[0]}}
+    file = tmp_path/'release-manifest.json'
+    file.write_text(json.dumps(manifest))
+    module = (Path(__file__).resolve().parents[3]/'packaging/verify-installed.mjs').as_uri()
+    command = [shutil.which('node'), '--input-type=module', '-e',
+        'import {verifyInstalled} from '+json.dumps(module)+';await verifyInstalled(process.argv[1]);', str(tmp_path)]
+    good = subprocess.run(command, capture_output=True, text=True)
+    assert good.returncode == 0, good.stderr
+    if damage == 'bytes':
+        (tmp_path/entries[-1]['path']).write_bytes(b'tampered')
+    elif damage == 'extra':
+        (tmp_path/'tools/git/version/unlisted.dll').write_bytes(b'extra')
+    else:
+        manifest['files'].append(dict(entries[-1]))
+        file.write_text(json.dumps(manifest))
+    bad = subprocess.run(command, capture_output=True, text=True)
+    assert bad.returncode != 0
+    assert any(word in bad.stderr for word in ('integrity', 'inventory', 'conflict'))
 
 def test_actual_external_worker_preserves_no_bytecode_verification(tmp_path):
     import os,subprocess

@@ -121,7 +121,7 @@ class WorkspaceWriteBackend:
             'dns_isolation': False, 'socket_isolation': False, 'process_cleanup': True,
             'resource_enforcement': {name:'unavailable' for name in ('memory','disk','pids')}, 'readiness': 'ready',
             'issues': ['Partial write restriction; reads and network inherit host access',
-                       'Ambient ACL and hard-link limitations remain' if sys.platform == 'win32' else 'Write allowlist uses an owned bubblewrap mount namespace'],
+                       'Ambient ACL and hard-link limitations remain; Node/libuv piped grandchildren are unsupported (use inherited or file stdio)' if sys.platform == 'win32' else 'Write allowlist uses an owned bubblewrap mount namespace; dynamic hard links are not inode-isolated'],
             'measured_at_utc': datetime.now(timezone.utc).isoformat().replace('+00:00','Z'), 'verification': verification})
         self._prepared = snapshot
         return {'sandbox_session_id': self.owner['sandbox_session_id'], 'policy_hash': snapshot.sha256,

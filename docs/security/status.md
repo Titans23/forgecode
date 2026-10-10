@@ -1,6 +1,8 @@
 # 开发版本安全与发布状态
 
-当前 channel 为 unsigned `developer-preview`。生产发布受到原生平台验收、依赖安全、签名及项目 LICENSE 条件阻挡；验证开发目录和安装包构建不建立生产信任。
+当前 channel 为 unsigned `developer-preview`。生产发布受到原生平台验收、签名及项目 LICENSE 条件阻挡；验证开发目录和安装包构建不建立生产信任。
+
+2026-10-10 轻量方案更新：SRT 与 node-forge 已从依赖和交付资源移除，干净安装依赖树及完整 npm audit 复核为零漏洞，不采用忽略公告或降级。新桌面配置经原生确认选择 workspace-write；Windows 为 DSH ACL，Linux 直接使用系统 bubblewrap。strict 保留历史入口但执行不可用；F31 暂缓且正式实验关闭。读取、网络、动态硬链接以及 Windows Node 管道限制如实保留。当前验证范围与未解决事项见 [轻量方案证据](../implementation/evidence/F28-lightweight-sandbox-observations-20261010.json) 和 [当前交接](../implementation/handoff.md)。下文保留此前安全审计和设计历史，不代表当前依赖状态。
 
 2026-10-10 收尾复核：当前 push/PR 三平台 portable 全通过；mandatory dependency-security 仍报告2条high，main保持未合入。上游 node-forge 公告尚无已发布修复版，未屏蔽审计、降级依赖或降低验收标准。详细报告与未开放能力见 [收尾证据](../implementation/evidence/F28-F31-closeout-observations-20261010.json)。
 

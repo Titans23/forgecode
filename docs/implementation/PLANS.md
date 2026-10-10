@@ -27,4 +27,6 @@
 
 ## 2026-10-09 当前合并实施
 
+2026-10-10 后续按用户批准的轻量方案与 [ADR037](adr/037-lightweight-sandbox-without-srt.md) 实施：移除 SRT/node-forge，新桌面配置经原生确认使用 workspace-write；strict 仅保留不可执行兼容入口，F31 暂缓。下段保留目录合并范围，当前验证以 progress/handoff 顶部为准。
+
 本轮按用户批准的 [合并与减重方案](consolidation-plan.md) 和 [ADR036](adr/036-consolidation-and-workspace-write.md) 接续。活动目录统一为 Windows `D:\projects\forgecode` 与 WSL `/home/titans/learn_project/forgecode`，旧 V4 目录已归档。整合分支 `codex/forgecode-consolidation` 完成验收后正常合入 main，不强推。资源不足的能力保持关闭；回归失败及未通过的依赖安全检查如实保留，合入条件以用户本轮计划和实际 CI 为准。

@@ -1,0 +1,58 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261010T075458Z-9683d112",
+  "task_id": "F28",
+  "case_ids": [
+    "N23"
+  ],
+  "suite": "quality",
+  "git_commit": "f1cda0f23cd6b4e85992c4ccaf310f37f8919bc5",
+  "dirty_hash": "fecbb010490a24a85fd89830d3cf2b009b46736a593707d5266801f6056f7957",
+  "source_inventory_hash": "fda660701fc1157ddb934af73287e75d374e3850cccee038b70ef15f2de113ad",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "ac23f5737c447f934913994025b74a60fcc536eaf775d4afcb350dbb5eeff19a",
+    "release-lock.json": "690710b828fdf7d0d8c68dfe7317ce7a354a1ee8421308da03ee58bec23fefd8"
+  },
+  "command": [
+    "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\projects\\forgecode\\scripts\\ci_checks.py",
+    "--suite",
+    "quality",
+    "--output",
+    "D:\\projects\\forgecode\\.local\\implementation\\20261010T075458Z-9683d112\\packaging.json",
+    "--prepared-source-hash",
+    "fda660701fc1157ddb934af73287e75d374e3850cccee038b70ef15f2de113ad"
+  ],
+  "start": "2026-10-10T07:54:58.251377+00:00",
+  "preparation_commands": [
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "fda660701fc1157ddb934af73287e75d374e3850cccee038b70ef15f2de113ad",
+  "end": "2026-10-10T07:55:20.115955+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261010T075458Z-9683d112/stdout.log",
+  "stderr_ref": ".local/implementation/20261010T075458Z-9683d112/stderr.log",
+  "report_ref": ".local/implementation/20261010T075458Z-9683d112/packaging.json",
+  "report_hash": "28c41bef93ee1939db03997bcc6b4b621656b64d4d89df5ced844b8d8e919dcf",
+  "status": "pass",
+  "tests": {
+    "scope": "actual quality commands",
+    "checks": 4
+  }
+}

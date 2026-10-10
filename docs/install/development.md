@@ -1,6 +1,6 @@
 # ForgeCode 开发版本使用与构建
 
-整合分支为 `codex/forgecode-consolidation`，验收后主线为 `main`；在合并完成前，新功能请使用整合分支。现有 `forge` CLI 和 Python Harness 继续使用；V4 增加 Electron 客户端、私有 stdio Engine、Bridge/FileWorker、Journal/SQLite 可观测性和 bundle 评测协议。当前提交为可测试开发版本，生产发布受阻，详见 [支持矩阵](../platforms/support-matrix.md) 与 [最终验收报告](../implementation/final-report.md)。
+日常开发主线为 `main`。本次整合由 [PR #1](https://github.com/Titans23/forgecode/pull/1) 进入主线；若该 PR 尚未合并，测试本次变更需先切换 `codex/forgecode-consolidation`。现有 `forge` CLI 和 Python Harness 继续使用；V4 增加 Electron 客户端、私有 stdio Engine、Bridge/FileWorker、Journal/SQLite 可观测性和 bundle 评测协议。当前提交为可测试开发版本，生产发布受阻，详见 [支持矩阵](../platforms/support-matrix.md) 与 [最终验收报告](../implementation/final-report.md)。
 
 ## 从源码验证
 
@@ -9,7 +9,7 @@
 需要锁定的 Python 3.12.13、Node 24.21.0，以及兼容的 npm 和 uv。实际版本与资产摘要见 `release-lock.json`；开发测量还须记录当前 PATH 的实际工具版本。在仓库根目录执行：
 
 ```text
-git clone --branch codex/forgecode-consolidation --single-branch https://github.com/Titans23/forgecode.git
+git clone --branch main https://github.com/Titans23/forgecode.git
 cd forgecode
 uv python install 3.12.13
 uv sync --locked --all-groups --all-extras
@@ -22,19 +22,19 @@ uv run --no-sync python -m forge.testing.demo --output-dir .local/user-demo
 
 demo 输出目录必须是新目录。它复制受控 fixture，启动真实 Engine，执行现有 Harness 的读取、修改与测试，写入 Journal/SQLite 并保留 evidence。模型使用 offline scripted profile，没有模型 API 请求。运行自己的仓库 CLI 会使用配置的模型连接。当前升级已得到用户明确真实模型授权，金额预算无上限；自动测试与 demo 仍保持离线，实际请求需显式选择对应真实实验入口并保留有限请求、工具和时间预算。
 
-Engine 入口是 `python -m forge.engine --data-dir .local/user-engine --profile desktop`，通过 stdin/stdout 通信；它没有 `serve` 或 `--transport` 参数。通常由 Electron Main Supervisor 启动。默认 strict 模式会在 SRT 边界证据不完整时拒绝工作，并保留真实清理状态。
+Engine 入口是 `python -m forge.engine --data-dir .local/user-engine --profile desktop`，通过 stdin/stdout 通信；它没有 `serve` 或 `--transport` 参数。通常由 Electron Main Supervisor 显式传入已确认模式。未指定模式的兼容入口保持 strict 且拒绝执行，不自动降级。
 
 ## 当前开发目录与执行模式
 
 Windows 使用 `D:\projects\forgecode`，WSL 使用 `/home/titans/learn_project/forgecode`，各自维护 `.venv`、`node_modules`、运行目录与原生证据。归档目录只用于恢复，不作为启动入口。
 
-桌面默认 `strict`。在“环境诊断 → 切换执行模式…”中，用户可以经原生对话框选择“原生沙盒：写入限制”（`workspace-write`）或“本机执行 · 无 OS 隔离”（`local-trusted`）。切换需要任务停止、引擎关闭和清理确认，再重启；旧会话策略保持原义，新模式新建会话。写入限制模式读取与网络仍沿用宿主权限，Windows ACL 的已知例外会显示为有限能力；初始化失败拒绝执行。正式 F31 只接受 strict Harbor/Docker。
+新桌面配置经首次原生确认后保存 `workspace-write`，取消仅浏览；已有偏好不改写。在“环境诊断 → 切换执行模式…”中仍可选择高级 `local-trusted`。切换要求停止任务、关闭、确认清理并重启；旧会话保持原策略。轻量边界、Windows Node 管道子进程及硬链接限制见 [ADR037](../implementation/adr/037-lightweight-sandbox-without-srt.md)。F31 暂缓，正式实验保持关闭。
 
 一次离线 CI 批次使用 `uv run --no-sync python scripts/ci_run.py --layer portable`：先准备一次构建，后续 contracts、quality、unit、portable 复用产物并只读核验清单。单独运行 `impl.py verify --suite ...` 仍自行准备。不要在验证批次运行期间修改源码或清单；源码摘要变化会使结果失效。
 
 ## 构建开发客户端
 
-`npm ci --ignore-scripts` 后需要显式下载锁定 Electron 发行文件，并恢复私有 Node 与 SRT 资产。下列入口不运行管理员 SRT setup，也不改写 `release-lock.json`；已有资产被修改时拒绝继续，先审查实际完整性错误。
+`npm ci --ignore-scripts` 后需要显式下载锁定 Electron 发行文件，并恢复私有 Node/核心工具资产。下列入口不运行管理员设置，也不改写 `release-lock.json`；已有资产被修改时拒绝继续，先审查实际完整性错误。Linux 轻量执行另需系统 bubblewrap。
 
 ```text
 node node_modules/electron/install.js
@@ -59,7 +59,7 @@ uv run --no-sync python scripts/impl.py verify --suite hardened
 
 ## 凭证、恢复与评测
 
-F31 在本机独立 WSL 目录接续，Docker socket 访问仍受阻。PR #1 合入 main 前继续整合分支；`resume_f31.py` 的日常目标已改为 main，此时不要用它覆盖已有工作区。完整步骤见 [F31 跨机交接](../experiments/F31-wsl-handoff.md)。
+F31 按用户决定暂缓，正式实验关闭，轻量模式不能解除其门禁。WSL 保留独立目录和依赖；`resume_f31.py` 的日常目标为 main，但本轮不运行该实验接续入口。历史资源缺口见 [F31 跨机交接](../experiments/F31-wsl-handoff.md)。
 
 客户端连接管理由 Main credential broker 管理，Renderer 不提供密钥读回。系统存储不可用或 Linux 返回 basic_text/unknown 时使用内存模式；受控开发 helper roundtrip 不替代目标平台 keystore 验收。不要将 `.env`、连接密钥、个人 session/data 目录提交 GitHub。
 

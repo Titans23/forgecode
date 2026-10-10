@@ -1,7 +1,6 @@
 """Create an actual owned Bridge/file boundary per accepted turn, before any model request."""
 import asyncio
 from pathlib import Path
-import sys
 from forge.application.models import ContractError,canonical_hash,validate
 from forge.sandbox.file_client import FileWorkerClient
 from forge.sandbox.srt_backend import SrtBackend
@@ -18,9 +17,6 @@ class NativeBackendFactory:
 
     @property
     def protected_roots(self):
-        if sys.platform=='win32' and self.mode=='strict':
-            from forge.sandbox.windows_worker import windows_worker_root
-            return (self.data_dir,windows_worker_root())
         return (self.data_dir,)
 
     def check_request(self,policy,*,required_mode):

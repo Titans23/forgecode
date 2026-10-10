@@ -26,11 +26,12 @@ def verify(output):
         return {'status': 'fail', 'reason': 'Actual Forge packaging failed', 'exit_code': built.returncode, 'checks': []}
     executable = ROOT / '.local/desktop-packages' / f'ForgeCode-{sys.platform}-x64' / ('ForgeCode.exe' if sys.platform == 'win32' else 'forgecode')
     profiles = []
-    for mode in ('strict', 'local-trusted'):
+    modes = ('strict', 'local-trusted', 'workspace-write')
+    for mode in modes:
         directory = output.parent / ('mode-' + mode + '-' + uuid4().hex)
         data = directory / 'desktop-data'
         data.mkdir(parents=True)
-        if mode == 'local-trusted':
+        if mode != 'strict':
             # Isolated inspection preference, not a user selection or native sandbox proof.
             (data / 'execution-mode.json').write_text(json.dumps({
                 'schema_version': 'forge.desktop.execution-mode.v1', 'mode': mode}), encoding='utf-8')
@@ -44,7 +45,7 @@ def verify(output):
         profiles.append(report)
     return {'status': 'pass' if all(profile['status'] == 'pass' for profile in profiles) else 'fail',
         'scope': 'installed-readonly-preview', 'eligible_for_native_pass': False, 'profiles': profiles,
-        'checks': [{**check, 'id': mode + ':' + check['id']} for mode, profile in zip(('strict', 'local-trusted'), profiles)
+        'checks': [{**check, 'id': mode + ':' + check['id']} for mode, profile in zip(modes, profiles)
                    for check in profile['checks']]}
 
 

@@ -2,7 +2,25 @@
 
 最新入口在本页顶部；阶段历史保留于下文及 `archive/handoff-72d7fb8-20261008.md`。progress、backlog、任务卡与实际 evidence 保留全部引用，历史通过不替代当前源码验证。
 
-## 收尾状态（2026-10-10）
+## 轻量沙盒实施与提交前验证快照（2026-10-10）
+
+接续核验：旧任务为空闲，沿用已在运行的全量回归，没有重复启动。`20261010T081727Z-8403b440` 已完成并按实际 JUnit／报告哈希复算：Windows **1467 pass / 0 fail / 0 error / 0 skip**，耗时 1550.37 秒；源码指纹仍为 `91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53`，与最终 contracts／quality／security 相同。5 条警告完整保留，包括两条 Windows 子进程 UTF-8 解码线程警告；不宣称零警告，也未放宽断言或重跑到绿。GitHub 远端 main 与 PR head 尚未前进，本批提交后仍须实际 hosted CI 通过才能正常合并。
+
+当前执行方案见 [ADR037](adr/037-lightweight-sandbox-without-srt.md)，当前证据集中在 [轻量观测](evidence/F28-lightweight-sandbox-observations-20261010.json) 与 [progress](progress.json)。Windows 唯一活动目录仍为 `D:\projects\forgecode`，WSL 为 `/home/titans/learn_project/forgecode`；迁移补丁已纳入，不再重新迁移或开展结构重构。用户允许清除旧会话和数据，本轮没有需要清除的情况，凭据和私有数据未提交。
+
+SRT 与 node-forge 已彻底移出运行依赖、干净安装依赖树和实际安装资源，完整 npm audit 为零漏洞。Windows 保留锁定 DSH ACL runner；Linux 直接 argv 调用系统 bubblewrap，没有自动回退。新桌面配置首次经原生确认保存 workspace-write，取消只读；已有偏好不改写。strict 保留旧策略语义和兼容入口，但执行不可用。Harness、CLI、研究工作台、审批和请求／工具／输出／时间预算保留。F31 按用户决定暂缓，正式实验关闭并拒绝两种非 strict 模式。
+
+本轮实际发现并修复三项问题：strict 工厂残留已删除账户目录函数的引用；冻结 worker 每次重复校验无关桌面／工具资产；Main 首次启动串行且重复读取整包。最后一项在新目录对照中 90 秒超时，Main 已读取约 977 MB 而未启动 Engine；修复后每个文件仍校验路径、链接、字节数与哈希，最多 8 个并发，仍拒绝额外 DLL／链接，取消重复哈希，不跨启动缓存。新目录实际 47.7 秒内完成全部检查，Main 读取约 555 MB。时间测量没有控制 OS 缓存和背景负载，不当作一般性能基准；旧失败保留，启动／任务超时未延长。
+
+Windows 实际轻量检查 19 项、WSL Ubuntu26.04/bubblewrap0.11.1 检查 18 项通过，分别保留平台和源码指纹；安装版三模式 21 项、冻结 Engine13、加固13、安装构建及内容检查3 项通过。Windows/WSL 的完整性故障检查各29项，strict 工厂兼容检查各13项通过。原 expired-ack 断言和超时不变，WSL 原 HTTP21 项通过；开发桌面132项保留本轮前一源码快照，不与后续检查重复计数。最终 contracts2、quality4、security1 与全量回归1467通过。
+
+当前安装包为 unsigned developer-preview，build `light-sandbox-final-20261010`，最终资源 manifest SHA-256 为 `aec85ee16100b748f632949166ac646d87f6c7d12720a2b0bab02c75e9392f25`。Setup 372682752 bytes，SHA-256 `fe1032a01efd470dfa94f2e71ba42c8d6f72bc69ad6e42f9ec85e7af97f20032`；只生成并检查包，未运行本机管理员安装。实际冻结流程使用 scripted loopback，公网模型调用为零。
+
+写入限制仍为 partial。Windows Node/libuv 默认管道捕获子进程实际 EPERM，明确不支持；继承流或文件输出可用。Linux 动态硬链接确实可修改外部同 inode 文件，不声明 inode 隔离。读取与网络沿用宿主权限；文件工具仍拒绝敏感／链接路径。临时资源按实际进程、授权撤销和目录不存在判断，无法核实为 unknown，工作区常驻授权另记。历史普通任务15秒基线等待未复现，不能借本次打包修复宣称解决；历史5.210340492313925%观测开销仍超过原5%门槛。Ubuntu22.04/24.04 原生 GUI／干净安装、签名、项目 LICENSE 仍独立 blocked，WSL/CI 不替代它们。
+
+整合使用 `codex/forgecode-consolidation`，前两批提交为 `ac9e377` 和 `f1cda0f`；第三批包含实际验收、必要修复和集中证据更新。此页为提交前快照，最终提交、CI 和 main 合并状态以 [PR #1](https://github.com/Titans23/forgecode/pull/1) 为准。只在完整回归和规定 hosted 检查通过后按已有授权正常合并，不强推或豁免安全检查。之后日常主线为 main，不恢复 F31 自动实验。
+
+## 收尾状态（2026-10-10，轻量方案前的历史）
 
 修复提交 `0fcdcbf` 已推送至整合分支，[PR #1](https://github.com/Titans23/forgecode/pull/1) 保持草稿，main 尚未合入。范围仅为 expired-ack 回归、当前 PR 的 Ubuntu CI helper 权限和安全门禁；未继续重构或重新规划。
 

@@ -10,7 +10,7 @@ function toolPath(value) {
   }
   return value;
 }
-export async function verifyToolFiles(directory, entries) {
+async function verifyToolTree(directory, entries) {
   if((await lstat(directory)).isSymbolicLink())throw new Error('Tool inventory cannot contain links');
   const actual=[];
   async function walk(path, prefix='') {
@@ -24,6 +24,9 @@ export async function verifyToolFiles(directory, entries) {
   }
   await walk(directory);
   if(JSON.stringify(actual.sort())!==JSON.stringify(entries.map(a=>toolPath(a.path)).sort()))throw new Error('Tool directory inventory mismatch');
+}
+export async function verifyToolFiles(directory, entries) {
+  await verifyToolTree(directory, entries);
   for(const asset of entries) {
     const bytes=await readFile(resolve(directory,asset.path));
     if(bytes.length!==asset.size_bytes||digest(bytes)!==asset.sha256)throw new Error('Tool resource integrity mismatch');
@@ -62,14 +65,18 @@ export async function verifyInstalled(root,{target=process.platform+'-'+process.
   for(const a of m.files) {
     if(typeof a.path!=='string'||!a.path||isAbsolute(a.path)||a.path.includes('\\')||a.path.includes(':')||a.path.split('/').includes('..')||
        known.has(a.path.toLowerCase())) throw new Error('Release asset path/conflict');
+    known.set(a.path.toLowerCase(),a);
+  }
+  // Bound disk work while checking every byte; cold installs must not serialize
+  // thousands of independent metadata/read operations on the Main startup path.
+  for(let offset=0;offset<m.files.length;offset+=8) await Promise.all(m.files.slice(offset,offset+8).map(async a=>{
     const p=resolve(root,a.path), actual=await realpath(p),part=relative(root,actual);
     if(part==='..'||part.startsWith('..'+sep)||isAbsolute(part)) throw new Error('Release link escaped trusted root');
     const st=await lstat(p), link=st.isSymbolicLink()?await readlink(p):undefined;
     if(link!==a.symlink) throw new Error('Release link inventory mismatch');
     const bytes=await readFile(actual);
     if(bytes.length!==a.size_bytes||digest(bytes)!==a.sha256) throw new Error('Release asset integrity mismatch: '+a.path);
-    known.set(a.path.toLowerCase(),a);
-  }
+  }));
   const same=a=>a&&JSON.stringify(known.get(a.path?.toLowerCase()))===JSON.stringify(a);
   for(const [key,prefix] of [['engine','engine/'+m.build_id+'/'],['bridge','bridge/'+m.build_id+'/'],['node','runtimes/node/']]) {
     if(!m[key]?.path.startsWith(prefix)||!same(m[key])) throw new Error('Release grouped component mismatch');
@@ -82,7 +89,8 @@ export async function verifyInstalled(root,{target=process.platform+'-'+process.
     if(!['powershell','git','ripgrep'].includes(name)||!toolPath(tool.root).startsWith(prefix)||
         !tool.entry?.path.startsWith(tool.root+'/')||!same(tool.entry))throw new Error('Invalid installed tool group');
     const directory=tool.root+'/';
-    await verifyToolFiles(resolve(root,tool.root),m.files.filter(a=>a.path.startsWith(directory)).map(a=>({...a,path:a.path.slice(directory.length)})));
+    // Tool bytes were hashed above; still reject extra files and all tool links.
+    await verifyToolTree(resolve(root,tool.root),m.files.filter(a=>a.path.startsWith(directory)).map(a=>({...a,path:a.path.slice(directory.length)})));
   }
   if(known.get('contracts/manifest.json')?.sha256!==m.contract_manifest_hash) throw new Error('Release contract mismatch');
   return m;

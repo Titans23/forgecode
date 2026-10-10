@@ -1,5 +1,7 @@
 # ForgeCode 沙盒改进方案：参考 DSH 与 Pi
 
+2026-10-10 当前范围由用户批准的 [ADR037](adr/037-lightweight-sandbox-without-srt.md) 取代：新配置经原生确认使用 workspace-write，Linux 直接调用 bubblewrap，SRT/node-forge 移除，strict 仅保留不可执行兼容入口，F31 暂缓。当前验证与待办以 [handoff](handoff.md)、progress 和轻量观测为准。下文保留历史方案，不据此重启强隔离实现或系统账户设置。
+
 2026-10-09 当前决定：按用户批准的轻量方案新增显式 `workspace-write`，保留 strict 默认与旧门禁。Windows 使用锁定 DSH ACL runner，Linux 使用现有 SRT/bwrap；没有自动回退。当前实现、能力限制与清理证据以 [ADR036](adr/036-consolidation-and-workspace-write.md)、[整合记录](consolidation-plan.md) 和 progress 为准。下文“DSH 不进入 P0”等范围限制为旧阶段决策，已由本次明确模式选择替代。
 
 日期：2026-10-08。状态：**S1 供应与首次使用代码已落地，完整原生准入和干净系统验收仍未完成**。Windows 私有 PowerShell/Git/ripgrep 已实际启动；Ubuntu 安装依赖和应用专属配置已有代码，尚无目标系统实测。本机已按现有授权完成一次 SRT 系统初始化；后续原生验证失败/超时，未提升任何能力，模型请求为零。实施证据集中于 [S1 检查索引](evidence/F28-sandbox-s1-observations.json)。决策摘要见 [ADR034](adr/034-sandbox-execution-and-runtime.md)，产品约束仍以 [主规范](forgecode-v4.md) 第 11、12、17、20、21 章为准。

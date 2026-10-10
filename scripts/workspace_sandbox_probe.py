@@ -10,6 +10,7 @@ import platform
 import sys
 import subprocess
 import tempfile
+from time import perf_counter
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,12 +38,12 @@ def fixture():
     return root, workspace, policy, WorkspaceWriteBackend(workspace,owner,root/'control')
 
 
-async def command(backend, script, *, seconds=20, cancel=False, environment=None):
+async def command(backend, script, *, seconds=20, cancel=False, environment=None, output_limit=65536):
     identity = new_id('exec')
     spec = {'mode':'argv','argv':[str(backend.runtime.node),'-e',script],
         'cwd':backend.workspace['canonical_path'],'environment':environment or {},
         'deadline_utc':(datetime.now(timezone.utc)+timedelta(seconds=seconds)).isoformat().replace('+00:00','Z'),
-        'output_limit_bytes':65536,'stdin_base64':base64.b64encode(b'task-stdin').decode()}
+        'output_limit_bytes':output_limit,'stdin_base64':base64.b64encode(b'task-stdin').decode()}
     chunks = {'stdout':bytearray(),'stderr':bytearray()}
     async def drain():
         ended = set()
@@ -72,7 +73,9 @@ async def probe():
         report['checks'].append({'name':name,'status':'pass' if condition else 'fail',**facts})
         if not condition: raise AssertionError(name)
     try:
+        started = perf_counter()
         prepared=await backend.prepare(policy)
+        report['prepare_seconds'] = perf_counter() - started
         report['capabilities']=prepared['capabilities']
     except Exception as error:
         report.update(status='blocked',reason=str(error))
@@ -101,16 +104,76 @@ async def probe():
         script="const fs=require('node:fs');let denied=false;try{fs.writeFileSync("+json.dumps(str(outside))+",'escape')}catch{denied=true};console.log(denied)"
         status,output,cleanup=await command(backend,script)
         check('ordinary sibling file write is denied',status['exit_code']==0 and output['stdout'].strip()=='true' and outside.read_text()=='untouched')
+        async def echo(reader, writer):
+            try:
+                data=await asyncio.wait_for(reader.readexactly(5),5)
+                writer.write(data);await writer.drain()
+            finally:
+                writer.close();await writer.wait_closed()
+        server=await asyncio.start_server(echo,'127.0.0.1',0)
+        try:
+            port=server.sockets[0].getsockname()[1]
+            script="const s=require('node:net').connect("+str(port)+",'127.0.0.1',()=>s.write('hello'));s.on('data',d=>{console.log(d.toString());s.end()});s.on('error',()=>process.exit(2));"
+            status,output,cleanup=await command(backend,script)
+            check('host loopback network inherited without public traffic',status['exit_code']==0 and output['stdout'].strip()=='hello' and cleanup['state']=='clean')
+        finally:
+            server.close();await server.wait_closed()
+        if sys.platform=='win32':
+            outside_dir=root/'outside-dir';outside_dir.mkdir()
+            junction=project/'junction'
+            made=subprocess.run([str(Path(os.environ['SystemRoot'])/'System32/cmd.exe'),'/d','/c','mklink','/J',str(junction),str(outside_dir)],capture_output=True)
+            check('native private junction fixture created',made.returncode==0,exit_code=made.returncode)
+            try:
+                status,output,cleanup=await command(backend,"try{require('node:fs').writeFileSync('junction/escape','bad');console.log('writable')}catch{console.log('denied')}")
+                check('junction cannot write outside workspace',output['stdout'].strip()=='denied' and not (outside_dir/'escape').exists())
+            finally:
+                junction.rmdir()
         link=project/'linked.txt';os.link(outside,link)
         try: await client.request('tool',name='write_file',arguments={'path':'linked.txt','content':'escape'})
         except ContractError as error: check('file tool refuses hard links',error.kind in ('POLICY_DENIED','STALE_FILE'))
         else: check('file tool refuses hard links',False)
+        # Observe the documented inode-alias limitation without touching user data.
+        status,output,cleanup=await command(backend,"const fs=require('node:fs');try{fs.writeFileSync('linked.txt','alias-write');console.log('writable')}catch{console.log('denied')}")
+        report['hardlink_shell_observation'] = {'outcome':output['stdout'].strip(), 'outside_changed':outside.read_text()!='untouched',
+            'limitation':'Partial write boundary; dynamically introduced hard links are not an inode isolation guarantee'}
         link.unlink()
+        outside.write_text('untouched',encoding='utf-8')
+        started = perf_counter()
+        workload = """const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
+const [git,python]=ARGS;
+function run(exe,args){const out=fs.openSync('child-output.txt','w');let r;try{r=cp.spawnSync(exe,args,{stdio:['ignore',out,out],timeout:10000});}finally{fs.closeSync(out)}const text=fs.readFileSync('child-output.txt','utf8');if(r.status!==0)throw Error(JSON.stringify({exe,args,status:r.status,error:r.error?.code,output:text}));return text;}
+fs.writeFileSync('test_fixture.py','import unittest\\nclass TestFixture(unittest.TestCase):\\n def test_add(self): self.assertEqual(2+3,5)\\n');
+run(git,['init','--quiet']);run(git,['add','test_fixture.py']);run(git,['-c','user.name=ForgeFixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false','commit','--quiet','-m','offline fixture']);
+fs.appendFileSync('test_fixture.py','# modified\\n');if(!run(git,['diff','--','test_fixture.py']).includes('modified'))throw Error('git diff missing');
+run(python,['-m','unittest','test_fixture']);
+run(process.execPath,['-e',"require('node:fs').mkdirSync('dist');require('node:fs').writeFileSync('dist/result.json',JSON.stringify({sum:2+3}))"]);
+if(JSON.parse(fs.readFileSync('dist/result.json')).sum!==5)throw Error('build result');
+for(const key of ['npm_config_cache','PIP_CACHE_DIR','UV_CACHE_DIR','XDG_CACHE_HOME']){const p=process.env[key];if(!p||!p.startsWith(process.env.TEMP+path.sep))throw Error('cache escaped');fs.mkdirSync(p,{recursive:true});fs.writeFileSync(path.join(p,'probe'),'cache');}
+console.log('git-python-node-build-ok');""".replace('ARGS',json.dumps([str(backend.runtime.tools['git']) if sys.platform=='win32' else '/usr/bin/git',sys.executable]))
+        status,output,cleanup=await command(backend,workload,seconds=30)
+        report['workload_seconds'] = perf_counter()-started
+        check('offline Git commit/diff, Python tests, Node child build with file stdio and private caches',status['exit_code']==0 and 'git-python-node-build-ok' in output['stdout'] and cleanup['state']=='clean',output=output,cleanup=cleanup)
+        status,output,cleanup=await command(backend,"const r=require('node:child_process').spawnSync(process.execPath,['-e',\"console.log('pipe-child')\"],{encoding:'utf8'});console.log(JSON.stringify({status:r.status,error:r.error?.code??null,output:r.stdout??null}))")
+        pipe=json.loads(output['stdout'])
+        report['node_pipe_stdio']={'status':'blocked' if pipe['error'] else 'pass','observation':pipe,
+            'reason':'Pinned DSH WRITE_RESTRICTED denies libuv named-pipe client writes; inherited/file stdio is supported' if pipe['error'] else None}
+        check('Node piped-grandchild limitation matches declared platform capability',status['exit_code']==0 and
+            (pipe['error']=='EPERM' if sys.platform=='win32' else pipe=={'status':0,'error':None,'output':'pipe-child\n'}))
+        status,output,cleanup=await command(backend,"process.stdout.write('x'.repeat(10000));process.exitCode=7",output_limit=128)
+        check('exit code and output budget survive native dispatcher',status['exit_code']==7 and len(output['stdout'])<=128 and status['discarded_bytes']>0 and cleanup['state']=='clean')
+        if sys.platform=='linux':
+            (project/'linked-path').symlink_to(outside)
+            status,output,cleanup=await command(backend,"try{require('node:fs').writeFileSync('linked-path','escape');console.log('writable')}catch{console.log('denied')}")
+            check('symlink does not bypass read-only outside mount',output['stdout'].strip()=='denied' and outside.read_text()=='untouched')
+            (project/'linked-path').unlink()
         script="const {spawn}=require('node:child_process');let c=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});c.on('spawn',()=>console.log('child-started'));setInterval(()=>{},1000);"
         status,output,cleanup=await command(backend,script,cancel=True)
         check('cancel reconciles owned parent and descendants',cleanup['state']=='clean',state=status['state'],cleanup=cleanup)
         status,output,cleanup=await command(backend,script,seconds=4)
         check('timeout reconciles owned parent and descendants',status['state']=='indeterminate' and cleanup['state']=='clean' and 'child-started' in output['stdout'],cleanup=cleanup)
+        script="const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});c.unref();console.log('parent-exiting');"
+        status,output,cleanup=await command(backend,script)
+        check('parent exit reconciles detached child',status['exit_code']==0 and 'parent-exiting' in output['stdout'] and cleanup['state']=='clean',cleanup=cleanup)
         cleanup=await client.close()
         check('close confirms process and temporary resource absence',cleanup['state']=='clean' and not list(backend.control_root.glob('temp-exec-*')),cleanup=cleanup)
         report['status']='pass'

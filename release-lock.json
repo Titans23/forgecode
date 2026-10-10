@@ -398,7 +398,7 @@
       "name": "bridge-runtime-manifest",
       "platform": "all",
       "path": "sandbox_bridge/runtime-manifest.json",
-      "sha256": "3a5d0da759b51188486c1f9b3a9f6cf6bb7d7d0461cd16550542ab354ad35248",
+      "sha256": "cca430a0278a577c7edfdd774388923bb1c0146a9f542bc10ecfe5eec290be59",
       "source": "ForgeCode locked runtime code inventory",
       "license": "NOASSERTION",
       "patches": []
@@ -409,9 +409,10 @@
     "package-lock.json": "ac23f5737c447f934913994025b74a60fcc536eaf775d4afcb350dbb5eeff19a"
   },
   "security": {
-    "status": "not_run",
+    "status": "pass",
     "advisories": [],
-    "reason": "Dependency closure changed; mandatory audit must be rerun."
+    "reason": "Actual npm audit on 2026-10-10: 0 vulnerabilities. SRT and node-forge removed; clean npm ci tree checked.",
+    "lockfile_sha256": "ac23f5737c447f934913994025b74a60fcc536eaf775d4afcb350dbb5eeff19a"
   },
   "platform_requirements": {
     "win32-x64": [
