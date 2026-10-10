@@ -1,0 +1,780 @@
+{
+  "schema_version": "forge.closeout.observations.v1",
+  "recorded_at_utc": "2026-10-10T02:50:01.926137+00:00",
+  "status": "portable_closeout_verified_main_blocked_by_required_security",
+  "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+  "pull_request": "https://github.com/Titans23/forgecode/pull/1",
+  "main_merged": false,
+  "scope": "Expired ACK regression, current same-repository Ubuntu PR helper permission and unchanged security gate only",
+  "expired_ack": {
+    "failed_push": 37925692306,
+    "failed_head": "482edd6cd98dc6f4383101fbb46606ebc01a77e3",
+    "failed_case": "test_actual_desktop_and_http_transports_share_task_dtos_reducer_and_durable_reconciliation[expired-ack]",
+    "original_assertion": "Expired ack must rebuild the actual snapshot",
+    "root_cause": "The snapshot loop could already consume turn.finished, but another events() call acknowledged that terminal batch before the explicit expiry phase. With no pending ACK, the server correctly had nothing to reject or recover.",
+    "change": "Stop event consumption after the terminal event in both polling loops; preserve its pending ACK for the existing expiry phase. Also require the real server response to contain INVALID_CURSOR.",
+    "original_assertions_preserved": true,
+    "timeouts_changed": false,
+    "product_transport_or_runtime_changed": false
+  },
+  "ubuntu_ci": {
+    "root_cause": "PR events skipped the push-only root-owned mode-4755 Electron helper setup required on hosted Ubuntu24.04.",
+    "change": "Existing locked helper setup also runs on the same-repository codex/forgecode-consolidation PR; fork PRs and other branches are excluded.",
+    "authorization_ref": "human-authorization-ci-closeout-20261010.json",
+    "electron_sandbox_disabled": false,
+    "tests_skipped": false,
+    "matrix_reduced": false,
+    "local_administrator_setup": false,
+    "actual_helper_steps": {
+      "push_job": 114110960225,
+      "pull_request_job": 114110974557,
+      "push": "success",
+      "pull_request": "success",
+      "verified_operations": "locked hydrate, root:root owner, mode 4755, actual stat verification"
+    }
+  },
+  "windows_local": {
+    "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+    "product_files_changed_from_full_regression": [],
+    "changed_execution_inputs": [
+      ".github/workflows/portable.yml",
+      "tests/implementation/node/http-transport-case.mjs"
+    ],
+    "focused": {
+      "private_ref": ".local/consolidation-20261009/closeout-focused.xml",
+      "sha256": "2541cce4213d2f7acfebd132667ec046468fc6193e61bb4ba9d2dc2ed97ea41f",
+      "tests": "38",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "108.828"
+    },
+    "checks": [
+      {
+        "schema_version": "forge.implementation.evidence.v1",
+        "evidence_id": "20261010T023238Z-a6e4a572",
+        "task_id": "F29",
+        "case_ids": [
+          "N04"
+        ],
+        "suite": "contracts",
+        "git_commit": "482edd6cd98dc6f4383101fbb46606ebc01a77e3",
+        "dirty_hash": "c9ab880b9b72caf78f9dc38707f65457ef8dc800a077c3ad6702971de91fa43b",
+        "source_inventory_hash": "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e",
+        "platform": "win32",
+        "os_build": "Windows-10-10.0.19045-SP0",
+        "dependency_lock_hash": {
+          "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+          "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+          "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+        },
+        "command": [
+          "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "D:\\projects\\forgecode\\scripts\\ci_checks.py",
+          "--suite",
+          "contracts",
+          "--output",
+          "D:\\projects\\forgecode\\.local\\implementation\\20261010T023238Z-a6e4a572\\packaging.json",
+          "--prepared-source-hash",
+          "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e"
+        ],
+        "start": "2026-10-10T02:32:38.661619+00:00",
+        "preparation_commands": [
+          [
+            "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+            "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+            "--check",
+            "--no-build"
+          ],
+          [
+            "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+            "D:\\projects\\forgecode\\scripts\\build_desktop.py",
+            "--check",
+            "--no-build"
+          ]
+        ],
+        "prepared_source_hash": "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e",
+        "end": "2026-10-10T02:33:32.771367+00:00",
+        "exit_code": 0,
+        "stdout_ref": ".local/implementation/20261010T023238Z-a6e4a572/stdout.log",
+        "stderr_ref": ".local/implementation/20261010T023238Z-a6e4a572/stderr.log",
+        "report_ref": ".local/implementation/20261010T023238Z-a6e4a572/packaging.json",
+        "report_hash": "f710eb84b37fc27ae04808296da81d17918ee0f734e78c7e72d16de2db51194a",
+        "status": "pass",
+        "tests": {
+          "scope": "actual contracts commands",
+          "checks": 2
+        }
+      },
+      {
+        "schema_version": "forge.implementation.evidence.v1",
+        "evidence_id": "20261010T023333Z-50b17e4d",
+        "task_id": "F29",
+        "case_ids": [
+          "N23"
+        ],
+        "suite": "quality",
+        "git_commit": "482edd6cd98dc6f4383101fbb46606ebc01a77e3",
+        "dirty_hash": "c9ab880b9b72caf78f9dc38707f65457ef8dc800a077c3ad6702971de91fa43b",
+        "source_inventory_hash": "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e",
+        "platform": "win32",
+        "os_build": "Windows-10-10.0.19045-SP0",
+        "dependency_lock_hash": {
+          "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+          "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+          "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+        },
+        "command": [
+          "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+          "-X",
+          "utf8",
+          "D:\\projects\\forgecode\\scripts\\ci_checks.py",
+          "--suite",
+          "quality",
+          "--output",
+          "D:\\projects\\forgecode\\.local\\implementation\\20261010T023333Z-50b17e4d\\packaging.json",
+          "--prepared-source-hash",
+          "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e"
+        ],
+        "start": "2026-10-10T02:33:33.085401+00:00",
+        "preparation_commands": [
+          [
+            "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+            "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+            "--check",
+            "--no-build"
+          ],
+          [
+            "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+            "D:\\projects\\forgecode\\scripts\\build_desktop.py",
+            "--check",
+            "--no-build"
+          ]
+        ],
+        "prepared_source_hash": "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e",
+        "end": "2026-10-10T02:34:08.714838+00:00",
+        "exit_code": 0,
+        "stdout_ref": ".local/implementation/20261010T023333Z-50b17e4d/stdout.log",
+        "stderr_ref": ".local/implementation/20261010T023333Z-50b17e4d/stderr.log",
+        "report_ref": ".local/implementation/20261010T023333Z-50b17e4d/packaging.json",
+        "report_hash": "9fd3993d44ca0d37bac2cba979b0859f90b94e16e5184955784b99298c0aaf29",
+        "status": "pass",
+        "tests": {
+          "scope": "actual quality commands",
+          "checks": 4
+        }
+      }
+    ]
+  },
+  "hosted": [
+    {
+      "id": 38017506481,
+      "head_sha": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "html_url": "https://github.com/Titans23/forgecode/actions/runs/38017506481",
+      "jobs": [
+        {
+          "id": 114110960088,
+          "name": "dependency-security",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 114110960197,
+          "name": "portable (ubuntu-22.04)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114110960225,
+          "name": "portable (ubuntu-24.04)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114110960256,
+          "name": "portable (windows-2025)",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "name": "portable-ubuntu-22.04",
+          "zip_sha256": "7bcb9e28eb66a33bb6ce70feace86ade6fac3cf8a71af0ade93639fc58e80837",
+          "private_ref": ".local/consolidation-20261009/hosted/38017506481/portable-ubuntu-22.04",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023550Z-fc401109",
+              "suite": "contracts",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef",
+              "tests": {
+                "scope": "actual contracts commands",
+                "checks": 2
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023553Z-5f073f22",
+              "suite": "quality",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "1fdf425d6835d04b6397bfed49e760f2d4980e2dc22fe5841154c16fc9a4eef8",
+              "tests": {
+                "scope": "actual quality commands",
+                "checks": 4
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023604Z-cd4d266b",
+              "suite": "unit",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "92514ece281365fa0d8b942c2aafd0b1257433aac9a44492e83e0e510182edba",
+              "tests": {
+                "collected": 286,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023621Z-2149c4a2",
+              "suite": "portable",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "0c4d3123eadaee7ad6f30e25317cdc56420ae8f53823ebf8f0d460a1de916a0c",
+              "tests": {
+                "collected": 438,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            }
+          ]
+        },
+        {
+          "name": "portable-windows-2025",
+          "zip_sha256": "1e78f193ad2acc7c4cefa755ae6a29991b39f39e6900ac0e5ec3b14678cc8712",
+          "private_ref": ".local/consolidation-20261009/hosted/38017506481/portable-windows-2025",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023633Z-9b1a07d8",
+              "suite": "contracts",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "9ff3f9d8d976b6224adb2a71437c4318658e43146311a6386b251df89c64700b",
+              "tests": {
+                "scope": "actual contracts commands",
+                "checks": 2
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023639Z-6c02448b",
+              "suite": "quality",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "d56020eaae6519ea1541d5a72ed03c295f3bd3c0ab82882ea5c9397ff89e38b6",
+              "tests": {
+                "scope": "actual quality commands",
+                "checks": 4
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023732Z-0b20e15a",
+              "suite": "unit",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "d6157b0b9669f49bb5645fa9434c17d8d8e33c2d3961cf24ff5e805b94528679",
+              "tests": {
+                "collected": 286,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023817Z-6fad623b",
+              "suite": "portable",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "873357e8cf67fc1e412f90b7c075398f2e01cfcccf10c40eaadd0d783988a6ac",
+              "tests": {
+                "collected": 438,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            }
+          ]
+        },
+        {
+          "name": "portable-ubuntu-24.04",
+          "zip_sha256": "62f2661c67a8159c7ed39ae233ad3ef190de594d9b0b1be1e11ac6fe67d9f951",
+          "private_ref": ".local/consolidation-20261009/hosted/38017506481/portable-ubuntu-24.04",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023542Z-22a67e5c",
+              "suite": "contracts",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef",
+              "tests": {
+                "scope": "actual contracts commands",
+                "checks": 2
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023545Z-bf040d5f",
+              "suite": "quality",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "1fdf425d6835d04b6397bfed49e760f2d4980e2dc22fe5841154c16fc9a4eef8",
+              "tests": {
+                "scope": "actual quality commands",
+                "checks": 4
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023556Z-710dd9ab",
+              "suite": "unit",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "9215864045018bd7ca435e88fc5e65e4434ff340472d592001eecdf66134ad7c",
+              "tests": {
+                "collected": 286,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023612Z-be14b39f",
+              "suite": "portable",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "f8f35a3a6e8edca89f95c30160869940e266433e358a5bb7136cac71080d1f71",
+              "tests": {
+                "collected": 438,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            }
+          ]
+        },
+        {
+          "name": "actual-dependency-security",
+          "zip_sha256": "98263b6c3a82b1a52a692d053613540961d530a0377a0e71fb91f217305a774c",
+          "private_ref": ".local/consolidation-20261009/hosted/38017506481/actual-dependency-security",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023531Z-fc574410",
+              "suite": "security",
+              "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+              "source_inventory_hash": "eedcb3d08cdf100c78640a3bed455c60d0e7aca7a61e2aec52c072d08867db24",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "blocked",
+              "report_hash": "f2d2fe181aded7fb306f38498e12bd5c59d69d57ac6e9884c2f9c75084cde011",
+              "tests": {
+                "reason": "Unresolved locked dependency vulnerabilities",
+                "checks": 1
+              },
+              "recomputed_status": "blocked"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 38017511192,
+      "head_sha": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "html_url": "https://github.com/Titans23/forgecode/actions/runs/38017511192",
+      "jobs": [
+        {
+          "id": 114110974460,
+          "name": "dependency-security",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 114110974557,
+          "name": "portable (ubuntu-24.04)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114110974574,
+          "name": "portable (ubuntu-22.04)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114110974669,
+          "name": "portable (windows-2025)",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "name": "portable-windows-2025",
+          "zip_sha256": "6ee41222e54cc9dca895c5022499c82ba664a729c9c4e7685cda569988fd8dd0",
+          "private_ref": ".local/consolidation-20261009/hosted/38017511192/portable-windows-2025",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023620Z-2cbf197c",
+              "suite": "contracts",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "9ff3f9d8d976b6224adb2a71437c4318658e43146311a6386b251df89c64700b",
+              "tests": {
+                "scope": "actual contracts commands",
+                "checks": 2
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023626Z-0646b5a3",
+              "suite": "quality",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "d56020eaae6519ea1541d5a72ed03c295f3bd3c0ab82882ea5c9397ff89e38b6",
+              "tests": {
+                "scope": "actual quality commands",
+                "checks": 4
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023709Z-0d44871f",
+              "suite": "unit",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "eba390c86da18632e21111f4e809e842f8eec02a91bacbd48056ec678252537f",
+              "tests": {
+                "collected": 286,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023753Z-ec3d5628",
+              "suite": "portable",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+              "platform": "win32",
+              "os_build": "Windows-2025Server-10.0.26100-SP0",
+              "status": "pass",
+              "report_hash": "1631e99401721d17c1e2094ac921f2a9598170b09ca25e217a82fd95ed347ff3",
+              "tests": {
+                "collected": 438,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            }
+          ]
+        },
+        {
+          "name": "portable-ubuntu-24.04",
+          "zip_sha256": "986e5d58a0088de504c1b44af5a513bc4a7ade4511ad017c4574fe2c562d562a",
+          "private_ref": ".local/consolidation-20261009/hosted/38017511192/portable-ubuntu-24.04",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023548Z-5bed488d",
+              "suite": "contracts",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef",
+              "tests": {
+                "scope": "actual contracts commands",
+                "checks": 2
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023551Z-aee46eb1",
+              "suite": "quality",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "1fdf425d6835d04b6397bfed49e760f2d4980e2dc22fe5841154c16fc9a4eef8",
+              "tests": {
+                "scope": "actual quality commands",
+                "checks": 4
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023602Z-2d5fc3e5",
+              "suite": "unit",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "b451825f208a546ec3ac8b5f3aeee3fc5c69822134670b70cb615d44d6e1676a",
+              "tests": {
+                "collected": 286,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023618Z-de8a0a1d",
+              "suite": "portable",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+              "status": "pass",
+              "report_hash": "760a0bca7c3f2b31f69c6d972c4e1796dd12c518454fcb14699df19ede585de8",
+              "tests": {
+                "collected": 438,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            }
+          ]
+        },
+        {
+          "name": "portable-ubuntu-22.04",
+          "zip_sha256": "1261439ad2e70f64a2462149a52cc1e2558f94ac09c9315b807233ed52af7c6c",
+          "private_ref": ".local/consolidation-20261009/hosted/38017511192/portable-ubuntu-22.04",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023550Z-b7df9573",
+              "suite": "contracts",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef",
+              "tests": {
+                "scope": "actual contracts commands",
+                "checks": 2
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023553Z-ffaf7605",
+              "suite": "quality",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "1fdf425d6835d04b6397bfed49e760f2d4980e2dc22fe5841154c16fc9a4eef8",
+              "tests": {
+                "scope": "actual quality commands",
+                "checks": 4
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023605Z-6a6b8095",
+              "suite": "unit",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "f170b31fb47e2890ce873dda83b7abc843b35b1beb70e7f38e63a01e426ca7b9",
+              "tests": {
+                "collected": 286,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            },
+            {
+              "evidence_id": "20261010T023621Z-3bea39f2",
+              "suite": "portable",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "pass",
+              "report_hash": "78c3581d5af26acba60d1ca06ac268edd3c3780452a36bc23deb3c77982cad77",
+              "tests": {
+                "collected": 438,
+                "skipped": 0,
+                "failures": 0,
+                "errors": 0
+              },
+              "recomputed_status": "pass"
+            }
+          ]
+        },
+        {
+          "name": "actual-dependency-security",
+          "zip_sha256": "f2e521ae4947eec0bdbfd2875cafa8563407bdc07514f1f08b1cae0b7855d5e0",
+          "private_ref": ".local/consolidation-20261009/hosted/38017511192/actual-dependency-security",
+          "evidence": [
+            {
+              "evidence_id": "20261010T023534Z-d82ab081",
+              "suite": "security",
+              "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+              "source_inventory_hash": "eedcb3d08cdf100c78640a3bed455c60d0e7aca7a61e2aec52c072d08867db24",
+              "platform": "linux",
+              "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+              "status": "blocked",
+              "report_hash": "79d7d94d9040c581bff346a1a3dfffef3c6e0b1384da0ebd3154a54dc7a5f45f",
+              "tests": {
+                "reason": "Unresolved locked dependency vulnerabilities",
+                "checks": 1
+              },
+              "recomputed_status": "blocked"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "reused_evidence": {
+    "ref": "F28-F31-consolidation-observations-20261009.json",
+    "full_regression": {
+      "evidence_id": "20261009T111228Z-d9989aef",
+      "code_commit": "84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21",
+      "tests": 1469,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "windows_workspace_write_checks": 12,
+    "wsl_workspace_write_checks": 12,
+    "wsl_focused_checks": 55,
+    "scope": "Product/runtime and dependency blobs are unchanged from the previously verified implementation; current test/workflow changes have separate focused and hosted evidence. No new native or Docker claim."
+  },
+  "preserved_closeout_observations": {
+    "initial_focused": {
+      "private_ref": ".local/consolidation-20261009/http-expiry-oct10.xml",
+      "sha256": "720dfe21ed81c174175c126beb1addba7f135c6d4b7cf71e0ee7b1abfd3ea8fb",
+      "tests": 2,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "initial_focused_note": "expired-ack passed its original and new rejection assertions. normal failed at the unchanged 15-second completion observation before its desktop baseline was recorded. Shutdown then cancelled that turn.",
+    "diagnostic_asset_rejection": {
+      "private_ref": ".local/consolidation-20261009/http-diagnostic.xml",
+      "sha256": "751996eebf0a8543ec47d7e065232dd366dc0443397e90cf86f68f77b6228151",
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "diagnostic_asset_note": "Temporary instrumentation was correctly rejected by the stale development asset manifest; this is not an application acceptance result.",
+    "phase_diagnostic": {
+      "private_ref": ".local/consolidation-20261009/http-diagnostic2.xml",
+      "sha256": "68c4dbbadde0d6d3dab09cb7317e744b418f6083c59bc3f2aa68879d0d49b289",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "diagnostic_note": "After regenerating the diagnostic manifest, the normal case passed; scan completed at 0.031 seconds, Git baseline at 1.234 seconds. The earlier stall was not reproduced and its underlying cause is not established. Diagnostic product/test edits and manifest were restored exactly before the final 38-case batch; no timeout change or product fix is claimed for that observation."
+  },
+  "dependency_security": {
+    "status": "blocked",
+    "required_for_main": true,
+    "advisory": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+    "affected_dependency": "node-forge 1.4.0 via @anthropic-ai/sandbox-runtime 0.0.78",
+    "high_records": 2,
+    "distinct_advisories": 1,
+    "patched_published_release": null,
+    "registry_latest_checked": "1.4.0",
+    "checked_on": "2026-10-10",
+    "audit_suppressed": false,
+    "dependency_downgraded": false,
+    "acceptance_standard_lowered": false
+  },
+  "closed_capabilities": [
+    "strict dynamic sensitive-file isolation and complete native cleanup remain blocked",
+    "WSL Docker access, actual Docker cleanup proof and F31 formal experiments remain blocked",
+    "native target desktop/install/signing/LICENSE and existing performance release gates retain their separate blocked status"
+  ],
+  "model_calls": 0,
+  "local_administrator_setup": false
+}

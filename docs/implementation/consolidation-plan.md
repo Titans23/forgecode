@@ -32,4 +32,6 @@ Hosted Windows 管理员运行器创建目录时可以使用令牌默认 owner g
 
 ## 当前验收与合入状态
 
-实现提交84a2c30已推送，Windows完整回归1469项通过，Windows/WSL轻量原生各12项通过；受信任push的三平台各unit286/portable438及契约、质量通过。旧目录已归档，用户私有文件摘要复核一致。主线尚未合入：依赖安全仍2high，PR Ubuntu24缺少受信任push专用的系统helper权限。完整源码/平台范围、两轮失败报告及当前门禁见 [本轮证据](evidence/F28-F31-consolidation-observations-20261009.json) 和 [当前交接](handoff.md)。
+2026-10-10 收尾仅修正 expired-ack 测试在明确过期前提前 ACK 终末批次的问题，以及当前同仓库 PR 的 Ubuntu24 helper 准入。原断言与超时保留，新增真实服务端拒绝校验。Windows38项定向和 push/PR 三平台契约、质量、unit286/portable438通过。未改产品运行代码，1469全量回归及 Windows/WSL各12项轻量原生检查按原快照复用。
+
+依赖安全仍为同一 node-forge 公告的2条high记录，无已发布修复版，故main尚未合入；严格能力和正式实验保持关闭。此前失败、诊断期间一次未复现的普通用例基线耗时及各平台范围完整保留于 [收尾证据](evidence/F28-F31-closeout-observations-20261010.json)。后续以 [progress](progress.json) 和 [当前交接](handoff.md) 为准，不继续扩大重构。

@@ -1,12 +1,12 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "current_authorization_ref": "evidence/human-authorization-20261007.json",
-  "ci_setup_authorization_ref": "evidence/human-authorization-ci-20261008.json",
+  "ci_setup_authorization_ref": "evidence/human-authorization-ci-closeout-20261010.json",
   "windows_acceptance_authorization_ref": "evidence/human-authorization-windows10-20261008.json",
   "current_acceptance_phase": "Windows 10 x64 22H2 build 19045 on this workstation replaces mandatory Windows 11 acceptance; Ubuntu and official Linux Docker requirements remain independent",
   "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
   "document_version": "4.0.0",
-  "actual_repository_head": "84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21",
+  "actual_repository_head": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
   "next_recommended_task": "F28",
   "current_task": "F28",
   "machine_transfer": {
@@ -39,7 +39,7 @@
       "deepseek-ai/deepseek-harness": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
       "earendil-works/pi": "ce950d78f424dcaf9f5d6a03ce80ab141130eb1d"
     },
-    "next_slice": "Resolve merge security condition; strict native and F31 official execution stay closed until their independent gates pass.",
+    "next_slice": "Keep main blocked by required dependency security. No additional refactor or sandbox expansion; strict native and F31 remain closed.",
     "independent_slice": "F31 S5: official environment and trusted host request admission; live gates unchanged",
     "runtime_code_changed": true,
     "native_capabilities_promoted": false,
@@ -1054,7 +1054,7 @@
         "quality": "pass",
         "regression": "pass",
         "hosted_trusted_push_portable": "pass",
-        "hosted_pull_request_ubuntu24": "blocked",
+        "hosted_pull_request_ubuntu24": "pass",
         "strict_native": "blocked",
         "workspace_write_windows": "pass",
         "workspace_write_wsl": "pass",
@@ -1207,27 +1207,22 @@
       ],
       "implemented_scope": "Consolidated source/private preservation; internal Windows long-path regression fixes; neutral file identity module/shared assembly; once-per-batch builds; explicit DSH Windows ACL and Linux SRT workspace-write with native preparation and owned process/temp cleanup, mode switching and budgets retained.",
       "current_continuation": {
-        "status": "implementation_verified_main_blocked_by_required_security",
-        "code_commit": "84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21",
-        "observations_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
-        "regression_tests": 1469,
-        "regression_failures": 0,
-        "windows_workspace_checks": 12,
-        "wsl_workspace_checks": 12,
+        "status": "portable_closeout_verified_main_blocked_by_required_security",
+        "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+        "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
+        "focused_tests": 38,
+        "hosted_push_run": 38017506481,
+        "hosted_pr_run": 38017511192,
+        "hosted_portable_platforms": [
+          "windows-2025",
+          "ubuntu-22.04",
+          "ubuntu-24.04"
+        ],
+        "security": "blocked",
+        "reused_runtime_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
         "model_calls": 0,
-        "administrator_setup": false,
-        "installer_rebuilt": false,
-        "strict_capabilities_promoted": false,
-        "upload_status": "consolidation branch pushed; PR1 open; main blocked",
-        "final_evidence_ids": [
-          "20261009T111101Z-dfad5f51",
-          "20261009T111110Z-e761f68e",
-          "20261009T111134Z-1d79786f",
-          "20261009T111228Z-d9989aef",
-          "20261009T114324Z-9c3ad646",
-          "20261009T114329Z-8bc7c76e",
-          "20261009T114344Z-b593b12b"
-        ]
+        "local_administrator_setup": false,
+        "strict_capabilities_promoted": false
       },
       "artifact_refs": [
         "evidence/F28-close-cleanup-observations.json",
@@ -1238,7 +1233,8 @@
         "evidence/F28-setup-F31-handoff-observations.json",
         "evidence/F28-sandbox-s1-observations.json",
         "evidence/F28-desktop-local-mode-observations.json",
-        "evidence/F28-F31-consolidation-observations-20261009.json"
+        "evidence/F28-F31-consolidation-observations-20261009.json",
+        "evidence/F28-F31-closeout-observations-20261010.json"
       ],
       "continuation_history": [
         {
@@ -1473,7 +1469,9 @@
         "github_hosted_matrix": "fail",
         "protected_runner_policy": "blocked",
         "live_model": "blocked",
-        "github_hosted_portable_matrix": "pass"
+        "github_hosted_portable_matrix": "pass",
+        "hosted_trusted_push_portable": "pass",
+        "hosted_pull_request_ubuntu24": "pass"
       },
       "evidence_ids": [
         "20261007T091102Z-09daf086",
@@ -1502,11 +1500,39 @@
         "20261007T145332Z-695f9ba9",
         "20261008T020430Z-7ee8b187",
         "20261008T020433Z-2be6333a",
-        "20261008T020451Z-020a233d"
+        "20261008T020451Z-020a233d",
+        "20261010T023238Z-a6e4a572",
+        "20261010T023333Z-50b17e4d",
+        "20261010T023550Z-fc401109",
+        "20261010T023553Z-5f073f22",
+        "20261010T023604Z-cd4d266b",
+        "20261010T023621Z-2149c4a2",
+        "20261010T023633Z-9b1a07d8",
+        "20261010T023639Z-6c02448b",
+        "20261010T023732Z-0b20e15a",
+        "20261010T023817Z-6fad623b",
+        "20261010T023542Z-22a67e5c",
+        "20261010T023545Z-bf040d5f",
+        "20261010T023556Z-710dd9ab",
+        "20261010T023612Z-be14b39f",
+        "20261010T023531Z-fc574410",
+        "20261010T023620Z-2cbf197c",
+        "20261010T023626Z-0646b5a3",
+        "20261010T023709Z-0d44871f",
+        "20261010T023753Z-ec3d5628",
+        "20261010T023548Z-5bed488d",
+        "20261010T023551Z-aee46eb1",
+        "20261010T023602Z-2d5fc3e5",
+        "20261010T023618Z-de8a0a1d",
+        "20261010T023550Z-b7df9573",
+        "20261010T023553Z-ffaf7605",
+        "20261010T023605Z-6a6b8095",
+        "20261010T023621Z-3bea39f2",
+        "20261010T023534Z-d82ab081"
       ],
       "blocked_reasons": [
-        "Actual run37716477000 passes all three hosted portable jobs with contracts2/quality4/unit225/portable400 and fresh gates per platform. Independent dependency-security retains two high entries, so the overall workflow remains failure.",
-        "Native/signing/LICENSE and protected runner configuration remain independently blocked; the CI-only authorization does not authorize local/native SRT setup."
+        "Current push and PR pass all three hosted portable jobs. Mandatory dependency-security still reports two high entries for one unpatched node-forge advisory; overall workflows fail and main is not merged.",
+        "Native/signing/LICENSE and protected runner requirements remain independently blocked; CI helper authorization does not authorize local/native SRT setup."
       ],
       "historical_blocked_reasons": [
         "Only Windows 10 19045 is available; Windows 11 and Ubuntu 22.04/24.04 X11/Wayland native devices and installer acceptance are unavailable.",
@@ -1514,7 +1540,7 @@
         "Actual npm official audit records 2 high affected dependency entries; GHSA-86w9-cpqp-85rv remains unresolved. Production release is blocked.",
         "Administrator SRT setup, production signing/project LICENSE and paid model experiments are not authorized/provided."
       ],
-      "verification_scope": "Historical task execution; current development-version tests/assets are tracked in F32, authorized live observations in F31.",
+      "verification_scope": "Current closeout source/platform evidence is in evidence/F28-F31-closeout-observations-20261010.json; historical entries retain their original scope.",
       "current_remediation": {
         "scope": "F32 actual hosted portability failures",
         "parent_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
@@ -1548,40 +1574,56 @@
         "20261007T150406Z-81c7bee6"
       ],
       "current_evidence_ids": [
-        "20261008T020430Z-7ee8b187",
-        "20261008T020433Z-2be6333a",
-        "20261008T020451Z-020a233d"
+        "20261010T023238Z-a6e4a572",
+        "20261010T023333Z-50b17e4d",
+        "20261010T023550Z-fc401109",
+        "20261010T023553Z-5f073f22",
+        "20261010T023604Z-cd4d266b",
+        "20261010T023621Z-2149c4a2",
+        "20261010T023633Z-9b1a07d8",
+        "20261010T023639Z-6c02448b",
+        "20261010T023732Z-0b20e15a",
+        "20261010T023817Z-6fad623b",
+        "20261010T023542Z-22a67e5c",
+        "20261010T023545Z-bf040d5f",
+        "20261010T023556Z-710dd9ab",
+        "20261010T023612Z-be14b39f",
+        "20261010T023531Z-fc574410",
+        "20261010T023620Z-2cbf197c",
+        "20261010T023626Z-0646b5a3",
+        "20261010T023709Z-0d44871f",
+        "20261010T023753Z-ec3d5628",
+        "20261010T023548Z-5bed488d",
+        "20261010T023551Z-aee46eb1",
+        "20261010T023602Z-2d5fc3e5",
+        "20261010T023618Z-de8a0a1d",
+        "20261010T023550Z-b7df9573",
+        "20261010T023553Z-ffaf7605",
+        "20261010T023605Z-6a6b8095",
+        "20261010T023621Z-3bea39f2",
+        "20261010T023534Z-d82ab081"
       ],
       "current_continuation": {
-        "scope": "Human-authorized Electron SUID helper configuration in the trusted GitHub Ubuntu24 portable job",
-        "parent_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
-        "status": "completed_portable_pass_security_blocked",
-        "source_inventory_hash": "5ab31ee4128b58dbca02937aca4bd1f2dfda08fe6d9abdfbc9e7780be48c4382",
-        "authorization_ref": "evidence/human-authorization-ci-20261008.json",
-        "observations_ref": "evidence/F29-electron-sandbox-setup-observations.json",
-        "final_evidence_ids": [
-          "20261008T020430Z-7ee8b187",
-          "20261008T020433Z-2be6333a",
-          "20261008T020451Z-020a233d"
+        "status": "portable_closeout_verified_main_blocked_by_required_security",
+        "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+        "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
+        "focused_tests": 38,
+        "hosted_push_run": 38017506481,
+        "hosted_pr_run": 38017511192,
+        "hosted_portable_platforms": [
+          "windows-2025",
+          "ubuntu-22.04",
+          "ubuntu-24.04"
         ],
-        "focused_tests": 15,
+        "security": "blocked",
+        "reused_runtime_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
         "model_calls": 0,
         "local_administrator_setup": false,
-        "hosted_administrator_setup": "Verified successful only in the authorized GitHub Ubuntu24 push job; skipped on Ubuntu22 and Windows",
-        "fresh_local_ci_gate": "not_run_workflow_only_change",
-        "prior_regression": {
-          "source_inventory_hash": "7d77f873a9ef70aa5d448ed99d61da58a59f66ff22edd707210f5cb2ec74f2af",
-          "evidence_id": "20261008T012857Z-c6dfbf8f",
-          "collected": 1369,
-          "status": "pass",
-          "scope": "Previous product source before this workflow-only change; preserved historical scope"
-        },
-        "uploaded_commit": "12cc51d5d9e22cb7c70d972612186893ca34fd87",
-        "hosted_run_id": 37716477000,
-        "hosted_observations_ref": "evidence/F29-electron-sandbox-hosted-observations.json",
-        "hosted_portable_matrix": "pass",
-        "overall_workflow": "failure_dependency_security"
-      }
+        "strict_capabilities_promoted": false
+      },
+      "artifact_refs": [
+        "evidence/F28-F31-closeout-observations-20261010.json"
+      ]
     },
     "F30": {
       "implementation_status": "implemented",
@@ -1625,7 +1667,7 @@
         "quality": "pass",
         "regression": "pass",
         "hosted_trusted_push_portable": "pass",
-        "hosted_pull_request_ubuntu24": "blocked",
+        "hosted_pull_request_ubuntu24": "pass",
         "strict_native": "blocked",
         "workspace_write_windows": "pass",
         "workspace_write_wsl": "pass",
@@ -1688,33 +1730,29 @@
         "evidence/F31-budget-observations.json",
         "evidence/F31-budget-hosted-observations.json",
         "evidence/F28-setup-F31-handoff-observations.json",
-        "evidence/F28-F31-consolidation-observations-20261009.json"
+        "evidence/F28-F31-consolidation-observations-20261009.json",
+        "evidence/F28-F31-closeout-observations-20261010.json"
       ],
       "historical_ci_blockers": [
         "Earlier hosted browser/import/path failures are retained with their original commits. F28 e6bda835 and F31 64032fe each pass all three portable platforms. Current run37723899477 retains dependency-security failure: actual npm audit reports two high entries (exit2)."
       ],
       "current_continuation": {
-        "status": "implementation_verified_main_blocked_by_required_security",
-        "code_commit": "84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21",
-        "observations_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
-        "regression_tests": 1469,
-        "regression_failures": 0,
-        "windows_workspace_checks": 12,
-        "wsl_workspace_checks": 12,
+        "status": "portable_closeout_verified_main_blocked_by_required_security",
+        "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+        "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
+        "focused_tests": 38,
+        "hosted_push_run": 38017506481,
+        "hosted_pr_run": 38017511192,
+        "hosted_portable_platforms": [
+          "windows-2025",
+          "ubuntu-22.04",
+          "ubuntu-24.04"
+        ],
+        "security": "blocked",
+        "reused_runtime_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
         "model_calls": 0,
-        "administrator_setup": false,
-        "installer_rebuilt": false,
-        "strict_capabilities_promoted": false,
-        "upload_status": "consolidation branch pushed; PR1 open; main blocked",
-        "final_evidence_ids": [
-          "20261009T111101Z-dfad5f51",
-          "20261009T111110Z-e761f68e",
-          "20261009T111134Z-1d79786f",
-          "20261009T111228Z-d9989aef",
-          "20261009T114324Z-9c3ad646",
-          "20261009T114329Z-8bc7c76e",
-          "20261009T114344Z-b593b12b"
-        ]
+        "local_administrator_setup": false,
+        "strict_capabilities_promoted": false
       },
       "current_evidence_ids": [
         "20261009T111101Z-dfad5f51",
@@ -1994,7 +2032,7 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Verified implementation commit; documentation/evidence commit may follow. Each platform retains its own source hash, report and commit.",
+  "head_recorded_scope": "Verified closeout code commit; final documentation commit may follow. Runtime/native evidence retains its original commit and platform.",
   "gate_notes": {
     "G1-contracts-engine": "Implementation 84a2c30 Windows regression 1469 pass, contracts2/quality4 pass. Hosted trusted push three portable platforms pass with recomputed reports; dependency security remains blocked.",
     "G3-desktop-observability": "Actual Windows development Electron132 passes on earlier 242b831 source, separately scoped. Installed/clean native desktop acceptance not rerun.",
@@ -2027,7 +2065,7 @@
     "model_calls": 0,
     "administrator_setup": false
   },
-  "repository_head_note": "Implementation pushed on codex/forgecode-consolidation; PR #1 open. main not merged because required dependency-security fails.",
+  "repository_head_note": "PR #1 contains tested closeout fixes. main remains unmerged because mandatory dependency-security fails; no security exception or reduced standard applied.",
   "desktop_local_execution": {
     "status": "optional_local_execution_implemented_and_windows_updated",
     "adr_ref": "adr/035-optional-desktop-local-execution.md",
@@ -2055,12 +2093,12 @@
     "verification_scope": "Full regression covers source 6fdfa2e8. Subsequent changes are two inspection assertions/capture timing, an optional packaged-test timeout argument (source default remains 90s, packaged run uses the existing 300s task budget), and assembled release metadata. Frozen Engine source inventory remains identical. Each formal report keeps its own source hash."
   },
   "consolidation": {
-    "date": "2026-10-09",
+    "date": "2026-10-10",
     "plan_ref": "consolidation-plan.md",
     "adr_ref": "adr/036-consolidation-and-workspace-write.md",
     "branch": "codex/forgecode-consolidation",
     "target_branch": "main",
-    "status": "implementation_verified_main_blocked_by_required_security",
+    "status": "portable_closeout_verified_main_blocked_by_required_security",
     "windows_directory": "D:/projects/forgecode",
     "wsl_directory": "/home/titans/learn_project/forgecode",
     "recovery_checkpoint": "cf432236e721682a45fc83c3112db31c8dc82d00",
@@ -2070,8 +2108,8 @@
     "strict_capabilities_promoted": false,
     "public_model_calls": 0,
     "administrator_setup": false,
-    "code_commit": "84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21",
-    "observations_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+    "code_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+    "observations_ref": "evidence/F28-F31-closeout-observations-20261010.json",
     "pull_request": "https://github.com/Titans23/forgecode/pull/1",
     "archived_old_directories": true,
     "full_regression": {
@@ -2083,7 +2121,11 @@
     "windows_source_inventory_hash": "28c00d4802a8a35b54905a4ab1f01b9517eb6355a8f2a7d16396e0339246ad85",
     "wsl_source_inventory_hash": "3ac4c28ffd5f2868e95aaac0d21c3da8efa2383d2e9fdb533d27e9787c711f19",
     "main_merged": false,
-    "merge_blocker": "Required dependency security reports two high entries; PR Ubuntu24 helper unavailable while trusted push portable passes"
+    "merge_blocker": "Required dependency-security: two high records for GHSA-86w9-cpqp-85rv; no published patched node-forge release. Current push and PR portable matrices pass.",
+    "implementation_evidence_ref": "evidence/F28-F31-consolidation-observations-20261009.json",
+    "full_regression_scope": "1469 on 84a2c30, reused because product/runtime/dependency blobs are unchanged; closeout test/workflow coverage is recorded separately.",
+    "closeout_windows_source_inventory_hash": "752309953a8892bc46c7efdba6dcdc5e66f488c279d3a53b45d3b67bd0d4a09e",
+    "closeout_focused_tests": 38
   },
   "historical_state_before_consolidation": {
     "actual_repository_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",

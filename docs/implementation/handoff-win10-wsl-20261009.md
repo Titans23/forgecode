@@ -4,7 +4,7 @@
 
 Windows 活动目录已统一为 `D:\projects\forgecode`，WSL 为 `/home/titans/learn_project/forgecode`；整合分支 `codex/forgecode-consolidation`，目标主线 `main`。已恢复的 working-tree.patch 不再应用；旧 V4 恢复步骤仅作历史。最新源码、备份、轻量模式及验证状态见 [当前交接](handoff.md) 顶部、[合并记录](consolidation-plan.md) 和 [ADR036](adr/036-consolidation-and-workspace-write.md)。
 
-更新于 2026-10-09。本文件是新会话的快速入口。**接收端现已恢复并实测**，Windows 原生继续 F28，WSL/Linux Docker 继续 F31；下方迁移步骤及原机状态作为历史保留。
+更新于 2026-10-10。收尾结果见 [当前交接](handoff.md) 顶部和 [收尾证据](evidence/F28-F31-closeout-observations-20261010.json)：修复已推送，main 仍受 mandatory dependency-security 阻塞。本文件是新会话的快速入口。**接收端现已恢复并实测**，Windows 原生继续 F28，WSL/Linux Docker 继续 F31；下方迁移步骤及原机状态作为历史保留。
 
 ## 目录合并前的恢复记录：不要重复应用补丁
 

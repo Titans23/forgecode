@@ -2,7 +2,19 @@
 
 最新入口在本页顶部；阶段历史保留于下文及 `archive/handoff-72d7fb8-20261008.md`。progress、backlog、任务卡与实际 evidence 保留全部引用，历史通过不替代当前源码验证。
 
-## 目录合并与轻量沙盒：实现已验证，main 等待安全门禁处置（2026-10-09）
+## 收尾状态（2026-10-10）
+
+修复提交 `0fcdcbf` 已推送至整合分支，[PR #1](https://github.com/Titans23/forgecode/pull/1) 保持草稿，main 尚未合入。范围仅为 expired-ack 回归、当前 PR 的 Ubuntu CI helper 权限和安全门禁；未继续重构或重新规划。
+
+`expired-ack` 根因是测试已收到 `turn.finished` 后仍调用 `events()`，提前 ACK 了需要等待过期的终末批次。现在两个轮询循环都保留该批次直到明确过期阶段，增加真实服务端 `INVALID_CURSOR` 校验；原完成、DTO/reducer、重建快照与后续事件断言全部保留，游标寿命、等待上限及产品预算不变。Ubuntu24 的 helper 配置扩展到本仓库整合分支的 PR，fork PR 仍排除；未关闭 Electron sandbox 或跳过检查。
+
+Windows10 定向 **38 pass / 0 fail / 0 error / 0 skip**，contracts2/quality4 通过；修复提交的 [push](https://github.com/Titans23/forgecode/actions/runs/38017506481) 和 [PR](https://github.com/Titans23/forgecode/actions/runs/38017511192) 三平台均通过各自 contracts2、quality4、unit286、portable438。产品代码与依赖未变化，复用 84a2c30 的 Windows1469全量回归及两端各12项轻量原生证据，保留原源码/平台范围。诊断期间普通用例曾在15秒观察窗结束前尚未完成基线，随后阶段诊断未复现；原始失败保留，不声称已修复该独立耗时现象。完整失败历史、诊断与当前报告见 [收尾证据](evidence/F28-F31-closeout-observations-20261010.json)。
+
+**合入阻塞：** mandatory dependency-security 仍报告同一 [node-forge 高危公告](https://github.com/advisories/GHSA-86w9-cpqp-85rv) 的2条依赖记录；2026-10-10核对无已发布修复版。未屏蔽审计、降级 SRT 或申请降低验收标准，main 保持未合并。后续需等待上游修复；若用户决定改为替换受影响依赖，应作为另一个有明确范围的任务处理。
+
+strict 动态敏感文件边界/完整清理、WSL Docker 与 F31 正式实验、目标安装/签名等既有缺口继续 blocked 并保持关闭；不重开已经完成的迁移、减重或轻量沙盒工作。零模型调用、无本机管理员安装。Windows/WSL 仍使用各自最终目录，旧 V4 归档和私有数据保持。
+
+## 2026-10-09 阶段记录：目录合并与轻量沙盒（历史）
 
 Windows 唯一活动目录为 `D:\projects\forgecode`，WSL 独立目录为 `/home/titans/learn_project/forgecode`。整合分支 `codex/forgecode-consolidation` 已推送，实现提交为 `84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21`；[PR #1](https://github.com/Titans23/forgecode/pull/1) 保持草稿。GitHub main 尚未合入，原因是批准方案要求的依赖安全检查仍失败；没有强推或改写历史。
 

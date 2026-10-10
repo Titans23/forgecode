@@ -1,0 +1,58 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261010T023545Z-bf040d5f",
+  "task_id": "F29",
+  "case_ids": [
+    "N23"
+  ],
+  "suite": "quality",
+  "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+  "dirty_hash": "351afed901fa6c2a1a82a41eec8f19da3165fbd2bd542723a55b34fc4fdd8afb",
+  "source_inventory_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+  "platform": "linux",
+  "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "/home/runner/work/forgecode/forgecode/.venv/bin/python3",
+    "-X",
+    "utf8",
+    "/home/runner/work/forgecode/forgecode/scripts/ci_checks.py",
+    "--suite",
+    "quality",
+    "--output",
+    "/home/runner/work/forgecode/forgecode/.local/implementation/20261010T023545Z-bf040d5f/packaging.json",
+    "--prepared-source-hash",
+    "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d"
+  ],
+  "start": "2026-10-10T02:35:45.264776+00:00",
+  "preparation_commands": [
+    [
+      "/home/runner/work/forgecode/forgecode/.venv/bin/python3",
+      "/home/runner/work/forgecode/forgecode/scripts/build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "/home/runner/work/forgecode/forgecode/.venv/bin/python3",
+      "/home/runner/work/forgecode/forgecode/scripts/build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "0c91508d28ce3d594620071f4316f4131e896739df13f66d2480cf2e44123b6d",
+  "end": "2026-10-10T02:35:56.167118+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261010T023545Z-bf040d5f/stdout.log",
+  "stderr_ref": ".local/implementation/20261010T023545Z-bf040d5f/stderr.log",
+  "report_ref": ".local/implementation/20261010T023545Z-bf040d5f/packaging.json",
+  "report_hash": "1fdf425d6835d04b6397bfed49e760f2d4980e2dc22fe5841154c16fc9a4eef8",
+  "status": "pass",
+  "tests": {
+    "scope": "actual quality commands",
+    "checks": 4
+  }
+}
