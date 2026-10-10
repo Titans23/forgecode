@@ -120,7 +120,7 @@ class NativeModelClient:
             client = client.with_options(max_retries=0)
         self._client = client or AsyncOpenAI(api_key=config.api_key, base_url=config.base_url,
             timeout=config.request_timeout_seconds, max_retries=0,
-            http_client=httpx.AsyncClient(event_hooks={'request': [observe_wire_request]}))
+            http_client=httpx.AsyncClient(follow_redirects=False, event_hooks={'request': [observe_wire_request]}))
 
     def request_arguments(self, messages, tools, system):
         definitions = [{'name': item['name'], 'description': item.get('description', ''),
@@ -192,9 +192,11 @@ class NativeModelClient:
             async for chunk in stream:
                 if chunk.usage is not None:
                     usage = chunk.usage
-                    cached = getattr(usage, 'prompt_cache_hit_tokens', 0) or 0
-                    yield ModelUsageUpdate(TokenUsage(max(0, usage.prompt_tokens - cached), usage.completion_tokens,
-                                                          cache_read_input_tokens=cached))
+                    from forge.observability.usage_ledger import usage_dict,token_usage
+                    raw=usage_dict(usage)
+                    yield ModelUsageUpdate(token_usage(self.provider,raw),raw_usage=raw,
+                        provider_request_id=getattr(chunk,'id',None),returned_model=getattr(chunk,'model',None),
+                        usage_is_final=not chunk.choices or any(c.finish_reason for c in chunk.choices))
                 for choice in chunk.choices:
                     if choice.index != 0:
                         raise ModelProtocolError('Only one completion choice is supported')
@@ -238,9 +240,11 @@ class NativeModelClient:
                 response = getattr(event, 'response', None)
                 usage = getattr(response, 'usage', None)
                 if usage is not None:
-                    cached = getattr(getattr(usage, 'input_tokens_details', None), 'cached_tokens', 0) or 0
-                    yield ModelUsageUpdate(TokenUsage(max(0, usage.input_tokens - cached), usage.output_tokens,
-                                                      cache_read_input_tokens=cached))
+                    from forge.observability.usage_ledger import usage_dict,token_usage
+                    raw=usage_dict(usage)
+                    yield ModelUsageUpdate(token_usage(self.provider,raw),raw_usage=raw,
+                        provider_request_id=getattr(response,'id',None),returned_model=getattr(response,'model',None),
+                        usage_is_final=event.type in ('response.completed','response.incomplete','response.failed'))
                 if event.type == 'response.output_text.delta':
                     yield ModelTextDelta(event.delta, getattr(event, 'output_index', 0))
                 elif event.type == 'response.output_item.added' and event.item.type == 'function_call':

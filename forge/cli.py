@@ -155,6 +155,7 @@ def main(
             MCPConfigurationError,
             ChannelConfigurationError,
             SessionError,
+            BlockingIOError,
         ) as error:
             print_configuration_error(error)
             raise typer.Exit(code=1) from error
@@ -162,6 +163,9 @@ def main(
 
 def print_configuration_error(error: Exception) -> None:
     '''Print actionable model configuration guidance.'''
+    if isinstance(error, BlockingIOError):
+        typer.echo('Project is already in use. Stop the active CLI or desktop turn before trying again.', err=True)
+        return
     if isinstance(error, SessionError):
         typer.echo('Session could not be resumed.', err=True)
         typer.echo(str(error), err=True)
@@ -726,6 +730,7 @@ def create_session_runtime(
     task_policy: TaskPolicy | None = None,
     execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
+    bindings: Any | None = None,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Compatibility wrapper; runtime assembly lives in forge.runtime.factory.'''
     return create_runtime(
@@ -738,6 +743,7 @@ def create_session_runtime(
         execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
         conversation_factory=Conversation,
+        **({'bindings': bindings} if bindings is not None else {}),
     )
 
 
@@ -791,45 +797,10 @@ async def resume_interactive_session_async(
     return session.session_resume(identifier)
 
 
-def stop_interactive_session(
-    session: Conversation,
-    *,
-    fallback_journal: SessionJournal | None,
-    reason: str,
-) -> None:
-    '''Run SessionEnd before durably marking the active session stopped.'''
-    end = getattr(session, 'session_end', None)
-    if end is not None:
-        asyncio.run(end(reason=reason))
-    active_journal = getattr(
-        session,
-        'session_journal',
-        fallback_journal,
-    )
-    if active_journal is not None:
-        active_journal.record_stopped()
 
 
-def start_interactive_session(
-    session: Conversation,
-    *,
-    source: str,
-) -> None:
-    '''Start Hook-aware sessions while preserving embeddable test doubles.'''
-    start = getattr(session, 'session_start', None)
-    if start is not None:
-        asyncio.run(start(source=source))
 
 
-def resume_interactive_session(
-    session: Conversation,
-    identifier: str,
-) -> str:
-    '''Switch sessions through lifecycle hooks when the runtime supports it.'''
-    resume_with_hooks = getattr(session, 'session_resume_with_hooks', None)
-    if resume_with_hooks is not None:
-        return asyncio.run(resume_with_hooks(identifier))
-    return session.session_resume(identifier)
 
 
 def build_resume_options(
@@ -1301,6 +1272,10 @@ def run_gateway(
         raise typer.Exit(code=1) from error
     except KeyboardInterrupt:
         typer.echo('Gateway stopped.')
+
+
+from forge.compatibility_cli import register as register_compatibility_commands
+register_compatibility_commands(app)
 
 
 if __name__ == '__main__':

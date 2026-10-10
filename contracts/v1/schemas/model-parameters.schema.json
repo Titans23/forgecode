@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:model-parameters",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "temperature": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "top_p": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "reasoning_effort": {
+      "anyOf": [
+        {
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "temperature",
+    "top_p",
+    "max_output_tokens",
+    "reasoning_effort"
+  ]
+}

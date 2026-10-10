@@ -1,0 +1,80 @@
+{
+  "record_type": "documentation_review",
+  "date": "2026-10-08",
+  "request": "那pi和dsh呢，我的目标和pi和dsh一样都是只需要安装forgecode后即可开箱即用",
+  "status": "documentation_verified_implementation_pending",
+  "head_inspected": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "plan_ref": "../sandbox-redesign.md",
+  "adr_ref": "../adr/034-sandbox-execution-and-runtime.md",
+  "supersedes_scope": "The earlier design left Linux dependency installation as diagnosis; dependency supply and first-run setup are now required product responsibilities on both supported platforms.",
+  "source_findings": [
+    {
+      "url": "https://github.com/earendil-works/pi/blob/ce950d78f424dcaf9f5d6a03ce80ab141130eb1d/packages/coding-agent/README.md",
+      "finding": "Pi installers can supply Node when needed."
+    },
+    {
+      "url": "https://pi.dev/install.ps1",
+      "finding": "Read-NodeNpmInstallChoice and Read-GitBashInstallChoice offer managed Node/Portable Git installation; Install-GitBashStandalone sets shellPath.",
+      "scope": "Online script read on 2026-10-08, not attributed to the pinned repository commit; never executed. Optional local snapshot download returned HTTP 403, so no local raw copy is claimed."
+    },
+    {
+      "url": "https://github.com/earendil-works/pi/blob/ce950d78f424dcaf9f5d6a03ce80ab141130eb1d/packages/coding-agent/docs/quickstart.md",
+      "finding": "Pi works on the local machine by default and recommends an external sandbox/container for untrusted or unattended tasks."
+    },
+    {
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/README.md",
+      "finding": "The documented npm entry requires installing Node first."
+    },
+    {
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/sandbox/sandbox-local/README.md",
+      "finding": "Platform backends are selected automatically; unavailable backends fail closed and Windows enforcement is partial."
+    },
+    {
+      "url": "https://documentation.ubuntu.com/security/security-features/privilege-restriction/apparmor/#apparmor-unprivileged-user-namespace-restrictions",
+      "finding": "Application profiles can permit required unprivileged user namespaces; a ForgeCode-specific profile still needs native validation."
+    }
+  ],
+  "local_findings": [
+    "apps/desktop/forge.config.ts currently has no explicit sandbox package dependency list in its deb options.",
+    "forge/tools/patch.py and forge/tools/git.py invoke external Git; forge/application/workspaces.py resolves Git with shutil.which. Core Git supply belongs in the product installation scope."
+  ],
+  "decision": {
+    "platforms": ["Windows 10 x64 22H2 build 19045", "Ubuntu 22.04 x64", "Ubuntu 24.04 x64"],
+    "windows": "Bundle locked application runtimes, PowerShell, core Git/ripgrep; integrate existing broker and verification into first use.",
+    "linux": "Declare system packages in deb, include application helpers/runtimes and manage app-specific configuration in the installation flow.",
+    "acceptance": "On supported default desktops, only ForgeCode installation, normal OS authorization, model configuration and project selection precede the first confined file/Shell/Git task; manual dependency or configuration steps fail acceptance.",
+    "network": "Normal online installation may obtain declared OS packages; a fully offline dependency repository is not promised.",
+    "project_toolchains": "Project-specific SDKs remain separate; core Git is not classified as a project-only dependency."
+  },
+  "checks": [
+    {
+      "name": "documentation_and_task_projection_check",
+      "status": "pass",
+      "report_ref": ".local/sandbox-oobe-20261008/documentation-check.json",
+      "markdown_files": 8,
+      "local_links_checked": 42,
+      "task_projections": ["F28", "F31"],
+      "embedded_spec_projection": ["F28"]
+    },
+    {
+      "name": "scripts.quality.check_project",
+      "status": "pass",
+      "python_syntax_files": 375,
+      "workflows": 2,
+      "task_cards": 33,
+      "secret_findings": 0,
+      "scope": "Offline syntax/locks/graph/refs/workflows/secret patterns only; not the four-command registered quality suite or behavior regression"
+    },
+    {
+      "name": "scoped_diff_and_new_file_whitespace",
+      "status": "pass"
+    }
+  ],
+  "runtime_code_changed": false,
+  "administrator_setup": false,
+  "model_requests": 0,
+  "installer_rebuilt": false,
+  "native_capabilities_promoted": false,
+  "verification_scope": "Documentation revision only; previous quality and native receipts retain their original scope. No new runtime behavior is implemented or claimed.",
+  "next_work": "Implement F28 S1 dependency supply/first-run flow and S2-S4 real boundary and clean-system acceptance; F31 remains the independent official Docker evaluation path."
+}

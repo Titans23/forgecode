@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Literal
 
+from forge.config import warn_unknown_config_fields
+
 
 PermissionMode = Literal['plan', 'supervised', 'auto']
 PermissionAction = Literal['allow', 'ask', 'deny']
@@ -98,6 +100,7 @@ class PermissionManager:
         approval_handler: ApprovalHandler | None = None,
         journal: Any | None = None,
         user_path: Path | None = None,
+        load_stored_rules: bool = True,
     ) -> None:
         self.root = root.resolve()
         self.mode: PermissionMode = mode
@@ -105,9 +108,10 @@ class PermissionManager:
         self.journal = journal
         self.user_path = user_path or Path.home() / '.forge' / 'permissions.json'
         self.project_path = self.root / '.forge' / 'permissions.json'
+        self.load_stored_rules = load_stored_rules
         self.session_rules: list[PermissionRule] = []
-        self.user_rules = self._load_rules(self.user_path, 'user')
-        self.project_rules = self._load_rules(self.project_path, 'project')
+        self.user_rules = self._load_rules(self.user_path, 'user') if load_stored_rules else []
+        self.project_rules = self._load_rules(self.project_path, 'project') if load_stored_rules else []
 
     def bind_session(self, journal: Any | None, *, reset_rules: bool = True) -> None:
         '''Move audit output and ephemeral rules to the active session.'''
@@ -237,6 +241,8 @@ class PermissionManager:
                 )
             )
         elif response.choice == 'allow_project':
+            if not self.load_stored_rules:
+                return self._decision('deny', request, 'Persistent project grants are disabled for this profile.', 'profile')
             rule = PermissionRule(
                 action='allow',
                 capability=request.capability,
@@ -302,11 +308,14 @@ class PermissionManager:
             raw = json.loads(path.read_text(encoding='utf-8'))
         except (OSError, json.JSONDecodeError):
             return []
+        if isinstance(raw, dict):
+            warn_unknown_config_fields(path, raw, {'version', 'rules'})
         values = raw.get('rules', []) if isinstance(raw, dict) else []
         rules: list[PermissionRule] = []
         for value in values:
             if not isinstance(value, dict):
                 continue
+            warn_unknown_config_fields(path, value, {'action', 'capability', 'target', 'scope'})
             try:
                 rules.append(
                     PermissionRule(
@@ -323,17 +332,28 @@ class PermissionManager:
     @staticmethod
     def _save_rules(path: Path, rules: list[PermissionRule]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            'version': 1,
-            'rules': [
-                {
-                    'action': rule.action,
-                    'capability': rule.capability,
-                    'target': rule.target,
-                }
-                for rule in rules
-            ],
-        }
+        payload = {}
+        if path.exists():
+            try:
+                payload = json.loads(path.read_text(encoding='utf-8'))
+                if not isinstance(payload, dict) or not isinstance(payload.get('rules', []), list):
+                    raise ValueError('Invalid permission document')
+            except (OSError, UnicodeError, ValueError):
+                raise ValueError('Permission configuration is unreadable; original file was preserved.') from None
+        previous = payload.get('rules', [])
+        serialized = []
+        for rule in rules:
+            known = {'action': rule.action, 'capability': rule.capability, 'target': rule.target}
+            index = next((index for index, value in enumerate(previous) if isinstance(value, dict)
+                and all(value.get(key, '*') == item for key, item in known.items())), None)
+            original = previous[index] if index is not None else {}
+            if index is not None: previous = previous[:index] + previous[index + 1:]
+            serialized.append({**original, **known})
+        # Unrecognized entries stay opaque; the loader still cannot grant from them.
+        serialized.extend(value for value in previous if not isinstance(value, dict)
+            or value.get('action') not in ('allow', 'ask', 'deny'))
+        payload.setdefault('version', 1)
+        payload['rules'] = serialized
         temporary = path.with_suffix('.json.tmp')
         temporary.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + '\n',

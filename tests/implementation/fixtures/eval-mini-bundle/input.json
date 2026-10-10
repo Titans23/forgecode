@@ -1,0 +1,39 @@
+{
+  "schema_version": "forge.eval-mini-input.v1",
+  "origin": "synthetic-fixture",
+  "case_ids": [
+    "case-pass",
+    "case-fail",
+    "case-unscored",
+    "case-retry"
+  ],
+  "attempts": [
+    {
+      "case_id": "case-pass",
+      "attempt": 1,
+      "raw_grade": "pass"
+    },
+    {
+      "case_id": "case-fail",
+      "attempt": 1,
+      "raw_grade": "fail"
+    },
+    {
+      "case_id": "case-retry",
+      "attempt": 1,
+      "raw_grade": null
+    },
+    {
+      "case_id": "case-retry",
+      "attempt": 2,
+      "raw_grade": "pass"
+    }
+  ],
+  "expected": {
+    "denominator": 4,
+    "passed_cases": 2,
+    "failed_cases": 1,
+    "unscored_cases": 1,
+    "pass_rate": "0.5"
+  }
+}

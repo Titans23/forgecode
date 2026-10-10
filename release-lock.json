@@ -1,0 +1,428 @@
+{
+  "schema_version": "forge.release.lock.v1",
+  "resolution_status": "resolved",
+  "python": {
+    "version": "3.12.13",
+    "minimum": "3.12",
+    "source": "https://github.com/astral-sh/python-build-standalone",
+    "license": "PSF-2.0",
+    "patches": []
+  },
+  "node": {
+    "version": "24.21.0",
+    "source": "https://nodejs.org/dist/v24.21.0",
+    "license": "MIT",
+    "patches": []
+  },
+  "tool_bundles": [
+    {
+      "name": "powershell",
+      "platform": "win32-x64",
+      "version": "7.6.6",
+      "path": ".local/release-runtime/powershell-7.6.6-win32-x64",
+      "entry": "pwsh.exe",
+      "inventory": "packaging/tool-inventories/powershell-7.6.6-win32-x64.json",
+      "inventory_sha256": "bcd60156a722a0401390f919018c7ab8fb533cc8ecb84531c3276c69969f1a2d",
+      "source": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip",
+      "archive_sha256": "02fe458be20493fbdf43f61ea20610b811ee6c738ab1676c61b9cfcd1a33c860",
+      "archive_size": 106328873,
+      "strip_prefix": "",
+      "license": "MIT",
+      "upstream_release": "https://github.com/PowerShell/PowerShell/releases/tag/v7.6.6",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/unit/test_bundled_tools.py",
+        "python scripts/impl.py verify --suite sandbox-windows"
+      ]
+    },
+    {
+      "name": "git",
+      "platform": "win32-x64",
+      "version": "2.56.0.2",
+      "path": ".local/release-runtime/git-2.56.0.2-win32-x64",
+      "entry": "cmd/git.exe",
+      "inventory": "packaging/tool-inventories/git-2.56.0.2-win32-x64.json",
+      "inventory_sha256": "f75d504c9ebbc04f4ed7c35e92e3743a5825ef593d01b13bb218a26397fbd7f0",
+      "source": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.2/MinGit-2.56.0.2-64-bit.zip",
+      "archive_sha256": "da35e72aa21c005a5a0d298cfbae110bc1609a815730ea0dde84b01a1b3cd3be",
+      "archive_size": 39806486,
+      "strip_prefix": "",
+      "license": "GPL-2.0-only",
+      "upstream_release": "https://github.com/git-for-windows/git/releases/tag/v2.56.0.windows.2",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/unit/test_bundled_tools.py",
+        "python scripts/impl.py verify --suite sandbox-windows"
+      ]
+    },
+    {
+      "name": "ripgrep",
+      "platform": "win32-x64",
+      "version": "15.2.0",
+      "path": ".local/release-runtime/ripgrep-15.2.0-win32-x64",
+      "entry": "rg.exe",
+      "inventory": "packaging/tool-inventories/ripgrep-15.2.0-win32-x64.json",
+      "inventory_sha256": "4893333cd68f8bfbc0f1dbcc7b1d319270d64364f49a61b64d57f697d97ceb04",
+      "source": "https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip",
+      "archive_sha256": "71b2fef860abe467217a538ff31de02f5258807c0129f771846f87bd029aafc5",
+      "archive_size": 1789611,
+      "strip_prefix": "ripgrep-15.2.0-x86_64-pc-windows-msvc/",
+      "license": "MIT OR Unlicense",
+      "upstream_release": "https://github.com/BurntSushi/ripgrep/releases/tag/15.2.0",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/unit/test_bundled_tools.py",
+        "python scripts/impl.py verify --suite sandbox-windows"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "@electron/fuses",
+      "kind": "npm",
+      "version": "2.1.3",
+      "source": "https://registry.npmjs.org/@electron/fuses/-/fuses-2.1.3.tgz",
+      "integrity": "sha512-LoKJUXNiJ4JM8IIrUltSHI+8pkogaGj5wmJx81jE/Wk3g2w1/kfMbTEKNoY5kitGE8hiC12h32R/1SlywFtxXg==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">=22.12.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "python scripts/impl.py verify --suite hardened"
+      ]
+    },
+    {
+      "name": "@electron-forge/plugin-fuses",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/plugin-fuses/-/plugin-fuses-8.0.1.tgz",
+      "integrity": "sha512-H1mbQgRfyWkudz4nsDWVOXK15DodVYIKNXGmR+OZJhSBQTirLWlPYqG+JR3OnnDtdSklb/nsllogh2SGt151VA==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "python scripts/impl.py verify --suite desktop-packaged"
+      ]
+    },
+    {
+      "name": "ajv",
+      "kind": "npm",
+      "version": "8.20.0",
+      "source": "https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz",
+      "integrity": "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "ajv-formats",
+      "kind": "npm",
+      "version": "3.0.1",
+      "source": "https://registry.npmjs.org/ajv-formats/-/ajv-formats-3.0.1.tgz",
+      "integrity": "sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "electron-squirrel-startup",
+      "kind": "npm",
+      "version": "1.0.1",
+      "source": "https://registry.npmjs.org/electron-squirrel-startup/-/electron-squirrel-startup-1.0.1.tgz",
+      "integrity": "sha512-sTfFIHGku+7PsHLJ7v0dRcZNkALrV+YEozINTW8X1nM//e5O3L+rfYuvSW00lmGHnYmUjARZulD8F2V8ISI9RA==",
+      "license": "Apache-2.0",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "react",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/react/-/react-19.3.0.tgz",
+      "integrity": "sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">=0.10.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "react-dom",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/react-dom/-/react-dom-19.3.0.tgz",
+      "integrity": "sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/cli",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/cli/-/cli-8.0.1.tgz",
+      "integrity": "sha512-zbkmgt7vtL8OBY7YDwVizhCfAHJLpmQtA35iOKGWPpLWRZbGADVyIUZz3QZrbc2V81/BkrBerURIBXdd/fnyhQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-deb",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/maker-deb/-/maker-deb-8.0.1.tgz",
+      "integrity": "sha512-KuHftOJKbP4Xoq51pxDrBRCpbcO99hA38KrYyr0Kpd3my+eZeg7fmo8D43TmWzQov8enXBgZi5vtLYt91KuqMQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-squirrel",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/maker-squirrel/-/maker-squirrel-8.0.1.tgz",
+      "integrity": "sha512-V6QrJvvmX2xbITXP1+/bXYe2hkMM7BYnQ8vzVHDOca2P6pn68MZsCSewqm8wiBIBSEeYuRhrztvV8aMlJ5n5Mg==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@electron-forge/plugin-vite",
+      "kind": "npm",
+      "version": "8.0.1",
+      "source": "https://registry.npmjs.org/@electron-forge/plugin-vite/-/plugin-vite-8.0.1.tgz",
+      "integrity": "sha512-6A8bV6vZnCxttIrc6vbg8aUWX0nYEsJBqqQ0WuvKziv2suG+CI0MzTMwFoZB9ofdRjrhxyHJ71+9wUndmZDpYQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.13.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@types/node",
+      "kind": "npm",
+      "version": "24.19.1",
+      "source": "https://registry.npmjs.org/@types/node/-/node-24.19.1.tgz",
+      "integrity": "sha512-aS3/DG0oM05K0RIXXP+hKjinGG5IgSSVGzswZxW3O0sS3pH4/fycXundUC9XsszgKCk4gHXylTEK6hyFxVxnoQ==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@types/react",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz",
+      "integrity": "sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "@types/react-dom",
+      "kind": "npm",
+      "version": "19.3.0",
+      "source": "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.3.0.tgz",
+      "integrity": "sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==",
+      "license": "MIT",
+      "minimum_runtime": {},
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "electron",
+      "kind": "npm",
+      "version": "44.5.1",
+      "source": "https://registry.npmjs.org/electron/-/electron-44.5.1.tgz",
+      "integrity": "sha512-lx7AYoFIiyvEvgvpyWO9kOC60xtNPpiPZAth6Fmg9NutzpCAMLwpUlaBY2EXfZyIgUdzEmLMj9KvK0Vrokl1yQ==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": ">= 22.12.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "typescript",
+      "kind": "npm",
+      "version": "7.0.2",
+      "source": "https://registry.npmjs.org/typescript/-/typescript-7.0.2.tgz",
+      "integrity": "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==",
+      "license": "Apache-2.0",
+      "minimum_runtime": {
+        "node": ">=16.20.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "vite",
+      "kind": "npm",
+      "version": "8.3.3",
+      "source": "https://registry.npmjs.org/vite/-/vite-8.3.3.tgz",
+      "integrity": "sha512-cTAldKPImjg6c+gk48U19POPn3GCBzZwpdsN8ZMEEcbpes+6/wvfqUd0C2y3qYY4wsj8PwgFwrZ/1jBPVttMSg==",
+      "license": "MIT",
+      "minimum_runtime": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "patches": [],
+      "compatibility_tests": [
+        "npm run test:unit",
+        "npm run package:smoke"
+      ]
+    },
+    {
+      "name": "pyinstaller",
+      "kind": "python",
+      "version": "6.22.3",
+      "source": "https://pypi.org/project/pyinstaller/6.22.3/",
+      "integrity": "uv.lock (distribution SHA-256)",
+      "license": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+      "minimum_runtime": "<3.16,>=3.8",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m PyInstaller packaging/forge_harness_smoke.spec"
+      ]
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "kind": "python",
+      "version": "2026.8",
+      "source": "https://pypi.org/project/pyinstaller-hooks-contrib/2026.8/",
+      "integrity": "uv.lock (distribution SHA-256)",
+      "license": null,
+      "minimum_runtime": ">=3.8",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m PyInstaller packaging/forge_harness_smoke.spec"
+      ]
+    },
+    {
+      "name": "aiohttp",
+      "kind": "python",
+      "version": "3.14.4",
+      "source": "https://pypi.org/project/aiohttp/3.14.4/",
+      "integrity": "uv.lock (distribution SHA-256)",
+      "license": "Apache-2.0 AND MIT",
+      "minimum_runtime": ">=3.10",
+      "patches": [],
+      "compatibility_tests": [
+        "python -m pytest tests/implementation/integration/test_http_adapter.py"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "name": "node",
+      "platform": "win32-x64",
+      "path": ".local/release-runtime/node-24.21.0-win-x64/node.exe",
+      "sha256": "ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32",
+      "source": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+      "archive_sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
+      "license": "MIT",
+      "patches": []
+    },
+    {
+      "name": "node",
+      "platform": "linux-x64",
+      "path": ".local/release-runtime/node-24.21.0-linux-x64/node",
+      "sha256": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c",
+      "source": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz",
+      "archive_sha256": "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6",
+      "license": "MIT",
+      "patches": []
+    },
+    {
+      "name": "bridge-runtime-manifest",
+      "platform": "all",
+      "path": "sandbox_bridge/runtime-manifest.json",
+      "sha256": "cca430a0278a577c7edfdd774388923bb1c0146a9f542bc10ecfe5eec290be59",
+      "source": "ForgeCode locked runtime code inventory",
+      "license": "NOASSERTION",
+      "patches": []
+    }
+  ],
+  "lockfile_hashes": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "ac23f5737c447f934913994025b74a60fcc536eaf775d4afcb350dbb5eeff19a"
+  },
+  "security": {
+    "status": "pass",
+    "advisories": [],
+    "reason": "Actual npm audit on 2026-10-10: 0 vulnerabilities. SRT and node-forge removed; clean npm ci tree checked.",
+    "lockfile_sha256": "ac23f5737c447f934913994025b74a60fcc536eaf775d4afcb350dbb5eeff19a"
+  },
+  "platform_requirements": {
+    "win32-x64": [
+      "Windows 10 x64 22H2 (build 19045)"
+    ],
+    "linux-x64": [
+      "Ubuntu 22.04/24.04 x64",
+      "bubblewrap",
+      "ripgrep",
+      "fakeroot/dpkg for deb"
+    ]
+  }
+}

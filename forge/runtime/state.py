@@ -181,6 +181,10 @@ class ModelUsageUpdate:
     usage: TokenUsage
     request_usage: TokenUsage | None = None
     model_calls: int = 1
+    raw_usage: dict[str, Any] | None = None
+    provider_request_id: str | None = None
+    returned_model: str | None = None
+    usage_is_final: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

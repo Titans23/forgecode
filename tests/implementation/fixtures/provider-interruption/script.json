@@ -1,0 +1,17 @@
+{
+  "schema_version": "forge.scripted-model.v1",
+  "origin": "scripted",
+  "max_steps": 1,
+  "allowed_tools": [],
+  "credentials": {},
+  "approve_scripted_calls": false,
+  "responses": [
+    {
+      "usage": null,
+      "text_chunks": [
+        "partial scripted output"
+      ],
+      "error": "connection_lost"
+    }
+  ]
+}

@@ -1,0 +1,487 @@
+{
+  "schema_version": "forge.lightweight-sandbox.observations.v1",
+  "date": "2026-10-10",
+  "status": "local_validation_pass_hosted_pending",
+  "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+  "parent_commit": "f1cda0f23cd6b4e85992c4ccaf310f37f8919bc5",
+  "implementation_commits": [
+    "ac9e377",
+    "f1cda0f"
+  ],
+  "final_commit_scope": "This source fingerprint includes the third batch before its evidence/document commit.",
+  "decisions": {
+    "reference": "../adr/037-lightweight-sandbox-without-srt.md",
+    "new_desktop_default": "workspace-write after native confirmation; cancellation stays readonly",
+    "existing_preferences": "unchanged",
+    "strict": "historical semantics retained; execution unavailable",
+    "linux": "direct system bubblewrap, no fallback",
+    "windows": "pinned DSH ACL runner 0.2.1-alpha.1",
+    "f31": "deferred by user; official experiments closed; both non-strict modes rejected",
+    "user_data": "User permitted clearing; no clearing was required or performed",
+    "public_model_calls": 0,
+    "local_administrator_setup": false
+  },
+  "native": {
+    "windows": {
+      "report_ref": ".local/light-sandbox-20261010/windows-accepted.json",
+      "report_sha256": "fb7c66771f846ed6715f47758d7f0d92d1d670baed2fc3e4c1a673e3dc35a798",
+      "status": "pass",
+      "scope": "Actual workspace-write on the recorded host; no strict or target-OS installation promotion",
+      "checks": 19,
+      "platform": "win32",
+      "os_build": "Windows-10-10.0.19045-SP0",
+      "git_commit": "f1cda0f23cd6b4e85992c4ccaf310f37f8919bc5",
+      "source_inventory_hash": "9c96a8ff6616ac457ab1e1509d4112db1c4377353fa59755c8ce461c939c6ef6",
+      "source_unchanged": true,
+      "backend": "dsh-windows-acl",
+      "backend_version": "0.2.1-alpha.1",
+      "prepare_seconds": 7.334502999998222,
+      "workload_seconds": 2.598819900002127,
+      "check_results": [
+        {
+          "name": "real write, denied outside write, private temp, stdin and cleanup probe",
+          "status": "pass"
+        },
+        {
+          "name": "limited capabilities cannot satisfy strict policy",
+          "status": "pass"
+        },
+        {
+          "name": "file tool writes through selected native backend",
+          "status": "pass"
+        },
+        {
+          "name": "file tool reads unicode paths and CRLF",
+          "status": "pass"
+        },
+        {
+          "name": "shell tool uses selected native backend",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic .env read is a declared light-mode limitation; stdin and filtered env work",
+          "status": "pass"
+        },
+        {
+          "name": "file tool retains sensitive path denial",
+          "status": "pass"
+        },
+        {
+          "name": "ordinary sibling file write is denied",
+          "status": "pass"
+        },
+        {
+          "name": "host loopback network inherited without public traffic",
+          "status": "pass"
+        },
+        {
+          "name": "native private junction fixture created",
+          "status": "pass"
+        },
+        {
+          "name": "junction cannot write outside workspace",
+          "status": "pass"
+        },
+        {
+          "name": "file tool refuses hard links",
+          "status": "pass"
+        },
+        {
+          "name": "offline Git commit/diff, Python tests, Node child build with file stdio and private caches",
+          "status": "pass"
+        },
+        {
+          "name": "Node piped-grandchild limitation matches declared platform capability",
+          "status": "pass"
+        },
+        {
+          "name": "exit code and output budget survive native dispatcher",
+          "status": "pass"
+        },
+        {
+          "name": "cancel reconciles owned parent and descendants",
+          "status": "pass"
+        },
+        {
+          "name": "timeout reconciles owned parent and descendants",
+          "status": "pass"
+        },
+        {
+          "name": "parent exit reconciles detached child",
+          "status": "pass"
+        },
+        {
+          "name": "close confirms process and temporary resource absence",
+          "status": "pass"
+        }
+      ],
+      "cleanup": {
+        "owner": {
+          "engine_epoch": "epoch-d8f3c833-0d64-4569-a726-ecb451447457",
+          "sandbox_session_id": "sandbox-4521c4cf-16c2-41b1-8494-cd18375874b3",
+          "execution_id": null
+        },
+        "state": "clean",
+        "remaining_processes": 0,
+        "diagnostic_refs": [],
+        "completed_at_utc": "2026-10-10T07:33:45.563635Z"
+      },
+      "hardlink_observation": {
+        "outcome": "denied",
+        "outside_changed": false,
+        "limitation": "Partial write boundary; dynamically introduced hard links are not an inode isolation guarantee"
+      },
+      "node_pipe_stdio": {
+        "status": "blocked",
+        "observation": {
+          "status": null,
+          "error": "EPERM",
+          "output": null
+        },
+        "reason": "Pinned DSH WRITE_RESTRICTED denies libuv named-pipe client writes; inherited/file stdio is supported"
+      }
+    },
+    "wsl": {
+      "report_ref": ".local/light-sandbox-20261010/linux-complete.json",
+      "report_sha256": "41ca238f8acd0d339c123135c497416bdf0ff97191b219ae807e66d600e6f8ab",
+      "status": "pass",
+      "scope": "Actual workspace-write on the recorded host; no strict or target-OS installation promotion",
+      "checks": 18,
+      "platform": "linux",
+      "os_build": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "git_commit": "f1cda0f23cd6b4e85992c4ccaf310f37f8919bc5",
+      "source_inventory_hash": "6804b39c9905db72f3b35d820cea4064e94db75d36d3e99230862c64ea16b969",
+      "source_unchanged": true,
+      "backend": "bubblewrap",
+      "backend_version": "0.11.1",
+      "prepare_seconds": 12.496347578000496,
+      "workload_seconds": 1.167986287999156,
+      "check_results": [
+        {
+          "name": "real write, denied outside write, private temp, stdin and cleanup probe",
+          "status": "pass"
+        },
+        {
+          "name": "limited capabilities cannot satisfy strict policy",
+          "status": "pass"
+        },
+        {
+          "name": "file tool writes through selected native backend",
+          "status": "pass"
+        },
+        {
+          "name": "file tool reads unicode paths and CRLF",
+          "status": "pass"
+        },
+        {
+          "name": "shell tool uses selected native backend",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic .env read is a declared light-mode limitation; stdin and filtered env work",
+          "status": "pass"
+        },
+        {
+          "name": "file tool retains sensitive path denial",
+          "status": "pass"
+        },
+        {
+          "name": "ordinary sibling file write is denied",
+          "status": "pass"
+        },
+        {
+          "name": "host loopback network inherited without public traffic",
+          "status": "pass"
+        },
+        {
+          "name": "file tool refuses hard links",
+          "status": "pass"
+        },
+        {
+          "name": "offline Git commit/diff, Python tests, Node child build with file stdio and private caches",
+          "status": "pass"
+        },
+        {
+          "name": "Node piped-grandchild limitation matches declared platform capability",
+          "status": "pass"
+        },
+        {
+          "name": "exit code and output budget survive native dispatcher",
+          "status": "pass"
+        },
+        {
+          "name": "symlink does not bypass read-only outside mount",
+          "status": "pass"
+        },
+        {
+          "name": "cancel reconciles owned parent and descendants",
+          "status": "pass"
+        },
+        {
+          "name": "timeout reconciles owned parent and descendants",
+          "status": "pass"
+        },
+        {
+          "name": "parent exit reconciles detached child",
+          "status": "pass"
+        },
+        {
+          "name": "close confirms process and temporary resource absence",
+          "status": "pass"
+        }
+      ],
+      "cleanup": {
+        "owner": {
+          "engine_epoch": "epoch-1938439e-57a0-47f0-9ffa-a7106072707b",
+          "sandbox_session_id": "sandbox-9bbeea51-fe93-4e3d-aea9-9fc7500db7e7",
+          "execution_id": null
+        },
+        "state": "clean",
+        "remaining_processes": 0,
+        "diagnostic_refs": [],
+        "completed_at_utc": "2026-10-10T07:32:03.362215Z"
+      },
+      "hardlink_observation": {
+        "outcome": "writable",
+        "outside_changed": true,
+        "limitation": "Partial write boundary; dynamically introduced hard links are not an inode isolation guarantee"
+      },
+      "node_pipe_stdio": {
+        "status": "pass",
+        "observation": {
+          "status": 0,
+          "error": null,
+          "output": "pipe-child\n"
+        },
+        "reason": null
+      }
+    },
+    "reuse_scope": "Native runner/file/Shell/cleanup code is unchanged since these observations. Subsequent fixes affect retired strict root lookup and packaged resource verification. Platform/source fingerprints remain separate."
+  },
+  "dependencies": {
+    "lock_entries_before": 314,
+    "lock_entries_after": 309,
+    "clean_install": "npm ci --ignore-scripts and npm ls --all on an isolated install; no SRT/node-forge",
+    "clean_tree_ref": ".local/light-sandbox-20261010/clean-tree.json",
+    "audit": "full npm audit; zero vulnerabilities; no audit suppression or dependency downgrade",
+    "resources": {
+      "build_id": "light-sandbox-final-20261010",
+      "manifest_sha256": "aec85ee16100b748f632949166ac646d87f6c7d12720a2b0bab02c75e9392f25",
+      "files": 3720,
+      "bytes": 550467230,
+      "native_helpers": []
+    },
+    "installer": {
+      "report_ref": ".local/light-sandbox-20261010/installer-final.json",
+      "report_sha256": "e2a5e215e246dd1ad9ef04a099f52c2bc2f282eb4d678db61794b2c512ddf64c",
+      "status": "pass",
+      "scope": "actual unsigned installer build from previously inspected package; no installation or signing",
+      "checks": 3,
+      "manifest_sha256": "aec85ee16100b748f632949166ac646d87f6c7d12720a2b0bab02c75e9392f25",
+      "artifacts": [
+        {
+          "path": ".local/desktop-packages/make/squirrel.windows/x64/ForgeCode-0.1.3 Setup.exe",
+          "bytes": 372682752,
+          "sha256": "fe1032a01efd470dfa94f2e71ba42c8d6f72bc69ad6e42f9ec85e7af97f20032"
+        },
+        {
+          "path": ".local/desktop-packages/make/squirrel.windows/x64/ForgeCode-0.1.3-full.nupkg",
+          "bytes": 374355698,
+          "sha256": "b6575a371a185c52a59b3581c32cbfdf4b220eef3e0559f8d9c1d035b022bed6"
+        },
+        {
+          "path": ".local/desktop-packages/make/squirrel.windows/x64/RELEASES",
+          "bytes": 80,
+          "sha256": "353360fd1a0293d39ff0898f79fd35d29197d1d076225ba7710f1bd3b9c3ccf0"
+        }
+      ]
+    },
+    "prior_inventory": {
+      "files": 2956,
+      "bytes": 555760572,
+      "note": "Historical artifact predates the DSH addition; this is not a controlled size comparison."
+    }
+  },
+  "validation": {
+    "windows_gates": [
+      {
+        "evidence_id": "20261010T081208Z-2fc555b0",
+        "suite": "contracts",
+        "status": "pass",
+        "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+        "tests": {
+          "scope": "actual contracts commands",
+          "checks": 2
+        }
+      },
+      {
+        "evidence_id": "20261010T081218Z-29db7d24",
+        "suite": "quality",
+        "status": "pass",
+        "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+        "tests": {
+          "scope": "actual quality commands",
+          "checks": 4
+        }
+      },
+      {
+        "evidence_id": "20261010T081241Z-1b6fd1fe",
+        "suite": "security",
+        "status": "pass",
+        "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+        "tests": {
+          "checks": 1
+        }
+      }
+    ],
+    "full_regression": {
+      "status": "pass",
+      "evidence_id": "20261010T081727Z-8403b440",
+      "source_inventory_hash": "91193b2942ef70deb770e7bb91d41120540c33d5f7eee404d14cbc62f90ade53",
+      "platform": "win32",
+      "tests": {"collected": 1467, "failures": 0, "errors": 0, "skipped": 0},
+      "seconds": 1550.37,
+      "report_ref": ".local/implementation/20261010T081727Z-8403b440/junit.xml",
+      "report_sha256": "76eae28ba0d9fd113b8e61264b8dde179f7972f43807790102c9e00ee437f202",
+      "recomputed_status": "pass",
+      "warnings": {"count": 5, "details": "One dependency deprecation, two deliberate fixture/configuration warnings, and two Windows subprocess UTF-8 reader-thread decode warnings; original log retained, no assertion or warning policy changed."}
+    },
+    "desktop_development": {
+      "status": "pass",
+      "checks": 132,
+      "report_ref": ".local/light-sandbox-20261010/desktop.json",
+      "scope": "Earlier batch in this implementation; UI workflows unchanged by startup hashing fixes; installed behavior separately rechecked."
+    },
+    "installed": {
+      "report_ref": ".local/light-sandbox-20261010/startup-installed.json",
+      "report_sha256": "640e4a63a72c83e5d2e1ab261880dcead034d96594d24244ad25ffa8fb65d055",
+      "status": "pass",
+      "scope": "installed-readonly-preview",
+      "checks": 21
+    },
+    "frozen": {
+      "report_ref": ".local/light-sandbox-20261010/startup-frozen/engine.json",
+      "report_sha256": "b55049d3ed9b002a418741027baa503890693c0b6423713e3134c246d72092d8",
+      "status": "pass",
+      "scope": "Windows 10 development frozen components",
+      "checks": 13,
+      "manifest_sha256": "aec85ee16100b748f632949166ac646d87f6c7d12720a2b0bab02c75e9392f25"
+    },
+    "hardened": {
+      "report_ref": ".local/light-sandbox-20261010/startup-hardened.json",
+      "report_sha256": "66a6dc376824bd03ba62e8e763a48c745c3183b460965b36dd0a6dba31b55af8",
+      "status": "pass",
+      "scope": "actual hardened unsigned developer artifact; not supported-platform acceptance",
+      "checks": 13
+    },
+    "focused_integrity": {
+      "windows": 29,
+      "wsl": 29,
+      "windows_log": ".local/light-sandbox-20261010/startup-integrity-tests.log",
+      "wsl_log": ".local/light-sandbox-20261010/wsl-startup-integrity.log"
+    },
+    "factory_compatibility": {
+      "windows": 13,
+      "wsl": 13,
+      "scope": "Original blocked/model-not-started/clean-owner assertions preserved"
+    },
+    "wsl_http": {
+      "tests": 21,
+      "status": "pass",
+      "log": ".local/light-sandbox-20261010/wsl-http-final.log",
+      "note": "Original expired-ack assertions/timeouts retained; previous 79/80 batch's missing Electron fixed by hydrating the locked binary. Counts overlap; not summed."
+    },
+    "hosted": {
+      "status": "pending",
+      "pull_request": "https://github.com/Titans23/forgecode/pull/1"
+    }
+  },
+  "fixes": [
+    {
+      "issue": "Strict factory imported removed SRT account root",
+      "root_cause": "protected_roots still imported windows_worker_root after its implementation was retired",
+      "change": "Remove only the stale root dependency; keep current control-data protection",
+      "evidence": ".local/light-sandbox-20261010/native-composition-diagnostic.log"
+    },
+    {
+      "issue": "Frozen task exceeded original 60-second budget",
+      "root_cause": "Each fixed worker verified unrelated desktop/Bridge/tool bundles",
+      "change": "Service verifies all resources; fixed workers verify every Engine/contract byte and group binding; core-tool call verification retained",
+      "measurements": [
+        {
+          "engine_worker": false,
+          "seconds": 7.491654699999344,
+          "files_read": 3720
+        },
+        {
+          "engine_worker": true,
+          "seconds": 0.5686798999995517,
+          "files_read": 262
+        }
+      ],
+      "passing_task_seconds": 22.398,
+      "scope": "Measured on the worker-fix artifact; current final frozen workload also passes unchanged limits"
+    },
+    {
+      "issue": "Fresh packaged startup exceeded 90 seconds",
+      "root_cause": "Main serialized independent resource reads, rehashed tool groups, then rehashed Engine files",
+      "change": "Bounded batches of 8; every path/link/size/hash still verified, extra tool DLL/link rejection retained; no persistent verification cache",
+      "before": {
+        "report_ref": ".local/light-sandbox-20261010/cold-diagnostic/diagnostic.json",
+        "timed_out": true,
+        "timeout_seconds": 90,
+        "main_read_bytes_at_85_seconds": 976780305
+      },
+      "after": {
+        "report_ref": ".local/light-sandbox-20261010/cold-fixed/diagnostic.json",
+        "timed_out": false,
+        "seconds": 47.7029999999977,
+        "main_read_bytes": 554974785
+      },
+      "measurement_limit": "Fresh directory copies on the same workstation, not OS-cache-controlled benchmarks. Background load differed; byte-read reduction is directly observed. This does not clear historical performance gates."
+    }
+  ],
+  "failure_history": [
+    {
+      "ref": ".local/light-sandbox-20261010/windows-workloads.json",
+      "reason": "Actual Windows Node piped child EPERM; retained as unsupported, not fixed or counted as pipe support"
+    },
+    {
+      "ref": ".local/light-sandbox-20261010/windows-complete.json",
+      "reason": "Junction fixture used a forward-slash cmd.exe path; fixture corrected without changing product boundary"
+    },
+    {
+      "ref": ".local/light-sandbox-20261010/wsl-regression.log",
+      "reason": "79 pass / 1 missing-Electron failure; locked Electron hydration and original HTTP tests verified"
+    },
+    {
+      "ref": ".local/light-sandbox-20261010/engine-packaged.json",
+      "reason": "Pre-fix frozen worker redundant hashing exceeded original task budget"
+    },
+    {
+      "ref": ".local/light-sandbox-20261010/packaged-final.log",
+      "reason": "First actual packaged startup timeout retained"
+    },
+    {
+      "ref": ".local/light-sandbox-20261010/installed-final.log",
+      "reason": "Second first-start timeout led to cold-directory diagnosis and actual verification fix"
+    },
+    {
+      "ref": ".local/implementation/20261010T073400Z-f5e32ad9",
+      "reason": "Full run interrupted after reproducible strict-root ImportError; no complete regression pass"
+    },
+    {
+      "ref": ".local/implementation/20261010T075436Z-9b745697",
+      "reason": "Full run interrupted before changing packaged-verification code; no complete regression pass"
+    }
+  ],
+  "remaining": [
+    "Windows Node/libuv piped grandchildren are unsupported (EPERM); inherited/file stdio works.",
+    "Dynamic hard links are not an inode-isolation guarantee; WSL outside inode modification was observed. Writes remain partial; reads/network inherit host rights.",
+    "Historical ordinary-task 15-second baseline-preparation delay was not reproduced or established fixed; retain its prior record.",
+    "Historical metadata overhead 5.210340492313925% exceeds the unchanged 5% threshold.",
+    "Ubuntu22.04/24.04 native GUI/clean installation resources are unavailable; WSL/CI do not replace them.",
+    "Signing and project LICENSE remain independent production blockers.",
+    "Strict execution and F31 official experiments remain closed."
+  ]
+}

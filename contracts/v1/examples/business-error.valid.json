@@ -1,0 +1,9 @@
+{
+  "code": -32010,
+  "message": "x",
+  "data": {
+    "kind": "STALE_REVISION",
+    "retryable": true,
+    "correlation_id": "x"
+  }
+}

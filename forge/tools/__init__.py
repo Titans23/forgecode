@@ -1,26 +1,29 @@
 '''Built-in ForgeCode tools.'''
 
+from __future__ import annotations
 from pathlib import Path
+from importlib import import_module
 
 from forge.tools.base import ToolRegistry
-from forge.tools.filesystem import (
-    CreateDirectoryTool,
-    ListDirectoryTool,
-    ReadFileTool,
-    RemoveDirectoryTool,
-    ReplaceTextTool,
-    WriteFileChunkTool,
-    WriteFileTool,
-)
-from forge.tools.finish import FinishTaskTool, ReviewDeliveryTool
-from forge.tools.git import GitDiffTool, GitLogTool, GitStatusTool
-from forge.tools.patch import ApplyPatchTool
-from forge.tools.search import FindFilesTool, GrepTool
-from forge.tools.shell import RunCommandTool
-from forge.tools.verify import VerifyTool
-from forge.runtime.workspace import WorkspaceTracker
-from forge.runtime.profile import ExecutionProfile
-from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
+_EXPORT_MODULES = {
+    **dict.fromkeys(('CreateDirectoryTool', 'ListDirectoryTool', 'ReadFileTool', 'RemoveDirectoryTool',
+                    'ReplaceTextTool', 'WriteFileChunkTool', 'WriteFileTool'), 'forge.tools.filesystem'),
+    **dict.fromkeys(('FinishTaskTool', 'ReviewDeliveryTool'), 'forge.tools.finish'),
+    **dict.fromkeys(('GitDiffTool', 'GitLogTool', 'GitStatusTool'), 'forge.tools.git'),
+    **dict.fromkeys(('FindFilesTool', 'GrepTool'), 'forge.tools.search'),
+    **dict.fromkeys(('LoadSkillTool', 'ReadSkillResourceTool', 'SkillManager'), 'forge.skills'),
+    'ApplyPatchTool': 'forge.tools.patch', 'RunCommandTool': 'forge.tools.shell',
+    'VerifyTool': 'forge.tools.verify', 'WorkspaceTracker': 'forge.runtime.workspace',
+    'ExecutionProfile': 'forge.runtime.profile',
+}
+
+
+def __getattr__(name):
+    if name not in _EXPORT_MODULES:
+        raise AttributeError(name)
+    value = getattr(import_module(_EXPORT_MODULES[name]), name)
+    globals()[name] = value
+    return value
 
 
 def create_default_registry(
@@ -29,12 +32,24 @@ def create_default_registry(
     execution_profile: ExecutionProfile | None = None,
     allow_container_writes: bool = False,
     model_client_factory=None,
+    tool_backend=None,
+    event_recorder=None,
 ) -> ToolRegistry:
     '''Create built-in tools sharing one task-local workspace tracker.'''
     # Delayed import prevents runtime.state -> forge.tools package cycles.
     from forge.subagents.explore import ExploreRepositoryTool
+    from forge.tools.filesystem import (CreateDirectoryTool, ListDirectoryTool, ReadFileTool,
+        RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool)
+    from forge.tools.finish import FinishTaskTool, ReviewDeliveryTool
+    from forge.tools.git import GitDiffTool, GitStatusTool
+    from forge.tools.patch import ApplyPatchTool
+    from forge.tools.search import FindFilesTool, GrepTool
+    from forge.tools.shell import RunCommandTool
+    from forge.tools.verify import VerifyTool
+    from forge.runtime.workspace import WorkspaceTracker
+    from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
 
-    tracker = WorkspaceTracker(root)
+    tracker = WorkspaceTracker(root, observer=getattr(tool_backend, 'observer', None))
     skill_manager = SkillManager(root)
     return ToolRegistry(
         [
@@ -58,7 +73,8 @@ def create_default_registry(
             VerifyTool(root, tracker),
             GitStatusTool(root),
             GitDiffTool(root),
-            ExploreRepositoryTool(root, client_factory=model_client_factory),
+            ExploreRepositoryTool(root, client_factory=model_client_factory,
+                                  tool_backend=tool_backend, event_recorder=event_recorder),
             FinishTaskTool(root),
             ReviewDeliveryTool(root),
         ],

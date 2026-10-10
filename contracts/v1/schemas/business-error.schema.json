@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:business-error",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "const": -32010
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "STALE_REVISION",
+            "IDEMPOTENCY_CONFLICT",
+            "DATA_DIR_IN_USE",
+            "SETUP_REQUIRED",
+            "CAPABILITY_UNSATISFIED",
+            "STALE_APPROVAL",
+            "INCOMPATIBLE_PROTOCOL",
+            "INVALID_CURSOR",
+            "NOT_FOUND",
+            "INVALID_PARAMS",
+            "UNAUTHORIZED",
+            "BUDGET_EXHAUSTED",
+            "CONNECTION_UNAVAILABLE",
+            "ARTIFACT_LIMIT",
+            "INDETERMINATE",
+            "JOURNAL_WRITE_FAILED",
+            "EVENT_CONFLICT",
+            "UNSUPPORTED_PLATFORM",
+            "MANIFEST_MISMATCH",
+            "POLICY_DENIED",
+            "SANDBOX_UNAVAILABLE",
+            "COMMAND_FAILED",
+            "CANCEL_UNCONFIRMED",
+            "CLEANUP_FAILED",
+            "STALE_FILE",
+            "DESKTOP_OR_CLI_APPROVAL_REQUIRED"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "correlation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "actual": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "kind",
+        "retryable",
+        "correlation_id"
+      ]
+    }
+  },
+  "required": [
+    "code",
+    "message",
+    "data"
+  ]
+}

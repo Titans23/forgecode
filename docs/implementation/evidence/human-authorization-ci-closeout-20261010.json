@@ -1,0 +1,21 @@
+{
+  "schema_version": "forge.implementation.authorization.v1",
+  "recorded_at": "2026-10-10T02:34:46.807823+00:00",
+  "scope": "Narrow closeout of current consolidation PR Ubuntu CI permission failure",
+  "explicit_human_instruction": "集中处理 Ubuntu CI 权限问题和安全依赖门禁，已经解决的事项不要重复启动。",
+  "interpretation": "Apply the existing locked Electron helper preparation to the current same-repository consolidation pull request as well as existing trusted pushes. This is the CI permission repair requested on 2026-10-10; it does not authorize broader privileged setup.",
+  "repository": "Titans23/forgecode",
+  "head_branch": "codex/forgecode-consolidation",
+  "event": "pull_request from the same repository only",
+  "runner": "GitHub-hosted ephemeral ubuntu-24.04",
+  "allowed_operations": [
+    "Existing package-lock-bound Electron hydration",
+    "Set the verified regular chrome-sandbox helper owner root:root and mode 4755",
+    "Verify actual owner/mode before all existing portable checks"
+  ],
+  "fork_pull_requests_authorized": false,
+  "local_administrator_setup_authorized": false,
+  "native_srt_setup_authorized": false,
+  "model_authorization_change": false,
+  "prior_authorization_ref": "human-authorization-ci-20261008.json"
+}

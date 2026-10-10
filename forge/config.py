@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -25,7 +25,7 @@ class ConfigurationError(ValueError):
 class ForgeConfig:
     '''Validated configuration used to create the first model client.'''
 
-    api_key: str
+    api_key: str = field(repr=False)
     model_id: str
     base_url: str | None = None
     max_tokens: int = DEFAULT_MODEL_MAX_TOKENS
@@ -140,3 +140,14 @@ class ForgeConfig:
             context_window=context_window,
             request_timeout_seconds=request_timeout_seconds,
         )
+
+
+def warn_unknown_config_fields(path: Path, value: Mapping[str, object], supported: set[str]) -> None:
+    """Keep legacy values intact and report only ignored field names."""
+    unknown = sorted(set(value) - supported)
+    if unknown:
+        import warnings
+        names = ', '.join(repr(name[:64]) for name in unknown[:16])
+        warnings.warn(f'{path.name}: unsupported fields {names}; remove them or use supported fields '
+                      f"{', '.join(sorted(supported))}. Values were ignored and the file was preserved.",
+                      UserWarning, stacklevel=2)

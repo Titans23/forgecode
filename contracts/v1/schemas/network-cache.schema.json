@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:network-cache",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "network_mode": {
+      "enum": [
+        "deny_direct",
+        "allowlist"
+      ]
+    },
+    "allowed_domains": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 253
+      },
+      "maxItems": 128,
+      "minItems": 0
+    },
+    "cache_mode": {
+      "enum": [
+        "cold",
+        "isolated_per_trial",
+        "shared_read_only"
+      ]
+    },
+    "cache_snapshot": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "sha256": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "snapshot_id",
+            "sha256"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "network_mode",
+    "allowed_domains",
+    "cache_mode",
+    "cache_snapshot"
+  ]
+}

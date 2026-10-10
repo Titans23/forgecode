@@ -1,0 +1,57 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261009T114344Z-b593b12b",
+  "task_id": "F31",
+  "case_ids": [
+    "N24"
+  ],
+  "suite": "live-eval",
+  "git_commit": "84a2c30eab4a5b7c1c3f02c2cae22a3a33d2dc21",
+  "dirty_hash": "aabcce8e2548b6d11f4ffb737ecbba20d00da4c4da57a6154f3e830e2401729d",
+  "source_inventory_hash": "3ac4c28ffd5f2868e95aaac0d21c3da8efa2383d2e9fdb533d27e9787c711f19",
+  "platform": "linux",
+  "os_build": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "/home/titans/learn_project/forgecode/.venv/bin/python",
+    "-X",
+    "utf8",
+    "/home/titans/learn_project/forgecode/scripts/delivery_experiment.py",
+    "verify",
+    "--output",
+    "/home/titans/learn_project/forgecode/.local/implementation/20261009T114344Z-b593b12b/packaging.json"
+  ],
+  "start": "2026-10-09T11:43:44.826423+00:00",
+  "preparation_commands": [
+    [
+      "/home/titans/learn_project/forgecode/.venv/bin/python",
+      "/home/titans/learn_project/forgecode/scripts/build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "/home/titans/learn_project/forgecode/.venv/bin/python",
+      "/home/titans/learn_project/forgecode/scripts/build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "3ac4c28ffd5f2868e95aaac0d21c3da8efa2383d2e9fdb533d27e9787c711f19",
+  "end": "2026-10-09T11:43:47.780900+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261009T114344Z-b593b12b/stdout.log",
+  "stderr_ref": ".local/implementation/20261009T114344Z-b593b12b/stderr.log",
+  "report_ref": ".local/implementation/20261009T114344Z-b593b12b/packaging.json",
+  "report_hash": "7ef0634e74216478ff35925d2bfa4fb1fa89aadc5c185617025f2540c3cf6871",
+  "status": "blocked",
+  "tests": {
+    "reason": "Official execution policy verification, authorization binding and per-request accounting remain unavailable.; The preregistration has unresolved source/model/environment snapshots and is not an executable RunSpec.; Linux Docker daemon unavailable; no environment was started",
+    "scope": "real preregistration validation and official runner readiness; zero public-model execution",
+    "eligible_for_native_pass": false,
+    "checks": 6
+  }
+}

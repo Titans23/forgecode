@@ -1,0 +1,68 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T115355Z-edb1d80e",
+  "task_id": "F07",
+  "case_ids": [
+    "N04",
+    "D30",
+    "N02",
+    "N06",
+    "O07",
+    "D04",
+    "D07",
+    "D09",
+    "D10",
+    "N01",
+    "N03",
+    "C06",
+    "C24",
+    "N08"
+  ],
+  "suite": "portable",
+  "git_commit": "b5d2b4f5a79d9691e0a94ce430c38375911b4adc",
+  "dirty_hash": "c9425ab381dcc7be1b6485036ce5d37acdd2f1ab1ef1fa79e07f74275824207d",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d",
+    "release-lock.json": "6836115e5e23c723356cbdf08ee8b9fb06c23b599944e61b82da7ca37bbdd21b"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/implementation/portable",
+    "tests/implementation/integration",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T115355Z-edb1d80e\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T115355Z-edb1d80e\\junit.xml"
+  ],
+  "start": "2026-10-06T11:53:55.698075+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ]
+  ],
+  "end": "2026-10-06T11:55:06.443280+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261006T115355Z-edb1d80e/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T115355Z-edb1d80e/stderr.log",
+  "report_ref": ".local/implementation/20261006T115355Z-edb1d80e/junit.xml",
+  "report_hash": "7b1205fa1bd2d4bf2a6780552283d142fc23c18a803161e2c4125178569fe07e",
+  "status": "pass",
+  "tests": {
+    "collected": 56,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  }
+}

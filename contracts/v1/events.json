@@ -1,0 +1,189 @@
+{
+  "schema_version": "forge.event.catalog.v1",
+  "events": {
+    "turn.accepted": {
+      "payload_schema": "event.turn.accepted",
+      "implementation_status": "implemented"
+    },
+    "turn.started": {
+      "payload_schema": "event.turn.started",
+      "implementation_status": "implemented"
+    },
+    "turn.finished": {
+      "payload_schema": "event.turn.finished",
+      "implementation_status": "implemented"
+    },
+    "model.request.started": {
+      "payload_schema": "event.model.request.started",
+      "implementation_status": "implemented"
+    },
+    "model.request.chunk": {
+      "payload_schema": "event.model.request.chunk",
+      "implementation_status": "implemented"
+    },
+    "model.request.finished": {
+      "payload_schema": "event.model.request.finished",
+      "implementation_status": "implemented"
+    },
+    "model.request.failed": {
+      "payload_schema": "event.model.request.failed",
+      "implementation_status": "implemented"
+    },
+    "tool.intent": {
+      "payload_schema": "event.tool.intent",
+      "implementation_status": "implemented"
+    },
+    "tool.started": {
+      "payload_schema": "event.tool.started",
+      "implementation_status": "implemented"
+    },
+    "tool.output": {
+      "payload_schema": "event.tool.output",
+      "implementation_status": "implemented"
+    },
+    "tool.finished": {
+      "payload_schema": "event.tool.finished",
+      "implementation_status": "implemented"
+    },
+    "context.prepared": {
+      "payload_schema": "event.context.prepared",
+      "implementation_status": "implemented"
+    },
+    "compaction.started": {
+      "payload_schema": "event.compaction.started",
+      "implementation_status": "implemented"
+    },
+    "compaction.finished": {
+      "payload_schema": "event.compaction.finished",
+      "implementation_status": "implemented"
+    },
+    "compaction.failed": {
+      "payload_schema": "event.compaction.failed",
+      "implementation_status": "implemented"
+    },
+    "budget.reserved": {
+      "payload_schema": "event.budget.reserved",
+      "implementation_status": "implemented"
+    },
+    "budget.consumed": {
+      "payload_schema": "event.budget.consumed",
+      "implementation_status": "implemented"
+    },
+    "budget.limit_reached": {
+      "payload_schema": "event.budget.limit_reached",
+      "implementation_status": "implemented"
+    },
+    "verification.started": {
+      "payload_schema": "event.verification.started",
+      "implementation_status": "implemented"
+    },
+    "verification.finished": {
+      "payload_schema": "event.verification.finished",
+      "implementation_status": "implemented"
+    },
+    "verification.invalidated": {
+      "payload_schema": "event.verification.invalidated",
+      "implementation_status": "implemented"
+    },
+    "completion.accepted": {
+      "payload_schema": "event.completion.accepted",
+      "implementation_status": "implemented"
+    },
+    "completion.rejected": {
+      "payload_schema": "event.completion.rejected",
+      "implementation_status": "implemented"
+    },
+    "completion.repair_started": {
+      "payload_schema": "event.completion.repair_started",
+      "implementation_status": "implemented"
+    },
+    "approval.requested": {
+      "payload_schema": "event.approval.requested",
+      "implementation_status": "implemented"
+    },
+    "approval.decided": {
+      "payload_schema": "event.approval.decided",
+      "implementation_status": "implemented"
+    },
+    "approval.expired": {
+      "payload_schema": "event.approval.expired",
+      "implementation_status": "implemented"
+    },
+    "sandbox.prepared": {
+      "payload_schema": "event.sandbox.prepared",
+      "implementation_status": "implemented"
+    },
+    "sandbox.denied": {
+      "payload_schema": "event.sandbox.denied",
+      "implementation_status": "implemented"
+    },
+    "sandbox.failed": {
+      "payload_schema": "event.sandbox.failed",
+      "implementation_status": "implemented"
+    },
+    "sandbox.cleanup_finished": {
+      "payload_schema": "event.sandbox.cleanup_finished",
+      "implementation_status": "implemented"
+    },
+    "cancellation.requested": {
+      "payload_schema": "event.cancellation.requested",
+      "implementation_status": "implemented"
+    },
+    "cancellation.confirmed": {
+      "payload_schema": "event.cancellation.confirmed",
+      "implementation_status": "implemented"
+    },
+    "recovery.started": {
+      "payload_schema": "event.recovery.started",
+      "implementation_status": "implemented"
+    },
+    "recovery.finished": {
+      "payload_schema": "event.recovery.finished",
+      "implementation_status": "implemented"
+    },
+    "trial.planned": {
+      "payload_schema": "event.trial.planned",
+      "implementation_status": "implemented"
+    },
+    "attempt.started": {
+      "payload_schema": "event.attempt.started",
+      "implementation_status": "implemented"
+    },
+    "grade.finished": {
+      "payload_schema": "event.grade.finished",
+      "implementation_status": "implemented"
+    },
+    "client.attached": {
+      "payload_schema": "event.client.attached",
+      "implementation_status": "contract_only"
+    },
+    "client.reconnected": {
+      "payload_schema": "event.client.reconnected",
+      "implementation_status": "contract_only"
+    },
+    "client.approval_shown": {
+      "payload_schema": "event.client.approval_shown",
+      "implementation_status": "contract_only"
+    },
+    "journal.projected": {
+      "payload_schema": "event.journal.projected",
+      "implementation_status": "implemented"
+    },
+    "session.message": {
+      "payload_schema": "event.session.message",
+      "implementation_status": "implemented"
+    },
+    "model.usage.confirmed": {
+      "payload_schema": "event.model.usage.confirmed",
+      "implementation_status": "implemented"
+    },
+    "attempt.heartbeat": {
+      "payload_schema": "event.attempt.heartbeat",
+      "implementation_status": "implemented"
+    },
+    "attempt.finished": {
+      "payload_schema": "event.attempt.finished",
+      "implementation_status": "implemented"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "kind": "documentation_validator_only",
+  "product_tests_executed": false,
+  "negative_checks": [
+    {
+      "mutation": "dependency_cycle",
+      "detected": true,
+      "error_count": 1
+    },
+    {
+      "mutation": "missing_task_card",
+      "detected": true,
+      "error_count": 1
+    },
+    {
+      "mutation": "invalid_positive_example",
+      "detected": true,
+      "error_count": 1
+    },
+    {
+      "mutation": "unterminated_fence",
+      "detected": true,
+      "error_count": 1
+    }
+  ]
+}

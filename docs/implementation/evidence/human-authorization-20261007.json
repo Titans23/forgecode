@@ -1,0 +1,15 @@
+{
+  "schema_version": "forge.human-authorization.v1",
+  "received_at_utc": "2026-10-07T12:11:00Z",
+  "source": "Explicit human authorization received during this ForgeCode upgrade; raw conversation identifiers and quotes remain private",
+  "scope": "ForgeCode V4 real-model validation and development within this upgrade",
+  "real_model_authorized": true,
+  "monetary_budget_policy": "human_unbounded",
+  "monetary_ceiling": null,
+  "current_acceptance_platform": "Windows 10 x64 build 19045",
+  "administrator_setup_authorized": false,
+  "github_tested_development_upload_authorized": true,
+  "credential_handling": "Read existing configuration in memory; never publish keys or connection secrets",
+  "operational_budgets": "Finite request, tool, token and wall-clock budgets still apply; all attempts and unknown usage/cost retained",
+  "previous_unauthorized_notes": "Historical observations before this authorization remain historical, not current blockers"
+}

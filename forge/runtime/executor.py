@@ -8,9 +8,11 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from time import monotonic
 from typing import Any
+from uuid import uuid4
 
 from forge.hooks import HookEvent, HookOutcome
 from forge.permissions.policy import PermissionManager
+from forge.permissions.context import ToolApprovalContext, tool_approval_context
 from forge.permissions.risk import classify_tool_call
 from forge.runtime.state import ToolCall
 from forge.runtime.turn_state import (
@@ -54,6 +56,7 @@ class ToolExecutor:
         checkpoint_store: CheckpointStore | None = None,
         path_resolver: PathResolver | None = None,
         hook_context_sink: HookContextSink | None = None,
+        backend: Any | None = None,
     ) -> None:
         self.registry = registry
         self.permission_manager = permission_manager
@@ -63,9 +66,26 @@ class ToolExecutor:
         self.checkpoint_store = checkpoint_store
         self.path_resolver = path_resolver or default_tool_paths
         self.hook_context_sink = hook_context_sink
+        self.backend = backend
         self._read_cache: dict[str, ToolResult] = {}
 
     async def execute(
+        self,
+        call: ToolCall,
+        *,
+        checkpoint_id: str | None = None,
+        scope_checker: ScopeChecker | None = None,
+        operation: Operation | None = None,
+        result_transformer: ResultTransformer | None = None,
+    ) -> ExecutionOutcome:
+        from forge.observability.events import current
+        from contextlib import nullcontext
+        recorder=current()
+        with recorder.tool(call) if recorder else nullcontext():
+            return await self._execute(call,checkpoint_id=checkpoint_id,scope_checker=scope_checker,
+                                       operation=operation,result_transformer=result_transformer)
+
+    async def _execute(
         self,
         call: ToolCall,
         *,
@@ -164,7 +184,16 @@ class ToolExecutor:
         request = self.registry.permission_request(call.name, arguments)
         if request is None:
             request = classify_tool_call(effective_call, effect)
-        decision = await self.permission_manager.authorize(request)
+        from forge.observability.events import active, current
+        recorder=current()
+        if recorder:
+            recorder.tool_intent(effective_call)
+        execution_id=active.get().scope.execution_id if recorder else 'exec-'+str(uuid4())
+        token = tool_approval_context.set(ToolApprovalContext(execution_id, effective_call, self.workspace_tracker))
+        try:
+            decision = await self.permission_manager.authorize(request)
+        finally:
+            tool_approval_context.reset(token)
         if decision.action == 'deny':
             result = ToolResult.fail(
                 'permission_denied',
@@ -191,29 +220,36 @@ class ToolExecutor:
             return self._outcome(call, cached, 'cached', started, arguments, *self._state())
         if effect != 'read_only':
             self._read_cache.clear()
-        if self.workspace_tracker is not None and effect == 'workspace_write':
-            self.workspace_tracker.watch_paths(checkpoint_paths)
         execution_started = False
         try:
+            if self.workspace_tracker is not None and effect == 'workspace_write':
+                await self.workspace_tracker.watch_paths_async(checkpoint_paths)
             if checkpoint_id is not None and checkpoint_paths:
                 if self.checkpoint_store is None:
                     raise CheckpointError('Checkpoint store is unavailable.')
-                self.checkpoint_store.capture_before(
-                    checkpoint_id,
-                    checkpoint_paths,
-                )
-            self._journal_started(effective_call)
+                if self.backend is not None and hasattr(self.backend, 'snapshot'):
+                    observed = await self.backend.snapshot(checkpoint_paths, recursive=call.name == 'remove_directory')
+                    self.checkpoint_store.capture_observations(checkpoint_id, observed['files'])
+                    checkpoint_paths = tuple(observed['files'])
+                else:
+                    self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
+            if operation is not None and self.backend is not None and self.backend.mode == 'strict':
+                raise CheckpointError('Strict execution cannot use an unrestricted internal operation.')
+            await self._journal_started(effective_call)
             execution_started = True
             result = (
                 await operation(effective_call)
                 if operation is not None
-                else await self.registry.execute(call.name, arguments)
+                else (await self.backend.execute(effective_call, self.registry)
+                      if self.backend is not None
+                      else await self.registry.execute(call.name, arguments))
             )
             if checkpoint_id is not None and checkpoint_paths:
-                self.checkpoint_store.record_after(
-                    checkpoint_id,
-                    checkpoint_paths,
-                )
+                if self.backend is not None and hasattr(self.backend, 'snapshot'):
+                    observed = await self.backend.snapshot(checkpoint_paths)
+                    self.checkpoint_store.record_observations(checkpoint_id, observed['files'])
+                else:
+                    self.checkpoint_store.record_after(checkpoint_id, checkpoint_paths)
         except asyncio.CancelledError:
             result = ToolResult.fail(
                 'execution_cancelled',
@@ -249,13 +285,13 @@ class ToolExecutor:
             )
         except Exception as error:
             result = ToolResult.fail(
-                'executor_failed',
+                getattr(error, 'kind', 'executor_failed'),
                 f'Tool executor failed before a determinate result: {error}',
             )
             return self._outcome(
                 call,
                 result,
-                'indeterminate' if effect in {'workspace_write', 'process'} else 'rejected',
+                'indeterminate' if execution_started and effect in {'workspace_write', 'process'} else 'rejected',
                 started,
                 arguments,
                 *self._state(),
@@ -298,7 +334,7 @@ class ToolExecutor:
         return self._outcome(
             call,
             result,
-            'executed',
+            ('indeterminate' if result.error and result.error.code == 'INDETERMINATE' else 'executed'),
             started,
             arguments,
             *self._state(),
@@ -322,15 +358,11 @@ class ToolExecutor:
         started = monotonic()
         effective_arguments = dict(arguments or call.arguments)
         revision, epoch = self._state()
-        return self._outcome(
-            call,
-            result,
-            status,
-            started,
-            effective_arguments,
-            revision,
-            epoch,
-        )
+        from forge.observability.events import current
+        from contextlib import nullcontext
+        recorder=current()
+        with recorder.tool(call) if recorder else nullcontext():
+            return self._outcome(call,result,status,started,effective_arguments,revision,epoch)
 
     def _state(self) -> tuple[int, int]:
         if self.workspace_tracker is None:
@@ -380,15 +412,16 @@ class ToolExecutor:
             self.hook_context_sink(outcome)
         return outcome
 
-    def _journal_started(self, call: ToolCall) -> None:
-        if self.session_journal is None:
-            return
-        self.session_journal.record_tool_started(
-            call.id,
-            call.name,
-            self.registry.audit_arguments(call.name, call.arguments),
-            provenance=self.registry.provenance(call.name),
-        )
+    async def _journal_started(self, call: ToolCall) -> None:
+        if self.session_journal is not None:
+            self.session_journal.record_tool_started(call.id,call.name,self.registry.audit_arguments(call.name,call.arguments),
+                                                    provenance=self.registry.provenance(call.name))
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            if call.name=='verify':
+                await recorder.before_verification()
+            recorder.tool_started(call,workspace_revision=self._state()[0],environment_epoch=self._state()[1])
 
     def _outcome(
         self,
@@ -427,11 +460,18 @@ class ToolExecutor:
                 workspace_revision=record.workspace_revision,
                 environment_epoch=record.environment_epoch,
             )
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            recorder.evidence_state(revision,epoch)
+            recorder.tool_finished(ToolCall(call.index,call.id,call.name,arguments),result,status)
         return ExecutionOutcome(result, record, arguments, workspace_change)
 
     def _cache_key(self, call: ToolCall) -> str | None:
         # Only a local file read has a cheap, exact validity proof. Searches,
         # directory listings, commands, task state and MCP reads are not cached.
+        if self.backend is not None and hasattr(self.backend, 'observer'):
+            return None
         if call.name != 'read_file' or self.workspace_tracker is None:
             return None
         path = call.arguments.get('path')

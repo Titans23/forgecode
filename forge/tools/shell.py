@@ -20,6 +20,7 @@ from forge.tools.base import (
     ToolExecutionError,
     ToolInput,
     ToolResult,
+    file_access_guard,
     display_path,
     resolve_repository_path,
 )
@@ -67,6 +68,11 @@ async def run_process(
     '''Run one sanitized subprocess with bounded output and tree termination.'''
     if max_output_bytes < 1:
         raise ValueError('max_output_bytes must be positive')
+    access = file_access_guard.get()
+    if access is not None:
+        timeout_seconds = min(timeout_seconds, access.limits['wall_time_seconds'])
+        # Two streams plus JSON escaping must fit the one-frame helper response.
+        max_output_bytes = min(max_output_bytes, access.limits['command_output_bytes'] // 2, 65536)
     job = None
     if os.name == 'nt':
         from forge.tools.windows_job import WindowsJob
@@ -75,7 +81,7 @@ async def run_process(
         return await _run_process(command, cwd=cwd, timeout_seconds=timeout_seconds,
                                   input_text=input_text, shell=shell,
                                   max_output_bytes=max_output_bytes, process_job=job,
-                                  artifact_root=artifact_root or cwd)
+                                  artifact_root=None if access is not None else artifact_root or cwd)
     finally:
         if job is not None:
             job.close()
@@ -85,6 +91,7 @@ async def _run_process(
     command, *, cwd, timeout_seconds, input_text, shell, max_output_bytes, process_job, artifact_root,
 ) -> ProcessResult:
     started = perf_counter()
+    windows_acl = getattr(file_access_guard.get(), 'windows_acl', False)
     stdin = asyncio.subprocess.PIPE if input_text is not None else None
     process_options: dict[str, object] = {
         'cwd': cwd,
@@ -95,20 +102,20 @@ async def _run_process(
     }
     if os.name == 'nt':
         import subprocess
-        from forge.tools.windows_job import GATED_WORKER
+        from forge.release.processes import worker_argv
         if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
             raise TypeError('Shell commands must be strings; executable commands must be lists.')
-        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | (0 if windows_acl else subprocess.CREATE_NO_WINDOW)
         process_options['stdin'] = asyncio.subprocess.PIPE
-        command = [sys.executable, '-c', GATED_WORKER, json.dumps(command), '1' if shell else '0']
+        command = worker_argv(command,shell=shell)
         shell = False
     else:
         process_options['start_new_session'] = True
         if sys.platform.startswith('linux'):
             if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
                 raise TypeError('Shell commands must be strings; executable commands must be lists.')
-            command = [sys.executable, str(Path(__file__).with_name('linux_process_worker.py')),
-                       json.dumps(command), '1' if shell else '0']
+            from forge.release.processes import worker_argv
+            command = worker_argv(command,shell=shell)
             shell = False
     if shell:
         if not isinstance(command, str):
@@ -117,7 +124,13 @@ async def _run_process(
     else:
         if isinstance(command, str):
             raise TypeError('Executable commands must be argument lists.')
-        process = await asyncio.create_subprocess_exec(*command, **process_options)
+        if windows_acl:
+            # DSH's Low token cannot reopen Python's overlapped named pipes.
+            # Anonymous pipes inherit the same token and remain in the owned Job.
+            from forge.tools.windows_job import AnonymousPipeProcess
+            process = await AnonymousPipeProcess.start(command, **process_options)
+        else:
+            process = await asyncio.create_subprocess_exec(*command, **process_options)
     if process_job is not None:
         try:
             process_job.assign(process.pid)
@@ -218,13 +231,13 @@ async def _read_bounded(
     total = 0
     digest = sha256()
     archive = None
-    directory = artifact_root / '.forge' / 'context' / 'tool-results'
+    directory = artifact_root / '.forge' / 'context' / 'tool-results' if artifact_root is not None else None
     try:
         while True:
             chunk = await stream.read(65_536)
             if not chunk:
                 break
-            if archive is None and total + len(chunk) > maximum:
+            if directory is not None and archive is None and total + len(chunk) > maximum:
                 directory.mkdir(parents=True, exist_ok=True)
                 archive = tempfile.NamedTemporaryFile(dir=directory, suffix='.partial', delete=False)
                 archive.write(kept)
@@ -248,6 +261,7 @@ async def _read_bounded(
     if archive is not None:
         artifact_id = digest.hexdigest()
         Path(archive.name).replace(directory / f'{artifact_id}.txt')
+    if total > maximum:
         kept = kept[:maximum - len(tail)] + tail
     return bytes(kept), total, total > len(kept), artifact_id
 
@@ -315,7 +329,7 @@ def render_process_output(result: ProcessResult) -> str:
     if result.stdout:
         suffix = (
             f'\n[stdout head/tail preview; {result.stdout_bytes} bytes total; '
-            f'read_context_artifact artifact_id={result.stdout_artifact}]'
+            + (f'read_context_artifact artifact_id={result.stdout_artifact}]' if result.stdout_artifact else 'output truncated]')
             if result.stdout_truncated
             else ''
         )
@@ -323,7 +337,7 @@ def render_process_output(result: ProcessResult) -> str:
     if result.stderr:
         suffix = (
             f'\n[stderr head/tail preview; {result.stderr_bytes} bytes total; '
-            f'read_context_artifact artifact_id={result.stderr_artifact}]'
+            + (f'read_context_artifact artifact_id={result.stderr_artifact}]' if result.stderr_artifact else 'output truncated]')
             if result.stderr_truncated
             else ''
         )

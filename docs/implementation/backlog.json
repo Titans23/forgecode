@@ -1,0 +1,2018 @@
+{
+  "schema_version": "forge.implementation.backlog.v1",
+  "document_version": "4.0.0",
+  "scope": "P0",
+  "tasks": [
+    {
+      "id": "F00",
+      "title": "审计当前分支并建立可恢复实施入口",
+      "depends_on": [],
+      "chapters": [
+        0,
+        2,
+        22
+      ],
+      "files": [
+        "docs/implementation/repo-audit.md",
+        "docs/implementation/code-map.json",
+        "docs/implementation/commands.local.json",
+        "docs/implementation/handoff.md",
+        "scripts/impl.py"
+      ],
+      "steps": [
+        "记录 HEAD、dirty 文件、AGENTS 层级、Python／JS 工具链和现有入口。",
+        "沿实际调用链定位 Conversation、Runner、Executor、Journal、Shell 和模型请求。",
+        "运行现有离线回归，区分旧失败与新问题。",
+        "建立 audit、doctor 和任务状态读取入口；只合并短 AGENTS 指引。"
+      ],
+      "tests": [
+        "从另一个 cwd 调用 audit，仍正确发现仓库根。",
+        "用户 dirty 文件保持不变。",
+        "缺 Node／无网络可产生 blocked 诊断，不伪造版本。"
+      ],
+      "acceptance": [
+        "code-map 包含实际符号而非猜测路径。",
+        "保存原测试命令、退出码及失败摘要。",
+        "新的 Codex 会话能从 handoff 得知下一步。"
+      ],
+      "verification_suites": [
+        "audit"
+      ],
+      "non_goals": "不升级依赖、不重构主循环、不声称已重新验证历史潜在 Bug。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T091942Z-d39f0b28",
+        "20261006T092001Z-c7f13bd9"
+      ],
+      "case_ids": []
+    },
+    {
+      "id": "F01",
+      "title": "锁定依赖和双平台构建基线",
+      "depends_on": [
+        "F00"
+      ],
+      "chapters": [
+        3,
+        20
+      ],
+      "files": [
+        "package.json",
+        "package-lock.json",
+        "release-lock.json",
+        "docs/implementation/adr/001-stack.md",
+        "packaging/"
+      ],
+      "steps": [
+        "沿用已有兼容包管理，否则建立 npm workspaces。",
+        "解析 Electron／Forge／React／Node／SRT／Python／PyInstaller 的受支持组合，锁精确版本与来源。",
+        "下载并核验原生 helper，记录许可、patch 和完整性。",
+        "建立最小双平台构建 smoke，记录系统安装前提。"
+      ],
+      "tests": [
+        "干净依赖安装不依赖项目外全局 npm 包。",
+        "release-lock unresolved 时 build 拒绝。",
+        "篡改资产 hash 后 loader 拒绝。"
+      ],
+      "acceptance": [
+        "锁文件提交，发布依赖无浮动 latest。",
+        "明确 Windows／Linux 工具链矩阵及受阻项。"
+      ],
+      "verification_suites": [
+        "unit",
+        "packaged"
+      ],
+      "non_goals": "不为安装便利关闭系统防护；不自动执行管理员 setup。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T094338Z-9ee68b20",
+        "20261006T094341Z-a9e7179e",
+        "20261006T093957Z-8e28ebc0"
+      ],
+      "case_ids": []
+    },
+    {
+      "id": "F02",
+      "title": "冻结契约与实现验收命令骨架",
+      "depends_on": [
+        "F00",
+        "F01"
+      ],
+      "chapters": [
+        5,
+        6,
+        8,
+        21,
+        22
+      ],
+      "files": [
+        "contracts/v1/",
+        "packages/contracts/",
+        "forge/application/models.py",
+        "scripts/impl.py",
+        "tests/implementation/unit/"
+      ],
+      "steps": [
+        "将文档契约种子扩展为完整方法 payload、事件、Policy、RunSpec 与 Bundle schemas。",
+        "生成 TS 类型并建立 Python／TS 运行时校验，使用同一正反例集。",
+        "实现 canonical hash、错误枚举、method registry。",
+        "实现 suite／case 注册、退出码、报告与证据生成，不提供空成功套件。"
+      ],
+      "tests": [
+        "未知字段、重复 JSON key、NaN、深层／大帧被拒绝。",
+        "TS 与 Python 对同一 fixture 判定相同。",
+        "hash 对键序不敏感、对数组顺序和预算变化敏感。",
+        "零测试／required 全 skip 不返回成功。"
+      ],
+      "acceptance": [
+        "contracts --check 检查生成文件无漂移。",
+        "所有实现前 fixture 合法，非法样本能被拒绝。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T100851Z-a7ee0375",
+        "20261006T100856Z-8425af60",
+        "20261006T100851Z-a837e8f2"
+      ],
+      "case_ids": [
+        "N04"
+      ]
+    },
+    {
+      "id": "F03",
+      "title": "SQLite 单写入者、幂等与 Journal 投影",
+      "depends_on": [
+        "F02"
+      ],
+      "chapters": [
+        7
+      ],
+      "files": [
+        "forge/engine/persistence.py",
+        "forge/engine/migrations/",
+        "forge/engine/journal_projection.py",
+        "tests/implementation/integration/test_storage.py"
+      ],
+      "steps": [
+        "建立第 7 章表、索引、外键与迁移；保留现有 Journal。",
+        "受理 action／work item／event 在同一事务提交。",
+        "实现 source sequence 投影、重复冲突识别和备份。",
+        "实现 data-dir owner lock、只读诊断及 artifact 原子发布。"
+      ],
+      "tests": [
+        "提交后响应前崩溃，重试返回原 turn。",
+        "Journal result 落盘但投影失败，重启能补齐且不执行命令。",
+        "磁盘满不开始新副作用。",
+        "活跃 WAL 的备份恢复后数据一致。"
+      ],
+      "acceptance": [
+        "受理与投影无双计，事件可重建。",
+        "迁移失败不破坏原始数据。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T103414Z-2a9980f6",
+        "20261006T103419Z-f3e3cf9a",
+        "20261006T103452Z-166d145d"
+      ],
+      "case_ids": [
+        "D30",
+        "N02",
+        "N06"
+      ]
+    },
+    {
+      "id": "F04",
+      "title": "抽出应用服务并接入原有 Harness",
+      "depends_on": [
+        "F02",
+        "F03"
+      ],
+      "chapters": [
+        9,
+        19
+      ],
+      "files": [
+        "forge/application/services.py",
+        "forge/application/harness_adapter.py",
+        "forge/application/sessions.py",
+        "实际 CLI composition root"
+      ],
+      "steps": [
+        "根据 code-map 为 Conversation／Runner 增加依赖注入。",
+        "分离 CLI 呈现与业务执行，提供服务化 create／start／cancel／snapshot。",
+        "保留工具 schema、预算和完成契约。",
+        "模型／工具 adapter 接收 recorder、审批与 backend 接口。"
+      ],
+      "tests": [
+        "同一 scripted 输入走 CLI 与服务得到等价工具序列及结束原因。",
+        "Engine 流程不调用 input 或打印彩色 UI。",
+        "缺权限／连接时没有模型调用。"
+      ],
+      "acceptance": [
+        "应用层无 Electron import、没有第二份 Agent loop。",
+        "原有离线 CLI 回归不新增失败。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T105304Z-1b46b663",
+        "20261006T105310Z-27975238"
+      ],
+      "case_ids": []
+    },
+    {
+      "id": "F05",
+      "title": "私有 stdio RPC 与持久事件流",
+      "depends_on": [
+        "F02",
+        "F03",
+        "F04"
+      ],
+      "chapters": [
+        8
+      ],
+      "files": [
+        "forge/engine/__main__.py",
+        "forge/engine/rpc.py",
+        "forge/engine/methods.py",
+        "forge/engine/event_stream.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "steps": [
+        "实现 JSONL reader/writer、握手、method ACL、标准与业务错误。",
+        "所有 mutation 走持久 action 受理。",
+        "实现 snapshot＋cursor 衔接、订阅 ack、持久补读及去重。",
+        "控制与数据有界队列，stderr 诊断与 stdout 协议隔离。"
+      ],
+      "tests": [
+        "响应丢失后 action.get 返回原对象。",
+        "订阅高水位切换期间插入事件，无丢失。",
+        "慢消费者、大输出期间取消仍被受理。",
+        "错误 batch／notification 符合协议。"
+      ],
+      "acceptance": [
+        "真实 Python 子进程完成 handshake、start、stream、cancel、shutdown。",
+        "非法帧不能改变业务状态。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T111751Z-a64edfea",
+        "20261006T111756Z-f5819b93",
+        "20261006T111902Z-ff8046cd"
+      ],
+      "case_ids": [
+        "O07",
+        "D04",
+        "D07",
+        "D09",
+        "D10",
+        "N01",
+        "N03"
+      ]
+    },
+    {
+      "id": "F06",
+      "title": "建立第一个可运行纵向切片",
+      "depends_on": [
+        "F04",
+        "F05"
+      ],
+      "chapters": [
+        3,
+        21
+      ],
+      "files": [
+        "tests/implementation/fixtures/fix-python-add/",
+        "forge/testing/或既有测试辅助模块",
+        "docs/implementation/evidence/"
+      ],
+      "steps": [
+        "实现只用于 test/demo 的 ScriptedModel 和六个 fixture 的基础结构。",
+        "让 MockModel 经过真实 HarnessAdapter、存储、工具接口与 RPC。",
+        "提供演示驱动，不依赖真实 key。",
+        "Mock 执行结果带明显 origin／mode，不能导出为真实榜单成绩。"
+      ],
+      "tests": [
+        "小型修复任务能读改测并产出证据。",
+        "客户端断开不自动重复受理。",
+        "生产默认配置不选择 Mock。"
+      ],
+      "acceptance": [
+        "可一条命令演示完整核心链路。",
+        "尚未接原生后端的测试明确标 simulated backend。"
+      ],
+      "verification_suites": [
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T113646Z-1cb5c7d9",
+        "20261006T113651Z-324b93bb",
+        "20261006T113811Z-54d4f9dd"
+      ],
+      "case_ids": []
+    },
+    {
+      "id": "F07",
+      "title": "策略模型、能力报告与路径规则",
+      "depends_on": [
+        "F02",
+        "F04"
+      ],
+      "chapters": [
+        10,
+        11,
+        12
+      ],
+      "files": [
+        "forge/sandbox/policy.py",
+        "forge/sandbox/capabilities.py",
+        "forge/sandbox/path_policy.py",
+        "tests/implementation/unit/test_policy.py"
+      ],
+      "steps": [
+        "实现 read／write／network 独立策略与 requirement 检查。",
+        "禁止上游配置含义被错误映射，生成固定 policy hash。",
+        "实现 workspace 真实身份及特殊路径拒绝策略。",
+        "区分 verified／partial／unsupported，附测试证据。"
+      ],
+      "tests": [
+        "严格 DNS 请求在无能力时启动前拒绝。",
+        "只写限制不能伪装成读取白名单。",
+        "链接、盘符大小写、UNC／ADS 等按契约处理。"
+      ],
+      "acceptance": [
+        "策略编译有正反例，主循环不直接读取 UI 的 backend 配置。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T115350Z-bfd58d91",
+        "20261006T115355Z-edb1d80e",
+        "20261006T115517Z-a30f1c2e"
+      ],
+      "case_ids": [
+        "C06",
+        "C24",
+        "N08"
+      ]
+    },
+    {
+      "id": "F08",
+      "title": "实现 Node／SRT Bridge 与可信启动器",
+      "depends_on": [
+        "F01",
+        "F05",
+        "F07"
+      ],
+      "chapters": [
+        11
+      ],
+      "files": [
+        "sandbox_bridge/src/",
+        "forge/sandbox/backend.py",
+        "forge/sandbox/srt_backend.py",
+        "tests/implementation/integration/test_bridge.py"
+      ],
+      "steps": [
+        "锁定 SRT API adapter，提供 probe／prepare／execute／status／cancel／close。",
+        "每 session 一个 Bridge，固定路径 Node 和资源。",
+        "执行 payload 与控制通道分离，stdout 仅作为数据封装。",
+        "实现 raw output 限额、增量解码、execution 幂等及归属。"
+      ],
+      "tests": [
+        "子进程输出伪造 RPC 不影响审批或成绩。",
+        "Bridge 初始化失败无普通 spawn 回退。",
+        "带特殊字符 argv 保持语义；重复 execution 不重跑。",
+        "重复 close 返回原清理结果。"
+      ],
+      "acceptance": [
+        "Bridge 不含 Agent 规划逻辑；所有外部启动位置可审计。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T122617Z-467c0ff0",
+        "20261006T122623Z-252a9f8b",
+        "20261006T122834Z-df2df90c"
+      ],
+      "case_ids": [
+        "C07",
+        "C08",
+        "C09",
+        "C16",
+        "C17",
+        "D13",
+        "N05"
+      ]
+    },
+    {
+      "id": "F09",
+      "title": "Linux 原生限制与生命周期验证",
+      "depends_on": [
+        "F07",
+        "F08"
+      ],
+      "chapters": [
+        11,
+        12
+      ],
+      "files": [
+        "forge/sandbox/doctor.py",
+        "sandbox_bridge/src/adapter.ts",
+        "tests/implementation/native/linux/",
+        "docs/platforms/linux.md"
+      ],
+      "steps": [
+        "适配 Linux SRT 依赖与系统能力检查。",
+        "验证文件、网络、进程边界并报告实际能力。",
+        "处理 system policy 阻断、namespace 与进程所有权。",
+        "添加 Ubuntu 22.04／24.04 两套原生证据。"
+      ],
+      "tests": [
+        "允许写入成功，项目外合成敏感读写拒绝。",
+        "移除代理变量不绕过声明网络约束。",
+        "取消受管子进程无残留或明确 unknown。",
+        "不支持的系统返回 blocked。"
+      ],
+      "acceptance": [
+        "不依赖 Docker 跑日常 native fixture。",
+        "不通过禁用 AppArmor／Electron sandbox 凑通过。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable",
+        "sandbox-linux"
+      ],
+      "non_goals": "不宣称 cgroup 等未实现的资源能力，不修改全局 sysctl。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T125123Z-88d982fc",
+        "20261006T125133Z-3780e12c",
+        "20261006T125256Z-c6d9de11",
+        "20261006T125856Z-b7b52c5d"
+      ],
+      "case_ids": [
+        "C10",
+        "C11",
+        "C12"
+      ]
+    },
+    {
+      "id": "F10",
+      "title": "Windows 原生 setup、ACL、网络与清理",
+      "depends_on": [
+        "F07",
+        "F08"
+      ],
+      "chapters": [
+        12,
+        20
+      ],
+      "files": [
+        "forge/sandbox/doctor.py",
+        "sandbox_bridge/src/windows_adapter.ts",
+        "apps/desktop/src/main/setup_broker.ts",
+        "tests/implementation/native/windows/"
+      ],
+      "steps": [
+        "实现固定 install／repair／diagnose 调用和明确 UAC 交互。",
+        "校验 session 权限、工具可达性、Job／网络所有权。",
+        "串行 worker、会话固定 grants、恢复与共享安装保护。",
+        "记录 DNS 等真实限制，系统安装未批准时保持 blocked。"
+      ],
+      "tests": [
+        "无 WSL／Docker 原生读改测。",
+        "中文／空格／长路径／PowerShell 编码正确。",
+        "指定越界被拒，取消与 ACL 清理有证据。",
+        "拒绝安装不提权、不降级。"
+      ],
+      "acceptance": [
+        "Windows 真机或独立 VM 证据包含 OS、SRT、policy 和 verifier 版本。",
+        "只有 Mock／类型检查不能将本任务验证标 pass。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable",
+        "sandbox-windows"
+      ],
+      "non_goals": "不自研驱动，不自动删除其他应用共用的 SRT 安装。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T134127Z-76e53bec",
+        "20261006T134145Z-5e720e59",
+        "20261006T134352Z-ad842262",
+        "20261006T134433Z-be4553ee",
+        "20261006T134442Z-98283708"
+      ],
+      "case_ids": [
+        "C21",
+        "W01",
+        "W02",
+        "W03",
+        "W04",
+        "W05",
+        "W06",
+        "W07",
+        "W08",
+        "W09",
+        "W10",
+        "W11",
+        "W12",
+        "D39",
+        "N07"
+      ]
+    },
+    {
+      "id": "F11",
+      "title": "迁移真实文件操作并统一工具边界",
+      "depends_on": [
+        "F04",
+        "F07",
+        "F08"
+      ],
+      "chapters": [
+        9,
+        11
+      ],
+      "files": [
+        "forge/sandbox/file_worker.py",
+        "forge/engine/__main__.py",
+        "实际 read/write/patch/search/workspace observer",
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "steps": [
+        "保留工具 schema，将实际 IO 移入固定受限 helper。",
+        "实现 expected hash、原子 patch、revision 与失效事件。",
+        "checkpoint 仅观察授权内容，可信日志位于控制面。",
+        "盘点 Hook／MCP／Explore，未受限扩展有明确标签和严格模式规则。"
+      ],
+      "tests": [
+        "Shell 与 read_file 对禁用路径一致。",
+        "外部编辑导致 STALE_FILE，不覆盖用户改动。",
+        "file-worker 不加载凭证或启动 Engine server。",
+        "控制面配置和日志不可被任务改写。"
+      ],
+      "acceptance": [
+        "读—改—搜—测—观察在同一工作区边界内。",
+        "未迁移扩展不被宣传为沙盒覆盖。"
+      ],
+      "verification_suites": [
+        "portable",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T142311Z-40883bdb",
+        "20261006T142329Z-a1f5d82a",
+        "20261006T142532Z-0939a885",
+        "20261006T142538Z-16bcd303",
+        "20261006T142628Z-56aaf5ff"
+      ],
+      "case_ids": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C20",
+        "C22",
+        "C23",
+        "D22",
+        "N09"
+      ]
+    },
+    {
+      "id": "F12",
+      "title": "取消、期限与后台服务的统一管理",
+      "depends_on": [
+        "F05",
+        "F08",
+        "F11"
+      ],
+      "chapters": [
+        6,
+        11,
+        15
+      ],
+      "files": [
+        "forge/engine/lifecycle.py",
+        "forge/engine/scheduler.py",
+        "实际工具取消入口",
+        "tests/implementation/integration/test_cancellation.py"
+      ],
+      "steps": [
+        "统一模型流、子 Agent、审批等待、命令和 Bridge 的取消传播。",
+        "区分 cancel_requested、confirmed、cleanup、indeterminate。",
+        "实现 Agent／grader／环境期限与服务保留。",
+        "EOF／睡眠／崩溃时停止新工作并做有所有权的清理。"
+      ],
+      "tests": [
+        "只读慢工具被取消后不出现下一次模型调用。",
+        "写操作结果未知不自动重放。",
+        "服务评分时仍可访问，结束后清理。",
+        "日志输出洪泛不阻塞取消请求。"
+      ],
+      "acceptance": [
+        "取消测试看实际进程和请求计数，不看按钮隐藏。"
+      ],
+      "verification_suites": [
+        "portable",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T153532Z-e789956e",
+        "20261006T153544Z-ed76e3cf",
+        "20261006T153751Z-30d364a9",
+        "20261006T153755Z-48e0813d",
+        "20261006T154553Z-92330490"
+      ],
+      "case_ids": [
+        "C13",
+        "C14",
+        "C15",
+        "C18",
+        "C19",
+        "D11",
+        "D17"
+      ]
+    },
+    {
+      "id": "F13",
+      "title": "Electron 壳与 Engine Supervisor",
+      "depends_on": [
+        "F01",
+        "F05",
+        "F06"
+      ],
+      "chapters": [
+        15,
+        16,
+        20
+      ],
+      "files": [
+        "apps/desktop/src/main/",
+        "apps/desktop/src/preload/",
+        "apps/desktop/forge.config.ts",
+        "packages/ui/"
+      ],
+      "steps": [
+        "建立安全 BrowserWindow、固定资源协议与单实例入口。",
+        "启动固定 Engine 路径，握手后才允许任务。",
+        "Main 始终读取管道，监督异常和关闭顺序。",
+        "处理安装参数，建立开发和打包 smoke 路径。"
+      ],
+      "tests": [
+        "从任意 cwd 启动，资源定位正确。",
+        "协议不兼容禁用新任务。",
+        "Renderer 重载不重启 Engine。",
+        "安装事件不启动 Agent。"
+      ],
+      "acceptance": [
+        "独立窗口可连真实 Engine 显示 demo turn。",
+        "无默认 HTTP 管理监听。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable",
+        "desktop",
+        "desktop-packaged"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T162646Z-4fe55ae3",
+        "20261006T162701Z-1b15650e",
+        "20261006T163212Z-4433d05b",
+        "20261006T162951Z-e58dd5f3",
+        "20261006T163223Z-4a291216",
+        "20261006T163229Z-e28151f4",
+        "20261006T163202Z-24e933d4"
+      ],
+      "case_ids": [
+        "D03",
+        "D06",
+        "D14",
+        "D34"
+      ]
+    },
+    {
+      "id": "F14",
+      "title": "限权 IPC、原生授权与应用协议安全",
+      "depends_on": [
+        "F05",
+        "F10",
+        "F13"
+      ],
+      "chapters": [
+        10,
+        16
+      ],
+      "files": [
+        "apps/desktop/src/main/ipc.ts",
+        "apps/desktop/src/main/approvals.ts",
+        "apps/desktop/src/preload/",
+        "tests/desktop/security/"
+      ],
+      "steps": [
+        "按业务暴露 preload，每个 IPC 校验 sender、frame、origin、schema。",
+        "目录注册和高风险审批由 Main 重新取可信详情。",
+        "实现 binding nonce／hash／expiry 消费。",
+        "禁止导航、webview、远程脚本和任意原生接口。"
+      ],
+      "tests": [
+        "恶意 iframe／未知方法／伪审批不能获得权限。",
+        "审批参数变化后旧批准失效。",
+        "自定义协议 traversal 被拒。",
+        "项目 HTML 不执行脚本。"
+      ],
+      "acceptance": [
+        "Renderer 无任意 RPC／文件／Shell／密钥读回接口。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable",
+        "desktop",
+        "desktop-packaged"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T171100Z-46d571f9",
+        "20261006T171115Z-dc7c34c1",
+        "20261006T171412Z-ce51f277",
+        "20261006T171429Z-f16c25e3",
+        "20261006T171457Z-102cd590",
+        "20261006T171503Z-7e896f69",
+        "20261006T171509Z-18a7199e"
+      ],
+      "case_ids": [
+        "D12",
+        "D19",
+        "D20",
+        "D27",
+        "D28",
+        "N10"
+      ]
+    },
+    {
+      "id": "F15",
+      "title": "凭证 Broker 与连接管理",
+      "depends_on": [
+        "F13",
+        "F14"
+      ],
+      "chapters": [
+        10,
+        16
+      ],
+      "files": [
+        "apps/desktop/src/main/credential_broker.ts",
+        "forge/application/connections.py",
+        "packages/ui/src/pages/settings/",
+        "tests/desktop/credentials/"
+      ],
+      "steps": [
+        "实现系统存储 adapter 与内存模式。",
+        "安全注入 Engine 连接，阻止日志／argv／task env 泄漏。",
+        "base URL 与 credential 绑定，跨 origin 变更需要确认。",
+        "实现删除、锁定和临时不可用状态。"
+      ],
+      "tests": [
+        "Linux basic_text／unknown 不持久化秘密。",
+        "Windows 当前用户存储可读，Renderer 无读回。",
+        "合成 key 在导出／日志／子进程中不可见。",
+        "修改 endpoint 不自动携带旧密钥。"
+      ],
+      "acceptance": [
+        "设置页显示真实保护级别；未批准连接无网络测试。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable",
+        "desktop",
+        "desktop-packaged",
+        "sandbox-linux",
+        "sandbox-windows",
+        "regression"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T181011Z-29e85a98",
+        "20261006T181026Z-879caa5b",
+        "20261006T181340Z-690e66f5",
+        "20261006T181358Z-6ef85083",
+        "20261006T181437Z-202e38e3",
+        "20261006T181443Z-9ce797db",
+        "20261006T181449Z-45ec1b68"
+      ],
+      "case_ids": [
+        "D25",
+        "D26",
+        "N11",
+        "N12"
+      ]
+    },
+    {
+      "id": "F16",
+      "title": "项目、会话、流式任务和 Diff 页面",
+      "depends_on": [
+        "F11",
+        "F12",
+        "F13",
+        "F14",
+        "F15"
+      ],
+      "chapters": [
+        15,
+        19
+      ],
+      "files": [
+        "packages/ui/src/pages/workspace/",
+        "packages/ui/src/components/diff/",
+        "packages/ui/src/state/",
+        "forge/application/workspaces.py"
+      ],
+      "steps": [
+        "实现首页、最近项目、inspect-only 和会话导航。",
+        "通过事件驱动流式消息、工具卡、取消和审批状态。",
+        "区分原有 dirty 与任务变化，支持大文件／二进制提示。",
+        "恢复以预览／patch 为主，遵守 hash 和写入锁。"
+      ],
+      "tests": [
+        "IME composing 时 Enter 不提交。",
+        "UI 重载后去重显示且不重开 turn。",
+        "外部修改刷新 revision，不能一键覆盖。",
+        "10000 项列表有界渲染。"
+      ],
+      "acceptance": [
+        "用户可在 GUI 完成选项目—发任务—看 Diff—取消／完成。"
+      ],
+      "verification_suites": [
+        "desktop",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T191227Z-fdf08b04",
+        "20261006T191242Z-960d04de",
+        "20261006T191601Z-c1e273e9",
+        "20261006T191629Z-b8802a4c",
+        "20261006T191645Z-824876b1",
+        "20261006T191650Z-e24e7d15",
+        "20261006T191654Z-94a8d24d"
+      ],
+      "case_ids": [
+        "D21",
+        "D23",
+        "D33"
+      ]
+    },
+    {
+      "id": "F17",
+      "title": "Harness 核心埋点与可信事件投影",
+      "depends_on": [
+        "F03",
+        "F04",
+        "F05"
+      ],
+      "chapters": [
+        7,
+        13
+      ],
+      "files": [
+        "forge/observability/events.py",
+        "forge/observability/recorder.py",
+        "实际 Runner/Executor/model call",
+        "tests/implementation/integration/test_traces.py"
+      ],
+      "steps": [
+        "按事件目录覆盖 turn、模型、工具、审批、恢复、sandbox、grader。",
+        "传播 trace／span／execution 与 source sequence。",
+        "保留 Journal 权威，建立原始事件与查询投影。",
+        "区分可信控制事件和工具内容，来源冲突隔离。"
+      ],
+      "tests": [
+        "模型—工具—上下文—验证链父子关系完整。",
+        "进程重启 link 原 Trace 而不是伪造无中断轨迹。",
+        "伪输出不能写 grade／budget。",
+        "重复事件不增加计数。"
+      ],
+      "acceptance": [
+        "关键运行事实能从事件与 artifact 追溯。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T195728Z-806a10fc",
+        "20261006T195743Z-1fa9ce8a",
+        "20261006T195925Z-29d74dae",
+        "20261006T195955Z-97a1025e",
+        "20261006T195956Z-d6a34afe",
+        "20261006T200000Z-05e1019e",
+        "20261006T200005Z-56bfc334"
+      ],
+      "case_ids": [
+        "O06"
+      ]
+    },
+    {
+      "id": "F18",
+      "title": "Usage、上下文、证据与 OTLP",
+      "depends_on": [
+        "F17"
+      ],
+      "chapters": [
+        13,
+        14
+      ],
+      "files": [
+        "forge/observability/usage_ledger.py",
+        "forge/observability/context_snapshots.py",
+        "forge/observability/otel_mapping.py",
+        "forge/observability/export_queue.py"
+      ],
+      "steps": [
+        "每个真实请求计一次费用，角色与 retry 独立归因。",
+        "记录上下文版本和验证失效原因。",
+        "实现锁定版本 OTel 映射及异步导出。",
+        "实现采集模式、脱敏和有界队列。"
+      ],
+      "tests": [
+        "父子汇总不重复收费，缺 usage 为 unknown。",
+        "缓存 token 按 provider fixtures 归一正确。",
+        "exporter 断开不阻断 Agent。",
+        "过期证据 UI 查询对应真实行为。"
+      ],
+      "acceptance": [
+        "总费用能按请求 ledger 手工复算。",
+        "调试载荷不默认外发。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T211118Z-7289c010",
+        "20261006T211134Z-d4dc513b",
+        "20261006T211536Z-3bcf5fe6",
+        "20261006T211605Z-c37e3033",
+        "20261006T211606Z-ff84a680",
+        "20261006T211610Z-70274cd5",
+        "20261006T211615Z-e379a908"
+      ],
+      "case_ids": [
+        "O01",
+        "O02",
+        "O03",
+        "O05",
+        "N13"
+      ]
+    },
+    {
+      "id": "F19",
+      "title": "RunSpec、trial／attempt 与评测调度",
+      "depends_on": [
+        "F03",
+        "F05",
+        "F07",
+        "F17"
+      ],
+      "chapters": [
+        17
+      ],
+      "files": [
+        "benchmark/core/spec.py",
+        "benchmark/core/scheduler.py",
+        "benchmark/core/metrics.py",
+        "forge/application/evaluations.py"
+      ],
+      "steps": [
+        "固定配置并在创建时生成全部 trial。",
+        "区分独立重复、基础设施 attempt、API retry 和反馈修复。",
+        "实现 worker 领取、owner epoch、重试策略和三轴终态。",
+        "实现指标口径与配置可比性检查。"
+      ],
+      "tests": [
+        "未领取任务仍在分母。",
+        "旧 epoch 结果不能覆盖当前 attempt。",
+        "相同 create action 不产生重复 run。",
+        "零成功／未知费用输出 N/A／unknown。"
+      ],
+      "acceptance": [
+        "手算 fixture 的全部指标与预期一致。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T215137Z-955dfd02",
+        "20261006T215153Z-20c452df",
+        "20261006T215603Z-bc7852d1",
+        "20261006T215634Z-245af063",
+        "20261006T215634Z-fca4984d",
+        "20261006T215639Z-7dfab335",
+        "20261006T215643Z-b64762b3"
+      ],
+      "case_ids": [
+        "O08",
+        "O09",
+        "D24",
+        "N14"
+      ]
+    },
+    {
+      "id": "F20",
+      "title": "包装已有公开 Benchmark Runner",
+      "depends_on": [
+        "F11",
+        "F12",
+        "F19"
+      ],
+      "chapters": [
+        17,
+        19
+      ],
+      "files": [
+        "benchmark/adapters/",
+        "实际 benchmark/harbor/ 与 Aider Runner",
+        "tests/implementation/integration/test_benchmark_adapters.py"
+      ],
+      "steps": [
+        "依据审计保留现有 Runner 入口并添加统一协议输出。",
+        "实现 describe／validate／execute／collect／grade 的职责分离。",
+        "至少一个现有公开基准小集端到端接入。",
+        "实现 Linux-only 诊断、RunSpec 导出及原生结果标签。"
+      ],
+      "tests": [
+        "fixture runner 的非零退出／无 reward／grader 失败分别记录。",
+        "更换 patch 生成新 grader cache key。",
+        "Windows 不兼容任务不静默替换协议。",
+        "原 Runner 离线／参数测试不回归。"
+      ],
+      "acceptance": [
+        "有真实小集证据；未获 API 或环境授权部分明确 blocked。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable",
+        "benchmark-harbor"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T222943Z-40ff0fc5",
+        "20261006T222959Z-e4a89567",
+        "20261006T223421Z-c303888f",
+        "20261006T223450Z-81b1e3a6",
+        "20261006T223450Z-f696f399",
+        "20261006T223455Z-d454cccc",
+        "20261006T223459Z-232a8d30",
+        "20261006T223508Z-0c033e57"
+      ],
+      "case_ids": [
+        "D37"
+      ]
+    },
+    {
+      "id": "F21",
+      "title": "安全结果包与只读复算",
+      "depends_on": [
+        "F18",
+        "F19",
+        "F20"
+      ],
+      "chapters": [
+        18
+      ],
+      "files": [
+        "benchmark/core/bundle.py",
+        "benchmark/core/results.py",
+        "forge/application/artifacts.py",
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "steps": [
+        "实现 manifest、hash、来源、隐私分类和分块 artifact。",
+        "安全 staging 解包、配额、冲突隔离、幂等导入。",
+        "原始证据与脱敏输出分开。",
+        "离线复算不调用模型、不执行脚本。"
+      ],
+      "tests": [
+        "traversal／symlink／zip bomb／重复文件被拒。",
+        "相同包重复导入不双计，冲突不覆盖。",
+        "导出后复算指标一致。",
+        "外部包无签名不显示本机可信。"
+      ],
+      "acceptance": [
+        "结果包有 schema 和正反例，导入过程无脚本执行。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T231423Z-a85f0301",
+        "20261006T231438Z-2fe8c473",
+        "20261006T231905Z-de0f6db7",
+        "20261006T231934Z-9be0bef8",
+        "20261006T231934Z-6330ec21",
+        "20261006T231939Z-2971b33e",
+        "20261006T231943Z-2e15c738"
+      ],
+      "case_ids": [
+        "O10",
+        "N15",
+        "N16"
+      ]
+    },
+    {
+      "id": "F22",
+      "title": "Trace、上下文、证据与费用可视化",
+      "depends_on": [
+        "F13",
+        "F17",
+        "F18"
+      ],
+      "chapters": [
+        13,
+        14,
+        15
+      ],
+      "files": [
+        "packages/ui/src/pages/observability/",
+        "packages/ui/src/components/trace/",
+        "forge/application/queries.py"
+      ],
+      "steps": [
+        "实现 Trace 树／瀑布图、输出懒加载、上下文版本、证据面板。",
+        "从工具卡与完成拒绝跳到对应事实。",
+        "展示费用质量和采集缺口。",
+        "用户侧时延与 Harness 执行耗时分离。"
+      ],
+      "tests": [
+        "从 stale-evidence fixture 找到 revision 差异。",
+        "重连后无重复费用和空洞伪装。",
+        "大 trace 下界面有界且可分页。",
+        "不渲染隐藏思考或原始脚本。"
+      ],
+      "acceptance": [
+        "失败任务能定位到执行—上下文—证据完整链。"
+      ],
+      "verification_suites": [
+        "desktop",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261006T235241Z-462bb220",
+        "20261006T235257Z-7e30a489",
+        "20261006T235747Z-6c832b03",
+        "20261006T235820Z-ebc91bad",
+        "20261006T235820Z-02ca11f4",
+        "20261006T235825Z-e0e8fd6e",
+        "20261006T235829Z-17b9f81e"
+      ],
+      "case_ids": []
+    },
+    {
+      "id": "F23",
+      "title": "实验 Wizard、逐题对比与导入导出 UI",
+      "depends_on": [
+        "F16",
+        "F19",
+        "F20",
+        "F21",
+        "F22"
+      ],
+      "chapters": [
+        15,
+        17,
+        18
+      ],
+      "files": [
+        "packages/ui/src/pages/evaluations/",
+        "packages/ui/src/components/run-spec/",
+        "apps/desktop/src/main/dialogs.ts"
+      ],
+      "steps": [
+        "实现四步实验配置、创建前兼容性与预算检查。",
+        "展示计划分母、首次尝试、重试、未评分和清理状态。",
+        "同题 A/B 双轨迹和不可比警告。",
+        "原生文件选择下导入／导出与隐私确认。"
+      ],
+      "tests": [
+        "不兼容 Windows 本机任务有导出入口而非假运行。",
+        "改变配置创建新 run。",
+        "重试不能不透明地选择最好结果。",
+        "删除产物后页面显示复核缺失。"
+      ],
+      "acceptance": [
+        "用户能在客户端完成小集评测与对照报告。"
+      ],
+      "verification_suites": [
+        "desktop",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T004628Z-9d6e9f79",
+        "20261007T004659Z-01d191f0",
+        "20261007T004716Z-11c7a1ea",
+        "20261007T005211Z-485cb317",
+        "20261007T005211Z-82b55461",
+        "20261007T005216Z-cdbc3407",
+        "20261007T005220Z-8a72deb8"
+      ],
+      "case_ids": []
+    },
+    {
+      "id": "F24",
+      "title": "失败案例库与规则诊断",
+      "depends_on": [
+        "F18",
+        "F21",
+        "F22",
+        "F23"
+      ],
+      "chapters": [
+        18
+      ],
+      "files": [
+        "forge/application/annotations.py",
+        "packages/ui/src/pages/failures/",
+        "tests/implementation/unit/test_annotations.py"
+      ],
+      "steps": [
+        "实现分类、证据引用、人工修正和版本保留。",
+        "增加有限规则告警：重复错误、过期证据、初始化／清理失败。",
+        "脱敏保存最小回归样例，区分“已保存”和“已复现”。"
+      ],
+      "tests": [
+        "规则相关性不自动写成可信根因。",
+        "修改标注保留旧版。",
+        "缺 artifact 的案例不能标完全可复现。"
+      ],
+      "acceptance": [
+        "可从失败题保存带证据的回归候选。"
+      ],
+      "verification_suites": [
+        "unit",
+        "desktop"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T010959Z-5c2cc1a6",
+        "20261007T011016Z-ef2bdeb2",
+        "20261007T011517Z-8b0f33be",
+        "20261007T011549Z-d546abf4",
+        "20261007T011550Z-aed347b6",
+        "20261007T011555Z-727165ad",
+        "20261007T011559Z-8a7b78d1",
+        "20261007T012542Z-218e0608",
+        "20261007T012606Z-e13d7eac"
+      ],
+      "case_ids": []
+    },
+    {
+      "id": "F25",
+      "title": "崩溃对账、幂等恢复与事件续读集成",
+      "depends_on": [
+        "F03",
+        "F05",
+        "F12",
+        "F13",
+        "F17"
+      ],
+      "chapters": [
+        6,
+        7,
+        8,
+        15
+      ],
+      "files": [
+        "forge/engine/lifecycle.py",
+        "forge/engine/journal_projection.py",
+        "apps/desktop/src/main/supervisor.ts",
+        "tests/implementation/integration/test_recovery.py"
+      ],
+      "steps": [
+        "实现 Renderer／Main／Engine／Bridge 分别失效的矩阵。",
+        "对已受理任务、Journal intent、进程归属和 artifact 做恢复对账。",
+        "未知副作用不自动重放，提供可解释恢复状态。",
+        "处理 sleep、deadline 与 cursor expiration。"
+      ],
+      "tests": [
+        "响应丢失、进程 kill、重启交错下无重复工作。",
+        "PID 复用 fixture 不清理无关进程。",
+        "WAL 与事件投影缺口可恢复。",
+        "取消未确认不显示 cancelled。"
+      ],
+      "acceptance": [
+        "每类故障有测试和实际事件证据。"
+      ],
+      "verification_suites": [
+        "portable",
+        "desktop",
+        "sandbox-linux",
+        "sandbox-windows"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ],
+      "case_ids": [
+        "D08",
+        "D15",
+        "D16",
+        "D18",
+        "N21",
+        "N22"
+      ]
+    },
+    {
+      "id": "F26",
+      "title": "CLI、历史会话和共享锁兼容",
+      "depends_on": [
+        "F04",
+        "F11",
+        "F25"
+      ],
+      "chapters": [
+        19
+      ],
+      "files": [
+        "实际 CLI 入口",
+        "forge/application/legacy_import.py",
+        "forge/application/workspaces.py",
+        "forge/engine/http_adapter.py",
+        "tests/implementation/integration/test_compatibility.py"
+      ],
+      "steps": [
+        "接入共享项目锁与服务，不要求启动桌面才能运行 CLI。",
+        "保留旧命令行为，strict／local-trusted 明确。",
+        "只读扫描、备份和幂等导入历史数据。",
+        "登记 MCP／Hook／飞书等扩展的覆盖边界。",
+        "实现默认关闭的最小 HTTP／SSE adapter 与 HttpTransport，公共方法契约等价，审批等特权方法受角色限制。"
+      ],
+      "tests": [
+        "CLI／Desktop 同项目冲突不并发写。",
+        "旧会话导入两次无重复。",
+        "旧配置未知字段有诊断。",
+        "原工具 schema golden tests 通过。"
+      ],
+      "acceptance": [
+        "现有 CLI 可用，旧数据无破坏性就地迁移。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ],
+      "case_ids": [
+        "D35",
+        "D36",
+        "D38"
+      ]
+    },
+    {
+      "id": "F27",
+      "title": "双平台打包、安装、版本与升级",
+      "depends_on": [
+        "F01",
+        "F10",
+        "F13",
+        "F15",
+        "F25",
+        "F26"
+      ],
+      "chapters": [
+        20
+      ],
+      "files": [
+        "packaging/forge_engine.spec",
+        "scripts/package_engine.py",
+        "scripts/assemble_release.py",
+        "apps/desktop/forge.config.ts",
+        "release-manifest.json"
+      ],
+      "steps": [
+        "打包 Python onedir、独立 Node／Bridge／helper 和许可。",
+        "处理 frozen 解释器语义、DLL 环境、资源定位与 Windows 安装事件。",
+        "构建 Windows installer／Linux deb，附 hash／签名状态。",
+        "实现人工升级、schema 检查、备份和卸载策略。"
+      ],
+      "tests": [
+        "干净机器无全局 Python／Node 仍启动 Engine。",
+        "项目 Git／Python／Node 不加载私有错误库。",
+        "component 篡改／版本错配拒绝运行。",
+        "升级失败可读原备份，用户项目不被卸载。"
+      ],
+      "acceptance": [
+        "两个平台真实安装产物有完整 smoke 和 native 记录。",
+        "无证书时标 developer-preview。"
+      ],
+      "verification_suites": [
+        "unit",
+        "portable",
+        "engine-packaged",
+        "desktop",
+        "desktop-packaged",
+        "installer-windows",
+        "installer-linux",
+        "sandbox-linux",
+        "sandbox-windows",
+        "regression"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T043608Z-a3f7e4d0",
+        "20261007T043609Z-2a2c8fa1",
+        "20261007T043646Z-8020ce62",
+        "20261007T044515Z-f39c709a",
+        "20261007T044650Z-c950e87d",
+        "20261007T044751Z-2c95edf0",
+        "20261007T044851Z-e31b72af",
+        "20261007T045111Z-b66bd36f",
+        "20261007T045111Z-edd846dd",
+        "20261007T045125Z-1f37c050",
+        "20261007T045603Z-77e5a97d",
+        "20261007T083904Z-e08a09a3",
+        "20261007T084739Z-f2a68093",
+        "20261007T084926Z-6b3ab489",
+        "20261007T085013Z-844215b0",
+        "20261007T085101Z-86488a82",
+        "20261007T085304Z-5c4b0e50",
+        "20261007T085305Z-9f595b5e",
+        "20261007T085317Z-1601a869",
+        "20261007T083904Z-d1139af0"
+      ],
+      "case_ids": [
+        "D01",
+        "D02",
+        "D05",
+        "D29",
+        "D31",
+        "D32",
+        "D40",
+        "N17",
+        "N18",
+        "N19"
+      ]
+    },
+    {
+      "id": "F28",
+      "title": "全量平台、性能和安全验收",
+      "handoff_ref": "handoff-win10-wsl-20261009.md",
+      "design_plan_ref": "sandbox-redesign.md",
+      "planned_slices": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
+      "depends_on": [
+        "F09",
+        "F10",
+        "F11",
+        "F12",
+        "F14",
+        "F15",
+        "F16",
+        "F18",
+        "F21",
+        "F22",
+        "F23",
+        "F24",
+        "F25",
+        "F26",
+        "F27",
+        "F30"
+      ],
+      "chapters": [
+        3,
+        11,
+        12,
+        20,
+        21,
+        24
+      ],
+      "files": [
+        "tests/implementation/native/",
+        "tests/desktop/",
+        "docs/implementation/evidence/",
+        "docs/platforms/support-matrix.md"
+      ],
+      "steps": [
+        "按 ADR035 提供用户明确选择的桌面本机执行，无 OS 隔离；验证确认、空闲切换、正常重启和历史策略保留，不解除 strict/F31 门禁。",
+        "按沙盒改进方案 S1 完成 Windows 锁定 PowerShell/Git/ripgrep 供应、Ubuntu deb 依赖与专属配置、统一路径和首次使用流程，再按 S2 补齐固定原生证明与 prepare 准入。",
+        "按 S3 完成 Shell/File 动态敏感路径一致性和 owner 清理，按 S4 验证干净系统仅安装 ForgeCode 到首个受限任务及安装版迁移；保持 strict，失败不降级。",
+        "运行原 86 场景与新增契约场景，按平台保留结果。",
+        "在本机 Windows 10 x64 build 19045 及声明的 Ubuntu 环境测安装、执行、恢复、secret store。",
+        "测冷启动、事件洪泛、磁盘、UI 和观测开销。",
+        "整理缺陷、回归和支持矩阵，不掩盖 blocked。"
+      ],
+      "tests": [
+        "所列 acceptance registry 每项有测试映射和证据。",
+        "native 与 packaged 验证不能只含 Mock。",
+        "生产 fuse 配置有独立 smoke。",
+        "随包 Shell 缺失/篡改和未验证证据拒绝；无系统 PowerShell 的安装版可用性必须实际验证。",
+        "Shell/File 对动态敏感对象结论一致；初始化/取消/崩溃后残留按真实所有权核查。",
+        "干净 Windows/Ubuntu 无预装应用运行时或核心工具，仅经 ForgeCode 安装和正常系统授权后完成受限文件/Shell/Git 任务；无需手工补依赖或配置。",
+        "依赖下载中断、授权拒绝可经安装流程重试；应用专属系统配置的安装/升级/卸载不影响共享策略，拒绝时无不受限任务启动。"
+      ],
+      "acceptance": [
+        "所有 P0 必需平台／安全项通过，或明确发布受阻。",
+        "正式支持系统达到单一安装流程开箱即用；手工修复教程不代替通过证据。"
+      ],
+      "verification_suites": [
+        "contracts",
+        "quality",
+        "unit",
+        "portable",
+        "regression",
+        "desktop",
+        "engine-packaged",
+        "desktop-packaged",
+        "hardened",
+        "performance",
+        "acceptance",
+        "installer-windows",
+        "installer-linux",
+        "sandbox-windows",
+        "sandbox-linux",
+        "security"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "in_progress",
+      "evidence_ids": [
+        "20261007T103717Z-676f1bad",
+        "20261007T111308Z-47ed56ff",
+        "20261007T114653Z-8643620c",
+        "20261007T114653Z-8fb96dfa",
+        "20261007T114659Z-a03354ee",
+        "20261007T114718Z-bb01a8fa",
+        "20261007T114719Z-8a45ae6e",
+        "20261007T114734Z-3b013674",
+        "20261007T114749Z-0c5bc15c",
+        "20261007T114802Z-d746a201",
+        "20261007T115007Z-1c5d30b2",
+        "20261007T115008Z-2d5c6b3b",
+        "20261007T115008Z-b4dac5ef",
+        "20261007T115014Z-cf830c39",
+        "20261007T115034Z-e65cbfa4",
+        "20261007T115035Z-c13c7951",
+        "20261007T115053Z-702fc295",
+        "20261007T115110Z-3b09af01",
+        "20261007T115335Z-4c40349e",
+        "20261007T115336Z-6fd3890d",
+        "20261007T115336Z-e6b64f9f",
+        "20261007T115342Z-0a50978d",
+        "20261007T115404Z-e1b8d821",
+        "20261007T115405Z-c4fcc76f",
+        "20261007T115427Z-ebb8faaf",
+        "20261007T115449Z-a168aabd",
+        "20261007T115542Z-989317b8",
+        "20261007T115633Z-5468aba9",
+        "20261007T115843Z-75f1d0e0",
+        "20261007T120123Z-9c08eb64",
+        "20261007T120123Z-a5f177b5",
+        "20261007T120124Z-121bd483",
+        "20261007T120124Z-c1577d00",
+        "20261007T120132Z-3d9dcfdf",
+        "20261007T120147Z-641572b1",
+        "20261007T120200Z-7b6c825e",
+        "20261007T120202Z-8d7621a8",
+        "20261007T120225Z-5cf027ff",
+        "20261007T120248Z-d0af77b5",
+        "20261007T122040Z-d187f818",
+        "20261007T122050Z-66356479",
+        "20261007T122057Z-9dbacf36",
+        "20261007T122029Z-b3dc3704",
+        "20261007T122019Z-9e16aa46",
+        "20261007T123505Z-c2af5541",
+        "20261007T164621Z-6976811f",
+        "20261007T164628Z-75fcdc2b",
+        "20261007T164653Z-7fcc9efa",
+        "20261008T011752Z-765e3b92",
+        "20261008T011759Z-355b65b0",
+        "20261008T011817Z-66e79502",
+        "20261008T011906Z-3fad7eb6",
+        "20261008T012857Z-c6dfbf8f",
+        "20261008T024339Z-d6a98c82",
+        "20261008T024343Z-1a8cd4b9",
+        "20261008T024357Z-a117115d",
+        "20261008T024444Z-e7c0c996",
+        "20261008T025448Z-de3cb67e",
+        "20261008T083357Z-bfff2438",
+        "20261008T083401Z-1d14d514",
+        "20261008T083429Z-2f1194f6",
+        "20261008T084917Z-1091e6ce",
+        "20261008T084939Z-eddd4cb0",
+        "20261008T084143Z-402469a0",
+        "20261008T085032Z-4ca473d5",
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63",
+        "20261008T152141Z-4e8ea0ed",
+        "20261008T152141Z-7c4157db",
+        "20261008T152141Z-c6ff5444",
+        "20261008T145801Z-b8bc1897",
+        "20261008T150300Z-f9824a1f",
+        "20261008T150300Z-fedd3657",
+        "20261008T150301Z-05695dd7",
+        "20261008T150301Z-2f3e3a47",
+        "20261008T150301Z-3526ae99",
+        "20261008T151508Z-fef89426",
+        "20261008T145801Z-2e0ff3b4",
+        "20261008T145801Z-850f9cfc",
+        "20261008T133501Z-29f3b0ff",
+        "20261008T145922Z-9cbc2aba",
+        "20261008T162534Z-2a1c62e2",
+        "20261008T162534Z-2b8ff220",
+        "20261008T162535Z-7542eeae",
+        "20261008T162644Z-1f0ffa89",
+        "20261008T164537Z-5890a375",
+        "20261008T164537Z-92a8cdd8",
+        "20261008T164537Z-f7a5f679",
+        "20261008T164851Z-2aad0a1f",
+        "20261008T165127Z-4847212c",
+        "20261008T165127Z-64a400ea",
+        "20261008T165453Z-3140ec18",
+        "20261008T165453Z-56b0de72",
+        "20261008T165453Z-6cd363ff",
+        "20261008T165741Z-65bee22e",
+        "20261008T170118Z-df30be6a"
+      ],
+      "case_ids": [
+        "N20"
+      ],
+      "remaining_implementation": [
+        "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
+        "Dynamic-sensitive-file protection failed on the actual Windows package (11 pass / 1 fail / 11 blocked). Full initialized cleanup and complete Shell/File parity remain unimplemented/unverified; keep native admission closed.",
+        "ADR034 S1 supply/setup code is implemented; see evidence/F28-sandbox-s1-observations.json. S2 native proof admission, S3 boundary/cleanup closure and S4 clean-system out-of-box acceptance remain incomplete; Ubuntu configuration still needs target-system proof."
+      ],
+      "implementation_observations_ref": "evidence/F28-sandbox-s1-observations.json",
+      "latest_verification": "Current source9aeab88c: regression1437/contracts2/quality4 pass with zero failures/errors/skips. F build artifact checks and desktop132 retain source d755ef80; only a test changed later and runtime inputs match. Native Windows fail: 11 pass / 1 fail / 11 blocked; no capability promotion. S1 remains uncommitted/unpushed.",
+      "desktop_local_execution_ref": "evidence/F28-desktop-local-mode-observations.json"
+    },
+    {
+      "id": "F29",
+      "title": "持续集成、证据门禁与依赖安全",
+      "depends_on": [
+        "F02",
+        "F05",
+        "F13"
+      ],
+      "chapters": [
+        21,
+        22,
+        24
+      ],
+      "files": [
+        ".github/workflows/",
+        "scripts/impl.py",
+        "tests/implementation/unit/test_gates.py",
+        "docs/implementation/ci.md"
+      ],
+      "steps": [
+        "建立 contracts／unit／portable 的 Linux／Windows 矩阵。",
+        "GUI／native／packaged 分层，特权 runner 不向不可信 fork PR 开放。",
+        "将验收 case 和证据映射为真实 gate。",
+        "检查锁文件、secret、类型、静态质量、schema 漂移。"
+      ],
+      "tests": [
+        "缺证据、全部 skip、零测试时 gate 非零。",
+        "未授权 PR 无法获取 signing／API secrets。",
+        "文档和 backlog 依赖图无循环。"
+      ],
+      "acceptance": [
+        "CI 能阻止伪通过，不因 runner 无权限自动降低 required。"
+      ],
+      "verification_suites": [
+        "contracts",
+        "quality",
+        "unit",
+        "portable",
+        "security",
+        "regression"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T091102Z-09daf086",
+        "20261007T091102Z-8e6ff43d",
+        "20261007T091106Z-512c382e",
+        "20261007T091120Z-317eb14b",
+        "20261007T091154Z-e2bdc90c",
+        "20261007T091959Z-48b1a686",
+        "20261007T092514Z-5ce746ae",
+        "20261007T092514Z-d94d90b3",
+        "20261007T092518Z-06d14b37",
+        "20261007T092531Z-c0a5d09c",
+        "20261007T092604Z-72934450",
+        "20261007T093411Z-97bca409",
+        "20261007T094141Z-120a6785",
+        "20261007T094141Z-77705e45",
+        "20261007T094145Z-f0087cfb",
+        "20261007T094158Z-06aa2a42",
+        "20261007T094233Z-03fcb104",
+        "20261007T095022Z-ac0916fa",
+        "20261007T143907Z-f2d2193d",
+        "20261007T143911Z-01c04c24",
+        "20261007T143926Z-173a661a",
+        "20261007T144011Z-c6c40c46",
+        "20261007T144844Z-d7aa5443",
+        "20261007T145332Z-695f9ba9",
+        "20261008T020430Z-7ee8b187",
+        "20261008T020433Z-2be6333a",
+        "20261008T020451Z-020a233d"
+      ],
+      "case_ids": [
+        "N23"
+      ]
+    },
+    {
+      "id": "F30",
+      "title": "依据证据优化现有 Harness",
+      "depends_on": [
+        "F12",
+        "F17",
+        "F18",
+        "F25"
+      ],
+      "chapters": [
+        9,
+        14,
+        17
+      ],
+      "files": [
+        "实际 runtime/context/session 模块",
+        "tests/implementation/integration/test_harness_regressions.py",
+        "docs/implementation/adr/"
+      ],
+      "steps": [
+        "把此前潜在问题重新转成当前分支测试，重现才修复。",
+        "校准取消传播、父子预算、上下文配对和过期证据。",
+        "提供真实的交付修复开关与 capability 描述。",
+        "保留基线配置和行为差异，不同时改变多项实验因素。"
+      ],
+      "tests": [
+        "取消后额外模型请求为零。",
+        "子 Agent 消耗只计一次且共享额度。",
+        "压缩后工具协议合法，验证版本不误用。",
+        "repair=0 与 repair=2 行为差异可确定验证。"
+      ],
+      "acceptance": [
+        "每项修改有 before／after 行为证据，不预写成功率提升。"
+      ],
+      "verification_suites": [
+        "contracts",
+        "quality",
+        "unit",
+        "portable",
+        "regression"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "implemented",
+      "evidence_ids": [
+        "20261007T100100Z-61029d00",
+        "20261007T100104Z-966ab87c",
+        "20261007T100117Z-2b3a1290",
+        "20261007T100154Z-0aaf1497",
+        "20261007T100111Z-456566b1"
+      ],
+      "case_ids": [
+        "O04"
+      ]
+    },
+    {
+      "id": "F31",
+      "title": "执行对照实验与生成可复算报告",
+      "handoff_ref": "handoff-win10-wsl-20261009.md",
+      "design_plan_ref": "sandbox-redesign.md",
+      "planned_slices": [
+        "S5"
+      ],
+      "windows_acceptance_update_ref": "evidence/F28-windows10-acceptance-observations.json",
+      "depends_on": [
+        "F20",
+        "F21",
+        "F23",
+        "F28",
+        "F30"
+      ],
+      "chapters": [
+        17,
+        18
+      ],
+      "files": [
+        "experiments/delivery-repair.json",
+        "docs/experiments/",
+        "scripts/impl.py",
+        "实验 artifact 索引"
+      ],
+      "steps": [
+        "按沙盒改进方案 S5 完成官方容器网络/工具边界与宿主逐请求准入，再冻结任务和 A/B 配置，做无费用协议验证。",
+        "取得用户明确预算／key／环境许可后预实验并锁规模。",
+        "正式交错运行，保留所有 attempt、usage 与 grader 产物。",
+        "逐题配对和 task-cluster 区间，报告回退、成本与限制。"
+      ],
+      "tests": [
+        "未授权执行返回 blocked。",
+        "相同 bundle 离线复算一致。",
+        "A/B 非目标配置差异被检测。",
+        "真实结果不使用 Mock 或 best-of 历史替换。",
+        "文件、命令、verify 位于同一官方 attempt 环境；任务不可取得 Docker socket、隐藏 grader 或控制面凭证。",
+        "网络拒绝、逐请求授权/有限预算及 owner 清理在新机实际验证；WSL 结果不计 Windows 原生证据。"
+      ],
+      "acceptance": [
+        "实验流程完整可运行；实际成绩有来源，缺授权明确未实测。"
+      ],
+      "verification_suites": [
+        "contracts",
+        "quality",
+        "unit",
+        "portable",
+        "regression",
+        "live-eval",
+        "acceptance"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "in_progress",
+      "evidence_ids": [
+        "20261007T124926Z-ffba8638",
+        "20261007T124931Z-2a076df9",
+        "20261007T124936Z-7652d1a7",
+        "20261007T124946Z-d1af338d",
+        "20261007T124954Z-8a43409a",
+        "20261007T125431Z-8c74ade7",
+        "20261007T125431Z-a30d4f4e",
+        "20261007T125431Z-939926b8",
+        "20261007T125541Z-271c143b",
+        "20261007T125548Z-a7d9525c",
+        "20261007T125611Z-4e7c1bd8",
+        "20261007T131021Z-e5bf3413",
+        "20261007T154114Z-26ded72b",
+        "20261007T154120Z-2a46ead5",
+        "20261007T154135Z-0a1ccbae",
+        "20261007T154224Z-82b552ed",
+        "20261007T155239Z-37f6cb63",
+        "20261008T031416Z-66663872",
+        "20261008T031420Z-3589611d",
+        "20261008T031433Z-6b39578b",
+        "20261008T031520Z-a5084c35",
+        "20261008T032456Z-b1445ba2",
+        "20261008T033824Z-08482720",
+        "20261008T033826Z-896d9c62",
+        "20261008T101859Z-6e75302c",
+        "20261008T101903Z-54075eb9",
+        "20261008T101917Z-6a4f56c2",
+        "20261008T103251Z-83550630",
+        "20261008T103348Z-d69d8d63",
+        "20261008T103400Z-38bd2f75"
+      ],
+      "case_ids": [
+        "N24"
+      ],
+      "remaining_implementation": [
+        "Official Docker environment/network enforcement and trusted host per-request admission/authorization integration remain unimplemented or unverified; live execution stays refused. Durable request accounting attribution checks are implemented but are not that admission gateway.",
+        "The current preregistration still needs actual official source/model/environment/grader snapshots and a trusted authorization binding. The explicit unbounded RunSpec representation is now implemented; no missing snapshot or execution permission is inferred."
+      ],
+      "handoff_ref": "../experiments/F31-wsl-handoff.md"
+    },
+    {
+      "id": "F32",
+      "title": "最终发布审查与用户文档",
+      "depends_on": [
+        "F28",
+        "F29",
+        "F31"
+      ],
+      "chapters": [
+        24,
+        26
+      ],
+      "files": [
+        "README.md",
+        "docs/install/",
+        "docs/security/",
+        "docs/implementation/final-report.md",
+        "发布资产清单"
+      ],
+      "steps": [
+        "复查全部 P0 功能／平台／安全／兼容／实验要求。",
+        "从干净安装按 README 完成演示。",
+        "输出完成、阻塞、不支持、上游复用与个人实现清单。",
+        "准备安装包与证据索引，发布上传需另行授权。"
+      ],
+      "tests": [
+        "用户文档步骤实际运行成功。",
+        "无 TODO stub／静态假数据支撑必需功能。",
+        "未签名／未原生验证的包不能标正式稳定版。"
+      ],
+      "acceptance": [
+        "代码完成、产品验收、真实实验三个结论分别声明。",
+        "final-report 与 evidence／progress 一致。"
+      ],
+      "verification_suites": [
+        "contracts",
+        "quality",
+        "unit",
+        "portable",
+        "regression",
+        "engine-packaged",
+        "desktop",
+        "desktop-packaged",
+        "hardened",
+        "installer-windows",
+        "installer-linux",
+        "acceptance",
+        "security",
+        "release"
+      ],
+      "non_goals": "不要扩大到本任务未声明的 P1 范围。",
+      "implementation_status": "in_progress",
+      "evidence_ids": [
+        "20261007T143907Z-f2d2193d",
+        "20261007T143911Z-01c04c24",
+        "20261007T143926Z-173a661a",
+        "20261007T144011Z-c6c40c46",
+        "20261007T144844Z-d7aa5443",
+        "20261007T145332Z-695f9ba9"
+      ],
+      "case_ids": [],
+      "status": "implemented"
+    }
+  ]
+}

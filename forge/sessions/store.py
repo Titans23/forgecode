@@ -188,7 +188,6 @@ class SessionJournal:
     ) -> None:
         if tool_call_id in self._tool_started_ids:
             return
-        self._tool_started_ids.add(tool_call_id)
         self.append(
             'tool_started',
             {
@@ -198,6 +197,7 @@ class SessionJournal:
                 **(provenance or {}),
             },
         )
+        self._tool_started_ids.add(tool_call_id)
 
     def record_tool_completed(
         self,
@@ -213,7 +213,6 @@ class SessionJournal:
     ) -> None:
         if tool_call_id in self._tool_completed_ids:
             return
-        self._tool_completed_ids.add(tool_call_id)
         execution = {
             'tool_call_id': tool_call_id,
             'name': name,
@@ -230,6 +229,7 @@ class SessionJournal:
             'tool_completed',
             execution,
         )
+        self._tool_completed_ids.add(tool_call_id)
 
     def record_task_state(self, task: ActiveTask | None) -> None:
         self.append(

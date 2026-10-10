@@ -1,0 +1,448 @@
+"""Repository-owned implementation commands; never loads model credentials."""
+
+from __future__ import annotations
+
+import argparse
+import ast
+from datetime import datetime, timezone
+from hashlib import sha256
+import json
+import os
+from pathlib import Path
+import platform
+import shutil
+import subprocess
+import sys
+import tomllib
+import urllib.request
+from uuid import uuid4
+import xml.etree.ElementTree as ET
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from scripts.evidence_gate import source_fingerprint, evaluate_gate
+DOCS = ROOT / 'docs' / 'implementation'
+SYMBOLS = {
+    'cli': ('forge/cli.py', ['main', 'create_session_runtime', 'render_streamed_turn']),
+    'factory': ('forge/runtime/factory.py', ['create_runtime', 'load_runtime_mcp_servers']),
+    'conversation': ('forge/runtime/agent_loop.py', ['Conversation.__init__', 'Conversation.stream', 'Conversation.runtime_close']),
+    'runner': ('forge/runtime/runner.py', ['TurnRunner.__init__', 'TurnRunner.run', 'TurnRunner._prepare_turn']),
+    'executor': ('forge/runtime/executor.py', ['ToolExecutor.__init__', 'ToolExecutor.execute', 'ToolExecutor._journal_started', 'ToolExecutor._outcome']),
+    'shell': ('forge/tools/shell.py', ['RunCommandTool.__init__', 'RunCommandTool.execute', 'run_process', '_terminate_process_tree']),
+    'file_tools': ('forge/tools/base.py', ['resolve_repository_path', 'ToolRegistry.execute']),
+    'context': ('forge/context/manager.py', ['ContextManager.prepare', 'ContextManager.compact_history']),
+    'model_budget': ('forge/runtime/model_budget.py', ['BudgetedModelClient.stream', 'observe_wire_request']),
+    'model': ('forge/runtime/model_client.py', ['AnthropicModelClient.__init__', 'AnthropicModelClient.stream']),
+    'providers': ('forge/runtime/providers.py', ['create_model_client', 'NativeModelClient.stream']),
+    'journal': ('forge/sessions/store.py', ['SessionJournal.append', 'SessionJournal._append_locked', 'SessionStore.create', 'SessionStore.open', 'SessionStore.load']),
+    'benchmark_catalog': ('benchmark/catalog.py', ['BenchmarkSpec']),
+    'benchmark_runner': ('benchmark/harbor/run_forge.py', ['run_turn', 'main']),
+    'benchmark_results': ('benchmark/harbor/summarize.py', ['summarize_run', 'assess_trial']),
+}
+SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
+          'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
+          'regression': ['tests'], 'packaged': [],
+          'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
+SUITES['benchmark-harbor']=[]
+SUITES['live-eval']=[]
+for name in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security','hardened','performance','acceptance','release'):SUITES[name]=[]
+TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F15': ['unit', 'portable', 'desktop', 'desktop-packaged']}
+TASK_SUITES['F16'] = ['unit', 'portable', 'desktop', 'desktop-packaged']
+TASK_SUITES['F17'] = ['unit', 'portable']
+TASK_SUITES['F18'] = ['unit', 'portable']
+TASK_SUITES['F19'] = ['unit', 'portable']
+TASK_SUITES['F20'] = ['unit', 'portable','benchmark-harbor']
+TASK_SUITES['F21'] = ['unit', 'portable']
+TASK_SUITES['F22'] = ['unit', 'portable','desktop','desktop-packaged']
+TASK_SUITES['F23'] = ['unit', 'portable','desktop','desktop-packaged']
+TASK_SUITES['F24'] = ['unit', 'portable','desktop','desktop-packaged']
+TASK_SUITES['F25'] = ['unit', 'portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
+TASK_SUITES['F26'] = ['unit','portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
+TASK_SUITES['F27']=['unit','portable','engine-packaged','desktop','desktop-packaged','installer-windows','installer-linux','sandbox-linux','sandbox-windows']
+TASK_SUITES['F28']=['contracts','quality','unit','portable','desktop','engine-packaged','desktop-packaged','hardened','performance','acceptance','installer-windows','installer-linux','sandbox-windows','sandbox-linux','security']
+TASK_SUITES['F29']=['contracts','quality','unit','portable','security']
+TASK_SUITES['F30']=['contracts','quality','unit','portable']
+TASK_SUITES['F31']=['contracts','quality','unit','portable','live-eval']
+TASK_SUITES['F32']=['contracts','quality','unit','portable','engine-packaged','desktop','desktop-packaged','hardened','installer-windows','installer-linux','acceptance','security','release']
+CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
+                      'tests/implementation/portable/test_contracts_parity.py'],
+              'D30': ['tests/implementation/integration/test_storage.py'],
+              'N02': ['tests/implementation/integration/test_storage.py'],
+              'N06': ['tests/implementation/integration/test_storage.py'],
+              **{case: ['tests/implementation/integration/test_rpc.py'] for case in ('O07', 'D04', 'D07', 'D09', 'D10', 'N01', 'N03')},
+              **{case: ['tests/implementation/unit/test_policy.py', 'tests/implementation/integration/test_policy_service.py'] for case in ('C06', 'C24', 'N08')},
+              **{case: ['tests/implementation/unit/test_bridge_launcher.py', 'tests/implementation/integration/test_bridge.py'] for case in ('C07', 'C08', 'C09', 'C16', 'C17', 'D13', 'N05')},
+              **{case: ['tests/implementation/native/linux/verify_linux.py'] for case in ('C10', 'C11', 'C12')},
+              **{case: ['tests/implementation/native/windows/verify_windows.py'] for case in ('C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07')},
+              **{case: ['tests/implementation/integration/test_file_worker.py'] for case in ('C01', 'C02', 'C03', 'C04', 'C05', 'C20', 'C22', 'C23', 'D22', 'N09')},
+              **{case: ['tests/implementation/integration/test_cancellation.py', 'tests/implementation/integration/test_process_worker.py',
+                        'tests/implementation/integration/test_service_lifecycle.py'] for case in ('C13', 'C14', 'C15', 'C18', 'C19', 'D11', 'D17')},
+              **{case: ['tests/implementation/integration/test_desktop_supervisor.py', 'scripts/desktop_smoke.py'] for case in ('D03', 'D06', 'D14')},
+              **{case: ['tests/implementation/integration/test_bound_approvals.py', 'tests/implementation/integration/test_approval_rpc.py',
+                        'tests/implementation/integration/test_workspace_authorization.py', 'tests/desktop/security/test_internal_grants.py',
+                        'scripts/desktop_smoke.py'] for case in ('D12', 'D19', 'D20', 'D27', 'D28', 'N10')},
+              **{case: ['tests/implementation/integration/test_connections.py', 'tests/desktop/credentials/test_real_storage.py',
+                        'tests/desktop/credentials/test_storage_policy.py', 'scripts/desktop_smoke.py'] for case in ('D25', 'D26', 'N11', 'N12')}}
+CASE_TESTS.update({case: ['tests/implementation/integration/test_workspace_views.py',
+    'tests/implementation/unit/test_workspace_ui.py', 'scripts/desktop_smoke.py'] for case in ('D21', 'D23', 'D33')})
+CASE_TESTS['O06'] = ['tests/implementation/integration/test_traces.py']
+CASE_TESTS.update({case: ['tests/implementation/unit/test_observability.py',
+    'tests/implementation/integration/test_observation_views.py'] for case in ('O01','O02','O03','O05','N13')})
+CASE_TESTS.update({case:['tests/implementation/unit/test_evaluation_metrics.py',
+    'tests/implementation/integration/test_evaluations.py'] for case in ('O08','O09','D24','N14')})
+CASE_TESTS['D37']=['tests/implementation/integration/test_benchmark_adapters.py']
+CASE_TESTS.update({case:['tests/implementation/integration/test_recovery.py','tests/implementation/integration/test_cancellation.py',
+    'tests/implementation/integration/test_desktop_supervisor.py','tests/implementation/unit/test_engine_lifecycle_deadlines.py',
+    'tests/implementation/unit/test_recovery_ui.py','scripts/desktop_smoke.py'] for case in ('D08','D15','D16','D18','N21','N22')})
+CASE_TESTS.update({case:['tests/implementation/integration/test_bundles.py'] for case in ('O10','N15','N16')})
+CASE_TESTS['D35']=['tests/implementation/integration/test_http_adapter.py','tests/implementation/unit/test_web_contracts.py']
+CASE_TESTS['D36']=['tests/implementation/integration/test_application.py']
+CASE_TESTS['D38']=['tests/implementation/integration/test_compatibility.py']
+CASE_TESTS.update({case:['tests/implementation/unit/test_release_runtime.py','scripts/engine_packaged_smoke.py']
+    for case in ('D05','D31','D40','N17','N18')})
+CASE_TESTS.update({case:['tests/implementation/integration/test_release_upgrade.py'] for case in ('D29','D32','N19')})
+CASE_TESTS.update({case:['scripts/make_installer.py','scripts/engine_packaged_smoke.py','scripts/desktop_packaged_smoke.py']
+    for case in ('D01','D02')})
+
+CASE_TESTS['N23']=['tests/implementation/unit/test_gates.py','tests/implementation/unit/test_ci.py']
+CASE_TESTS['O04']=['tests/implementation/integration/test_harness_regressions.py','tests/implementation/unit/test_workspace_scope.py']
+CASE_TESTS['N20']=['tests/implementation/unit/test_hardened_artifact.py','scripts/hardened_smoke.py']
+CASE_TESTS['N24']=['tests/implementation/integration/test_delivery_experiment.py','tests/implementation/integration/test_model_regression.py',
+    'tests/implementation/integration/test_frozen_runspec.py','tests/implementation/integration/test_evaluation_budget.py',
+    'tests/implementation/unit/test_evaluation_ui.py']
+
+class Parser(argparse.ArgumentParser):
+    def error(self, message):
+        self.exit(3, json.dumps({'status': 'invalid_configuration', 'reason': message}) + '\n')
+
+
+def command(argv: list[str], root: Path = ROOT) -> str:
+    result = subprocess.run(argv, cwd=root, capture_output=True, text=True,
+                            encoding='utf-8', errors='replace', timeout=30)
+    if result.returncode:
+        raise RuntimeError(f'{argv[0]} exited {result.returncode}: {result.stderr.strip()}')
+    return result.stdout.strip()
+
+
+def symbol_map(root: Path, specs: dict = SYMBOLS) -> dict:
+    """Read signatures without importing runtime factories or provider modules."""
+    result = {}
+    for responsibility, (relative, requested) in specs.items():
+        tree = ast.parse((root / relative).read_text(encoding='utf-8-sig'))
+        found = {}
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                found[node.name] = node
+                if isinstance(node, ast.ClassDef):
+                    for member in node.body:
+                        if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                            found[f'{node.name}.{member.name}'] = member
+        records = {}
+        for name in requested:
+            if name not in found:
+                raise ValueError(f'Audited symbol no longer exists: {relative}:{name}')
+            node = found[name]
+            if isinstance(node, ast.ClassDef):
+                signature = f'class {node.name}'
+            else:
+                prefix = 'async def' if isinstance(node, ast.AsyncFunctionDef) else 'def'
+                signature = f'{prefix} {node.name}({ast.unparse(node.args)})'
+                if node.returns:
+                    signature += f' -> {ast.unparse(node.returns)}'
+            records[name] = {'line': node.lineno, 'signature': signature}
+        result[responsibility] = {'path': relative, 'symbols': records}
+    return result
+
+
+def probe_tool(name: str) -> dict:
+    executable = shutil.which(name)
+    if executable is None:
+        return {'status': 'blocked', 'version': None, 'reason': f'{name} not found on PATH'}
+    try:
+        version = command([executable, '--version'])
+    except (OSError, subprocess.TimeoutExpired, RuntimeError) as error:
+        return {'status': 'blocked', 'version': None, 'reason': type(error).__name__}
+    return {'status': 'pass', 'version': version, 'path': executable}
+
+
+def probe_network() -> dict:
+    """Explicit development-only probe of a fixed public dependency registry."""
+    try:
+        request = urllib.request.Request('https://registry.npmjs.org/', method='HEAD')
+        with urllib.request.urlopen(request, timeout=5) as response:
+            status = response.status
+        return {'status': 'pass' if status == 200 else 'blocked', 'http_status': status}
+    except (OSError, TimeoutError) as error:
+        return {'status': 'blocked', 'reason': type(error).__name__}
+
+
+def doctor(check_network: bool = False) -> dict:
+    tools = {name: probe_tool(name) for name in ('git', 'node', 'npm', 'uv')}
+    tools['python'] = {'status': 'pass', 'version': platform.python_version(), 'path': sys.executable}
+    # uv is optional for the existing installed Python environment.
+    required = ('git', 'node', 'npm', 'python')
+    report = {'scope': 'development', 'platform': platform.platform(), 'tools': tools,
+              'status': 'blocked' if any(tools[name]['status'] == 'blocked' for name in required) else 'pass',
+              'network': {'status': 'not_run', 'reason': 'Use --check-network to probe dependency access.'}}
+    if check_network:
+        report['network'] = probe_network()
+        if report['network']['status'] == 'blocked':
+            report['status'] = 'blocked'
+    return report
+
+
+def audit() -> dict:
+    root = Path(command(['git', 'rev-parse', '--show-toplevel'])).resolve()
+    if root != ROOT:
+        raise ValueError('Script must belong to the audited repository root.')
+    files = command(['git', 'ls-files']).splitlines()
+    instructions = []
+    for parent in [*reversed(ROOT.parents), ROOT]:
+        for name in ('AGENTS.md', 'AGENTS.override.md'):
+            path = parent / name
+            if path.is_file():
+                instructions.append(str(path))
+    for directory, children, names in os.walk(ROOT):
+        children[:] = sorted(set(children) - {'.git', '.venv', '.local', '.cache', 'node_modules', 'build', 'runs', 'update_implementation_pack'})
+        for name in ('AGENTS.md', 'AGENTS.override.md'):
+            path = Path(directory) / name
+            if name in names and str(path) not in instructions:
+                instructions.append(str(path))
+    project = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))['project']
+    return {'schema_version': 'forge.repository.audit.v1', 'repository_root': str(root),
+            'git_commit': command(['git', 'rev-parse', 'HEAD']),
+            'dirty_files': command(['git', 'status', '--short']).splitlines(),
+            'tracked_file_count': len(files), 'instructions': instructions,
+            'python_requirement': project['requires-python'],
+            'entry_points': {**project['scripts'], 'module': 'python -m forge', 'benchmark': 'python -m benchmark'},
+            'code_map': symbol_map(root), 'development': doctor()}
+
+
+def task_status(backlog: dict, progress: dict) -> dict:
+    ready, waiting = [], {}
+    for task in backlog['tasks']:
+        if progress['tasks'][task['id']]['implementation_status'] == 'implemented':
+            continue
+        missing = [dep for dep in task['depends_on']
+                   if progress['tasks'][dep]['implementation_status'] != 'implemented']
+        if missing:
+            waiting[task['id']] = missing
+        else:
+            ready.append(task['id'])
+    return {'current_task': progress.get('current_task'), 'ready_tasks': ready,
+            'waiting_tasks': waiting, 'gates': progress.get('gates', {})}
+
+
+def write_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    temporary.replace(path)
+
+
+def pytest_outcome(exit_code: int, report: Path) -> tuple[str, dict]:
+    if not report.is_file():
+        return 'fail', {'reason': 'pytest did not produce a JUnit report'}
+    cases = list(ET.parse(report).iter('testcase'))
+    counts = {'collected': len(cases), 'skipped': sum(c.find('skipped') is not None for c in cases),
+              'failures': sum(c.find('failure') is not None for c in cases),
+              'errors': sum(c.find('error') is not None for c in cases)}
+    if not cases:
+        return 'fail', {**counts, 'reason': 'No tests collected'}
+    if exit_code or counts['failures'] or counts['errors']:
+        return 'fail', counts
+    if counts['skipped']:
+        return 'blocked', {**counts, 'reason': 'Required tests were skipped; inspect JUnit report'}
+    return 'pass', counts
+
+
+def verify(suite: str, task_id: str | None = None, *, prepared_source_hash: str | None = None) -> dict:
+    if prepared_source_hash is not None and prepared_source_hash != source_fingerprint(ROOT):
+        raise ValueError("Prepared validation batch has changed source; prepare it again")
+    evidence_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid4().hex[:8]
+    output = ROOT / '.local' / 'implementation' / evidence_id
+    output.mkdir(parents=True)
+    native = suite in ('sandbox-linux', 'sandbox-windows')
+    grouped=suite in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security','hardened','performance','acceptance','live-eval','release')
+    report_path = output / ('packaging.json' if grouped else f'native-{suite.removeprefix("sandbox-")}.json' if native else 'harbor-probe.json' if suite=='benchmark-harbor' else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
+    unavailable = SUITES[suite] is None
+    if unavailable:
+        argv = []
+    elif suite=='live-eval':
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/delivery_experiment.py'),'verify','--output',str(report_path)]
+    elif suite=='release':
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/release_review.py'),'--output',str(report_path)]
+    elif suite in ('contracts','quality','security'):
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/ci_checks.py'),'--suite',suite,'--output',str(report_path)]
+        if prepared_source_hash: argv += ['--prepared-source-hash', prepared_source_hash]
+    elif suite in ('hardened','performance','acceptance'):
+        script={'hardened':'hardened_smoke.py','performance':'performance_probe.py','acceptance':'acceptance_audit.py'}[suite]
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts'/script),'--output',str(report_path)]
+    elif grouped:
+        argv=[sys.executable,'-X','utf8',str(ROOT/('scripts/engine_packaged_smoke.py' if suite=='engine-packaged' else 'scripts/make_installer.py')),'--output',str(report_path)]
+        if suite.startswith('installer-'):argv+=['--target','win32-x64' if suite=='installer-windows' else 'linux-x64']
+    elif suite == 'packaged':
+        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
+    elif native:
+        argv = [sys.executable, '-X', 'utf8', '-m', 'forge.sandbox.doctor', f'--native-{suite.removeprefix("sandbox-")}', '--output', str(report_path)]
+    elif suite == 'desktop':
+        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_smoke.py'), '--output', str(report_path)]
+    elif suite == 'desktop-packaged':
+        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_packaged_smoke.py'), '--output', str(report_path)]
+    elif suite=='benchmark-harbor':
+        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/harbor_probe.py'),'--output',str(report_path)]
+    else:
+        argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
+                '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
+    started = datetime.now(timezone.utc).isoformat()
+    preparation_commands = []
+    if prepared_source_hash:
+        preparation_commands = [[sys.executable,str(ROOT/'scripts/build_bridge.py'),'--check','--no-build'],
+            [sys.executable,str(ROOT/'scripts/build_desktop.py'),'--check','--no-build']]
+    elif suite in ('unit', 'portable', 'regression', 'sandbox-linux', 'sandbox-windows', 'desktop'):
+        node = shutil.which('node')
+        if node:
+            preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
+            preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_bridge.py'), '--check'])
+            preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_desktop.py'), '--check', *([] if suite == 'desktop' else ['--main-only'])])
+            setup_source = ROOT / 'apps/desktop/src/main/setup_broker.ts'
+            if setup_source.is_file():
+                preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '--target', 'ES2022',
+                    '--module', 'NodeNext', '--strict', '--skipLibCheck', '--newLine', 'lf', '--outDir', str(output / 'main-compile'), str(setup_source)])
+    head = command(['git', 'rev-parse', 'HEAD'])
+    dirty = command(['git', 'diff', '--binary', 'HEAD'])
+    source_hashes = {}
+    source_files = command(['git', 'ls-files', '--cached', '--others', '--exclude-standard']).splitlines()
+    for relative in sorted(set(source_files)):
+        path = Path(relative)
+        if not (ROOT / path).is_file(): continue
+        source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts', 'experiments'}
+        source_manifest = relative in {'release-manifest.json','.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
+        fixture_input = relative.startswith(('tests/implementation/fixtures/', 'packaging/linux/'))
+        if (source_directory and path.suffix in {'.py', '.ts', '.mts', '.tsx', '.css', '.html', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
+            source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
+    dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
+    source_inventory_hash=source_fingerprint(ROOT)
+    verification_timeout = 7200 if suite == 'performance' else 1800 if suite in ('regression', 'portable') else 900
+    with (output / 'stdout.log').open('w', encoding='utf-8') as stdout, (output / 'stderr.log').open('w', encoding='utf-8') as stderr:
+        if unavailable:
+            exit_code = 1
+            stderr.write('Suite verifier has not been implemented; no tests were run.\n')
+        else:
+            try:
+                exit_code = 0
+                for preparation in preparation_commands:
+                    prepared = subprocess.run(preparation, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=120)
+                    if prepared.returncode:
+                        exit_code = prepared.returncode
+                        break
+                if not exit_code:
+                    result = subprocess.run(argv, cwd=ROOT, stdout=stdout, stderr=stderr, timeout=verification_timeout)
+                    exit_code = result.returncode
+            except subprocess.TimeoutExpired:
+                exit_code = 1
+                stderr.write(f'Verification exceeded {verification_timeout} seconds.\n')
+    if unavailable:
+        status, counts = 'fail', {'collected': 0, 'reason': 'Suite verifier has not been implemented'}
+    elif (suite in ('packaged', 'desktop', 'desktop-packaged','benchmark-harbor') or native or grouped) and report_path.is_file():
+        result_report = json.loads(report_path.read_text(encoding='utf-8'))
+        status = result_report['status']
+        counts = {key: result_report[key] for key in ('development_smoke', 'reason', 'security_status', 'scope', 'eligible_for_native_pass') if key in result_report}
+        counts['checks'] = len(result_report.get('checks', []))
+        if status == 'pass' and (exit_code != 0 or not counts['checks']):
+            status = 'fail'
+        if (suite in ('desktop', 'desktop-packaged') or grouped) and status == 'pass' and any(check.get('status') != 'pass' for check in result_report.get('checks', [])):
+            status = 'fail'
+        if native and status == 'pass' and (result_report.get('eligible_for_native_pass') is not True or
+                any(check.get('status') != 'pass' for check in result_report.get('checks', []))):
+            status = 'fail'
+    else:
+        status, counts = pytest_outcome(exit_code, report_path)
+    lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
+                   for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
+    case_ids = ({'engine-packaged':['D01','D40','N17','N18'],
+                    'installer-windows':['D01'],'installer-linux':['D02'],'quality':['N23'],'contracts':['N04'],'security':['N23'],
+                    'hardened':['N20'],'performance':[],'acceptance':list(CASE_TESTS),'live-eval':['N24'],'release':[]}[suite] if grouped else
+                    (['C10', 'C11', 'C12'] if suite == 'sandbox-linux' else
+                    ['C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07']) if native else [case for case, refs in CASE_TESTS.items()
+                    if suite not in ('packaged',) and SUITES[suite] and any(Path(ref).name.startswith('test_') and
+                        any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)])
+    if source_fingerprint(ROOT)!=source_inventory_hash:
+        status='fail'
+        counts['reason']='Repository source changed during verification; rerun the suite'
+    evidence = {'schema_version': 'forge.implementation.evidence.v1', 'evidence_id': evidence_id,
+                'task_id': task_id, 'case_ids':case_ids,
+                'suite': suite, 'git_commit': head,
+                'dirty_hash': dirty_hash, 'source_inventory_hash':source_inventory_hash, 'platform': sys.platform, 'os_build': platform.platform(),
+                'dependency_lock_hash': lock_hashes, 'command': argv, 'start': started,
+                'preparation_commands': preparation_commands, 'prepared_source_hash': prepared_source_hash,
+                'end': datetime.now(timezone.utc).isoformat(), 'exit_code': exit_code,
+                'stdout_ref': (output / 'stdout.log').relative_to(ROOT).as_posix(),
+                'stderr_ref': (output / 'stderr.log').relative_to(ROOT).as_posix(),
+                'report_ref': report_path.relative_to(ROOT).as_posix(),
+                'report_hash': sha256(report_path.read_bytes()).hexdigest() if report_path.exists() else None,
+                'status': status, 'tests': counts}
+    write_json(DOCS / 'evidence' / f'{evidence_id}.json', evidence)
+    return evidence
+
+
+def gate(name: str, evidence_ids=None) -> dict:
+    return evaluate_gate(ROOT, name, evidence_ids)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = Parser(description=__doc__)
+    subs = parser.add_subparsers(dest='command', required=True)
+    audit_parser = subs.add_parser('audit', help='Read actual repository symbols and toolchain')
+    audit_parser.add_argument('--write', action='store_true', help='Save audit and code-map in docs/implementation')
+    doctor_parser = subs.add_parser('doctor', help='Diagnose development dependencies')
+    doctor_parser.add_argument('--scope', choices=['development'], default='development')
+    doctor_parser.add_argument('--check-network', action='store_true')
+    subs.add_parser('status', help='Read task progress and dependency readiness')
+    contract_parser = subs.add_parser('contracts', help='Generate shared contracts or check drift')
+    contract_parser.add_argument('--check', action='store_true')
+    gate_parser = subs.add_parser('gate', help='Check implementation or release evidence without running tasks')
+    gate_parser.add_argument('--name', choices=['implementation', 'release', 'ci'], required=True)
+    gate_parser.add_argument('--evidence-id', action='append', help='Fresh CI verifier IDs; never infer success from historical checkout reports')
+    verify_parser = subs.add_parser('verify', help='Run registered real tests and save evidence')
+    selection = verify_parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument('--suite', choices=sorted(SUITES))
+    selection.add_argument('--task', choices=[task['id'] for task in json.loads((DOCS / 'backlog.json').read_text(encoding='utf-8'))['tasks']])
+    args = parser.parse_args(argv)
+    try:
+        if args.command == 'audit':
+            report = audit()
+            if args.write:
+                write_json(DOCS / 'repo-audit.json', report)
+                write_json(DOCS / 'code-map.json', report['code_map'])
+        elif args.command == 'doctor':
+            report = doctor(args.check_network)
+        elif args.command == 'status':
+            report = task_status(json.loads((DOCS / 'backlog.json').read_text(encoding='utf-8')),
+                                 json.loads((DOCS / 'progress.json').read_text(encoding='utf-8')))
+        elif args.command == 'contracts':
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/check_contracts.py'), *(['--check'] if args.check else [])], cwd=ROOT)
+            return result.returncode
+        elif args.command == 'gate':
+            report = gate(args.name, args.evidence_id)
+        else:
+            if args.task:
+                if args.task not in TASK_SUITES:
+                    print(json.dumps({'status': 'fail', 'task_id': args.task, 'reason': 'Task test bindings are not implemented'}))
+                    return 1
+                evidence = [verify(suite, args.task) for suite in TASK_SUITES[args.task]]
+                states = [item['status'] for item in evidence]
+                report = {'status': 'fail' if 'fail' in states else 'blocked' if 'blocked' in states else 'pass',
+                          'task_id': args.task, 'evidence': evidence}
+            else:
+                report = verify(args.suite)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return {'fail': 1, 'blocked': 2}.get(report.get('status'), 0)
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        print(json.dumps({'status': 'fail', 'reason': str(error)}, ensure_ascii=False), file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

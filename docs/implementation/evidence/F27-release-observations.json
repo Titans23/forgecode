@@ -1,0 +1,250 @@
+{
+  "scope": "F27 actual Windows 10 development build and verification",
+  "eligible_for_native_pass": false,
+  "model_origin": "scripted",
+  "public_model_api_calls": 0,
+  "public_model_grades": 0,
+  "tested_parent_head": "08ec4ccbaf55f3a8db6e561e24b1df4ae3303724",
+  "tested_dirty_hash": "3a9cf621a750d9a0bd7d9523c72431f9d76a762d6b7d9c65218f568b11936a32",
+  "build_id": "v4-f27-08ec4cc-win-x64",
+  "manifest_sha256": "7a89b7187824fd73999ccfdc8b1d42c445d2e61eab3aff62c58eb7a47d0f356f",
+  "resources": {
+    "files": 1860,
+    "engine_source_files": 194,
+    "frozen_python_distributions": 87,
+    "components": 119,
+    "license_files": 147,
+    "engine_dependency_files": 259,
+    "bridge_dependency_files": 1438
+  },
+  "final_evidence": [
+    {
+      "evidence_id": "20261007T045603Z-77e5a97d",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 160,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T045603Z-77e5a97d/junit.xml",
+      "report_hash": "2bfac07dd3b09dc09a75d7a6b11dcec3f825b5b581b366695e447811c58e0159",
+      "exit_code": 0
+    },
+    {
+      "evidence_id": "20261007T083904Z-e08a09a3",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 341,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T083904Z-e08a09a3/junit.xml",
+      "report_hash": "2af1c27e13dad8bbb375065358f476fd1b3c35ec1d1b6290a23d7023d04b214c",
+      "exit_code": 0
+    },
+    {
+      "evidence_id": "20261007T084739Z-f2a68093",
+      "suite": "engine-packaged",
+      "status": "pass",
+      "tests": {
+        "scope": "Windows 10 development frozen components",
+        "eligible_for_native_pass": false,
+        "checks": 9
+      },
+      "report_ref": ".local/implementation/20261007T084739Z-f2a68093/packaging.json",
+      "report_hash": "cfc6f444c98d042226e236594a5d661b864e110f475048af1e328ffc4003af30",
+      "exit_code": 0
+    },
+    {
+      "evidence_id": "20261007T084926Z-6b3ab489",
+      "suite": "desktop",
+      "status": "pass",
+      "tests": {
+        "scope": "development-desktop",
+        "eligible_for_native_pass": false,
+        "checks": 66
+      },
+      "report_ref": ".local/implementation/20261007T084926Z-6b3ab489/desktop-smoke.json",
+      "report_hash": "e9b9842e02ab99d3fffa4438be2a87662c1ecccb78bb526737a151808432a033",
+      "exit_code": 0
+    },
+    {
+      "evidence_id": "20261007T085013Z-844215b0",
+      "suite": "desktop-packaged",
+      "status": "pass",
+      "tests": {
+        "scope": "installed-readonly-preview",
+        "eligible_for_native_pass": false,
+        "checks": 4
+      },
+      "report_ref": ".local/implementation/20261007T085013Z-844215b0/desktop-smoke.json",
+      "report_hash": "e5be79ff052036f8f37b8d39585d062b79a7223911d0aaeabd77eaca85f1c99d",
+      "exit_code": 0
+    },
+    {
+      "evidence_id": "20261007T085101Z-86488a82",
+      "suite": "installer-windows",
+      "status": "pass",
+      "tests": {
+        "scope": "native developer-preview installer build",
+        "eligible_for_native_pass": false,
+        "checks": 1
+      },
+      "report_ref": ".local/implementation/20261007T085101Z-86488a82/packaging.json",
+      "report_hash": "5105361690f110126e86a758945f7ff491ce415558db2182bda0f6e197f23850",
+      "exit_code": 0
+    },
+    {
+      "evidence_id": "20261007T085304Z-5c4b0e50",
+      "suite": "installer-linux",
+      "status": "blocked",
+      "tests": {
+        "reason": "Native installer target OS is unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      },
+      "report_ref": ".local/implementation/20261007T085304Z-5c4b0e50/packaging.json",
+      "report_hash": "1c60fae9cac2cb794dcde69a4bb21ec4c087cdb102eecc6c75a732158cf18719",
+      "exit_code": 2
+    },
+    {
+      "evidence_id": "20261007T085305Z-9f595b5e",
+      "suite": "sandbox-linux",
+      "status": "blocked",
+      "tests": {
+        "reason": "Supported Ubuntu native runner is unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      },
+      "report_ref": ".local/implementation/20261007T085305Z-9f595b5e/native-linux.json",
+      "report_hash": "014e612eda971f85498f7ba0ebb7d684c97bcced6038ba9a63d6e44c48f1bc86",
+      "exit_code": 2
+    },
+    {
+      "evidence_id": "20261007T085317Z-1601a869",
+      "suite": "sandbox-windows",
+      "status": "blocked",
+      "tests": {
+        "reason": "Supported Windows 11 x64 native runner is unavailable",
+        "eligible_for_native_pass": false,
+        "checks": 0
+      },
+      "report_ref": ".local/implementation/20261007T085317Z-1601a869/native-windows.json",
+      "report_hash": "ebef1a1e958c36a29c5a6ad2ba9efbcd7721f4b331dd88701564441668a95ab4",
+      "exit_code": 2
+    },
+    {
+      "evidence_id": "20261007T083904Z-d1139af0",
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1245,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_ref": ".local/implementation/20261007T083904Z-d1139af0/junit.xml",
+      "report_hash": "a1056854d8e51a569018f034718f35ee9401f90294a7a1fd01068d67c4472d72",
+      "exit_code": 0
+    }
+  ],
+  "installer": {
+    "status": "pass",
+    "scope": "native developer-preview installer build",
+    "eligible_for_native_pass": false,
+    "build_id": "v4-f27-08ec4cc-win-x64",
+    "platform": "win32-x64",
+    "host": "Windows-10-10.0.19045-SP0",
+    "signature": {
+      "status": "unsigned",
+      "reason": "No production signing certificate configured"
+    },
+    "channel": "developer-preview",
+    "command": [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\npm.CMD",
+      "exec",
+      "--workspace",
+      "@forgecode/desktop",
+      "--",
+      "electron-forge",
+      "make"
+    ],
+    "checks": [
+      {
+        "name": "actual-forge-maker",
+        "status": "pass"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": ".local/desktop-packages/make/squirrel.windows/x64/ForgeCode-0.1.2 Setup.exe",
+        "sha256": "71e849efb4a755cf364b1bf8feb783095636fd32c1c2ead04afd61f9a11f8179",
+        "size_bytes": 231220224,
+        "signature_status": "unsigned"
+      },
+      {
+        "path": ".local/desktop-packages/make/squirrel.windows/x64/ForgeCode-0.1.2-full.nupkg",
+        "sha256": "65d34a381e3cb9a17522bce372dccd387abbb3d8c1519d7927ac572abe6af6ab",
+        "size_bytes": 231317093,
+        "signature_status": "unsigned"
+      },
+      {
+        "path": ".local/desktop-packages/make/squirrel.windows/x64/RELEASES",
+        "sha256": "179debb95455b74a61a8dc27ca463820a6a3fc28459cc82ea32d3871843b67fe",
+        "size_bytes": 80,
+        "signature_status": "unsigned"
+      }
+    ],
+    "production_acceptance": "blocked",
+    "native_install_acceptance": "blocked",
+    "project_license_status": "blocked_missing_project_license"
+  },
+  "historical_evidence_ids": [
+    "20261007T043608Z-a3f7e4d0",
+    "20261007T043609Z-2a2c8fa1",
+    "20261007T043646Z-8020ce62",
+    "20261007T044515Z-f39c709a",
+    "20261007T044650Z-c950e87d",
+    "20261007T044751Z-2c95edf0",
+    "20261007T044851Z-e31b72af",
+    "20261007T045111Z-b66bd36f",
+    "20261007T045111Z-edd846dd",
+    "20261007T045125Z-1f37c050"
+  ],
+  "interrupted_runs": [
+    {
+      "suite": "portable",
+      "directory": ".local/implementation/20261007T045637Z-f5f07829",
+      "status": "interrupted_no_complete_report"
+    },
+    {
+      "suite": "regression",
+      "directory": ".local/implementation/20261007T045603Z-d6e109d0",
+      "status": "interrupted_no_complete_report"
+    }
+  ],
+  "bytecode_regression": {
+    "before_report": ".local/F27-bytecode-before/report.json",
+    "before": {
+      "exit_code": 0,
+      "flag": null,
+      "bytecode_created": true
+    },
+    "original_desktop_failure_evidence_id": "20261007T044650Z-c950e87d",
+    "after_actual_worker_test": "tests/implementation/unit/test_release_runtime.py::test_actual_external_worker_preserves_no_bytecode_verification",
+    "after_unit_evidence_id": "20261007T045603Z-77e5a97d",
+    "after_desktop_evidence_id": "20261007T084926Z-6b3ab489"
+  },
+  "history_note": "Earlier installer artifacts used the same owned output paths and were replaced by the final rebuild; earlier metadata are historical and do not attest to current bytes.",
+  "blocked_reasons": [
+    "Host is Windows 10 19045. Windows 11 x64 clean installation/uninstallation and Ubuntu 22.04 native build plus Ubuntu 22.04/24.04 X11/Wayland acceptance remain unavailable.",
+    "Linux installer and both supported native sandbox verifiers returned blocked with zero checks; development frozen/GUI/installer-build passes cannot promote native acceptance.",
+    "Production signing certificate and owner-approved project LICENSE are unavailable; unsigned developer-preview only. GHSA-86w9-cpqp-85rv remains unresolved.",
+    "SRT administrator setup and paid-model budget are not authorized; all smoke models are scripted, zero public-model grades. Verified strict application composition continues in F28."
+  ],
+  "next_task": "F29"
+}

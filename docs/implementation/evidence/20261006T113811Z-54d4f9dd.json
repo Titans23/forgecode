@@ -1,0 +1,64 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T113811Z-54d4f9dd",
+  "task_id": null,
+  "case_ids": [
+    "N04",
+    "D30",
+    "N02",
+    "N06",
+    "O07",
+    "D04",
+    "D07",
+    "D09",
+    "D10",
+    "N01",
+    "N03"
+  ],
+  "suite": "regression",
+  "git_commit": "cb724ac5cbd2b874f9d4fdd2f7501905d44c53d5",
+  "dirty_hash": "cc47f6571788820788f4fccc27d0d8cebe7e1704c6d416e37c17e07c8ad485d8",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d",
+    "release-lock.json": "6836115e5e23c723356cbdf08ee8b9fb06c23b599944e61b82da7ca37bbdd21b"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T113811Z-54d4f9dd\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T113811Z-54d4f9dd\\junit.xml"
+  ],
+  "start": "2026-10-06T11:38:11.379362+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ]
+  ],
+  "end": "2026-10-06T11:41:40.293587+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261006T113811Z-54d4f9dd/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T113811Z-54d4f9dd/stderr.log",
+  "report_ref": ".local/implementation/20261006T113811Z-54d4f9dd/junit.xml",
+  "report_hash": "68ed4f40a899443f179fe9a33d31327f6328bb2a0ff2ecd5bcffc6b8fbd55929",
+  "status": "pass",
+  "tests": {
+    "collected": 843,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  }
+}

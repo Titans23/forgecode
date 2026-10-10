@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:environment",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "platform": {
+      "enum": [
+        "windows-native",
+        "linux-native",
+        "official-environment"
+      ]
+    },
+    "os_build": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "architecture": {
+      "enum": [
+        "x64"
+      ]
+    },
+    "filesystem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "toolchains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^(?:[A-Za-z]:[/\\\\]|/)(?![/\\\\]).*$"
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "path",
+          "sha256"
+        ]
+      },
+      "maxItems": 100,
+      "minItems": 0
+    },
+    "backend_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  },
+  "required": [
+    "platform",
+    "os_build",
+    "architecture",
+    "filesystem",
+    "toolchains",
+    "backend_version"
+  ]
+}

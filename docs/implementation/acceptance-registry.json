@@ -1,0 +1,3656 @@
+{
+  "schema_version": "forge.acceptance.registry.v1",
+  "cases": [
+    {
+      "id": "C01",
+      "title": "工作区内读取普通文件",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C02",
+      "title": "工作区内创建、修改和删除授权文件",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C03",
+      "title": "项目外未授权写入被拒绝",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C04",
+      "title": "配置为禁止的敏感路径读取被拒绝",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C05",
+      "title": "Shell 与文件工具对同一禁用路径结论一致",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C06",
+      "title": "配置不存在／非法时拒绝执行",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_policy.py",
+        "tests/implementation/integration/test_policy_service.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F07",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Policy/path compilation and service preflight; not native OS isolation.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "C07",
+      "title": "后端初始化失败不回退普通 spawn",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
+      "owner_task": "F08",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "C08",
+      "title": "Shell 显式参数、cwd 与环境变量正确传递",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
+      "owner_task": "F08",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "C09",
+      "title": "模型凭证不进入子进程环境",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
+      "owner_task": "F08",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "C10",
+      "title": "代理允许目标可达",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/linux/verify_linux.py",
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F09",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134433Z-be4553ee"
+          ],
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
+        }
+      }
+    },
+    {
+      "id": "C11",
+      "title": "非允许目标由声明的边界阻断",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/linux/verify_linux.py",
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F09",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134433Z-be4553ee"
+          ],
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
+        }
+      }
+    },
+    {
+      "id": "C12",
+      "title": "移除代理变量不能绕过声明的直连约束",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/linux/verify_linux.py",
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F09",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134433Z-be4553ee"
+          ],
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
+        }
+      }
+    },
+    {
+      "id": "C13",
+      "title": "命令超时得到明确终态",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F12",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        }
+      }
+    },
+    {
+      "id": "C14",
+      "title": "正常取消关闭受管执行",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F12",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        }
+      }
+    },
+    {
+      "id": "C15",
+      "title": "含子进程任务的取消／清理",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py",
+        "tests/implementation/integration/test_bridge.py::test_real_dispatcher_and_output_transport_without_os_sandbox_claim",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
+      "owner_task": "F12",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        }
+      }
+    },
+    {
+      "id": "C16",
+      "title": "大输出发生有记录的截断／外置",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
+      "owner_task": "F08",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "C17",
+      "title": "日志或磁盘预算耗尽可见",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
+      "owner_task": "F08",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "C18",
+      "title": "后台服务保留到评分阶段",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F12",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        }
+      }
+    },
+    {
+      "id": "C19",
+      "title": "环境总期限到达后回收",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F12",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        }
+      }
+    },
+    {
+      "id": "C20",
+      "title": "控制面配置／日志不可被任务改写",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C21",
+      "title": "重建 session 后旧权限不残留或明确报告异常",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134433Z-be4553ee"
+          ],
+          "reason": "Actual shared Linux verifier on Windows 10: Ubuntu runner unavailable, zero native checks. Full session cleanup not verified."
+        }
+      }
+    },
+    {
+      "id": "C22",
+      "title": "只读子任务不会获得不必要的写工具",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C23",
+      "title": "未迁移的 Hook／MCP 在严格模式下阻断或明确授权",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "C24",
+      "title": "声明不支持的强约束在运行前被拒绝",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_policy.py",
+        "tests/implementation/integration/test_policy_service.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F07",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Policy/path compilation and service preflight; not native OS isolation.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "W01",
+      "title": "全程 Windows 原生，没有经由 WSL／Docker",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W02",
+      "title": "安装批准、拒绝、重复安装与 doctor 状态",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W03",
+      "title": "中文、空格、大小写与盘符路径",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W04",
+      "title": "PowerShell 参数引用、编码与退出码",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W05",
+      "title": "junction／reparse point 和 `..` 混合路径",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W06",
+      "title": "硬链接快照禁用与特殊路径拒绝",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W07",
+      "title": "用户级 Python／Node／Git 的只读授权与定位",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W08",
+      "title": "Session 权限扩大必须切换策略／会话",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W09",
+      "title": "Controller 崩溃后的授权与执行残留检查",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W10",
+      "title": "Job 生命周期、嵌套进程和文件锁处理",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W11",
+      "title": "同一受控 worker 的串行与共享状态检查",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "W12",
+      "title": "DNS 能力限制被正确报告，严格离线要求被拒绝",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "O01",
+      "title": "模型调用流式中断仍有正确终态与未知 usage 标记",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_observation_views.py::test_real_provider_sdk_http_retry_cache_usage_and_interrupted_stream",
+        "tests/implementation/integration/test_observation_views.py::test_real_anthropic_sdk_partial_usage_does_not_become_a_complete_bill"
+      ],
+      "status": "pass",
+      "owner_task": "F18",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O02",
+      "title": "子 Agent 与摘要调用归因完整、费用不双计",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_observation_views.py::test_explore_parent_summary_is_not_a_second_cost_row",
+        "tests/implementation/integration/test_observation_views.py::test_real_request_ledger_frozen_prices_and_replay_recompute_once"
+      ],
+      "status": "pass",
+      "owner_task": "F18",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O03",
+      "title": "上下文压缩前后版本与工具配对可追溯",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_observation_views.py::test_actual_compaction_bills_summary_once_and_records_exact_tool_pair_retention"
+      ],
+      "status": "pass",
+      "owner_task": "F18",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O04",
+      "title": "过期证据导致完成拒绝，事件与代码行为一致",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_harness_regressions.py",
+        "tests/implementation/unit/test_workspace_scope.py"
+      ],
+      "status": "pass",
+      "owner_task": "F30",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T100117Z-2b3a1290",
+        "20261007T100154Z-0aaf1497",
+        "20261007T100111Z-456566b1"
+      ]
+    },
+    {
+      "id": "O05",
+      "title": "外部 exporter 断开不阻断正常 Agent 工作",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_observation_views.py::test_verification_query_observes_actual_external_edit_and_environment_invalidation"
+      ],
+      "status": "pass",
+      "owner_task": "F18",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O06",
+      "title": "重复事件导入不改变计数和成本",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_traces.py"
+      ],
+      "status": "pass",
+      "owner_task": "F17",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O07",
+      "title": "SSE 重连补齐轨迹，不重复发起任务",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "pass",
+      "owner_task": "F05",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O08",
+      "title": "未领取任务仍留在实验分母",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "pass",
+      "owner_task": "F19",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O09",
+      "title": "任务失败、基础设施错误、未评分和清理错误分开",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "pass",
+      "owner_task": "F19",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "O10",
+      "title": "改变产物后产生新评分身份，报告可从原始记录重算",
+      "source": "V3",
+      "baseline_expectation": null,
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bundles.py",
+        "tests/implementation/integration/test_benchmark_adapters.py::test_real_process_and_independent_grader_keep_three_axes"
+      ],
+      "status": "pass",
+      "owner_task": "F21",
+      "required_platforms": [
+        "portable"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D01",
+      "title": "Windows 安装版无需用户安装 ForgeCode 自身 Python／Node 即可启动；项目依赖另作诊断",
+      "source": "V3",
+      "baseline_expectation": "真实干净系统，不能用开发环境 PATH 蒙混",
+      "implementation_test_refs": [
+        "scripts/make_installer.py",
+        "scripts/engine_packaged_smoke.py",
+        "scripts/desktop_packaged_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0",
+          "20261007T085101Z-86488a82"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "D02",
+      "title": "Linux deb 在声明系统上安装、启动并运行打包 Engine",
+      "source": "V3",
+      "baseline_expectation": "记录系统库、桌面、X11／Wayland 与依赖",
+      "implementation_test_refs": [
+        "scripts/make_installer.py",
+        "scripts/engine_packaged_smoke.py",
+        "scripts/desktop_packaged_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F27",
+      "required_platforms": [
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e",
+            "20261007T085304Z-5c4b0e50"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "blocked",
+        "evidence_ids": [],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "D03",
+      "title": "断网时能打开应用和既有历史；需联网功能正确报错",
+      "source": "V3",
+      "baseline_expectation": "不把模型离线报错当成客户端无法启动",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
+      "owner_task": "F13",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163229Z-e28151f4"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T163212Z-4433d05b",
+            "20261006T163202Z-24e933d4"
+          ],
+          "scope": "Actual self-contained Electron assets, offline scripted task, real snapshots/reload/crash recovery; no external UI server. Installed/air-gap/provider failure acceptance remains blocked."
+        }
+      }
+    },
+    {
+      "id": "D04",
+      "title": "UI／Engine／协议主版本或 schema 不兼容",
+      "source": "V3",
+      "baseline_expectation": "拒绝新写入，显示可操作诊断",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F05",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D05",
+      "title": "打包 sidecar、Bridge 或可信 manifest 被修改",
+      "source": "V3",
+      "baseline_expectation": "完整性／真实性校验不通过，禁止启动受影响组件",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "D06",
+      "title": "同一 profile 重复启动客户端",
+      "source": "V3",
+      "baseline_expectation": "单实例处理且无第二数据库 writer",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
+      "owner_task": "F13",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163229Z-e28151f4"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T163212Z-4433d05b",
+            "20261006T163202Z-24e933d4"
+          ],
+          "scope": "Actual second Electron instance on the same development profile exited while the original Engine/turn stayed owned. Windows 10 development scope only."
+        }
+      }
+    },
+    {
+      "id": "D07",
+      "title": "start_turn 响应丢失后重复提交同一 action ID",
+      "source": "V3",
+      "baseline_expectation": "返回原 turn；参数改变则冲突",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F05",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D08",
+      "title": "Renderer 崩溃／重载，Main 和 Engine 仍运行",
+      "source": "V3",
+      "baseline_expectation": "恢复快照和游标，不重复执行任务",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F25",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
+    },
+    {
+      "id": "D09",
+      "title": "订阅断开、乱序／重复通知和重新订阅",
+      "source": "V3",
+      "baseline_expectation": "按身份去重，无状态倒退或持久事件空洞",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F05",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D10",
+      "title": "事件游标已过保留期",
+      "source": "V3",
+      "baseline_expectation": "明确历史缺口，快照恢复不伪装完整回放",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F05",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Windows 10 is the required local target; its native UI proof and Ubuntu native runners remain unavailable. Engine portable coverage does not verify UI reducers."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D11",
+      "title": "大量输出／慢 Renderer",
+      "source": "V3",
+      "baseline_expectation": "队列有界，取消和审批仍可处理",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F12",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        }
+      }
+    },
+    {
+      "id": "D12",
+      "title": "非预期窗口／iframe／伪造来源调用 IPC",
+      "source": "V3",
+      "baseline_expectation": "来源、方法与参数校验拒绝",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F14",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
+        }
+      }
+    },
+    {
+      "id": "D13",
+      "title": "任务 stdout 伪造 JSON 控制消息",
+      "source": "V3",
+      "baseline_expectation": "只作为输出内容，不更改审批／成本／成绩",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "blocked",
+      "owner_task": "F08",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Supported native runner unavailable; no OS sandbox initialization/execution/cleanup acceptance claimed."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Trusted asset/bootstrap checks and actual host dispatcher argv/script/data-output/idempotency; native execution and disk/resource enforcement are not claimed.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D14",
+      "title": "有任务时点击关闭、选择继续或取消退出",
+      "source": "V3",
+      "baseline_expectation": "行为与选择一致，不隐藏失控任务",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
+      "owner_task": "F13",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163229Z-e28151f4"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        },
+        "development": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163212Z-4433d05b",
+            "20261006T163202Z-24e933d4"
+          ],
+          "scope": "Actual Supervisor active cancellation/shutdown passed. Both native active-close dialog choices remain unverified; no injected dialog response used."
+        }
+      }
+    },
+    {
+      "id": "D15",
+      "title": "Main 被强制终止",
+      "source": "V3",
+      "baseline_expectation": "Engine／后端处理 EOF 与受管进程；残留／未知可追溯",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F25",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "Engine 在有副作用操作中崩溃",
+      "source": "V3",
+      "baseline_expectation": "重启先对账，不盲目重放或覆盖用户文件",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F25",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
+    },
+    {
+      "id": "D17",
+      "title": "重复取消、取消超时和部分清理失败",
+      "source": "V3",
+      "baseline_expectation": "幂等请求，终态和清理状态分别报告",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py",
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/integration/test_process_worker.py",
+        "tests/implementation/integration/test_service_lifecycle.py",
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F12",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153755Z-48e0813d"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T153751Z-30d364a9"
+          ],
+          "reason": "Actual native checker is blocked with zero checks. Portable real process/HTTP/Engine cancellation passed in 20261006T153544Z-ed76e3cf and final regression 20261006T154553Z-92330490. Native SRT process/ACL cleanup remains unverified; no native pass claimed."
+        }
+      }
+    },
+    {
+      "id": "D18",
+      "title": "系统睡眠后超过任务期限再恢复",
+      "source": "V3",
+      "baseline_expectation": "期限重新核对，不增加执行预算",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/unit/test_recovery_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F25",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
+    },
+    {
+      "id": "D19",
+      "title": "旧审批重放／过期／目标或参数变化",
+      "source": "V3",
+      "baseline_expectation": "不沿用旧授权，新请求绑定真实操作",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F14",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
+        }
+      }
+    },
+    {
+      "id": "D20",
+      "title": "审批期间工作区版本变化",
+      "source": "V3",
+      "baseline_expectation": "重新验证前置条件，不在陈旧状态上写入",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F14",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
+        }
+      }
+    },
+    {
+      "id": "D21",
+      "title": "打开不可信项目含 Hook／MCP／任务配置",
+      "source": "V3",
+      "baseline_expectation": "不会自动运行或扩大权限",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_workspace_views.py",
+        "tests/implementation/unit/test_workspace_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F16",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191650Z-e24e7d15"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Human native dialogs/IME and installed acceptance remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191645Z-824876b1"
+          ],
+          "scope": "Ubuntu/X11/Wayland native runners unavailable; zero native checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T191242Z-960d04de",
+            "20261006T191601Z-c1e273e9",
+            "20261006T191654Z-94a8d24d"
+          ],
+          "scope": "Actual Windows 10 Electron and Harness: valid Hook/MCP/.env do not execute; immutable dirty baseline and reverse patch preview; stale external revision refusal; actual GUI completion/cancel, reload dedup, composition/Enter semantics, bounded 10000 list, spaces path and zoom. Scripted profile, no native isolation or human IME/dialog acceptance."
+        }
+      }
+    },
+    {
+      "id": "D22",
+      "title": "外部编辑器修改了 Agent 正在检查的文件",
+      "source": "V3",
+      "baseline_expectation": "revision 更新、过期证据失效，冲突明确",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "D23",
+      "title": "恢复 checkpoint 时存在用户修改和未跟踪文件",
+      "source": "V3",
+      "baseline_expectation": "不强制 reset／clean，保留原内容或报告冲突",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_workspace_views.py",
+        "tests/implementation/unit/test_workspace_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F16",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191650Z-e24e7d15"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Human native dialogs/IME and installed acceptance remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191645Z-824876b1"
+          ],
+          "scope": "Ubuntu/X11/Wayland native runners unavailable; zero native checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T191242Z-960d04de",
+            "20261006T191601Z-c1e273e9",
+            "20261006T191654Z-94a8d24d"
+          ],
+          "scope": "Actual Windows 10 Electron and Harness: valid Hook/MCP/.env do not execute; immutable dirty baseline and reverse patch preview; stale external revision refusal; actual GUI completion/cancel, reload dedup, composition/Enter semantics, bounded 10000 list, spaces path and zoom. Scripted profile, no native isolation or human IME/dialog acceptance."
+        }
+      }
+    },
+    {
+      "id": "D24",
+      "title": "多个 UI 会话或评测任务试图写同一工作区",
+      "source": "V3",
+      "baseline_expectation": "执行锁与 Windows worker 串行规则生效",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F19",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T215639Z-7dfab335"
+          ],
+          "reason": "Windows 10 local native sandbox prerequisites remain blocked; portable real worker mutex tests do not certify native isolation."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T215634Z-fca4984d"
+          ],
+          "reason": "Ubuntu native environment unavailable."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Actual RunSpec/SQLite/owner epoch, Harness and owned process tests on Windows 10; planned denominators, independent three axes, unknown/N/A costs, immutable results and shared turn/attempt worker lock.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D25",
+      "title": "使用合成模型密钥完成调用与导出",
+      "source": "V3",
+      "baseline_expectation": "不进入 argv、子进程环境、通用日志、Trace 或报告",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F15",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181443Z-9ce797db"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Real Engine, local HTTP/provider SDK redirect refusal, DPAPI helper, named Renderer lock and metadata/Journal/database/child scans. F24/F27 export acceptance pending; no provider benchmark."
+        }
+      }
+    },
+    {
+      "id": "D26",
+      "title": "Linux 无可用密钥库或返回 basic_text",
+      "source": "V3",
+      "baseline_expectation": "禁止安全持久化标称，切换显式内存模式",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F15",
+      "required_platforms": [
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Pure Linux basic_text/unknown/unavailable protection selection tested, no actual Linux keyring or persistence PASS claimed."
+        }
+      }
+    },
+    {
+      "id": "D27",
+      "title": "模型输出包含 HTML／脚本／危险链接／远程图片",
+      "source": "V3",
+      "baseline_expectation": "不执行、不静默外连、不调用原生 Shell",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F14",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
+        }
+      }
+    },
+    {
+      "id": "D28",
+      "title": "任务网站或不可信内容访问客户端控制面",
+      "source": "V3",
+      "baseline_expectation": "无特权嵌入访问；可选 Web API 认证不可绕过",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F14",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
+        }
+      }
+    },
+    {
+      "id": "D29",
+      "title": "运行中触发升级",
+      "source": "V3",
+      "baseline_expectation": "不替换正在使用的 Engine／Bridge，明确排空或取消",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_release_upgrade.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T083904Z-e08a09a3"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "D30",
+      "title": "WAL 数据库迁移失败与旧版本启动",
+      "source": "V3",
+      "baseline_expectation": "一致备份可恢复，旧 schema 客户端不写新库",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_storage.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F03",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": []
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": []
+        }
+      }
+    },
+    {
+      "id": "D31",
+      "title": "更新来源、签名或校验值不匹配",
+      "source": "V3",
+      "baseline_expectation": "拒绝更新，不能只信同源 hash 文本",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "D32",
+      "title": "卸载且项目／数据仍在，系统 SRT 可能被其他程序共用",
+      "source": "V3",
+      "baseline_expectation": "不删除项目，敏感全局卸载需归属检测与授权",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_release_upgrade.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T083904Z-e08a09a3"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "D33",
+      "title": "中文输入法、空格路径、高 DPI 与键盘操作",
+      "source": "V3",
+      "baseline_expectation": "任务输入与原生对话框正常，信息不截断",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_workspace_views.py",
+        "tests/implementation/unit/test_workspace_ui.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F16",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191650Z-e24e7d15"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Human native dialogs/IME and installed acceptance remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T191645Z-824876b1"
+          ],
+          "scope": "Ubuntu/X11/Wayland native runners unavailable; zero native checks."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T191242Z-960d04de",
+            "20261006T191601Z-c1e273e9",
+            "20261006T191654Z-94a8d24d"
+          ],
+          "scope": "Actual Windows 10 Electron and Harness: valid Hook/MCP/.env do not execute; immutable dirty baseline and reverse patch preview; stale external revision refusal; actual GUI completion/cancel, reload dedup, composition/Enter semantics, bounded 10000 list, spaces path and zoom. Scripted profile, no native isolation or human IME/dialog acceptance."
+        }
+      }
+    },
+    {
+      "id": "D34",
+      "title": "X11／Wayland 下托盘缺失、通知不可用",
+      "source": "V3",
+      "baseline_expectation": "保留可恢复窗口，不静默隐藏正在执行的应用",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_desktop_supervisor.py",
+        "scripts/desktop_smoke.py",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "status": "blocked",
+      "owner_task": "F13",
+      "required_platforms": [
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T163223Z-4a291216"
+          ],
+          "scope": "Required native desktop platform is unavailable; environment precondition report only, zero native acceptance checks."
+        }
+      }
+    },
+    {
+      "id": "D35",
+      "title": "相同业务通过 DesktopTransport 与 HttpTransport",
+      "source": "V3",
+      "baseline_expectation": "契约／授权／状态语义一致，API 不是两套内核",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_http_adapter.py",
+        "tests/implementation/unit/test_web_contracts.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F26",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ]
+    },
+    {
+      "id": "D36",
+      "title": "同配置确定性任务使用 CLI 与 Desktop",
+      "source": "V3",
+      "baseline_expectation": "执行和成绩一致或差异有证据；无 UI 额外隐式权限",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_application.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F26",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ]
+    },
+    {
+      "id": "D37",
+      "title": "Windows 选择 Linux-only benchmark 或远端失联",
+      "source": "V3",
+      "baseline_expectation": "本机启动被拒绝，不偷偷换平台或重复重跑",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_benchmark_adapters.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F20",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T223455Z-d454cccc"
+          ],
+          "reason": "Windows 10 local native sandbox prerequisites remain blocked; the actual portable test rejects Windows-native selection of Linux-only official tasks."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "D38",
+      "title": "旧 CLI 或第二 Engine 试图写同一持久目录",
+      "source": "V3",
+      "baseline_expectation": "锁／导入策略明确，未适配旧入口限制被披露",
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_compatibility.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F26",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F26 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T033133Z-af055100",
+        "20261007T033159Z-d6931948",
+        "20261007T033910Z-29796944",
+        "20261007T033951Z-0aa732a8",
+        "20261007T033951Z-8bd53d99",
+        "20261007T034003Z-4dd217c8",
+        "20261007T034015Z-cc9b3ce8"
+      ]
+    },
+    {
+      "id": "D39",
+      "title": "用户拒绝 UAC／系统策略阻止 setup",
+      "source": "V3",
+      "baseline_expectation": "保留 setup_required／blocked，不改成普通执行",
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "D40",
+      "title": "打包环境启动外部 Python／Git／Node 及长实验回放",
+      "source": "V3",
+      "baseline_expectation": "无私有库污染，整棵进程树开销与事件完整性可测",
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "N01",
+      "title": "受理事务提交后响应丢失，重复 action 不重复 turn",
+      "source": "V4",
+      "owner_task": "F05",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N02",
+      "title": "相同 action ID 携带不同参数返回幂等冲突",
+      "source": "V4",
+      "owner_task": "F03",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_storage.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N03",
+      "title": "snapshot 高水位与实时事件切换没有空洞",
+      "source": "V4",
+      "owner_task": "F05",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_rpc.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N04",
+      "title": "JSON 重复键／超长帧／非有限数被拒",
+      "source": "V4",
+      "owner_task": "F02",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_contracts.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N05",
+      "title": "伪造 task stdout 不生成授权、费用或评分事件",
+      "source": "V4",
+      "owner_task": "F08",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_bridge_launcher.py",
+        "tests/implementation/integration/test_bridge.py",
+        "tests/implementation/node/bridge.test.mjs"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N06",
+      "title": "关键 Journal 写入失败时不启动新副作用",
+      "source": "V4",
+      "owner_task": "F03",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_storage.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N07",
+      "title": "SRT 固定会话权限不能由单命令偷偷放宽",
+      "source": "V4",
+      "owner_task": "F10",
+      "required_platforms": [
+        "windows"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/native/windows/verify_windows.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T134352Z-ad842262"
+          ],
+          "reason": "Windows 10 build 19045 is now the required local target and is recognized. Latest native diagnosis remains blocked with zero checks: fixed PowerShell 7 missing and SRT read-only status unavailable. No UAC invoked; GUI/shared ACL/Job/replacement-session proof is still required."
+        }
+      }
+    },
+    {
+      "id": "N08",
+      "title": "新建敏感文件不依赖启动时 glob 误称保护",
+      "source": "V4",
+      "owner_task": "F07",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_policy.py",
+        "tests/implementation/integration/test_policy_service.py",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Native Windows 10/Ubuntu isolation and dynamic sensitive-path shell/file-worker verification remain unavailable; portable checks do not prove OS isolation."
+        },
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "scope": "Policy/path compilation and service preflight; not native OS isolation.",
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N09",
+      "title": "现有硬链接工作区明确拒绝或转物理副本",
+      "source": "V4",
+      "owner_task": "F11",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_file_worker.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142538Z-16bcd303"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T142532Z-0939a885"
+          ],
+          "reason": "Actual native verifier returned blocked with zero checks. Portable actual helper/Harness tests passed; they do not prove native Shell/helper parity or OS TOCTOU."
+        }
+      }
+    },
+    {
+      "id": "N10",
+      "title": "恶意 Renderer 不能直接批准权限或读取凭证",
+      "source": "V4",
+      "owner_task": "F14",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/implementation/integration/test_workspace_authorization.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "apps/desktop/src/main/security_probe.ts",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171503Z-7e896f69"
+          ],
+          "scope": "Windows 10 local acceptance is required; native sandbox prerequisites remain blocked. Manual native dialog decisions and installed build remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T171457Z-102cd590"
+          ],
+          "scope": "Ubuntu native runner unavailable; zero native checks. No Linux GUI or secret-store/native approval acceptance."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T171115Z-dc7c34c1",
+            "20261006T171412Z-ce51f277",
+            "20261006T171509Z-18a7199e"
+          ],
+          "scope": "Real Windows 10 Electron sender/frame/CSP and real private Engine grant tests. Only development checks; provider experiments, native UI choices and hardened installed acceptance remain blocked."
+        }
+      }
+    },
+    {
+      "id": "N11",
+      "title": "模型连接 origin 变化不自动携带旧密钥",
+      "source": "V4",
+      "owner_task": "F15",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181443Z-9ce797db"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Real Engine, local HTTP/provider SDK redirect refusal, DPAPI helper, named Renderer lock and metadata/Journal/database/child scans. F24/F27 export acceptance pending; no provider benchmark."
+        }
+      }
+    },
+    {
+      "id": "N12",
+      "title": "未知 secret store／basic_text 仅内存保存",
+      "source": "V4",
+      "owner_task": "F15",
+      "required_platforms": [
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "tests/desktop/security/test_internal_grants.py",
+        "scripts/desktop_smoke.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261006T181437Z-202e38e3"
+          ],
+          "reason": "Required native host/store unavailable; actual verifier returned blocked with zero checks. Development Windows 10 DPAPI and pure storage-policy classification do not establish Linux/native product acceptance. Human native confirmation and installed artifact acceptance remain unverified."
+        },
+        "development": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261006T181026Z-879caa5b",
+            "20261006T181340Z-690e66f5",
+            "20261006T181449Z-45ec1b68"
+          ],
+          "scope": "Pure Linux basic_text/unknown/unavailable protection selection tested, no actual Linux keyring or persistence PASS claimed."
+        }
+      }
+    },
+    {
+      "id": "N13",
+      "title": "provider 重试与辅助模型调用的真实请求不重复计费",
+      "source": "V4",
+      "owner_task": "F18",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_observation_views.py::test_real_collector_failure_bounded_queue_and_success_do_not_change_agent_state",
+        "tests/implementation/integration/test_observation_views.py::test_debug_capture_is_opt_in_local_and_redacts_literal_credential"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N14",
+      "title": "usage 缺失／0 成功时不输出虚假的零费用指标",
+      "source": "V4",
+      "owner_task": "F19",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_evaluation_metrics.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N15",
+      "title": "外部结果包 zip bomb、路径逃逸和同 ID 冲突被隔离",
+      "source": "V4",
+      "owner_task": "F21",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N16",
+      "title": "相同包重复导入／重新复算保持分母和费用不变",
+      "source": "V4",
+      "owner_task": "F21",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    },
+    {
+      "id": "N17",
+      "title": "打包后项目工具不把 Engine 当通用 Python",
+      "source": "V4",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "N18",
+      "title": "PyInstaller 外部子进程 DLL／动态库环境正确",
+      "source": "V4",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_release_runtime.py",
+        "scripts/engine_packaged_smoke.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T045603Z-77e5a97d",
+          "20261007T084739Z-f2a68093",
+          "20261007T085013Z-844215b0"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "N19",
+      "title": "共享 SRT 安装不被 ForgeCode 卸载静默移除",
+      "source": "V4",
+      "owner_task": "F27",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_release_upgrade.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085317Z-1601a869"
+          ],
+          "reason": "Windows 10 is the required local target; development verification alone does not establish clean installation, signed trust or native acceptance."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [
+            "20261007T085305Z-9f595b5e"
+          ],
+          "reason": "Ubuntu 22.04/24.04 native build/installation/desktop environments unavailable; zero native checks."
+        }
+      },
+      "development_verification": {
+        "scope": "Windows 10 19045 development; not supported-platform acceptance",
+        "status": "pass",
+        "evidence_ids": [
+          "20261007T083904Z-e08a09a3"
+        ],
+        "eligible_for_native_pass": false
+      }
+    },
+    {
+      "id": "N20",
+      "title": "production fuse 加固产物有非开发配置 smoke",
+      "source": "V4",
+      "owner_task": "F28",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_hardened_artifact.py",
+        "scripts/hardened_smoke.py"
+      ],
+      "status": "not_run",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "not_run",
+          "evidence_ids": []
+        },
+        "linux": {
+          "status": "not_run",
+          "evidence_ids": []
+        }
+      }
+    },
+    {
+      "id": "N21",
+      "title": "系统睡眠和时钟回拨不增加任务预算",
+      "source": "V4",
+      "owner_task": "F25",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_recovery.py",
+        "tests/implementation/integration/test_desktop_supervisor.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
+    },
+    {
+      "id": "N22",
+      "title": "过期 owner epoch 或复用 PID 不处理无关执行",
+      "source": "V4",
+      "owner_task": "F25",
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_cancellation.py",
+        "tests/implementation/unit/test_engine_lifecycle_deadlines.py"
+      ],
+      "status": "blocked",
+      "release_required": true,
+      "platform_verification": {
+        "windows": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        },
+        "linux": {
+          "status": "blocked",
+          "evidence_ids": [],
+          "reason": "Implemented real tests are mapped; required native Windows10/Ubuntu acceptance remains blocked. Windows10 development results are separately recorded in owner task F25 and do not establish native proof."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T014320Z-2560a54b",
+        "20261007T020959Z-85c76830",
+        "20261007T020954Z-8829811e",
+        "20261007T020953Z-c1790ea7",
+        "20261007T020920Z-86e44ca9",
+        "20261007T020306Z-4af36e9d",
+        "20261007T020248Z-da48273d",
+        "20261007T021009Z-35508c5a"
+      ]
+    },
+    {
+      "id": "N23",
+      "title": "Windows 真机缺失／required 全 skip 阻止发布",
+      "source": "V4",
+      "owner_task": "F29",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/unit/test_gates.py",
+        "tests/implementation/unit/test_ci.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261007T143926Z-173a661a"
+          ],
+          "reason": "Actual current unit JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      },
+      "development_evidence_ids": [
+        "20261007T094158Z-06aa2a42",
+        "20261007T094233Z-03fcb104",
+        "20261007T094141Z-77705e45"
+      ]
+    },
+    {
+      "id": "N24",
+      "title": "没有真实模型授权不运行付费实验、不生成假成绩",
+      "source": "V4",
+      "owner_task": "F31",
+      "required_platforms": [
+        "portable"
+      ],
+      "implementation_test_refs": [
+        "tests/implementation/integration/test_delivery_experiment.py",
+        "tests/implementation/integration/test_model_regression.py",
+        "tests/implementation/integration/test_frozen_runspec.py"
+      ],
+      "status": "pass",
+      "release_required": true,
+      "platform_verification": {
+        "portable": {
+          "status": "pass",
+          "evidence_ids": [
+            "20261008T011906Z-3fad7eb6"
+          ],
+          "reason": "Actual current portable JUnit establishes referenced behavior on the Windows10 development host; this portable proof does not establish native platform acceptance."
+        }
+      }
+    }
+  ]
+}

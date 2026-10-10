@@ -1,0 +1,80 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T122623Z-252a9f8b",
+  "task_id": "F08",
+  "case_ids": [
+    "N04",
+    "D30",
+    "N02",
+    "N06",
+    "O07",
+    "D04",
+    "D07",
+    "D09",
+    "D10",
+    "N01",
+    "N03",
+    "C06",
+    "C24",
+    "N08",
+    "C07",
+    "C08",
+    "C09",
+    "C16",
+    "C17",
+    "D13",
+    "N05"
+  ],
+  "suite": "portable",
+  "git_commit": "0a3c03f6f5e88e50595b1c8c78fca311f4c6c247",
+  "dirty_hash": "5e90ad7399e9e31a962ccbe2d32680f44f7d62643e9afe43d3bb5b4dab55a178",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "84e4b2e7ece18e80431ccf25a6a9fe5a078aafb38d7e43b881b03cfde306098e",
+    "release-lock.json": "b4bff0386237b9be21b1d48dece9923b1fea2464b808fef0878f93c0ffe47808"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/implementation/portable",
+    "tests/implementation/integration",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T122623Z-252a9f8b\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T122623Z-252a9f8b\\junit.xml"
+  ],
+  "start": "2026-10-06T12:26:23.975105+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_bridge.py",
+      "--check"
+    ]
+  ],
+  "end": "2026-10-06T12:27:47.719220+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261006T122623Z-252a9f8b/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T122623Z-252a9f8b/stderr.log",
+  "report_ref": ".local/implementation/20261006T122623Z-252a9f8b/junit.xml",
+  "report_hash": "dffd5b6df65ee1117082f76b530fe0c8930bbdb363ac4dc68a62f3b938d197c5",
+  "status": "pass",
+  "tests": {
+    "collected": 60,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  }
+}

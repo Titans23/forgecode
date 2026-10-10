@@ -1,0 +1,10 @@
+CREATE TABLE annotation_details(annotation_id TEXT PRIMARY KEY REFERENCES annotations(id),created_at TEXT NOT NULL,note TEXT NOT NULL);
+CREATE TABLE imported_annotation_notes(id TEXT PRIMARY KEY,profile_id TEXT NOT NULL,run_id TEXT NOT NULL REFERENCES imported_runs(id),attempt_id TEXT NOT NULL,author TEXT NOT NULL,category TEXT NOT NULL,evidence_refs TEXT NOT NULL,supersedes TEXT,created_at TEXT NOT NULL,note TEXT NOT NULL);
+CREATE TABLE regression_candidates(id TEXT PRIMARY KEY,profile_id TEXT NOT NULL,run_id TEXT NOT NULL,attempt_id TEXT NOT NULL,annotation_id TEXT,artifact_id TEXT NOT NULL REFERENCES artifacts(id),created_at TEXT NOT NULL);
+CREATE TABLE reproduction_checks(id TEXT PRIMARY KEY,candidate_id TEXT NOT NULL REFERENCES regression_candidates(id),run_id TEXT NOT NULL,attempt_id TEXT NOT NULL,observed_at TEXT NOT NULL,observed_status TEXT NOT NULL,blockers_json TEXT NOT NULL);
+CREATE INDEX candidate_owner ON regression_candidates(profile_id,run_id,attempt_id);
+CREATE TRIGGER immutable_annotation BEFORE UPDATE ON annotations BEGIN SELECT RAISE(ABORT,'annotation history is immutable'); END;
+CREATE TRIGGER immutable_annotation_details BEFORE UPDATE ON annotation_details BEGIN SELECT RAISE(ABORT,'annotation details are immutable'); END;
+CREATE TRIGGER immutable_imported_annotation BEFORE UPDATE ON imported_annotation_notes BEGIN SELECT RAISE(ABORT,'human overlay is immutable'); END;
+CREATE TRIGGER immutable_regression_candidate BEFORE UPDATE ON regression_candidates BEGIN SELECT RAISE(ABORT,'regression candidate is immutable'); END;
+CREATE TRIGGER immutable_reproduction_check BEFORE UPDATE ON reproduction_checks BEGIN SELECT RAISE(ABORT,'reproduction observation is immutable'); END;

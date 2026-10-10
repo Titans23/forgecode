@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+case "${1:-}" in
+  configure)
+    # Ubuntu 22.04 does not expose the AppArmor user-namespace restriction.
+    # Do not change this sysctl or apply a profile to the system-wide bwrap.
+    if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+      source=/usr/lib/forgecode/resources/linux/forgecode-userns
+      target=/etc/apparmor.d/forgecode-userns
+      test -f "$source" && test ! -L "$source"
+      if [ -L "$target" ] || { [ -e "$target" ] && ! cmp -s "$source" "$target"; }; then
+        echo 'ForgeCode AppArmor configuration conflicts with an existing file; preserving it.' >&2
+        exit 1
+      fi
+      install -o root -g root -m 0644 "$source" "$target"
+      /sbin/apparmor_parser -r "$target"
+    fi
+    ;;
+esac

@@ -1,0 +1,485 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F32",
+  "scope": "actual Windows10 development review; full mandatory/native/official release is blocked",
+  "recorded_at_utc": "2026-10-07T14:19:38.327187+00:00",
+  "test_parent_commit": "79b43a10c7a6b59a1c1fe47ac19441300ca655d6",
+  "tested_source_inventory_hash": "bbd5f9a27959a83f651c7208a61b01cc1f4607483e7b7cd4b63eac3c66e571fb",
+  "public_model_calls": 0,
+  "eligible_for_native_pass": false,
+  "new_behavior_counts": {
+    "test_runtime_materialization": 6,
+    "test_gate_completion": 2,
+    "test_documented_commands": 13
+  },
+  "final_source_evidence": [
+    {
+      "id": "20261007T135250Z-b325aa30",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_sha256": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+    },
+    {
+      "id": "20261007T135255Z-260b3b25",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_sha256": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+    },
+    {
+      "id": "20261007T135321Z-d1841360",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 223,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_sha256": "b1e30dbe08a217a8252f5ad81f500a71e5d3f68a80fbcfcef957afc11175fdc3"
+    },
+    {
+      "id": "20261007T135321Z-9ad83267",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 381,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_sha256": "fd3f5c4503bcd97ad95ace53690e82ef7a6b157c5cedd17d80a428d8dda7ca68"
+    },
+    {
+      "id": "20261007T140226Z-41e7d2a5",
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1348,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_sha256": "ac122d549e98500bf2a707db5588c4cc8201ad62245bd37ad39047c1560df9e0"
+    }
+  ],
+  "actual_report_recomputation": {
+    "status": "pass",
+    "reports": [
+      {
+        "id": "20261007T132845Z-cf32a467",
+        "suite": "unit",
+        "status": "pass",
+        "report_sha256": "4e75d369c3c2a2b4c0862d496a1d68db5d33ccf3346d569f25d7814a9f0fdae9"
+      },
+      {
+        "id": "20261007T132846Z-450422bf",
+        "suite": "regression",
+        "status": "fail",
+        "report_sha256": "e7a519cf390eb2a51be885052b9c954023845170bcde9ae21d1a5b68f242be8f"
+      },
+      {
+        "id": "20261007T132856Z-eb49881a",
+        "suite": "contracts",
+        "status": "pass",
+        "report_sha256": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+      },
+      {
+        "id": "20261007T132904Z-bf128b1b",
+        "suite": "quality",
+        "status": "pass",
+        "report_sha256": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+      },
+      {
+        "id": "20261007T132935Z-27d892f5",
+        "suite": "engine-packaged",
+        "status": "fail",
+        "report_sha256": "0ea13802ea663e86546e23d0d518dc795ed6a8d39615986ecfbab7e117c1672c"
+      },
+      {
+        "id": "20261007T133155Z-7f3d26f5",
+        "suite": "desktop-packaged",
+        "status": "pass",
+        "report_sha256": "16c511c1d0a198c3164aa97ee54c8c4c7210c7ebb66be90b5f977e6fdf33db2b"
+      },
+      {
+        "id": "20261007T133330Z-2013b36a",
+        "suite": "installer-windows",
+        "status": "pass",
+        "report_sha256": "287b13005168f037311f7bae74df064a09b92a6bcabe0a05c0eac56fc2676a59"
+      },
+      {
+        "id": "20261007T133701Z-d3c9a75a",
+        "suite": "hardened",
+        "status": "pass",
+        "report_sha256": "6814539384a38eb5e3d4754d2f25f550c8d205ee97825f742b0db14b09e2b423"
+      },
+      {
+        "id": "20261007T133744Z-58e64cdd",
+        "suite": "desktop",
+        "status": "pass",
+        "report_sha256": "e9b9842e02ab99d3fffa4438be2a87662c1ecccb78bb526737a151808432a033"
+      },
+      {
+        "id": "20261007T133856Z-9db1269b",
+        "suite": "installer-linux",
+        "status": "blocked",
+        "report_sha256": "1c60fae9cac2cb794dcde69a4bb21ec4c087cdb102eecc6c75a732158cf18719"
+      },
+      {
+        "id": "20261007T133857Z-3cc0d718",
+        "suite": "sandbox-windows",
+        "status": "blocked",
+        "report_sha256": "f4fa7b7d2b49d9e7eae026a65bd1d2b9ec59a71fc34fdd215a02e9a4ac670685"
+      },
+      {
+        "id": "20261007T133918Z-3dd08e5c",
+        "suite": "sandbox-linux",
+        "status": "blocked",
+        "report_sha256": "0701f534dc975bc181d0ca61832bb96bcd3eb28402ae7238be3f41d851675259"
+      },
+      {
+        "id": "20261007T133933Z-f076a17e",
+        "suite": "engine-packaged",
+        "status": "pass",
+        "report_sha256": "0c5025c8a3758774f6411483501d75fa6e9e053785434d24ddeb426e263e2858"
+      },
+      {
+        "id": "20261007T133940Z-5b8aa672",
+        "suite": "security",
+        "status": "blocked",
+        "report_sha256": "cff2eed2f373cdbc7c9bef84ced8470ec97234e2dd137b4931912131dca3076e"
+      },
+      {
+        "id": "20261007T135250Z-b325aa30",
+        "suite": "contracts",
+        "status": "pass",
+        "report_sha256": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+      },
+      {
+        "id": "20261007T135255Z-260b3b25",
+        "suite": "quality",
+        "status": "pass",
+        "report_sha256": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+      },
+      {
+        "id": "20261007T135321Z-9ad83267",
+        "suite": "portable",
+        "status": "pass",
+        "report_sha256": "fd3f5c4503bcd97ad95ace53690e82ef7a6b157c5cedd17d80a428d8dda7ca68"
+      },
+      {
+        "id": "20261007T135321Z-d1841360",
+        "suite": "unit",
+        "status": "pass",
+        "report_sha256": "b1e30dbe08a217a8252f5ad81f500a71e5d3f68a80fbcfcef957afc11175fdc3"
+      },
+      {
+        "id": "20261007T140226Z-41e7d2a5",
+        "suite": "regression",
+        "status": "pass",
+        "report_sha256": "ac122d549e98500bf2a707db5588c4cc8201ad62245bd37ad39047c1560df9e0"
+      },
+      {
+        "id": "20261007T140356Z-8d48b0ea",
+        "suite": "acceptance",
+        "status": "blocked",
+        "report_sha256": "7ff2703cbb9461fa23644f94351e9648b7218ea4540462225bf7af7b55b9673a"
+      },
+      {
+        "id": "20261007T141742Z-a9ec721c",
+        "suite": "acceptance",
+        "status": "blocked",
+        "report_sha256": "3c73231203d40a96d0d9507b958b3d40c22581007bd7feed7726d3eba9fc26f7"
+      },
+      {
+        "id": "20261007T141839Z-0478b9bc",
+        "suite": "release",
+        "status": "blocked",
+        "report_sha256": "4d84b9c29f121c34a0d8ec8f7b98508e7b0949821b1cdecaeafd555dcb7620e0"
+      }
+    ],
+    "historical_no_report_failures": [
+      {
+        "id": "20261007T132846Z-8d741805",
+        "suite": "portable",
+        "status": "fail",
+        "reason": "pytest did not produce a JUnit report"
+      }
+    ]
+  },
+  "first_regression": {
+    "id": "20261007T132846Z-450422bf",
+    "collected": 1348,
+    "passed": 1347,
+    "failures": 1,
+    "skipped": 0,
+    "failure": "Renderer-principal security test exceeded 10s initialization before privilege assertions; preserved original JUnit."
+  },
+  "cold_start_corrections": "Only initialization/test/verifier bounds changed; permission assertions and per-request 10s limits retained.",
+  "fresh_source_ref": "evidence/F32-fresh-source-observations.json",
+  "release_assets_ref": "evidence/F32-release-assets.json",
+  "prior_hosted_ci_ref": "evidence/F32-prior-hosted-ci-observations.json",
+  "fresh_local_ci_gate": {
+    "status": "pass",
+    "gate": "ci",
+    "incomplete_tasks": [],
+    "implementation_gaps": {},
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [],
+    "selected_evidence_ids": [
+      "20261007T135250Z-b325aa30",
+      "20261007T135255Z-260b3b25",
+      "20261007T135321Z-d1841360",
+      "20261007T135321Z-9ad83267"
+    ]
+  },
+  "remaining_implementation": {
+    "F28": [
+      "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
+      "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
+    ],
+    "F31": [
+      "Official Harbor frozen RunSpec/source/model/environment binding, verified execution policy and trusted host authorization/per-request ledger integration remain unimplemented; live official execution is refused."
+    ]
+  },
+  "limitations": [
+    "Current Windows10 developer validation, no clean supported Windows11/Ubuntu/native acceptance.",
+    "Signed production distribution and owner-approved project LICENSE are unavailable; actual dependency audit has two high entries.",
+    "Fixed performance metadata overhead remains 5.210340492313925% > 5%; F32 did not rerun or falsify that workload.",
+    "Actual F31 controlled live observations remain separate: A3/3, B2/3, exploratory -1/3; no new F32 model calls or official/holdout/native scores."
+  ],
+  "implementation_gate": {
+    "status": "blocked",
+    "gate": "implementation",
+    "incomplete_tasks": [],
+    "implementation_gaps": {
+      "F28": [
+        "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
+        "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
+      ],
+      "F31": [
+        "Official Harbor frozen RunSpec/source/model/environment binding, verified execution policy and trusted host authorization/per-request ledger integration remain unimplemented; live official execution is refused."
+      ]
+    },
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [
+      "F28: mandatory implementation gap: Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
+      "F28: mandatory implementation gap: Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified.",
+      "F31: mandatory implementation gap: Official Harbor frozen RunSpec/source/model/environment binding, verified execution policy and trusted host authorization/per-request ledger integration remain unimplemented; live official execution is refused."
+    ],
+    "selected_evidence_ids": [
+      "20261006T091942Z-d39f0b28",
+      "20261007T100111Z-456566b1",
+      "20261006T094338Z-9ee68b20",
+      "20261006T094341Z-a9e7179e",
+      "20261006T100851Z-a7ee0375",
+      "20261006T100856Z-8425af60",
+      "20261006T103414Z-2a9980f6",
+      "20261006T103419Z-f3e3cf9a",
+      "20261006T105304Z-1b46b663",
+      "20261006T105310Z-27975238",
+      "20261006T111751Z-a64edfea",
+      "20261006T111756Z-f5819b93",
+      "20261006T113646Z-1cb5c7d9",
+      "20261006T113651Z-324b93bb",
+      "20261006T115350Z-bfd58d91",
+      "20261006T115355Z-edb1d80e",
+      "20261006T122617Z-467c0ff0",
+      "20261006T122623Z-252a9f8b",
+      "20261006T125123Z-88d982fc",
+      "20261006T125133Z-3780e12c",
+      "20261006T125256Z-c6d9de11",
+      "20261006T134127Z-76e53bec",
+      "20261006T134145Z-5e720e59",
+      "20261006T134352Z-ad842262",
+      "20261006T171457Z-102cd590",
+      "20261006T142311Z-40883bdb",
+      "20261006T142329Z-a1f5d82a",
+      "20261006T142532Z-0939a885",
+      "20261006T142538Z-16bcd303",
+      "20261006T153532Z-e789956e",
+      "20261006T153544Z-ed76e3cf",
+      "20261006T153751Z-30d364a9",
+      "20261006T153755Z-48e0813d",
+      "20261006T162646Z-4fe55ae3",
+      "20261006T162701Z-1b15650e",
+      "20261006T163212Z-4433d05b",
+      "20261006T162951Z-e58dd5f3",
+      "20261006T171503Z-7e896f69",
+      "20261006T171100Z-46d571f9",
+      "20261006T171115Z-dc7c34c1",
+      "20261006T171412Z-ce51f277",
+      "20261006T171429Z-f16c25e3",
+      "20261006T181011Z-29e85a98",
+      "20261006T181026Z-879caa5b",
+      "20261006T181340Z-690e66f5",
+      "20261006T181358Z-6ef85083",
+      "20261006T181437Z-202e38e3",
+      "20261006T181443Z-9ce797db",
+      "20261006T181449Z-45ec1b68",
+      "20261006T191227Z-fdf08b04",
+      "20261006T191242Z-960d04de",
+      "20261006T191601Z-c1e273e9",
+      "20261006T191629Z-b8802a4c",
+      "20261006T191645Z-824876b1",
+      "20261006T191650Z-e24e7d15",
+      "20261006T191654Z-94a8d24d",
+      "20261006T195728Z-806a10fc",
+      "20261006T195743Z-1fa9ce8a",
+      "20261006T195925Z-29d74dae",
+      "20261006T195955Z-97a1025e",
+      "20261006T195956Z-d6a34afe",
+      "20261006T200000Z-05e1019e",
+      "20261006T200005Z-56bfc334",
+      "20261006T211118Z-7289c010",
+      "20261006T211134Z-d4dc513b",
+      "20261006T211536Z-3bcf5fe6",
+      "20261006T211605Z-c37e3033",
+      "20261006T211606Z-ff84a680",
+      "20261006T211610Z-70274cd5",
+      "20261006T211615Z-e379a908",
+      "20261006T215137Z-955dfd02",
+      "20261006T215153Z-20c452df",
+      "20261006T215603Z-bc7852d1",
+      "20261006T215634Z-245af063",
+      "20261006T215634Z-fca4984d",
+      "20261006T215639Z-7dfab335",
+      "20261006T215643Z-b64762b3",
+      "20261006T222943Z-40ff0fc5",
+      "20261006T222959Z-e4a89567",
+      "20261006T223421Z-c303888f",
+      "20261006T223450Z-81b1e3a6",
+      "20261006T223450Z-f696f399",
+      "20261006T223455Z-d454cccc",
+      "20261006T223459Z-232a8d30",
+      "20261006T223508Z-0c033e57",
+      "20261006T231423Z-a85f0301",
+      "20261006T231438Z-2fe8c473",
+      "20261006T231905Z-de0f6db7",
+      "20261006T231934Z-9be0bef8",
+      "20261006T231934Z-6330ec21",
+      "20261006T231939Z-2971b33e",
+      "20261006T231943Z-2e15c738",
+      "20261006T235241Z-462bb220",
+      "20261006T235257Z-7e30a489",
+      "20261006T235747Z-6c832b03",
+      "20261006T235820Z-ebc91bad",
+      "20261006T235820Z-02ca11f4",
+      "20261006T235825Z-e0e8fd6e",
+      "20261006T235829Z-17b9f81e",
+      "20261007T004628Z-9d6e9f79",
+      "20261007T004659Z-01d191f0",
+      "20261007T004716Z-11c7a1ea",
+      "20261007T005211Z-485cb317",
+      "20261007T005211Z-82b55461",
+      "20261007T005216Z-cdbc3407",
+      "20261007T005220Z-8a72deb8",
+      "20261007T012542Z-218e0608",
+      "20261007T011016Z-ef2bdeb2",
+      "20261007T012606Z-e13d7eac",
+      "20261007T011549Z-d546abf4",
+      "20261007T011550Z-aed347b6",
+      "20261007T011555Z-727165ad",
+      "20261007T011559Z-8a7b78d1",
+      "20261007T020920Z-86e44ca9",
+      "20261007T020959Z-85c76830",
+      "20261007T020954Z-8829811e",
+      "20261007T020953Z-c1790ea7",
+      "20261007T020306Z-4af36e9d",
+      "20261007T020248Z-da48273d",
+      "20261007T021009Z-35508c5a",
+      "20261007T033133Z-af055100",
+      "20261007T033159Z-d6931948",
+      "20261007T033910Z-29796944",
+      "20261007T033951Z-0aa732a8",
+      "20261007T033951Z-8bd53d99",
+      "20261007T034003Z-4dd217c8",
+      "20261007T034015Z-cc9b3ce8",
+      "20261007T045603Z-77e5a97d",
+      "20261007T083904Z-d1139af0",
+      "20261007T083904Z-e08a09a3",
+      "20261007T084739Z-f2a68093",
+      "20261007T084926Z-6b3ab489",
+      "20261007T085013Z-844215b0",
+      "20261007T085101Z-86488a82",
+      "20261007T085304Z-5c4b0e50",
+      "20261007T085305Z-9f595b5e",
+      "20261007T085317Z-1601a869",
+      "20261007T111308Z-47ed56ff",
+      "20261007T115336Z-e6b64f9f",
+      "20261007T122050Z-66356479",
+      "20261007T122057Z-9dbacf36",
+      "20261007T120200Z-7b6c825e",
+      "20261007T120202Z-8d7621a8",
+      "20261007T120225Z-5cf027ff",
+      "20261007T120248Z-d0af77b5",
+      "20261007T122040Z-d187f818",
+      "20261007T115542Z-989317b8",
+      "20261007T115633Z-5468aba9",
+      "20261007T115843Z-75f1d0e0",
+      "20261007T122029Z-b3dc3704",
+      "20261007T122019Z-9e16aa46",
+      "20261007T120147Z-641572b1",
+      "20261007T123505Z-c2af5541",
+      "20261007T094141Z-120a6785",
+      "20261007T094145Z-f0087cfb",
+      "20261007T094158Z-06aa2a42",
+      "20261007T094233Z-03fcb104",
+      "20261007T095022Z-ac0916fa",
+      "20261007T100100Z-61029d00",
+      "20261007T100104Z-966ab87c",
+      "20261007T100117Z-2b3a1290",
+      "20261007T100154Z-0aaf1497",
+      "20261007T125541Z-271c143b",
+      "20261007T125548Z-a7d9525c",
+      "20261007T125431Z-a30d4f4e",
+      "20261007T125431Z-939926b8",
+      "20261007T125431Z-8c74ade7",
+      "20261007T125611Z-4e7c1bd8",
+      "20261007T131021Z-e5bf3413",
+      "20261007T135321Z-d1841360",
+      "20261007T140226Z-41e7d2a5",
+      "20261007T135321Z-9ad83267",
+      "20261007T135250Z-b325aa30",
+      "20261007T135255Z-260b3b25",
+      "20261007T133933Z-f076a17e",
+      "20261007T133155Z-7f3d26f5",
+      "20261007T133330Z-2013b36a",
+      "20261007T133701Z-d3c9a75a",
+      "20261007T133744Z-58e64cdd",
+      "20261007T133856Z-9db1269b",
+      "20261007T133857Z-3cc0d718",
+      "20261007T133918Z-3dd08e5c",
+      "20261007T133940Z-5b8aa672",
+      "20261007T141742Z-a9ec721c"
+    ]
+  },
+  "release_gate": {
+    "id": "20261007T141839Z-0478b9bc",
+    "status": "blocked",
+    "report_ref": ".local/implementation/20261007T141839Z-0478b9bc/packaging.json",
+    "report_hash": "4d84b9c29f121c34a0d8ec8f7b98508e7b0949821b1cdecaeafd555dcb7620e0",
+    "errors": [],
+    "incomplete": [],
+    "gaps": {
+      "F28": [
+        "Native capability verified promotion is absent; strict preparation refuses execution rather than granting unproven isolation.",
+        "Full initialized SRT/helper/listener cleanup and dynamic sensitive-path Shell/File parity remain unimplemented/unverified."
+      ],
+      "F31": [
+        "Official Harbor frozen RunSpec/source/model/environment binding, verified execution policy and trusted host authorization/per-request ledger integration remain unimplemented; live official execution is refused."
+      ]
+    },
+    "blocked_count": 279
+  }
+}

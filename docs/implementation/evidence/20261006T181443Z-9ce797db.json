@@ -1,0 +1,89 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T181443Z-9ce797db",
+  "task_id": "F15",
+  "case_ids": [
+    "C21",
+    "W01",
+    "W02",
+    "W03",
+    "W04",
+    "W05",
+    "W06",
+    "W07",
+    "W08",
+    "W09",
+    "W10",
+    "W11",
+    "W12",
+    "D39",
+    "N07"
+  ],
+  "suite": "sandbox-windows",
+  "git_commit": "e612f360be14dc2a198d65f936b88a7ffd336941",
+  "dirty_hash": "14ab3eda6e9f1e99bc47402b15f58ea88219b5e748a914cbd27a3ac86a40e4ef",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "91a33f47d9bd08f8b0feb426f2009797b2696185c1880e944f3bd831ca7240ea",
+    "release-lock.json": "10befba0ebdb6c28d1e3d4b260ddeb9216a881f98f5f0fc9f54e63d81947b319"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "forge.sandbox.doctor",
+    "--native-windows",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T181443Z-9ce797db\\native-windows.json"
+  ],
+  "start": "2026-10-06T18:14:43.555797+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_bridge.py",
+      "--check"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--main-only"
+    ],
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "--target",
+      "ES2022",
+      "--module",
+      "NodeNext",
+      "--strict",
+      "--skipLibCheck",
+      "--newLine",
+      "lf",
+      "--outDir",
+      "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T181443Z-9ce797db\\main-compile",
+      "D:\\learn_project\\forgecode\\apps\\desktop\\src\\main\\setup_broker.ts"
+    ]
+  ],
+  "end": "2026-10-06T18:14:48.136253+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261006T181443Z-9ce797db/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T181443Z-9ce797db/stderr.log",
+  "report_ref": ".local/implementation/20261006T181443Z-9ce797db/native-windows.json",
+  "report_hash": "2d72c7b8b7c2081ffe19a2e0ca5226f6b0bc21f58234db594a1b066c4ff89731",
+  "status": "blocked",
+  "tests": {
+    "reason": "Supported Windows 11 x64 native runner is unavailable",
+    "eligible_for_native_pass": false,
+    "checks": 0
+  }
+}

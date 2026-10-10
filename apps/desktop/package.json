@@ -1,0 +1,19 @@
+{
+  "name": "@forgecode/desktop",
+  "productName": "ForgeCode",
+  "version": "0.1.3",
+  "description": "ForgeCode desktop client with a private Python Engine",
+  "author": "ForgeCode contributors",
+  "private": true,
+  "main": ".vite/build/main.js",
+  "config": {"forge": "./forge.config.ts"},
+  "scripts": {
+    "build:main": "tsc -p tsconfig.main.json",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit",
+    "start": "node ../../scripts/start_desktop.mjs",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "dependencies": {"@forgecode/contracts": "0.1.2", "electron-squirrel-startup": "1.0.1"},
+  "devDependencies": {"electron": "44.5.1"}
+}

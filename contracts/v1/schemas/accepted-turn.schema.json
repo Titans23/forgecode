@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:accepted-turn",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "turn_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^turn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "state": {
+      "enum": [
+        "queued",
+        "running",
+        "awaiting_approval",
+        "cancel_requested",
+        "reconciling",
+        "finished"
+      ]
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "reused_existing_action": {
+      "type": "boolean"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "enum": [
+            "completed",
+            "failed",
+            "cancelled",
+            "timed_out",
+            "budget_exhausted",
+            "blocked",
+            "indeterminate"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "turn_id",
+    "state",
+    "accepted",
+    "reused_existing_action"
+  ]
+}

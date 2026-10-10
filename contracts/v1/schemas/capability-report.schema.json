@@ -1,0 +1,540 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:capability-report",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "platform": {
+      "enum": [
+        "windows-native",
+        "linux-native",
+        "unsupported"
+      ]
+    },
+    "backend": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "backend_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "read_isolation": {
+      "enum": [
+        "protected_paths",
+        "strict_allowlist",
+        "unavailable"
+      ]
+    },
+    "write_isolation": {
+      "type": "boolean"
+    },
+    "direct_network_isolation": {
+      "type": "boolean"
+    },
+    "dns_isolation": {
+      "type": "boolean"
+    },
+    "socket_isolation": {
+      "type": "boolean"
+    },
+    "process_cleanup": {
+      "type": "boolean"
+    },
+    "resource_enforcement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory": {
+          "enum": [
+            "hard",
+            "best_effort",
+            "unavailable"
+          ]
+        },
+        "disk": {
+          "enum": [
+            "hard",
+            "best_effort",
+            "unavailable"
+          ]
+        },
+        "pids": {
+          "enum": [
+            "hard",
+            "best_effort",
+            "unavailable"
+          ]
+        }
+      },
+      "required": [
+        "memory",
+        "disk",
+        "pids"
+      ]
+    },
+    "readiness": {
+      "enum": [
+        "ready",
+        "setup_required",
+        "unavailable"
+      ]
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      },
+      "maxItems": 100,
+      "minItems": 0
+    },
+    "measured_at_utc": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read_isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "write_isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "direct_network_isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "dns_isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "socket_isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "process_cleanup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "memory": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "disk": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "pids": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "verified",
+                "partial",
+                "unsupported"
+              ]
+            },
+            "evidence_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "maxItems": 100,
+              "minItems": 0
+            }
+          },
+          "required": [
+            "status",
+            "evidence_refs"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "verified"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "evidence_refs": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "read_isolation",
+        "write_isolation",
+        "direct_network_isolation",
+        "dns_isolation",
+        "socket_isolation",
+        "process_cleanup",
+        "memory",
+        "disk",
+        "pids"
+      ]
+    }
+  },
+  "required": [
+    "platform",
+    "backend",
+    "backend_version",
+    "read_isolation",
+    "write_isolation",
+    "direct_network_isolation",
+    "dns_isolation",
+    "socket_isolation",
+    "process_cleanup",
+    "resource_enforcement",
+    "readiness",
+    "issues",
+    "measured_at_utc"
+  ]
+}

@@ -109,7 +109,9 @@ file access outside the authorized workspace. Unknown wrappers are left alone.
         path = (cwd / words[1]).resolve()
         if path.suffix != '.py' or not path.is_relative_to(root.resolve()) or path.stat().st_size > 200_000:
             return None
-        tree = ast.parse(path.read_text(encoding='utf-8-sig'))
+        from forge.tools.base import file_access_guard
+        access = file_access_guard.get()
+        tree = ast.parse(access.read_bytes(path).decode('utf-8-sig') if access else path.read_text(encoding='utf-8-sig'))
     except (OSError, ValueError, SyntaxError, UnicodeError):
         return None
     tests = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))

@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from forge.hooks.models import HookSettings
+from forge.config import warn_unknown_config_fields
 
 
 class HookConfigurationError(ValueError):
@@ -71,4 +72,5 @@ def _read_settings(path: Path) -> dict[str, Any]:
         raise HookConfigurationError(
             f'{path}: top-level settings must be a JSON object.'
         )
+    warn_unknown_config_fields(path, data, {'hooks'})
     return data

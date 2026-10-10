@@ -1,0 +1,43 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261010T023534Z-d82ab081",
+  "task_id": null,
+  "case_ids": [
+    "N23"
+  ],
+  "suite": "security",
+  "git_commit": "7d532ce80b58793d7a1c84c5b52c54fd9dbdb89d",
+  "dirty_hash": "bd9b048bbb22f70c90eb09916ac6c508cf28d087dfc56a4676689dd1dc9477f3",
+  "source_inventory_hash": "eedcb3d08cdf100c78640a3bed455c60d0e7aca7a61e2aec52c072d08867db24",
+  "platform": "linux",
+  "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "/home/runner/work/forgecode/forgecode/.venv/bin/python3",
+    "-X",
+    "utf8",
+    "/home/runner/work/forgecode/forgecode/scripts/ci_checks.py",
+    "--suite",
+    "security",
+    "--output",
+    "/home/runner/work/forgecode/forgecode/.local/implementation/20261010T023534Z-d82ab081/packaging.json"
+  ],
+  "start": "2026-10-10T02:35:34.749068+00:00",
+  "preparation_commands": [],
+  "prepared_source_hash": null,
+  "end": "2026-10-10T02:35:35.631013+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261010T023534Z-d82ab081/stdout.log",
+  "stderr_ref": ".local/implementation/20261010T023534Z-d82ab081/stderr.log",
+  "report_ref": ".local/implementation/20261010T023534Z-d82ab081/packaging.json",
+  "report_hash": "79d7d94d9040c581bff346a1a3dfffef3c6e0b1384da0ebd3154a54dc7a5f45f",
+  "status": "blocked",
+  "tests": {
+    "reason": "Unresolved locked dependency vulnerabilities",
+    "checks": 1
+  }
+}

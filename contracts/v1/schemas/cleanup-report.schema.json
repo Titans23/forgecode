@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:cleanup-report",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^epoch-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sandbox_session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^sandbox-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "engine_epoch",
+        "sandbox_session_id",
+        "execution_id"
+      ]
+    },
+    "state": {
+      "enum": [
+        "clean",
+        "residual",
+        "unknown"
+      ]
+    },
+    "remaining_processes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "diagnostic_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^diag-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "maxItems": 100,
+      "minItems": 0
+    },
+    "completed_at_utc": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "owner",
+    "state",
+    "remaining_processes",
+    "diagnostic_refs",
+    "completed_at_utc"
+  ]
+}

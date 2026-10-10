@@ -1,0 +1,43 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "date": "2026-10-09",
+  "scope": "Recovered target host before consolidation; historical source snapshot",
+  "base_commit": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "transfer": {
+    "payload_hashes_verified": 6,
+    "restored_files_verified": 158,
+    "restored_tree": "8ad78b5e75dc40aa12570958c0ea0e73931c29b6",
+    "verification_ref": ".local/continuation-20261009/transfer-verification.json"
+  },
+  "windows": {
+    "platform": "Windows 10 x64 build 19045",
+    "directory": "D:/projects/forgecode-v4",
+    "regression_evidence_id": "20261009T080842Z-8e78815c",
+    "collected": 1450,
+    "passed": 1445,
+    "failed": 5,
+    "contracts_evidence_id": "20261009T081329Z-b39a1f39",
+    "quality_evidence_id": "20261009T081335Z-7148d773",
+    "strict_native": "blocked",
+    "strict_native_ref": ".local/continuation-20261009/native-windows.json",
+    "reason": "SRT accounts/credentials missing; WFP cannot-read is not proof of absence"
+  },
+  "wsl": {
+    "platform": "Ubuntu 26.04 / WSL2 Linux 6.18.40.1",
+    "directory": "/home/titans/learn_project/forgecode-v4",
+    "focused_passed": 96,
+    "focused_ref": ".local/continuation-20261009/wsl/complete-focused.xml",
+    "contracts_evidence_id": "20261009T081344Z-6f2596e3",
+    "quality_evidence_id": "20261009T081351Z-765e78b0",
+    "live_eval_evidence_id": "20261009T081412Z-50ac9ef4",
+    "docker": "blocked: current WSL identity cannot access /var/run/docker.sock"
+  },
+  "separate_evidence": {
+    "windows_docker_desktop": "Linux server observed; does not establish WSL socket access",
+    "historical_regression1446": "retained; does not replace target 1445/5",
+    "historical_native_windows": "11 pass / 1 fail / 11 blocked; dynamic .env readable and cleanup unknown"
+  },
+  "public_model_calls": 0,
+  "administrator_setup_on_target": false,
+  "latest_state_ref": "../progress.json"
+}

@@ -1,0 +1,70 @@
+{
+  "schema_version": "forge.tool.inventory.v1",
+  "files": [
+    {
+      "path": "COPYING",
+      "sha256": "dfe7d0a6134a17d3de7409762e08dc02133303912875cab40a74ba07a390f85a",
+      "size_bytes": 129
+    },
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "970813655a1bf777d2ead189cef71ab73ab92ce04dc864027d61a45de03e6728",
+      "size_bytes": 1102
+    },
+    {
+      "path": "README.md",
+      "sha256": "24c3effdbd5c493ceedce5bdcd955ee95c4a1b9acb4c431488c482a9ab0daaa0",
+      "size_bytes": 22156
+    },
+    {
+      "path": "UNLICENSE",
+      "sha256": "640514163b17f977adc997cb16f51871122cfb0555ebad1a3f01e167b7ba8857",
+      "size_bytes": 1235
+    },
+    {
+      "path": "complete/_rg",
+      "sha256": "2318f6feabf82be30473e8511b6d4374471d41e0dc36eac69e1e708e1f3986ad",
+      "size_bytes": 31501
+    },
+    {
+      "path": "complete/_rg.ps1",
+      "sha256": "053309e2043ed4b5ef2a718a34602592f98573f1a166469ae2fd532cc98b05e6",
+      "size_bytes": 26020
+    },
+    {
+      "path": "complete/rg.bash",
+      "sha256": "9fd807931c6d350d50e0bb6819629b6cc83e6253528342e95bbaeef81241d0e3",
+      "size_bytes": 21362
+    },
+    {
+      "path": "complete/rg.fish",
+      "sha256": "b63b76a059be13e041104d2576e2594067c15f29cd56cb339a021dca9cb1a656",
+      "size_bytes": 15204
+    },
+    {
+      "path": "doc/CHANGELOG.md",
+      "sha256": "bd24702edcbf9c339a3b062efc987be6d125af8e993c8dd264b0625a40deb506",
+      "size_bytes": 91752
+    },
+    {
+      "path": "doc/FAQ.md",
+      "sha256": "3cc08f312b63aec68ea4063067f528613331d6ca229fbcf448fc18a1045fd748",
+      "size_bytes": 43306
+    },
+    {
+      "path": "doc/GUIDE.md",
+      "sha256": "289105ac6ac375b7fd6a4a26f6bfda0b53e50c66b279f190cafcfe831267fe77",
+      "size_bytes": 41920
+    },
+    {
+      "path": "doc/rg.1",
+      "sha256": "e83d82c28bb2683cf71500e5fb8d9746a162bb24b08a6396a15ab2ed1d96cb45",
+      "size_bytes": 87183
+    },
+    {
+      "path": "rg.exe",
+      "sha256": "14231169855ec5205cf5a1b6f1db358ff4aed4247c86b69ce8aae647c77f6680",
+      "size_bytes": 4218880
+    }
+  ]
+}

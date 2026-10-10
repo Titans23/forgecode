@@ -1,0 +1,177 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F28",
+  "scope": "Actual hosted verification of the session-close cleanup and browser diagnostics commit",
+  "head_sha": "231532fe39d1dc1219fe52c6d8409f2277117df6",
+  "run_id": 37714511897,
+  "workflow_url": "https://github.com/Titans23/forgecode/actions/runs/37714511897",
+  "status": "completed",
+  "conclusion": "failure",
+  "run_attempt": 1,
+  "jobs": [
+    {
+      "id": 113107807732,
+      "name": "dependency-security",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-08T01:45:35Z",
+      "completed_at": "2026-10-08T01:45:54Z"
+    },
+    {
+      "id": 113107807854,
+      "name": "portable (windows-2025)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-08T01:45:35Z",
+      "completed_at": "2026-10-08T01:54:52Z"
+    },
+    {
+      "id": 113107807955,
+      "name": "portable (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-08T01:45:35Z",
+      "completed_at": "2026-10-08T01:49:45Z"
+    },
+    {
+      "id": 113107807960,
+      "name": "portable (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-08T01:45:35Z",
+      "completed_at": "2026-10-08T01:51:15Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 11523486265,
+      "name": "portable-ubuntu-22.04",
+      "size_in_bytes": 630557,
+      "sha256": "63e09dc956c65186ba68413028da3d20cf9cf806780b0fb5b8f515a65d5dfaf3",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261008T014621Z-7c100aa1/junit.xml",
+          "path": "artifact-11523486265-447442e0.xml",
+          "sha256": "d6b1c6c46c3bd85087bf16ba0de8af377b83086f0fc152fb7705953c06117d79",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261008T014643Z-f829d2a0/junit.xml",
+          "path": "artifact-11523486265-e6b06ae0.xml",
+          "sha256": "b0f1853c92a85664e167cbcfede5043d31f0b2303a72722d9b0f94911e82a240",
+          "collected": 400,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "id": 11523228125,
+      "name": "actual-dependency-security",
+      "size_in_bytes": 601783,
+      "sha256": "d226a230f3c3a68111a9450d20c086c1815a736f26a775e4bb486f067a4d30c7",
+      "junit": []
+    },
+    {
+      "id": 11522583596,
+      "name": "portable-ubuntu-24.04",
+      "size_in_bytes": 631744,
+      "sha256": "574cbcf95444806da116d3d9ad32e0d86dec2f0bbad7139eea5fd858f296d1aa",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261008T014607Z-74ecfeed/junit.xml",
+          "path": "artifact-11522583596-0864cbc7.xml",
+          "sha256": "acd3014cb26c1cfa8e79d75ca17cfc77a14f297ac0a900ec30c354c07b864fa6",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261008T014622Z-c8c9c85e/junit.xml",
+          "path": "artifact-11522583596-b5828fec.xml",
+          "sha256": "30234502656be95cecf563a0473768ca0a86d340a98cc5fc6fe7584475fd4f0e",
+          "collected": 400,
+          "failures": [
+            {
+              "name": "test_actual_browser_login_csp_and_shared_ui_execute_the_scripted_task",
+              "exit_code": -5,
+              "reason": "Chromium aborts because its SUID sandbox helper is not configured as root-owned mode4755.",
+              "relative_helper_path": "node_modules/electron/dist/chrome-sandbox"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11522264622,
+      "name": "portable-windows-2025",
+      "size_in_bytes": 633463,
+      "sha256": "5c2cf1932c8f4c17f0d107dae9d4f155348a818a6ffcd3195e1f411638003e2e",
+      "junit": [
+        {
+          "entry": ".local/implementation/20261008T014722Z-60605cce/junit.xml",
+          "path": "artifact-11522264622-860b0131.xml",
+          "sha256": "4c45f9be675d7bedc46e57c68fb74f274614d4d9344e6c9484d9b118e06260fc",
+          "collected": 225,
+          "failures": []
+        },
+        {
+          "entry": ".local/implementation/20261008T014751Z-66db7fdb/junit.xml",
+          "path": "artifact-11522264622-d6eb0f16.xml",
+          "sha256": "4844cbff6e1a139fa41fc9d94de7fef6cd208cc56211f57d334fa2e0aa54f852",
+          "collected": 400,
+          "failures": []
+        }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "job": 113107807732,
+      "path": ".local/F28-close-hosted-final/job-113107807732.log",
+      "sha256": "7448135b1c074d12077b9e4ab24ec211764e2efa4ae13e0532b1ed0a4a1547b0"
+    },
+    {
+      "job": 113107807854,
+      "path": ".local/F28-close-hosted-final/job-113107807854.log",
+      "sha256": "b4a4d172d44347787e83a692f5466fc11749effd83ef7987daeaad0542d7293e"
+    },
+    {
+      "job": 113107807955,
+      "path": ".local/F28-close-hosted-final/job-113107807955.log",
+      "sha256": "b8f0e4cedca1c3ce812f9d923c20951727dc618bf23e6768eaae5da1ff623fcd"
+    },
+    {
+      "job": 113107807960,
+      "path": ".local/F28-close-hosted-final/job-113107807960.log",
+      "sha256": "de5ea5a605d4e262b5382d1ac86ee9554e93d9fb9cb11040cb4b0a7eeca2429f"
+    }
+  ],
+  "raw_root": ".local/F28-close-hosted-final",
+  "report_recomputation": {
+    "artifacts": 4,
+    "job_logs": 4,
+    "junit_reports": 6,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "status": "pass"
+  },
+  "security": {
+    "status": "blocked",
+    "affected_entries": 2,
+    "severity": "high",
+    "verifier_reason": "Unresolved locked dependency vulnerabilities"
+  },
+  "administrator_setup": {
+    "status": "explicitly_authorized_ci_only",
+    "proposal": ".local/F29-electron-sandbox-setup.patch",
+    "scope": "Only the repository's codex/forgecode-v4 push on the ephemeral GitHub Ubuntu24.04 runner; set the locked Electron helper owner/mode, without disabling the sandbox.",
+    "proposal_validation": "git apply --check passed before authorization; the exact scoped workflow patch was applied after the human approved it.",
+    "authorization_ref": "evidence/human-authorization-ci-20261008.json",
+    "execution_status": "Completed successfully only in the authorized Ubuntu24 job of run37716477000 at commit12cc51d; no local privileged operation performed.",
+    "execution_observations_ref": "evidence/F29-electron-sandbox-hosted-observations.json"
+  },
+  "model_calls": 0,
+  "eligible_for_native_pass": false,
+  "interpretation": "Windows2025 and Ubuntu22.04 unit225/portable400 pass. Ubuntu24.04 unit225 and399 portable cases pass; one browser case fails with an actual SUID-helper configuration diagnostic. Dependency security still fails; workflow is not green."
+}

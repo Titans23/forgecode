@@ -1,0 +1,68 @@
+{
+  "record_type": "documentation_review",
+  "date": "2026-10-08",
+  "request": "帮我规划新的沙盒实现思路，要求参考dsh和pi，并更新相关文档。",
+  "status": "documentation_verified_implementation_pending",
+  "plan_ref": "../sandbox-redesign.md",
+  "adr_ref": "../adr/034-sandbox-execution-and-runtime.md",
+  "head_inspected": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "workspace_scope": "Existing UI and F16/document changes were present and preserved. This review changes sandbox planning documents and projections only.",
+  "upstream_sources": [
+    {
+      "repository": "deepseek-ai/deepseek-harness",
+      "branch": "master",
+      "commit": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+      "files_read": 3
+    },
+    {
+      "repository": "earendil-works/pi",
+      "branch": "main",
+      "commit": "ce950d78f424dcaf9f5d6a03ce80ab141130eb1d",
+      "files_read": 4
+    }
+  ],
+  "source_scope": "GitHub branch heads and seven files at those exact commits were read. Microsoft PowerShell ZIP deployment documentation was also read. Third-party projects were not installed or executed.",
+  "raw_source_index": ".local/sandbox-design-20261008/sources/index.json",
+  "checks": [
+    {
+      "name": "documentation_links_and_task_projections",
+      "status": "pass",
+      "report_ref": ".local/sandbox-design-20261008/documentation-check.json",
+      "markdown_files": 8,
+      "local_links_checked": 39,
+      "tasks_checked": ["F28", "F31"],
+      "scope": "JSON parsing, local Markdown targets, chapter references, planned slices, remaining implementation, task steps and behavior-test projections"
+    },
+    {
+      "name": "registered_quality_suite",
+      "status": "pass",
+      "evidence_id": "20261008T114556Z-57861a1f",
+      "evidence_ref": "docs/implementation/evidence/20261008T114556Z-57861a1f.json",
+      "checks_passed": 4,
+      "report_hash_verified": true,
+      "scope": "Registered quality checks at the source inventory recorded in the receipt; not a full behavior regression or native acceptance"
+    },
+    {
+      "name": "git_diff_check",
+      "status": "pass",
+      "scope": "Tracked sandbox-planning document changes, with normal repository line-ending settings"
+    }
+  ],
+  "runtime_code_changed": false,
+  "administrator_setup": false,
+  "model_requests": 0,
+  "installer_rebuilt": false,
+  "native_capabilities_promoted": false,
+  "behavior_regression": {
+    "status": "not_run",
+    "reason": "Documentation-only scope; no new behavior implemented. Historical regression evidence retains its original source scope."
+  },
+  "native_and_live_verification": {
+    "status": "not_run",
+    "reason": "This design review does not exercise system setup, native boundaries or official benchmarks; existing blocked gates remain unchanged."
+  },
+  "next_work": {
+    "F28": "S1 runtime supply and one trusted resolver; S2 evidence admission; S3 sensitive-path parity and cleanup; S4 packaged/native acceptance",
+    "F31": "S5 official Docker environment/network and trusted host per-request admission on the receiving computer; existing live gates remain enforced"
+  }
+}

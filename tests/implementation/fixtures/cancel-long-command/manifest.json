@@ -1,0 +1,18 @@
+{
+  "schema_version": "forge.fixture.v1",
+  "fixture_id": "cancel-long-command",
+  "origin": "synthetic-fixture",
+  "inputs": [
+    "project/long_running.py",
+    "project/child.py"
+  ],
+  "acceptance_tasks": [
+    "F12",
+    "F25"
+  ],
+  "assertions": [
+    "parent and managed child start",
+    "cancel stops further model calls",
+    "cleanup facts include process identities"
+  ]
+}

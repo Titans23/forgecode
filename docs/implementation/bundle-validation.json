@@ -1,0 +1,1467 @@
+{
+  "kind": "documentation_only",
+  "status": "pass",
+  "product_tests_executed": false,
+  "task_count": 33,
+  "acceptance_case_count": 110,
+  "markdown_file_count": 41,
+  "schema_examples": [
+    {
+      "example": "examples/start-turn.valid.json",
+      "expected": "valid",
+      "observed": "valid",
+      "matched": true
+    },
+    {
+      "example": "examples/start-turn.invalid.json",
+      "expected": "invalid",
+      "observed": "invalid",
+      "matched": true
+    },
+    {
+      "example": "examples/event-envelope.valid.json",
+      "expected": "valid",
+      "observed": "valid",
+      "matched": true
+    },
+    {
+      "example": "examples/event-envelope.invalid.json",
+      "expected": "invalid",
+      "observed": "invalid",
+      "matched": true
+    },
+    {
+      "example": "examples/sandbox-policy.valid.json",
+      "expected": "valid",
+      "observed": "valid",
+      "matched": true
+    },
+    {
+      "example": "examples/sandbox-policy.invalid.json",
+      "expected": "invalid",
+      "observed": "invalid",
+      "matched": true
+    },
+    {
+      "example": "examples/run-spec.valid.json",
+      "expected": "valid",
+      "observed": "valid",
+      "matched": true
+    },
+    {
+      "example": "examples/run-spec.invalid.json",
+      "expected": "invalid",
+      "observed": "invalid",
+      "matched": true
+    }
+  ],
+  "topological_order": [
+    "F00",
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F07",
+    "F06",
+    "F08",
+    "F17",
+    "F09",
+    "F10",
+    "F11",
+    "F13",
+    "F18",
+    "F19",
+    "F12",
+    "F14",
+    "F22",
+    "F29",
+    "F15",
+    "F20",
+    "F25",
+    "F16",
+    "F21",
+    "F26",
+    "F30",
+    "F23",
+    "F27",
+    "F24",
+    "F28",
+    "F31",
+    "F32"
+  ],
+  "master_sha256": "d84b6f9c57fb0a4cd27f12ff0dc28646e33cf5836eb20a02a0cb7ceedf62624c",
+  "warnings": [],
+  "errors": [],
+  "checks": [
+    {
+      "name": "required_document_files",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_identity_set",
+      "passed": true,
+      "detail": 33
+    },
+    {
+      "name": "dependency_references",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "dependency_graph_acyclic",
+      "passed": true,
+      "detail": [
+        "F00",
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F07",
+        "F06",
+        "F08",
+        "F17",
+        "F09",
+        "F10",
+        "F11",
+        "F13",
+        "F18",
+        "F19",
+        "F12",
+        "F14",
+        "F22",
+        "F29",
+        "F15",
+        "F20",
+        "F25",
+        "F16",
+        "F21",
+        "F26",
+        "F30",
+        "F23",
+        "F27",
+        "F24",
+        "F28",
+        "F31",
+        "F32"
+      ]
+    },
+    {
+      "name": "progress_task_consistency",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F00",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F00",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F00",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F00",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F01",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F01",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F01",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F01",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F02",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F02",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F02",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F02",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F03",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F03",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F03",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F03",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F04",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F04",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F04",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F04",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F05",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F05",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F05",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F05",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F06",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F06",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F06",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F06",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F07",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F07",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F07",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F07",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F08",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F08",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F08",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F08",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F09",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F09",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F09",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F09",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F10",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F10",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F10",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F10",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F11",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F11",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F11",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F11",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F12",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F12",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F12",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F12",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F13",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F13",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F13",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F13",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F14",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F14",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F14",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F14",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F15",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F15",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F15",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F15",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F16",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F16",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F16",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F16",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F17",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F17",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F17",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F17",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F18",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F18",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F18",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F18",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F19",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F19",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F19",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F19",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F20",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F20",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F20",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F20",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F21",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F21",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F21",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F21",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F22",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F22",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F22",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F22",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F23",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F23",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F23",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F23",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F24",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F24",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F24",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F24",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F25",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F25",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F25",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F25",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F26",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F26",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F26",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F26",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F27",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F27",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F27",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F27",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F28",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F28",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F28",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F28",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F29",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F29",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F29",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F29",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F30",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F30",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F30",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F30",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F31",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F31",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F31",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F31",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "task_card_F32",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actionable_task_F32",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "card_matches_backlog_F32",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "legal_progress_F32",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "acceptance_identity_set",
+      "passed": true,
+      "detail": 110
+    },
+    {
+      "name": "acceptance_owner_and_platform",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F00",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F01",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F02",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F03",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F04",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F05",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F06",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F07",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F08",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F09",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F10",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F11",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F12",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F13",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F14",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F15",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F16",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F17",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F18",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F19",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F20",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F21",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F22",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F23",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F24",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F25",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F26",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F27",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F28",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F29",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F30",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F31",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "case_assignment_F32",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "master_contains_all_task_cards",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "master_contains_all_cases",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "master_chapters_0_through_27",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "short_agents_entry",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_START_HERE.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_START_HERE.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/PLANS.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/PLANS.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/forgecode-v4.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/forgecode-v4.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/handoff.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/handoff.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/CODEX_PROMPTS.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/CODEX_PROMPTS.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/AGENTS.append.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/AGENTS.append.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/evidence/README.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/evidence/README.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F20.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F20.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F06.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F06.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F10.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F10.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F24.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F24.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F32.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F32.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F21.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F21.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F31.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F31.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F07.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F07.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F03.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F03.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F09.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F09.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F28.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F28.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F13.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F13.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F14.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F14.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F00.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F00.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F30.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F30.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F01.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F01.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F05.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F05.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F17.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F17.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F26.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F26.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F11.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F11.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F19.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F19.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F29.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F29.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F08.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F08.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F18.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F18.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F25.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F25.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F12.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F12.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F02.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F02.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F15.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F15.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F16.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F16.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F23.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F23.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F04.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F04.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F27.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F27.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_docs/implementation/tasks/F22.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_docs/implementation/tasks/F22.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "markdown_fences_contracts/v1/README.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "portable_document_contracts/v1/README.md",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "json_parse_no_duplicate_keys",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/start-turn.valid.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/start-turn.invalid.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/event-envelope.valid.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/event-envelope.invalid.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/sandbox-policy.valid.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/sandbox-policy.invalid.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/run-spec.valid.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "schema_example_examples/run-spec.invalid.json",
+      "passed": true,
+      "detail": null
+    }
+  ]
+}

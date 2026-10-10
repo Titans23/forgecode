@@ -46,6 +46,17 @@ class TaskPolicy:
         '**/tests/hidden/**',
     )
 
+    @property
+    def effective_delivery_repairs(self) -> int:
+        return max(0, min(2, self.max_delivery_repairs))
+
+    @property
+    def delivery_repair_capability(self) -> dict:
+        return {'parameter': 'TaskPolicy.max_delivery_repairs',
+                'configuration_key': 'max_delivery_repairs', 'default': 0, 'maximum': 2,
+                'configured': self.max_delivery_repairs, 'effective': self.effective_delivery_repairs,
+                'distinct_gap_sets_only': True, 'budget': 'shared_with_parent_attempt'}
+
 
 @dataclass(frozen=True, slots=True)
 class CompletionDecision:

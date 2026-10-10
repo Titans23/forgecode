@@ -1,0 +1,54 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T100359Z-7934b33b",
+  "task_id": null,
+  "case_ids": [
+    "N04"
+  ],
+  "suite": "regression",
+  "git_commit": "629b8d612a0b0587144429522561a0dd0f26bcbb",
+  "dirty_hash": "7450f91c54e5000d5c1f989516a56b1374795c867a034436b9e012d1329d7976",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d",
+    "release-lock.json": "6836115e5e23c723356cbdf08ee8b9fb06c23b599944e61b82da7ca37bbdd21b"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T100359Z-7934b33b\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T100359Z-7934b33b\\junit.xml"
+  ],
+  "start": "2026-10-06T10:03:59.058854+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ]
+  ],
+  "end": "2026-10-06T10:06:15.629432+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261006T100359Z-7934b33b/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T100359Z-7934b33b/stderr.log",
+  "report_ref": ".local/implementation/20261006T100359Z-7934b33b/junit.xml",
+  "report_hash": "2b46b603188b8a47a06a0e4fad0c412d205a153b8eee2555b00935f44c5584ed",
+  "status": "pass",
+  "tests": {
+    "collected": 771,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  }
+}

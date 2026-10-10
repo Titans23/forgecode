@@ -1,0 +1,271 @@
+{
+  "schema_version": "forge.recovery.test-observations.v1",
+  "source_evidence_id": "20261007T020306Z-4af36e9d",
+  "source_report_sha256": "33ae0bde217ae38a34026d3db605f5abb2cf59970a33f56f54259800611fae2b",
+  "git_parent": "6fb66b0b8b7fc9efee31bb8ded2fd82c19ca099a",
+  "dirty_hash": "f5d2c18ae9f4e914cb1629e79d5b6677890bf0ee59b565029a89f066c1c05fc2",
+  "scope": "windows10-portable-real-process-faults",
+  "eligible_for_native_pass": false,
+  "model_origin": "scripted-offline-fixture",
+  "cases": [
+    {
+      "test_directory": "test_committed_intent_without_0",
+      "sqlite_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_committed_intent_without_0/data/engine.sqlite3",
+      "turn_states": [
+        {
+          "id": "turn-a93ff55e-b87e-4821-9bd0-c7bf89a0cc86",
+          "state": "reconciling",
+          "outcome": null,
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown"
+        }
+      ],
+      "committed_startup_observations": [
+        {
+          "artifacts": {
+            "history_gap": false,
+            "items": [],
+            "scope": "profile"
+          },
+          "blockers": [
+            "previous_execution_requires_reconciliation",
+            "historical_process_handle_unverified",
+            "cleanup_unconfirmed",
+            "tool_result_unconfirmed"
+          ],
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown",
+          "deadline_status": "unverified",
+          "engine_epoch": "epoch-82af0070-c41c-4ab0-b00a-936006d54a00",
+          "journal": {
+            "basis_scope": "journal",
+            "history_gap": false,
+            "intent_count": 1,
+            "projected_records": 3,
+            "records": 3,
+            "state": "complete",
+            "unmatched_intents": [
+              "write-once"
+            ]
+          },
+          "observed_at_utc": "2026-10-07T02:07:35.970046Z",
+          "owner_epoch": "epoch-ebac5ba0-220a-4b7d-a3d1-0b04ebc88c68",
+          "process_ownership": "unverified_historical",
+          "startup_observation_id": "recovery-f92d3287-56a6-4f5d-8ab3-942f0cbb3048",
+          "state": "reconciling",
+          "target": {
+            "id": "turn-a93ff55e-b87e-4821-9bd0-c7bf89a0cc86",
+            "kind": "turn"
+          },
+          "unknown_side_effects": true,
+          "work_item_id": "work-b58f8e2a-7c16-4934-8f07-9d8514c57264"
+        }
+      ],
+      "persisted_event_type_counts": {
+        "turn.accepted": 1,
+        "recovery.started": 1,
+        "journal.projected": 3
+      },
+      "journal_bytes": [
+        {
+          "source_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_committed_intent_without_0/data/harness/projects/project-1d64b01ecbddec7c/sessions/session-2187f60c02a64c35b4de9246.jsonl",
+          "sha256": "cd0dbb81a7378079979014e4532ba4c0bcdb99429db47494ecddbdf8447ee7e2",
+          "size_bytes": 1326
+        }
+      ]
+    },
+    {
+      "test_directory": "test_wal_projection_gap_is_reb0",
+      "sqlite_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_wal_projection_gap_is_reb0/data/engine.sqlite3",
+      "turn_states": [
+        {
+          "id": "turn-bf9532ad-f88d-4570-ac7f-5ba9a2a42378",
+          "state": "reconciling",
+          "outcome": null,
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown"
+        }
+      ],
+      "committed_startup_observations": [
+        {
+          "artifacts": {
+            "history_gap": false,
+            "items": [],
+            "scope": "profile"
+          },
+          "blockers": [
+            "previous_execution_requires_reconciliation",
+            "historical_process_handle_unverified",
+            "cleanup_unconfirmed"
+          ],
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown",
+          "deadline_status": "unverified",
+          "engine_epoch": "epoch-58a2dc5c-120c-48b8-9b63-18164a6c16df",
+          "journal": {
+            "basis_scope": "journal",
+            "history_gap": false,
+            "intent_count": 1,
+            "projected_records": 4,
+            "records": 4,
+            "state": "complete",
+            "unmatched_intents": []
+          },
+          "observed_at_utc": "2026-10-07T02:07:36.108881Z",
+          "owner_epoch": "epoch-cff590be-e038-4d1e-9ad2-0845c9d19551",
+          "process_ownership": "unverified_historical",
+          "startup_observation_id": "recovery-a981dd7f-25d4-493c-bf28-ae70fd0fb2ee",
+          "state": "reconciling",
+          "target": {
+            "id": "turn-bf9532ad-f88d-4570-ac7f-5ba9a2a42378",
+            "kind": "turn"
+          },
+          "unknown_side_effects": true,
+          "work_item_id": "work-a129bea7-d3ad-45c9-bf25-b40d88b636d2"
+        }
+      ],
+      "persisted_event_type_counts": {
+        "turn.accepted": 1,
+        "recovery.started": 1,
+        "journal.projected": 4
+      },
+      "journal_bytes": [
+        {
+          "source_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_wal_projection_gap_is_reb0/data/harness/projects/project-ce6421ca7bbf53cd/sessions/session-122b80c4be9540fa9653809f.jsonl",
+          "sha256": "2105ea764f113fe05c513eccf5f7cc032bda012b165995c62eec9aa03d2333b2",
+          "size_bytes": 1809
+        }
+      ]
+    },
+    {
+      "test_directory": "test_actual_engine_kill_restar0",
+      "sqlite_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_actual_engine_kill_restar0/data/engine.sqlite3",
+      "turn_states": [
+        {
+          "id": "turn-44867a2d-d3d6-4364-9d20-06d86cd09955",
+          "state": "reconciling",
+          "outcome": null,
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown"
+        }
+      ],
+      "committed_startup_observations": [
+        {
+          "artifacts": {
+            "history_gap": false,
+            "items": [],
+            "scope": "profile"
+          },
+          "blockers": [
+            "previous_execution_requires_reconciliation",
+            "historical_process_handle_unverified",
+            "cleanup_unconfirmed"
+          ],
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown",
+          "deadline_status": "unverified",
+          "engine_epoch": "epoch-14d82696-a131-4b8e-bb99-1fc1055c4c93",
+          "journal": {
+            "basis_scope": "journal",
+            "history_gap": false,
+            "intent_count": 0,
+            "projected_records": 1,
+            "records": 1,
+            "state": "complete",
+            "unmatched_intents": []
+          },
+          "observed_at_utc": "2026-10-07T02:08:19.310382Z",
+          "owner_epoch": "epoch-74a0d445-edfb-4efe-89cb-86304d3999a9",
+          "process_ownership": "unverified_historical",
+          "startup_observation_id": "recovery-52b1bd59-6ee4-40a4-949d-1a330528a4b0",
+          "state": "reconciling",
+          "target": {
+            "id": "turn-44867a2d-d3d6-4364-9d20-06d86cd09955",
+            "kind": "turn"
+          },
+          "unknown_side_effects": true,
+          "work_item_id": "work-aedbdf46-bad7-4874-a9b9-784c22eb2750"
+        }
+      ],
+      "persisted_event_type_counts": {
+        "turn.accepted": 1,
+        "turn.started": 1,
+        "session.message": 1,
+        "recovery.started": 1,
+        "journal.projected": 1
+      },
+      "journal_bytes": [
+        {
+          "source_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_actual_engine_kill_restar0/data/harness/projects/project-c235b842a6f3c42e/sessions/session-9bb6029c3145474bb9fc5233.jsonl",
+          "sha256": "85e449de2c763bf5c3a13b03d58c42a5bc210fad5f01163207be3dc0410e10e2",
+          "size_bytes": 479
+        }
+      ]
+    },
+    {
+      "test_directory": "test_actual_main_hard_kill_rec0",
+      "sqlite_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_actual_main_hard_kill_rec0/data/engine.sqlite3",
+      "turn_states": [
+        {
+          "id": "turn-09fcb876-53da-4611-851f-2a83a7b73fce",
+          "state": "reconciling",
+          "outcome": null,
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown"
+        }
+      ],
+      "committed_startup_observations": [
+        {
+          "artifacts": {
+            "history_gap": false,
+            "items": [],
+            "scope": "profile"
+          },
+          "blockers": [
+            "previous_execution_requires_reconciliation",
+            "historical_process_handle_unverified",
+            "cleanup_unconfirmed"
+          ],
+          "cancel_state": "indeterminate",
+          "cleanup_state": "unknown",
+          "deadline_status": "unverified",
+          "engine_epoch": "epoch-37665ce2-cb3b-4319-aa30-a3c6b3a19122",
+          "journal": {
+            "basis_scope": "journal",
+            "history_gap": false,
+            "intent_count": 0,
+            "projected_records": 1,
+            "records": 1,
+            "state": "complete",
+            "unmatched_intents": []
+          },
+          "observed_at_utc": "2026-10-07T02:08:26.655328Z",
+          "owner_epoch": "epoch-dd618952-ab3a-47ca-8ea1-29e08e60643e",
+          "process_ownership": "unverified_historical",
+          "startup_observation_id": "recovery-22c012ba-cc68-4fae-855f-1a7b83e2e4bd",
+          "state": "reconciling",
+          "target": {
+            "id": "turn-09fcb876-53da-4611-851f-2a83a7b73fce",
+            "kind": "turn"
+          },
+          "unknown_side_effects": true,
+          "work_item_id": "work-30fd6d93-7983-4243-9df1-cc7d843851f7"
+        }
+      ],
+      "persisted_event_type_counts": {
+        "turn.accepted": 1,
+        "turn.started": 1,
+        "session.message": 1,
+        "recovery.started": 1,
+        "journal.projected": 1
+      },
+      "journal_bytes": [
+        {
+          "source_ref": ".local/implementation/20261007T020306Z-4af36e9d/tmp/test_actual_main_hard_kill_rec0/data/harness/projects/project-e12591d5a6b3572e/sessions/session-ba6647966c7f4bf8bc28e9f3.jsonl",
+          "sha256": "1d5cba38655dcf13662b72365503bd6fa55a504ae96f5508d5a751dac93dab32",
+          "size_bytes": 479
+        }
+      ]
+    }
+  ]
+}

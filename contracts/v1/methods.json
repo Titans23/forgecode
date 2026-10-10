@@ -1,0 +1,1968 @@
+{
+  "schema_version": "forge.methods.v1",
+  "methods": {
+    "system.initialize": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "system.initialize.request",
+      "result_schema": "system.initialize.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "system.health": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "system.health.request",
+      "result_schema": "system.health.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "system.capabilities": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "system.capabilities.request",
+      "result_schema": "system.capabilities.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "system.shutdown": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "system.shutdown.request",
+      "result_schema": "system.shutdown.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "workspace.register": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "workspace.register.request",
+      "result_schema": "workspace.register.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "workspace.list": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "workspace.list.request",
+      "result_schema": "workspace.list.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "workspace.inspect": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "workspace.inspect.request",
+      "result_schema": "workspace.inspect.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "workspace.files": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "workspace.files.request",
+      "result_schema": "workspace.files.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "workspace.read_file": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "workspace.read_file.request",
+      "result_schema": "workspace.read_file.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "STALE_FILE",
+        "POLICY_DENIED"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "workspace.changes": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "workspace.changes.request",
+      "result_schema": "workspace.changes.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "session.create": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "session.create.request",
+      "result_schema": "session.create.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "session.list": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "session.list.request",
+      "result_schema": "session.list.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "session.get": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "session.get.request",
+      "result_schema": "session.get.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "session.start_turn": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "session.start_turn.request",
+      "result_schema": "session.start_turn.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "CONNECTION_UNAVAILABLE",
+        "BUDGET_EXHAUSTED",
+        "SETUP_REQUIRED",
+        "CAPABILITY_UNSATISFIED",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "SANDBOX_UNAVAILABLE",
+        "CONNECTION_UNAVAILABLE",
+        "INDETERMINATE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "session.cancel_turn": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "session.cancel_turn.request",
+      "result_schema": "session.cancel_turn.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "approval.list": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "approval.list.request",
+      "result_schema": "approval.list.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/desktop/security/test_internal_grants.py"
+      ]
+    },
+    "approval.get": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "approval.get.request",
+      "result_schema": "approval.get.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/desktop/security/test_internal_grants.py"
+      ]
+    },
+    "approval.decide": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "approval.decide.request",
+      "result_schema": "approval.decide.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "STALE_APPROVAL"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_approval_rpc.py",
+        "tests/desktop/security/test_internal_grants.py"
+      ]
+    },
+    "action.get": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "action.get.request",
+      "result_schema": "action.get.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "events.subscribe": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "events.subscribe.request",
+      "result_schema": "events.subscribe.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "events.ack": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "events.ack.request",
+      "result_schema": "events.ack.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "events.unsubscribe": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "events.unsubscribe.request",
+      "result_schema": "events.unsubscribe.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "observability.events": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.events.request",
+      "result_schema": "observability.events.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_rpc.py"
+      ]
+    },
+    "observability.spans": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.spans.request",
+      "result_schema": "observability.spans.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
+      ]
+    },
+    "observability.context": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.context.request",
+      "result_schema": "observability.context.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
+      ]
+    },
+    "observability.evidence": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.evidence.request",
+      "result_schema": "observability.evidence.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INVALID_CURSOR"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_observability_client.py"
+      ]
+    },
+    "observability.usage": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.usage.request",
+      "result_schema": "observability.usage.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "evaluation.validate": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.validate.request",
+      "result_schema": "evaluation.validate.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ]
+    },
+    "evaluation.create_run": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "evaluation.create_run.request",
+      "result_schema": "evaluation.create_run.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ]
+    },
+    "evaluation.start": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "evaluation.start.request",
+      "result_schema": "evaluation.start.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ]
+    },
+    "evaluation.cancel": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "evaluation.cancel.request",
+      "result_schema": "evaluation.cancel.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ]
+    },
+    "evaluation.retry": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "evaluation.retry.request",
+      "result_schema": "evaluation.retry.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ]
+    },
+    "evaluation.compare": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.compare.request",
+      "result_schema": "evaluation.compare.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ]
+    },
+    "evaluation.report": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.report.request",
+      "result_schema": "evaluation.report.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluations.py"
+      ]
+    },
+    "bundle.export": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "bundle.export.request",
+      "result_schema": "bundle.export.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "bundle.import": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "bundle.import.request",
+      "result_schema": "bundle.import.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "EVENT_CONFLICT",
+        "MANIFEST_MISMATCH",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "artifact.describe": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "artifact.describe.request",
+      "result_schema": "artifact.describe.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "MANIFEST_MISMATCH"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "artifact.read_chunk": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "artifact.read_chunk.request",
+      "result_schema": "artifact.read_chunk.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "MANIFEST_MISMATCH"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "diagnostics.run": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "diagnostics.run.request",
+      "result_schema": "diagnostics.run.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "contract_only",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "connection.list": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "connection.list.request",
+      "result_schema": "connection.list.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "connection.set": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "connection.set.request",
+      "result_schema": "connection.set.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "connection.delete": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "connection.delete.request",
+      "result_schema": "connection.delete.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "connection.test": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "connection.test.request",
+      "result_schema": "connection.test.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "sandbox.probe": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "sandbox.probe.request",
+      "result_schema": "sandbox.probe.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "contract_only",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "sandbox.cleanup_status": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "sandbox.cleanup_status.request",
+      "result_schema": "sandbox.cleanup_status.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_cleanup_status.py"
+      ]
+    },
+    "credentials.inject": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "credentials.inject.request",
+      "result_schema": "credentials.inject.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "sandbox.setup": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "sandbox.setup.request",
+      "result_schema": "sandbox.setup.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "contract_only",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py"
+      ]
+    },
+    "approval.prepare_decision": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "approval.prepare_decision.request",
+      "result_schema": "approval.prepare_decision.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_workspace_authorization.py"
+      ]
+    },
+    "workspace.prepare_authorization": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "workspace.prepare_authorization.request",
+      "result_schema": "workspace.prepare_authorization.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_workspace_authorization.py"
+      ]
+    },
+    "workspace.authorize": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "workspace.authorize.request",
+      "result_schema": "workspace.authorize.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "sqlite_transaction",
+      "idempotency_key": "profile_id,method,client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bound_approvals.py",
+        "tests/implementation/integration/test_workspace_authorization.py"
+      ]
+    },
+    "connection.prepare_set": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "connection.prepare_set.request",
+      "result_schema": "connection.prepare_set.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "connection.prepare_test": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "connection.prepare_test.request",
+      "result_schema": "connection.prepare_test.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "credentials.clear": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "credentials.clear.request",
+      "result_schema": "credentials.clear.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "sqlite_transaction",
+      "idempotency_key": "profile_id,method,client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_connections.py",
+        "tests/desktop/credentials/test_storage_policy.py",
+        "tests/desktop/credentials/test_real_storage.py",
+        "scripts/desktop_smoke.py"
+      ]
+    },
+    "session.create_default": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "session.create_default.request",
+      "result_schema": "session.create_default.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ]
+    },
+    "session.submit": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "session.submit.request",
+      "result_schema": "session.submit.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ]
+    },
+    "session.snapshot": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "session.snapshot.request",
+      "result_schema": "session.snapshot.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ]
+    },
+    "workspace.diff": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "workspace.diff.request",
+      "result_schema": "workspace.diff.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ]
+    },
+    "workspace.diff_file": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "workspace.diff_file.request",
+      "result_schema": "workspace.diff_file.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_workspace_views.py"
+      ]
+    },
+    "bundle.prepare_import": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "bundle.prepare_import.request",
+      "result_schema": "bundle.prepare_import.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "bundle.prepare_export": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "bundle.prepare_export.request",
+      "result_schema": "bundle.prepare_export.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "STALE_REVISION",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_bundles.py"
+      ]
+    },
+    "observability.output": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.output.request",
+      "result_schema": "observability.output.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/integration/test_observability_client.py"
+      ]
+    },
+    "observability.timings": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "observability.timings.request",
+      "result_schema": "observability.timings.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/integration/test_observability_client.py"
+      ]
+    },
+    "evaluation.templates": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.templates.request",
+      "result_schema": "evaluation.templates.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.template": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.template.request",
+      "result_schema": "evaluation.template.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.draft": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "evaluation.draft.request",
+      "result_schema": "evaluation.draft.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.list": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.list.request",
+      "result_schema": "evaluation.list.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.snapshot": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.snapshot.request",
+      "result_schema": "evaluation.snapshot.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.comparison": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "evaluation.comparison.request",
+      "result_schema": "evaluation.comparison.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.import_plan": {
+      "audience": "main",
+      "mutation": true,
+      "request_schema": "evaluation.import_plan.request",
+      "result_schema": "evaluation.import_plan.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "service_transaction_before_response",
+      "idempotency_key": "client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "explicit_domain_cancel",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "evaluation.plan_export": {
+      "audience": "main",
+      "mutation": false,
+      "request_schema": "evaluation.plan_export.request",
+      "result_schema": "evaluation.plan_export.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_evaluation_client.py"
+      ]
+    },
+    "failure.list": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "failure.list.request",
+      "result_schema": "failure.list.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_failures.py"
+      ]
+    },
+    "failure.get": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "failure.get.request",
+      "result_schema": "failure.get.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_failures.py"
+      ]
+    },
+    "failure.annotate": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "failure.annotate.request",
+      "result_schema": "failure.annotate.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "sqlite_action_transaction",
+      "idempotency_key": "profile_id + method + client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_failures.py"
+      ]
+    },
+    "failure.save_candidate": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "failure.save_candidate.request",
+      "result_schema": "failure.save_candidate.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "sqlite_action_transaction",
+      "idempotency_key": "profile_id + method + client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_failures.py"
+      ]
+    },
+    "failure.check_reproduction": {
+      "audience": "renderer",
+      "mutation": true,
+      "request_schema": "failure.check_reproduction.request",
+      "result_schema": "failure.check_reproduction.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "sqlite_action_transaction",
+      "idempotency_key": "profile_id + method + client_action_id",
+      "timeout_query": "action.get",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_failures.py"
+      ]
+    },
+    "failure.candidate": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "failure.candidate.request",
+      "result_schema": "failure.candidate.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "STALE_REVISION",
+        "INVALID_CURSOR",
+        "ARTIFACT_LIMIT",
+        "CONNECTION_UNAVAILABLE"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 1048576,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
+        "tests/implementation/portable/test_contracts_parity.py",
+        "tests/implementation/integration/test_failures.py"
+      ]
+    },
+    "recovery.inspect": {
+      "audience": "renderer",
+      "mutation": false,
+      "request_schema": "recovery.inspect.request",
+      "result_schema": "recovery.inspect.result",
+      "errors": [
+        "INVALID_PARAMS",
+        "UNAUTHORIZED",
+        "NOT_FOUND",
+        "INCOMPATIBLE_PROTOCOL",
+        "ARTIFACT_LIMIT"
+      ],
+      "commit_point": "none",
+      "idempotency_key": null,
+      "timeout_query": "repeat_read",
+      "cancellation": "none",
+      "max_output_bytes": 65536,
+      "logging": "metadata_only_no_payload_values",
+      "implementation_status": "implemented",
+      "test_refs": [
+        "tests/implementation/integration/test_recovery.py"
+      ]
+    }
+  }
+}

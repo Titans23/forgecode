@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
+from hashlib import sha256
+import os
 from pathlib import Path
 from typing import Any
 
@@ -87,14 +89,63 @@ async def run_turn(
     max_model_calls: int,
     max_tool_calls: int,
     max_turn_seconds: float = 1800,
+    frozen_configuration: dict | None = None,
+    runtime_bindings=None,
+    result_path: Path | None = None,
 ) -> TurnResult:
+    policy=BENCHMARK_TASK_POLICY
+    bound_plan=None
+    if frozen_configuration:
+        from forge.application.models import validate
+        from forge.config import ForgeConfig
+        from forge.permissions.policy import PermissionManager
+        from forge.runtime.dependencies import RuntimeBindings
+        parameters=validate('model-parameters',frozen_configuration['parameters'])
+        harness=validate('harness-config',frozen_configuration['harness'])
+        if 'plan' in frozen_configuration:
+            from benchmark.adapters.harbor import export_runspec
+            from forge.application.models import canonical_hash
+            bound_plan=frozen_configuration['plan']
+            checked=export_runspec(bound_plan['spec'],bound_plan['resolved_snapshots'])
+            if (bound_plan['spec_hash']!=checked['spec_hash'] or bound_plan.get('read_only_plan') is not True
+                    or parameters!=checked['resolved_snapshots']['model_parameters']
+                    or harness!=checked['resolved_snapshots']['harness']):
+                raise ValueError('Frozen launch configuration differs from RunSpec')
+        if resume or harness['trusted_extensions_enabled'] or not harness['compaction_enabled'] or not harness['explore_enabled'] or harness['max_delivery_repairs']>2:
+            raise ValueError('Unsupported fixed-budget Harness protocol')
+        if parameters['temperature'] is not None or parameters['top_p'] is not None:
+            raise ValueError('Unsupported sampling parameter must not be silently ignored')
+        if (harness['parent_budget']['max_model_calls'],harness['parent_budget']['max_tool_calls'])!=(max_model_calls,max_tool_calls):
+            raise ValueError('Frozen call budget differs from launch arguments')
+        if max_turn_seconds>harness['parent_budget']['wall_seconds']:
+            raise ValueError('Launch deadline cannot exceed frozen parent budget')
+        policy=replace(policy,max_delivery_repairs=harness['max_delivery_repairs'])
+        if runtime_bindings is None:
+            config=replace(ForgeConfig.from_env(environ=os.environ),max_tokens=parameters['max_output_tokens'],
+                context_window=harness['max_context_tokens'],reasoning_effort=parameters['reasoning_effort'])
+            runtime_bindings=RuntimeBindings(config=config,data_root=Path(os.environ['FORGE_DATA_DIR']),trusted_extensions=False,
+                permission_manager=PermissionManager(project,load_stored_rules=False))
+        if bound_plan:
+            config=runtime_bindings.config
+            model=bound_plan['spec']['model']
+            if config is None or (config.provider,config.model_id)!=(model['provider'],model['requested_model']):
+                raise ValueError('Actual model identity differs from frozen RunSpec')
+            if (config.max_tokens,config.context_window,config.reasoning_effort)!=(
+                    parameters['max_output_tokens'],harness['max_context_tokens'],parameters['reasoning_effort']):
+                raise ValueError('Actual model parameters differ from frozen RunSpec')
     conversation, journal, _ = create_runtime(
         project,
         continue_session=resume,
-        task_policy=BENCHMARK_TASK_POLICY,
+        task_policy=policy,
         execution_profile=ExecutionProfile.sandbox(),
         task_relation='active' if resume else 'new',
+        **({'bindings':runtime_bindings} if runtime_bindings else {}),
     )
+    if frozen_configuration:
+        from forge.observability.events import Scope
+        scope=frozen_configuration['scope']
+        journal.observation_scope=Scope(trace_id=scope['trace_id'],span_id=scope['span_id'],
+            identities={key:scope[key] for key in ('run_id','trial_id')} | {'attempt_id':frozen_configuration['attempt_id']})
     conversation.max_iterations = max_model_calls
     conversation.max_tool_calls = max_tool_calls
     conversation.max_turn_seconds = max_turn_seconds
@@ -116,6 +167,11 @@ async def run_turn(
 
     final: TurnResult | None = None
     try:
+        if bound_plan:
+            identity=bound_plan['spec']['harness']
+            if (sha256(conversation.system_prompt.encode('utf-8')).hexdigest()!=identity['prompt_sha256']
+                    or canonical_hash(conversation._tool_definitions())!=identity['tool_schema_sha256']):
+                raise ValueError('Actual prompt or tool schema differs from frozen RunSpec')
         async for event in conversation.stream(message):
             if isinstance(event, ModelTextDelta):
                 print(event.text, end='', flush=True)
@@ -143,10 +199,17 @@ async def run_turn(
         )
         raise
     finally:
-        journal.record_stopped()
+        try:
+            close=getattr(conversation,'runtime_close',None)
+            if close is not None:
+                await close()
+        finally:
+            journal.record_stopped()
 
     if final is None:
         raise RuntimeError('ForgeCode ended without a TurnCompleted event.')
+    if result_path:
+        result_path.write_text(json.dumps(result_payload(final,resumed=resume,recovery=None),ensure_ascii=False)+'\n',encoding='utf-8')
     print(
         '\nFORGECODE_BENCHMARK_RESULT='
         + json.dumps(
@@ -179,6 +242,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--max-model-calls', type=int, default=120)
     parser.add_argument('--max-tool-calls', type=int, default=240)
     parser.add_argument('--max-turn-seconds', type=float, default=1800)
+    parser.add_argument('--frozen-configuration',type=Path)
+    parser.add_argument('--result-file',type=Path)
     return parser
 
 
@@ -208,6 +273,9 @@ def main(argv: list[str] | None = None) -> int:
             max_model_calls=args.max_model_calls,
             max_tool_calls=args.max_tool_calls,
             max_turn_seconds=args.max_turn_seconds,
+            **({'frozen_configuration':json.loads(args.frozen_configuration.read_text(encoding='utf-8'))}
+                if args.frozen_configuration else {}),
+            **({'result_path':args.result_file} if args.result_file else {}),
         )
     )
     return 0

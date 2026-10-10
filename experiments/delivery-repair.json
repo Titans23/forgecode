@@ -1,0 +1,158 @@
+{
+  "schema_version": "forge.experiment.preregistration.v1",
+  "experiment": "delivery-repair-0-vs-2",
+  "status": "blocked_official_environment_windows10_live_regression_authorized",
+  "source_freeze": {
+    "prepared_from_commit": "368b60535397a22f84cfa77a8eb19a4315939560",
+    "frozen_candidate": null,
+    "source_and_locks_same_in_both_groups": true
+  },
+  "treatment": {
+    "A": {
+      "max_delivery_repairs": 0
+    },
+    "B": {
+      "max_delivery_repairs": 2
+    },
+    "other_configuration_differences_allowed": false
+  },
+  "preexperiment": {
+    "taskset_evidence": {
+      "path": "docs/implementation/evidence/F20-20261006T223459Z-harbor-report.json",
+      "canonical_sha256": "df72c4848d13f1636a7317c1c8ff4cb8206aecbf0a9bf2a46d0da59319a1ec97",
+      "scope": "historical actual official task bytes and JobConfig; no model grades"
+    },
+    "task_ids": [
+      "polyglot_python_proverb",
+      "polyglot_python_transpose",
+      "polyglot_python_affine-cipher"
+    ],
+    "tasks": {
+      "polyglot_python_proverb": {
+        "directory": "polyglot_python_proverb",
+        "content_sha256": "78a4d5781ad8e41293770dc4ef8ad6ef563f465e58a2cb9420d10f47fb1387df",
+        "harbor_checksum": "ae1edff5a57bb3785efd113ade8f2b36e79757188b3f1b61153639f2072bb9da",
+        "source": {
+          "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+          "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+          "path": "datasets\\aider_polyglot\\polyglot_python_proverb"
+        },
+        "os": "linux"
+      },
+      "polyglot_python_transpose": {
+        "directory": "polyglot_python_transpose",
+        "content_sha256": "a8722e595b70ade7e278b1b31c69cfca660df5b156bdf73e6bd68455265fde7a",
+        "harbor_checksum": "f25e0631261d84375c73c40057416d2378fd281292a06689d3773ca7bb63646a",
+        "source": {
+          "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+          "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+          "path": "datasets\\aider_polyglot\\polyglot_python_transpose"
+        },
+        "os": "linux"
+      },
+      "polyglot_python_affine-cipher": {
+        "directory": "polyglot_python_affine-cipher",
+        "content_sha256": "a5d960b5d7dc9b156cc25a0176cbef0310b6bbfe1fa575403cd089cd7c6d3813",
+        "harbor_checksum": "b24a6a71cbe27222e82f44b3c904765dc1a48e0ffa065e8e6c750006aa9238bb",
+        "source": {
+          "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+          "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+          "path": "datasets\\aider_polyglot\\polyglot_python_affine-cipher"
+        },
+        "os": "linux"
+      }
+    },
+    "repeats": 1,
+    "label": "previously inspected public regression tasks; not independent holdout",
+    "planned_group_runs": 6
+  },
+  "formal": {
+    "allowed_shapes": [
+      {
+        "tasks": 12,
+        "groups": 2,
+        "repeats": 2,
+        "planned_trials": 48
+      },
+      {
+        "tasks": 20,
+        "groups": 2,
+        "repeats": 3,
+        "planned_trials": 120
+      }
+    ],
+    "selected_shape": null,
+    "task_ids": [],
+    "exclude_preexperiment_tasks": true,
+    "selection_before_strategy_freeze": true
+  },
+  "model": {
+    "connection_revision": null,
+    "provider": "anthropic",
+    "requested_model": "gpt-6-luna",
+    "parameters_snapshot": null,
+    "pricing_snapshot": null,
+    "configuration_origin": "Existing .env inspected in memory; endpoint/credentials excluded; live runtime freezes actual configuration"
+  },
+  "budget": {
+    "max_model_requests_per_attempt": 40,
+    "max_tool_calls_per_attempt": 100,
+    "attempt_wall_seconds": 900,
+    "max_infrastructure_attempts": 1,
+    "trial_wall_seconds": 900,
+    "max_context_tokens": 128000,
+    "max_output_tokens": 8192,
+    "total_spend_ceiling": null,
+    "currency": null,
+    "repairs_share_parent_budget": true,
+    "monetary_budget_policy": "human_unbounded"
+  },
+  "protocol": {
+    "feedback": "none",
+    "selection": "last_authorized_attempt",
+    "concurrency": 1,
+    "cache_mode": "cold",
+    "schedule_seed": 20261007,
+    "order": "task/repeat interleaved A/B alternating first group",
+    "harbor_retries": 0
+  },
+  "execution": {
+    "target_platform": "official-environment",
+    "harbor_version": "0.18.0",
+    "grader": "harbor-official",
+    "verified_network_policy": null,
+    "verified_per_request_spend_control": null,
+    "docker_daemon_required": true
+  },
+  "authorization": {
+    "human_authorization_ref": "docs/implementation/evidence/human-authorization-20261007.json",
+    "human_authorization_sha256": "b11b0954d3342159a908a26649590b229a862d917fd64ddc0398822db2a3e2e4",
+    "paid_api": true,
+    "administrator_setup": false,
+    "credential_supplied": true
+  },
+  "report": {
+    "all_attempts_and_requests": true,
+    "planned_denominator": true,
+    "paired_by_task_and_repeat": true,
+    "bootstrap": {
+      "method": "paired task-cluster percentile",
+      "samples": 2000,
+      "seed": 20261007,
+      "confidence": "0.95"
+    },
+    "missing_grades_no_interval": true,
+    "zero_success_cost_per_success": "N/A",
+    "imported_provenance_remains_unverified": true
+  },
+  "windows10_regression": {
+    "scope": "Actual configured model and existing Harness; same official public Python task bytes with independent unittest on Windows 10. Does not execute Harbor/Linux official grader.",
+    "target_platform": "Windows 10 x64 19045",
+    "repeats": 1,
+    "planned_group_runs": 6,
+    "max_infrastructure_attempts": 1,
+    "official_scores": false,
+    "hidden_grader_not_in_agent_workspace": true,
+    "live_cli_opt_in_required": true
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:pricing",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3,
+      "pattern": "^[A-Z]{3}$"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "effective_at_utc": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "input_per_million": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "output_per_million": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cache_read_per_million": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cache_write_per_million": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "revision",
+    "currency",
+    "provider",
+    "model",
+    "effective_at_utc",
+    "input_per_million",
+    "output_per_million",
+    "cache_read_per_million",
+    "cache_write_per_million"
+  ]
+}

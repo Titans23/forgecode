@@ -1,0 +1,65 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T113504Z-ebf7610d",
+  "task_id": "F06",
+  "case_ids": [
+    "N04",
+    "D30",
+    "N02",
+    "N06",
+    "O07",
+    "D04",
+    "D07",
+    "D09",
+    "D10",
+    "N01",
+    "N03"
+  ],
+  "suite": "portable",
+  "git_commit": "cb724ac5cbd2b874f9d4fdd2f7501905d44c53d5",
+  "dirty_hash": "fb4d696d52a9d7a06c23a191140be7f252c93ffd55f9a6dd6e271f04d570ab75",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d",
+    "release-lock.json": "6836115e5e23c723356cbdf08ee8b9fb06c23b599944e61b82da7ca37bbdd21b"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/implementation/portable",
+    "tests/implementation/integration",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T113504Z-ebf7610d\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T113504Z-ebf7610d\\junit.xml"
+  ],
+  "start": "2026-10-06T11:35:04.009479+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ]
+  ],
+  "end": "2026-10-06T11:35:52.141791+00:00",
+  "exit_code": 1,
+  "stdout_ref": ".local/implementation/20261006T113504Z-ebf7610d/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T113504Z-ebf7610d/stderr.log",
+  "report_ref": ".local/implementation/20261006T113504Z-ebf7610d/junit.xml",
+  "report_hash": "be5aced5d9f434441bee5a6fa8c51b175abcb198602a13d678acd641da23100e",
+  "status": "fail",
+  "tests": {
+    "collected": 49,
+    "skipped": 0,
+    "failures": 3,
+    "errors": 0
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "forge.fixture.v1",
+  "fixture_id": "eval-mini-bundle",
+  "origin": "synthetic-fixture",
+  "inputs": [
+    "input.json"
+  ],
+  "acceptance_tasks": [
+    "F19",
+    "F21"
+  ],
+  "assertions": [
+    "fixed denominator includes unscored case",
+    "retry does not create a new case",
+    "repeat import deduplicates",
+    "recomputation matches independent arithmetic"
+  ]
+}

@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from forge.config import warn_unknown_config_fields
 
 
 class MCPConfigurationError(ValueError):
@@ -161,6 +162,7 @@ def _read_json(path: Path) -> dict[str, object]:
         raise MCPConfigurationError(
             f'{path}: top-level MCP configuration must be a JSON object.'
         )
+    warn_unknown_config_fields(path, value, {'mcpServers'})
     return value
 
 

@@ -1,0 +1,12 @@
+{
+  "schema_version": "forge.implementation.commands.v1",
+  "platform": "win32",
+  "python": ["D:/learn_project/forgecode/.venv/Scripts/python.exe", "-X", "utf8"],
+  "baseline": ["powershell", "-NoProfile", "-File", "scripts/test.ps1", "-q", "--tb=short"],
+  "cli": ["D:/learn_project/forgecode/.venv/Scripts/python.exe", "-m", "forge"],
+  "audit": ["D:/learn_project/forgecode/.venv/Scripts/python.exe", "scripts/impl.py", "audit"],
+  "doctor": ["D:/learn_project/forgecode/.venv/Scripts/python.exe", "scripts/impl.py", "doctor", "--scope", "development"],
+  "status": ["D:/learn_project/forgecode/.venv/Scripts/python.exe", "scripts/impl.py", "status"],
+  "regression": ["D:/learn_project/forgecode/.venv/Scripts/python.exe", "scripts/impl.py", "verify", "--suite", "regression"],
+  "note": "Audit metadata only. Product/UI payloads must never execute arbitrary commands from this file."
+}

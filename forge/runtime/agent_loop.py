@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import aclosing, nullcontext
 from functools import cache
 import json
 import os
@@ -106,12 +107,17 @@ class Conversation:
         intent_router: IntentRouter | None = None,
         include_task_tools: bool = True,
         task_relation: str | None = None,
+        tool_backend: Any | None = None,
+        event_recorder: Any | None = None,
+        turn_baseline_handler: Any | None = None,
     ) -> None:
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
         if task_relation not in {None, 'new', 'active'}:
             raise ValueError('Explicit task_relation must be new or active.')
         self.task_relation = task_relation
+        self.event_recorder = event_recorder
+        self.turn_baseline_handler = turn_baseline_handler
         if max_iterations is not None and max_iterations < 1:
             raise ValueError('max_iterations must be positive')
         if max_protocol_recoveries < 0:
@@ -246,8 +252,9 @@ class Conversation:
                         resolved_context_root,
                         call,
                     )
-                ),
+                ) if not getattr(tool_backend, 'observer', None) else lambda call: mutation_target_paths(call, maximum=None),
                 hook_context_sink=self._queue_hook_context,
+                backend=tool_backend,
             )
             if registry is not None
             else None
@@ -287,6 +294,12 @@ class Conversation:
         return self.tools
 
     @property
+    def capabilities(self) -> dict:
+        policy = self.completion_gate.policy if self.completion_gate else TaskPolicy()
+        return {'delivery_repair': {**policy.delivery_repair_capability,
+                                   'supported': self.completion_gate is not None}}
+
+    @property
     def context_stats(self) -> ContextStats:
         '''Return current committed conversation context statistics.'''
         return self.context.stats_for_request(
@@ -304,9 +317,34 @@ class Conversation:
     async def stream(self, prompt: str) -> AsyncIterator[ConversationEvent]:
         '''Compatibility entry point delegated to the turn runner.'''
         from forge.runtime.runner import TurnRunner
+        from forge.sessions.workspace_lock import workspace_execution
         runner = TurnRunner(self)
-        async for event in runner.run(prompt):
-            yield event
+        ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()
+        from forge.observability.events import current
+        from forge.observability.recorder import JournalRecorder
+        inherited=current()
+        recorder=(JournalRecorder(self.session_journal,scope=getattr(self.session_journal,'observation_scope',None),
+                  scope_sink=getattr(self.session_journal,'observation_scope_sink',None)) if self.session_journal else inherited)
+        with ownership, recorder.turn(nested=self.session_journal is None) if recorder else nullcontext():
+            if self.turn_baseline_handler is not None:
+                baseline = self.turn_baseline_handler()
+                if baseline is not None:
+                    await baseline
+            async with aclosing(runner.run(prompt)) as stream:
+                async for event in stream:
+                    if self.event_recorder is not None:
+                        self.event_recorder.record(event)
+                    yield event
+
+    def record_model_request(self, kind: str, attributes: dict[str, Any]) -> None:
+        if self.session_journal is not None:
+            self.session_journal.append(kind, attributes)
+        if self.event_recorder is not None:
+            self.event_recorder.record_request(kind, attributes)
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            recorder.record_request(kind,attributes)
 
     def _system_prompt_with_task(
         self,
@@ -1037,22 +1075,6 @@ def verification_from_result(
         return None
 
 
-def verification_is_current(
-    evidence: VerificationEvidence | None,
-    tracker: WorkspaceTracker,
-) -> bool:
-    '''Return whether evidence still describes the current execution state.'''
-    return bool(
-        evidence is not None
-        and evidence.success
-        and evidence.freshness == 'current'
-        and evidence.workspace_revision == tracker.revision
-        and evidence.environment_epoch == getattr(
-            tracker,
-            'environment_epoch',
-            0,
-        )
-    )
 
 
 def optional_int(value: object) -> int | None:

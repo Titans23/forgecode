@@ -1,0 +1,580 @@
+{
+  "schema_version": "forge.f30.observations.v1",
+  "final": true,
+  "source_inventory_hash": "f35d374c5c4fdb1fd1f05dd66548613aaaebcccc3ed39ee62c62536b0209034f",
+  "records": [
+    {
+      "id": "20261007T100100Z-61029d00",
+      "suite": "contracts",
+      "status": "pass",
+      "git_commit": "e5d5b88671fc84ab2483966397aa49047ac93852",
+      "source_inventory_hash": "f35d374c5c4fdb1fd1f05dd66548613aaaebcccc3ed39ee62c62536b0209034f",
+      "dirty_hash": "8e7f67151172cec234f738a8b5d8fd98300a3eb218fb5bf0c14f2f9caa87d610",
+      "report_ref": ".local/implementation/20261007T100100Z-61029d00/packaging.json",
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b",
+      "verified_report": {
+        "status": "pass",
+        "scope": "actual contracts commands",
+        "checks": [
+          {
+            "name": "contracts:0",
+            "status": "pass",
+            "command": [
+              "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+              "D:\\learn_project\\forgecode\\scripts\\check_contracts.py",
+              "--check"
+            ],
+            "exit_code": 0
+          },
+          {
+            "name": "contracts:1",
+            "status": "pass",
+            "command": [
+              "D:\\tools\\node\\node-v22.17.1-win-x64\\npm.CMD",
+              "run",
+              "contracts:check"
+            ],
+            "exit_code": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "20261007T100104Z-966ab87c",
+      "suite": "quality",
+      "status": "pass",
+      "git_commit": "e5d5b88671fc84ab2483966397aa49047ac93852",
+      "source_inventory_hash": "f35d374c5c4fdb1fd1f05dd66548613aaaebcccc3ed39ee62c62536b0209034f",
+      "dirty_hash": "8e7f67151172cec234f738a8b5d8fd98300a3eb218fb5bf0c14f2f9caa87d610",
+      "report_ref": ".local/implementation/20261007T100104Z-966ab87c/packaging.json",
+      "report_hash": "c9d8391106fc42d7324378796b0fa5199a4d2a8d18a8fbfc63987c8898312a8b",
+      "verified_report": {
+        "status": "pass",
+        "scope": "actual quality commands",
+        "checks": [
+          {
+            "name": "quality:0",
+            "status": "pass",
+            "command": [
+              "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+              "D:\\learn_project\\forgecode\\scripts\\quality.py"
+            ],
+            "exit_code": 0
+          },
+          {
+            "name": "quality:1",
+            "status": "pass",
+            "command": [
+              "D:\\tools\\node\\node-v22.17.1-win-x64\\npm.CMD",
+              "run",
+              "typecheck"
+            ],
+            "exit_code": 0
+          },
+          {
+            "name": "quality:2",
+            "status": "pass",
+            "command": [
+              "D:\\tools\\node\\node-v22.17.1-win-x64\\npm.CMD",
+              "run",
+              "test:unit"
+            ],
+            "exit_code": 0
+          },
+          {
+            "name": "quality:3",
+            "status": "pass",
+            "command": [
+              "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+              "D:\\learn_project\\forgecode\\packaging\\verify-release.mjs"
+            ],
+            "exit_code": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "20261007T100117Z-2b3a1290",
+      "suite": "unit",
+      "status": "pass",
+      "git_commit": "e5d5b88671fc84ab2483966397aa49047ac93852",
+      "source_inventory_hash": "f35d374c5c4fdb1fd1f05dd66548613aaaebcccc3ed39ee62c62536b0209034f",
+      "dirty_hash": "8e7f67151172cec234f738a8b5d8fd98300a3eb218fb5bf0c14f2f9caa87d610",
+      "report_ref": ".local/implementation/20261007T100117Z-2b3a1290/junit.xml",
+      "report_hash": "9198a05d406a048a20b2a86dce25c713a164abd1fb9ebac0dc7b855252208980",
+      "verified_report": {
+        "status": "pass",
+        "counts": {
+          "collected": 190,
+          "skipped": 0,
+          "failures": 0,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "id": "20261007T100154Z-0aaf1497",
+      "suite": "portable",
+      "status": "pass",
+      "git_commit": "e5d5b88671fc84ab2483966397aa49047ac93852",
+      "source_inventory_hash": "f35d374c5c4fdb1fd1f05dd66548613aaaebcccc3ed39ee62c62536b0209034f",
+      "dirty_hash": "8e7f67151172cec234f738a8b5d8fd98300a3eb218fb5bf0c14f2f9caa87d610",
+      "report_ref": ".local/implementation/20261007T100154Z-0aaf1497/junit.xml",
+      "report_hash": "57bb9101c8a1e211e37d9eaea7c4b9163f2cb3bc386cb38ca339fa6d590aec15",
+      "verified_report": {
+        "status": "pass",
+        "counts": {
+          "collected": 353,
+          "skipped": 0,
+          "failures": 0,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "id": "20261007T100111Z-456566b1",
+      "suite": "regression",
+      "status": "pass",
+      "git_commit": "e5d5b88671fc84ab2483966397aa49047ac93852",
+      "source_inventory_hash": "f35d374c5c4fdb1fd1f05dd66548613aaaebcccc3ed39ee62c62536b0209034f",
+      "dirty_hash": "8e7f67151172cec234f738a8b5d8fd98300a3eb218fb5bf0c14f2f9caa87d610",
+      "report_ref": ".local/implementation/20261007T100111Z-456566b1/junit.xml",
+      "report_hash": "aea044ef44dda0587698c56e487a23ec1e7a38bd6e8419a2bdacd68e041b3143",
+      "verified_report": {
+        "status": "pass",
+        "counts": {
+          "collected": 1287,
+          "skipped": 0,
+          "failures": 0,
+          "errors": 0
+        }
+      }
+    }
+  ],
+  "probes": [
+    {
+      "path": ".local/F30-before-current-branch.xml",
+      "sha256": "5bef938f3d2e8156dcc1a003af4ddde621b71c8c071efcf9564737b5c835cc21",
+      "counts": {
+        "collected": 11,
+        "skipped": 0,
+        "failures": 7,
+        "errors": 0
+      },
+      "failed_testcases": [
+        {
+          "name": "test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow",
+          "message": "tests\\implementation\\integration\\test_harness_regressions.py:46: in test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow\n    asyncio.run(run())\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:195: in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\base_events.py:691: in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\ntests\\implementation\\integration\\test_harness_regressions.py:43: in run\n    with pytest.raises(asyncio.CancelledError):await asyncio.create_task(consume())\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: DID NOT RAISE CancelledError"
+        },
+        {
+          "name": "test_stale_success_never_masks_current_failure_in_delivery[False]",
+          "message": "tests\\implementation\\integration\\test_harness_regressions.py:60: in test_stale_success_never_masks_current_failure_in_delivery\n    assert report.failed_checks==('current-failed',) and report.verification_status=='failed_checks'\nE   AssertionError: assert (() == ('current-failed',)\nE     \nE     Right contains one more item: 'current-failed'\nE     Use -v to get more diff)"
+        },
+        {
+          "name": "test_stale_success_never_masks_current_failure_in_delivery[True]",
+          "message": "tests\\implementation\\integration\\test_harness_regressions.py:60: in test_stale_success_never_masks_current_failure_in_delivery\n    assert report.failed_checks==('current-failed',) and report.verification_status=='failed_checks'\nE   AssertionError: assert (() == ('current-failed',)\nE     \nE     Right contains one more item: 'current-failed'\nE     Use -v to get more diff)"
+        },
+        {
+          "name": "test_completion_metadata_reports_effective_repair_cap_not_raw_request",
+          "message": "tests\\implementation\\integration\\test_harness_regressions.py:172: in test_completion_metadata_reports_effective_repair_cap_not_raw_request\n    asyncio.run(run())\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:195: in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\base_events.py:691: in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\ntests\\implementation\\integration\\test_harness_regressions.py:171: in run\n    assert terminal['attributes']['repairs_remaining']==0\nE   assert 8 == 0"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[0]",
+          "message": "tests\\implementation\\integration\\test_harness_regressions.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture', model_id='scripted-test'),\nE   TypeError: HarnessAdapter.__init__() got an unexpected keyword argument 'task_policy'"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[2]",
+          "message": "tests\\implementation\\integration\\test_harness_regressions.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture', model_id='scripted-test'),\nE   TypeError: HarnessAdapter.__init__() got an unexpected keyword argument 'task_policy'"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[10]",
+          "message": "tests\\implementation\\integration\\test_harness_regressions.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture', model_id='scripted-test'),\nE   TypeError: HarnessAdapter.__init__() got an unexpected keyword argument 'task_policy'"
+        }
+      ]
+    },
+    {
+      "path": ".local/F30-all-candidates-before.xml",
+      "sha256": "4f0e20d01b5dcfce777e7704b16c6dc3e299e27e8eb1f293b296455413d0953a",
+      "counts": {
+        "collected": 11,
+        "skipped": 0,
+        "failures": 7,
+        "errors": 0
+      },
+      "failed_testcases": [
+        {
+          "name": "test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow",
+          "message": ".local\\test_F30_candidates.py:46: in test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow\n    asyncio.run(run())\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:195: in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\base_events.py:691: in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n.local\\test_F30_candidates.py:43: in run\n    with pytest.raises(asyncio.CancelledError):await asyncio.create_task(consume())\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: DID NOT RAISE CancelledError"
+        },
+        {
+          "name": "test_stale_success_never_masks_current_failure_in_delivery[False]",
+          "message": ".local\\test_F30_candidates.py:60: in test_stale_success_never_masks_current_failure_in_delivery\n    assert report.failed_checks==('current-failed',) and report.verification_status=='failed_checks'\nE   AssertionError: assert (() == ('current-failed',)\nE     \nE     Right contains one more item: 'current-failed'\nE     Use -v to get more diff)"
+        },
+        {
+          "name": "test_stale_success_never_masks_current_failure_in_delivery[True]",
+          "message": ".local\\test_F30_candidates.py:60: in test_stale_success_never_masks_current_failure_in_delivery\n    assert report.failed_checks==('current-failed',) and report.verification_status=='failed_checks'\nE   AssertionError: assert (() == ('current-failed',)\nE     \nE     Right contains one more item: 'current-failed'\nE     Use -v to get more diff)"
+        },
+        {
+          "name": "test_completion_metadata_reports_effective_repair_cap_not_raw_request",
+          "message": ".local\\test_F30_candidates.py:172: in test_completion_metadata_reports_effective_repair_cap_not_raw_request\n    asyncio.run(run())\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:195: in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\base_events.py:691: in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n.local\\test_F30_candidates.py:171: in run\n    assert terminal['attributes']['repairs_remaining']==0\nE   assert 8 == 0"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[0]",
+          "message": ".local\\test_F30_candidates.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture'),\n                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   TypeError: ForgeConfig.__init__() missing 1 required positional argument: 'model_id'"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[2]",
+          "message": ".local\\test_F30_candidates.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture'),\n                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   TypeError: ForgeConfig.__init__() missing 1 required positional argument: 'model_id'"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[10]",
+          "message": ".local\\test_F30_candidates.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture'),\n                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   TypeError: ForgeConfig.__init__() missing 1 required positional argument: 'model_id'"
+        }
+      ]
+    },
+    {
+      "path": ".local/F30-all-candidates-valid-before.xml",
+      "sha256": "4db1bc79c626b97e0528e89962376c84bac5f0299455959ec002cf40b50c6c0f",
+      "counts": {
+        "collected": 11,
+        "skipped": 0,
+        "failures": 7,
+        "errors": 0
+      },
+      "failed_testcases": [
+        {
+          "name": "test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow",
+          "message": ".local\\test_F30_candidates.py:46: in test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow\n    asyncio.run(run())\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:195: in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\base_events.py:691: in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n.local\\test_F30_candidates.py:43: in run\n    with pytest.raises(asyncio.CancelledError):await asyncio.create_task(consume())\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: DID NOT RAISE CancelledError"
+        },
+        {
+          "name": "test_stale_success_never_masks_current_failure_in_delivery[False]",
+          "message": ".local\\test_F30_candidates.py:60: in test_stale_success_never_masks_current_failure_in_delivery\n    assert report.failed_checks==('current-failed',) and report.verification_status=='failed_checks'\nE   AssertionError: assert (() == ('current-failed',)\nE     \nE     Right contains one more item: 'current-failed'\nE     Use -v to get more diff)"
+        },
+        {
+          "name": "test_stale_success_never_masks_current_failure_in_delivery[True]",
+          "message": ".local\\test_F30_candidates.py:60: in test_stale_success_never_masks_current_failure_in_delivery\n    assert report.failed_checks==('current-failed',) and report.verification_status=='failed_checks'\nE   AssertionError: assert (() == ('current-failed',)\nE     \nE     Right contains one more item: 'current-failed'\nE     Use -v to get more diff)"
+        },
+        {
+          "name": "test_completion_metadata_reports_effective_repair_cap_not_raw_request",
+          "message": ".local\\test_F30_candidates.py:172: in test_completion_metadata_reports_effective_repair_cap_not_raw_request\n    asyncio.run(run())\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:195: in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\base_events.py:691: in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n.local\\test_F30_candidates.py:171: in run\n    assert terminal['attributes']['repairs_remaining']==0\nE   assert 8 == 0"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[0]",
+          "message": ".local\\test_F30_candidates.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture', model_id='scripted-test'),\nE   TypeError: HarnessAdapter.__init__() got an unexpected keyword argument 'task_policy'"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[2]",
+          "message": ".local\\test_F30_candidates.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture', model_id='scripted-test'),\nE   TypeError: HarnessAdapter.__init__() got an unexpected keyword argument 'task_policy'"
+        },
+        {
+          "name": "test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults[10]",
+          "message": ".local\\test_F30_candidates.py:184: in test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults\n    adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture', model_id='scripted-test'),\nE   TypeError: HarnessAdapter.__init__() got an unexpected keyword argument 'task_policy'"
+        }
+      ]
+    },
+    {
+      "path": ".local/F30-after-focused.xml",
+      "sha256": "e97f9e260f35a1b96e7097026f4009ba2b45f6315e73e39657ad9b688c6a394c",
+      "counts": {
+        "collected": 49,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "failed_testcases": []
+    },
+    {
+      "path": ".local/F30-ignored-workspace-before.xml",
+      "sha256": "3b0782e525094f66dd10dbf92f6d6e24811f200845485a7af64a9f503583d187",
+      "counts": {
+        "collected": 3,
+        "skipped": 0,
+        "failures": 1,
+        "errors": 0
+      },
+      "failed_testcases": [
+        {
+          "name": "test_ignored_workspace_detects_unwatched_external_edit",
+          "message": "tests\\implementation\\unit\\test_workspace_scope.py:57: in test_ignored_workspace_detects_unwatched_external_edit\n    asyncio.run(run())\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:195: in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nC:\\Users\\Titans\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\asyncio\\base_events.py:691: in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\ntests\\implementation\\unit\\test_workspace_scope.py:55: in run\n    assert change is not None and change.paths == ('input.txt',)\nE   assert (None is not None)"
+        }
+      ]
+    },
+    {
+      "path": ".local/F30-complete-focused.xml",
+      "sha256": "6e8d94309f3fba6aeeee3e9b09200e6ceb3e45729a4c18ec988ff9a9d25a7750",
+      "counts": {
+        "collected": 21,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "failed_testcases": []
+    },
+    {
+      "path": ".local/F30-ignored-parent-harness-after.xml",
+      "sha256": "d77cbd9f9527bb9bb500953f4ce027f0c43538ae898f2e6c0474ab7e263c46fd",
+      "counts": {
+        "collected": 15,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "failed_testcases": []
+    },
+    {
+      "path": ".local/F30-cancel-before.json",
+      "sha256": "be10e5d4977cb0f55a6097ebf93687d4515165f0e98346a391a2891fb17f8a78",
+      "report": {
+        "scope": "actual loopback cancellation boundary; no public model or sandbox acceptance",
+        "status": "fail",
+        "network_requests_after_pending_cancel": 1,
+        "counted_model_requests": 1,
+        "outcome": "completed"
+      }
+    },
+    {
+      "path": ".local/F30-cancel-after.json",
+      "sha256": "5907145f0d71d87d6938fa87809b63613c7bdfc3bfe1e30ac800fa675d154a54",
+      "report": {
+        "scope": "actual loopback cancellation boundary; no public model or sandbox acceptance",
+        "status": "pass",
+        "network_requests_after_pending_cancel": 0,
+        "counted_model_requests": 0,
+        "outcome": "cancelled"
+      }
+    },
+    {
+      "path": ".local/F30-stale-before.json",
+      "sha256": "227781cb7a35f4a9ae2f88992fc33bdde5778d9aa1512b55ab4e5a51a7a4c7e4",
+      "report": {
+        "scope": "offline structured evidence regression, no grader/model/native acceptance",
+        "supersession_allowed": true,
+        "failed_checks": [],
+        "verification_status": "unverified"
+      }
+    },
+    {
+      "path": ".local/F30-repair-metadata-before.json",
+      "sha256": "ec8cd4573f59758a26fd5f07dfb64e903e27afd59ccbf1c7449019796e5fd928",
+      "report": {
+        "scope": "actual Journal completion metadata; no external model/grade/native claim",
+        "requested_cap": 10,
+        "actual_offers": [
+          true,
+          true,
+          false
+        ],
+        "reported_remaining": 8,
+        "expected_remaining": 0
+      }
+    },
+    {
+      "path": ".local/F28-node24-before.xml",
+      "sha256": "370a475fc3c12bea4ef9ab8c8a62cc3c1ffc6cdacb7bf00b4710bd7f36580bf4",
+      "counts": {
+        "collected": 15,
+        "skipped": 0,
+        "failures": 2,
+        "errors": 0
+      },
+      "failed_testcases": [
+        {
+          "name": "test_actual_fixed_asset_security_checks",
+          "message": "tests\\implementation\\unit\\test_desktop_assets.py:10: in test_actual_fixed_asset_security_checks\n    assert '# pass 3' in result.stdout and '# skipped 0' in result.stdout\nE   AssertionError: assert ('# pass 3' in '✔ fixed UI protocol refuses traversal, wrong origins and replaced assets (13.8037ms)\\n✔ installed Engine refuses inco...(49.3574ms)\\nℹ tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 331.3822\\n')\nE    +  where '✔ fixed UI protocol refuses traversal, wrong origins and replaced assets (13.8037ms)\\n✔ installed Engine refuses inco...(49.3574ms)\\nℹ tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 331.3822\\n' = CompletedProcess(args=['node', '--test', 'tests/implementation/node/desktop-assets.test.mjs'], returncode=0, stdout='✔...nℹ tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 331.3822\\n', stderr='').stdout"
+        },
+        {
+          "name": "test_real_node_release_loader_behavior",
+          "message": "tests\\implementation\\unit\\test_release_build.py:14: in test_real_node_release_loader_behavior\n    assert '# pass 4' in result.stdout\nE   AssertionError: assert '# pass 4' in '✔ unresolved lock prevents build before running package tools (9.8623ms)\\n✔ loader refuses tampered native assets (7.... (9.8792ms)\\nℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 127.3471\\n'\nE    +  where '✔ unresolved lock prevents build before running package tools (9.8623ms)\\n✔ loader refuses tampered native assets (7.... (9.8792ms)\\nℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 127.3471\\n' = CompletedProcess(args=['D:\\\\learn_project\\\\forgecode\\\\.local\\\\release-runtime\\\\node-24.21.0-win-x64\\\\node.EXE', '--tes...nℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 127.3471\\n', stderr='').stdout"
+        }
+      ]
+    }
+  ],
+  "public_model_requests": 0,
+  "official_grades": 0,
+  "github_f29_ci": {
+    "run_id": 37603953403,
+    "url": "https://github.com/Titans23/forgecode/actions/runs/37603953403",
+    "commit": "e5d5b88671fc84ab2483966397aa49047ac93852",
+    "status": "fail",
+    "native_acceptance": false,
+    "job_logs": [
+      {
+        "id": 112734792279,
+        "status": "observed",
+        "path": ".local/F29-remote-ci/job-112734792279.log",
+        "sha256": "c3998c465f85af32f88d0c033df774b6b42a24ff1c094b833439a2609de43c08",
+        "selected": [
+          "2026-10-07T09:56:06.5303392Z Version 3.12.13 was not found in the local cache",
+          "2026-10-07T09:56:10.9934006Z ##[error]The version '3.12.13' with architecture 'x64' was not found for Windows 2025."
+        ]
+      },
+      {
+        "id": 112734792295,
+        "status": "observed",
+        "path": ".local/F29-remote-ci/job-112734792295.log",
+        "sha256": "ee00fb1fc69e9be87cadba1fc34ffff63e0ee9d2b35bfc034c02d5a36f812925",
+        "selected": [
+          "2026-10-07T09:55:56.0056573Z Version 3.12.13 was not found in the local cache",
+          "2026-10-07T09:57:03.6493996Z ##[error]Process completed with exit code 1."
+        ]
+      },
+      {
+        "id": 112734792338,
+        "status": "observed",
+        "path": ".local/F29-remote-ci/job-112734792338.log",
+        "sha256": "2454224bf5ac2d4bbf592abef272701843a583dd2086ef6cd388eaa8f461bb4d",
+        "selected": [
+          "2026-10-07T09:55:54.4272684Z Version 3.12.13 was not found in the local cache",
+          "2026-10-07T09:56:58.0214303Z ##[error]Process completed with exit code 1."
+        ]
+      },
+      {
+        "id": 112734792193,
+        "status": "observed",
+        "path": ".local/F29-remote-ci/job-112734792193.log",
+        "sha256": "16335c68ac5cf4c36a7b662625492d5f00eccc419b7d76de6b7ff5837ed8d7cd",
+        "selected": [
+          "2026-10-07T09:55:54.3061377Z Version 3.12.13 was not found in the local cache",
+          "2026-10-07T09:56:13.5167596Z   \"status\": \"blocked\",",
+          "2026-10-07T09:56:13.5168373Z     \"reason\": \"Unresolved locked dependency vulnerabilities\",",
+          "2026-10-07T09:56:13.5333168Z ##[error]Process completed with exit code 2."
+        ]
+      }
+    ],
+    "downloaded_artifacts": [
+      {
+        "artifact": "portable-ubuntu-24.04",
+        "id": 11474186905,
+        "path": ".local/F29-remote-ci/artifact-11474186905.zip",
+        "sha256": "149fe7ed66e47a50c49d1443127e3697f61c28dea600013ac05ad934f2168f1c",
+        "failures": [
+          {
+            "name": "test_actual_fixed_asset_security_checks",
+            "class": "tests.implementation.unit.test_desktop_assets",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_desktop_assets.py:10: in test_actual_fixed_asset_security_checks\n    assert '# pass 3' in result.stdout and '# skipped 0' in result.stdout\nE   AssertionError: assert ('# pass 3' in '✔ fixed UI protocol refuses traversal, wrong origins and replaced assets (7.274264ms)\\n✔ installed Engine refuses inc...486946ms)\\nℹ tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 197.943889\\n')\nE    +  where '✔ fixed UI protocol refuses traversal, wrong origins and replaced assets (7.274264ms)\\n✔ installed Engine refuses inc...486946ms)\\nℹ tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 197.943889\\n' = CompletedProcess(args=['node', '--test', 'tests/implementation/node/desktop-assets.test.mjs'], returncode=0, stdout='✔... tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 197.943889\\n', stderr='').stdout"
+          },
+          {
+            "name": "test_native_selected_file_never_overwrites_follows_links_or_publishes_after_guard_loss",
+            "class": "tests.implementation.unit.test_native_result_files",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_native_result_files.py:20: in test_native_selected_file_never_overwrites_follows_links_or_publishes_after_guard_loss\n    assert all(json.loads(result.stdout).values())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/json/decoder.py:338: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/json/decoder.py:356: in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE   json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+          },
+          {
+            "name": "test_real_node_release_loader_behavior",
+            "class": "tests.implementation.unit.test_release_build",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_release_build.py:14: in test_real_node_release_loader_behavior\n    assert '# pass 4' in result.stdout\nE   AssertionError: assert '# pass 4' in '✔ unresolved lock prevents build before running package tools (6.79607ms)\\n✔ loader refuses tampered native assets (4....714379ms)\\nℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 77.366135\\n'\nE    +  where '✔ unresolved lock prevents build before running package tools (6.79607ms)\\n✔ loader refuses tampered native assets (4....714379ms)\\nℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 77.366135\\n' = CompletedProcess(args=['/opt/hostedtoolcache/node/24.21.0/x64/bin/node', '--test', 'tests/implementation/node/release-...ℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 77.366135\\n', stderr='').stdout"
+          },
+          {
+            "name": "test_resource_path_and_internal_symlink",
+            "class": "tests.implementation.unit.test_release_runtime",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_release_runtime.py:60: in test_resource_path_and_internal_symlink\n    with pytest.raises(ValueError): verify_manifest(tmp_path)\n                                    ^^^^^^^^^^^^^^^^^^^^^^^^^\nforge/release/runtime.py:57: in verify_manifest\n    verify_asset(root,asset)\nforge/release/runtime.py:24: in verify_asset\n    actual=path.resolve(strict=True)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/pathlib.py:1240: in resolve\n    s = self._flavour.realpath(self, strict=strict)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<frozen posixpath>:424: in realpath\n    ???\n<frozen posixpath>:491: in _joinrealpath\n    ???\n<frozen posixpath>:468: in _joinrealpath\n    ???\nE   FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/forgecode/forgecode/.local/implementation/20261007T095637Z-4c9b6d8f/tmp/outside'"
+          }
+        ]
+      },
+      {
+        "artifact": "portable-ubuntu-22.04",
+        "id": 11473947616,
+        "path": ".local/F29-remote-ci/artifact-11473947616.zip",
+        "sha256": "7074217f7ac646494dc99d6fc161fd85d086b2bb0b00b33f7472cb64fe8dd89b",
+        "failures": [
+          {
+            "name": "test_actual_fixed_asset_security_checks",
+            "class": "tests.implementation.unit.test_desktop_assets",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_desktop_assets.py:10: in test_actual_fixed_asset_security_checks\n    assert '# pass 3' in result.stdout and '# skipped 0' in result.stdout\nE   AssertionError: assert ('# pass 3' in '✔ fixed UI protocol refuses traversal, wrong origins and replaced assets (7.474416ms)\\n✔ installed Engine refuses inc....81846ms)\\nℹ tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 194.714417\\n')\nE    +  where '✔ fixed UI protocol refuses traversal, wrong origins and replaced assets (7.474416ms)\\n✔ installed Engine refuses inc....81846ms)\\nℹ tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 194.714417\\n' = CompletedProcess(args=['node', '--test', 'tests/implementation/node/desktop-assets.test.mjs'], returncode=0, stdout='✔... tests 3\\nℹ suites 0\\nℹ pass 3\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 194.714417\\n', stderr='').stdout"
+          },
+          {
+            "name": "test_native_selected_file_never_overwrites_follows_links_or_publishes_after_guard_loss",
+            "class": "tests.implementation.unit.test_native_result_files",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_native_result_files.py:20: in test_native_selected_file_never_overwrites_follows_links_or_publishes_after_guard_loss\n    assert all(json.loads(result.stdout).values())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/json/decoder.py:338: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/json/decoder.py:356: in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE   json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+          },
+          {
+            "name": "test_real_node_release_loader_behavior",
+            "class": "tests.implementation.unit.test_release_build",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_release_build.py:14: in test_real_node_release_loader_behavior\n    assert '# pass 4' in result.stdout\nE   AssertionError: assert '# pass 4' in '✔ unresolved lock prevents build before running package tools (6.761965ms)\\n✔ loader refuses tampered native assets (....662805ms)\\nℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 81.002302\\n'\nE    +  where '✔ unresolved lock prevents build before running package tools (6.761965ms)\\n✔ loader refuses tampered native assets (....662805ms)\\nℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 81.002302\\n' = CompletedProcess(args=['/opt/hostedtoolcache/node/24.21.0/x64/bin/node', '--test', 'tests/implementation/node/release-...ℹ tests 4\\nℹ suites 0\\nℹ pass 4\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 81.002302\\n', stderr='').stdout"
+          },
+          {
+            "name": "test_resource_path_and_internal_symlink",
+            "class": "tests.implementation.unit.test_release_runtime",
+            "verdict": "failure",
+            "message": "tests/implementation/unit/test_release_runtime.py:60: in test_resource_path_and_internal_symlink\n    with pytest.raises(ValueError): verify_manifest(tmp_path)\n                                    ^^^^^^^^^^^^^^^^^^^^^^^^^\nforge/release/runtime.py:57: in verify_manifest\n    verify_asset(root,asset)\nforge/release/runtime.py:24: in verify_asset\n    actual=path.resolve(strict=True)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/pathlib.py:1240: in resolve\n    s = self._flavour.realpath(self, strict=strict)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<frozen posixpath>:424: in realpath\n    ???\n<frozen posixpath>:491: in _joinrealpath\n    ???\n<frozen posixpath>:468: in _joinrealpath\n    ???\nE   FileNotFoundError: [Errno 2] No such file or directory: '/home/runner/work/forgecode/forgecode/.local/implementation/20261007T095640Z-92379e91/tmp/outside'"
+          }
+        ]
+      }
+    ]
+  },
+  "behavior_evidence": {
+    "new_harness_cases": 12,
+    "new_workspace_cases": 1,
+    "valid_current_branch_before": {
+      "collected": 11,
+      "failures": 7,
+      "passed": 4
+    },
+    "ignored_workspace_before": {
+      "collected": 3,
+      "failures": 1,
+      "passed": 2
+    },
+    "fixed_focus_after": {
+      "collected": 49,
+      "passed": 49
+    },
+    "complete_focus_after": {
+      "collected": 21,
+      "passed": 21
+    },
+    "deep_ignored_parent_harness_after": {
+      "collected": 15,
+      "passed": 15
+    },
+    "raw_candidate_fixture_errors": "F30-all-candidates-before.xml includes three missing ForgeConfig.model_id fixture errors; corrected before-current-branch is the product baseline",
+    "scripted_model": true,
+    "actual_boundaries": [
+      "loopback TCP",
+      "Python tools",
+      "filesystem",
+      "Git",
+      "Journal",
+      "existing Harness",
+      "parent/child usage",
+      "context compression"
+    ],
+    "native_acceptance": false
+  },
+  "decisions": [
+    "Pending cancellation is propagated before request counting or transport; no additional retry",
+    "Only current revision/epoch verification can resolve current failure",
+    "TaskPolicy clamps effective repair cap to 0..2 for offers and terminal metadata",
+    "HarnessAdapter injects existing task_policy and exports actual capability; generic default0 and existing Harbor explicit2 preserved",
+    "Ignored workspace uses existing content-hash filesystem observation; parent Git files remain excluded",
+    "Harbor paid/policy guards remain closed; key or nonzero budget does not authorize spending"
+  ],
+  "limits": [
+    "Only Windows10 developer tests; no supported Windows11/Ubuntu native acceptance",
+    "No administrator setup, paid public-model calls or official grades",
+    "Hosted F29 CI failed; Windows Python acquisition and Ubuntu reporter/resource diagnostics continue in F28",
+    "Unresolved dependency security, signing and project LICENSE block production release"
+  ],
+  "followup_task": "F28",
+  "ci_gate": {
+    "status": "pass",
+    "gate": "ci",
+    "incomplete_tasks": [],
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [],
+    "selected_evidence_ids": [
+      "20261007T100100Z-61029d00",
+      "20261007T100104Z-966ab87c",
+      "20261007T100117Z-2b3a1290",
+      "20261007T100154Z-0aaf1497"
+    ]
+  }
+}
+

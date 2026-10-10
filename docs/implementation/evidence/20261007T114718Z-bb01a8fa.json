@@ -1,0 +1,43 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261007T114718Z-bb01a8fa",
+  "task_id": "F28",
+  "case_ids": [
+    "D02"
+  ],
+  "suite": "installer-linux",
+  "git_commit": "f3c194ae7eebca392fb1db8511903013e554c933",
+  "dirty_hash": "1329bf8fd76afba32b52e726a60958562a0c41a9d211886f55fb77995f8bb9ff",
+  "source_inventory_hash": "18ead74aa5275d1658c49d590f0e3e2918a65bff23642c635469a0e870311c17",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a",
+    "release-lock.json": "332e39667e5c849ad70a4bda4296ab8c9eeba8b6b77b0c1c09c3204d09a2a194"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\make_installer.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261007T114718Z-bb01a8fa\\packaging.json",
+    "--target",
+    "linux-x64"
+  ],
+  "start": "2026-10-07T11:47:18.355069+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-07T11:47:19.328618+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261007T114718Z-bb01a8fa/stdout.log",
+  "stderr_ref": ".local/implementation/20261007T114718Z-bb01a8fa/stderr.log",
+  "report_ref": ".local/implementation/20261007T114718Z-bb01a8fa/packaging.json",
+  "report_hash": "1c60fae9cac2cb794dcde69a4bb21ec4c087cdb102eecc6c75a732158cf18719",
+  "status": "blocked",
+  "tests": {
+    "reason": "Native installer target OS is unavailable",
+    "eligible_for_native_pass": false,
+    "checks": 0
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "forge.fixture.v1",
+  "fixture_id": "restricted-path",
+  "origin": "synthetic-fixture",
+  "inputs": [
+    "project/probe.py",
+    "sensitive/.env"
+  ],
+  "acceptance_tasks": [
+    "F09",
+    "F10",
+    "F11"
+  ],
+  "assertions": [
+    "only synthetic sensitive data",
+    "file-worker and shell deny the same protected target",
+    "native Windows and Linux acceptance"
+  ]
+}

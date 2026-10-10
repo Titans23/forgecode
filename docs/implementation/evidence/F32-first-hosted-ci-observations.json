@@ -1,0 +1,355 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F32",
+  "scope": "actual first F32 GitHub run; retained failed reports",
+  "run": {
+    "id": 37636301297,
+    "html_url": "https://github.com/Titans23/forgecode/actions/runs/37636301297",
+    "head_sha": "dd17e3488103008957ed88bfff764cbe27694a94",
+    "status": "completed",
+    "conclusion": "failure",
+    "created_at": "2026-10-07T14:23:35Z",
+    "updated_at": "2026-10-07T14:30:35Z"
+  },
+  "jobs": [
+    {
+      "id": 112843313479,
+      "name": "dependency-security",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T14:23:38Z",
+      "completed_at": "2026-10-07T14:23:57Z"
+    },
+    {
+      "id": 112843313985,
+      "name": "portable (windows-2025)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T14:23:39Z",
+      "completed_at": "2026-10-07T14:30:33Z"
+    },
+    {
+      "id": 112843313997,
+      "name": "portable (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T14:23:39Z",
+      "completed_at": "2026-10-07T14:28:04Z"
+    },
+    {
+      "id": 112843314138,
+      "name": "portable (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-07T14:23:39Z",
+      "completed_at": "2026-10-07T14:28:07Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 11491016172,
+      "name": "portable-windows-2025",
+      "sha256": "f0717c6ca11a3261d5cbf75cc07c3c5085e9e885cf5ac57d03d6a5cec7605b53",
+      "size_in_bytes": 579266,
+      "suites": [
+        {
+          "evidence_id": "20261007T142432Z-3c69ea3e",
+          "suite": "contracts",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "582835657e0a0bc38dcfc0446ba2847b078ece8d83ffbb9d87ca3ba764113138",
+          "tests": {
+            "scope": "actual contracts commands",
+            "checks": 2
+          },
+          "report_hash": "9ff3f9d8d976b6224adb2a71437c4318658e43146311a6386b251df89c64700b"
+        },
+        {
+          "evidence_id": "20261007T142434Z-7786daac",
+          "suite": "quality",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "582835657e0a0bc38dcfc0446ba2847b078ece8d83ffbb9d87ca3ba764113138",
+          "tests": {
+            "scope": "actual quality commands",
+            "checks": 4
+          },
+          "report_hash": "81366ac10ae729a880e0dfd428c186be0c924b35385d91ab92744a75469b8bdc"
+        },
+        {
+          "evidence_id": "20261007T142517Z-b61136ff",
+          "suite": "unit",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "582835657e0a0bc38dcfc0446ba2847b078ece8d83ffbb9d87ca3ba764113138",
+          "tests": {
+            "collected": 223,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "report_hash": "62212ca7f1af016861a769cce92df80672d79faadf82b949b4edfcd363a36bc9"
+        },
+        {
+          "evidence_id": "20261007T142541Z-ac8b7afa",
+          "suite": "portable",
+          "status": "fail",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "582835657e0a0bc38dcfc0446ba2847b078ece8d83ffbb9d87ca3ba764113138",
+          "tests": {
+            "collected": 381,
+            "skipped": 0,
+            "failures": 2,
+            "errors": 0
+          },
+          "report_hash": "030156af227bad8c8bd820ec103b262e2716afeb2977afa2d592087e65fdc757"
+        }
+      ],
+      "junit_counts": [
+        {
+          "sha256": "62212ca7f1af016861a769cce92df80672d79faadf82b949b4edfcd363a36bc9",
+          "collected": 223,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failed_cases": []
+        },
+        {
+          "sha256": "030156af227bad8c8bd820ec103b262e2716afeb2977afa2d592087e65fdc757",
+          "collected": 381,
+          "failures": 2,
+          "errors": 0,
+          "skipped": 0,
+          "failed_cases": [
+            "test_cli_eval_catalog_matches_existing_actual_catalog",
+            "test_actual_browser_login_csp_and_shared_ui_execute_the_scripted_task"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11490840783,
+      "name": "portable-ubuntu-24.04",
+      "sha256": "499135fa5800141e06b3be7ac3030116f5ae8381b234ead2a584f95a2b0a30d4",
+      "size_in_bytes": 580092,
+      "suites": [
+        {
+          "evidence_id": "20261007T142407Z-3e6a8809",
+          "suite": "contracts",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "scope": "actual contracts commands",
+            "checks": 2
+          },
+          "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef"
+        },
+        {
+          "evidence_id": "20261007T142409Z-111ce8e8",
+          "suite": "quality",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "scope": "actual quality commands",
+            "checks": 4
+          },
+          "report_hash": "f9fcaa3a47458edad1caccf92e260ec64f0e2b0f96b2e3dbb5a85c6b411ba7d6"
+        },
+        {
+          "evidence_id": "20261007T142416Z-9efabbc0",
+          "suite": "unit",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "collected": 223,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "report_hash": "6403802aca749c443ab40e949d5dbc83444c8be894395a666104f49af0d9f271"
+        },
+        {
+          "evidence_id": "20261007T142436Z-d9681de4",
+          "suite": "portable",
+          "status": "fail",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "collected": 381,
+            "skipped": 0,
+            "failures": 14,
+            "errors": 0
+          },
+          "report_hash": "59cb3122608e8e403f47565356ba72428c1ac8b4a59e65d23e9fa8acc2f44935"
+        }
+      ],
+      "junit_counts": [
+        {
+          "sha256": "6403802aca749c443ab40e949d5dbc83444c8be894395a666104f49af0d9f271",
+          "collected": 223,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failed_cases": []
+        },
+        {
+          "sha256": "59cb3122608e8e403f47565356ba72428c1ac8b4a59e65d23e9fa8acc2f44935",
+          "collected": 381,
+          "failures": 14,
+          "errors": 0,
+          "skipped": 0,
+          "failed_cases": [
+            "test_existing_cli_signatures_and_original_tool_schemas_match_f25_golden",
+            "test_actual_main_supervisor_handshake_turn_reload_and_owned_shutdown",
+            "test_actual_main_supervisor_refuses_incompatible_or_lost_engine_and_cancels_owned_turn[incompatible-incompatible_disables_turn]",
+            "test_actual_main_supervisor_refuses_incompatible_or_lost_engine_and_cancels_owned_turn[crash-lost_without_respawn]",
+            "test_actual_main_supervisor_refuses_incompatible_or_lost_engine_and_cancels_owned_turn[active-close-cancelled_owned_active_turn]",
+            "test_actual_browser_login_csp_and_shared_ui_execute_the_scripted_task",
+            "test_actual_desktop_and_http_transports_share_task_dtos_reducer_and_durable_reconciliation[normal]",
+            "test_actual_desktop_and_http_transports_share_task_dtos_reducer_and_durable_reconciliation[expired-ack]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[response-loss]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[double-response-loss]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[late-response]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[unknown-response]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[unconfirmed-limit]",
+            "test_actual_main_hard_kill_reconciles_unconfirmed_work_without_replay"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11490770818,
+      "name": "portable-ubuntu-22.04",
+      "sha256": "43fa6c3a2bdc33f4f13eaf1aecdfb82e97b9b2ec5afa6ddc4c7834c549971ac8",
+      "size_in_bytes": 580203,
+      "suites": [
+        {
+          "evidence_id": "20261007T142413Z-a0f3abcb",
+          "suite": "contracts",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "scope": "actual contracts commands",
+            "checks": 2
+          },
+          "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef"
+        },
+        {
+          "evidence_id": "20261007T142415Z-c77ae639",
+          "suite": "quality",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "scope": "actual quality commands",
+            "checks": 4
+          },
+          "report_hash": "f9fcaa3a47458edad1caccf92e260ec64f0e2b0f96b2e3dbb5a85c6b411ba7d6"
+        },
+        {
+          "evidence_id": "20261007T142422Z-00c428a9",
+          "suite": "unit",
+          "status": "pass",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "collected": 223,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "report_hash": "a67d38a88062756f79ac62a6c808db628611c9ada76df8be9e9f44933a635b92"
+        },
+        {
+          "evidence_id": "20261007T142440Z-4afc5f63",
+          "suite": "portable",
+          "status": "fail",
+          "git_commit": "dd17e3488103008957ed88bfff764cbe27694a94",
+          "source_inventory_hash": "e1730af51e849332cb1b9ac7505c3704ede919f897e28d2e27699f5a0c7a5868",
+          "tests": {
+            "collected": 381,
+            "skipped": 0,
+            "failures": 14,
+            "errors": 0
+          },
+          "report_hash": "4fed4e1524fd93327634c4c9e0926c750f07e390a3aa75a28457496a73d4c9a7"
+        }
+      ],
+      "junit_counts": [
+        {
+          "sha256": "a67d38a88062756f79ac62a6c808db628611c9ada76df8be9e9f44933a635b92",
+          "collected": 223,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failed_cases": []
+        },
+        {
+          "sha256": "4fed4e1524fd93327634c4c9e0926c750f07e390a3aa75a28457496a73d4c9a7",
+          "collected": 381,
+          "failures": 14,
+          "errors": 0,
+          "skipped": 0,
+          "failed_cases": [
+            "test_existing_cli_signatures_and_original_tool_schemas_match_f25_golden",
+            "test_actual_main_supervisor_handshake_turn_reload_and_owned_shutdown",
+            "test_actual_main_supervisor_refuses_incompatible_or_lost_engine_and_cancels_owned_turn[incompatible-incompatible_disables_turn]",
+            "test_actual_main_supervisor_refuses_incompatible_or_lost_engine_and_cancels_owned_turn[crash-lost_without_respawn]",
+            "test_actual_main_supervisor_refuses_incompatible_or_lost_engine_and_cancels_owned_turn[active-close-cancelled_owned_active_turn]",
+            "test_actual_browser_login_csp_and_shared_ui_execute_the_scripted_task",
+            "test_actual_desktop_and_http_transports_share_task_dtos_reducer_and_durable_reconciliation[normal]",
+            "test_actual_desktop_and_http_transports_share_task_dtos_reducer_and_durable_reconciliation[expired-ack]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[response-loss]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[double-response-loss]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[late-response]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[unknown-response]",
+            "test_real_main_response_loss_reconciles_action_without_duplicate_turn[unconfirmed-limit]",
+            "test_actual_main_hard_kill_reconciles_unconfirmed_work_without_replay"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11489592002,
+      "name": "actual-dependency-security",
+      "sha256": "584bfc12d02f9b353493a1d4ce9b699e3e46dda5b62c64397af1c951c575fbff",
+      "size_in_bytes": 546584,
+      "suites": []
+    }
+  ],
+  "logs": [
+    {
+      "job": 112843313479,
+      "path": ".local/F32-remote-ci/job-112843313479.log",
+      "sha256": "2f95d35f93aafaae53939335d33b539b9bf42568848076c5d3756bb0803212e3"
+    },
+    {
+      "job": 112843313985,
+      "path": ".local/F32-remote-ci/job-112843313985.log",
+      "sha256": "0d58198acae317d69f612087088361b3a134c260691a600f124c178e04d4b8da"
+    },
+    {
+      "job": 112843313997,
+      "path": ".local/F32-remote-ci/job-112843313997.log",
+      "sha256": "9217c73cce135d4fc5f345aaa3c03e24dec9e3f13f06054cbbf38ecde70d5f44"
+    },
+    {
+      "job": 112843314138,
+      "path": ".local/F32-remote-ci/job-112843314138.log",
+      "sha256": "1e7814ecf2a679d6656f139b08825049936c401ce714297b42b80a535d519751"
+    }
+  ],
+  "repair_findings": [
+    "Launch the hash-verified fixed venv alias rather than its resolved base interpreter.",
+    "Install locked Electron44 explicitly; npm ci has no binary postinstall in its actual package.",
+    "Preserve original platform-specific RunCommand descriptions; baseline hashes are derived from original F25 source, not replaced runtime values.",
+    "Serialize machine-readable catalog JSON with ASCII escapes so redirected Windows codepages preserve all Unicode values."
+  ],
+  "model_calls": 0,
+  "eligible_for_native_pass": false,
+  "candidate_results": "Not verified on hosted runners yet; local reruns in progress."
+}

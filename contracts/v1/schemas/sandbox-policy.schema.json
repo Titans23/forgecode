@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:sandbox-policy",
+  "title": "SandboxPolicy v1",
+  "description": "绝对路径由可信 Engine 规范化并验证文件身份；schema 不证明路径授权或后端隔离。能力不满足 hard_required 必须拒绝。",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "forge.sandbox.policy.v1"
+    },
+    "policy_id": {
+      "type": "string",
+      "pattern": "^policy-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "workspace_id": {
+      "type": "string",
+      "pattern": "^ws-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read_mode": {
+          "enum": [
+            "backend_default_with_protected_paths",
+            "strict_allowlist_required",
+            "host_default"
+          ]
+        },
+        "read_roots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "maxItems": 128
+        },
+        "write_roots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "maxItems": 128
+        },
+        "protected_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "maxItems": 128
+        },
+        "deny_overrides_allow": {
+          "const": true
+        },
+        "reject_unsafe_links": {
+          "const": true
+        }
+      },
+      "required": [
+        "read_mode",
+        "read_roots",
+        "write_roots",
+        "protected_paths",
+        "deny_overrides_allow",
+        "reject_unsafe_links"
+      ]
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "deny_direct",
+            "allowlist",
+            "inherit"
+          ]
+        },
+        "allowed_domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253
+          },
+          "maxItems": 128
+        },
+        "dns_isolation_required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "allowed_domains",
+        "dns_isolation_required"
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_bytes": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "enforcement": {
+                  "enum": [
+                    "hard_required",
+                    "best_effort"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "enforcement"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disk_bytes": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "enforcement": {
+                  "enum": [
+                    "hard_required",
+                    "best_effort"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "enforcement"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pids": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "enforcement": {
+                  "enum": [
+                    "hard_required",
+                    "best_effort"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "enforcement"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "wall_time_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 604800
+        },
+        "command_output_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "session_artifact_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "memory_bytes",
+        "disk_bytes",
+        "pids",
+        "wall_time_seconds",
+        "command_output_bytes",
+        "session_artifact_bytes"
+      ]
+    },
+    "environment_keys": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "maxItems": 128
+    },
+    "fallback": {
+      "const": "deny"
+    },
+    "session_mutation": {
+      "const": "replace_session"
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "workspace_id",
+    "filesystem",
+    "network",
+    "limits",
+    "environment_keys",
+    "fallback",
+    "session_mutation"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "network": {
+            "properties": {
+              "mode": {
+                "const": "deny_direct"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "network": {
+            "properties": {
+              "allowed_domains": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

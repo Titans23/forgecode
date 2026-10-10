@@ -1,0 +1,13 @@
+# ADR 018 — Actual request usage and bounded observation
+
+Accepted, 2026-10-06. Implements F18 without changing the Python Harness/CLI entry points.
+
+A ledger row belongs to one actual model_request, created at its started boundary. The accepted turn freezes an explicit USD PriceBook snapshot. Raw provider usage, disjoint normalized cache components, exact Decimal costs and unknown quality remain separate. Retries and Explore/summary requests have their own rows; parent summaries never charge again. Incomplete Anthropic usage remains unknown until a real final marker. Later trusted usage confirmation updates the same row and rejects conflicting facts.
+
+SQLite migration 008 preserves backup-before-migration and backfills actual old event identities without inventing prices. Observation queries use the existing signed scope/collection cursors. Verification validity uses an actual guarded workspace content observation; missing full hashes remain missing. Context preservation refers to exact message fingerprints and tool pairs, not inferred semantic equivalence.
+
+Metadata is the default capture. Explicit controlled_debug writes redacted bounded private context/tool/model text; optional storage failures do not fail the Agent. OTLP is disabled until an endpoint and explicit metadata confirmation are supplied. A bounded durable outbox, per-destination identity, finite retries and asynchronous delivery do not mutate execution/grade facts. No raw debug text is exported.
+
+The semantic mapping pins [GenAI revision cb10b70](https://github.com/open-telemetry/semantic-conventions-genai/blob/cb10b70c15c099ccab144e8316d934c9699da0fd/docs/gen-ai/gen-ai-agent-spans.md) and uses [OTLP 1.11 JSON](https://opentelemetry.io/docs/specs/otlp/). Cache accounting follows actual SDK payloads and primary [Anthropic](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) / [OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching) descriptions. First client text timing is the observed SDK delta, not server TTFT or renderer paint.
+
+Evidence: 20261006T211118Z-7289c010, 20261006T211134Z-d4dc513b, 20261006T211536Z-3bcf5fe6, 20261006T211605Z-c37e3033, 20261006T211606Z-ff84a680, 20261006T211610Z-70274cd5, 20261006T211615Z-e379a908. Unit 139, portable 170, regression 1053, zero skips; development Electron 44 checks. Actual SDK loopback HTTP and collector tests are controlled protocol evidence. Windows 11/Ubuntu native execution, installed resources, administrator setup/signing and paid experiments remain blocked; no public benchmark score or native isolation success is inferred.

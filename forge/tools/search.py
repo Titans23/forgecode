@@ -21,6 +21,7 @@ from forge.tools.base import (
     ToolInput,
     ToolResult,
     display_path,
+    file_access_guard,
     is_repository_path_protected,
     resolve_repository_path,
 )
@@ -84,7 +85,7 @@ def iter_files(path: Path, budget: SearchBudget | None = None) -> Iterator[Path]
                 for entry in entries:
                     if not budget.visit():
                         break
-                    if is_repository_path_protected(Path(entry.name)) or entry.is_symlink():
+                    if is_repository_path_protected(Path(entry.path)) or entry.is_symlink():
                         continue
                     if entry.is_dir(follow_symlinks=False):
                         directories.append(Path(entry.path))
@@ -263,6 +264,9 @@ class GrepTool(Tool[GrepInput]):
                 # Nonblocking open + fstat prevent a file-to-FIFO race from
                 # blocking the search worker. Never follow a replaced symlink.
                 flags = os.O_RDONLY | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0)
+                guard = file_access_guard.get()
+                if guard is not None:
+                    guard(candidate)
                 descriptor = os.open(candidate, flags)
                 with os.fdopen(descriptor, 'rb') as stream:
                     info = os.fstat(stream.fileno())
@@ -273,7 +277,7 @@ class GrepTool(Tool[GrepInput]):
                     if allowed <= 0:
                         budget.stop_reason = 'byte_limit'
                         break
-                    data = stream.read(allowed + 1)
+                    data = guard.read_bytes(candidate, allowed + 1) if guard is not None else stream.read(allowed + 1)
                 total_bytes += len(data)
                 if len(data) > allowed:
                     skipped_files += 1

@@ -1,0 +1,38 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T094052Z-e976f273",
+  "task_id": "F01",
+  "case_ids": [],
+  "suite": "packaged",
+  "git_commit": "3355ee07fd05978cd19284f0460694d10d4d9086",
+  "dirty_hash": "1ed95be3357263981927c1379d8a141db0d548e0fbfb974fb5fc6d1f26c7c32d",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "061cf74b2dc437af7e83782fdc733f0040f2324eee2e1fa22a0b1240c075ad00",
+    "package-lock.json": "3bcbafcb3d1dbebfa7e5c2483dad8e4ad09380e671576b3f722b0ff8714a4b30",
+    "release-lock.json": "3a9b93849ad3bac2629109076fa6dda84e2a5840e40ed6d1986caba9baea21cb"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\build_smoke.py",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T094052Z-e976f273\\build-smoke.json"
+  ],
+  "start": "2026-10-06T09:40:52.219667+00:00",
+  "end": "2026-10-06T09:41:16.007864+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261006T094052Z-e976f273/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T094052Z-e976f273/stderr.log",
+  "report_ref": ".local/implementation/20261006T094052Z-e976f273/build-smoke.json",
+  "report_hash": "f04dd8e2f56fc9f03d35edd4be3f4438a339fd18e537c6d46040cecb70c04aa1",
+  "status": "blocked",
+  "tests": {
+    "development_smoke": "pass",
+    "reason": "Build smoke passed; this host is outside the declared Windows 11 / Ubuntu acceptance matrix",
+    "security_status": "blocked",
+    "checks": 6
+  }
+}

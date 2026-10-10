@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:bundle-manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "forge.bundle.v1"
+    },
+    "bundle_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^bundle-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "source_origin": {
+      "enum": [
+        "trusted_engine",
+        "imported_unverified"
+      ]
+    },
+    "producer_build": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "created_at_utc": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "capture_mode": {
+      "enum": [
+        "metadata",
+        "controlled_debug"
+      ]
+    },
+    "redaction_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "task_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "minItems": 1,
+      "maxItems": 10000,
+      "uniqueItems": true
+    },
+    "supported_protocols": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "forge.eval.runspec.v1",
+          "forge.events.v1"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "contents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^\\\\]+$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 104857600
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "media_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "redacted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "size_bytes",
+          "sha256",
+          "media_type",
+          "redacted"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 20000
+    },
+    "total_size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1073741824
+    }
+  },
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "source_origin",
+    "producer_build",
+    "created_at_utc",
+    "capture_mode",
+    "redaction_version",
+    "task_ids",
+    "supported_protocols",
+    "contents",
+    "total_size_bytes"
+  ]
+}

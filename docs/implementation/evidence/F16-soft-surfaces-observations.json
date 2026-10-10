@@ -1,0 +1,40 @@
+{
+  "schema_version": "forge.ui.visual-observations.v1",
+  "date": "2026-10-08",
+  "status": "pass",
+  "scope": "Rounded shared React UI with concise copy, in an isolated authenticated HTTP/Electron preview; real local Harness with scripted responses",
+  "eligible_for_native_pass": false,
+  "changed_sources": ["packages/ui/src/App.tsx", "packages/ui/src/components/GettingStarted.tsx", "packages/ui/src/pages/settings/Connections.tsx", "packages/ui/src/pages/workspace/Workspace.tsx", "packages/ui/src/pages/workspace/Composer.tsx", "packages/ui/src/pages/observability/Observability.tsx", "packages/ui/src/style.css"],
+  "stylesheet_sha256": "7c85cbb5136f35d9b519f4653d91373e54049bd4790b0f84c2c4d7323f511189",
+  "ui_preview": {
+    "report_ref": ".local/ui-copy-20261008/run-1/report.json",
+    "asset_manifest_ref": ".local/ui-copy-20261008/run-1/ui-assets.json",
+    "screenshots_ref": ".local/ui-copy-20261008/run-1",
+    "checks": 46,
+    "layout_checks": 40,
+    "pages": ["home", "workspace", "settings", "diagnostics", "guide", "observability", "evaluations", "failures"],
+    "themes_and_zoom": {"light": [100, 150, 200], "dark": [100, 200]},
+    "behavior": ["long draft grows without covering send", "actual task result rendered", "Web renderer boundary preserved", "credential edit retains the visible clear-key warning and accessibility association", "no unsafe-eval violation", "no final page alert"],
+    "scripted_requests_final_run": 2,
+    "external_model_requests": 0,
+    "visual_review": "Final light home/connections and dark guide screenshots inspected; geometry checks do not replace native dialog/control testing."
+  },
+  "previous_visual_round": {
+    "report_ref": ".local/ui-soft-20261008/run-2/report.json",
+    "checks": 45,
+    "note": "Original rounded CSS check retained. Earlier run-1 DOM checks passed but hidden-window screenshots contained stale frames and were not used as visual acceptance; run-2 used an inactive visible private window."
+  },
+  "regression": {"tests": 6, "failures": 0, "skipped": 0, "junit_ref": ".local/ui-copy-20261008/focused-junit.xml"},
+  "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p packages/ui/tsconfig.json: pass",
+  "build": "Vite renderer built into .local/ui-copy-20261008/assets without overwriting shared development assets",
+  "boundaries": {
+    "main_thread_interrupted": false,
+    "user_client_restarted": false,
+    "administrator_setup": false,
+    "runtime_policy_changed": false,
+    "full_regression_rerun": false,
+    "desktop_native_rerun": false,
+    "installed_package_rebuilt": false,
+    "note": "Main thread is actively changing runtime dependencies. Previous 132-check desktop evidence retains its recorded source scope. The source launcher rebuilds this stylesheet with the current Main/Engine when next launched."
+  }
+}

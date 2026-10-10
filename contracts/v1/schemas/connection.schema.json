@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forgecode:contracts:v1:connection",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "connection_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^conn-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "base_url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "format": "uri"
+    },
+    "requested_model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "credential_present": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "connection_id",
+    "revision",
+    "provider",
+    "base_url",
+    "requested_model",
+    "credential_present"
+  ]
+}

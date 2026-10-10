@@ -1,0 +1,389 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F28",
+  "scope": "Actual hosted regression for FileWorker closed admission and shared owner cleanup; no native promotion",
+  "run": {
+    "id": 37721608025,
+    "html_url": "https://github.com/Titans23/forgecode/actions/runs/37721608025",
+    "head_sha": "e6bda835253425046068cd905db7d819a538b7c5",
+    "status": "completed",
+    "conclusion": "failure",
+    "created_at": "2026-10-08T03:12:22Z",
+    "updated_at": "2026-10-08T03:21:40Z"
+  },
+  "jobs": [
+    {
+      "id": 113130294426,
+      "name": "dependency-security",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-08T03:12:25Z",
+      "completed_at": "2026-10-08T03:12:43Z"
+    },
+    {
+      "id": 113130294620,
+      "name": "portable (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-08T03:12:25Z",
+      "completed_at": "2026-10-08T03:17:49Z"
+    },
+    {
+      "id": 113130294730,
+      "name": "portable (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-08T03:12:25Z",
+      "completed_at": "2026-10-08T03:17:48Z"
+    },
+    {
+      "id": 113130294787,
+      "name": "portable (windows-2025)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-08T03:12:25Z",
+      "completed_at": "2026-10-08T03:21:39Z"
+    }
+  ],
+  "hosted_portable_status": {
+    "windows-2025": "pass",
+    "ubuntu-22.04": "pass",
+    "ubuntu-24.04": "pass"
+  },
+  "artifacts": [
+    {
+      "id": 11526377969,
+      "name": "portable-windows-2025",
+      "size_in_bytes": 654323,
+      "sha256": "88142856aeafe5c2b66604fd68218a6e8c16699c7c1096245f635deb3b2f6d11",
+      "evidence": [
+        {
+          "suite": "contracts",
+          "evidence_id": "20261008T031322Z-dcc47c5c",
+          "status": "pass",
+          "tests": {
+            "scope": "actual contracts commands",
+            "checks": 2
+          },
+          "source_inventory_hash": "27d169449061d30fbcf1c99cb1d04e44cb562abb6be1ccc27a38f815e9fee2c4",
+          "report_hash": "9ff3f9d8d976b6224adb2a71437c4318658e43146311a6386b251df89c64700b",
+          "platform": "win32",
+          "os_build": "Windows-2025Server-10.0.26100-SP0"
+        },
+        {
+          "suite": "quality",
+          "evidence_id": "20261008T031325Z-1de0a4e6",
+          "status": "pass",
+          "tests": {
+            "scope": "actual quality commands",
+            "checks": 4
+          },
+          "source_inventory_hash": "27d169449061d30fbcf1c99cb1d04e44cb562abb6be1ccc27a38f815e9fee2c4",
+          "report_hash": "81366ac10ae729a880e0dfd428c186be0c924b35385d91ab92744a75469b8bdc",
+          "platform": "win32",
+          "os_build": "Windows-2025Server-10.0.26100-SP0"
+        },
+        {
+          "suite": "unit",
+          "evidence_id": "20261008T031413Z-53799785",
+          "status": "pass",
+          "tests": {
+            "collected": 225,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "source_inventory_hash": "27d169449061d30fbcf1c99cb1d04e44cb562abb6be1ccc27a38f815e9fee2c4",
+          "report_hash": "d6130d803b9f74d523accd3f6b11a2ec5c574ab39513a4077c752bc30bdb7e9d",
+          "platform": "win32",
+          "os_build": "Windows-2025Server-10.0.26100-SP0",
+          "recomputed_junit": {
+            "collected": 225,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "failed_cases": []
+        },
+        {
+          "suite": "portable",
+          "evidence_id": "20261008T031443Z-0bacc0e8",
+          "status": "pass",
+          "tests": {
+            "collected": 403,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "source_inventory_hash": "27d169449061d30fbcf1c99cb1d04e44cb562abb6be1ccc27a38f815e9fee2c4",
+          "report_hash": "f106b2840f7413d14560d0648914d0c0aefebe0aadf130fd8abf3c28a719e939",
+          "platform": "win32",
+          "os_build": "Windows-2025Server-10.0.26100-SP0",
+          "recomputed_junit": {
+            "collected": 403,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "failed_cases": []
+        }
+      ],
+      "gate": {
+        "status": "pass",
+        "gate": "ci",
+        "incomplete_tasks": [],
+        "implementation_gaps": {},
+        "errors": [],
+        "missing_or_changed_evidence": [],
+        "blocked_dependencies": [],
+        "selected_evidence_ids": [
+          "20261008T031322Z-dcc47c5c",
+          "20261008T031325Z-1de0a4e6",
+          "20261008T031413Z-53799785",
+          "20261008T031443Z-0bacc0e8"
+        ]
+      }
+    },
+    {
+      "id": 11526232860,
+      "name": "portable-ubuntu-22.04",
+      "size_in_bytes": 651357,
+      "sha256": "580f58906cd415f350c332ddceeee270dc63ddffd007d754b1c766d2603ccb2f",
+      "evidence": [
+        {
+          "suite": "contracts",
+          "evidence_id": "20261008T031300Z-82ff7f33",
+          "status": "pass",
+          "tests": {
+            "scope": "actual contracts commands",
+            "checks": 2
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef",
+          "platform": "linux",
+          "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35"
+        },
+        {
+          "suite": "quality",
+          "evidence_id": "20261008T031302Z-000ed98c",
+          "status": "pass",
+          "tests": {
+            "scope": "actual quality commands",
+            "checks": 4
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "f9fcaa3a47458edad1caccf92e260ec64f0e2b0f96b2e3dbb5a85c6b411ba7d6",
+          "platform": "linux",
+          "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35"
+        },
+        {
+          "suite": "unit",
+          "evidence_id": "20261008T031309Z-cfa88aad",
+          "status": "pass",
+          "tests": {
+            "collected": 225,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "cd9e4d308e693d3a533397cbdd3dc825ddee295c130d4e7ba63e1555c0dec271",
+          "platform": "linux",
+          "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+          "recomputed_junit": {
+            "collected": 225,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "failed_cases": []
+        },
+        {
+          "suite": "portable",
+          "evidence_id": "20261008T031331Z-c5ad94a0",
+          "status": "pass",
+          "tests": {
+            "collected": 403,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "b6a86c08cb7a7914a381ab3a57765e55827e35255e21fad1492015b36e489311",
+          "platform": "linux",
+          "os_build": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+          "recomputed_junit": {
+            "collected": 403,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "failed_cases": []
+        }
+      ],
+      "gate": {
+        "status": "pass",
+        "gate": "ci",
+        "incomplete_tasks": [],
+        "implementation_gaps": {},
+        "errors": [],
+        "missing_or_changed_evidence": [],
+        "blocked_dependencies": [],
+        "selected_evidence_ids": [
+          "20261008T031300Z-82ff7f33",
+          "20261008T031302Z-000ed98c",
+          "20261008T031309Z-cfa88aad",
+          "20261008T031331Z-c5ad94a0"
+        ]
+      }
+    },
+    {
+      "id": 11525881947,
+      "name": "actual-dependency-security",
+      "size_in_bytes": 622436,
+      "sha256": "fae0c50746648e813f59b87825fc22c6fe788635da2c09c700915c1277a118a6",
+      "evidence": []
+    },
+    {
+      "id": 11525699324,
+      "name": "portable-ubuntu-24.04",
+      "size_in_bytes": 651338,
+      "sha256": "9177f45943f6847294ea8be130ea3df0957ddc6b907c13d611654de04d8e326f",
+      "evidence": [
+        {
+          "suite": "contracts",
+          "evidence_id": "20261008T031255Z-e70e59ca",
+          "status": "pass",
+          "tests": {
+            "scope": "actual contracts commands",
+            "checks": 2
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "3631709c335f4736d43941c78952e01cda45863a687f4068d62d0577a4e90aef",
+          "platform": "linux",
+          "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+        },
+        {
+          "suite": "quality",
+          "evidence_id": "20261008T031257Z-39c6f370",
+          "status": "pass",
+          "tests": {
+            "scope": "actual quality commands",
+            "checks": 4
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "f9fcaa3a47458edad1caccf92e260ec64f0e2b0f96b2e3dbb5a85c6b411ba7d6",
+          "platform": "linux",
+          "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+        },
+        {
+          "suite": "unit",
+          "evidence_id": "20261008T031304Z-93bda458",
+          "status": "pass",
+          "tests": {
+            "collected": 225,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "bd78393a55922225accb1779f08f01a41bbf03a917c4e401237afb62c33ae0cf",
+          "platform": "linux",
+          "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+          "recomputed_junit": {
+            "collected": 225,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "failed_cases": []
+        },
+        {
+          "suite": "portable",
+          "evidence_id": "20261008T031324Z-d77f9a78",
+          "status": "pass",
+          "tests": {
+            "collected": 403,
+            "skipped": 0,
+            "failures": 0,
+            "errors": 0
+          },
+          "source_inventory_hash": "e75c690259b8d6ae62bbbc9b713534b2cb22a7a9ffdd10b05f2d014594710e1c",
+          "report_hash": "be2d46c173ed96d01dab5ca4acc4fae8b7408d09e698395a527c54b0227d6b9d",
+          "platform": "linux",
+          "os_build": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+          "recomputed_junit": {
+            "collected": 403,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "failed_cases": []
+        }
+      ],
+      "gate": {
+        "status": "pass",
+        "gate": "ci",
+        "incomplete_tasks": [],
+        "implementation_gaps": {},
+        "errors": [],
+        "missing_or_changed_evidence": [],
+        "blocked_dependencies": [],
+        "selected_evidence_ids": [
+          "20261008T031255Z-e70e59ca",
+          "20261008T031257Z-39c6f370",
+          "20261008T031304Z-93bda458",
+          "20261008T031324Z-d77f9a78"
+        ]
+      }
+    }
+  ],
+  "logs": [
+    {
+      "job": 113130294426,
+      "path": ".local/F28-admission-hosted/job-113130294426.log",
+      "sha256": "15e3711f5e8b3a773143787e9e005b23a2837d8b1cc3bef36aa371482babfe16"
+    },
+    {
+      "job": 113130294620,
+      "path": ".local/F28-admission-hosted/job-113130294620.log",
+      "sha256": "e33e1ee61846f9e8da8521effe4195f5338819cf27f0a64d6f68aacd681f5a06"
+    },
+    {
+      "job": 113130294730,
+      "path": ".local/F28-admission-hosted/job-113130294730.log",
+      "sha256": "a74143d7071bdaa332f0c70c7f8da7e4261df7e09b3cdf9902917134f317349e"
+    },
+    {
+      "job": 113130294787,
+      "path": ".local/F28-admission-hosted/job-113130294787.log",
+      "sha256": "06ddd663a5c2315cd948cf4862f2a331d73fe3ffc002062c64ec9ca51ff4394e"
+    }
+  ],
+  "artifact_recomputation": "pass",
+  "model_calls": 0,
+  "eligible_for_native_pass": false,
+  "limitations": [
+    "Hosted Windows Server is not supported Windows11 workstation acceptance.",
+    "Ubuntu Xvfb browser tests do not establish native sandbox/X11/Wayland/installer acceptance.",
+    "Security is an independent job; the overall workflow must retain its actual conclusion.",
+    "F28/F31 implementation and native/manual/signing/LICENSE/performance requirements remain."
+  ],
+  "dependency_security": {
+    "status": "blocked",
+    "evidence_id": "20261008T031238Z-5e601d36",
+    "exit_code": 2,
+    "report_ref": ".local/implementation/20261008T031238Z-5e601d36/packaging.json",
+    "report_hash": "a799fb7629418c3074e4e357930e02d8584ee1092a0f04aabde390eda4f04ecd",
+    "reason": "Unresolved locked dependency vulnerabilities",
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 2,
+      "critical": 0,
+      "total": 2
+    },
+    "report_recomputed": true
+  }
+}

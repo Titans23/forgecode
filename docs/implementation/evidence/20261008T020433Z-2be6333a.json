@@ -1,0 +1,42 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261008T020433Z-2be6333a",
+  "task_id": "F29",
+  "case_ids": [
+    "N23"
+  ],
+  "suite": "quality",
+  "git_commit": "231532fe39d1dc1219fe52c6d8409f2277117df6",
+  "dirty_hash": "8bd905678c6dd1b8264c5abae33865e539ba4c836f9a0d63f0b8db4b198b401d",
+  "source_inventory_hash": "5ab31ee4128b58dbca02937aca4bd1f2dfda08fe6d9abdfbc9e7780be48c4382",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "50487c88cc59046540ad1bd9d87b0cefbd3c0431ac44e8b9288a83171bf6108a",
+    "release-lock.json": "37efd4e4e6f30ccdc8411a90d80b5376b6eeeed58f46a2743be091dd172d0b55"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\learn_project\\forgecode\\scripts\\ci_checks.py",
+    "--suite",
+    "quality",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261008T020433Z-2be6333a\\packaging.json"
+  ],
+  "start": "2026-10-08T02:04:33.995229+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-08T02:04:51.250154+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261008T020433Z-2be6333a/stdout.log",
+  "stderr_ref": ".local/implementation/20261008T020433Z-2be6333a/stderr.log",
+  "report_ref": ".local/implementation/20261008T020433Z-2be6333a/packaging.json",
+  "report_hash": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234",
+  "status": "pass",
+  "tests": {
+    "scope": "actual quality commands",
+    "checks": 4
+  }
+}

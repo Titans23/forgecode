@@ -1,0 +1,47 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T100806Z-a8d5a114",
+  "task_id": "F02",
+  "case_ids": [
+    "N04"
+  ],
+  "suite": "unit",
+  "git_commit": "629b8d612a0b0587144429522561a0dd0f26bcbb",
+  "dirty_hash": "b97435243766b7109458ee3aa2330b720fa14122293f02b1b9ee8506894d60ee",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "398ce2b7585f795ac62e072d2e9105d4bc099efc7115e479a3571152be65ac4d",
+    "release-lock.json": "6836115e5e23c723356cbdf08ee8b9fb06c23b599944e61b82da7ca37bbdd21b"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/implementation/unit",
+    "-q",
+    "--tb=short",
+    "--basetemp",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T100806Z-a8d5a114\\tmp",
+    "--junitxml",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T100806Z-a8d5a114\\junit.xml"
+  ],
+  "start": "2026-10-06T10:08:06.014011+00:00",
+  "preparation_commands": [],
+  "end": "2026-10-06T10:08:10.704918+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261006T100806Z-a8d5a114/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T100806Z-a8d5a114/stderr.log",
+  "report_ref": ".local/implementation/20261006T100806Z-a8d5a114/junit.xml",
+  "report_hash": "d754aaeebd2e45b94567ae8c8eb212fa9525ad66f7253241d504fc404039c0a7",
+  "status": "pass",
+  "tests": {
+    "collected": 32,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  }
+}

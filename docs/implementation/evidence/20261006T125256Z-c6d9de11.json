@@ -1,0 +1,55 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261006T125256Z-c6d9de11",
+  "task_id": "F09",
+  "case_ids": [
+    "C10",
+    "C11",
+    "C12"
+  ],
+  "suite": "sandbox-linux",
+  "git_commit": "0cabc1873caa83bdb096f4532a4c5707196aa736",
+  "dirty_hash": "db21c4030507ea80fa5811b251a38bb9671b3ee21fea711ed17a91a7587798af",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "a3927635676701b6bc158c98f99abe85cb8ae950fcf8f66765119b8c8d1f8116",
+    "package-lock.json": "84e4b2e7ece18e80431ccf25a6a9fe5a078aafb38d7e43b881b03cfde306098e",
+    "release-lock.json": "efa97dfa6db31d537a08f7aef6a94b1e0e56593c733a0c8e122c5da8c461976e"
+  },
+  "command": [
+    "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "forge.sandbox.doctor",
+    "--native-linux",
+    "--output",
+    "D:\\learn_project\\forgecode\\.local\\implementation\\20261006T125256Z-c6d9de11\\native-linux.json"
+  ],
+  "start": "2026-10-06T12:52:56.435054+00:00",
+  "preparation_commands": [
+    [
+      "D:\\tools\\node\\node-v22.17.1-win-x64\\node.EXE",
+      "D:\\learn_project\\forgecode\\node_modules\\typescript\\bin\\tsc",
+      "-p",
+      "D:\\learn_project\\forgecode\\packages\\contracts\\tsconfig.json"
+    ],
+    [
+      "D:\\learn_project\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\learn_project\\forgecode\\scripts\\build_bridge.py",
+      "--check"
+    ]
+  ],
+  "end": "2026-10-06T12:53:00.076671+00:00",
+  "exit_code": 2,
+  "stdout_ref": ".local/implementation/20261006T125256Z-c6d9de11/stdout.log",
+  "stderr_ref": ".local/implementation/20261006T125256Z-c6d9de11/stderr.log",
+  "report_ref": ".local/implementation/20261006T125256Z-c6d9de11/native-linux.json",
+  "report_hash": "922ae753a02655eb985a67d24ba2540749bd986d986607973cb5f7422c00c5a5",
+  "status": "blocked",
+  "tests": {
+    "reason": "Supported Ubuntu native runner is unavailable",
+    "checks": 0
+  }
+}

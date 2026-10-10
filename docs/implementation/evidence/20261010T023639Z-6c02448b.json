@@ -1,0 +1,58 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261010T023639Z-6c02448b",
+  "task_id": "F29",
+  "case_ids": [
+    "N23"
+  ],
+  "suite": "quality",
+  "git_commit": "0fcdcbf6d89bd390b4086aebbea57433205304f1",
+  "dirty_hash": "660bc28dc5a27db698a87d36a4b9e93ff881f77be363c28ed0da135f02d32d16",
+  "source_inventory_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+  "platform": "win32",
+  "os_build": "Windows-2025Server-10.0.26100-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "851da8ca5767e070f2b61d9f6c9d958e2b575b2fe0a31a1df9b3f92f005bdbb8",
+    "package-lock.json": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4",
+    "release-lock.json": "2f2d8e221c0e607816ec29beba960eeae170fef71d82b5a00e7e79690780e862"
+  },
+  "command": [
+    "D:\\a\\forgecode\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\a\\forgecode\\forgecode\\scripts\\ci_checks.py",
+    "--suite",
+    "quality",
+    "--output",
+    "D:\\a\\forgecode\\forgecode\\.local\\implementation\\20261010T023639Z-6c02448b\\packaging.json",
+    "--prepared-source-hash",
+    "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001"
+  ],
+  "start": "2026-10-10T02:36:39.365260+00:00",
+  "preparation_commands": [
+    [
+      "D:\\a\\forgecode\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\a\\forgecode\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ],
+    [
+      "D:\\a\\forgecode\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\a\\forgecode\\forgecode\\scripts\\build_desktop.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": "7d8d12227d10162085321544d7de4e3205a8876c93625382e061e64bbe282001",
+  "end": "2026-10-10T02:37:32.724155+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261010T023639Z-6c02448b/stdout.log",
+  "stderr_ref": ".local/implementation/20261010T023639Z-6c02448b/stderr.log",
+  "report_ref": ".local/implementation/20261010T023639Z-6c02448b/packaging.json",
+  "report_hash": "d56020eaae6519ea1541d5a72ed03c295f3bd3c0ab82882ea5c9397ff89e38b6",
+  "status": "pass",
+  "tests": {
+    "scope": "actual quality commands",
+    "checks": 4
+  }
+}

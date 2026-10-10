@@ -108,8 +108,12 @@ class TurnRunner:
 
     async def _prepare_turn(self, prompt: str) -> None:
         c = self.conversation
-        if self.journal is not None:
-            self.state.request_event_sink = self.journal.append
+        from forge.observability.events import current
+        recorder=current()
+        if self.journal is not None or c.event_recorder is not None or recorder:
+            self.state.request_event_sink = c.record_model_request
+        if recorder:
+            recorder.reserve_budget(self.state)
         if c.tool_executor is not None:
             c.tool_executor.session_journal = self.journal
             c.tool_executor.checkpoint_store = c.checkpoint_store
@@ -165,6 +169,9 @@ class TurnRunner:
         # for checker inheritance, but numerical revision=0 never refreshes them.
         c.verification_history[:] = [replace(item, freshness='unknown')
                                      for item in c.verification_history]
+        if recorder:
+            for item in c.verification_history:
+                recorder.invalidate_verification(item)
         self.state.evidence.verification.extend(
             item for item in c.verification_history if item.task_id == task_id)
         if c.mcp_manager is not None:
@@ -277,10 +284,24 @@ class TurnRunner:
         c._queue_hook_context(outcome)
         if not outcome.allowed:
             return
-        report = await c.context.compact_history(
-            self.messages, BudgetedModelClient(c.client, self.state, 'compaction'),
-            force=force, task_goal=self.state.goal, **kwargs,
-        )
+        from forge.observability.events import current, active, bind
+        from contextlib import nullcontext
+        recorder=current()
+        scope=active.get().scope.child() if recorder else None
+        if recorder:
+            recorder.compaction_started(scope,self.messages,'forced' if force else 'automatic')
+        try:
+            with bind(recorder,scope,branch=active.get().branch,role=active.get().role) if recorder else nullcontext():
+                report = await c.context.compact_history(
+                    self.messages, BudgetedModelClient(c.client, self.state, 'compaction'),
+                    force=force, task_goal=self.state.goal, **kwargs,
+                )
+        except BaseException as error:
+            if recorder:
+                recorder.compaction_finished(scope,self.messages,None,error)
+            raise
+        if recorder:
+            recorder.compaction_finished(scope,self.messages,report)
         if report is not None and report.success and self.journal is not None:
             self.journal.record_context_compacted(self.messages)
         self._commit_messages()
@@ -506,6 +527,10 @@ class TurnRunner:
                     c.verification_history.append(evidence)
                     if self.journal is not None:
                         self.journal.append('verification_recorded', {'evidence': asdict(evidence)})
+                    from forge.observability.events import current
+                    recorder=current()
+                    if recorder:
+                        await recorder.verification(evidence,call.id)
                 if evidence is not None and outcome.record.status == 'executed':
                     self.state.evidence.add(evidence)
                     yield VerificationCompleted(evidence)
@@ -526,6 +551,9 @@ class TurnRunner:
                 # WorkingState is evidence for context only, never a preflight gate.
                 c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision, call.id)
                 yield ToolExecutionCompleted(effective, outcome.result)
+                if (outcome.record.status == 'cancelled' and outcome.result.error
+                        and outcome.result.error.code == 'execution_cancelled'):
+                    raise asyncio.CancelledError
                 if outcome.record.status == 'indeterminate':
                     interrupted = True
                     batch_reason = 'not_executed_after_interruption'
@@ -690,13 +718,21 @@ class TurnRunner:
 
     def _offer_delivery_repair(self, reasons) -> bool:
         gate = self.conversation.completion_gate
-        limit = max(0, min(2, gate.policy.max_delivery_repairs)) if gate else 0
+        limit = gate.policy.effective_delivery_repairs if gate else 0
         signature = tuple(sorted(set(reasons)))
         if (len(self.delivery_repair_reasons) >= limit
                 or signature in self.delivery_repair_reasons
                 or not self.state.can_request_model()):
             return False
         self.delivery_repair_reasons.add(signature)
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            attributes={'reason':'\n'.join(signature)[:1024],'workspace_revision':self.state.workspace_revision,
+                'evidence_revision':self.state.evidence.verification[-1].workspace_revision if self.state.evidence.verification else self.state.workspace_revision,
+                'repairs_remaining':max(0,limit-len(self.delivery_repair_reasons))}
+            recorder.emit('completion.rejected',attributes)
+            recorder.emit('completion.repair_started',attributes)
         self._feedback('Completion was not accepted. Fix the implementation or supply missing evidence; '
                        'do not weaken acceptance checks. The original budget still applies. '
                        'If the gaps cannot be repaired, finish with partial or failed.\n'
@@ -793,6 +829,14 @@ class TurnRunner:
             environment_epoch=self.state.environment_epoch, reasons=reasons,
             has_contract=has_contract, agent_assessment=self.declared_status,
             usage_complete=self.state.unknown_usage_requests == 0)
+        from forge.observability.events import current
+        recorder=current()
+        if recorder:
+            recorder.finish_budget(self.state,reason)
+            recorder.evidence_state(self.state.workspace_revision,self.state.environment_epoch)
+            recorder.completion(accepted=status=='completed',reason=reason,revision=self.state.workspace_revision,
+                evidence_revision=evidence[-1].workspace_revision if evidence else self.state.workspace_revision,
+                repairs_remaining=max(0,(policy.effective_delivery_repairs if policy else 0)-len(self.delivery_repair_reasons)),report=asdict(report))
         event = TurnCompleted(TurnResult(
             text=text, status=status, stop_reason=reason,
             usage=self.state.usage, last_request_usage=self.state.last_request_usage,

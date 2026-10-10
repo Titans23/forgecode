@@ -1,0 +1,41 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "date": "2026-10-09",
+  "scope": "Context and source transfer; not sandbox or target-machine acceptance",
+  "authorization": "User moves subsequent work to another Windows10 computer with WSL and Docker and requests handoff files",
+  "handoff_ref": "docs/implementation/handoff-win10-wsl-20261009.md",
+  "source_head": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "remote_head_verified": "cb7dbbb71bfdb5c7b3bb872d79ba5d226d9ae819",
+  "remote_branch": "codex/forgecode-v4",
+  "git_upload": "No commit or push; the transfer patch carries current relevant working-tree changes",
+  "changes_this_continuation": [
+    "Combined Windows10/WSL handoff and continuation prompt",
+    "Existing F31 launcher prompt updated for the new location of native Windows F28",
+    "Progress and task references updated; current runtime implementation retained"
+  ],
+  "verification": {
+    "handoff_git_and_launcher_tests": {
+      "status": "pass",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "command": "python -m pytest tests/implementation/unit/test_f31_handoff.py -q --junitxml=.local/handoff-win10-wsl-20261009/handoff-tests.xml"
+    },
+    "quality": {
+      "status": "pass",
+      "command": "python scripts/quality.py",
+      "python_syntax_files": 380,
+      "task_cards": 33,
+      "workflows": 2,
+      "secret_findings": 0
+    },
+    "archive_restore_report_ref": ".local/handoff-win10-wsl-20261009/transfer-verification.json"
+  },
+  "last_sandbox_investigation": "Read-only: SRT point-in-time glob expansion and best-effort reset behavior located; no new repair or native run performed",
+  "target_environment_verified": false,
+  "native_capabilities_promoted": false,
+  "public_model_calls": 0,
+  "administrator_setup_invoked": false,
+  "credentials_or_machine_state_exported": false,
+  "historical_private_reports_exported": false
+}

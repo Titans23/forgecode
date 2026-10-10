@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Generic, Literal, TypeVar
@@ -439,6 +440,7 @@ class ToolRegistry:
 
 
 ToolEffect = Literal['read_only', 'workspace_write', 'process']
+file_access_guard = ContextVar('forge_file_access_guard', default=None)
 
 
 def resolve_repository_path(
@@ -448,6 +450,12 @@ def resolve_repository_path(
     must_exist: bool = True,
 ) -> Path:
     '''Resolve a path from the working directory or the wider filesystem.'''
+    guard = file_access_guard.get()
+    if guard is not None:
+        resolved = guard(raw_path)
+        if must_exist and not resolved.exists():
+            raise ToolExecutionError('path_not_found', f'Path does not exist: {raw_path}')
+        return resolved
     candidate = Path(raw_path)
     resolved = (
         candidate.resolve(strict=False)
@@ -483,6 +491,12 @@ PUBLIC_ENV_FILES = frozenset({'.env.example'})
 
 def is_repository_path_protected(path: Path) -> bool:
     '''Return whether a repository-relative path is control or secret state.'''
+    guard = file_access_guard.get()
+    if guard is not None:
+        try:
+            guard(path)
+        except Exception:
+            return True
     for part in path.parts:
         name = part.casefold()
         if name in CONTROL_PLANE_DIRECTORIES:

@@ -1,0 +1,151 @@
+{
+  "schema_version": "forge.implementation.observations.v1",
+  "task_id": "F31",
+  "scope": "Resolved RunSpec freezing and actual source/runtime binding; official live execution remains refused",
+  "test_parent_commit": "3a51097d77e012abe297fb05893ec6e9dfba84ab",
+  "tested_source_inventory_hash": "92c78581312ad297ca5507e7b739e5ffdf6c2bd72d8ac5340656c203d9aae0db",
+  "new_behavior_tests": 18,
+  "model_calls": 0,
+  "administrator_setup": false,
+  "installer_rebuilt": false,
+  "eligible_for_native_pass": false,
+  "behaviors": [
+    "Stored and portable plans share snapshot schema/hash and semantic consistency checks.",
+    "The freeze CLI writes repair-only A/B exports and a manifest-last interleaved schedule without granting execution authority.",
+    "Frozen and staged package content includes the actual catalog module and rejects edits, added files and package replacement.",
+    "The runner rejects model, parameters, prompt and tool schema drift before any model request; the real tool-edit/test scripted positive case remains covered."
+  ],
+  "final_evidence": [
+    {
+      "evidence_id": "20261007T154114Z-26ded72b",
+      "suite": "contracts",
+      "status": "pass",
+      "tests": {
+        "scope": "actual contracts commands",
+        "checks": 2
+      },
+      "report_hash": "4bdb3f1b22f6609014b3fa0c9e990c14564121ccb1becdde6963babb9399752b"
+    },
+    {
+      "evidence_id": "20261007T154120Z-2a46ead5",
+      "suite": "quality",
+      "status": "pass",
+      "tests": {
+        "scope": "actual quality commands",
+        "checks": 4
+      },
+      "report_hash": "5b816c56bb3e10b45d77f45da5e0e3601364e6eb9bdf628269d15bebdf465234"
+    },
+    {
+      "evidence_id": "20261007T154135Z-0a1ccbae",
+      "suite": "unit",
+      "status": "pass",
+      "tests": {
+        "collected": 225,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "48252ceb33eb976f2962ddd2d2726cf9912309bc43549b5a657290fc24d202f5"
+    },
+    {
+      "evidence_id": "20261007T154224Z-82b552ed",
+      "suite": "portable",
+      "status": "pass",
+      "tests": {
+        "collected": 400,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "41d0e6ee50c852b05358e601dacbc0d3324c77125e4bbc88081790703f085bfe"
+    },
+    {
+      "evidence_id": "20261007T155239Z-37f6cb63",
+      "suite": "regression",
+      "status": "pass",
+      "tests": {
+        "collected": 1369,
+        "skipped": 0,
+        "failures": 0,
+        "errors": 0
+      },
+      "report_hash": "731a0e7a8d97e8e8da3ee56e2ecf8218d6f2220c90d9712516eb9e4117251ac3"
+    }
+  ],
+  "report_recomputation": {
+    "reports": 5,
+    "status": "pass"
+  },
+  "fresh_local_ci_gate": {
+    "status": "pass",
+    "gate": "ci",
+    "incomplete_tasks": [],
+    "implementation_gaps": {},
+    "errors": [],
+    "missing_or_changed_evidence": [],
+    "blocked_dependencies": [],
+    "selected_evidence_ids": [
+      "20261007T154114Z-26ded72b",
+      "20261007T154120Z-2a46ead5",
+      "20261007T154135Z-0a1ccbae",
+      "20261007T154224Z-82b552ed"
+    ]
+  },
+  "development_reports": [
+    {
+      "path": ".local/F31-frozen-plan-before.xml",
+      "sha256": "ed5f68b2ae53eb8c4116ffe96a5e9c555ad47688e2a5bf64ac7d054d2b34fed6",
+      "collected": 8,
+      "failures": 8,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "path": ".local/F31-freeze-command-before.xml",
+      "sha256": "fdac1330ff610f1819b2f33ef2b9109929150ff962d449481e299f0083e9202d",
+      "collected": 10,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "path": ".local/F31-source-binding-before.xml",
+      "sha256": "dcd6c4e80dce455110e8bd228c821bdc6b4c19198debe2d8a6d877e3304397c3",
+      "collected": 12,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "path": ".local/F31-plan-binding-focused.xml",
+      "sha256": "076b22a4dd4b01b816a8c8164fbd1da74a0221df4b7f0c7779501faa5a57cb5e",
+      "collected": 99,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "path": ".local/F31-runtime-binding-focused.xml",
+      "sha256": "145370b3718265bc63286d29c01449d3f9d9c9a948a4e8bbc0083418a1d2cf70",
+      "collected": 30,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "path": ".local/F31-runtime-binding-after.xml",
+      "sha256": "b3cb5a3b6e1f781858a969e00d0f33ba0f0c28c09872c8815e58beae1029b817",
+      "collected": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "development_failure_note": "Initial missing behavior failures are retained. One later failure was a test message regex (differ/differs); the actual drift rejection happened before the request and was preserved.",
+  "remaining_implementation": [
+    "Official network/policy and actual Docker environment reconciliation, trusted host authorization and per-request ledger integration remain unimplemented/unverified; official live execution stays refused.",
+    "The current preregistration still needs real official environment snapshots and a RunSpec representation for explicitly unbounded monetary authorization; no null snapshot or permission is guessed."
+  ],
+  "prior_hosted_observation_ref": "F32-remediation-hosted-observations.json"
+}
