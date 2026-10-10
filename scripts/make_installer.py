@@ -18,7 +18,7 @@ def verify_debian_package(package):
     fields=read('--field').decode('utf-8')
     control=dict(line.split(': ',1) for line in fields.splitlines() if ': ' in line and not line.startswith(' '))
     dependencies={entry.strip().split(' ')[0] for entry in control.get('Depends','').split(',')}
-    if control.get('Package')!='forgecode' or not {'bubblewrap','socat','ripgrep','git','bash','apparmor'}<=dependencies:
+    if control.get('Package')!='forgecode' or not {'bubblewrap','ripgrep','git','bash','apparmor'}<=dependencies:
         raise ValueError('deb lacks the fixed package identity or core sandbox dependencies')
     with tarfile.open(fileobj=io.BytesIO(read('--ctrl-tarfile'))) as archive:
         entries={member.name.removeprefix('./'):member for member in archive.getmembers()}

@@ -92,11 +92,6 @@ def assemble(build_id,target,output):
         if target == 'linux-x64':
             copy(ROOT/'packaging/linux/forgecode-userns',stage/'linux/forgecode-userns')
         helpers=[]
-        for a in lock['assets']:
-            if a['name'] in ('srt-win','apply-seccomp','java-proxy-agent') and a['platform'] in (target,'all'):
-                if digest(ROOT/a['path'])!=a['sha256']:raise ValueError('Locked native helper differs')
-                p=stage/'native-helpers'/target/Path(a['path']).name;copy(ROOT/a['path'],p)
-                helpers.append((a,p))
         contract=(ROOT/'forge/application/_generated_contracts.json').read_text(encoding='utf-8').encode()
         contract_path=stage/'contracts/manifest.json';contract_path.parent.mkdir();contract_path.write_bytes(contract)
         contract_hash=sha256(contract).hexdigest()

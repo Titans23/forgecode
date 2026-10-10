@@ -9,7 +9,7 @@ from scripts import make_installer
 
 
 def package_fixture(monkeypatch, *, omit=None, modified=False, foreign_profile=False):
-    dependencies={'bubblewrap','socat','ripgrep','git','bash','apparmor','libgtk-3-0'}-{omit}
+    dependencies={'bubblewrap','ripgrep','git','bash','apparmor','libgtk-3-0'}-{omit}
     stream=io.BytesIO()
     with tarfile.open(fileobj=stream,mode='w') as archive:
         for name in ('postinst','prerm'):
@@ -30,7 +30,7 @@ def test_debian_gate_accepts_complete_core_supply(monkeypatch):
     assert make_installer.verify_debian_package('fixture.deb')['status']=='pass'
 
 
-@pytest.mark.parametrize('missing',['bubblewrap','socat','ripgrep','git','bash','apparmor'])
+@pytest.mark.parametrize('missing',['bubblewrap','ripgrep','git','bash','apparmor'])
 def test_debian_gate_rejects_missing_core_dependency(monkeypatch,missing):
     package_fixture(monkeypatch,omit=missing)
     with pytest.raises(ValueError,match='dependencies'):

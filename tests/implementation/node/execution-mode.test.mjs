@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readExecutionMode, changeExecutionMode } from '../../../apps/desktop/dist/main/execution_mode.js';
+import { readExecutionMode, initialExecutionMode, changeExecutionMode } from '../../../apps/desktop/dist/main/execution_mode.js';
 
 async function fixture(run) {
   const directory = await mkdtemp(join(tmpdir(), 'forge-mode-'));
@@ -11,8 +11,8 @@ async function fixture(run) {
   finally { await rm(directory, { recursive: true, force: true }); }
 }
 
-test('desktop defaults to strict and cancelled native choice never writes or stops Engine', () => fixture(async file => {
-  assert.equal(await readExecutionMode(file), 'strict');
+test('absent preference and cancelled native choice never writes or stops Engine', () => fixture(async file => {
+  assert.equal(await readExecutionMode(file), null);
   const calls = [];
   const result = await changeExecutionMode(file, 'strict', {
     assertIdle: async () => { calls.push('idle'); },
@@ -53,7 +53,7 @@ test('active work or invalidated requester after confirmation cannot persist a m
       shutdown: async () => { shutdowns++; return { state: 'confirmed', cleanup_state: 'complete' }; }
     }), /busy or stale/);
     assert.equal(shutdowns, 0);
-    assert.equal(await readExecutionMode(file), 'strict');
+    assert.equal(await readExecutionMode(file), null);
   }
 }));
 
@@ -62,7 +62,7 @@ test('unconfirmed shutdown and malformed selections never grant local execution'
     shutdown: async () => ({ state: 'confirmed', cleanup_state: 'unknown' }) };
   await assert.rejects(changeExecutionMode(file, 'strict', base), /清理/);
   await assert.rejects(changeExecutionMode(file, 'strict', { ...base, choose: async () => 'unrestricted' }), /Invalid execution mode/);
-  assert.equal(await readExecutionMode(file), 'strict');
+  assert.equal(await readExecutionMode(file), null);
   for (const value of ['{}', '{"schema_version":"forge.desktop.execution-mode.v1","mode":"unrestricted"}', 'null']) {
     await writeFile(file, value);
     await assert.rejects(readExecutionMode(file), /Invalid execution mode/);
@@ -74,9 +74,22 @@ test('workspace-write is explicit, survives restart and does not bypass cleanup 
   const operations = { assertIdle: async () => {}, choose: async () => 'workspace-write',
     shutdown: async () => ({ state: 'confirmed', cleanup_state: 'unknown' }) };
   await assert.rejects(changeExecutionMode(file, 'strict', operations), /清理/);
-  assert.equal(await readExecutionMode(file), 'strict');
+  assert.equal(await readExecutionMode(file), null);
   const result = await changeExecutionMode(file, 'strict', { ...operations,
     shutdown: async () => ({ state: 'confirmed', cleanup_state: 'complete' }) });
   assert.deepEqual(result, { mode: 'workspace-write', restart_required: true });
   assert.equal(await readExecutionMode(file), 'workspace-write');
+}));
+
+test('first native confirmation persists workspace-write; cancellation remains read-only', () => fixture(async file => {
+  assert.equal(await initialExecutionMode(file, async () => false), 'strict');
+  assert.equal(await readExecutionMode(file), null);
+  assert.equal(await initialExecutionMode(file, async () => true), 'workspace-write');
+  assert.equal(await readExecutionMode(file), 'workspace-write');
+  for (const mode of ['strict', 'local-trusted', 'workspace-write']) {
+    await writeFile(file, JSON.stringify({ schema_version: 'forge.desktop.execution-mode.v1', mode }));
+    assert.equal(await initialExecutionMode(file, async () => { throw new Error('existing consent must not be rewritten'); }), mode);
+  }
+  await writeFile(file, '{}');
+  await assert.rejects(initialExecutionMode(file, async () => true), /Invalid execution mode/);
 }));

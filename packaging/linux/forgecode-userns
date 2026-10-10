@@ -1,5 +1,5 @@
 # ForgeCode owns only these root-installed application paths.
-# This grants user namespaces; SRT still enforces task filesystem/network policy.
+# This grants user namespaces; bubblewrap enforces the declared workspace write policy.
 abi <abi/4.0>,
 include <tunables/global>
 

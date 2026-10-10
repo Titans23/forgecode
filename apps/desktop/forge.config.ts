@@ -23,7 +23,7 @@ const config: ForgeConfig = {
     { name: '@electron-forge/maker-deb', platforms: ['linux'],config:{options:{name:'forgecode',bin:'forgecode',
       maintainer:'ForgeCode contributors',homepage:'https://github.com/Titans23/forgecode',
       // electron-installer-debian appends these to its Electron runtime dependencies.
-      depends:['bubblewrap','socat','ripgrep','git','bash','apparmor'],
+      depends:['bubblewrap','ripgrep','git','bash','apparmor'],
       scripts:{postinst:path.resolve(__dirname,'../../packaging/linux/postinst'),
         prerm:path.resolve(__dirname,'../../packaging/linux/prerm')}}} }],
   plugins: [new FusesPlugin({

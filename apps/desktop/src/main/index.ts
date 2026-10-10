@@ -24,8 +24,7 @@ import { probeObservability } from './observability_probe.js';
 import { probeEvaluations } from './evaluation_probe.js';
 import { probeFailures } from './failure_probe.js';
 import { createSetupBroker } from './setup_broker.js';
-import { firstUseSetup } from './first_use_setup.js';
-import { changeExecutionMode, readExecutionMode, type ExecutionMode } from './execution_mode.js';
+import { changeExecutionMode, readExecutionMode, initialExecutionMode, type ExecutionMode } from './execution_mode.js';
 
 if (app.isPackaged && process.argv.some(arg => /^--(?:inspect(?:-brk|-port)?|remote-debugging-(?:port|pipe))(?:=|$)/.test(arg))) {
   console.error('FORGE_INSTALLED_DEBUG_DENIED');
@@ -215,7 +214,7 @@ async function runPackagedInspection() {
   const check = (id: string, passed: boolean) => checks.push({ id, status: passed ? 'pass' : 'fail' });
   try {
     const status = await window.webContents.executeJavaScript('window.forgeDesktop.status()');
-    check('installed-engine-handshake', status.engine_state === 'ready' && status.mode === (selectedMode === 'strict' ? 'desktop' : 'desktop-local-trusted') &&
+    check('installed-engine-handshake', status.engine_state === 'ready' && status.mode === (selectedMode === 'strict' ? 'desktop' : 'desktop-' + selectedMode) &&
       engine.hello.capabilities.features.includes('provider-model') && !engine.hello.capabilities.features.includes('scripted-model'));
     check('installed-explicit-mode-readiness', status.readiness.status === (selectedMode === 'strict' ? 'blocked' : 'degraded') &&
       engine.hello.capabilities.sandbox === 'unavailable');
@@ -223,12 +222,14 @@ async function runPackagedInspection() {
     let content = '';
     for (let attempt = 0; attempt < 50; attempt++) {
       content = await window.webContents.executeJavaScript('document.body.innerText');
-      if (content.includes('切换执行模式…') && content.includes(selectedMode === 'strict' ? '重复诊断或安装不会解除任务限制' : '可执行（无隔离）')) break;
+      if (content.includes('切换执行模式…') && content.includes(selectedMode === 'strict' ? '重复诊断或安装不会解除任务限制' : selectedMode === 'workspace-write' ? '执行前自检（有限写入限制）' : '可执行（无隔离）')) break;
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     check('installed-mode-ui', content.includes('切换执行模式…') && (selectedMode === 'strict'
       ? content.includes('重复诊断或安装不会解除任务限制') && !content.includes('可执行（无隔离）')
-      : content.includes('本机执行 · 无 OS 隔离') && content.includes('可执行（无隔离）') && content.includes('不代表沙盒验收通过')));
+      : selectedMode === 'workspace-write'
+        ? content.includes('原生沙盒：写入限制') && content.includes('执行前自检（有限写入限制）') && !content.includes('可执行（无隔离）')
+        : content.includes('本机执行 · 无 OS 隔离') && content.includes('可执行（无隔离）') && content.includes('不代表沙盒验收通过')));
     // DOM assertions precede Chromium's compositor; capture the painted diagnostics, not the initial frame.
     await new Promise(resolve => setTimeout(resolve, 350));
     await writeFile(resolve(packagedReport, '..', 'execution-mode.png'), (await window.webContents.capturePage()).toPNG());
@@ -274,7 +275,15 @@ async function ready() {
     } catch { return new Response('Resource unavailable', { status: 404 }); }
   });
   try {
-    selectedMode = smoke ? 'local-trusted' : await readExecutionMode(resolve(app.getPath('userData'), 'execution-mode.json'));
+    const modeFile = resolve(app.getPath('userData'), 'execution-mode.json');
+    selectedMode = smoke ? 'local-trusted' : packagedReport ? (await readExecutionMode(modeFile) ?? 'strict') :
+      await initialExecutionMode(modeFile, async () => {
+        const choice = await dialog.showMessageBox({ type: 'question', title: 'ForgeCode 执行环境',
+          message: '使用工作区写入限制模式？',
+          detail: '命令可在工作区和私有临时目录写入；读取与网络沿用当前用户权限。存在硬链接和平台权限限制，不提供完整隔离。工作区授权会跨会话保留。每次任务仍需项目授权并受审批与预算限制。取消后只读浏览，不启动任务。',
+          buttons: ['使用工作区写入限制', '仅浏览'], defaultId: 0, cancelId: 1, noLink: true });
+        return choice.response === 0;
+      });
     const launch = app.isPackaged ? await loadInstalledEngine(root, resolve(app.getPath('userData'), 'engine'), selectedMode) :
       await loadDevelopmentEngine(root, { dataDir: smoke ? resolve(smoke.directory, 'data') : resolve(app.getPath('userData'), 'engine'),
         profile: smoke ? 'test' : 'desktop', executionMode: selectedMode, ...(smoke ? { fixture: smoke.fixture } : {}) });
@@ -351,9 +360,9 @@ async function ready() {
             const choice = await dialog.showMessageBox(guard(), { type: 'warning', title: '选择执行模式',
               message: '选择执行边界。原生沙盒提供有限的写入限制。',
               detail: '原生沙盒限制工作区写入，读取和网络沿用宿主权限，存在平台能力限制；首次执行将核验实际边界。工作区写入授权会跨会话保留。无隔离本机模式的命令将以当前 Windows/Linux 用户权限运行，可访问该账户可访问的文件和网络。项目授权与操作审批仍保留。严格沙盒未就绪时会阻止任务。切换后自动重启，历史记录保留；请新建会话使用新模式。',
-              buttons: ['取消', '使用本机执行并重启', '使用严格沙盒并重启', '使用原生沙盒：写入限制并重启'], defaultId: 0, cancelId: 0, noLink: true });
+              buttons: ['取消', '高级：无隔离本机执行并重启', '使用工作区写入限制并重启'], defaultId: 0, cancelId: 0, noLink: true });
             guard();
-            const mode = choice.response === 1 ? 'local-trusted' : choice.response === 2 ? 'strict' : choice.response === 3 ? 'workspace-write' : null;
+            const mode = choice.response === 1 ? 'local-trusted' : choice.response === 2 ? 'workspace-write' : null;
             changingMode = mode !== null && mode !== selectedMode;
             return mode;
           },
@@ -368,6 +377,12 @@ async function ready() {
     ipcMain.handle('forge:' + channel, (event, value) => {
       sender(event); empty(value); const guard = captureSender(() => window, event);
       return nativeOperation(async () => {
+        if (action === 'diagnose') {
+          const health = await live().refreshHealth(); guard();
+          return { status: health.readiness.status === 'blocked' ? 'blocked' : 'pass', health,
+            reason: selectedMode === 'workspace-write' ? '工作区写入限制：每次会话初始化核验写入和清理；读取与网络沿用宿主权限。此诊断不代表边界验收通过。' : selectedMode === 'strict' ? '当前版本不提供 strict 执行。可通过原生确认选择工作区写入限制。' : '本机执行无 OS 隔离。',
+            eligible_for_native_pass: false, administrator_invoked: false };
+        }
         const runtime = await loadSetupRuntime(root, app.isPackaged);
         return createSetupBroker(runtime)(action, guard(), () => { guard(); });
       });
@@ -412,15 +427,6 @@ async function ready() {
     return live().call('session.start_turn', turn);
   });
   await createWindow();
-  if (app.isPackaged && selectedMode === 'strict' && process.platform === 'win32' && !smoke && !packagedReport) {
-    const setupWindow = window!;
-    void nativeOperation(async () => {
-      const runtime = await loadSetupRuntime(root, true);
-      const setup = createSetupBroker(runtime);
-      await firstUseSetup(resolve(app.getPath('userData'), 'sandbox-setup-prompt.json'), action => setup(action, setupWindow,
-        () => { if (window !== setupWindow || stopping || setupWindow.isDestroyed()) throw new Error('Setup window is unavailable'); }));
-    }).catch(() => { failure = '沙盒初始化未完成，请在设置中重试。'; });
-  }
   powerMonitor.on('resume', () => { if(engine?.state==='ready') void engine.refreshHealth().catch(() => { failure='系统恢复后连接状态未确认；请在工作区核对执行状态。'; }); });
   if (smoke) await runSmoke();
   if (packagedReport) {

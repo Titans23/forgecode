@@ -15,7 +15,7 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "544bf9bddb355ead597716243a1f08ce0254b84f5dc4f036fc81e5fc7d1ae0d4"
+      "sha256": "ac23f5737c447f934913994025b74a60fcc536eaf775d4afcb350dbb5eeff19a"
     }
   ],
   "engine_sources": [
@@ -277,7 +277,7 @@
     },
     {
       "path": "forge/engine/__main__.py",
-      "sha256": "f792084e1bfa845c9408902785ea700ab60bb732ee4d2f30ecc8f229bc1bbaef"
+      "sha256": "19749d32dc09c27f4d752960107cbd9ab434e692f22eec45f6998af84bc5ede2"
     },
     {
       "path": "forge/engine/bootstrap.py",
@@ -629,11 +629,11 @@
     },
     {
       "path": "forge/sandbox/capabilities.py",
-      "sha256": "01d591354b52c3ecb257c95c250a1bd9d978f719f925e46089cde3b76e1183d7"
+      "sha256": "7c1bcb5cc59c7a581d83cd9139887b9529eb878da362decd2d220017964ecc44"
     },
     {
       "path": "forge/sandbox/doctor.py",
-      "sha256": "2373f9f831f5d570169b20d4843a16f0f3d293e095532aec4b195cc21f22d519"
+      "sha256": "78e6045b080d7cbff8f0244a399a8f2c388533e16e0a3375e66a7403e139a860"
     },
     {
       "path": "forge/sandbox/file_client.py",
@@ -653,7 +653,7 @@
     },
     {
       "path": "forge/sandbox/policy.py",
-      "sha256": "4f78242e8ec22ce739cf00c934c87d09998eddb2ab670c0a5f07dd0b6ef955dc"
+      "sha256": "dfe06f80973766b3dbeb269f8d011f33802033695f744d7d4d06dc2bdb0533eb"
     },
     {
       "path": "forge/sandbox/process_owner.py",
@@ -661,7 +661,7 @@
     },
     {
       "path": "forge/sandbox/srt_backend.py",
-      "sha256": "8bba29424f059208e3a2f2e6812400526723e886bbec162bef1fb55b8077c110"
+      "sha256": "8577b0c1649128a85c0be7bff0a5346049b6d16762a6ece2e93f07430c1ec97b"
     },
     {
       "path": "forge/sandbox/tool_backend.py",
@@ -669,11 +669,11 @@
     },
     {
       "path": "forge/sandbox/windows_worker.py",
-      "sha256": "fae7e68abd289f7074410295ad800781a822376eea798a9969fa4db389539072"
+      "sha256": "7f3fc81f90d3bedb51fcd1384d9bd3d085f0eaad21bc8080214ff5de25cc20cd"
     },
     {
       "path": "forge/sandbox/workspace_backend.py",
-      "sha256": "33f552ff8016bd9d445228f3d3a529fd9bd7de1de46edbf86d3b043cd035e746"
+      "sha256": "75053b615f57d070bfc2e8f08ae60ba8758a42f47e12c627fd7f4dbe706d4002"
     },
     {
       "path": "forge/sessions/checkpoint.py",

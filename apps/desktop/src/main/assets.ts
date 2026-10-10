@@ -45,7 +45,7 @@ export async function loadDevelopmentEngine(root: string, options: { dataDir: st
   if (profile === 'test' && !options.fixture || profile !== 'test' && options.fixture) throw new Error('Scripted fixture requires explicit development test profile');
   const args = ['-I', '-B', '-m', 'forge.engine', '--data-dir', options.dataDir, '--profile', profile, '--principal', 'main'];
   if (options.fixture) args.push('--execution-mode', 'local-trusted', '--scripted-fixture', await realpath(options.fixture));
-  else if (executionMode(options.executionMode ?? 'strict') !== 'strict') args.push('--execution-mode', options.executionMode!);
+  else args.push('--execution-mode', executionMode(options.executionMode ?? 'strict'));
   return Object.freeze({ executable, arguments: Object.freeze(args), cwd: root,
     environment: Object.freeze(environment()), manifestHash, profile });
 }
@@ -62,7 +62,7 @@ export async function loadInstalledEngine(resources: string, dataDir: string, se
   const executable = await verifyAsset(resources, manifest.engine);
   const args = ['--data-dir', dataDir, '--profile', 'desktop', '--principal', 'main'];
   const env = environment();
-  if (mode !== 'strict') args.push('--execution-mode', mode);
+  args.push('--execution-mode', mode);
   if (mode === 'local-trusted') {
     // The complete bundles were verified above. Supply core tools to local Shell commands too.
     if (process.platform === 'win32') env.PATH = [...['powershell', 'git', 'ripgrep']

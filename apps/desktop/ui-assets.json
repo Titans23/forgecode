@@ -3,9 +3,9 @@
     "path": ".vite/renderer/ui/assets/http_transport-wsEsoZmW.js",
     "sha256": "0f12f8f4744aa28b5b558dbb5977a803b63afbcfc5ffba304159998dbfa570d4"
   },
-  "/assets/index-Cjf4NN_l.js": {
-    "path": ".vite/renderer/ui/assets/index-Cjf4NN_l.js",
-    "sha256": "eca8b052f81c5d7b83188168c13d37e39a5608198167791f70e5088b47768b21"
+  "/assets/index-BfHfRMk1.js": {
+    "path": ".vite/renderer/ui/assets/index-BfHfRMk1.js",
+    "sha256": "ad9756dc359d5d598e2945ec4ac6d584788ff785e19ada4fe5fdc16b09aaca94"
   },
   "/assets/index-E98Z7tTV.css": {
     "path": ".vite/renderer/ui/assets/index-E98Z7tTV.css",
@@ -17,6 +17,6 @@
   },
   "/index.html": {
     "path": ".vite/renderer/ui/index.html",
-    "sha256": "65a8caaa0678ed63515646bd2e2fce961c6923073d104ea842280c2901e62636"
+    "sha256": "09d35885cbddad1c14e54f16a47dce8eb72d1c3ca011ae7803ddf2c773851f93"
   }
 }

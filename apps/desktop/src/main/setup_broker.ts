@@ -1,5 +1,5 @@
 /** Main-only setup entry. Renderer receives no path, environment, argv or administrator command API. */
-import { BrowserWindow, dialog } from 'electron';
+import { BrowserWindow } from 'electron';
 import { spawn } from 'node:child_process';
 import { isAbsolute } from 'node:path';
 
@@ -47,20 +47,8 @@ export function createSetupBroker(runtime: VerifiedRuntime) {
     running = true;
     try {
       assertCurrent();
-      if (action !== 'install') return await launch(action);
-      const diagnosis = await launch('diagnose');
-      assertCurrent();
-      if (!diagnosis.native_status || diagnosis.fresh_install_allowed !== true) {
-        return { ...diagnosis, reason: diagnosis.native_status ? 'existing_shared_setup; administrator reconciliation required' : diagnosis.reason };
-      }
-      const choice = await dialog.showMessageBox(window, { type: 'question', title: '安装原生沙盒',
-        message: '允许为 ForgeCode 设置 Windows 原生沙盒吗？',
-        detail: '此操作会创建低权限账户和网络限制，Windows 随后会请求管理员确认。普通任务无需管理员权限。',
-        buttons: ['取消', '继续设置'], defaultId: 0, cancelId: 0, noLink: true });
-      if (choice.response !== 1 || window.isDestroyed()) return { status: 'blocked', reason: 'setup_declined', administrator_invoked: false };
-      assertCurrent();
-      // The fixed child rechecks live setup immediately before UAC; no caller-supplied parameters.
-      return await launch('install');
+      // Compatibility actions never mutate shared accounts, WFP or system configuration.
+      return await launch(action);
     } finally { running = false; }
   };
 }

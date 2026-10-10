@@ -1,4 +1,4 @@
-"""Private stdio Engine entry point; strict sandbox is the desktop default."""
+"""Private stdio Engine entry point; Main explicitly supplies the confirmed mode."""
 import argparse
 import asyncio
 from contextlib import redirect_stdout

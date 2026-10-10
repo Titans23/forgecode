@@ -154,8 +154,7 @@ export function App({transport, webEntry = false}: {transport: DesktopOperations
           {!webEntry && status?.mode !== 'offline-demo' && <button className="secondary" disabled={busy || !connected} onClick={() => action(async () => { await transport.chooseExecutionMode(); })}>切换执行模式…</button>}</div>
           {!webEntry && status?.mode !== 'offline-demo' && <p className="muted">切换需确认并重启客户端；历史会话保留原策略，请新建会话使用新模式。</p>}
           <details className="diagnostic-details" ref={diagnosticDetails}><summary>诊断详情</summary><pre>{JSON.stringify(diagnostics ?? status, null, 2)}</pre></details>
-          <details className="diagnostic-setup"><summary>原生沙盒设置</summary><p>安装需要系统权限，请先确认诊断结果和目标环境。</p>
-            <button className="secondary" disabled={busy} onClick={() => action(async () => showDiagnostics(await transport.installSandbox()))}>安装原生沙盒（需原生确认）</button></details></section>}
+          <p>Windows 使用随应用提供的 ACL runner；Linux 需要系统 bubblewrap。缺少依赖时停止执行，请通过应用安装包补齐。</p></section>}
       </div>
     </main>
   </div>;
