@@ -41,13 +41,18 @@ try {
     headers:{Origin:input.origin,'Content-Type':'application/x-www-form-urlencoded'},
     body:new URLSearchParams({credential:input.credential})});
   assert.equal(logged.status,303);
-  const cookie=logged.headers.get('set-cookie').split(';')[0];let dropped=false;let snapshotCalls=0;
+  const cookie=logged.headers.get('set-cookie').split(';')[0];let dropped=false;let snapshotCalls=0;let expiredAckRejected=false;
   const wire=async(url,options={})=>{
     assert.equal(new URL(url).origin,input.origin);
     const headers=new Headers(options.headers);headers.set('Cookie',cookie);headers.set('Origin',input.origin);
-    if(options.method==='POST' && JSON.parse(options.body).method==='session.snapshot')snapshotCalls++;
+    const method=options.method==='POST'?JSON.parse(options.body).method:null;
+    if(method==='session.snapshot')snapshotCalls++;
     const result=await fetch(url,{...options,headers});
-    if(options.method==='POST' && JSON.parse(options.body).method==='session.submit' && !dropped){
+    if(method==='events.ack'){
+      const response=await result.clone().json();
+      expiredAckRejected ||= response.error?.data?.kind==='INVALID_CURSOR';
+    }
+    if(method==='session.submit' && !dropped){
       const accepted=await result.clone().json();
       if(accepted.error)process.stderr.write(JSON.stringify({original_submit_error:accepted.error})+'\n');
       assert.ok(accepted.result,JSON.stringify(accepted.error));
@@ -66,14 +71,16 @@ try {
       validate('session.snapshot.result',snapshot);
       // Consume and acknowledge as the real UI does; a slow turn must not
       // accidentally exercise expiry before the explicit expiry phase.
-      events.push(...(await transport.events()).events);
+      // Keep the terminal batch unacknowledged for the explicit expiry phase.
+      if(!events.some(value=>value.event_type==='turn.finished'))
+        events.push(...(await transport.events()).events);
       if(snapshot.turns[0]?.state==='finished')break;
       await new Promise(resolve=>setTimeout(resolve,30));
     }while(Date.now()<until);
     assert.equal(snapshot.turns[0].outcome,'completed');
     const messages=mergeMessages([],snapshot.messages);
     assert.deepEqual(mergeMessages(messages,snapshot.messages),messages);
-    for(let index=0;index<30;index++){
+    for(let index=0;index<30&&!events.some(value=>value.event_type==='turn.finished');index++){
       events.push(...(await transport.events()).events);
       if(events.some(value=>value.event_type==='turn.finished'))break;
       await new Promise(resolve=>setTimeout(resolve,30));
@@ -88,9 +95,10 @@ try {
   await assert.rejects(http.authorizeWorkspace(input.workspaceId),error=>error.kind==='DESKTOP_OR_CLI_APPROVAL_REQUIRED');
   let expiredAckRecovered=false;
   if(input.exerciseExpiry){
-    const previousSnapshots=snapshotCalls;
+    const previousSnapshots=snapshotCalls;expiredAckRejected=false;
     await new Promise(resolve=>setTimeout(resolve,4500));
     const recovered=await http.events();
+    assert.ok(expiredAckRejected,'The real server must reject the deliberately expired ack');
     assert.ok(recovered.gap && snapshotCalls>previousSnapshots,'Expired ack must rebuild the actual snapshot');
     const second=await http.submit({session_id:input.httpTurn.session_id,client_action_id:'act-'+crypto.randomUUID(),input:input.httpTurn.input});
     const deadline=Date.now()+10000;let future=[];
