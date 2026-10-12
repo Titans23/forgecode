@@ -409,8 +409,7 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/integration/test_bound_approvals.py",
-        "tests/implementation/integration/test_approval_rpc.py",
-        "tests/desktop/security/test_internal_grants.py"
+        "tests/implementation/integration/test_approval_rpc.py"
       ]
     },
     "approval.get": {
@@ -432,8 +431,7 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/integration/test_bound_approvals.py",
-        "tests/implementation/integration/test_approval_rpc.py",
-        "tests/desktop/security/test_internal_grants.py"
+        "tests/implementation/integration/test_approval_rpc.py"
       ]
     },
     "approval.decide": {
@@ -458,8 +456,7 @@
       "implementation_status": "implemented",
       "test_refs": [
         "tests/implementation/integration/test_bound_approvals.py",
-        "tests/implementation/integration/test_approval_rpc.py",
-        "tests/desktop/security/test_internal_grants.py"
+        "tests/implementation/integration/test_approval_rpc.py"
       ]
     },
     "action.get": {
@@ -1000,9 +997,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "connection.set": {
@@ -1027,9 +1022,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "connection.delete": {
@@ -1054,9 +1047,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "connection.test": {
@@ -1081,9 +1072,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "sandbox.probe": {
@@ -1153,9 +1142,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "sandbox.setup": {
@@ -1282,10 +1269,7 @@
       "logging": "metadata_only_no_payload_values",
       "implementation_status": "implemented",
       "test_refs": [
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_storage_policy.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "connection.prepare_test": {
@@ -1310,10 +1294,7 @@
       "logging": "metadata_only_no_payload_values",
       "implementation_status": "implemented",
       "test_refs": [
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_storage_policy.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "credentials.clear": {
@@ -1338,10 +1319,7 @@
       "logging": "metadata_only_no_payload_values",
       "implementation_status": "implemented",
       "test_refs": [
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_storage_policy.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ]
     },
     "session.create_default": {

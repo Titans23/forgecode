@@ -1,1 +1,1 @@
-"""Application contracts shared by Engine, desktop and existing CLI adapters."""
+"""Application services and contracts shared by Engine and CLI adapters."""

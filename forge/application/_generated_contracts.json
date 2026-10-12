@@ -20,7 +20,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -44,7 +43,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -68,7 +66,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -92,7 +89,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -116,7 +112,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -140,7 +135,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     }
@@ -378,8 +372,7 @@
       "result_schema": "approval.decide.result",
       "test_refs": [
         "tests/implementation/integration/test_bound_approvals.py",
-        "tests/implementation/integration/test_approval_rpc.py",
-        "tests/desktop/security/test_internal_grants.py"
+        "tests/implementation/integration/test_approval_rpc.py"
       ],
       "timeout_query": "action.get"
     },
@@ -401,8 +394,7 @@
       "result_schema": "approval.get.result",
       "test_refs": [
         "tests/implementation/integration/test_bound_approvals.py",
-        "tests/implementation/integration/test_approval_rpc.py",
-        "tests/desktop/security/test_internal_grants.py"
+        "tests/implementation/integration/test_approval_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -424,8 +416,7 @@
       "result_schema": "approval.list.result",
       "test_refs": [
         "tests/implementation/integration/test_bound_approvals.py",
-        "tests/implementation/integration/test_approval_rpc.py",
-        "tests/desktop/security/test_internal_grants.py"
+        "tests/implementation/integration/test_approval_rpc.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -624,9 +615,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "action.get"
     },
@@ -649,9 +638,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -676,10 +663,7 @@
       "request_schema": "connection.prepare_set.request",
       "result_schema": "connection.prepare_set.result",
       "test_refs": [
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_storage_policy.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -704,10 +688,7 @@
       "request_schema": "connection.prepare_test.request",
       "result_schema": "connection.prepare_test.result",
       "test_refs": [
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_storage_policy.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "repeat_read"
     },
@@ -732,9 +713,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "action.get"
     },
@@ -759,9 +738,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "action.get"
     },
@@ -786,10 +763,7 @@
       "request_schema": "credentials.clear.request",
       "result_schema": "credentials.clear.result",
       "test_refs": [
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_storage_policy.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "action.get"
     },
@@ -814,9 +788,7 @@
       "test_refs": [
         "tests/implementation/unit/test_contracts.py::test_every_method_has_positive_and_negative_request_and_result_fixtures",
         "tests/implementation/portable/test_contracts_parity.py",
-        "tests/implementation/integration/test_connections.py",
-        "tests/desktop/credentials/test_real_storage.py",
-        "scripts/desktop_smoke.py"
+        "tests/implementation/integration/test_connections.py"
       ],
       "timeout_query": "action.get"
     },

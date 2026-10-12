@@ -5,48 +5,93 @@
     {
       "id": "T-API",
       "owner_task": "T01",
-      "verification": {"offline": "pass", "installed_windows": "pass"},
-      "evidence_ref": "evidence/T01-ci-closeout-20261012.json",
+      "release_required": true,
       "implementation_test_refs": [
         "tests/test_api.py"
-      ]
+      ],
+      "required_platforms": [
+        "portable"
+      ],
+      "platform_verification": {
+        "portable": {
+          "status": "not_run",
+          "evidence_ids": []
+        }
+      }
     },
     {
       "id": "T-CLI",
       "owner_task": "T01",
-      "verification": {"offline": "pass", "live_model": "blocked"},
-      "evidence_ref": "evidence/T01-ci-closeout-20261012.json",
+      "release_required": true,
       "implementation_test_refs": [
         "tests/test_cli.py"
-      ]
+      ],
+      "required_platforms": [
+        "portable"
+      ],
+      "platform_verification": {
+        "portable": {
+          "status": "not_run",
+          "evidence_ids": []
+        }
+      }
     },
     {
       "id": "T-SANDBOX",
       "owner_task": "T01",
-      "verification": {"native_windows": "pass", "native_linux": "blocked", "strict": "blocked"},
-      "evidence_ref": "evidence/T01-ci-closeout-20261012.json",
+      "release_required": true,
       "implementation_test_refs": [
         "tests/native/verify_terminal_native.py"
-      ]
+      ],
+      "required_platforms": [
+        "windows",
+        "linux"
+      ],
+      "platform_verification": {
+        "windows": {
+          "status": "not_run",
+          "evidence_ids": []
+        },
+        "linux": {
+          "status": "not_run",
+          "evidence_ids": []
+        }
+      }
     },
     {
       "id": "T-EVAL",
       "owner_task": "T01",
-      "verification": {"offline_interfaces": "pass", "official_live_experiment": "blocked"},
-      "evidence_ref": "evidence/T01-ci-closeout-20261012.json",
+      "release_required": true,
       "implementation_test_refs": [
         "tests/evals/test_runner.py",
         "tests/benchmark/test_catalog.py"
-      ]
+      ],
+      "required_platforms": [
+        "portable"
+      ],
+      "platform_verification": {
+        "portable": {
+          "status": "not_run",
+          "evidence_ids": []
+        }
+      }
     },
     {
       "id": "T-TRAIN",
       "owner_task": "T01",
-      "verification": {"offline_interfaces_and_exports": "pass", "actual_training": "blocked"},
-      "evidence_ref": "evidence/T01-ci-closeout-20261012.json",
+      "release_required": true,
       "implementation_test_refs": [
         "tests/extensions/test_qwen_tool_distillation.py"
-      ]
+      ],
+      "required_platforms": [
+        "portable"
+      ],
+      "platform_verification": {
+        "portable": {
+          "status": "not_run",
+          "evidence_ids": []
+        }
+      }
     }
   ]
 }

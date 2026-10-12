@@ -8,6 +8,14 @@
   "paid_model_experiments": false,
   "administrator_setup": false,
   "main_merge": true,
+  "workspace_cleanup": {
+    "source": "Direct user message: 先把 D:\\projects\\forgecode 统一到当前 main，不需要备份也不需要保留旧改动和会话，再清理遗留代码和文档，之后就在这个目录开发",
+    "discard_old_local_changes_and_sessions": true,
+    "create_backup": false,
+    "development_checkout": "D:/projects/forgecode",
+    "paid_model_calls": false,
+    "administrator_setup": false
+  },
   "initial_main_merge_authorized": false,
   "subsequent_user_requests": {
     "repository_git_account_selection": true,

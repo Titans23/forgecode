@@ -4,6 +4,8 @@ ForgeCode 是一个终端 Agent Harness：复用既有 Python 代理循环，负
 
 当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 
+日常开发目录统一为 `D:\projects\forgecode`。目录职责与开发入口见 [当前文档](docs/README.md)；虚拟环境、依赖、构建和测试产物不属于源码。
+
 ## 安装
 
 准备 Python 3.12+、Node 22+、Git、ripgrep；Windows 还需要 PowerShell 7/NTFS，Linux 需要 bubblewrap 与可用的非特权 user namespace。

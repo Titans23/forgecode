@@ -63,7 +63,7 @@ def check_project(root):
     progress=json.loads((docs/'progress.json').read_bytes())['tasks']
     check_dependency_graph(tasks)
     if set(progress)!={t['id'] for t in tasks}:raise ValueError('Progress/backlog task identities differ')
-    spec=(docs/'forgecode-v4.md').read_text(encoding='utf-8')
+    spec=(docs/'architecture.md').read_text(encoding='utf-8')
     for task in tasks:
         card=docs/'tasks'/(''+task['id']+'.md')
         if not card.is_file():raise ValueError('Task card missing: '+task['id'])

@@ -71,6 +71,15 @@ def test_missing_supported_windows_machine_blocks_release(tmp_path, monkeypatch)
     assert impl.gate('release')['status']!='pass'
 
 
+def test_missing_release_metadata_blocks_without_crashing(tmp_path, monkeypatch):
+    impl, *_ = gate_repo(tmp_path, monkeypatch)
+    (tmp_path / 'release-lock.json').unlink()
+    result = impl.gate('release')
+    assert result['status'] == 'blocked'
+    assert not result['errors']
+    assert 'Dependency resolution/security remains blocked' in result['blocked_dependencies']
+
+
 def test_changed_report_cannot_attest_to_pass(tmp_path, monkeypatch):
     impl, record, *_ = gate_repo(tmp_path, monkeypatch)
     (tmp_path/record['report_ref']).write_text('<testsuites/>')

@@ -21,7 +21,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -45,7 +44,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -69,7 +67,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -93,7 +90,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -117,7 +113,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     },
@@ -141,7 +136,6 @@
         "tests/implementation/unit/test_contracts.py",
         "tests/implementation/portable/test_contracts_parity.py",
         "tests/implementation/unit/test_bridge_launcher.py",
-        "tests/implementation/integration/test_bridge.py",
         "tests/implementation/node/bridge.test.mjs"
       ]
     }

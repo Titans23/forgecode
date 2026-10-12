@@ -1,0 +1,24 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.egg-info": true,
+    ".forge": true,
+    ".local": true,
+    ".venv": true,
+    "node_modules": true,
+    "build": true,
+    "dist": true,
+    "forge/_sandbox": true,
+    "sandbox_bridge/dist": true,
+    "packages/contracts/dist": true
+  },
+  "search.exclude": {
+    ".forge/**": true,
+    ".local/**": true,
+    ".venv/**": true,
+    "node_modules/**": true,
+    "build/**": true,
+    "forge/_sandbox/**": true
+  }
+}

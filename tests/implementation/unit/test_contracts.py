@@ -122,6 +122,20 @@ def test_contract_generation_has_no_drift():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_contract_generator_rejects_missing_test_reference(tmp_path, monkeypatch):
+    import shutil
+    from scripts import check_contracts
+
+    source = tmp_path / 'contracts'
+    shutil.copytree(CONTRACTS, source)
+    methods = json.loads((source / 'methods.json').read_text())
+    methods['methods']['system.health']['test_refs'].append('tests/deleted-client.py')
+    (source / 'methods.json').write_text(json.dumps(methods), encoding='utf-8')
+    monkeypatch.setattr(check_contracts, 'BASE', source)
+    with pytest.raises(ValueError, match='Missing contract test reference'):
+        check_contracts.generated_files()
+
+
 def test_authoritative_contracts_reject_duplicate_definitions(tmp_path):
     from scripts.check_contracts import read_contract
     source = tmp_path / 'duplicate.json'

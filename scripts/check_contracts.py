@@ -78,6 +78,12 @@ def generated_files():
                             '$ref': schemas['method-payloads']['$id'] + '#/$defs/' + key}
     bridge = read_contract(BASE / 'bridge-methods.json')['methods']
     events = read_contract(BASE / 'events.json')['events']
+    for definitions in (methods, bridge, events):
+        for name, definition in definitions.items():
+            for reference in definition.get('test_refs', []):
+                path = (ROOT / reference.split('::')[0]).resolve()
+                if not path.is_relative_to(ROOT.resolve()) or not path.is_file():
+                    raise ValueError(f'Missing contract test reference: {name}: {reference}')
     for name, method in bridge.items():
         for direction in ('request', 'result'):
             key = method[direction + '_schema']

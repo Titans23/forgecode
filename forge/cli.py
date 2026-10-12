@@ -180,7 +180,7 @@ def print_configuration_error(error: Exception) -> None:
         typer.echo(str(error), err=True)
         return
     if isinstance(error, BlockingIOError):
-        typer.echo('Project is already in use. Stop the active CLI or desktop turn before trying again.', err=True)
+        typer.echo('Project is already in use. Stop the active turn before trying again.', err=True)
         return
     if isinstance(error, SessionError):
         typer.echo('Session could not be resumed.', err=True)

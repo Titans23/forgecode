@@ -6,18 +6,18 @@ from scripts.acceptance_audit import audit_mapping
 ROOT=Path(__file__).resolve().parents[3]
 
 def cases():
-    return [{'id':prefix+f'{i:02d}','implementation_test_refs':['scripts/acceptance_audit.py'],
-        'required_platforms':['windows'],'platform_verification':{}} for prefix,count in
-        (('C',24),('W',12),('D',40),('O',10),('N',24)) for i in range(1,count+1)]
+    return [{'id':identity,'implementation_test_refs':['scripts/acceptance_audit.py'],
+        'required_platforms':['windows'],'platform_verification':{}} for identity in
+        ('T-API','T-CLI','T-SANDBOX','T-EVAL','T-TRAIN')]
 
 def test_complete_mapping_preserves_missing_native_proof():
     result=audit_mapping(ROOT,cases())
-    assert len(result)==110
+    assert len(result)==5
     assert all(c['platforms']['windows']['status']=='blocked' for c in result)
 
 def test_missing_case_or_test_mapping_refuses_acceptance():
     value=cases()
-    with pytest.raises(ValueError,match='86\\+24'):audit_mapping(ROOT,value[:-1])
+    with pytest.raises(ValueError,match='terminal acceptance set'):audit_mapping(ROOT,value[:-1])
     value[0]['implementation_test_refs']=[]
     with pytest.raises(ValueError,match='mapping missing'):audit_mapping(ROOT,value)
 

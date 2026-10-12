@@ -144,7 +144,8 @@ def evaluate_gate(root, name, evidence_ids=None):
                             if platform=='windows' and not windows_acceptance_evidence(r):raise ValueError('Windows 10 x64 build 19045 or later workstation evidence is missing')
                             if platform=='linux' and r['platform']!='linux':raise ValueError('Native Linux evidence is missing')
                     except (OSError,ValueError,KeyError,TypeError,ET.ParseError) as error:blocked.append(case['id']+'/'+platform+': '+str(error))
-        lock=json.loads((root/'release-lock.json').read_bytes())
+        lock_path=root/'release-lock.json'
+        lock=json.loads(lock_path.read_bytes()) if lock_path.is_file() else {}
         manifest=json.loads((root/'release-manifest.json').read_bytes()) if (root/'release-manifest.json').is_file() else {}
         if lock.get('resolution_status')!='resolved' or lock.get('security',{}).get('status')!='pass':blocked.append('Dependency resolution/security remains blocked')
         if not any(r['suite']=='security' and r['status']=='pass' for r in selected):blocked.append('Actual dependency security evidence is missing')

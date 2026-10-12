@@ -9,8 +9,9 @@ sys.path.insert(0,str(ROOT))
 from scripts.evidence_gate import load_evidence,check_evidence,windows_acceptance_evidence
 
 def audit_mapping(root,cases):
-    expected={prefix+f'{i:02d}' for prefix,count in (('C',24),('W',12),('D',40),('O',10),('N',24)) for i in range(1,count+1)}
-    if {c['id'] for c in cases}!=expected or len(cases)!=110:raise ValueError('The fixed 86+24 acceptance set changed')
+    expected={'T-API','T-CLI','T-SANDBOX','T-EVAL','T-TRAIN'}
+    if {c['id'] for c in cases}!=expected or len(cases)!=len(expected):
+        raise ValueError('The terminal acceptance set changed')
     result=[]
     proofs={}
     for case in cases:
@@ -51,8 +52,8 @@ def verify(root=ROOT):
     cases=audit_mapping(root,json.loads((root/'docs/implementation/acceptance-registry.json').read_bytes())['cases'])
     blocked=sum(p['status']!='pass' for c in cases for p in c['platforms'].values())
     return {'status':'blocked' if blocked else 'pass','reason':str(blocked)+' required platform proofs unavailable' if blocked else None,
-        'eligible_for_native_pass':False,'scope':'all 86 legacy plus 24 new case mappings and recomputed existing proofs',
-        'checks':[{'id':'all-110-real-test-mappings','status':'pass'},{'id':'required-platform-proofs','status':'blocked' if blocked else 'pass'}],
+        'eligible_for_native_pass':False,'scope':'current terminal mappings and recomputed existing proofs',
+        'checks':[{'id':'terminal-real-test-mappings','status':'pass'},{'id':'required-platform-proofs','status':'blocked' if blocked else 'pass'}],
         'case_count':len(cases),'blocked_platform_proofs':blocked,'cases':cases}
 
 def main():

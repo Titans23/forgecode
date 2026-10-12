@@ -1,4 +1,4 @@
-# ForgeCode V4 共享契约
+# ForgeCode 共享契约
 
 本目录是 JSON Schema 2020-12 的维护源。48 个 Engine 方法的 request/result、6 个独立 Bridge 方法、42 个事件 payload（含 F03 Journal metadata 投影）、Policy、RunSpec、配置快照、审批、能力报告、Artifact 和 Bundle 均有 schema。methods.json 保存权限、幂等、提交点、超时查询、错误和测试引用；Bridge 使用独立表。
 
