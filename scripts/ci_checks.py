@@ -17,7 +17,7 @@ def run(suite, output, prepared_source_hash=None):
     node=shutil.which('node');npm=shutil.which('npm')
     if not node or not npm:return {'status':'blocked','reason':'Locked build Node/npm are unavailable','checks':[]}
     if suite=='contracts':commands=[[sys.executable,str(ROOT/'scripts/check_contracts.py'),'--check'],[npm,'run','contracts:check']]
-    elif suite=='quality':commands=[[sys.executable,str(ROOT/'scripts/quality.py')],[npm,'run','typecheck'],([node,'--test',*[str(p) for p in sorted((ROOT/'tests/implementation/node').glob('*.test.mjs'))]] if prepared_source_hash else [npm,'run','test:unit']),[node,str(ROOT/'packaging/verify-release.mjs')]]
+    elif suite=='quality':commands=[[sys.executable,str(ROOT/'scripts/quality.py')],[npm,'run','typecheck'],([node,'--test',*[str(p) for p in sorted((ROOT/'tests/implementation/node').glob('*.test.mjs'))]] if prepared_source_hash else [npm,'run','test:unit']),[sys.executable,str(ROOT/'scripts/build_bridge.py'),'--check','--no-build']]
     else:commands=[[npm,'audit','--json','--registry=https://registry.npmjs.org']]
     checks=[]
     for i,argv in enumerate(commands):

@@ -46,19 +46,14 @@ def inspect_history(legacy_id:str,data_dir:Path=typer.Option(...,'--data-dir'),p
 
 
 def delegate(target,ctx):
-    try:entry=importlib.import_module(target)
-    except ModuleNotFoundError as error:
-        if target=='forge.engine.http_adapter' and error.name=='aiohttp':
-            typer.echo('Optional Web transport is unavailable; install forge-code[web] using the pinned lock.',err=True)
-            raise typer.Exit(2) from None
-        raise
+    entry=importlib.import_module(target)
     raise typer.Exit(int(entry.main(ctx.args) or 0))
 
 
 def register(app):
     app.add_typer(history,name='history')
     settings={'allow_extra_args':True,'ignore_unknown_options':True}
-    modules={'engine':'forge.engine.__main__','sandbox':'forge.sandbox.doctor','eval':'benchmark.cli','web':'forge.engine.http_adapter'}
+    modules={'engine':'forge.engine.__main__','sandbox':'forge.sandbox.doctor','eval':'benchmark.cli'}
     def command_factory(target):
         def command(ctx:typer.Context):return delegate(target,ctx)
         return command

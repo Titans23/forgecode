@@ -1,0 +1,33 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "T01-regression-20261012",
+  "task_id": "T01",
+  "case_ids": [
+    "T-API",
+    "T-CLI",
+    "T-EVAL",
+    "T-TRAIN"
+  ],
+  "suite": "regression",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "git_commit": "913446f5fcf0275c2c839617fef9a5b2bbe4280f",
+  "branch": "codex/terminal-harness",
+  "source_inventory_hash": "5fbbeb4cdc7353fca0a6800ee90a2b4640cf325845a6c6a2206d8464518f4fd7",
+  "start": "2026-10-12T16:43:06.279082+08:00",
+  "end": "2026-10-12T08:59:50.431960+00:00",
+  "exit_code": 0,
+  "status": "pass",
+  "report_ref": ".local/terminal/final-batches/combined-final.xml",
+  "report_hash": "c8b3c5346464685c2edf4d2f9702334b0c8027040e561933739616a9f30a948b",
+  "tests": {
+    "collected": 1328,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "command": "Disjoint pytest commands and actual exit codes in observations_ref/batches",
+  "observations_ref": "T01-terminal-harness-20261012.json",
+  "warnings": 4,
+  "source_scope": "Base HEAD plus frozen implementation content; documentation finalization is outside source_fingerprint."
+}

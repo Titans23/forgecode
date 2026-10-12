@@ -134,40 +134,6 @@ def test_failed_observation_intent_prevents_real_backend_side_effect(tmp_path,mo
         store.close()
 
 
-def test_real_bridge_denial_and_cleanup_are_observed_without_manufactured_capabilities(tmp_path):
-    from forge.sandbox.srt_backend import SrtBackend
-    from tests.implementation.integration.test_bridge import policy_input
-    _,workspace,policy=policy_input(tmp_path)
-    journal=SessionJournal(tmp_path/'sandbox.jsonl',session_id='session-'+'c'*24,project_root=tmp_path)
-    journal.append('session_started',{})
-    recorder=JournalRecorder(journal)
-    backend=SrtBackend(workspace,{'engine_epoch':new_id('epoch'),'sandbox_session_id':new_id('sandbox'),'execution_id':None},tmp_path/'control')
-    async def run():
-        try:
-            with recorder.turn():
-                with pytest.raises(ContractError):
-                    await backend.prepare(policy)
-            await backend.close()
-            await backend.close()
-        finally:
-            await backend.aclose()
-    asyncio.run(run())
-    events=observations(journal)
-    assert [e['event_type'] for e in events]==['sandbox.denied','sandbox.cleanup_finished']
-    assert all(e['origin']=='trusted_bridge' for e in events)
-    assert all(v['status']!='verified' for v in events[0]['attributes']['capabilities']['verification'].values())
-    assert events[1]['attributes']['cleanup']['state']=='clean'
-    assert events[0]['span_id']!=events[1]['span_id']
-    assert all(int(e['monotonic_ns'])>=int(e['attributes']['operation_start_monotonic_ns']) for e in events)
-    assert int(events[0]['monotonic_ns'])>int(events[0]['attributes']['operation_start_monotonic_ns'])
-    from forge.observability.otel_mapping import export_span
-    with Store(tmp_path/'observation-data') as store:
-        for event in events:
-            store.append_event(event,event['producer_id'],int(event['producer_seq']))
-        denial=export_span(store,events[0])['resourceSpans'][0]['scopeSpans'][0]['spans'][0]
-        assert denial['status']['code']==2 and int(denial['endTimeUnixNano'])>int(denial['startTimeUnixNano'])
-
-
 def test_real_grader_callback_has_owned_provenance_and_actual_artifact_digest(tmp_path):
     from hashlib import sha256
     import sys

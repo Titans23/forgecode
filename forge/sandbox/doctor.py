@@ -103,7 +103,7 @@ def system_diagnosis():
         for name, key in [('pwsh', 'powershell'), ('git', 'git'), ('rg', 'ripgrep')]:
             tool = runtime.tools.get(key)
             tools[name] = ({'status': 'pass', 'path': str(tool), 'sha256': sha256(tool.read_bytes()).hexdigest()}
-                           if tool else {'status': 'blocked', 'reason': 'Bundled application tool is unavailable'})
+                           if tool else {'status': 'blocked', 'reason': 'Installed host tool is unavailable'})
         host['system_volume'] = windows_volume(Path(environment['SystemRoot']))
     from forge.release.toolchains import discover_toolchains
     project_tools=discover_toolchains()
@@ -115,10 +115,10 @@ def system_diagnosis():
         'capabilities': capabilities, 'execution_mode': 'workspace-write', 'strict_execution': 'unavailable',
         'active_sessions': {'state': 'not_observed', 'count': None}, 'cleanup': {'state': 'not_observed'},
         'workspace_tools_executed': False, 'automatic_repair': False,
-        'repair_steps': (['Select workspace-write using Main native confirmation; strict execution is unavailable in this build.',
-            'Bundled PowerShell/Git/ripgrep and NTFS are required. Use the ForgeCode installer to restore missing application assets; DNS isolation is unavailable.']
-            if sys.platform == 'win32' else ['Use the ForgeCode deb installation flow to resolve missing system dependencies.',
-            'The installer owns application-specific namespace policy; do not disable AppArmor or change global sysctls.'])}
+        'repair_steps': (['Prepare Node 22+, PowerShell 7, Git, ripgrep and an NTFS workspace.',
+            'Start forge --sandbox workspace-write in the selected project to run the native boundary probe.']
+            if sys.platform == 'win32' else ['Prepare Node 22+, Git, ripgrep and bubblewrap.',
+            'Use a host that permits unprivileged user namespaces; initialization failure refuses execution.'])}
 
 
 async def workspace_diagnosis(path):

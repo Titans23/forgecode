@@ -9,8 +9,8 @@ import pytest
 
 @pytest.mark.parametrize('arguments',[
     ['-m','forge','--help'],['-m','forge','--version'],['-m','forge.engine','--help'],
-    ['scripts/package_engine.py','--help'],['scripts/assemble_release.py','--help'],
-    ['scripts/make_installer.py','--help'],['scripts/materialize_release.py','--help'],['scripts/materialize_experiment.py','--help'],['scripts/release_review.py','--help'],['scripts/delivery_experiment.py','--help'],
+    ['-m','forge','--show-profile'],['-m','forge','--profile','evaluation','list','--json'],
+    ['scripts/build_bridge.py','--help'],['scripts/materialize_experiment.py','--help'],['scripts/delivery_experiment.py','--help'],
     ['-m','benchmark.core.results','--help']])
 def test_documented_source_entry_points_are_real(arguments):
     result=subprocess.run([sys.executable,*arguments],capture_output=True,text=True,encoding='utf-8',timeout=40)

@@ -1,4 +1,4 @@
-"""Verify the installation before creating a Node process; never resolve it from PATH."""
+"""Verify sandbox code and resolve installed tool paths once before task admission."""
 from dataclasses import dataclass, field
 from hashlib import sha256
 import json
@@ -9,7 +9,8 @@ import sys
 from forge.application.models import ContractError
 
 
-ROOT = Path(sys.executable).resolve().parents[2] if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[2]
+_SOURCE = Path(__file__).resolve().parents[2]
+ROOT = _SOURCE if (_SOURCE / 'sandbox_bridge/package.json').is_file() else Path(__file__).resolve().parents[1] / '_sandbox'
 
 
 def unavailable(message):
@@ -41,47 +42,43 @@ class TrustedRuntime:
     node: Path
     entry: Path
     manifest_hash: str
-    installed: bool = False
     tools: dict[str, Path] = field(default_factory=dict)
 
 
 def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
+    """Verify the sandbox dependency closure; use explicit installed host tools."""
+    import shutil
+    import subprocess
     root = root.resolve(strict=True)
-    if (root/'release-manifest.json').is_file() and (root/'engine').is_dir():
-        from forge.release.runtime import verify_manifest, verify_asset as installed_asset
-        try:
-            manifest=verify_manifest(root)
-            return TrustedRuntime(root,installed_asset(root,manifest['node']),installed_asset(root,manifest['bridge']),
-                sha256((root/'release-manifest.json').read_bytes()).hexdigest(), installed=True,
-                tools={name: installed_asset(root, tool['entry']) for name, tool in manifest.get('tools', {}).items()})
-        except (OSError,ValueError,KeyError,TypeError):
-            unavailable('Installed runtime group is unavailable or invalid')
-    if getattr(sys,'frozen',False): unavailable('Installed runtime group is required')
+    manifest_path = root / 'sandbox_bridge/runtime-manifest.json'
     try:
-        lock = json.loads((root / 'release-lock.json').read_text(encoding='utf-8'))
-        if lock.get('resolution_status') != 'resolved':
-            unavailable('Release dependencies are unresolved')
-        target = 'win32-x64' if sys.platform == 'win32' else 'linux-x64' if sys.platform == 'linux' else None
-        if target is None:
-            unavailable('Unsupported native runtime target')
-        assets = {entry['name']: verify_asset(root, entry) for entry in lock['assets']
-                  if entry['platform'] in (target, 'all')}
-        for name, hash_value in lock['lockfile_hashes'].items():
-            verify_asset(root, {'path': name, 'sha256': hash_value})
-        manifest = assets['bridge-runtime-manifest']
-        inventory = json.loads(manifest.read_text(encoding='utf-8'))
+        inventory = json.loads(manifest_path.read_text(encoding='utf-8'))
         if inventory.get('schema_version') != 'forge.bridge.runtime.v1' or not inventory.get('files'):
-            unavailable('Installed Bridge code inventory is incomplete')
+            unavailable('Sandbox code inventory is incomplete; run scripts/build_bridge.py')
+        if sha256((root / 'package-lock.json').read_bytes()).hexdigest() != inventory.get('package_lock_sha256'):
+            unavailable('Sandbox dependency lock differs; rebuild the sandbox')
         paths = {entry['path']: verify_asset(root, entry) for entry in inventory['files']}
-        entry = paths['sandbox_bridge/dist/main.js']
-        # Every JS dependency is inventoried, not just the top-level entry script.
+        entry = paths['sandbox_bridge/dist/workspace-runner.js']
         if 'sandbox_bridge/dist/dispatcher.js' not in paths or 'packages/contracts/dist/index.js' not in paths:
-            unavailable('Installed Bridge code inventory is incomplete')
-        from forge.release.runtime import verify_tool_bundle
-        tools = {bundle['name']: verify_tool_bundle(root, bundle) for bundle in lock.get('tool_bundles', []) if bundle['platform'] == target}
-        return TrustedRuntime(root, assets['node'], entry, sha256(manifest.read_bytes()).hexdigest(), tools=tools)
-    except (OSError, ValueError, KeyError, TypeError):
-        unavailable('Trusted runtime manifest is unavailable or invalid')
+            unavailable('Sandbox code inventory is incomplete')
+        node_path = shutil.which('node')
+        if not node_path:
+            unavailable('Node 22.13 or newer is required for the native sandbox')
+        node = Path(node_path).resolve(strict=True)
+        version = subprocess.run([str(node), '--version'], capture_output=True, text=True, timeout=5,
+            **({'creationflags': subprocess.CREATE_NO_WINDOW} if sys.platform == 'win32' else {}))
+        if version.returncode or tuple(map(int, version.stdout.strip().lstrip('v').split('.'))) < (22, 13, 0):
+            unavailable('Node 22.13 or newer is required for the native sandbox')
+        from forge.release.toolchains import core_tool
+        tools = {'git': core_tool('git'), 'ripgrep': core_tool('rg')}
+        if sys.platform == 'win32':
+            shell = shutil.which('pwsh')
+            if not shell:
+                unavailable('PowerShell 7 is required for Windows commands')
+            tools['powershell'] = Path(shell).resolve(strict=True)
+        return TrustedRuntime(root, node, entry, sha256(manifest_path.read_bytes()).hexdigest(), tools=tools)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+        unavailable('Native sandbox runtime unavailable; run npm ci and scripts/build_bridge.py')
 
 
 def bridge_environment(control: Path, *, source=None) -> dict:

@@ -2,6 +2,8 @@
 
 本文件是此仓库的执行记录格式，与产品规范分离。目标是换一个 Codex 会话仍可继续，不依赖隐藏聊天上下文。
 
+当前 `codex/terminal-harness` 按用户要求及 ADR038/T01 实施纯终端 Harness + 真实沙盒。旧 V4 客户端任务、权限授权和验收只作历史；当前范围、测试及未授权的模型/系统支出以 progress 的 terminal-harness scope 为准。
+
 ## 每次开始
 
 读取当前 AGENTS 指令、主规范第 0—3 章、progress、handoff。使用实际 git status／HEAD 校对记录；确认用户修改。选择依赖已实现的下一任务，读取任务卡和关联章节，不机械依编号执行。安全／平台原生验证门禁仍独立约束发布。

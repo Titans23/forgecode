@@ -1,9 +1,9 @@
-name: Protected native and packaged acceptance
+name: Protected terminal native and wheel acceptance
 on:
   workflow_dispatch:
     inputs:
       layer:
-        description: Prepared native devices or native installer build
+        description: Prepared native devices or Python wheel build
         type: choice
         required: true
         options: [native, packaged]
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [forgecode-windows10-x64, forgecode-ubuntu2204-x11, forgecode-ubuntu2204-wayland, forgecode-ubuntu2404-x11, forgecode-ubuntu2404-wayland]
+        device: [forgecode-windows10-x64, forgecode-ubuntu2204-x64, forgecode-ubuntu2404-x64]
     runs-on: [self-hosted, '${{ matrix.device }}']
     timeout-minutes: 50
     steps:
@@ -74,7 +74,7 @@ jobs:
           name: packaged-${{ matrix.device }}
           path: |
             .local/ci/
-            .local/desktop-packages/make/
+            .local/terminal/wheels/
             .local/implementation/*/*.json
             .local/implementation/*/*.log
             docs/implementation/evidence/

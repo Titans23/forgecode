@@ -72,6 +72,12 @@ def avoid_real_runtime_files(
     monkeypatch.setenv('ANTHROPIC_API_KEY', 'test-key')
     monkeypatch.setenv('MODEL_ID', 'test-model')
     monkeypatch.setenv('FORGE_DATA_DIR', str(tmp_path / 'forge-data'))
+    import forge.api
+    async def offline_cli_runtime(options, *, runtime_factory, **resume):
+        # These terminal rendering tests inject FakeConversation. Native
+        # admission has its separate real-process acceptance suite.
+        return (*runtime_factory(options.root, **resume), None)
+    monkeypatch.setattr(forge.api, 'open_runtime', offline_cli_runtime)
     monkeypatch.setattr(
         cli_module,
         'create_trajectory_recorder',
@@ -235,6 +241,27 @@ class FakeResponseView:
 
     def complete(self, result: TurnResult) -> None:
         self.actions.append(('complete', result))
+
+
+def test_async_cli_cancellation_closes_runtime_once(monkeypatch):
+    async def run():
+        session = FakeConversation()
+        closed = []
+        started = asyncio.Event()
+        async def close(**kwargs):
+            closed.append(kwargs)
+        async def wait_for_input(terminal):
+            started.set()
+            await asyncio.Event().wait()
+        monkeypatch.setattr(session, 'runtime_close', close, raising=False)
+        monkeypatch.setattr(cli_module, 'read_terminal_prompt', wait_for_input)
+        task = asyncio.create_task(cli_module._run_interactive_chat(session=session))
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert closed == [{'reason': 'exit'}]
+    asyncio.run(run())
 
 
 def turn(
@@ -667,6 +694,7 @@ def test_cli_continue_and_resume_are_forwarded(
         continue_session: bool = False,
         resume_identifier: str | None = None,
         fork_session: bool = False,
+        **execution_options,
     ) -> None:
         calls.append(
             (continue_session, resume_identifier, fork_session)

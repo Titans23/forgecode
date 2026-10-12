@@ -51,8 +51,17 @@ class FileWorkerClient:
                 # Explicit portable/local-trusted mode. It is never selected as
                 # fallback after a native failure and makes no OS sandbox claim.
                 from forge.sandbox.process_owner import LocalProcessOwner
+                import os
+                import shutil
+                environment = bridge_environment(self.local_control)
+                directories = [str(Path(sys.executable).parent)]
+                for name in ('git', 'rg', 'node', 'pwsh'):
+                    executable = shutil.which(name)
+                    if executable:
+                        directories.append(str(Path(executable).resolve().parent))
+                environment['PATH'] = os.pathsep.join([*dict.fromkeys(directories), environment['PATH']])
                 owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
-                    environment=bridge_environment(self.local_control), output=True)
+                    environment=environment, output=True)
                 child = owner.process
                 self._owners.add(owner)
                 try:
@@ -89,7 +98,7 @@ class FileWorkerClient:
 
     async def _native_request(self, execution_id, raw):
         native = self.native
-        if native._prepared is None or native._prepared.sha256 != self.policy_hash:
+        if native.policy_hash != self.policy_hash:
             raise ContractError('File helper requires its prepared native policy', kind='SANDBOX_UNAVAILABLE', code=-32010)
         seconds = self._seconds(strict_loads(raw))
         deadline = (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat().replace('+00:00', 'Z')

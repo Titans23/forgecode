@@ -716,19 +716,27 @@ class Conversation:
         self.skill_manager.refresh()
         return self.skill_manager.show(name)
 
-    async def runtime_close(self, *, reason: str = 'exit') -> None:
+    async def runtime_close(self, *, reason: str = 'exit') -> dict | None:
+        cleanup = None
         try:
             await self.session_end(reason=reason)
             if self.mcp_manager is not None:
                 await self.mcp_manager.close()
         finally:
-            seen = set()
-            for client in (self.client, getattr(self.intent_router, 'client', None)):
-                if client is not None and id(client) not in seen:
-                    seen.add(id(client))
-                    close = getattr(client, 'aclose', None)
-                    if close is not None:
-                        await close()
+            try:
+                seen = set()
+                for client in (self.client, getattr(self.intent_router, 'client', None)):
+                    if client is not None and id(client) not in seen:
+                        seen.add(id(client))
+                        close = getattr(client, 'aclose', None)
+                        if close is not None:
+                            await close()
+            finally:
+                if self.tool_executor is not None and self.tool_executor.backend is not None:
+                    close_backend = getattr(self.tool_executor.backend, 'close', None)
+                    if close_backend is not None:
+                        cleanup = await close_backend()
+        return cleanup
 
     def checkpoint_undo(self) -> str:
         if self.checkpoint_store is None:

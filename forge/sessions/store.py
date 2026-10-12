@@ -16,6 +16,7 @@ from forge.runtime.state import TurnResult, VerificationEvidence
 from forge.tasks.manager import task_path_matches
 from forge.tasks.state import ActiveTask
 from forge.sessions.locking import exclusive_append
+from forge.storage_paths import private_storage_path
 
 
 SESSION_ID_PATTERN = re.compile(r'session-[0-9a-f]{24}')
@@ -430,8 +431,8 @@ class SessionJournal:
         self.artifact_directory.mkdir(parents=True, exist_ok=True)
         path = self.artifact_directory / f'{event_uuid}.json'
         temporary = path.with_suffix('.json.tmp')
-        temporary.write_bytes(content)
-        temporary.replace(path)
+        private_storage_path(temporary).write_bytes(content)
+        private_storage_path(temporary).replace(private_storage_path(path))
         return {
             'path': path.relative_to(self.path.parent).as_posix(),
             'sha256': hashlib.sha256(content).hexdigest(),
@@ -995,7 +996,7 @@ class SessionStore:
             raise SessionCorruptError('Unsafe session artifact path.')
         artifact = path.parent / relative
         try:
-            content = artifact.read_bytes()
+            content = private_storage_path(artifact).read_bytes()
         except OSError as error:
             raise SessionCorruptError(
                 f'Cannot read session artifact: {artifact}'

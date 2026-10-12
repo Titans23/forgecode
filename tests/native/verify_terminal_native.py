@@ -1,0 +1,158 @@
+"""Real native boundary acceptance. No mocked backend or model service."""
+import asyncio
+import base64
+from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
+
+import pytest
+
+from forge.api import HarnessSession, SessionOptions
+from forge.config import ForgeConfig
+from forge.runtime.state import ToolCall
+from forge.sandbox.launcher import verify_runtime
+
+
+@pytest.fixture(scope='module', autouse=True)
+def native_fixture_acl(tmp_path_factory):
+    import sys
+    import os
+    if os.environ.get('FORGE_EXPECT_WHEEL') == '1':
+        import forge
+        assert 'site-packages' in Path(forge.__file__).parts, forge.__file__
+    if sys.platform == 'win32':
+        from forge.sandbox.windows_worker import grant_controller_access
+        grant_controller_access(tmp_path_factory.getbasetemp())
+
+
+def settings(tmp_path, mode, **kwargs):
+    import sys
+    if sys.platform == 'win32':
+        from forge.sandbox.windows_worker import grant_controller_access
+        grant_controller_access(tmp_path)
+    root = tmp_path / 'project'
+    root.mkdir(exist_ok=True)
+    if sys.platform == 'win32':
+        from forge.sandbox.windows_worker import grant_controller_access
+        grant_controller_access(root)
+    (root / 'existing.txt').write_text('preserve', encoding='utf-8')
+    return SessionOptions(root, data_root=tmp_path / 'data', sandbox=mode,
+        config=ForgeConfig(api_key='offline-only', model_id='no-model-called'), **kwargs)
+
+
+@pytest.mark.parametrize('mode', ['read-only', 'workspace-write'])
+def test_native_file_write_scope_read_and_cleanup(tmp_path, mode):
+    async def run():
+        options = settings(tmp_path, mode)
+        async with await HarnessSession.open(options) as session:
+            registry = session.conversation.registry
+            async def tool(name, args):
+                return await session.backend.execute(ToolCall(0, 'fixture', name, args), registry)
+            read = await tool('read_file', {'path': 'existing.txt'})
+            assert read.success and 'preserve' in read.content
+            write = await tool('write_file', {'path': 'new.txt', 'content': 'created'})
+            assert write.success == (mode == 'workspace-write'), write
+            outside = await tool('write_file', {'path': '../escape.txt', 'content': 'escape'})
+            assert not outside.success
+            assert not (options.root.parent / 'escape.txt').exists()
+            native = session.backend.observer.native
+            proof = json.loads((native.control_root / 'boundary.json').read_text())
+            assert proof['mode'] == mode
+            assert proof['cleanup']['state'] == 'clean'
+        assert session.cleanup['state'] == 'clean'
+        assert not list(native.control_root.glob('temp-*'))
+    asyncio.run(run())
+
+
+def test_native_scoped_write_does_not_write_sibling(tmp_path):
+    async def run():
+        options = settings(tmp_path, 'workspace-write')
+        allowed = options.root / 'src'
+        allowed.mkdir()
+        from dataclasses import replace
+        async with await HarnessSession.open(options) as broad:
+            assert broad.backend.observer.native.policy_hash
+        assert broad.cleanup['state'] == 'clean'
+        async with await HarnessSession.open(replace(options, write_roots=(allowed,))) as session:
+            registry = session.conversation.registry
+            for path, permitted in [('src/new.txt', True), ('sibling.txt', False)]:
+                result = await session.backend.execute(ToolCall(0, 'fixture', 'write_file',
+                    {'path': path, 'content': 'scoped'}), registry)
+                assert result.success == permitted, result
+            native = session.backend.observer.native
+            runtime = verify_runtime()
+            # Bypass Python's file guard: OS boundary must also refuse the sibling.
+            script = "const fs=require('fs');try{fs.writeFileSync(process.argv[1],'escape');process.exit(3)}catch{console.log('denied')}"
+            command = {'mode': 'argv', 'argv': [str(runtime.node), '-e', script, str(options.root / 'os-escape.txt')],
+                'cwd': str(options.root), 'environment': {}, 'output_limit_bytes': 1024,
+                'deadline_utc': (datetime.now(timezone.utc) + timedelta(seconds=15)).isoformat().replace('+00:00', 'Z')}
+            await native.execute('exec-11111111-1111-4111-8111-111111111111', command)
+            while (await native.status('exec-11111111-1111-4111-8111-111111111111'))['state'] == 'running':
+                await asyncio.sleep(0.02)
+            status = await native.status('exec-11111111-1111-4111-8111-111111111111')
+            assert status['exit_code'] == 0, status
+            assert not (options.root / 'os-escape.txt').exists()
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
+def test_native_helper_command_git_and_additional_read_scope(tmp_path):
+    async def run():
+        options = settings(tmp_path, 'workspace-write')
+        outside = tmp_path / 'reference'
+        outside.mkdir()
+        (outside / 'reference.txt').write_text('reference data', encoding='utf-8')
+        from dataclasses import replace
+        async with await HarnessSession.open(replace(options, read_roots=(outside,))) as session:
+            registry = session.conversation.registry
+            result = await session.backend.execute(ToolCall(0, 'read', 'read_file',
+                {'path': str(outside / 'reference.txt')}), registry)
+            assert result.success and 'reference data' in result.content, result
+            command = await session.backend.execute(ToolCall(0, 'init', 'run_command',
+                {'command': 'git init --quiet'}), registry)
+            assert command.success, command
+            script = "from pathlib import Path;Path('build').mkdir();Path('build/result.txt').write_text('real build output')"
+            build = await session.backend.execute(ToolCall(0, 'build', 'run_command',
+                {'command': 'python -', 'stdin': script}), registry)
+            assert build.success and (options.root / 'build/result.txt').read_text() == 'real build output', build
+            status = await session.backend.execute(ToolCall(0, 'status', 'git_status', {}), registry)
+            assert status.success, status
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
+def test_native_cancellation_reconciles_process_tree(tmp_path):
+    async def run():
+        async with await HarnessSession.open(settings(tmp_path, 'workspace-write')) as session:
+            native = session.backend.observer.native
+            command = {'mode': 'argv', 'argv': [str(verify_runtime().node), '-e', 'setInterval(()=>{},1000)'],
+                'cwd': native.workspace['canonical_path'], 'environment': {}, 'output_limit_bytes': 1024,
+                'deadline_utc': (datetime.now(timezone.utc) + timedelta(seconds=20)).isoformat().replace('+00:00', 'Z')}
+            identity = 'exec-11111111-1111-4111-8111-111111111112'
+            await native.execute(identity, command)
+            await asyncio.sleep(0.4)
+            result = await native.cancel(identity, 'acceptance', command['deadline_utc'])
+            assert result['confirmed'] and result['cleanup']['state'] == 'clean', result
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
+def test_native_public_session_continues_with_structured_events(tmp_path):
+    from forge.api import event_dict
+    from forge.runtime.state import ModelTextDelta, ModelResponseCompleted
+    class OfflineClient:
+        model = 'offline-native'
+        async def stream(self, *args, **kwargs):
+            yield ModelTextDelta('offline native response')
+            yield ModelResponseCompleted('end_turn')
+        async def aclose(self):
+            pass
+    async def run():
+        async with await HarnessSession.open(settings(tmp_path, 'workspace-write'),
+                model_client_factory=lambda *args, **kwargs: OfflineClient()) as session:
+            assert (await session.run('hello')).text == 'offline native response'
+            events = [event_dict(event) async for event in session.stream('continue')]
+            assert events[-1]['type'] == 'TurnCompleted'
+            assert events[-1]['payload']['result']['text'] == 'offline native response'
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())

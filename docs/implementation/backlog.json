@@ -1859,7 +1859,7 @@
     {
       "id": "F31",
       "title": "执行对照实验与生成可复算报告",
-      "handoff_ref": "handoff-win10-wsl-20261009.md",
+      "handoff_ref": "../experiments/F31-wsl-handoff.md",
       "design_plan_ref": "sandbox-redesign.md",
       "planned_slices": [
         "S5"
@@ -1948,8 +1948,7 @@
       "remaining_implementation": [
         "Official Docker environment/network enforcement and trusted host per-request admission/authorization integration remain unimplemented or unverified; live execution stays refused. Durable request accounting attribution checks are implemented but are not that admission gateway.",
         "The current preregistration still needs actual official source/model/environment/grader snapshots and a trusted authorization binding. The explicit unbounded RunSpec representation is now implemented; no missing snapshot or execution permission is inferred."
-      ],
-      "handoff_ref": "../experiments/F31-wsl-handoff.md"
+      ]
     },
     {
       "id": "F32",
@@ -2013,6 +2012,37 @@
       ],
       "case_ids": [],
       "status": "implemented"
+    },
+    {
+      "id": "T01",
+      "title": "终端 Harness、原生边界与入口组合",
+      "depends_on": [
+        "F00"
+      ],
+      "chapters": [
+        0,
+        2,
+        9,
+        10,
+        11,
+        12,
+        17,
+        18,
+        21,
+        22,
+        24
+      ],
+      "files": [
+        "forge/api.py",
+        "forge/launch.py",
+        "tests/test_api.py",
+        "tests/native/verify_terminal_native.py"
+      ],
+      "scope": "terminal-harness",
+      "implementation_status": "implemented",
+      "evidence_ids": ["T01-regression-20261012"],
+      "observations_ref": "evidence/T01-terminal-harness-20261012.json",
+      "case_ids": ["T-API", "T-CLI", "T-SANDBOX", "T-EVAL", "T-TRAIN"]
     }
   ]
 }

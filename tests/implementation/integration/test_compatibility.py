@@ -17,7 +17,7 @@ from test_application import ScriptedClient, script, setup
 ROOT=Path(__file__).resolve().parents[3]
 
 
-@pytest.mark.parametrize('command',['engine','sandbox','web'])
+@pytest.mark.parametrize('command',['engine','sandbox'])
 def test_new_cli_commands_delegate_to_real_module_help(command):
     result=subprocess.run([sys.executable,'-m','forge.cli',command,'--help'],cwd=ROOT,capture_output=True,text=True,timeout=20)
     assert result.returncode==0 and 'usage:' in result.stdout.lower()
@@ -38,11 +38,11 @@ def test_cli_catalog_json_preserves_unicode_in_ascii_stdout():
     assert json.loads(result.stdout)==json.loads(json.dumps([spec.to_dict() for spec in BENCHMARKS]))
 
 
-def test_web_cli_rejects_public_bind_before_creating_data_or_listener(tmp_path):
+def test_retired_web_cli_has_no_entry_and_creates_no_data_or_listener(tmp_path):
     data=tmp_path/'private-data'
     result=subprocess.run([sys.executable,'-m','forge.cli','web','--data-dir',str(data),'--host','0.0.0.0'],
         cwd=ROOT,capture_output=True,text=True,timeout=20)
-    assert result.returncode==2 and 'unrecognized arguments' in result.stderr and not data.exists()
+    assert result.returncode==2 and "No such command 'web'" in result.stderr and not data.exists()
 
 
 @pytest.mark.parametrize('kind',['mcp','hooks','channels','permissions'])
@@ -260,7 +260,10 @@ def test_existing_cli_signatures_and_original_tool_schemas_match_f25_golden(tmp_
     assert sha256(encoded).hexdigest()==baseline['tool_schemas_sha256_by_os'][os.name]
     assert [value['name'] for value in registry.definitions]==baseline['tools']
     for function in (main,create_session_runtime,create_runtime):
-        assert list(inspect.signature(function).parameters)==baseline['parameters'][function.__name__]
+        actual = list(inspect.signature(function).parameters)
+        previous = baseline['parameters'][function.__name__]
+        assert actual[:len(previous)] == previous
+        assert actual[len(previous):] == (['sandbox', 'approval', 'read_root', 'write_root'] if function is main else [])
 
 
 def test_actual_history_cli_requires_preview_hash_and_imports_twice_without_duplicate(tmp_path):

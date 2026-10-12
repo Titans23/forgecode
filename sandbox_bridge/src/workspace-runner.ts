@@ -17,6 +17,15 @@ async function directory(path: string): Promise<string> {
 async function main() {
   if (!['win32', 'linux'].includes(process.platform)) throw new Error('Unsupported native platform');
   const args = process.argv.slice(2);
+  const readOnly = args.at(-1) === '--read-only';
+  if (readOnly) args.pop();
+  let writeRoots: string[] | undefined;
+  if (args.at(-2) === '--write-roots') {
+    writeRoots = JSON.parse(args.pop()!);
+    args.pop();
+    if (!Array.isArray(writeRoots) || !writeRoots.every(root => typeof root === 'string' && isAbsolute(root)))
+      throw new Error('Invalid write roots');
+  }
   if (args.length === 2 && args[0] === '--cleanup-temp') {
     const temp = await directory(args[1]);
     if (process.platform !== 'win32') throw new Error('ACL cleanup requires Windows');
@@ -29,37 +38,49 @@ async function main() {
   }
   if (args.length !== 8 || args[0] !== '--workspace' || args[2] !== '--temp') throw new Error('Invalid owned launch');
   const workspace = await directory(args[1]), temp = await directory(args[3]);
+  writeRoots ??= [workspace];
+  writeRoots = await Promise.all(writeRoots.map(directory));
+  if (writeRoots.some(root => root !== workspace && !root.startsWith(workspace + (process.platform === 'win32' ? '\\' : '/'))))
+    throw new Error('Write scope exceeds workspace');
   const raw = await readLaunchPayload(args.slice(4));
   if (process.platform === 'linux') {
     const binary = await realpath('/usr/bin/bwrap');
     const info = await lstat(binary);
     if (!info.isFile() || info.uid !== 0 || (info.mode & 0o022)) throw new Error('Untrusted bubblewrap executable');
     const command = [resolve(dirname(fileURLToPath(import.meta.url)), 'dispatcher.js'), ...args.slice(4)];
-    const child = spawn(binary, bubblewrapArgv(workspace, temp, process.execPath, command),
+    const child = spawn(binary, bubblewrapArgv(workspace, temp, process.execPath, command, readOnly, writeRoots),
       { cwd: workspace, stdio: 'inherit', shell: false });
     process.exitCode = await new Promise<number>((resolve, reject) => {
       child.once('error', reject); child.once('close', code => resolve(code ?? 125));
     });
     return;
   }
-  const { AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } = await import('@deepseek-ai/dsh-sandbox-windows-acl');
+  const { AclSandbox, AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } = await import('@deepseek-ai/dsh-sandbox-windows-acl');
   assertTempRootOutsideWorkspace(workspace, temp);
-  const writeSid = workspaceWriteSid(workspace), tempSid = tempWriteSid(temp);
-  const workspaceGrant = AclWriteGrant.create(writeSid);
-  try { workspaceGrant.add(workspace, true); } finally { workspaceGrant.dispose(); }
-  const tempGrant = AclWriteGrant.create(tempSid);
-  // Register the path before applying, so a partially applied grant can be revoked by the parent.
-  tempGrant.add(temp);
+  // A standing broad-workspace ACE must never authorize a later narrower scope.
+  const writeSid = workspaceWriteSid(JSON.stringify([workspace, writeRoots])), tempSid = tempWriteSid(temp);
+  if (!readOnly) {
+    const workspaceGrant = AclWriteGrant.create(writeSid);
+    try { for (const root of writeRoots) workspaceGrant.add(root, true); } finally { workspaceGrant.dispose(); }
+    const tempGrant = AclWriteGrant.create(tempSid);
+    tempGrant.add(temp);
+  }
   const { payload } = decodeLaunchPayload(raw);
   const argv = commandArgv(payload.command, payload.shells, payload.tools);
   const environment = commandEnvironment(payload.command, payload.tools, temp);
   for (const key of Object.keys(process.env)) if (!(key in environment)) delete process.env[key];
   Object.assign(process.env, environment);
   process.chdir(payload.command.cwd);
-  process.argv = [process.execPath, process.argv[1], '--workspace', workspace, '--temp', temp,
-    '--mode', 'workspace-write', '--write-sid', writeSid, '--temp-write-sid', tempSid,
-    '--', ...argv];
-  await import('@deepseek-ai/dsh-sandbox-windows-acl/runner');
+  const sandbox = new AclSandbox({ mode: readOnly ? 'read-only' : 'workspace-write',
+    writableDirs: readOnly ? [] : writeRoots, manageDacls: false,
+    ...(readOnly ? {} : { tempDir: temp, writeSid, tempWriteSid: tempSid }) });
+  try {
+    await sandbox.init();
+    const child = sandbox.spawn({ command: argv[0], args: argv.slice(1), cwd: payload.command.cwd, stdio: 'inherit' });
+    process.exitCode = (await child.wait()).exitCode;
+  } finally {
+    sandbox.dispose();
+  }
 }
 main().catch(error => {
   process.stderr.write('ForgeCode workspace sandbox unavailable: ' + (error instanceof Error ? error.message : String(error)) + '\n');

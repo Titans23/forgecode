@@ -40,77 +40,21 @@ SYMBOLS = {
     'benchmark_runner': ('benchmark/harbor/run_forge.py', ['run_turn', 'main']),
     'benchmark_results': ('benchmark/harbor/summarize.py', ['summarize_run', 'assess_trial']),
 }
-SUITES = {'audit': ['tests/implementation/unit/test_impl_audit.py'],
-          'unit': ['tests/implementation/unit'], 'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
-          'regression': ['tests'], 'packaged': [],
-          'sandbox-linux': [], 'sandbox-windows': [], 'desktop': [], 'desktop-packaged': [], 'live-eval': None}
-SUITES['benchmark-harbor']=[]
-SUITES['live-eval']=[]
-for name in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security','hardened','performance','acceptance','release'):SUITES[name]=[]
-TASK_SUITES = {'F00': ['audit'], 'F01': ['unit', 'packaged'], 'F02': ['unit', 'portable'], 'F03': ['unit', 'portable'], 'F04': ['unit', 'portable'], 'F05': ['unit', 'portable'], 'F06': ['unit', 'portable'], 'F07': ['unit', 'portable'], 'F08': ['unit', 'portable'], 'F09': ['unit', 'portable', 'sandbox-linux'], 'F10': ['unit', 'portable', 'sandbox-windows'], 'F11': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F12': ['unit', 'portable', 'sandbox-linux', 'sandbox-windows'], 'F13': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F14': ['unit', 'portable', 'desktop', 'desktop-packaged'], 'F15': ['unit', 'portable', 'desktop', 'desktop-packaged']}
-TASK_SUITES['F16'] = ['unit', 'portable', 'desktop', 'desktop-packaged']
-TASK_SUITES['F17'] = ['unit', 'portable']
-TASK_SUITES['F18'] = ['unit', 'portable']
-TASK_SUITES['F19'] = ['unit', 'portable']
-TASK_SUITES['F20'] = ['unit', 'portable','benchmark-harbor']
-TASK_SUITES['F21'] = ['unit', 'portable']
-TASK_SUITES['F22'] = ['unit', 'portable','desktop','desktop-packaged']
-TASK_SUITES['F23'] = ['unit', 'portable','desktop','desktop-packaged']
-TASK_SUITES['F24'] = ['unit', 'portable','desktop','desktop-packaged']
-TASK_SUITES['F25'] = ['unit', 'portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
-TASK_SUITES['F26'] = ['unit','portable','desktop','desktop-packaged','sandbox-linux','sandbox-windows']
-TASK_SUITES['F27']=['unit','portable','engine-packaged','desktop','desktop-packaged','installer-windows','installer-linux','sandbox-linux','sandbox-windows']
-TASK_SUITES['F28']=['contracts','quality','unit','portable','desktop','engine-packaged','desktop-packaged','hardened','performance','acceptance','installer-windows','installer-linux','sandbox-windows','sandbox-linux','security']
-TASK_SUITES['F29']=['contracts','quality','unit','portable','security']
-TASK_SUITES['F30']=['contracts','quality','unit','portable']
-TASK_SUITES['F31']=['contracts','quality','unit','portable','live-eval']
-TASK_SUITES['F32']=['contracts','quality','unit','portable','engine-packaged','desktop','desktop-packaged','hardened','installer-windows','installer-linux','acceptance','security','release']
-CASE_TESTS = {'N04': ['tests/implementation/unit/test_contracts.py',
-                      'tests/implementation/portable/test_contracts_parity.py'],
-              'D30': ['tests/implementation/integration/test_storage.py'],
-              'N02': ['tests/implementation/integration/test_storage.py'],
-              'N06': ['tests/implementation/integration/test_storage.py'],
-              **{case: ['tests/implementation/integration/test_rpc.py'] for case in ('O07', 'D04', 'D07', 'D09', 'D10', 'N01', 'N03')},
-              **{case: ['tests/implementation/unit/test_policy.py', 'tests/implementation/integration/test_policy_service.py'] for case in ('C06', 'C24', 'N08')},
-              **{case: ['tests/implementation/unit/test_bridge_launcher.py', 'tests/implementation/integration/test_bridge.py'] for case in ('C07', 'C08', 'C09', 'C16', 'C17', 'D13', 'N05')},
-              **{case: ['tests/implementation/native/linux/verify_linux.py'] for case in ('C10', 'C11', 'C12')},
-              **{case: ['tests/implementation/native/windows/verify_windows.py'] for case in ('C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07')},
-              **{case: ['tests/implementation/integration/test_file_worker.py'] for case in ('C01', 'C02', 'C03', 'C04', 'C05', 'C20', 'C22', 'C23', 'D22', 'N09')},
-              **{case: ['tests/implementation/integration/test_cancellation.py', 'tests/implementation/integration/test_process_worker.py',
-                        'tests/implementation/integration/test_service_lifecycle.py'] for case in ('C13', 'C14', 'C15', 'C18', 'C19', 'D11', 'D17')},
-              **{case: ['tests/implementation/integration/test_desktop_supervisor.py', 'scripts/desktop_smoke.py'] for case in ('D03', 'D06', 'D14')},
-              **{case: ['tests/implementation/integration/test_bound_approvals.py', 'tests/implementation/integration/test_approval_rpc.py',
-                        'tests/implementation/integration/test_workspace_authorization.py', 'tests/desktop/security/test_internal_grants.py',
-                        'scripts/desktop_smoke.py'] for case in ('D12', 'D19', 'D20', 'D27', 'D28', 'N10')},
-              **{case: ['tests/implementation/integration/test_connections.py', 'tests/desktop/credentials/test_real_storage.py',
-                        'tests/desktop/credentials/test_storage_policy.py', 'scripts/desktop_smoke.py'] for case in ('D25', 'D26', 'N11', 'N12')}}
-CASE_TESTS.update({case: ['tests/implementation/integration/test_workspace_views.py',
-    'tests/implementation/unit/test_workspace_ui.py', 'scripts/desktop_smoke.py'] for case in ('D21', 'D23', 'D33')})
-CASE_TESTS['O06'] = ['tests/implementation/integration/test_traces.py']
-CASE_TESTS.update({case: ['tests/implementation/unit/test_observability.py',
-    'tests/implementation/integration/test_observation_views.py'] for case in ('O01','O02','O03','O05','N13')})
-CASE_TESTS.update({case:['tests/implementation/unit/test_evaluation_metrics.py',
-    'tests/implementation/integration/test_evaluations.py'] for case in ('O08','O09','D24','N14')})
-CASE_TESTS['D37']=['tests/implementation/integration/test_benchmark_adapters.py']
-CASE_TESTS.update({case:['tests/implementation/integration/test_recovery.py','tests/implementation/integration/test_cancellation.py',
-    'tests/implementation/integration/test_desktop_supervisor.py','tests/implementation/unit/test_engine_lifecycle_deadlines.py',
-    'tests/implementation/unit/test_recovery_ui.py','scripts/desktop_smoke.py'] for case in ('D08','D15','D16','D18','N21','N22')})
-CASE_TESTS.update({case:['tests/implementation/integration/test_bundles.py'] for case in ('O10','N15','N16')})
-CASE_TESTS['D35']=['tests/implementation/integration/test_http_adapter.py','tests/implementation/unit/test_web_contracts.py']
-CASE_TESTS['D36']=['tests/implementation/integration/test_application.py']
-CASE_TESTS['D38']=['tests/implementation/integration/test_compatibility.py']
-CASE_TESTS.update({case:['tests/implementation/unit/test_release_runtime.py','scripts/engine_packaged_smoke.py']
-    for case in ('D05','D31','D40','N17','N18')})
-CASE_TESTS.update({case:['tests/implementation/integration/test_release_upgrade.py'] for case in ('D29','D32','N19')})
-CASE_TESTS.update({case:['scripts/make_installer.py','scripts/engine_packaged_smoke.py','scripts/desktop_packaged_smoke.py']
-    for case in ('D01','D02')})
-
-CASE_TESTS['N23']=['tests/implementation/unit/test_gates.py','tests/implementation/unit/test_ci.py']
-CASE_TESTS['O04']=['tests/implementation/integration/test_harness_regressions.py','tests/implementation/unit/test_workspace_scope.py']
-CASE_TESTS['N20']=['tests/implementation/unit/test_hardened_artifact.py','scripts/hardened_smoke.py']
-CASE_TESTS['N24']=['tests/implementation/integration/test_delivery_experiment.py','tests/implementation/integration/test_model_regression.py',
-    'tests/implementation/integration/test_frozen_runspec.py','tests/implementation/integration/test_evaluation_budget.py',
-    'tests/implementation/unit/test_evaluation_ui.py']
+SUITES = {
+    'audit': ['tests/implementation/unit/test_impl_audit.py'],
+    'unit': ['tests/implementation/unit'],
+    'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
+    'regression': ['tests'],
+    'terminal-native': ['tests/native/verify_terminal_native.py'],
+    'contracts': [], 'quality': [], 'security': [],
+}
+TASK_SUITES = {'F00': ['audit'], 'T01': ['audit', 'contracts', 'quality', 'unit', 'portable']}
+CASE_TESTS = {
+    'T-API': ['tests/test_api.py'], 'T-CLI': ['tests/test_cli.py'],
+    'T-SANDBOX': ['tests/native/verify_terminal_native.py'],
+    'T-EVAL': ['tests/evals/test_runner.py', 'tests/benchmark/test_catalog.py'],
+    'T-TRAIN': ['tests/extensions/test_qwen_tool_distillation.py'],
+}
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
@@ -222,6 +166,8 @@ def audit() -> dict:
 def task_status(backlog: dict, progress: dict) -> dict:
     ready, waiting = [], {}
     for task in backlog['tasks']:
+        if progress.get('active_scope') == 'terminal-harness' and task.get('scope') != 'terminal-harness':
+            continue
         if progress['tasks'][task['id']]['implementation_status'] == 'implemented':
             continue
         missing = [dep for dep in task['depends_on']
@@ -263,53 +209,23 @@ def verify(suite: str, task_id: str | None = None, *, prepared_source_hash: str 
     evidence_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid4().hex[:8]
     output = ROOT / '.local' / 'implementation' / evidence_id
     output.mkdir(parents=True)
-    native = suite in ('sandbox-linux', 'sandbox-windows')
-    grouped=suite in ('engine-packaged','installer-windows','installer-linux','contracts','quality','security','hardened','performance','acceptance','live-eval','release')
-    report_path = output / ('packaging.json' if grouped else f'native-{suite.removeprefix("sandbox-")}.json' if native else 'harbor-probe.json' if suite=='benchmark-harbor' else 'build-smoke.json' if suite == 'packaged' else 'desktop-smoke.json' if suite in ('desktop', 'desktop-packaged') else 'junit.xml')
-    unavailable = SUITES[suite] is None
-    if unavailable:
-        argv = []
-    elif suite=='live-eval':
-        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/delivery_experiment.py'),'verify','--output',str(report_path)]
-    elif suite=='release':
-        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/release_review.py'),'--output',str(report_path)]
-    elif suite in ('contracts','quality','security'):
-        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/ci_checks.py'),'--suite',suite,'--output',str(report_path)]
-        if prepared_source_hash: argv += ['--prepared-source-hash', prepared_source_hash]
-    elif suite in ('hardened','performance','acceptance'):
-        script={'hardened':'hardened_smoke.py','performance':'performance_probe.py','acceptance':'acceptance_audit.py'}[suite]
-        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts'/script),'--output',str(report_path)]
-    elif grouped:
-        argv=[sys.executable,'-X','utf8',str(ROOT/('scripts/engine_packaged_smoke.py' if suite=='engine-packaged' else 'scripts/make_installer.py')),'--output',str(report_path)]
-        if suite.startswith('installer-'):argv+=['--target','win32-x64' if suite=='installer-windows' else 'linux-x64']
-    elif suite == 'packaged':
-        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts' / 'build_smoke.py'), '--output', str(report_path)]
-    elif native:
-        argv = [sys.executable, '-X', 'utf8', '-m', 'forge.sandbox.doctor', f'--native-{suite.removeprefix("sandbox-")}', '--output', str(report_path)]
-    elif suite == 'desktop':
-        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_smoke.py'), '--output', str(report_path)]
-    elif suite == 'desktop-packaged':
-        argv = [sys.executable, '-X', 'utf8', str(ROOT / 'scripts/desktop_packaged_smoke.py'), '--output', str(report_path)]
-    elif suite=='benchmark-harbor':
-        argv=[sys.executable,'-X','utf8',str(ROOT/'scripts/harbor_probe.py'),'--output',str(report_path)]
+    if suite not in SUITES:
+        raise ValueError('Verification suite is not shipped by the terminal bundle')
+    native = False
+    grouped = suite in ('contracts', 'quality', 'security')
+    report_path = output / ('packaging.json' if grouped else 'junit.xml')
+    unavailable = False
+    if grouped:
+        argv = [sys.executable, '-X', 'utf8', str(ROOT/'scripts/ci_checks.py'),
+                '--suite', suite, '--output', str(report_path)]
+        if prepared_source_hash:
+            argv += ['--prepared-source-hash', prepared_source_hash]
     else:
+        temporary = (ROOT.parent / ('native-' + evidence_id) if suite == 'terminal-native' else output/'tmp')
         argv = [sys.executable, '-X', 'utf8', '-m', 'pytest', *SUITES[suite], '-q', '--tb=short',
-                '--basetemp', str(output / 'tmp'), '--junitxml', str(report_path)]
+                '--basetemp', str(temporary), '--junitxml', str(report_path)]
     started = datetime.now(timezone.utc).isoformat()
-    preparation_commands = []
-    if prepared_source_hash:
-        preparation_commands = [[sys.executable,str(ROOT/'scripts/build_bridge.py'),'--check','--no-build'],
-            [sys.executable,str(ROOT/'scripts/build_desktop.py'),'--check','--no-build']]
-    elif suite in ('unit', 'portable', 'regression', 'sandbox-linux', 'sandbox-windows', 'desktop'):
-        node = shutil.which('node')
-        if node:
-            preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / 'packages/contracts/tsconfig.json')])
-            preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_bridge.py'), '--check'])
-            preparation_commands.append([sys.executable, str(ROOT / 'scripts/build_desktop.py'), '--check', *([] if suite == 'desktop' else ['--main-only'])])
-            setup_source = ROOT / 'apps/desktop/src/main/setup_broker.ts'
-            if setup_source.is_file():
-                preparation_commands.append([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '--target', 'ES2022',
-                    '--module', 'NodeNext', '--strict', '--skipLibCheck', '--newLine', 'lf', '--outDir', str(output / 'main-compile'), str(setup_source)])
+    preparation_commands = [[sys.executable, str(ROOT/'scripts/build_bridge.py'), '--check', '--no-build']]
     head = command(['git', 'rev-parse', 'HEAD'])
     dirty = command(['git', 'diff', '--binary', 'HEAD'])
     source_hashes = {}
@@ -361,13 +277,8 @@ def verify(suite: str, task_id: str | None = None, *, prepared_source_hash: str 
         status, counts = pytest_outcome(exit_code, report_path)
     lock_hashes = {name: sha256((ROOT / name).read_bytes()).hexdigest()
                    for name in ('uv.lock', 'package-lock.json', 'release-lock.json') if (ROOT / name).is_file()}
-    case_ids = ({'engine-packaged':['D01','D40','N17','N18'],
-                    'installer-windows':['D01'],'installer-linux':['D02'],'quality':['N23'],'contracts':['N04'],'security':['N23'],
-                    'hardened':['N20'],'performance':[],'acceptance':list(CASE_TESTS),'live-eval':['N24'],'release':[]}[suite] if grouped else
-                    (['C10', 'C11', 'C12'] if suite == 'sandbox-linux' else
-                    ['C21', 'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07', 'W08', 'W09', 'W10', 'W11', 'W12', 'D39', 'N07']) if native else [case for case, refs in CASE_TESTS.items()
-                    if suite not in ('packaged',) and SUITES[suite] and any(Path(ref).name.startswith('test_') and
-                        any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)])
+    case_ids = [] if grouped else [case for case, refs in CASE_TESTS.items()
+        if any(any(ref.startswith(path) for path in SUITES[suite]) for ref in refs)]
     if source_fingerprint(ROOT)!=source_inventory_hash:
         status='fail'
         counts['reason']='Repository source changed during verification; rerun the suite'

@@ -36,7 +36,7 @@ def test_light_mode_refuses_stronger_policy_instead_of_downgrading(tmp_path,chan
 
 def test_strict_default_and_lightweight_policies_cannot_be_confused(tmp_path):
     policy,_=fixture(tmp_path)
-    strict=NativeBackendFactory(tmp_path/'data')
+    strict=NativeBackendFactory(tmp_path/'data',mode='strict')
     assert strict.mode=='strict'
     with pytest.raises(ContractError):strict.check_request(policy,required_mode='strict')
     light=NativeBackendFactory(tmp_path/'data',mode='workspace-write')

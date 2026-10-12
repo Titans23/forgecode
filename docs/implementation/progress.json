@@ -1,14 +1,14 @@
 {
   "schema_version": "forge.implementation.progress.v1",
-  "current_authorization_ref": "evidence/human-authorization-20261007.json",
+  "current_authorization_ref": "evidence/human-authorization-terminal-20261012.json",
   "ci_setup_authorization_ref": "evidence/human-authorization-ci-closeout-20261010.json",
   "windows_acceptance_authorization_ref": "evidence/human-authorization-windows10-20261008.json",
   "current_acceptance_phase": "Windows 10 x64 22H2 build 19045 on this workstation replaces mandatory Windows 11 acceptance; Ubuntu and official Linux Docker requirements remain independent",
-  "authorization_history_note": "User authorization on 2026-10-07 supersedes older missing paid-model permission. Original conditions are preserved in historical_blocked_reasons/phase evidence; blocked_reasons describe current open conditions. Windows10 controlled live evidence is separate from official/native acceptance.",
+  "authorization_history_note": "For active terminal-harness scope, the supplied AGENTS instructions authorize uploading tested development versions only; paid model calls and administrator setup require explicit new authorization. Older authorizations and V4 gates below are historical and do not authorize current model spending, setup or main merging.",
   "document_version": "4.0.0",
-  "actual_repository_head": "f1cda0f23cd6b4e85992c4ccaf310f37f8919bc5",
-  "next_recommended_task": "F28",
-  "current_task": "F28",
+  "actual_repository_head": "913446f5fcf0275c2c839617fef9a5b2bbe4280f",
+  "next_recommended_task": "T01",
+  "current_task": "T01",
   "machine_transfer": {
     "date": "2026-10-09",
     "status": "restored_consolidated_and_archived",
@@ -2041,6 +2041,29 @@
         "20261007T150635Z-a27c64ba"
       ],
       "latest_gate_review_evidence_id": "20261007T150635Z-a27c64ba"
+    },
+    "T01": {
+      "implementation_status": "implemented",
+      "verification": {
+        "unit": "pass",
+        "integration": "pass",
+        "regression": "pass",
+        "contracts": "pass",
+        "quality": "pass",
+        "node": "pass",
+        "dependency_security": "pass",
+        "native_windows": "pass",
+        "native_linux": "blocked",
+        "packaged": "pass",
+        "live_eval": "blocked"
+      },
+      "evidence_ids": ["T01-regression-20261012"],
+      "evidence_refs": ["evidence/T01-terminal-harness-20261012.json"],
+      "blocked_reasons": [
+        "No native Ubuntu22.04/24.04 environment; available WSL26.04 lacks Linux Node and rg. No administrator setup performed.",
+        "Live model experiments, official evaluation and actual posttraining were not run; current model-budget authorization is absent. Offline fixtures are not model grades."
+      ],
+      "verification_scope": "Terminal development branch only; 1328 exact-coverage regression tests, Windows10 native6 and independently installed wheel native/API15. Historical V4 release gates are not promoted."
     }
   },
   "gates": {
@@ -2053,7 +2076,7 @@
     "G6-real-experiment": "blocked",
     "G7-release": "blocked"
   },
-  "head_recorded_scope": "Parent commit before the third lightweight batch; source_inventory_hash identifies the validated runtime content. Consult PR #1 for final commit and merge state.",
+  "head_recorded_scope": "Base commit for terminal-harness work; T01 source_inventory_hash identifies tested content, including uncommitted implementation at test time. Prior V4 gates and PR #1 records are historical, not this branch's completion or merge state.",
   "gate_notes": {
     "G1-contracts-engine": "Final lightweight source contracts2/quality4/security1/regression1467 pass; zero failures/errors/skips, five warnings retained. Historical results retain original source scope.",
     "G3-desktop-observability": "Actual installed21, frozen13 and hardened13 pass; fresh-directory startup47.7s after duplicate hashing fix. Historical baseline waiting/performance gaps remain.",
@@ -2309,5 +2332,22 @@
     "local_administrator_setup": false,
     "regression_tests": 1467,
     "regression_warnings": 5
+  },
+  "active_scope": "terminal-harness",
+  "terminal_branch": {
+    "branch": "codex/terminal-harness",
+    "implementation_status": "implemented",
+    "source_inventory_hash": "5fbbeb4cdc7353fca0a6800ee90a2b4640cf325845a6c6a2206d8464518f4fd7",
+    "evidence_ref": "evidence/T01-terminal-harness-20261012.json",
+    "regression_tests": 1328,
+    "regression_warnings": 4,
+    "native_windows_tests": 6,
+    "installed_wheel_tests": 15,
+    "native_linux": "blocked",
+    "live_model_experiments": "blocked",
+    "paid_model_calls": 0,
+    "administrator_setup": false,
+    "main_merge_authorized": false,
+    "task_card": "tasks/T01.md"
   }
 }

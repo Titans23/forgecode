@@ -116,6 +116,10 @@ def main(
     provider: Annotated[str | None, typer.Option('--provider', help='anthropic, openai_responses, or deepseek')] = None,
     model: Annotated[str | None, typer.Option('--model', help='Model identifier for the configured provider')] = None,
     base_url: Annotated[str | None, typer.Option('--base-url', help='Native provider or explicit gateway URL')] = None,
+    sandbox: Annotated[str, typer.Option('--sandbox', help='read-only, workspace-write or explicit full-access')] = 'workspace-write',
+    approval: Annotated[str, typer.Option('--approval', help='plan, supervised or auto; independent of sandbox')] = 'supervised',
+    read_root: Annotated[list[Path] | None, typer.Option('--read-root', help='Additional file-tool read scope')] = None,
+    write_root: Annotated[list[Path] | None, typer.Option('--write-root', help='Writable subdirectory; repeat for multiple scopes')] = None,
 ) -> None:
     '''Start the ForgeCode command-line interface.'''
     if ctx.invoked_subcommand is None:
@@ -148,6 +152,8 @@ def main(
                 continue_session=continue_session,
                 resume_identifier=resume,
                 fork_session=fork_session,
+                sandbox=sandbox, approval=approval, read_roots=tuple(read_root or ()),
+                write_roots=tuple(write_root) if write_root is not None else None,
             )
         except (
             ConfigurationError,
@@ -156,6 +162,8 @@ def main(
             ChannelConfigurationError,
             SessionError,
             BlockingIOError,
+            ValueError,
+            OSError,
         ) as error:
             print_configuration_error(error)
             raise typer.Exit(code=1) from error
@@ -163,6 +171,14 @@ def main(
 
 def print_configuration_error(error: Exception) -> None:
     '''Print actionable model configuration guidance.'''
+    from forge.application.models import ContractError
+    if isinstance(error, ContractError):
+        typer.echo(f'{error.kind}: {error}', err=True)
+        return
+    if isinstance(error, (OSError, ValueError)) and not isinstance(error,
+            (ConfigurationError, HookConfigurationError, MCPConfigurationError, ChannelConfigurationError, BlockingIOError)):
+        typer.echo(str(error), err=True)
+        return
     if isinstance(error, BlockingIOError):
         typer.echo('Project is already in use. Stop the active CLI or desktop turn before trying again.', err=True)
         return
@@ -203,6 +219,10 @@ def run_interactive_chat(
     continue_session: bool = False,
     resume_identifier: str | None = None,
     fork_session: bool = False,
+    sandbox: str = 'workspace-write',
+    approval: str = 'supervised',
+    read_roots: tuple[Path, ...] = (),
+    write_roots: tuple[Path, ...] | None = None,
 ) -> None:
     '''Run one interactive process inside one long-lived event loop.'''
     asyncio.run(
@@ -214,6 +234,7 @@ def run_interactive_chat(
             continue_session=continue_session,
             resume_identifier=resume_identifier,
             fork_session=fork_session,
+            sandbox=sandbox, approval=approval, read_roots=read_roots, write_roots=write_roots,
         )
     )
 
@@ -227,18 +248,19 @@ async def _run_interactive_chat(
     continue_session: bool = False,
     resume_identifier: str | None = None,
     fork_session: bool = False,
+    sandbox: str = 'workspace-write',
+    approval: str = 'supervised',
+    read_roots: tuple[Path, ...] = (),
+    write_roots: tuple[Path, ...] | None = None,
 ) -> None:
     '''Run a local chat session until the user interrupts it.'''
     resumed_state: SessionState | None = None
     if session is None:
-        resolved_session, resolved_journal, resumed_state = (
-            create_session_runtime(
-                Path.cwd(),
-                continue_session=continue_session,
-                resume_identifier=resume_identifier,
-                fork_session=fork_session,
-            )
-        )
+        from forge.api import SessionOptions, open_runtime
+        resolved_session, resolved_journal, resumed_state, _ = await open_runtime(
+            SessionOptions(Path.cwd(), sandbox=sandbox, approval=approval,
+                read_roots=read_roots, write_roots=write_roots), runtime_factory=create_session_runtime,
+            continue_session=continue_session, resume_identifier=resume_identifier, fork_session=fork_session)
     else:
         resolved_session = session
         resolved_journal = journal or getattr(
@@ -246,386 +268,380 @@ async def _run_interactive_chat(
             'session_journal',
             None,
         )
-    resolved_terminal = terminal if terminal is not None else TerminalUI()
-    active_response_view: StreamingResponseView | None = None
+    try:
+        resolved_terminal = terminal if terminal is not None else TerminalUI()
+        active_response_view: StreamingResponseView | None = None
 
-    async def approve_permission(request: Any):
-        if active_response_view is not None:
-            active_response_view.pause_for_prompt()
-        try:
-            return await asyncio.to_thread(
-                resolved_terminal.select_permission,
-                request,
-            )
-        finally:
+        async def approve_permission(request: Any):
             if active_response_view is not None:
-                active_response_view.resume_after_prompt()
-
-    permission_manager = getattr(
-        resolved_session,
-        'permission_manager',
-        None,
-    )
-    if permission_manager is not None:
-        permission_manager.approval_handler = approve_permission
-        permission_manager.bind_session(resolved_journal)
-    resolved_recorder = (
-        recorder
-        if recorder is not None
-        else create_trajectory_recorder(Path.cwd())
-    )
-    client = getattr(resolved_session, 'client', None)
-    model = getattr(client, 'model', 'configured model')
-    resolved_terminal.show_welcome(model)
-    await start_interactive_session_async(
-        resolved_session,
-        source='resume' if resumed_state is not None else 'new',
-    )
-    if resumed_state is not None:
-        notice = (
-            f'Resumed {resumed_state.info.session_id} with '
-            f'{len(resumed_state.messages)} committed message(s).'
-        )
-        if resumed_state.indeterminate_tools:
-            notice += (
-                '\nWarning: '
-                f'{len(resumed_state.indeterminate_tools)} tool execution(s) '
-                'had no durable completion record and will not be replayed.'
-            )
-        resolved_terminal.show_notice('Session', notice)
-
-    while True:
-        resume_options = build_resume_options(resolved_session)
-        resolved_terminal.set_resume_options(resume_options)
-        try:
-            prompt = await read_terminal_prompt(resolved_terminal)
-        except (KeyboardInterrupt, EOFError, typer.Abort):
-            await stop_interactive_session_async(
-                resolved_session,
-                fallback_journal=resolved_journal,
-                reason='input_exit',
-            )
-            resolved_terminal.show_goodbye()
-            return
-
-        if not prompt.strip():
-            continue
-
-        if prompt.strip() == '/context':
-            stats = getattr(resolved_session, 'context_stats', None)
-            if stats is None:
-                resolved_terminal.show_error(
-                    RuntimeError('Context statistics are unavailable.')
-                )
-            else:
-                resolved_terminal.show_context(stats)
-            continue
-
-        if prompt.strip() == '/compact':
-            compact = getattr(resolved_session, 'compact', None)
-            if compact is None:
-                resolved_terminal.show_error(
-                    RuntimeError('Context compaction is unavailable.')
-                )
-            else:
-                resolved_terminal.show_compaction(await compact())
-            continue
-
-        if prompt.strip() == '/task':
-            resolved_terminal.show_notice('Task', resolved_session.task_show())
-            continue
-
-        if prompt.strip() == '/task history':
-            resolved_terminal.show_notice(
-                'Task',
-                resolved_session.task_history(),
-            )
-            continue
-
-        if prompt.strip() == '/status':
-            resolved_terminal.show_notice(
-                'Session',
-                resolved_session.session_status(),
-            )
-            continue
-
-        if prompt.strip() == '/history':
-            resolved_terminal.show_notice(
-                'History',
-                resolved_session.session_history(),
-            )
-            continue
-
-        if prompt.startswith('/rename '):
-            name = prompt[len('/rename '):].strip()
+                active_response_view.pause_for_prompt()
             try:
-                notice = resolved_session.session_rename(name)
-                resolved_terminal.show_notice('Session', notice)
-            except ValueError as error:
-                resolved_terminal.show_error(error)
-            continue
+                return await asyncio.to_thread(
+                    resolved_terminal.select_permission,
+                    request,
+                )
+            finally:
+                if active_response_view is not None:
+                    active_response_view.resume_after_prompt()
 
-        if prompt.strip() == '/resume':
-            selected = await asyncio.to_thread(
-                resolved_terminal.select_session,
-                resume_options,
+        permission_manager = getattr(
+            resolved_session,
+            'permission_manager',
+            None,
+        )
+        if permission_manager is not None:
+            permission_manager.approval_handler = approve_permission
+            permission_manager.bind_session(resolved_journal)
+        resolved_recorder = (
+            recorder
+            if recorder is not None
+            else create_trajectory_recorder(Path.cwd())
+        )
+        client = getattr(resolved_session, 'client', None)
+        model = getattr(client, 'model', 'configured model')
+        resolved_terminal.show_welcome(model)
+        await start_interactive_session_async(
+            resolved_session,
+            source='resume' if resumed_state is not None else 'new',
+        )
+        if resumed_state is not None:
+            notice = (
+                f'Resumed {resumed_state.info.session_id} with '
+                f'{len(resumed_state.messages)} committed message(s).'
             )
-            if selected is not None:
+            if resumed_state.indeterminate_tools:
+                notice += (
+                    '\nWarning: '
+                    f'{len(resumed_state.indeterminate_tools)} tool execution(s) '
+                    'had no durable completion record and will not be replayed.'
+                )
+            resolved_terminal.show_notice('Session', notice)
+
+        while True:
+            resume_options = build_resume_options(resolved_session)
+            resolved_terminal.set_resume_options(resume_options)
+            try:
+                prompt = await read_terminal_prompt(resolved_terminal)
+            except (KeyboardInterrupt, EOFError, typer.Abort):
+                resolved_terminal.show_goodbye()
+                return
+
+            if not prompt.strip():
+                continue
+
+            if prompt.strip() == '/context':
+                stats = getattr(resolved_session, 'context_stats', None)
+                if stats is None:
+                    resolved_terminal.show_error(
+                        RuntimeError('Context statistics are unavailable.')
+                    )
+                else:
+                    resolved_terminal.show_context(stats)
+                continue
+
+            if prompt.strip() == '/compact':
+                compact = getattr(resolved_session, 'compact', None)
+                if compact is None:
+                    resolved_terminal.show_error(
+                        RuntimeError('Context compaction is unavailable.')
+                    )
+                else:
+                    resolved_terminal.show_compaction(await compact())
+                continue
+
+            if prompt.strip() == '/task':
+                resolved_terminal.show_notice('Task', resolved_session.task_show())
+                continue
+
+            if prompt.strip() == '/task history':
+                resolved_terminal.show_notice(
+                    'Task',
+                    resolved_session.task_history(),
+                )
+                continue
+
+            if prompt.strip() == '/status':
+                resolved_terminal.show_notice(
+                    'Session',
+                    resolved_session.session_status(),
+                )
+                continue
+
+            if prompt.strip() == '/history':
+                resolved_terminal.show_notice(
+                    'History',
+                    resolved_session.session_history(),
+                )
+                continue
+
+            if prompt.startswith('/rename '):
+                name = prompt[len('/rename '):].strip()
+                try:
+                    notice = resolved_session.session_rename(name)
+                    resolved_terminal.show_notice('Session', notice)
+                except ValueError as error:
+                    resolved_terminal.show_error(error)
+                continue
+
+            if prompt.strip() == '/resume':
+                selected = await asyncio.to_thread(
+                    resolved_terminal.select_session,
+                    resume_options,
+                )
+                if selected is not None:
+                    try:
+                        notice = await resume_interactive_session_async(
+                            resolved_session, selected
+                        )
+                        resolved_terminal.show_notice('Session', notice)
+                    except (OSError, ValueError, SessionError) as error:
+                        resolved_terminal.show_error(error)
+                elif not resume_options:
+                    resolved_terminal.show_notice(
+                        'Sessions',
+                        'No other saved ForgeCode sessions for this project.',
+                    )
+                elif not resolved_terminal.supports_session_picker:
+                    resolved_terminal.show_notice(
+                        'Sessions',
+                        resolved_session.session_candidates(),
+                    )
+                continue
+
+            if prompt.startswith('/resume '):
+                identifier = prompt[len('/resume '):].strip()
                 try:
                     notice = await resume_interactive_session_async(
-                        resolved_session, selected
+                        resolved_session, identifier
                     )
                     resolved_terminal.show_notice('Session', notice)
                 except (OSError, ValueError, SessionError) as error:
                     resolved_terminal.show_error(error)
-            elif not resume_options:
+                continue
+
+            if prompt.strip() == '/branch' or prompt.startswith('/branch '):
+                name = prompt[len('/branch'):].strip() or None
+                try:
+                    branch_with_hooks = getattr(
+                        resolved_session,
+                        'session_branch_with_hooks',
+                        None,
+                    )
+                    notice = (
+                        await branch_with_hooks(name)
+                        if branch_with_hooks is not None
+                        else resolved_session.session_branch(name)
+                    )
+                    resolved_terminal.show_notice('Session', notice)
+                except (OSError, ValueError, SessionError) as error:
+                    resolved_terminal.show_error(error)
+                continue
+
+            if prompt.strip() == '/clear':
+                try:
+                    clear_with_hooks = getattr(
+                        resolved_session,
+                        'session_clear_with_hooks',
+                        None,
+                    )
+                    notice = (
+                        await clear_with_hooks()
+                        if clear_with_hooks is not None
+                        else resolved_session.session_clear()
+                    )
+                    resolved_terminal.show_notice('Session', notice)
+                except (OSError, ValueError, SessionError) as error:
+                    resolved_terminal.show_error(error)
+                continue
+
+            if prompt.strip() == '/skills':
                 resolved_terminal.show_notice(
-                    'Sessions',
-                    'No other saved ForgeCode sessions for this project.',
+                    'Skills',
+                    resolved_session.skill_list(),
                 )
-            elif not resolved_terminal.supports_session_picker:
-                resolved_terminal.show_notice(
-                    'Sessions',
-                    resolved_session.session_candidates(),
-                )
-            continue
+                continue
 
-        if prompt.startswith('/resume '):
-            identifier = prompt[len('/resume '):].strip()
-            try:
-                notice = await resume_interactive_session_async(
-                    resolved_session, identifier
-                )
-                resolved_terminal.show_notice('Session', notice)
-            except (OSError, ValueError, SessionError) as error:
-                resolved_terminal.show_error(error)
-            continue
-
-        if prompt.strip() == '/branch' or prompt.startswith('/branch '):
-            name = prompt[len('/branch'):].strip() or None
-            try:
-                branch_with_hooks = getattr(
-                    resolved_session,
-                    'session_branch_with_hooks',
-                    None,
-                )
-                notice = (
-                    await branch_with_hooks(name)
-                    if branch_with_hooks is not None
-                    else resolved_session.session_branch(name)
-                )
-                resolved_terminal.show_notice('Session', notice)
-            except (OSError, ValueError, SessionError) as error:
-                resolved_terminal.show_error(error)
-            continue
-
-        if prompt.strip() == '/clear':
-            try:
-                clear_with_hooks = getattr(
-                    resolved_session,
-                    'session_clear_with_hooks',
-                    None,
-                )
-                notice = (
-                    await clear_with_hooks()
-                    if clear_with_hooks is not None
-                    else resolved_session.session_clear()
-                )
-                resolved_terminal.show_notice('Session', notice)
-            except (OSError, ValueError, SessionError) as error:
-                resolved_terminal.show_error(error)
-            continue
-
-        if prompt.strip() == '/skills':
-            resolved_terminal.show_notice(
-                'Skills',
-                resolved_session.skill_list(),
-            )
-            continue
-
-        if prompt.strip() == '/skill':
-            resolved_terminal.show_error(
-                ValueError('Usage: /skill skill-name')
-            )
-            continue
-
-        if prompt.startswith('/skill '):
-            name = prompt[len('/skill '):].strip()
-            if not name:
+            if prompt.strip() == '/skill':
                 resolved_terminal.show_error(
                     ValueError('Usage: /skill skill-name')
                 )
-            else:
-                try:
-                    resolved_terminal.show_notice(
-                        'Skill',
-                        resolved_session.skill_show(name),
+                continue
+
+            if prompt.startswith('/skill '):
+                name = prompt[len('/skill '):].strip()
+                if not name:
+                    resolved_terminal.show_error(
+                        ValueError('Usage: /skill skill-name')
                     )
-                except ValueError as error:
-                    resolved_terminal.show_error(error)
-            continue
+                else:
+                    try:
+                        resolved_terminal.show_notice(
+                            'Skill',
+                            resolved_session.skill_show(name),
+                        )
+                    except ValueError as error:
+                        resolved_terminal.show_error(error)
+                continue
 
-        if prompt.strip() == '/mcp':
-            resolved_terminal.show_notice(
-                'MCP Servers',
-                resolved_session.mcp_status(),
-            )
-            continue
-
-        if prompt.strip() == '/permission':
-            resolved_terminal.show_notice(
-                'Permissions',
-                resolved_session.permission_status(),
-            )
-            continue
-
-        if prompt.startswith('/permission '):
-            try:
-                notice = resolved_session.permission_set_mode(
-                    prompt[len('/permission '):].strip()
-                )
-                resolved_terminal.show_notice('Permissions', notice)
-            except ValueError as error:
-                resolved_terminal.show_error(error)
-            continue
-
-        if prompt.strip() == '/undo':
-            try:
-                notice = resolved_session.checkpoint_undo()
-                resolved_terminal.show_notice('Checkpoint', notice)
-            except (OSError, ValueError, SessionError, CheckpointError) as error:
-                resolved_terminal.show_error(error)
-            continue
-
-        if prompt.strip() == '/checkpoints':
-            resolved_terminal.show_notice(
-                'Checkpoints',
-                resolved_session.checkpoint_history(),
-            )
-            continue
-
-        if prompt.strip() == '/rewind' or prompt.startswith('/rewind '):
-            arguments = prompt[len('/rewind'):].strip().split()
-            mode = 'both'
-            if arguments and arguments[-1] in {
-                'code',
-                'conversation',
-                'both',
-            }:
-                mode = arguments.pop()
-            checkpoint_id = arguments[0] if arguments else None
-            if len(arguments) > 1:
-                resolved_terminal.show_error(
-                    ValueError(
-                        'Usage: /rewind [checkpoint-id] '
-                        '[code|conversation|both]'
-                    )
+            if prompt.strip() == '/mcp':
+                resolved_terminal.show_notice(
+                    'MCP Servers',
+                    resolved_session.mcp_status(),
                 )
                 continue
-            try:
-                notice = resolved_session.checkpoint_rewind(
-                    checkpoint_id,
-                    mode=mode,
-                )
-                resolved_terminal.show_notice('Checkpoint', notice)
-            except (OSError, ValueError, SessionError, CheckpointError) as error:
-                resolved_terminal.show_error(error)
-            continue
 
-        if prompt.strip().startswith('/task resume '):
-            task_id = prompt.strip()[len('/task resume '):].strip()
-            if not task_id:
-                resolved_terminal.show_error(
-                    ValueError('Usage: /task resume task-id')
+            if prompt.strip() == '/permission':
+                resolved_terminal.show_notice(
+                    'Permissions',
+                    resolved_session.permission_status(),
                 )
-            else:
-                try:
-                    notice = resolved_session.task_resume(task_id)
-                    resolved_terminal.show_notice('Task', notice)
-                except (OSError, ValueError) as error:
-                    resolved_terminal.show_error(error)
-            continue
+                continue
 
-        if prompt.startswith('/remember '):
-            payload = prompt[len('/remember '):].strip()
-            name, separator, content = payload.partition('|')
-            if not separator:
-                resolved_terminal.show_error(
-                    ValueError('Usage: /remember name | content')
-                )
-            else:
+            if prompt.startswith('/permission '):
                 try:
-                    notice = resolved_session.remember(name.strip(), content.strip())
-                    resolved_terminal.show_notice('Memory', notice)
+                    notice = resolved_session.permission_set_mode(
+                        prompt[len('/permission '):].strip()
+                    )
+                    resolved_terminal.show_notice('Permissions', notice)
                 except ValueError as error:
                     resolved_terminal.show_error(error)
-            continue
+                continue
 
-        if prompt == '/memory list':
-            resolved_terminal.show_notice(
-                'Memory', resolved_session.memory_list()
-            )
-            continue
-
-        if prompt.startswith('/memory show '):
-            resolved_terminal.show_notice(
-                'Memory',
-                resolved_session.memory_show(
-                    prompt[len('/memory show '):].strip()
-                ),
-            )
-            continue
-
-        if prompt.startswith('/memory forget '):
-            resolved_terminal.show_notice(
-                'Memory',
-                resolved_session.memory_forget(
-                    prompt[len('/memory forget '):].strip()
-                ),
-            )
-            continue
-
-        if prompt == '/memory rebuild':
-            resolved_terminal.show_notice(
-                'Memory', resolved_session.memory_rebuild()
-            )
-            continue
-
-        if prompt == '/memory consolidate':
-            resolved_terminal.show_notice(
-                'Memory', resolved_session.memory_consolidate()
-            )
-            continue
-
-        try:
-            prompt = expand_file_mentions(prompt, Path.cwd())
-        except ValueError as error:
-            resolved_terminal.show_notice('File mention', str(error))
-            continue
-
-        try:
-            with resolved_terminal.stream_response() as response_view:
-                active_response_view = response_view
+            if prompt.strip() == '/undo':
                 try:
-                    await render_streamed_turn(
-                        resolved_session,
-                        prompt,
-                        response_view,
-                        resolved_recorder,
+                    notice = resolved_session.checkpoint_undo()
+                    resolved_terminal.show_notice('Checkpoint', notice)
+                except (OSError, ValueError, SessionError, CheckpointError) as error:
+                    resolved_terminal.show_error(error)
+                continue
+
+            if prompt.strip() == '/checkpoints':
+                resolved_terminal.show_notice(
+                    'Checkpoints',
+                    resolved_session.checkpoint_history(),
+                )
+                continue
+
+            if prompt.strip() == '/rewind' or prompt.startswith('/rewind '):
+                arguments = prompt[len('/rewind'):].strip().split()
+                mode = 'both'
+                if arguments and arguments[-1] in {
+                    'code',
+                    'conversation',
+                    'both',
+                }:
+                    mode = arguments.pop()
+                checkpoint_id = arguments[0] if arguments else None
+                if len(arguments) > 1:
+                    resolved_terminal.show_error(
+                        ValueError(
+                            'Usage: /rewind [checkpoint-id] '
+                            '[code|conversation|both]'
+                        )
                     )
-                finally:
-                    active_response_view = None
-        except (KeyboardInterrupt, typer.Abort):
-            await stop_interactive_session_async(
-                resolved_session,
-                fallback_journal=resolved_journal,
-                reason='turn_interrupted',
-            )
-            resolved_terminal.show_goodbye()
-            return
-        except Exception as error:
-            resolved_terminal.show_error(error)
-            continue
+                    continue
+                try:
+                    notice = resolved_session.checkpoint_rewind(
+                        checkpoint_id,
+                        mode=mode,
+                    )
+                    resolved_terminal.show_notice('Checkpoint', notice)
+                except (OSError, ValueError, SessionError, CheckpointError) as error:
+                    resolved_terminal.show_error(error)
+                continue
+
+            if prompt.strip().startswith('/task resume '):
+                task_id = prompt.strip()[len('/task resume '):].strip()
+                if not task_id:
+                    resolved_terminal.show_error(
+                        ValueError('Usage: /task resume task-id')
+                    )
+                else:
+                    try:
+                        notice = resolved_session.task_resume(task_id)
+                        resolved_terminal.show_notice('Task', notice)
+                    except (OSError, ValueError) as error:
+                        resolved_terminal.show_error(error)
+                continue
+
+            if prompt.startswith('/remember '):
+                payload = prompt[len('/remember '):].strip()
+                name, separator, content = payload.partition('|')
+                if not separator:
+                    resolved_terminal.show_error(
+                        ValueError('Usage: /remember name | content')
+                    )
+                else:
+                    try:
+                        notice = resolved_session.remember(name.strip(), content.strip())
+                        resolved_terminal.show_notice('Memory', notice)
+                    except ValueError as error:
+                        resolved_terminal.show_error(error)
+                continue
+
+            if prompt == '/memory list':
+                resolved_terminal.show_notice(
+                    'Memory', resolved_session.memory_list()
+                )
+                continue
+
+            if prompt.startswith('/memory show '):
+                resolved_terminal.show_notice(
+                    'Memory',
+                    resolved_session.memory_show(
+                        prompt[len('/memory show '):].strip()
+                    ),
+                )
+                continue
+
+            if prompt.startswith('/memory forget '):
+                resolved_terminal.show_notice(
+                    'Memory',
+                    resolved_session.memory_forget(
+                        prompt[len('/memory forget '):].strip()
+                    ),
+                )
+                continue
+
+            if prompt == '/memory rebuild':
+                resolved_terminal.show_notice(
+                    'Memory', resolved_session.memory_rebuild()
+                )
+                continue
+
+            if prompt == '/memory consolidate':
+                resolved_terminal.show_notice(
+                    'Memory', resolved_session.memory_consolidate()
+                )
+                continue
+
+            try:
+                prompt = expand_file_mentions(prompt, Path.cwd())
+            except ValueError as error:
+                resolved_terminal.show_notice('File mention', str(error))
+                continue
+
+            try:
+                with resolved_terminal.stream_response() as response_view:
+                    active_response_view = response_view
+                    try:
+                        await render_streamed_turn(
+                            resolved_session,
+                            prompt,
+                            response_view,
+                            resolved_recorder,
+                        )
+                    finally:
+                        active_response_view = None
+            except (KeyboardInterrupt, typer.Abort):
+                resolved_terminal.show_goodbye()
+                return
+            except Exception as error:
+                resolved_terminal.show_error(error)
+                continue
+    finally:
+        await stop_interactive_session_async(
+            resolved_session, fallback_journal=resolved_journal, reason='exit')
 
 
 FILE_MENTION_PATTERN = re.compile(r'(?<!\S)@([^\s]+)')
@@ -763,7 +779,9 @@ async def stop_interactive_session_async(
     '''Close Hooks and MCP before durably stopping the active session.'''
     close_runtime = getattr(session, 'runtime_close', None)
     if close_runtime is not None:
-        await close_runtime(reason=reason)
+        cleanup = await close_runtime(reason=reason)
+        if isinstance(cleanup, dict) and cleanup.get('state') != 'clean':
+            raise RuntimeError(f'Sandbox cleanup could not be confirmed: {cleanup.get("state")}')
     else:
         end = getattr(session, 'session_end', None)
         if end is not None:

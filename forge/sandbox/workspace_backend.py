@@ -31,7 +31,10 @@ def require_workspace_policy(policy):
 class WorkspaceWriteBackend:
     mode = 'workspace-write'
 
-    def __init__(self, workspace, owner, control_root, *, trusted_root=ROOT):
+    def __init__(self, workspace, owner, control_root, *, trusted_root=ROOT, mode='workspace-write'):
+        if mode not in ('read-only', 'workspace-write'):
+            raise ValueError('Invalid native mode')
+        self.mode = mode
         validate('cleanup-report', {'owner': owner, 'state': 'unknown', 'remaining_processes': 0,
                                    'diagnostic_refs': [], 'completed_at_utc': None})
         self.workspace, self.owner = dict(workspace), dict(owner)
@@ -42,6 +45,10 @@ class WorkspaceWriteBackend:
         self._closing = None
         self._executions = {}
         self._retained = 0
+
+    @property
+    def policy_hash(self):
+        return self._prepared.sha256 if self._prepared is not None else None
 
     async def prepare(self, policy):
         if self._closing or self._preparing or self._prepared:
@@ -55,7 +62,6 @@ class WorkspaceWriteBackend:
             raise ContractError('Workspace-write requires Windows or Linux', kind='SANDBOX_UNAVAILABLE', code=-32010)
         snapshot = compile_policy(policy, self.workspace, control_roots=(self.control_root,))
         self.runtime = verify_runtime(self.trusted_root)
-        self.bridge_root = self.runtime.entry.parent if self.runtime.installed else self.runtime.root
         self.backend_name = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap'
         self.backend_version = '0.2.1-alpha.1'
         if sys.platform == 'linux':
@@ -75,13 +81,15 @@ class WorkspaceWriteBackend:
                 if process.returncode is None:
                     process.kill()
                     await process.wait()
-        self.runner = self.bridge_root / 'sandbox_bridge/dist/workspace-runner.js'
+        self.runner = self.runtime.entry
         root = Path(self.workspace['canonical_path'])
+        if any(path.is_relative_to(root) for path in (self.runtime.node, *self.runtime.tools.values())):
+            raise ContractError('Host tools must be installed outside the selected workspace', kind='POLICY_DENIED', code=-32010)
         for protected in (self.runtime.root, self.control_root):
             if root == protected or root.is_relative_to(protected) or protected.is_relative_to(root):
                 raise ContractError('Installation and control must be separate from workspace', kind='POLICY_DENIED', code=-32010)
-        if snapshot.value['filesystem']['write_roots'] != [str(root)]:
-            raise ContractError('Workspace-write requires exactly the selected workspace', kind='CAPABILITY_UNSATISFIED', code=-32010)
+        if self.mode == 'read-only' and snapshot.value['filesystem']['write_roots']:
+            raise ContractError('Read-only cannot grant writable roots', kind='CAPABILITY_UNSATISFIED', code=-32010)
         inspect_path(str(self.control_root), absolute=True).assert_current()
         self.control_root.mkdir(parents=True, exist_ok=False, mode=0o700)
         if sys.platform == 'win32':
@@ -89,9 +97,15 @@ class WorkspaceWriteBackend:
             grant_controller_access(self.control_root)
         self._policy = snapshot
         identity = 'exec-' + str(uuid4())
-        inside = root / ('.forge-canary-' + identity)
+        write_roots = snapshot.value['filesystem']['write_roots']
+        inside = Path(write_roots[0]) / ('.forge-canary-' + identity) if write_roots else root / ('.forge-canary-' + identity)
         outside = self.control_root / 'denied-canary'
         script = "const fs=require('node:fs');const [a,b]=process.argv.slice(1);fs.writeFileSync(a,'probe',{flag:'wx'});let denied=false;try{fs.writeFileSync(b,'escape',{flag:'wx'});}catch{denied=true;}fs.writeFileSync(require('node:path').join(process.env.TEMP || process.env.TMPDIR,'probe-temp'),'temp');console.log(JSON.stringify({inside:fs.readFileSync(a,'utf8')==='probe',outsideDenied:denied,stdin:fs.readFileSync(0,'utf8')}));"
+        expected = {'inside': True, 'outsideDenied': True, 'stdin': 'forge-probe'}
+        if self.mode == 'read-only' or not write_roots:
+            inside.write_text('probe', encoding='utf-8')
+            script = "const fs=require('node:fs');const [a,b]=process.argv.slice(1);const denied=f=>{try{f();return false;}catch{return true;}};console.log(JSON.stringify({insideRead:fs.readFileSync(a,'utf8')==='probe',insideDenied:denied(()=>fs.writeFileSync(a,'escape')),deleteDenied:denied(()=>fs.unlinkSync(a)),outsideDenied:denied(()=>fs.writeFileSync(b,'escape',{flag:'wx'})),stdin:fs.readFileSync(0,'utf8')}));"
+            expected = {'insideRead': True, 'insideDenied': True, 'deleteDenied': True, 'outsideDenied': True, 'stdin': 'forge-probe'}
         command = {'mode': 'argv', 'argv': [str(self.runtime.node), '-e', script, str(inside), str(outside)],
             'cwd': str(root), 'environment': {}, 'deadline_utc': (datetime.now(timezone.utc)+timedelta(seconds=min(25, policy['limits']['wall_time_seconds']))).isoformat().replace('+00:00','Z'),
             'output_limit_bytes': min(65536, policy['limits']['command_output_bytes']), 'stdin_base64': base64.b64encode(b'forge-probe').decode()}
@@ -100,12 +114,17 @@ class WorkspaceWriteBackend:
         try:
             await asyncio.shield(execution['task'])
             proof = json.loads(execution['captured']['stdout'])
-            if execution['exit_code'] != 0 or proof != {'inside': True, 'outsideDenied': True, 'stdin': 'forge-probe'} or execution['cleanup']['state'] != 'clean':
+            if execution['exit_code'] != 0 or proof != expected or execution['cleanup']['state'] != 'clean':
                 raise ValueError('Native write/stdin/cleanup boundary probe failed')
             evidence = {'backend': self.backend_name, 'version': self.backend_version, 'probe': proof, 'cleanup': execution['cleanup'],
-                'workspace_grant': 'standing; intentionally retained across sessions' if sys.platform == 'win32' else 'per-process mount namespace', 'read_network_isolation': False}
+                'workspace_grant': 'none' if self.mode == 'read-only' else 'standing; intentionally retained across sessions' if sys.platform == 'win32' else 'per-process mount namespace', 'mode': self.mode, 'read_network_isolation': False}
             (self.control_root/'boundary.json').write_text(json.dumps(evidence,indent=2),encoding='utf-8')
         except (ValueError, KeyError) as error:
+            (self.control_root/'boundary-failure.json').write_text(json.dumps({
+                'mode': self.mode, 'exit_code': execution['exit_code'], 'error': execution.get('error'),
+                'stdout': execution['captured']['stdout'].decode('utf-8', errors='replace'),
+                'stderr': execution['captured']['stderr'].decode('utf-8', errors='replace'),
+                'cleanup': execution['cleanup']}, indent=2), encoding='utf-8')
             raise ContractError('Native workspace-write probe failed; no task admitted', kind='SANDBOX_UNAVAILABLE', code=-32010) from error
         finally:
             if execution.get('cleanup',{}).get('state') == 'clean':
@@ -120,7 +139,7 @@ class WorkspaceWriteBackend:
             'read_isolation': 'unavailable', 'write_isolation': False, 'direct_network_isolation': False,
             'dns_isolation': False, 'socket_isolation': False, 'process_cleanup': True,
             'resource_enforcement': {name:'unavailable' for name in ('memory','disk','pids')}, 'readiness': 'ready',
-            'issues': ['Partial write restriction; reads and network inherit host access',
+            'issues': [('Read-only project write restriction; reads and network inherit host access' if self.mode == 'read-only' else 'Partial write restriction; reads and network inherit host access'),
                        'Ambient ACL and hard-link limitations remain; Node/libuv piped grandchildren are unsupported (use inherited or file stdio)' if sys.platform == 'win32' else 'Write allowlist uses an owned bubblewrap mount namespace; dynamic hard links are not inode-isolated'],
             'measured_at_utc': datetime.now(timezone.utc).isoformat().replace('+00:00','Z'), 'verification': verification})
         self._prepared = snapshot
@@ -192,6 +211,9 @@ class WorkspaceWriteBackend:
             with payload.open('xb') as output: output.write(raw)
             argv = [str(self.runtime.node),str(self.runner),'--workspace',self.workspace['canonical_path'],'--temp',str(temp),
                 '--payload-file',str(payload),'--payload-sha256',sha256(raw).hexdigest()]
+            argv += ['--write-roots', json.dumps(self._policy.value['filesystem']['write_roots'])]
+            if self.mode == 'read-only':
+                argv.append('--read-only')
             remaining = (datetime.fromisoformat(command['deadline_utc'].replace('Z','+00:00'))-datetime.now(timezone.utc)).total_seconds()
             async with asyncio.timeout(max(0,remaining)):
                 owner = await LocalProcessOwner.start(argv,cwd=self.workspace['canonical_path'],environment=bridge_environment(self.control_root),output=True,capture_stderr=True)
@@ -216,7 +238,7 @@ class WorkspaceWriteBackend:
             clean = processes['state'] == 'clean'
             if clean and temp.exists():
                 try:
-                    if sys.platform == 'win32': await self._revoke_temp(temp)
+                    if sys.platform == 'win32' and self.mode != 'read-only': await self._revoke_temp(temp)
                     if temp.parent != self.control_root or temp.resolve() != temp: raise ValueError('Owned temp identity changed')
                     shutil.rmtree(private_storage_path(temp))
                     clean = not temp.exists()

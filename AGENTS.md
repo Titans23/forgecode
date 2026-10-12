@@ -6,6 +6,10 @@ semantic edits. Preserve unrelated user changes, credentials and session data.
 
 ## ForgeCode V4 implementation
 
+The terminal-harness branch follows ADR038 and task T01. Audit the real F00
+interfaces first, then use the active terminal backlog scope. Historical desktop
+tasks and evidence do not define this branch's product or authorize model spend.
+
 Read `docs/implementation/PLANS.md`, `progress.json`, `handoff.md` and chapters
 0–3 of `forgecode-v4.md` before continuing. Read each task card and its referenced
 chapters. Begin with the real F00 audit, then follow `backlog.json` dependencies.

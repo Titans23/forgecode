@@ -44,6 +44,7 @@ _SENSITIVE_ASSIGNMENT = re.compile(
     r'(?i)\b(api[_-]?key|authorization|password|secret|token)'
     r'(\s*[:=]\s*)([^\s,;]+)'
 )
+_BEARER_TOKEN = re.compile(r'(?i)\b(Bearer\s+)[^\s,;]+')
 
 
 class TrajectoryRecorder:
@@ -235,4 +236,4 @@ def sanitize(value: Any) -> Any:
 
 
 def redact_text(value: str) -> str:
-    return _SENSITIVE_ASSIGNMENT.sub(r'\1\2[REDACTED]', value)
+    return _SENSITIVE_ASSIGNMENT.sub(r'\1\2[REDACTED]', _BEARER_TOKEN.sub(r'\1[REDACTED]', value))

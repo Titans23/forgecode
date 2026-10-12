@@ -74,6 +74,10 @@ class ApprovalResponse:
     choice: ApprovalChoice
     reason: str = ''
 
+    def __post_init__(self):
+        if self.choice not in {'allow_once', 'allow_session', 'allow_project', 'deny'}:
+            raise ValueError('Unknown approval choice')
+
 
 @dataclass(frozen=True, slots=True)
 class PermissionDecision:
@@ -101,6 +105,8 @@ class PermissionManager:
         journal: Any | None = None,
         user_path: Path | None = None,
         load_stored_rules: bool = True,
+        execution_mode: str | None = None,
+        authorized_write_roots: tuple[Path, ...] = (),
     ) -> None:
         self.root = root.resolve()
         self.mode: PermissionMode = mode
@@ -109,6 +115,8 @@ class PermissionManager:
         self.user_path = user_path or Path.home() / '.forge' / 'permissions.json'
         self.project_path = self.root / '.forge' / 'permissions.json'
         self.load_stored_rules = load_stored_rules
+        self.execution_mode = execution_mode
+        self.authorized_write_roots = tuple(path.resolve() for path in authorized_write_roots)
         self.session_rules: list[PermissionRule] = []
         self.user_rules = self._load_rules(self.user_path, 'user') if load_stored_rules else []
         self.project_rules = self._load_rules(self.project_path, 'project') if load_stored_rules else []
@@ -137,6 +145,10 @@ class PermissionManager:
     async def authorize(self, request: PermissionRequest) -> PermissionDecision:
         if request.hard_deny:
             return self._decision('deny', request, request.reason, 'hard_deny')
+
+        read_only = request.capability in {'file.read', 'repository.read', 'mcp.read'}
+        if not read_only and (self.execution_mode == 'read-only' or self.mode == 'plan'):
+            return self._decision('deny', request, 'Read-only policy forbids this operation.', 'read_only')
 
         matching = [
             rule
@@ -174,6 +186,10 @@ class PermissionManager:
             )
 
         default = self._mode_default(request)
+        if request.capability == 'file.write' and request.risk == 'low' and request.targets and all(
+                any((self.root / target).resolve().is_relative_to(root) for root in self.authorized_write_roots)
+                for target in request.targets):
+            default = 'allow'
         if default == 'allow':
             return self._decision(
                 'allow', request, 'Allowed by permission mode.', self.mode

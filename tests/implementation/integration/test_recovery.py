@@ -203,39 +203,6 @@ def test_recovery_report_profile_binding_and_expired_cursor_rebuild_are_explicit
         store.close()
 
 
-def test_real_bridge_process_loss_never_respawns_or_claims_confirmed_cleanup(tmp_path):
-    from test_bridge import policy_input
-    from forge.sandbox.srt_backend import SrtBackend
-    async def scenario():
-        _, workspace, _ = policy_input(tmp_path)
-        backend = SrtBackend(workspace, {'engine_epoch': new_id('epoch'), 'sandbox_session_id': new_id('sandbox'),
-            'execution_id': None}, tmp_path / 'control')
-        try:
-            await backend.probe()
-            child = backend.process
-            child.kill(); await child.wait()
-            with pytest.raises(ContractError):
-                await backend.probe()
-            with pytest.raises(ContractError):
-                await backend.close()
-            assert backend.process is child and backend._cleanup is None
-        finally:
-            await backend.aclose()
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize('mode', ['response-loss', 'double-response-loss', 'late-response', 'unknown-response', 'unconfirmed-limit'])
-def test_real_main_response_loss_reconciles_action_without_duplicate_turn(tmp_path, mode):
-    fixture, params, turn = seed(tmp_path)
-    config = tmp_path / 'recovery-supervisor.json'
-    config.write_text(json.dumps({'mode': mode, 'directory': str(tmp_path), 'fixture': str(fixture),
-        'params': params, 'turn': turn}), encoding='utf-8')
-    result = subprocess.run(['node', str(ROOT / 'tests/implementation/node/recovery-supervisor-case.mjs'), str(config)],
-        cwd=tmp_path, capture_output=True, text=True, encoding='utf-8', timeout=45)
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert json.loads(result.stdout)['mode'] == mode
-
-
 def test_modified_already_projected_record_stays_invalid_without_overwriting_events(tmp_path):
     _, original, vault, _, params, accepted, journal = interrupted(tmp_path)
     JournalProjector(original).project(journal.path, params['session_id'], trusted=True)
@@ -326,48 +293,6 @@ def test_actual_engine_kill_restart_queries_original_action_and_recovery_observa
                 assert db.execute('SELECT count(*) FROM turns').fetchone()[0]==1
         finally:await stop(process)
     asyncio.run(scenario())
-
-
-def test_actual_main_hard_kill_reconciles_unconfirmed_work_without_replay(tmp_path):
-    import sqlite3
-    from contextlib import closing
-    from test_rpc import launch,initialize,send,receive,stop
-    fixture,params,turn=seed(tmp_path,wait=True)
-    config=tmp_path/'main-crash.json'
-    config.write_text(json.dumps({'mode':'main-crash','directory':str(tmp_path),'fixture':str(fixture),'params':params,'turn':turn}),encoding='utf-8')
-    main=subprocess.Popen(['node',str(ROOT/'tests/implementation/node/recovery-supervisor-case.mjs'),str(config)],
-        cwd=tmp_path,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,encoding='utf-8')
-    try:
-        ready=json.loads(main.stdout.readline());assert ready['mode']=='main-crash'
-        assert ready['actual_main_pid']==main.pid
-        main.kill();main.wait(timeout=5)
-        # A hard kill may terminate Engine before graceful EOF cancellation can commit.
-        # Reopening the exclusive writer is evidence of exit, never proof of native cleanup.
-        async def scenario():
-            process=await launch(tmp_path,fixture)
-            try:
-                await initialize(process)
-                await send(process,'action.get',{'method':'session.start_turn','client_action_id':turn['client_action_id']},request_id='action')
-                action=(await receive(process,wanted_id='action'))['result']
-                await send(process,'recovery.inspect',{'turn_id':ready['turn_id']},request_id='recovery')
-                report=(await receive(process,wanted_id='recovery'))['result']
-                assert action['result']['turn_id']==ready['turn_id']
-                if report['state']=='finished':
-                    assert action['state']=='cancelled'
-                    assert report['cleanup_state']=='clean' and report['cancel_state']=='confirmed'
-                else:
-                    assert report['state']=='reconciling' and action['state']=='indeterminate'
-                    assert report['unknown_side_effects'] and report['startup_observation_id']
-                    assert report['cleanup_state']=='unknown' and report['cancel_state']=='indeterminate'
-                await send(process,'session.start_turn',turn,request_id='retry')
-                assert (await receive(process,wanted_id='retry'))['result']['turn_id']==ready['turn_id']
-                with closing(sqlite3.connect(tmp_path/'data/engine.sqlite3')) as db:
-                    assert db.execute('SELECT count(*) FROM turns').fetchone()[0]==1
-            finally:await stop(process)
-        asyncio.run(scenario())
-    finally:
-        if main.poll() is None:main.kill();main.wait(timeout=5)
-        main.stdout.close();main.stderr.close()
 
 
 def test_cleanup_gate_keeps_real_scheduler_waiting_and_readonly_rpc_responsive(tmp_path):

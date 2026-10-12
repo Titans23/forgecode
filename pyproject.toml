@@ -17,23 +17,24 @@ dependencies = [
     "rich>=13,<15",
     'typer>=0.9,<1.0',
     'mcp>=1.28,<2',
-    'lark-channel-sdk>=1.2,<2',
     'pyyaml>=6,<7',
     'jsonschema==4.26.0',
+    "pywin32==312; sys_platform == 'win32'",
 ]
 
 [project.scripts]
-forge = 'forge.cli:app'
+forge = 'forge.launch:main'
 
 [project.optional-dependencies]
-web = ['aiohttp==3.14.4']
+channels = ['lark-channel-sdk>=1.2,<2']
+evaluation = ['harbor==0.18.0']
 
 [tool.setuptools.packages.find]
 include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
 exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*']
 
 [tool.setuptools.package-data]
-forge = ['prompts/*.md', 'application/_generated_contracts.json', 'engine/migrations/*.sql']
+forge = ['prompts/*.md', 'application/_generated_contracts.json', 'engine/migrations/*.sql', '_sandbox/**/*', '_sandbox/**/.*']
 
 [tool.pytest.ini_options]
 testpaths = ['tests']
@@ -41,10 +42,6 @@ norecursedirs = ['fixtures']
 cache_dir = '.local/cache/pytest'
 
 [dependency-groups]
-desktop-build = [
-    "pyinstaller==6.22.3",
-]
 dev = [
-    "harbor==0.18.0",
     "pytest>=9.1.1",
 ]

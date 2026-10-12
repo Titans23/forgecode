@@ -4,14 +4,14 @@
     "symbols": {
       "main": {
         "line": 81,
-        "signature": "def main(ctx: typer.Context, version: Annotated[bool, typer.Option('--version', '-V', callback=version_callback, is_eager=True, help='Show the ForgeCode version and exit.')]=False, continue_session: Annotated[bool, typer.Option('--continue', '-c', help='Resume the most recent session for this project.')]=False, resume: Annotated[str | None, typer.Option('--resume', '-r', help='Resume a session by ID or name.')]=None, fork_session: Annotated[bool, typer.Option('--fork-session', help='Fork the resumed session under a new session ID.')]=False, provider: Annotated[str | None, typer.Option('--provider', help='anthropic, openai_responses, or deepseek')]=None, model: Annotated[str | None, typer.Option('--model', help='Model identifier for the configured provider')]=None, base_url: Annotated[str | None, typer.Option('--base-url', help='Native provider or explicit gateway URL')]=None) -> None"
+        "signature": "def main(ctx: typer.Context, version: Annotated[bool, typer.Option('--version', '-V', callback=version_callback, is_eager=True, help='Show the ForgeCode version and exit.')]=False, continue_session: Annotated[bool, typer.Option('--continue', '-c', help='Resume the most recent session for this project.')]=False, resume: Annotated[str | None, typer.Option('--resume', '-r', help='Resume a session by ID or name.')]=None, fork_session: Annotated[bool, typer.Option('--fork-session', help='Fork the resumed session under a new session ID.')]=False, provider: Annotated[str | None, typer.Option('--provider', help='anthropic, openai_responses, or deepseek')]=None, model: Annotated[str | None, typer.Option('--model', help='Model identifier for the configured provider')]=None, base_url: Annotated[str | None, typer.Option('--base-url', help='Native provider or explicit gateway URL')]=None, sandbox: Annotated[str, typer.Option('--sandbox', help='read-only, workspace-write or explicit full-access')]='workspace-write', approval: Annotated[str, typer.Option('--approval', help='plan, supervised or auto; independent of sandbox')]='supervised', read_root: Annotated[list[Path] | None, typer.Option('--read-root', help='Additional file-tool read scope')]=None, write_root: Annotated[list[Path] | None, typer.Option('--write-root', help='Writable subdirectory; repeat for multiple scopes')]=None) -> None"
       },
       "create_session_runtime": {
-        "line": 719,
+        "line": 739,
         "signature": "def create_session_runtime(root: Path, *, continue_session: bool=False, resume_identifier: str | None=None, fork_session: bool=False, model_override: str | None=None, task_policy: TaskPolicy | None=None, execution_profile: ExecutionProfile | None=None, allow_container_writes: bool=False, bindings: Any | None=None) -> tuple[Conversation, SessionJournal, SessionState | None]"
       },
       "render_streamed_turn": {
-        "line": 665,
+        "line": 685,
         "signature": "async def render_streamed_turn(session: Conversation, prompt: str, response_view: StreamingResponseView, recorder: TrajectoryRecorder | None=None) -> None"
       }
     }
@@ -24,7 +24,7 @@
         "signature": "def create_runtime(root: Path, *, continue_session: bool=False, resume_identifier: str | None=None, fork_session: bool=False, model_override: str | None=None, task_policy: TaskPolicy | None=None, execution_profile: ExecutionProfile | None=None, allow_container_writes: bool=False, conversation_factory: Callable[..., Conversation] | None=None, task_relation: str | None=None, bindings: RuntimeBindings | None=None) -> tuple[Conversation, SessionJournal, SessionState | None]"
       },
       "load_runtime_mcp_servers": {
-        "line": 149,
+        "line": 152,
         "signature": "def load_runtime_mcp_servers(root: Path) -> dict[str, Any]"
       }
     }
@@ -34,15 +34,15 @@
     "symbols": {
       "Conversation.__init__": {
         "line": 76,
-        "signature": "def __init__(self, client: ModelClient | None=None, system_prompt: str | None=None, tools: list[dict[str, Any]] | None=None, registry: ToolRegistry | None=None, max_iterations: int | None=80, task_policy: TaskPolicy | None=None, context_config: CompactionConfig | None=None, context_root: Path | None=None, max_protocol_recoveries: int=2, max_tool_protocol_recoveries: int=6, max_output_continuations: int=2, repeated_tool_limit: int=2, stagnation_warning: int=4, stagnation_limit: int=8, change_exploration_limit: int=8, completion_decision_limit: int=3, mutation_recovery_limit: int=4, max_tool_calls: int | None=120, max_turn_input_tokens: int | None=None, max_turn_seconds: float | None=None, initial_messages: list[dict[str, Any]] | None=None, active_task: ActiveTask | None=None, session_journal: SessionJournal | None=None, checkpoint_store: CheckpointStore | None=None, session_store: SessionStore | None=None, hook_manager: HookManager | None=None, permission_manager: PermissionManager | None=None, mcp_manager: MCPClientManager | None=None, skill_manager: SkillManager | None=None, intent_router: IntentRouter | None=None, include_task_tools: bool=True, task_relation: str | None=None, tool_backend: Any | None=None, event_recorder: Any | None=None) -> None"
+        "signature": "def __init__(self, client: ModelClient | None=None, system_prompt: str | None=None, tools: list[dict[str, Any]] | None=None, registry: ToolRegistry | None=None, max_iterations: int | None=80, task_policy: TaskPolicy | None=None, context_config: CompactionConfig | None=None, context_root: Path | None=None, max_protocol_recoveries: int=2, max_tool_protocol_recoveries: int=6, max_output_continuations: int=2, repeated_tool_limit: int=2, stagnation_warning: int=4, stagnation_limit: int=8, change_exploration_limit: int=8, completion_decision_limit: int=3, mutation_recovery_limit: int=4, max_tool_calls: int | None=120, max_turn_input_tokens: int | None=None, max_turn_seconds: float | None=None, initial_messages: list[dict[str, Any]] | None=None, active_task: ActiveTask | None=None, session_journal: SessionJournal | None=None, checkpoint_store: CheckpointStore | None=None, session_store: SessionStore | None=None, hook_manager: HookManager | None=None, permission_manager: PermissionManager | None=None, mcp_manager: MCPClientManager | None=None, skill_manager: SkillManager | None=None, intent_router: IntentRouter | None=None, include_task_tools: bool=True, task_relation: str | None=None, tool_backend: Any | None=None, event_recorder: Any | None=None, turn_baseline_handler: Any | None=None) -> None"
       },
       "Conversation.stream": {
-        "line": 309,
+        "line": 317,
         "signature": "async def stream(self, prompt: str) -> AsyncIterator[ConversationEvent]"
       },
       "Conversation.runtime_close": {
-        "line": 698,
-        "signature": "async def runtime_close(self, *, reason: str='exit') -> None"
+        "line": 719,
+        "signature": "async def runtime_close(self, *, reason: str='exit') -> dict | None"
       }
     }
   },
@@ -67,19 +67,19 @@
     "path": "forge/runtime/executor.py",
     "symbols": {
       "ToolExecutor.__init__": {
-        "line": 46,
+        "line": 48,
         "signature": "def __init__(self, registry: ToolRegistry, permission_manager: PermissionManager, *, workspace_tracker: WorkspaceTracker | None=None, hook_runner: HookRunner | None=None, session_journal: Any | None=None, checkpoint_store: CheckpointStore | None=None, path_resolver: PathResolver | None=None, hook_context_sink: HookContextSink | None=None, backend: Any | None=None) -> None"
       },
       "ToolExecutor.execute": {
-        "line": 70,
-        "signature": "async def execute(self, call: ToolCall, *, checkpoint_id: str | None=None, scope_checker: ScopeChecker | None=None, operation: Callable[[ToolCall], Awaitable[ToolResult]] | None=None, result_transformer: ResultTransformer | None=None) -> ExecutionOutcome"
+        "line": 72,
+        "signature": "async def execute(self, call: ToolCall, *, checkpoint_id: str | None=None, scope_checker: ScopeChecker | None=None, operation: Operation | None=None, result_transformer: ResultTransformer | None=None) -> ExecutionOutcome"
       },
       "ToolExecutor._journal_started": {
-        "line": 387,
-        "signature": "def _journal_started(self, call: ToolCall) -> None"
+        "line": 415,
+        "signature": "async def _journal_started(self, call: ToolCall) -> None"
       },
       "ToolExecutor._outcome": {
-        "line": 397,
+        "line": 426,
         "signature": "def _outcome(self, call: ToolCall, result: ToolResult, status: ExecutionStatus, started: float, arguments: dict[str, Any], revision: int, epoch: int, *, workspace_change: WorkspaceChange | None=None) -> ExecutionOutcome"
       }
     }
@@ -88,19 +88,19 @@
     "path": "forge/tools/shell.py",
     "symbols": {
       "RunCommandTool.__init__": {
-        "line": 364,
+        "line": 378,
         "signature": "def __init__(self, root: Path, *, execution_profile: ExecutionProfile | None=None, allow_container_writes: bool=False) -> None"
       },
       "RunCommandTool.execute": {
-        "line": 383,
+        "line": 397,
         "signature": "async def execute(self, arguments: RunCommandInput) -> ToolResult"
       },
       "run_process": {
-        "line": 57,
+        "line": 58,
         "signature": "async def run_process(command: list[str] | str, *, cwd: Path, timeout_seconds: float, input_text: str | None=None, shell: bool=False, max_output_bytes: int=MAX_PROCESS_OUTPUT_BYTES, artifact_root: Path | None=None) -> ProcessResult"
       },
       "_terminate_process_tree": {
-        "line": 255,
+        "line": 269,
         "signature": "async def _terminate_process_tree(process: asyncio.subprocess.Process, process_job=None) -> None"
       }
     }
@@ -109,11 +109,11 @@
     "path": "forge/tools/base.py",
     "symbols": {
       "resolve_repository_path": {
-        "line": 444,
+        "line": 446,
         "signature": "def resolve_repository_path(root: Path, raw_path: str, *, must_exist: bool=True) -> Path"
       },
       "ToolRegistry.execute": {
-        "line": 397,
+        "line": 398,
         "signature": "async def execute(self, name: str, arguments: Mapping[str, Any]) -> ToolResult"
       }
     }
@@ -135,11 +135,11 @@
     "path": "forge/runtime/model_budget.py",
     "symbols": {
       "BudgetedModelClient.stream": {
-        "line": 50,
+        "line": 51,
         "signature": "async def stream(self, messages, tools=None, system=None)"
       },
       "observe_wire_request": {
-        "line": 26,
+        "line": 27,
         "signature": "async def observe_wire_request(request) -> None"
       }
     }
@@ -174,23 +174,23 @@
     "path": "forge/sessions/store.py",
     "symbols": {
       "SessionJournal.append": {
-        "line": 328,
+        "line": 329,
         "signature": "def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]"
       },
       "SessionJournal._append_locked": {
-        "line": 337,
+        "line": 338,
         "signature": "def _append_locked(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]"
       },
       "SessionStore.create": {
-        "line": 465,
+        "line": 466,
         "signature": "def create(self, *, model: str, name: str | None=None, provider: str='') -> SessionJournal"
       },
       "SessionStore.open": {
-        "line": 517,
+        "line": 518,
         "signature": "def open(self, identifier: str | None=None) -> tuple[SessionState, SessionJournal]"
       },
       "SessionStore.load": {
-        "line": 593,
+        "line": 594,
         "signature": "def load(self, identifier: str) -> SessionState"
       }
     }
@@ -208,11 +208,11 @@
     "path": "benchmark/harbor/run_forge.py",
     "symbols": {
       "run_turn": {
-        "line": 82,
-        "signature": "async def run_turn(project: Path, message: str, *, resume: bool, max_model_calls: int, max_tool_calls: int, max_turn_seconds: float=1800) -> TurnResult"
+        "line": 84,
+        "signature": "async def run_turn(project: Path, message: str, *, resume: bool, max_model_calls: int, max_tool_calls: int, max_turn_seconds: float=1800, frozen_configuration: dict | None=None, runtime_bindings=None, result_path: Path | None=None) -> TurnResult"
       },
       "main": {
-        "line": 185,
+        "line": 250,
         "signature": "def main(argv: list[str] | None=None) -> int"
       }
     }

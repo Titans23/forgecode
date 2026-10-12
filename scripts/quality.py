@@ -86,9 +86,12 @@ def check_project(root):
         if package[field]!=lock['packages'][''][field]:raise ValueError('npm manifest differs from lock: '+field)
         for name,version in package[field].items():
             if lock['packages']['node_modules/'+name]['version']!=version:raise ValueError('npm dependency is not exactly locked: '+name)
-    release=json.loads((root/'release-lock.json').read_bytes())
-    for name,digest in release['lockfile_hashes'].items():
-        if sha256((root/name).read_bytes()).hexdigest()!=digest:raise ValueError('Release lock hash differs: '+name)
+    inventory=root/'sandbox_bridge/runtime-manifest.json'
+    if inventory.is_file():
+        from forge.sandbox.launcher import verify_runtime
+        verify_runtime(root)
+    else:
+        raise ValueError('Build the native sandbox dependency inventory before validation')
     tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'));tomllib.loads((root/'uv.lock').read_text(encoding='utf-8'))
     names=subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard'],cwd=root,text=True,encoding='utf-8').splitlines()
     findings=[];syntax=0

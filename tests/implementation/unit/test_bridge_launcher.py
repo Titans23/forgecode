@@ -47,6 +47,6 @@ def test_development_runtime_has_pinned_node_and_complete_code_inventory():
     root = Path(__file__).resolve().parents[3]
     runtime = verify_runtime(root)
     assert runtime.node.is_absolute() and runtime.entry.is_absolute()
-    assert '24.21.0' in str(runtime.node)
+    assert runtime.entry.name == 'workspace-runner.js'
     assert runtime.root == root
     assert runtime.manifest_hash

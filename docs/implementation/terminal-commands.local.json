@@ -1,0 +1,16 @@
+{
+  "scope": "terminal-harness",
+  "date": "2026-10-12",
+  "audit": ".venv/Scripts/python.exe -X utf8 scripts/impl.py audit --write",
+  "dependencies": "uv sync --locked --all-extras --group dev; npm ci --ignore-scripts",
+  "sandbox_build": ".venv/Scripts/python.exe -X utf8 scripts/build_bridge.py",
+  "regression": ".venv/Scripts/python.exe -X utf8 -m pytest tests -q --tb=short --basetemp=.local/final --junitxml=.local/terminal/final-regression.xml",
+  "regression_result": "Monolithic run interrupted without report; final disjoint exact-coverage commands/exit codes/hashes are recorded in evidence/T01-terminal-harness-20261012.json",
+  "native_windows": ".venv/Scripts/python.exe -X utf8 -m pytest tests/native/verify_terminal_native.py -q --tb=short --basetemp=<fresh owned directory outside installation> --junitxml=<report.xml>",
+  "wheel_build": ".venv/Scripts/python.exe -X utf8 scripts/build_bridge.py --bundle-python; uv build --wheel",
+  "wheel_contents": ".venv/Scripts/python.exe -X utf8 scripts/check_wheel.py <wheel.whl> --output <report.json>",
+  "installed_acceptance": "<wheel-env-python> -I -X utf8 -m pytest tests/native/verify_terminal_native.py tests/test_api.py --import-mode=importlib -q --tb=short --basetemp=<fresh owned directory outside installation>",
+  "live_model": "blocked: this task has no paid-model authorization",
+  "native_linux": "blocked: no Ubuntu22/24 native host; current WSL26 lacks Linux Node/ripgrep",
+  "administrator_setup": "not authorized; not run"
+}

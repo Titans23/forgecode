@@ -248,13 +248,15 @@ async def execute(request):
     from forge.tools.filesystem import (CreateDirectoryTool, ListDirectoryTool, ReadFileTool,
         RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool)
     from forge.tools.search import FindFilesTool, GrepTool
+    from forge.tools.git import GitStatusTool, GitDiffTool
     tools = {tool.name: tool(access.root) for tool in (CreateDirectoryTool, ListDirectoryTool,
-        ReadFileTool, RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool, FindFilesTool, GrepTool)}
+        ReadFileTool, RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool, FindFilesTool, GrepTool,
+        GitStatusTool, GitDiffTool)}
     name, arguments = request['name'], request['arguments']
     if name in ('run_command', 'verify'):
         from forge.tools.shell import RunCommandTool
         if name == 'run_command':
-            tools[name] = RunCommandTool(access.root)
+            tools[name] = RunCommandTool(access.root, allow_container_writes=bool(access.policy.write_roots))
         else:
             from forge.tools.verify import VerifyTool
             from forge.runtime.workspace import WorkspaceTracker

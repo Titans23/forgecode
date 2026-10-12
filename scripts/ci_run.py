@@ -19,18 +19,21 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--layer',choices=('portable','native','packaged'),default='portable');a=p.parse_args()
     if a.layer!='portable' and not trusted_native_dispatch(os.environ):
         print(json.dumps({'status':'blocked','reason':'Native/packaged CI requires trusted main manual dispatch; no privileged operations started'}));return 2
-    subprocess.run([sys.executable,str(ROOT/'scripts/ci_bootstrap.py')],cwd=ROOT,check=True)
+    subprocess.run([sys.executable,str(ROOT/'scripts/build_bridge.py')],cwd=ROOT,check=True)
     if a.layer=='portable':suites=['contracts','quality','unit','portable']
-    elif a.layer=='native':suites=['sandbox-windows' if sys.platform=='win32' else 'sandbox-linux','desktop']
+    elif a.layer=='native':suites=['terminal-native']
     else:
-        build='ci-'+os.environ['GITHUB_SHA'][:12]+'-'+sys.platform+'-x64'
-        for script in ('package_engine.py','assemble_release.py'):
-            subprocess.run([sys.executable,str(ROOT/'scripts'/script),'--build-id',build],cwd=ROOT,check=True)
-        suites=['engine-packaged','desktop-packaged','installer-windows' if sys.platform=='win32' else 'installer-linux']
+        subprocess.run([sys.executable,str(ROOT/'scripts/build_bridge.py'),'--bundle-python'],cwd=ROOT,check=True)
+        subprocess.run(['uv','build','--wheel','--out-dir',str(ROOT/'.local/terminal/wheels')],cwd=ROOT,check=True)
+        wheels=list((ROOT/'.local/terminal/wheels').glob('*.whl'))
+        if len(wheels)!=1:raise ValueError('Expected exactly one built terminal wheel')
+        subprocess.run([sys.executable,str(ROOT/'scripts/check_wheel.py'),str(wheels[0]),
+            '--output',str(ROOT/'.local/ci/wheel.json')],cwd=ROOT,check=True)
+        return 0
     records=[];output=ROOT/'.local/ci'/('run-'+a.layer+'.json');output.parent.mkdir(parents=True,exist_ok=True)
     prepared_source_hash = source_fingerprint(ROOT)
     for suite in suites:
-        record=verify(suite,'F29',prepared_source_hash=prepared_source_hash);records.append(record)
+        record=verify(suite,'T01',prepared_source_hash=prepared_source_hash);records.append(record)
         output.write_text(json.dumps({'layer':a.layer,'evidence':records},indent=2)+'\n',encoding='utf-8')
         if record['status']!='pass':print(json.dumps({'status':record['status'],'suite':suite,'evidence_id':record['evidence_id']}));return 2 if record['status']=='blocked' else 1
     result=gate('ci',[r['evidence_id'] for r in records]) if a.layer=='portable' else {'status':'pass','scope':'actual '+a.layer+' checks; release gate remains separate'}

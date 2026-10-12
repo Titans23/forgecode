@@ -6,7 +6,7 @@ from forge.tools.base import ToolError, ToolResult
 
 
 FILE_TOOLS = frozenset({'list_directory', 'find_files', 'read_file', 'grep', 'create_directory',
-    'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch'})
+    'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch', 'git_status', 'git_diff'})
 PROCESS_TOOLS = frozenset({'run_command', 'verify'})
 
 
@@ -20,8 +20,7 @@ class FileToolBackend:
         if self.mode != required_mode or canonical_hash(policy) != self.observer.policy_hash:
             raise ContractError('Tool backend does not match the frozen execution policy', kind='SANDBOX_UNAVAILABLE', code=-32010)
         if self.mode != 'local-trusted':
-            prepared = self.observer.native._prepared
-            if prepared is None or prepared.sha256 != self.observer.policy_hash:
+            if self.observer.native.policy_hash != self.observer.policy_hash:
                 raise ContractError('Restricted helper requires a prepared native session', kind='SANDBOX_UNAVAILABLE', code=-32010)
         else:
             from forge.application.harness_adapter import LocalTrustedBackend
@@ -66,7 +65,7 @@ class FileToolBackend:
                 return ToolResult.fail(error.kind, str(error), metadata={'execution_boundary': self.mode + '-file-worker'})
         # These tools mutate trusted task state or dispatch Explore with this same
         # backend. Hooks/MCP/skill extensions cannot inherit a sandbox label.
-        safe_control = {'finish_task', 'review_delivery', 'explore_repository',
+        safe_control = {'finish_task', 'review_delivery', 'explore_repository', 'load_skill', 'read_skill_resource',
             'task_get', 'task_plan', 'task_update', 'task_revise_requirement', 'read_context_artifact'}
         if call.name in safe_control and registry.provenance(call.name).get('source') == 'builtin':
             return await registry.execute(call.name, call.arguments)

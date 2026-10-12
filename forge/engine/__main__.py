@@ -18,9 +18,6 @@ def main(argv=None):
     if arguments and arguments[0]=='doctor':
         from forge.sandbox.doctor import main as doctor_main
         return doctor_main(arguments[1:])
-    if arguments and arguments[0]=='upgrade':
-        from forge.release.__main__ import main as upgrade_main
-        return upgrade_main(arguments[1:])
     if arguments and arguments[0]=='cli':
         from forge.cli import app
         app(args=arguments[1:])

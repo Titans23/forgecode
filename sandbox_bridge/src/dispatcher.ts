@@ -45,7 +45,8 @@ export function commandEnvironment(command: any, tools: Record<string,string>, t
   const pathKeys=Object.keys(environment).filter(name=>name.toUpperCase()==='PATH');
   const inheritedPath=pathKeys.map(name=>environment[name]).filter(Boolean).join(delimiter);
   for(const name of pathKeys)delete environment[name];
-  environment.PATH=[...new Set(Object.values(tools).map(path=>dirname(path as string))),inheritedPath].filter(Boolean).join(delimiter);
+  const taskDirectory = command.mode === 'argv' && isAbsolute(command.argv[0]) ? [dirname(command.argv[0])] : [];
+  environment.PATH=[...new Set([...Object.values(tools).map(path=>dirname(path as string)), ...taskDirectory]),inheritedPath].filter(Boolean).join(delimiter);
   if(process.platform==='win32') {
     for(const name of Object.keys(environment))if(name.toUpperCase()==='PATHEXT')delete environment[name];
     environment.PATHEXT='.COM;.EXE;.BAT;.CMD';

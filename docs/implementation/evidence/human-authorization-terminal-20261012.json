@@ -1,0 +1,12 @@
+{
+  "schema_version": "forge.human.authorization.observation.v1",
+  "date": "2026-10-12",
+  "scope": "terminal-harness",
+  "source": "User-provided AGENTS.md instructions in this chat",
+  "quote": "The current user has authorized uploading tested development versions to GitHub; this does not authorize paid experiments or system setup.",
+  "tested_development_branch_upload": true,
+  "paid_model_experiments": false,
+  "administrator_setup": false,
+  "main_merge": false,
+  "history": "Older V4 authorizations remain preserved as history, not reused for this task."
+}

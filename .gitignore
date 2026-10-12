@@ -13,10 +13,12 @@ _pytest-*/
 .env.*
 !.env.example
 node_modules/
+forge/_sandbox/
 .vite/
 packaging/smoke/out/
 dist/
 target/
+/build/
 **/.forge/trajectories/
 **/.forge/evals/
 **/.forge/context/
