@@ -2,14 +2,14 @@
 
 ForgeCode 是一个终端 Agent Harness：复用既有 Python 代理循环，负责模型与工具调用、权限、上下文、预算、验证、会话恢复和进程清理。
 
-当前 `codex/terminal-harness` 分支提供持续对话终端和真实轻量沙盒。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
+当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 
 ## 安装
 
 准备 Python 3.12+、Node 22+、Git、ripgrep；Windows 还需要 PowerShell 7/NTFS，Linux 需要 bubblewrap 与可用的非特权 user namespace。
 
 ```powershell
-git clone --branch codex/terminal-harness https://github.com/Titans23/forgecode.git forgecode-terminal
+git clone --branch main https://github.com/Titans23/forgecode.git forgecode-terminal
 cd forgecode-terminal
 uv sync --locked
 npm ci --ignore-scripts
@@ -46,7 +46,7 @@ forge --sandbox full-access --approval supervised
 
 `forge.api.HarnessSession` 提供 `open/stream/run/cancel/close`，沿用原 `ConversationEvent` 和 `TurnResult`；`event_dict` 输出版本化 JSON。会话事实来自 Journal，活动执行事实来自 Conversation/TurnState。核心不依赖终端文本解析。
 
-默认依赖只加载终端 Harness 和沙盒。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。本分支移除了 Electron、React、Vite 和运行中的 Web 客户端。
+默认依赖只加载终端 Harness 和沙盒。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。当前版本移除了 Electron、React、Vite 和运行中的 Web 客户端。
 
 ## 评测、后训练与验证
 
@@ -59,4 +59,4 @@ uv run --no-sync python scripts/impl.py verify --suite terminal-native
 npm run test:unit
 ```
 
-确定性测试、原生平台、安装 wheel 与真实模型实验分别记录。当前范围及证据见 [T01](docs/implementation/tasks/T01.md)、[progress](docs/implementation/progress.json) 和 [handoff](docs/implementation/handoff.md)。真实模型预算与管理员安装需要另行授权，本分支没有合并 main。
+确定性测试、原生平台、安装 wheel 与真实模型实验分别记录。当前范围及证据见 [T01](docs/implementation/tasks/T01.md)、[progress](docs/implementation/progress.json) 和 [handoff](docs/implementation/handoff.md)。终端版本已按用户要求快进更新到 main；真实模型预算与管理员安装需要另行授权。

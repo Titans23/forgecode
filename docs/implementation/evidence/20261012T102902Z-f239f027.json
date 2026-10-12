@@ -1,0 +1,47 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261012T102902Z-f239f027",
+  "task_id": null,
+  "case_ids": [],
+  "suite": "quality",
+  "git_commit": "cbe5b183f9adbb5b537b1b013a8bbe4eb99719fd",
+  "dirty_hash": "f22367c0fa55247bf9a64fc4cf34969e71b4b40227ced749225fc119fe59a482",
+  "source_inventory_hash": "7aab612ebffefecd3545b90b280abba9d1400e2476cef1f5494ff31bc5cf737f",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "8b13e4bad88798d62fa03549637409014c70a3e94be788371ffcac7a5c33e8a0",
+    "package-lock.json": "ea9be00e7d15e7fade91216cf18bb372fc471c562406354e147a260fd9ffc53e"
+  },
+  "command": [
+    "C:\\Users\\3dimaging\\.codex\\worktrees\\terminal-harness\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "C:\\Users\\3dimaging\\.codex\\worktrees\\terminal-harness\\forgecode\\scripts\\ci_checks.py",
+    "--suite",
+    "quality",
+    "--output",
+    "C:\\Users\\3dimaging\\.codex\\worktrees\\terminal-harness\\forgecode\\.local\\implementation\\20261012T102902Z-f239f027\\packaging.json"
+  ],
+  "start": "2026-10-12T10:29:02.139716+00:00",
+  "preparation_commands": [
+    [
+      "C:\\Users\\3dimaging\\.codex\\worktrees\\terminal-harness\\forgecode\\.venv\\Scripts\\python.exe",
+      "C:\\Users\\3dimaging\\.codex\\worktrees\\terminal-harness\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": null,
+  "end": "2026-10-12T10:29:24.645155+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261012T102902Z-f239f027/stdout.log",
+  "stderr_ref": ".local/implementation/20261012T102902Z-f239f027/stderr.log",
+  "report_ref": ".local/implementation/20261012T102902Z-f239f027/packaging.json",
+  "report_hash": "d9208fd8170ff55ac9273eceec35a46282ee7465b83eaae8e456a0f7fadbe54b",
+  "status": "pass",
+  "tests": {
+    "scope": "actual quality commands",
+    "checks": 4
+  }
+}

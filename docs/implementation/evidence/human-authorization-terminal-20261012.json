@@ -7,12 +7,16 @@
   "tested_development_branch_upload": true,
   "paid_model_experiments": false,
   "administrator_setup": false,
-  "main_merge": false,
+  "main_merge": true,
+  "initial_main_merge_authorized": false,
   "subsequent_user_requests": {
     "repository_git_account_selection": true,
     "remove_other_saved_local_github_login": true,
     "source": "Direct user messages: 能不能自动连接gihub别每次都要我人工确定; 帮我删除另一个账号",
-    "scope": "Existing Git credentials and repository-local account selection; no additional model budget or administrator setup."
+    "scope": "Existing Git credentials and repository-local account selection; no additional model budget or administrator setup.",
+    "main_promotion_and_development_baseline": true,
+    "main_promotion_source": "Direct user message: 将主分支设为当前版本，之后在这个版本上开发",
+    "main_promotion_scope": "Normally advance main to the tested terminal version and use it for subsequent development; preserve unrelated uncommitted changes and private data."
   },
   "history": "Older V4 authorizations remain preserved as history, not reused for this task."
 }

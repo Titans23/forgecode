@@ -1,13 +1,13 @@
-# ForgeCode 终端分支
+# ForgeCode 终端版本
 
-此分支提供持续对话的 Python Harness 和真实轻量沙盒。终端、评测入口通过 Profile 选择；Python SDK 直接调用同一核心。安装环境需要 Python 3.12+、Node 22.13+、Git、ripgrep；Windows 需要 PowerShell 7 和 NTFS，Linux 需要 bubblewrap 及可用的非特权 user namespace。安装程序不会请求管理员权限或自动修改系统策略。
+当前 main 提供持续对话的 Python Harness 和真实轻量沙盒。终端、评测入口通过 Profile 选择；Python SDK 直接调用同一核心。安装环境需要 Python 3.12+、Node 22.13+、Git、ripgrep；Windows 需要 PowerShell 7 和 NTFS，Linux 需要 bubblewrap 及可用的非特权 user namespace。安装程序不会请求管理员权限或自动修改系统策略。
 
-## 从分支安装
+## 从主分支安装
 
-在独立安装目录检出 `codex/terminal-harness`，不要把 ForgeCode 安装目录当作沙盒项目。
+在独立安装目录检出 `main`，不要把 ForgeCode 安装目录当作沙盒项目。
 
 ```powershell
-git clone --branch codex/terminal-harness https://github.com/Titans23/forgecode.git forgecode-terminal
+git clone --branch main https://github.com/Titans23/forgecode.git forgecode-terminal
 cd forgecode-terminal
 uv sync --locked
 npm ci --ignore-scripts

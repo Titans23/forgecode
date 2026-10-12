@@ -2042,6 +2042,7 @@
       "implementation_status": "implemented",
       "evidence_ids": ["T01-shipped-regression-20261012"],
       "observations_ref": "evidence/T01-ci-closeout-20261012.json",
+      "main_promotion_ref": "evidence/T01-main-promotion-20261012.json",
       "case_ids": ["T-API", "T-CLI", "T-SANDBOX", "T-EVAL", "T-TRAIN"]
     }
   ]

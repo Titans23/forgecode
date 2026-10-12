@@ -11,6 +11,8 @@
   "model_calls": 0,
   "administrator_setup": false,
   "main_merged": false,
+  "main_merge_record_scope": "Historical closeout snapshot before the subsequent user-authorized main promotion; current main state is recorded separately.",
+  "subsequent_main_promotion_ref": "T01-main-promotion-20261012.json",
   "regression": {
     "report_ref": ".local/terminal/shipped-batches/combined-final.xml",
     "report_sha256": "c29e7556401f18197d22e34addd991cc4c8389a4fc157ae11271564bbed8d8cd",

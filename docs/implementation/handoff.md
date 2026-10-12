@@ -1,12 +1,12 @@
 # ForgeCode 当前交接
 
-## 当前终端分支 · T01（2026-10-12，实现与本地最终验证完成）
+## 当前 main · T01（2026-10-12，终端版本已作为开发主线）
 
-活动范围为 `terminal-harness`，详见 ADR038、T01、terminal-repo-audit 与终端使用指南。代码在此任务创建的独立 checkout：`C:/Users/3dimaging/.codex/worktrees/terminal-harness/forgecode`，分支 `codex/terminal-harness`，基底913446f；应用登记 worktree 失败，未声称已附着。原目录仍在 `codex/simple-sandbox-choice`，工作文件和会话未切换、写入或构建；按用户后续明确要求更新了共享仓库 Git 的账户选择并移除另一项本机登录。
+活动范围为 `terminal-harness`，详见 ADR038、T01、terminal-repo-audit 与终端使用指南。用户明确要求“将主分支设为当前版本，之后在这个版本上开发”。main 已从913446f正常快进至受测版本cbe5b18并推送，之后仅更新主线文档。后续开发在此任务创建的干净 checkout：`C:/Users/3dimaging/.codex/worktrees/terminal-harness/forgecode`，当前分支 `main`；应用登记 worktree 失败，未声称已附着。原目录仍在 `codex/simple-sandbox-choice`，未提交改动、凭据与会话保持原样，勿在原目录直接切换或重置来覆盖它们。Git 已按用户要求固定现有账户并移除另一项本机登录。主线更新证据见 [记录](evidence/T01-main-promotion-20261012.json)。
 
-已删除 Electron/React/Web、客户端打包/验证与不可执行 strict Bridge；默认移出飞书/Harbor/PyInstaller，保留可选兼容接口。终端及 Python API 复用实际 Harness、Journal、预算、取消和实际 DSH/bubblewrap；启动器提供 terminal/evaluation 组合，SDK 使用可调用 API。本轮不做 GUI、Web 服务、插件注册或主线合并。
+已删除 Electron/React/Web、客户端打包/验证与不可执行 strict Bridge；默认移出飞书/Harbor/PyInstaller，保留可选兼容接口。终端及 Python API 复用实际 Harness、Journal、预算、取消和实际 DSH/bubblewrap；启动器提供 terminal/evaluation 组合，SDK 使用可调用 API。本轮不做 GUI、Web 服务或插件注册。
 
-当前源码指纹 `aa307bca8bdd188f50904f48c378819e34290ba17a3bea2df1d76c09c13e480f`。全量回归1330项通过，逐项核对收集身份，零遗漏/重复/失败/错误/跳过，5条警告保留；该回归快照为 f8a9dec / `12eedb0e451bc7d311c718862458324ce6821bb4c0cdad855615aec3af59d7f7`。之后仅 tests/test_cli.py 的文本断言与启动等待改动，普通CLI28项及彩色文字2项补测通过。运行时代码、native/API测试与wheel输入保持原样。
+主线文档更新前的受测源码指纹 `aa307bca8bdd188f50904f48c378819e34290ba17a3bea2df1d76c09c13e480f`。全量回归1330项通过，逐项核对收集身份，零遗漏/重复/失败/错误/跳过，5条警告保留；该回归快照为 f8a9dec / `12eedb0e451bc7d311c718862458324ce6821bb4c0cdad855615aec3af59d7f7`。之后仅 tests/test_cli.py 的文本断言与启动等待改动，普通CLI28项及彩色文字2项补测通过。本次主线文档更新包含README，故整体指纹会变化；运行时代码、测试与wheel输入保持原样，不将旧报告重标为新指纹通过。
 
 Windows10 源码原生/API15项（真实原生6+离线API9）、独立安装wheel原生/API15项、Node11项、contracts及quality通过，官方npm audit零漏洞；各范围独立，不相加。原生与wheel运行对应9b5e0e8的运行时代码，后续提交仅修改测试及CI选择。CI失败修正包含：安全任务先构建；离线代码完整性检查不要求原生工具齐全；诊断测试真实保留工具缺失的blocked；Windows深目录clone使用局部长路径；CLI文字按可见内容断言。
 
@@ -14,11 +14,11 @@ Windows10 源码原生/API15项（真实原生6+离线API9）、独立安装whee
 
 当前wheel `.local/terminal/wheels-ci-closeout/forge_code-0.1.2-py3-none-any.whl`，4772911 bytes，SHA256 `13a45359cff901820803797678a8860e0ae18d2cbcd65664c432f29484b1b1c0`；逐项资源/hash核对后在独立安装解释器运行。默认安装未加载/安装 lark-channel、Harbor、transformers、torch 或 aiohttp。旧wheel和隐藏文件/目录漏包的两次失败保留原范围。
 
-交付分支为 [codex/terminal-harness](https://github.com/Titans23/forgecode/tree/codex/terminal-harness)，提交与上传状态以Git实际记录为准。运行说明见 [终端使用指南](../install/terminal-quickstart.md)；Bundle/Profile决策见 [ADR038](adr/038-terminal-profile-bundles.md)。原评测入口、RunSpec/ResultBundle和Qwen数据记录/导出/rollout接口保留并通过离线回归。
+交付与后续开发主线为 [main](https://github.com/Titans23/forgecode/tree/main)，`codex/terminal-harness` 保留为实现历史，提交与上传状态以Git实际记录为准。运行说明见 [终端使用指南](../install/terminal-quickstart.md)；Bundle/Profile决策见 [ADR038](adr/038-terminal-profile-bundles.md)。原评测入口、RunSpec/ResultBundle和Qwen数据记录/导出/rollout接口保留并通过离线回归。
 
 Git Credential Manager 已保存两个账户，之前的等待是账户选择而非网络故障。按用户明确请求，本仓库固定选 Titans23，移除另一项本机登录；无交互真实push成功，工作文件、模型凭据与会话不受该操作影响。代码26f81a8的 [CI run38233693921](https://github.com/Titans23/forgecode/actions/runs/38233693921) 已全部通过：Windows2025、Ubuntu22/24 portable及依赖安全。后续收尾文档不改变源码指纹；实际状态和报告哈希在收尾索引。
 
-独立待办：Ubuntu22/24原生验收、真实模型实验和实际后训练仍 blocked；WSL26缺Node/rg。不运行付费模型、正式实验、管理员设置或main合并。当前授权只覆盖测试过的开发版本上传，旧V4付费/安装授权不应用于此任务。全部原始日志和报告在此 checkout 的 `.local/terminal/`，哈希索引已跟踪。
+独立待办：Ubuntu22/24原生验收、真实模型实验和实际后训练仍 blocked；WSL26缺Node/rg。不运行付费模型、正式实验或管理员设置。当前授权覆盖测试过的开发版本上传及本次main更新，旧V4付费/安装授权不应用于此任务。全部原始日志和报告在此 checkout 的 `.local/terminal/`，哈希索引已跟踪。
 
 最新入口在本页顶部；阶段历史保留于下文及 `archive/handoff-72d7fb8-20261008.md`。progress、backlog、任务卡与实际 evidence 保留全部引用，历史通过不替代当前源码验证。
 

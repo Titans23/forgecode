@@ -2,7 +2,7 @@
 
 本文件是此仓库的执行记录格式，与产品规范分离。目标是换一个 Codex 会话仍可继续，不依赖隐藏聊天上下文。
 
-当前 `codex/terminal-harness` 按用户要求及 ADR038/T01 实施纯终端 Harness + 真实沙盒。旧 V4 客户端任务、权限授权和验收只作历史；当前范围、测试及未授权的模型/系统支出以 progress 的 terminal-harness scope 为准。
+当前 `main` 已按用户要求采用 ADR038/T01 的纯终端 Harness + 真实沙盒版本，后续开发从此基线继续。旧 V4 客户端任务、权限授权和验收只作历史；当前范围、测试及未授权的模型/系统支出以 progress 的 terminal-harness scope 为准。
 
 ## 每次开始
 

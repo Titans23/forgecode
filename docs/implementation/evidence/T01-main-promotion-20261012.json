@@ -1,0 +1,40 @@
+{
+  "schema_version": "forge.main.promotion.observation.v1",
+  "date": "2026-10-12",
+  "authorization_ref": "human-authorization-terminal-20261012.json",
+  "user_quote": "将主分支设为当前版本，之后在这个版本上开发",
+  "remote": "https://github.com/Titans23/forgecode.git",
+  "default_branch": "main",
+  "previous_main": "913446f5fcf0275c2c839617fef9a5b2bbe4280f",
+  "promoted_tested_commit": "cbe5b183f9adbb5b537b1b013a8bbe4eb99719fd",
+  "remote_main_push": "success: 913446f..cbe5b18 main -> main",
+  "method": "git switch main; git merge --ff-only cbe5b183f9adbb5b537b1b013a8bbe4eb99719fd; git push origin main",
+  "force_push": false,
+  "required_checks_bypassed": false,
+  "tested_commit_ci": {
+    "run_id": 38235318241,
+    "url": "https://github.com/Titans23/forgecode/actions/runs/38235318241",
+    "head_sha": "cbe5b183f9adbb5b537b1b013a8bbe4eb99719fd",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "tested_source_inventory_hash": "aa307bca8bdd188f50904f48c378819e34290ba17a3bea2df1d76c09c13e480f",
+  "development_branch": "main",
+  "development_checkout": "C:/Users/3dimaging/.codex/worktrees/terminal-harness/forgecode",
+  "original_checkout": "D:/projects/forgecode",
+  "original_checkout_branch": "codex/simple-sandbox-choice",
+  "original_uncommitted_work": "Preserved without switching, resetting, cleaning or staging; desktop changes and private session data remain in place.",
+  "followup_change_scope": "README, installation, authorization and handoff/progress documents only; runtime code, tests and package inputs remain equal to promoted_tested_commit.",
+  "documentation_source_inventory_hash": "7aab612ebffefecd3545b90b280abba9d1400e2476cef1f5494ff31bc5cf737f",
+  "documentation_quality": {
+    "status": "pass",
+    "checks": 4,
+    "evidence_ref": "20261012T102902Z-f239f027.json"
+  },
+  "prior_verification_ref": "T01-ci-closeout-20261012.json",
+  "prior_verification_scope": "Original CI/regression/native/wheel reports retain their original commits and fingerprints; README participates in the fingerprint, so old results are not relabeled as a new full regression.",
+  "paid_model_calls": 0,
+  "administrator_setup": false,
+  "native_linux": "blocked",
+  "live_model_experiments": "blocked"
+}
