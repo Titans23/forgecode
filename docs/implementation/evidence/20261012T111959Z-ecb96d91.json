@@ -1,0 +1,47 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "20261012T111959Z-ecb96d91",
+  "task_id": null,
+  "case_ids": [],
+  "suite": "quality",
+  "git_commit": "817e826e6cde714911622ca8d32d6b73c735966b",
+  "dirty_hash": "82fb274ea9b4d3b74ea7e1c5527104adc85e7953c47393242b322ad205d2e1b6",
+  "source_inventory_hash": "2983fa994337cd9e29a8e212635435cb5c350388b0b3be5b0151d7e5ae570df1",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "8b13e4bad88798d62fa03549637409014c70a3e94be788371ffcac7a5c33e8a0",
+    "package-lock.json": "ea9be00e7d15e7fade91216cf18bb372fc471c562406354e147a260fd9ffc53e"
+  },
+  "command": [
+    "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\projects\\forgecode\\scripts\\ci_checks.py",
+    "--suite",
+    "quality",
+    "--output",
+    "D:\\projects\\forgecode\\.local\\implementation\\20261012T111959Z-ecb96d91\\packaging.json"
+  ],
+  "start": "2026-10-12T11:19:59.892594+00:00",
+  "preparation_commands": [
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": null,
+  "end": "2026-10-12T11:20:18.793523+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261012T111959Z-ecb96d91/stdout.log",
+  "stderr_ref": ".local/implementation/20261012T111959Z-ecb96d91/stderr.log",
+  "report_ref": ".local/implementation/20261012T111959Z-ecb96d91/packaging.json",
+  "report_hash": "2ce7b9562e28cf209f94d5da3d3146cf60b13a81b71c323035edb736e9c7fee4",
+  "status": "pass",
+  "tests": {
+    "scope": "actual quality commands",
+    "checks": 4
+  }
+}

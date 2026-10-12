@@ -11,32 +11,52 @@
     "F00": {
       "implementation_status": "implemented",
       "verification": {
-        "audit": "not_run"
+        "audit": "pass"
       },
-      "evidence_ids": [],
+      "evidence_ids": [
+        "20261012T105012Z-731c66e9"
+      ],
       "blocked_reasons": []
     },
     "T01": {
       "implementation_status": "implemented",
       "verification": {
-        "regression": "not_run",
+        "regression": "pass_with_recorded_corrections",
         "native_linux": "blocked",
         "live_model_experiments": "blocked"
       },
-      "evidence_ids": [],
+      "evidence_ids": [
+        "T02-regression-20261012",
+        "20261012T105057Z-660fc8f3"
+      ],
       "blocked_reasons": [
         "Ubuntu22/24 native acceptance and live model experiments are unverified."
       ]
     },
     "T02": {
-      "implementation_status": "in_progress",
+      "implementation_status": "implemented",
       "verification": {
-        "contracts": "not_run",
-        "quality": "not_run",
-        "regression": "not_run"
+        "contracts": "pass",
+        "quality": "pass",
+        "regression": "pass_with_recorded_corrections",
+        "native_windows": "pass",
+        "dependency_security": "pass",
+        "external_session_cleanup": "blocked",
+        "external_old_worktree_cleanup": "blocked"
       },
-      "evidence_ids": [],
-      "blocked_reasons": []
+      "evidence_ids": [
+        "20261012T105057Z-b229a83b",
+        "20261012T105057Z-54d9b09e",
+        "20261012T105057Z-660fc8f3",
+        "20261012T105106Z-7ef007df",
+        "20261012T111323Z-842968e7",
+        "T02-regression-20261012",
+        "20261012T111959Z-ecb96d91"
+      ],
+      "blocked_reasons": [
+        "Automatic approval review rejected deletion of the old unregistered C:/Users/3dimaging/.codex/worktrees/terminal-harness/forgecode residue: blocked by policy.",
+        "Automatic approval review rejected deletion of project-scoped user data under C:/Users/3dimaging/.forge/projects/forgecode-59ecdad9853ada94; 15 journal files and checkpoints remain."
+      ]
     }
   },
   "authorization": {
@@ -47,10 +67,49 @@
     "administrator_setup": false
   },
   "cleanup": {
-    "status": "in_progress",
-    "old_documents_removed": 798,
-    "retired_script": "scripts/resume_f31.py",
-    "retired_tests": "tests/implementation/unit/test_f31_handoff.py",
-    "credentials": "Existing .env and saved Git authentication remain private and untracked."
+    "status": "workspace_clean_external_cleanup_blocked",
+    "retired_tests": "tests/implementation/unit/test_f31_handoff.py (9 retired handoff tests; two new behavior tests added)",
+    "credentials": "Existing .env and saved Git authentication remain private and untracked.",
+    "obsolete_documents_removed": 796,
+    "frozen_protocol_report_retained": "evidence/F20-20261006T223459Z-harbor-report.json",
+    "retired_scripts": [
+      "scripts/resume_f31.py",
+      "scripts/ui_list_performance.mjs",
+      "scripts/test-runtime-linux.ps1"
+    ],
+    "old_task_checkout": "Git registration removed; filesystem removal hit long Windows paths, and direct recursive removal was rejected by automatic policy review.",
+    "local_workspace_old_changes_and_sessions": "removed without backups",
+    "user_data_sessions_remaining": 15,
+    "user_data_project_directory": "C:/Users/3dimaging/.forge/projects/forgecode-59ecdad9853ada94",
+    "development_worktrees": [
+      "D:/projects/forgecode"
+    ],
+    "external_session_cleanup": "blocked by policy; no user-data session/checkpoint file removed"
+  },
+  "verification_scope": {
+    "source_commit": "817e826e6cde714911622ca8d32d6b73c735966b",
+    "source_inventory_hash": "2983fa994337cd9e29a8e212635435cb5c350388b0b3be5b0151d7e5ae570df1",
+    "original_regression_commit": "6f2ce39f16c8483bd9d8456c09d7754269c5ad16",
+    "original_source_inventory_hash": "7ffb3725d23228eec65c871564481269da272a28d8f731263c608f8981927d3e",
+    "unique_regression_cases": 1324,
+    "original_run": {
+      "passed": 1318,
+      "failed": 5,
+      "warnings": 7
+    },
+    "corrected_rechecks": {
+      "passed": 40,
+      "failed": 0,
+      "scope": "delivery9, documented11, registry3, gates17; original1323 plus one new verifier-format test"
+    },
+    "source_native_windows_tests": 6,
+    "native_scope": "Original source snapshot; runtime code unchanged by the final test-only correction. No new wheel or Linux native acceptance claimed.",
+    "model_calls": 0,
+    "administrator_setup": false,
+    "validation_only_delta": [
+      "scripts/evidence_gate.py",
+      "tests/implementation/unit/test_gates.py",
+      "tests/implementation/unit/test_impl_registry.py"
+    ]
   }
 }

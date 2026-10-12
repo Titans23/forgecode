@@ -1,0 +1,102 @@
+{
+  "schema_version": "forge.implementation.evidence.v1",
+  "evidence_id": "T02-regression-20261012",
+  "task_id": "T02",
+  "case_ids": [
+    "T-API",
+    "T-CLI",
+    "T-EVAL",
+    "T-TRAIN"
+  ],
+  "suite": "regression",
+  "git_commit": "817e826e6cde714911622ca8d32d6b73c735966b",
+  "dirty_hash": "e048fa2d41615d1be55bea6ee1db99bc7290c7894d9d4cd86d03cd5ebbc43ab5",
+  "source_inventory_hash": "2983fa994337cd9e29a8e212635435cb5c350388b0b3be5b0151d7e5ae570df1",
+  "platform": "win32",
+  "os_build": "Windows-10-10.0.19045-SP0",
+  "dependency_lock_hash": {
+    "uv.lock": "8b13e4bad88798d62fa03549637409014c70a3e94be788371ffcac7a5c33e8a0",
+    "package-lock.json": "ea9be00e7d15e7fade91216cf18bb372fc471c562406354e147a260fd9ffc53e"
+  },
+  "command": [
+    "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "D:\\projects\\forgecode\\.local\\cleanup-focused\\closeout.py"
+  ],
+  "start": "2026-10-12T10:50:19.815001+00:00",
+  "preparation_commands": [
+    [
+      "D:\\projects\\forgecode\\.venv\\Scripts\\python.exe",
+      "D:\\projects\\forgecode\\scripts\\build_bridge.py",
+      "--check",
+      "--no-build"
+    ]
+  ],
+  "prepared_source_hash": null,
+  "end": "2026-10-12T11:21:39.273080+00:00",
+  "exit_code": 0,
+  "stdout_ref": ".local/implementation/20261012T105019Z-6375c858/stdout.log",
+  "stderr_ref": ".local/implementation/20261012T105019Z-6375c858/stderr.log",
+  "report_ref": ".local/cleanup-focused/combined.xml",
+  "report_hash": "7ea468b474fe03786225bc92eae0572da4e54f488b3c84662262edaa4cc2dfc3",
+  "status": "pass",
+  "tests": {
+    "collected": 1324,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "verification_scope": "Full collected manifest, original regression snapshot plus frozen-input restoration, current-task test correction and verifier-format correction; all gate tests rerun. Not a second single-process full run.",
+  "original_failure_ref": "20261012T105019Z-6375c858.json",
+  "original_source_inventory_hash": "7ffb3725d23228eec65c871564481269da272a28d8f731263c608f8981927d3e",
+  "validation_only_delta": [
+    "scripts/evidence_gate.py",
+    "tests/implementation/unit/test_gates.py",
+    "tests/implementation/unit/test_impl_registry.py"
+  ],
+  "raw_report_sources": [
+    {
+      "report_ref": ".local/implementation/20261012T105019Z-6375c858/junit.xml",
+      "report_sha256": "787db522dc41c9eb172f7d36cd19fd8afa3b0c826daf6f07a24a3a765d6fb051",
+      "cases": 1323,
+      "failed_cases": 5
+    },
+    {
+      "report_ref": ".local/cleanup-focused/delivery-restored.xml",
+      "report_sha256": "3d6d5748ea6fea7672807b6eb645b1aff969a5185a5db1b926e0474a8226a4bf",
+      "cases": 9,
+      "failed_cases": 0
+    },
+    {
+      "report_ref": ".local/cleanup-focused/documented.xml",
+      "report_sha256": "dd83bb43a0265aaf92cc3eea1c931dd8c6c2ce766080d06549a9e24398fa6fd1",
+      "cases": 11,
+      "failed_cases": 0
+    },
+    {
+      "report_ref": ".local/cleanup-focused/registry-fixed.xml",
+      "report_sha256": "c871a33de431ee149f5e65c2507335c6f4d31c749acc8b71c9694cd1368f4452",
+      "cases": 3,
+      "failed_cases": 0
+    },
+    {
+      "report_ref": ".local/cleanup-focused/gates-final.xml",
+      "report_sha256": "af858155b5cddd6447cf190c2f4395e034ba54704c614bb6410b57280410b76c",
+      "cases": 17,
+      "failed_cases": 0
+    }
+  ],
+  "coverage": {
+    "collected": 1324,
+    "selected": 1324,
+    "missing": [],
+    "extra": [],
+    "duplicates": 0
+  },
+  "warnings": {
+    "original_full_run": 7,
+    "documented_recheck": 1
+  },
+  "restored_input": "docs/implementation/evidence/F20-20261006T223459Z-harbor-report.json"
+}
