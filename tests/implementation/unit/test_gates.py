@@ -126,6 +126,16 @@ def test_registered_suite_rejects_wrong_report_format(tmp_path,monkeypatch):
     assert impl.gate('implementation')['status']=='fail'
 
 
+def test_terminal_native_verifier_uses_junit_without_claiming_release_acceptance(tmp_path, monkeypatch):
+    from scripts.evidence_gate import check_evidence
+    impl, record, *_ = gate_repo(tmp_path, monkeypatch)
+    record['suite'] = 'terminal-native'
+    result = check_evidence(tmp_path, record)
+    assert result['status'] == 'pass'
+    assert result['counts']['collected'] == 1
+    assert result.get('eligible_for_native_pass') is not True
+
+
 def test_owned_report_path_cannot_escape_repository(tmp_path,monkeypatch):
     impl,record,*_=gate_repo(tmp_path,monkeypatch)
     record['report_ref']='../outside.xml';write(impl.DOCS/'evidence/first.json',record)

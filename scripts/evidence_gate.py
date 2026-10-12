@@ -39,7 +39,7 @@ def check_evidence(root, record):
     if record['status'] not in ('pass','blocked','fail'):raise ValueError('Unknown evidence verdict')
     report=owned_file(root,record['report_ref'])
     if sha256(report.read_bytes()).hexdigest()!=record['report_hash']:raise ValueError('Evidence report hash changed')
-    junit_suites={'audit','unit','portable','regression'}
+    junit_suites={'audit','unit','portable','regression','terminal-native'}
     if (record['suite'] in junit_suites)!=(report.suffix=='.xml'):raise ValueError('Report format does not match registered verifier suite')
     if report.suffix=='.xml':
         cases=list(ET.parse(report).iter('testcase'))
