@@ -1,6 +1,7 @@
 """OS detection/report semantics, not simulated native boundary acceptance."""
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -62,7 +63,11 @@ def test_windows_fixture_only_adds_inherited_controller_access_to_a_fresh_owned_
 def test_actual_read_only_system_diagnosis_never_installs_or_claims_verified():
     report = system_diagnosis()
     assert report['read_only'] is True
-    assert report['runtime']['status'] == 'pass'
+    required_tools = ['node', 'git', 'rg'] + (['pwsh'] if sys.platform == 'win32' else [])
+    missing = [name for name in required_tools if shutil.which(name) is None]
+    assert report['runtime']['status'] == ('blocked' if missing else 'pass')
+    if missing:
+        assert report['runtime']['reason']
     assert report['host']['build']
     assert report['cleanup']['state'] == 'not_observed'
     assert not report['workspace_tools_executed']
@@ -71,6 +76,16 @@ def test_actual_read_only_system_diagnosis_never_installs_or_claims_verified():
     if report['windows_status']['status'] == 'observed':
         assert isinstance(report['windows_status']['user']['provisioned'], bool)
         assert isinstance(report['windows_status']['user']['credPresent'], bool)
+
+
+def test_missing_ripgrep_reports_blocked_without_automatic_repair(monkeypatch):
+    original = shutil.which
+    monkeypatch.setattr(shutil, 'which', lambda name: None if name == 'rg' else original(name))
+    report = system_diagnosis()
+    assert report['runtime']['status'] == 'blocked' and report['runtime']['reason']
+    assert report['automatic_repair'] is False and report['read_only'] is True
+    assert not report['workspace_tools_executed']
+    assert all(value['status'] != 'verified' for value in report['capabilities']['verification'].values())
 
 
 def test_linux_native_entry_on_unsupported_host_is_blocked_not_empty_pass(tmp_path):
