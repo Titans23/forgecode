@@ -67,7 +67,7 @@ def test_config_loads_dotenv_from_current_directory(
     assert config.base_url == 'http://localhost:8080/anthropic'
 
 
-def test_config_loads_dotenv_from_forgecode_directory_as_fallback(
+def test_config_loads_user_dotenv_outside_the_installation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -90,7 +90,7 @@ def test_config_loads_dotenv_from_forgecode_directory_as_fallback(
     assert config.model_id == 'fallback-model'
 
 
-def test_current_directory_dotenv_takes_priority_over_forgecode_fallback(
+def test_current_directory_dotenv_takes_priority_over_user_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -138,6 +138,47 @@ def test_environment_variables_override_dotenv(
     assert config.api_key == 'environment-key'
     assert config.model_id == 'environment-model'
     assert config.base_url == 'https://environment.example.com'
+
+
+@pytest.mark.parametrize('project', [
+    'DATABASE_URL=postgresql://example.invalid/app\n',
+    'ANTHROPIC_API_KEY=project-key\nMODEL_ID=project-model\n',
+])
+def test_global_model_config_survives_unrelated_project_env_and_aliases_override(tmp_path, monkeypatch, project):
+    global_env = tmp_path / 'user.env'
+    global_env.write_text('FORGE_API_KEY=global-key\nFORGE_MODEL=global-model\n', encoding='utf-8')
+    workspace = tmp_path / 'project'
+    workspace.mkdir()
+    (workspace / '.env').write_text(project, encoding='utf-8')
+    monkeypatch.chdir(workspace)
+    monkeypatch.setattr(config_module, 'FORGECODE_ENV_PATH', global_env)
+    for name in ('FORGE_API_KEY', 'FORGE_MODEL', 'FORGE_PROVIDER', 'ANTHROPIC_API_KEY', 'MODEL_ID',
+                 'FORGE_BASE_URL', 'ANTHROPIC_BASE_URL'):
+        monkeypatch.delenv(name, raising=False)
+    config = ForgeConfig.from_env()
+    use_project = 'project-key' in project
+    assert config.api_key == ('project-key' if use_project else 'global-key')
+    assert config.model_id == ('project-model' if use_project else 'global-model')
+
+
+def test_user_defaults_do_not_become_process_overrides_for_later_projects(tmp_path, monkeypatch):
+    import os
+    global_env = tmp_path / 'user.env'
+    global_env.write_text('FORGE_API_KEY=global-key\nFORGE_MODEL=global-model\n', encoding='utf-8')
+    first = tmp_path / 'first'
+    second = tmp_path / 'second'
+    first.mkdir()
+    second.mkdir()
+    (second / '.env').write_text('ANTHROPIC_API_KEY=second-key\nMODEL_ID=second-model\n', encoding='utf-8')
+    monkeypatch.setattr(config_module, 'FORGECODE_ENV_PATH', global_env)
+    for name in ('FORGE_API_KEY', 'FORGE_MODEL', 'FORGE_PROVIDER', 'ANTHROPIC_API_KEY', 'MODEL_ID'):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.chdir(first)
+    assert ForgeConfig.from_env().api_key == 'global-key'
+    assert 'FORGE_API_KEY' not in os.environ and 'FORGE_MODEL' not in os.environ
+    monkeypatch.chdir(second)
+    config = ForgeConfig.from_env()
+    assert config.api_key == 'second-key' and config.model_id == 'second-model'
 
 
 def test_config_rejects_missing_api_key() -> None:

@@ -25,6 +25,18 @@ def test_changed_experiment_budget_invalidates_source_evidence_but_private_notes
     assert source_fingerprint(root)!=before
 
 
+@pytest.mark.parametrize('relative', ['packaging/npm/bin/forge.mjs', 'packaging/npm/lib/tools.json', 'scripts/package_cli.py'])
+def test_changed_npm_installer_invalidates_source_evidence(tmp_path, relative):
+    from scripts.evidence_gate import source_fingerprint
+    subprocess.run(['git', 'init', '--quiet', str(tmp_path)], check=True, capture_output=True)
+    script = tmp_path / relative
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text('first version\n', encoding='utf-8')
+    before = source_fingerprint(tmp_path)
+    script.write_text('changed version\n', encoding='utf-8')
+    assert source_fingerprint(tmp_path) != before
+
+
 def gate_repo(tmp_path, monkeypatch, *, xml='<testcase classname="test_example" name="actual"/>', declared='pass', exit_code=0):
     impl = load_impl()
     monkeypatch.setattr(impl, 'ROOT', tmp_path)

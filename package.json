@@ -10,6 +10,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "setup": "node scripts/install.mjs",
     "lint": "python scripts/quality.py",
     "contracts:check": "node packaging/check-contracts.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",

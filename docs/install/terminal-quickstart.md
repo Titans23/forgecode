@@ -1,10 +1,26 @@
 # ForgeCode 终端版本
 
-当前 main 提供持续对话的 Python Harness 和真实轻量沙盒。终端、评测入口通过 Profile 选择；Python SDK 直接调用同一核心。安装环境需要 Python 3.12+、Node 22.13+、Git、ripgrep；Windows 需要 PowerShell 7 和 NTFS，Linux 需要 bubblewrap 及可用的非特权 user namespace。安装程序不会请求管理员权限或自动修改系统策略。
+当前 main 提供持续对话的 Python Harness 和真实轻量沙盒。终端、评测入口通过 Profile 选择；Python SDK 直接调用同一核心。源码安装会自动构建并准备运行时，安装程序不会请求管理员权限或自动修改系统策略。
 
-## 从主分支安装
+## 拉取源码并自动安装
 
-在独立安装目录检出 `main`，不要把 ForgeCode 安装目录当作沙盒项目。
+准备 Git 和 Node.js 22.13+（含 npm），在独立安装目录执行：
+
+```sh
+git clone --branch main https://github.com/Titans23/forgecode.git
+cd forgecode
+npm run setup
+```
+
+命令自动准备 uv、Python，按锁文件安装 Node 构建依赖、编译沙盒、构建并校验 wheel/npm 包，再全局安装 `forge`。构建日志保存在 `dist/package-build.log`。包安装器继续自动校验并准备运行时工具，直接复用已有 Node。用户配置保存在安装包之外，升级不会清空旧包正在使用的 Python 环境。Windows x64/NTFS 原生沙盒不需要 WSL 或 Docker。
+
+Ubuntu 22.04 / 24.04 的实现分支保留，但按用户当前要求暂停原生验证；不能将其视为已验证的发布平台。Linux 仍需系统 Git、bubblewrap 和可用的非特权 user namespace。安装器不会执行 sudo、关闭系统保护策略或在沙盒失败后自动切换为 full-access。
+
+更新时在源码目录执行 `git pull --ff-only`，再执行 `npm run setup`。开发包尚未发布到 npm registry；该命令直接安装 `dist` 中本机生成的包，不需要手动下载 `.tgz`。安装仓库与目标项目分开，在目标项目运行 `forge`。
+
+## 源码开发安装
+
+以下步骤仅用于需要 editable 安装的开发者；日常安装和更新使用上面的 `npm run setup`。开发安装需要 uv、Python 3.12+、Node 22.13+、Git、ripgrep，Windows 还需要 PowerShell 7。在独立目录获取 `main`，不要把 ForgeCode 安装目录当作沙盒项目：
 
 ```powershell
 git clone --branch main https://github.com/Titans23/forgecode.git forgecode-terminal
@@ -12,7 +28,7 @@ cd forgecode-terminal
 uv sync --locked
 npm ci --ignore-scripts
 uv run --no-sync python scripts/build_bridge.py
-uv tool install --editable .
+uv tool install --editable . --force
 ```
 
 也可以构建包含沙盒代码及其依赖的 Python wheel：
@@ -27,7 +43,7 @@ wheel 仍使用本机 Node、Git、ripgrep 和平台沙盒前置条件。全局�
 
 ## 持续对话
 
-在另一个代码项目目录设置模型连接，例如在项目 `.env` 中填写 `ANTHROPIC_API_KEY` 和 `MODEL_ID`；也支持 `FORGE_PROVIDER=openai_responses` / `deepseek` 及对应 API key、`FORGE_MODEL`、`FORGE_BASE_URL`。`forge config` 检查配置，不回显密钥。
+在用户 `~/.forge/.env` 或目标项目 `.env` 中设置模型连接，例如 `ANTHROPIC_API_KEY` 和 `MODEL_ID`；也支持 `FORGE_PROVIDER=openai_responses` / `deepseek` 及对应 API key、`FORGE_MODEL`、`FORGE_BASE_URL`。优先级为进程环境变量 > 项目配置 > 用户配置。`forge config` 检查配置，不回显密钥；配置不放进安装包，更新后仍可使用。
 
 ```text
 forge --profile terminal

@@ -1,0 +1,12 @@
+{
+  "win32-x64": [
+    {"name":"uv","version":"0.13.0","format":"zip","url":"https://github.com/astral-sh/uv/releases/download/0.13.0/uv-x86_64-pc-windows-msvc.zip","sha256":"088962f9e7b7bd9ea740c04c650b2a21c8928c345bd99ac24350dc924dba656c","executable":"uv.exe"},
+    {"name":"git","version":"2.56.0.2","format":"zip","url":"https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.2/MinGit-2.56.0.2-64-bit.zip","sha256":"da35e72aa21c005a5a0d298cfbae110bc1609a815730ea0dde84b01a1b3cd3be","executable":"cmd/git.exe"},
+    {"name":"rg","version":"15.2.0","format":"zip","url":"https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip","sha256":"71b2fef860abe467217a538ff31de02f5258807c0129f771846f87bd029aafc5","executable":"ripgrep-15.2.0-x86_64-pc-windows-msvc/rg.exe"},
+    {"name":"pwsh","version":"7.6.6","format":"zip","url":"https://github.com/PowerShell/PowerShell/releases/download/v7.6.6/PowerShell-7.6.6-win-x64.zip","sha256":"02fe458be20493fbdf43f61ea20610b811ee6c738ab1676c61b9cfcd1a33c860","executable":"pwsh.exe"}
+  ],
+  "linux-x64": [
+    {"name":"uv","version":"0.13.0","format":"tar.gz","url":"https://github.com/astral-sh/uv/releases/download/0.13.0/uv-x86_64-unknown-linux-gnu.tar.gz","sha256":"1468ebd5a5541121837c5a2817b9972ba6090fa6caa3d142620850a47fb75154","executable":"uv-x86_64-unknown-linux-gnu/uv"},
+    {"name":"rg","version":"15.2.0","format":"tar.gz","url":"https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz","sha256":"33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c","executable":"ripgrep-15.2.0-x86_64-unknown-linux-musl/rg"}
+  ]
+}

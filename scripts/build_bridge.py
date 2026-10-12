@@ -27,7 +27,8 @@ def dependency_paths(lock):
             continue
         seen.add(path)
         package = packages[path]
-        for name in package.get('dependencies', {}) | package.get('peerDependencies', {}):
+        optional = package.get('optionalDependencies', {})
+        for name in package.get('dependencies', {}) | package.get('peerDependencies', {}) | optional:
             parent = path
             candidates = [parent + '/node_modules/' + name]
             while '/node_modules/' in parent:
@@ -35,10 +36,12 @@ def dependency_paths(lock):
                 candidates.append(parent + '/node_modules/' + name)
             candidates.append('node_modules/' + name)
             candidate = next((value for value in candidates if value in packages), None)
-            if candidate is None and package.get('peerDependenciesMeta', {}).get(name, {}).get('optional'):
+            if candidate is None and (name in optional or package.get('peerDependenciesMeta', {}).get(name, {}).get('optional')):
                 continue
             if candidate is None:
                 raise ValueError(f'Locked runtime dependency is unresolved: {name}')
+            if name in optional and not (ROOT / candidate).is_dir():
+                continue
             pending.append(candidate)
     return seen
 

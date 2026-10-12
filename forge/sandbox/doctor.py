@@ -96,6 +96,11 @@ def system_diagnosis():
     except ContractError as error:
         runtime_info = {'status': 'blocked', 'reason': str(error)}
     windows_status = {'status': 'not_applicable'}
+    if sys.platform == 'linux' and runtime_info['status'] == 'pass':
+        for name, key in [('git', 'git'), ('rg', 'ripgrep')]:
+            tool = runtime.tools[key]
+            tools[name] = {'status': 'pass', 'path': str(tool), 'sha256': sha256(tool.read_bytes()).hexdigest(),
+                           'source': 'installed-runtime-tool'}
     if sys.platform == 'win32' and runtime_info['status'] == 'pass':
         windows_status = windows_status_diagnosis(runtime)
         with tempfile.TemporaryDirectory(prefix='forge-win-tools-') as directory:

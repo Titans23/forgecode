@@ -65,10 +65,7 @@ class WorkspaceWriteBackend:
         self.backend_name = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap'
         self.backend_version = '0.2.1-alpha.1'
         if sys.platform == 'linux':
-            binary = Path('/usr/bin/bwrap').resolve(strict=True)
-            info = binary.stat()
-            if not binary.is_file() or info.st_uid != 0 or info.st_mode & 0o022:
-                raise ContractError('Untrusted bubblewrap executable', kind='SANDBOX_UNAVAILABLE', code=-32010)
+            binary = self.runtime.tools['bubblewrap']
             process = await asyncio.create_subprocess_exec(str(binary), '--version',
                 env=bridge_environment(self.control_root), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             try:
@@ -206,7 +203,7 @@ class WorkspaceWriteBackend:
                 from forge.sandbox.windows_worker import grant_controller_access
                 grant_controller_access(temp)
             raw = json.dumps({'command':command,'shells':{'pwsh':str(self.runtime.tools['powershell'])} if sys.platform == 'win32' else {'bash':'/bin/bash','sh':'/bin/sh'},
-                'tools':{'git':str(self.runtime.tools['git']),'rg':str(self.runtime.tools['ripgrep'])} if sys.platform == 'win32' else {'git':'/usr/bin/git','rg':'/usr/bin/rg'}}).encode()
+                'tools':{'git':str(self.runtime.tools['git']),'rg':str(self.runtime.tools['ripgrep'])}}).encode()
             if len(raw)>1048576: raise ValueError('Launch payload exceeds quota')
             with payload.open('xb') as output: output.write(raw)
             argv = [str(self.runtime.node),str(self.runner),'--workspace',self.workspace['canonical_path'],'--temp',str(temp),

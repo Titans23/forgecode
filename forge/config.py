@@ -8,13 +8,13 @@ import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 
 DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
 DEFAULT_MODEL_MAX_TOKENS = 8_192
 DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS = 120.0
-FORGECODE_ENV_PATH = Path(__file__).resolve().parent.parent / '.env'
+FORGECODE_ENV_PATH = Path.home() / '.forge' / '.env'
 
 
 class ConfigurationError(ValueError):
@@ -86,11 +86,29 @@ class ForgeConfig:
     ) -> ForgeConfig:
         '''Load settings from the environment or the nearest supported .env.'''
         if environ is None:
-            dotenv_path = Path.cwd() / '.env'
-            if not dotenv_path.is_file():
-                dotenv_path = FORGECODE_ENV_PATH
-            load_dotenv(dotenv_path=dotenv_path, override=False)
-            source: Mapping[str, str] = os.environ
+            project_env = Path.cwd() / '.env'
+            inherited = dict(os.environ)
+            global_values = dotenv_values(FORGECODE_ENV_PATH) if FORGECODE_ENV_PATH.is_file() else {}
+            project_values = dotenv_values(project_env) if project_env.is_file() else {}
+            layers = [global_values, project_values, inherited]
+            source = {key: value for layer in layers for key, value in layer.items() if value is not None}
+            provider = source.get('FORGE_PROVIDER', 'anthropic')
+            # Alias names must respect the same global < project < process priority.
+            aliases = [('FORGE_API_KEY', {'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
+                                         'deepseek': 'DEEPSEEK_API_KEY'}.get(provider)),
+                       ('FORGE_MODEL', 'MODEL_ID'),
+                       ('FORGE_BASE_URL', {'anthropic': 'ANTHROPIC_BASE_URL', 'openai_responses': 'OPENAI_BASE_URL',
+                                          'deepseek': 'DEEPSEEK_BASE_URL'}.get(provider))]
+            for canonical, specific in aliases:
+                for layer in reversed(layers):
+                    if any(name in layer and layer[name] is not None for name in (canonical, specific)):
+                        value = layer.get(canonical) or layer.get(specific) or ''
+                        source.pop(specific, None)
+                        source[canonical] = value
+                        break
+            # Hooks/channels retain the existing project dotenv environment behavior.
+            if project_env.is_file():
+                load_dotenv(dotenv_path=project_env, override=False)
         else:
             source = environ
 

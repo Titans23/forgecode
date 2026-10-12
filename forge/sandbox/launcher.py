@@ -86,7 +86,19 @@ def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
             if not shell:
                 unavailable('PowerShell 7 is required for Windows commands')
             tools['powershell'] = Path(shell).resolve(strict=True)
+        elif sys.platform == 'linux':
+            binary = Path('/usr/bin/bwrap')
+            try:
+                binary = binary.resolve(strict=True)
+                info = binary.stat()
+            except OSError:
+                unavailable('Ubuntu native sandbox requires the system bubblewrap package (/usr/bin/bwrap)')
+            if not binary.is_file() or info.st_uid != 0 or info.st_mode & 0o022:
+                unavailable('The system bubblewrap executable must be root-owned and not writable by other users')
+            tools['bubblewrap'] = binary
         return TrustedRuntime(root, node, entry, manifest_hash, tools=tools)
+    except ContractError:
+        raise
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
         unavailable('Native sandbox runtime unavailable; run npm ci and scripts/build_bridge.py')
 

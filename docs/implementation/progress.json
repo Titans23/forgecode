@@ -7,6 +7,33 @@
   "current_task": "T02",
   "next_recommended_task": null,
   "current_authorization_ref": "evidence/human-authorization-terminal-20261012.json",
+  "local_startup_installation": {
+    "checkout": "D:/learn_project/forgecode",
+    "date": "2026-10-13",
+    "implementation_status": "implemented",
+    "delivery": "clone/pull source then npm run setup: automatic bootstrap, locked build and global npm installation for the current platform; npm registry unpublished",
+    "evidence_ref": "evidence/source-installation-20261013.json",
+    "previous_package_evidence_ref": "evidence/npm-installation-20261012.json",
+    "historical_evidence_ref": "evidence/windows-install-startup-20261012.json",
+    "verification": {
+      "targeted_python": "pass: 5 archive checks; runtime behavior covered by current full regression",
+      "node_installer": "pass: 9",
+      "installation_and_repeat": "pass: automatic source bootstrap/build/global installation; limited PATH and invalid VIRTUAL_ENV verified",
+      "ordinary_cmd_config_and_startup": "pass",
+      "native_windows_installed_wheel": "previous archive: 6 passed (historical); current archive: real global CLI startup passed; Node 22.17.1 reused",
+      "quality": "pass",
+      "full_regression": "pass: 1340; local Feishu disabled only in the regression process",
+      "native_ubuntu_22_04": "not completed; user paused",
+      "native_ubuntu_24_04": "not completed; user paused"
+    },
+    "remaining_issues": [
+      "Ubuntu native validation remains uncompleted and paused by user; WSL/Docker and their data, tests and backups were uninstalled/deleted under explicit authorization.",
+      "WSL optional-feature disable requires a reboot; the machine was not automatically restarted.",
+      "npm registry publication and live model experiments were not performed."
+    ],
+    "active_platform_scope": "Windows; Linux native validation paused by user",
+    "uninstall_evidence_ref": "evidence/windows-wsl-docker-uninstall-20261012.json"
+  },
   "tasks": {
     "F00": {
       "implementation_status": "implemented",

@@ -5103,6 +5103,26 @@
       "sha256": "a6647b515659cf439b701fa9f9574c9c310ce3872d26a13a81e9fa4d02ba10ad"
     },
     {
+      "path": "node_modules/@koromix/koffi-win32-x64/README.md",
+      "sha256": "4fc87635ba2ce995d9f91401e96c68dd0600ca3db25dae419a9abc4e8e11fcd0"
+    },
+    {
+      "path": "node_modules/@koromix/koffi-win32-x64/index.js",
+      "sha256": "632ab5a01dfc1b519b06275f490d6790100a2f8d71d8f56957091d0fcc5b3e0b"
+    },
+    {
+      "path": "node_modules/@koromix/koffi-win32-x64/package.json",
+      "sha256": "b38fcff8641d493656ef4153a37fd7389806ae621bb916aca536fd3bbc158690"
+    },
+    {
+      "path": "node_modules/@koromix/koffi-win32-x64/win32_x64/koffi.lib",
+      "sha256": "581078774d824496b8250bf436f47ef80e1694700c83955d9e9475fcfaebd980"
+    },
+    {
+      "path": "node_modules/@koromix/koffi-win32-x64/win32_x64/koffi.node",
+      "sha256": "eb0587c804bb76262968bf83028528da4dc2d4322f558845cce205c709e2ba20"
+    },
+    {
       "path": "node_modules/@standard-schema/spec/LICENSE",
       "sha256": "653b779005a3a4d64a7288c940f7b9a0e8f0b1e0375f6aa6af9473caf131e564"
     },
@@ -8596,7 +8616,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "f2b2acb13f796b29fdbf65670f7e391660ca4fdde288175580102472f1f647de"
+      "sha256": "59426fe99e5385c2ab7f18865cfd8fd7c6f56f4193ca3290582f8a1e7d8e0be9"
     },
     {
       "path": "packages/contracts/dist/core.d.ts",

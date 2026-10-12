@@ -237,7 +237,7 @@ def verify(suite: str, task_id: str | None = None, *, prepared_source_hash: str 
         source_directory = path.parts[0] in {'forge', 'benchmark', 'scripts', 'tests', 'packaging', 'apps', 'packages', 'sandbox_bridge', 'contracts', 'experiments'}
         source_manifest = relative in {'release-manifest.json','.gitattributes', '.python-version', 'pyproject.toml', 'package.json', 'package-lock.json', 'release-lock.json', 'uv.lock'}
         fixture_input = relative.startswith(('tests/implementation/fixtures/', 'packaging/linux/'))
-        if (source_directory and path.suffix in {'.py', '.ts', '.mts', '.tsx', '.css', '.html', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
+        if (source_directory and path.suffix in {'.py', '.ps1', '.cmd', '.ts', '.mts', '.tsx', '.css', '.html', '.js', '.mjs', '.cjs', '.json', '.toml', '.spec', '.sql'}) or source_manifest or fixture_input:
             source_hashes[path.as_posix()] = sha256((ROOT / path).read_bytes()).hexdigest()
     dirty_hash = sha256(json.dumps([dirty, source_hashes], sort_keys=True).encode()).hexdigest()
     source_inventory_hash=source_fingerprint(ROOT)

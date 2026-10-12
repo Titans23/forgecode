@@ -2,6 +2,7 @@
 from hashlib import sha256
 import json
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -58,6 +59,37 @@ def test_runtime_still_refuses_missing_host_tool_after_code_verification(monkeyp
     def missing(name):
         raise ContractError('required host tool unavailable', kind='SANDBOX_UNAVAILABLE')
     monkeypatch.setattr(tools, 'core_tool', missing)
-    with pytest.raises(ContractError) as rejected:
+    with pytest.raises(ContractError, match='required host tool unavailable') as rejected:
         verify_runtime(root)
+    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
+
+
+@pytest.mark.parametrize('tool,message', [
+    ('node', 'Node 22.13 or newer is required'),
+    ('git', 'git is required on PATH'),
+    ('rg', 'rg is required on PATH'),
+    pytest.param('pwsh', 'PowerShell 7 is required',
+                 marks=pytest.mark.skipif(sys.platform != 'win32', reason='Windows host prerequisite')),
+])
+def test_missing_runtime_tool_reports_the_actual_prerequisite(monkeypatch, tool, message):
+    import shutil
+    discover = shutil.which
+    monkeypatch.setattr(shutil, 'which', lambda name: None if name == tool else discover(name))
+    with pytest.raises(ContractError, match=message) as rejected:
+        verify_runtime()
+    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
+
+
+def test_missing_linux_system_bubblewrap_reports_the_install_requirement(monkeypatch):
+    import forge.sandbox.launcher as launcher
+    from types import SimpleNamespace
+    original_resolve = Path.resolve
+    def resolve(path, *args, **kwargs):
+        if path.as_posix() == '/usr/bin/bwrap':
+            raise FileNotFoundError('bubblewrap is not installed')
+        return original_resolve(path, *args, **kwargs)
+    monkeypatch.setattr(launcher, 'sys', SimpleNamespace(platform='linux'))
+    monkeypatch.setattr(Path, 'resolve', resolve)
+    with pytest.raises(ContractError, match='system bubblewrap package') as rejected:
+        verify_runtime()
     assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'

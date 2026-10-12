@@ -22,7 +22,7 @@ def source_fingerprint(root):
         if not (root/path).is_file(): continue
         source=path.parts[0] in {'forge','benchmark','scripts','tests','packaging','apps','packages','sandbox_bridge','contracts','.github','experiments'}
         manifest=name in {'release-manifest.json','.gitattributes','.python-version','pyproject.toml','package.json','package-lock.json','release-lock.json','uv.lock','MANIFEST.in','README.md'}
-        if manifest or source and path.suffix in {'.py','.ts','.mts','.tsx','.css','.html','.js','.mjs','.cjs','.json','.toml','.spec','.sql','.yaml','.yml','.md'} or name.startswith(('tests/implementation/fixtures/','packaging/linux/')):
+        if manifest or source and path.suffix in {'.py','.ps1','.cmd','.ts','.mts','.tsx','.css','.html','.js','.mjs','.cjs','.json','.toml','.spec','.sql','.yaml','.yml','.md'} or name.startswith(('tests/implementation/fixtures/','packaging/linux/')):
             files[name]=sha256((root/path).read_bytes()).hexdigest()
     return sha256(json.dumps(files,sort_keys=True).encode()).hexdigest()
 

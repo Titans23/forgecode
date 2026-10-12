@@ -4,31 +4,72 @@ ForgeCode 是一个终端 Agent Harness：复用既有 Python 代理循环，负
 
 当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 
-日常开发目录统一为 `D:\projects\forgecode`。目录职责与开发入口见 [当前文档](docs/README.md)；虚拟环境、依赖、构建和测试产物不属于源码。
+目录职责与开发入口见 [当前文档](docs/README.md)；虚拟环境、依赖、构建和测试产物不属于源码。
 
-## 安装
+## 安装与启动
 
-准备 Python 3.12+、Node 22+、Git、ripgrep；Windows 还需要 PowerShell 7/NTFS，Linux 需要 bubblewrap 与可用的非特权 user namespace。
+当前版本通过 `forge` 启动终端持续对话。
 
-```powershell
-git clone --branch main https://github.com/Titans23/forgecode.git forgecode-terminal
-cd forgecode-terminal
-uv sync --locked
-npm ci --ignore-scripts
-uv run --no-sync python scripts/build_bridge.py
-uv tool install --editable .
+### 1. 拉取源码，一条命令构建并安装
+
+先安装 Git 和 Node.js 22.13+（包含 npm），然后执行：
+
+```sh
+git clone --branch main https://github.com/Titans23/forgecode.git
+cd forgecode
+npm run setup
 ```
 
-在另一个项目目录配置模型连接，再运行：
+`npm run setup` 自动准备 uv 和 Python，按锁文件安装构建依赖、编译沙盒、生成 Python wheel 和 npm 包，再安装全局 `forge`。运行时所需的 Git、ripgrep 和 Windows PowerShell 7 也会自动准备，下载校验 SHA-256；直接复用已有 Node。无需手动执行 `uv sync`、`npm ci` 或构建脚本，安装过程不调用模型。构建日志位于 `dist/package-build.log`。Windows x64/NTFS 启动不需要 WSL 或 Docker。
 
-```text
+Windows 和 Ubuntu 22.04 / 24.04 x64 使用同一安装命令，在本机构建对应平台的包。当前优先完成 Windows；Ubuntu 原生验证已暂停，Linux 还需要系统 Git、bubblewrap 和可用的 user namespace。
+
+以后更新时，在这个源码目录执行：
+
+```sh
+git pull --ff-only
+npm run setup
+```
+
+这会重新构建并更新 `forge`，保留用户模型配置与会话数据。当前包尚未发布到 npm registry，本流程会安装本地构建产物。源码开发方式见 [终端使用指南](docs/install/terminal-quickstart.md)。
+
+### 2. 配置模型连接
+
+在用户目录 `~/.forge/.env` 中填写模型连接，即可在多个项目中使用；也可以在目标项目的 `.env` 中填写项目专用配置。默认使用 Anthropic：
+
+```dotenv
+ANTHROPIC_API_KEY=你的密钥
+MODEL_ID=你可用的模型ID
+```
+
+将占位内容替换为实际值，密钥不要提交到 Git。优先级为：进程环境变量 > 项目 `.env` > 用户 `~/.forge/.env`。模型配置与安装包分开保存，升级时不会覆盖。
+
+### 3. 检查配置并启动
+
+在目标代码项目目录执行：
+
+```powershell
+cd D:\path\to\your-project
 forge config
 forge
+```
+
+将示例路径替换为实际项目目录。`forge config` 检查配置，不回显密钥；`forge` 启动持续对话。ForgeCode 安装目录与目标项目分开，避免安装目录保护导致沙盒初始化被拒绝。
+
+如果在 `D:\learn_project\forgecode` 安装仓库内直接执行 `forge`，可能出现 `POLICY_DENIED: Symlink or reparse link paths are unsupported`。`npm ci` 为本仓库的 workspace 包创建了 `node_modules/@forgecode` 目录链接，当前沙盒拒绝符号链接和 Windows reparse point。请切换到另一个目标项目目录后启动；删除这些依赖链接也不能解决安装目录与工作区重叠的问题。
+
+遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。npm 安装会自动提供其管理的工具；Ubuntu 需检查系统 bubblewrap 和 user namespace，源码安装需检查构建文件。只读诊断的整体 `status` 在尚未验证工作区时可为 `blocked`，实际工作区边界在启动会话时验证。
+
+Windows 目标项目还需要当前用户能修改目录权限和所有者（“完全控制”包含这些权限）。只有“修改”权限的目录可能在原生边界检查时被拒绝；安装环境完成不代表任意目标目录都已授权。
+
+恢复已有会话：
+
+```powershell
 forge --continue
 forge --resume SESSION_ID
 ```
 
-默认使用 workspace-write 沙盒；初始化失败拒绝任务。明确的权限范围、完整访问、审批、wheel 安装及使用限制见 [终端使用指南](docs/install/terminal-quickstart.md)。
+`--continue` 恢复当前项目的上次会话，`--resume` 指定会话 ID；清除会话数据后需要重新开始。默认使用 workspace-write 沙盒；初始化失败拒绝任务。其他模型连接、明确的权限范围、完整访问、审批、wheel 安装及使用限制见 [终端使用指南](docs/install/terminal-quickstart.md)。
 
 ## 入口组合
 
