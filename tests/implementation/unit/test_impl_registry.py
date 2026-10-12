@@ -18,7 +18,7 @@ def test_unknown_and_unimplemented_task_commands_cannot_pass(monkeypatch, capsys
     # Isolate the binding registry so registering the next task cannot recursively
     # launch this same suite. The unknown-ID check still exercises the real CLI.
     monkeypatch.setattr(impl, 'TASK_SUITES', {})
-    monkeypatch.setattr(sys, 'argv', ['impl.py', 'verify', '--task', 'F32'])
+    monkeypatch.setattr(sys, 'argv', ['impl.py', 'verify', '--task', 'F00'])
     assert impl.main() == 1
     assert 'bindings are not implemented' in capsys.readouterr().out
     result = subprocess.run([sys.executable, str(impl.ROOT / 'scripts/impl.py'), 'verify', '--task', 'F99'],

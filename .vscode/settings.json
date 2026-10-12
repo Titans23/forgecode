@@ -1,5 +1,9 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "terminal.integrated.env.windows": {
+    "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}",
+    "PYTHONUTF8": "1"
+  },
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.egg-info": true,

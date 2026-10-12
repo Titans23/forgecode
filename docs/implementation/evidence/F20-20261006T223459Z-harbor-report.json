@@ -1,0 +1,114 @@
+{
+  "status": "blocked",
+  "scope": "official-Harbor-public-smallset-configuration",
+  "execution_label": "official-environment",
+  "model_calls": 0,
+  "grades": 0,
+  "checks": [
+    {
+      "name": "polyglot_python_proverb",
+      "status": "pass",
+      "scope": "real task bytes / pinned Git / official JobConfig / actual --print-config",
+      "content_sha256": "78a4d5781ad8e41293770dc4ef8ad6ef563f465e58a2cb9420d10f47fb1387df",
+      "harbor_checksum": "ae1edff5a57bb3785efd113ade8f2b36e79757188b3f1b61153639f2072bb9da",
+      "source": {
+        "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+        "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+        "path": "datasets\\aider_polyglot\\polyglot_python_proverb"
+      },
+      "cli_exit_code": 0,
+      "resolved_task_count": 1
+    },
+    {
+      "name": "polyglot_python_transpose",
+      "status": "pass",
+      "scope": "real task bytes / pinned Git / official JobConfig / actual --print-config",
+      "content_sha256": "a8722e595b70ade7e278b1b31c69cfca660df5b156bdf73e6bd68455265fde7a",
+      "harbor_checksum": "f25e0631261d84375c73c40057416d2378fd281292a06689d3773ca7bb63646a",
+      "source": {
+        "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+        "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+        "path": "datasets\\aider_polyglot\\polyglot_python_transpose"
+      },
+      "cli_exit_code": 0,
+      "resolved_task_count": 1
+    },
+    {
+      "name": "polyglot_python_affine-cipher",
+      "status": "pass",
+      "scope": "real task bytes / pinned Git / official JobConfig / actual --print-config",
+      "content_sha256": "a5d960b5d7dc9b156cc25a0176cbef0310b6bbfe1fa575403cd089cd7c6d3813",
+      "harbor_checksum": "b24a6a71cbe27222e82f44b3c904765dc1a48e0ffa065e8e6c750006aa9238bb",
+      "source": {
+        "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+        "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+        "path": "datasets\\aider_polyglot\\polyglot_python_affine-cipher"
+      },
+      "cli_exit_code": 0,
+      "resolved_task_count": 1
+    }
+  ],
+  "started_at_utc": "2026-10-06T22:35:00.375107+00:00",
+  "readiness": {
+    "host_platform": "win32",
+    "execution_label": "official-environment",
+    "required_environment": "Linux Docker task environment; Windows client must not label it windows-native",
+    "harbor": {
+      "version": "0.18.0",
+      "executable": "D:\\learn_project\\forgecode\\.venv\\Scripts\\harbor.exe"
+    },
+    "docker": {
+      "available": false,
+      "server_os": null,
+      "exit_code": 1,
+      "client_version": "29.7.2"
+    },
+    "issues": [
+      "Linux Docker daemon unavailable; no environment was started"
+    ]
+  },
+  "taskset": {
+    "schema_version": "forge.harbor.taskset.v1",
+    "benchmark": "aider-polyglot",
+    "dataset": "aider-polyglot",
+    "version": "1.0",
+    "registry_sha256": "da1446bce05eabbd72a25eb9eef5a2f5db94645ce88c28e2497581433b3d2e60",
+    "tasks": {
+      "polyglot_python_proverb": {
+        "directory": "polyglot_python_proverb",
+        "content_sha256": "78a4d5781ad8e41293770dc4ef8ad6ef563f465e58a2cb9420d10f47fb1387df",
+        "harbor_checksum": "ae1edff5a57bb3785efd113ade8f2b36e79757188b3f1b61153639f2072bb9da",
+        "source": {
+          "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+          "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+          "path": "datasets\\aider_polyglot\\polyglot_python_proverb"
+        },
+        "os": "linux"
+      },
+      "polyglot_python_transpose": {
+        "directory": "polyglot_python_transpose",
+        "content_sha256": "a8722e595b70ade7e278b1b31c69cfca660df5b156bdf73e6bd68455265fde7a",
+        "harbor_checksum": "f25e0631261d84375c73c40057416d2378fd281292a06689d3773ca7bb63646a",
+        "source": {
+          "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+          "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+          "path": "datasets\\aider_polyglot\\polyglot_python_transpose"
+        },
+        "os": "linux"
+      },
+      "polyglot_python_affine-cipher": {
+        "directory": "polyglot_python_affine-cipher",
+        "content_sha256": "a5d960b5d7dc9b156cc25a0176cbef0310b6bbfe1fa575403cd089cd7c6d3813",
+        "harbor_checksum": "b24a6a71cbe27222e82f44b3c904765dc1a48e0ffa065e8e6c750006aa9238bb",
+        "source": {
+          "git_url": "https://github.com/laude-institute/harbor-datasets.git",
+          "git_commit_id": "f30b14415dd733c83627204bad0af69a89ceb46f",
+          "path": "datasets\\aider_polyglot\\polyglot_python_affine-cipher"
+        },
+        "os": "linux"
+      }
+    }
+  },
+  "configuration_scope": "draft JobConfig, not an accepted run or experimental result",
+  "reason": "Actual public tasks/configuration checked; Docker daemon, explicit model/budget approval and policy/spend reconciliation still required. No model, independent grader or native sandbox was run."
+}

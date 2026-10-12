@@ -6,6 +6,8 @@ CLI、SDK与评测沿用原Harness。修改前明确实际调用，补充行为�
 
 开发准备：uv sync --locked --all-extras --group dev；npm ci --ignore-scripts；uv run --no-sync python scripts/build_bridge.py。验证使用scripts/impl.py verify --suite contracts|quality|regression|terminal-native。
 
+从仓库使用当前环境：`uv run --no-sync forge --show-profile`、`uv run --no-sync forge --help`。VS Code的新终端使用项目.venv/Scripts并启用UTF-8；无需建立另一套全局工具环境。
+
 完成时更新progress、任务卡、证据和handoff。失败、警告与资源缺失如实记录。付费模型和管理员系统设置仍需明确授权。
 
 .venv、node_modules、build及forge/_sandbox可重建；.local仅存本轮报告与缓存，均不提交。凭据不进Git也不输出。用户已授权丢弃清理前的旧本地改动和会话，无需备份。
