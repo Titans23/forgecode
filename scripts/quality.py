@@ -88,8 +88,8 @@ def check_project(root):
             if lock['packages']['node_modules/'+name]['version']!=version:raise ValueError('npm dependency is not exactly locked: '+name)
     inventory=root/'sandbox_bridge/runtime-manifest.json'
     if inventory.is_file():
-        from forge.sandbox.launcher import verify_runtime
-        verify_runtime(root)
+        from forge.sandbox.launcher import verify_code_inventory
+        verify_code_inventory(root)
     else:
         raise ValueError('Build the native sandbox dependency inventory before validation')
     tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'));tomllib.loads((root/'uv.lock').read_text(encoding='utf-8'))

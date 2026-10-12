@@ -45,10 +45,8 @@ class TrustedRuntime:
     tools: dict[str, Path] = field(default_factory=dict)
 
 
-def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
-    """Verify the sandbox dependency closure; use explicit installed host tools."""
-    import shutil
-    import subprocess
+def verify_code_inventory(root: Path = ROOT) -> tuple[Path, str]:
+    """Check shipped code bytes without claiming host tools or OS acceptance."""
     root = root.resolve(strict=True)
     manifest_path = root / 'sandbox_bridge/runtime-manifest.json'
     try:
@@ -61,6 +59,18 @@ def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
         entry = paths['sandbox_bridge/dist/workspace-runner.js']
         if 'sandbox_bridge/dist/dispatcher.js' not in paths or 'packages/contracts/dist/index.js' not in paths:
             unavailable('Sandbox code inventory is incomplete')
+        return entry, sha256(manifest_path.read_bytes()).hexdigest()
+    except (OSError, ValueError, KeyError, TypeError):
+        unavailable('Native sandbox code unavailable; run npm ci and scripts/build_bridge.py')
+
+
+def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
+    """Require verified code and actual installed host tools before admission."""
+    import shutil
+    import subprocess
+    root = root.resolve(strict=True)
+    entry, manifest_hash = verify_code_inventory(root)
+    try:
         node_path = shutil.which('node')
         if not node_path:
             unavailable('Node 22.13 or newer is required for the native sandbox')
@@ -76,7 +86,7 @@ def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
             if not shell:
                 unavailable('PowerShell 7 is required for Windows commands')
             tools['powershell'] = Path(shell).resolve(strict=True)
-        return TrustedRuntime(root, node, entry, sha256(manifest_path.read_bytes()).hexdigest(), tools=tools)
+        return TrustedRuntime(root, node, entry, manifest_hash, tools=tools)
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
         unavailable('Native sandbox runtime unavailable; run npm ci and scripts/build_bridge.py')
 

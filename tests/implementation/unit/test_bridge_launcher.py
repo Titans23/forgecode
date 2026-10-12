@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from forge.application.models import ContractError
-from forge.sandbox.launcher import bridge_environment, verify_asset, verify_runtime
+from forge.sandbox.launcher import bridge_environment, verify_asset, verify_code_inventory, verify_runtime
 
 
 def test_control_environment_drops_project_loading_and_credentials(tmp_path):
@@ -43,10 +43,21 @@ def test_unresolved_or_incomplete_release_never_searches_project_path(tmp_path):
         verify_runtime(tmp_path)
 
 
-def test_development_runtime_has_pinned_node_and_complete_code_inventory():
+def test_code_inventory_checks_all_bytes_without_host_tool_admission(monkeypatch):
+    import shutil
     root = Path(__file__).resolve().parents[3]
-    runtime = verify_runtime(root)
-    assert runtime.node.is_absolute() and runtime.entry.is_absolute()
-    assert runtime.entry.name == 'workspace-runner.js'
-    assert runtime.root == root
-    assert runtime.manifest_hash
+    monkeypatch.setattr(shutil, 'which', lambda name: pytest.fail('Code verification must not discover host tools'))
+    entry, manifest_hash = verify_code_inventory(root)
+    assert entry.is_absolute() and entry.name == 'workspace-runner.js'
+    assert manifest_hash
+
+
+def test_runtime_still_refuses_missing_host_tool_after_code_verification(monkeypatch):
+    import forge.release.toolchains as tools
+    root = Path(__file__).resolve().parents[3]
+    def missing(name):
+        raise ContractError('required host tool unavailable', kind='SANDBOX_UNAVAILABLE')
+    monkeypatch.setattr(tools, 'core_tool', missing)
+    with pytest.raises(ContractError) as rejected:
+        verify_runtime(root)
+    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
