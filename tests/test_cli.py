@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import threading
 
 import pytest
+from click import unstyle
 from typer.testing import CliRunner
 
 import forge.cli as cli_module
@@ -256,7 +257,7 @@ def test_async_cli_cancellation_closes_runtime_once(monkeypatch):
         monkeypatch.setattr(session, 'runtime_close', close, raising=False)
         monkeypatch.setattr(cli_module, 'read_terminal_prompt', wait_for_input)
         task = asyncio.create_task(cli_module._run_interactive_chat(session=session))
-        await started.wait()
+        await asyncio.wait_for(started.wait(), timeout=1)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
@@ -663,11 +664,12 @@ def test_interactive_conversation_explains_missing_configuration(
 
 def test_cli_help() -> None:
     result = runner.invoke(app, ['--help'])
+    visible = unstyle(result.stdout)
 
     assert result.exit_code == 0
-    assert 'ForgeCode terminal Agent Harness.' in result.stdout
-    assert '--version' in result.stdout
-    assert '--prompt' not in result.stdout
+    assert 'ForgeCode terminal Agent Harness.' in visible
+    assert '--version' in visible
+    assert '--prompt' not in visible
 
 
 def test_cli_version() -> None:
@@ -718,9 +720,10 @@ def test_cli_continue_and_resume_are_forwarded(
 
 def test_cli_rejects_fork_without_resume() -> None:
     result = runner.invoke(app, ['--fork-session'])
+    visible = ' '.join(line.strip(' │') for line in unstyle(result.output).splitlines())
 
     assert result.exit_code == 2
-    assert 'requires --continue or --resume' in result.output
+    assert 'requires --continue or --resume' in visible
 
 
 def test_sessions_command_lists_project_sessions() -> None:
