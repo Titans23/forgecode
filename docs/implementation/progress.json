@@ -7,7 +7,7 @@
   "authorization_history_note": "For active terminal-harness scope, the supplied AGENTS instructions authorize uploading tested development versions only; paid model calls and administrator setup require explicit new authorization. Older authorizations and V4 gates below are historical and do not authorize current model spending, setup or main merging.",
   "document_version": "4.0.0",
   "actual_repository_head": "913446f5fcf0275c2c839617fef9a5b2bbe4280f",
-  "next_recommended_task": "T01",
+  "next_recommended_task": null,
   "current_task": "T01",
   "machine_transfer": {
     "date": "2026-10-09",
@@ -2052,18 +2052,19 @@
         "quality": "pass",
         "node": "pass",
         "dependency_security": "pass",
+        "hosted_ci": "pass",
         "native_windows": "pass",
         "native_linux": "blocked",
         "packaged": "pass",
         "live_eval": "blocked"
       },
-      "evidence_ids": ["T01-regression-20261012"],
-      "evidence_refs": ["evidence/T01-terminal-harness-20261012.json"],
+      "evidence_ids": ["T01-shipped-regression-20261012", "20261012T094944Z-39ec7b36", "20261012T094953Z-f899e815", "20261012T095011Z-4e20a53c"],
+      "evidence_refs": ["evidence/T01-ci-closeout-20261012.json"],
       "blocked_reasons": [
         "No native Ubuntu22.04/24.04 environment; available WSL26.04 lacks Linux Node and rg. No administrator setup performed.",
         "Live model experiments, official evaluation and actual posttraining were not run; current model-budget authorization is absent. Offline fixtures are not model grades."
       ],
-      "verification_scope": "Terminal development branch only; 1328 exact-coverage regression tests, Windows10 native6 and independently installed wheel native/API15. Historical V4 release gates are not promoted."
+      "verification_scope": "Terminal development branch: 1330 exact-coverage full regression at f8a9dec, then test-only CLI visible-text/startup-wait changes verified by CLI28 and ANSI2. Runtime and wheel inputs unchanged since Windows native/API15 and installed wheel15. Historical V4 release gates are not promoted."
     }
   },
   "gates": {
@@ -2337,17 +2338,22 @@
   "terminal_branch": {
     "branch": "codex/terminal-harness",
     "implementation_status": "implemented",
-    "source_inventory_hash": "5fbbeb4cdc7353fca0a6800ee90a2b4640cf325845a6c6a2206d8464518f4fd7",
-    "evidence_ref": "evidence/T01-terminal-harness-20261012.json",
-    "regression_tests": 1328,
-    "regression_warnings": 4,
+    "source_inventory_hash": "aa307bca8bdd188f50904f48c378819e34290ba17a3bea2df1d76c09c13e480f",
+    "regression_source_inventory_hash": "12eedb0e451bc7d311c718862458324ce6821bb4c0cdad855615aec3af59d7f7",
+    "evidence_ref": "evidence/T01-ci-closeout-20261012.json",
+    "regression_tests": 1330,
+    "regression_warnings": 5,
+    "test_only_delta": "tests/test_cli.py; CLI28 and forced-color visible-text2 pass",
     "native_windows_tests": 6,
+    "source_native_api_tests": 15,
     "installed_wheel_tests": 15,
     "native_linux": "blocked",
     "live_model_experiments": "blocked",
     "paid_model_calls": 0,
     "administrator_setup": false,
     "main_merge_authorized": false,
-    "task_card": "tasks/T01.md"
+    "task_card": "tasks/T01.md",
+    "git_authentication": "Repository-local selection of existing Titans23 credential; explicitly requested removal of other local login; noninteractive push succeeded",
+    "hosted_ci": "pass: code commit 26f81a8, run38233693921, Windows2025/Ubuntu22/Ubuntu24 portable and dependency security; subsequent closeout documentation does not change the source inventory hash"
   }
 }

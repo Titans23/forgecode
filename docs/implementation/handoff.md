@@ -2,17 +2,21 @@
 
 ## 当前终端分支 · T01（2026-10-12，实现与本地最终验证完成）
 
-活动范围为 `terminal-harness`，详见 ADR038、T01、terminal-repo-audit 与终端使用指南。代码在此任务创建的独立 checkout：`C:/Users/3dimaging/.codex/worktrees/terminal-harness/forgecode`，分支 `codex/terminal-harness`，基底913446f；应用登记 worktree 失败，未声称已附着。原目录仍在 `codex/simple-sandbox-choice`，未切换、未写入或构建。
+活动范围为 `terminal-harness`，详见 ADR038、T01、terminal-repo-audit 与终端使用指南。代码在此任务创建的独立 checkout：`C:/Users/3dimaging/.codex/worktrees/terminal-harness/forgecode`，分支 `codex/terminal-harness`，基底913446f；应用登记 worktree 失败，未声称已附着。原目录仍在 `codex/simple-sandbox-choice`，工作文件和会话未切换、写入或构建；按用户后续明确要求更新了共享仓库 Git 的账户选择并移除另一项本机登录。
 
 已删除 Electron/React/Web、客户端打包/验证与不可执行 strict Bridge；默认移出飞书/Harbor/PyInstaller，保留可选兼容接口。终端及 Python API 复用实际 Harness、Journal、预算、取消和实际 DSH/bubblewrap；启动器提供 terminal/evaluation 组合，SDK 使用可调用 API。本轮不做 GUI、Web 服务、插件注册或主线合并。
 
-最终源码指纹 `5fbbeb4cdc7353fca0a6800ee90a2b4640cf325845a6c6a2206d8464518f4fd7`。最终回归1328项通过，逐项核对收集身份，零遗漏/重复/失败/错误/跳过，4条警告保留（重复zip fixture、旧权限字段、两条Windows子进程UTF-8读取线程异常）。源码 Windows10 原生6项、独立 wheel 原生/API15项、Node11项、contracts及quality通过，官方npm audit零漏洞；各范围独立，不相加。
+当前源码指纹 `aa307bca8bdd188f50904f48c378819e34290ba17a3bea2df1d76c09c13e480f`。全量回归1330项通过，逐项核对收集身份，零遗漏/重复/失败/错误/跳过，5条警告保留；该回归快照为 f8a9dec / `12eedb0e451bc7d311c718862458324ce6821bb4c0cdad855615aec3af59d7f7`。之后仅 tests/test_cli.py 的文本断言与启动等待改动，普通CLI28项及彩色文字2项补测通过。运行时代码、native/API测试与wheel输入保持原样。
 
-单进程全量运行没有生成报告，记录为中断/未验证；最终采用互不重叠的短批次。最初b01误纳入两个pytest默认排除的fixture导致导入冲突，修正枚举后只重跑该批次，并校验全部1328身份与前后源码一致。保留原失败，未改产品源码以重试到绿。最终证据为 [T01索引](evidence/T01-terminal-harness-20261012.json) 和 [回归记录](evidence/T01-regression-20261012.json)。
+Windows10 源码原生/API15项（真实原生6+离线API9）、独立安装wheel原生/API15项、Node11项、contracts及quality通过，官方npm audit零漏洞；各范围独立，不相加。原生与wheel运行对应9b5e0e8的运行时代码，后续提交仅修改测试及CI选择。CI失败修正包含：安全任务先构建；离线代码完整性检查不要求原生工具齐全；诊断测试真实保留工具缺失的blocked；Windows深目录clone使用局部长路径；CLI文字按可见内容断言。
 
-wheel `.local/terminal/wheels/forge_code-0.1.2-py3-none-any.whl`，4772820 bytes，SHA256 `b40b894f30dd56eabe56c27534519a6628b06707e403eda9d3b20f8b7d584c30`；逐项资源/hash核对后在独立安装解释器运行。默认安装未加载/安装 lark-channel、Harbor、transformers、torch 或 aiohttp。隐藏文件/目录漏包的两次失败已保留，不算通过。
+单进程全量运行没有生成报告，记录为中断/未验证；最终采用互不重叠的短批次。最初b01误纳入两个pytest默认排除的fixture导致导入冲突，修正枚举后校验全部1328身份；该早期快照保留。后续CI修正后的1330项再次全量核对。中途源码变化的运行、强制彩色缺console的失败、错误fixture名称均保留并不计通过。当前证据为 [T01收尾索引](evidence/T01-ci-closeout-20261012.json) 和 [全量回归记录](evidence/T01-shipped-regression-20261012.json)。
+
+当前wheel `.local/terminal/wheels-ci-closeout/forge_code-0.1.2-py3-none-any.whl`，4772911 bytes，SHA256 `13a45359cff901820803797678a8860e0ae18d2cbcd65664c432f29484b1b1c0`；逐项资源/hash核对后在独立安装解释器运行。默认安装未加载/安装 lark-channel、Harbor、transformers、torch 或 aiohttp。旧wheel和隐藏文件/目录漏包的两次失败保留原范围。
 
 交付分支为 [codex/terminal-harness](https://github.com/Titans23/forgecode/tree/codex/terminal-harness)，提交与上传状态以Git实际记录为准。运行说明见 [终端使用指南](../install/terminal-quickstart.md)；Bundle/Profile决策见 [ADR038](adr/038-terminal-profile-bundles.md)。原评测入口、RunSpec/ResultBundle和Qwen数据记录/导出/rollout接口保留并通过离线回归。
+
+Git Credential Manager 已保存两个账户，之前的等待是账户选择而非网络故障。按用户明确请求，本仓库固定选 Titans23，移除另一项本机登录；无交互真实push成功，工作文件、模型凭据与会话不受该操作影响。代码26f81a8的 [CI run38233693921](https://github.com/Titans23/forgecode/actions/runs/38233693921) 已全部通过：Windows2025、Ubuntu22/24 portable及依赖安全。后续收尾文档不改变源码指纹；实际状态和报告哈希在收尾索引。
 
 独立待办：Ubuntu22/24原生验收、真实模型实验和实际后训练仍 blocked；WSL26缺Node/rg。不运行付费模型、正式实验、管理员设置或main合并。当前授权只覆盖测试过的开发版本上传，旧V4付费/安装授权不应用于此任务。全部原始日志和报告在此 checkout 的 `.local/terminal/`，哈希索引已跟踪。
 

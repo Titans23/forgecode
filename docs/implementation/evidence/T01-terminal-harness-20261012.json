@@ -1,5 +1,7 @@
 {
   "schema_version": "forge.terminal.observations.v1",
+  "snapshot_scope": "First1328-test implementation snapshot before CI corrections; counts and hashes retain that scope.",
+  "superseded_by": "T01-ci-closeout-20261012.json",
   "date": "2026-10-12",
   "task_id": "T01",
   "scope": "terminal-harness",
