@@ -2,7 +2,7 @@
 from hashlib import sha256
 import json
 from pathlib import Path
-import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -64,25 +64,49 @@ def test_runtime_still_refuses_missing_host_tool_after_code_verification(monkeyp
     assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
 
 
+@pytest.fixture
+def available_host_tools(tmp_path, monkeypatch):
+    """Isolate diagnostic branches; these files are never executed as native tools."""
+    import shutil
+    import subprocess
+    paths = {}
+    for name in ('node', 'git', 'rg', 'pwsh'):
+        path = tmp_path / name
+        path.write_text('diagnostic fixture', encoding='utf-8')
+        paths[name] = str(path)
+    monkeypatch.setattr(shutil, 'which', paths.get)
+    monkeypatch.setattr(subprocess, 'CREATE_NO_WINDOW', 0, raising=False)
+    monkeypatch.setattr(subprocess, 'run', lambda *args, **kwargs:
+                        SimpleNamespace(returncode=0, stdout='v22.13.0\n'))
+    return paths
+
+
+@pytest.mark.parametrize('platform', ['win32', 'linux'])
 @pytest.mark.parametrize('tool,message', [
     ('node', 'Node 22.13 or newer is required'),
     ('git', 'git is required on PATH'),
     ('rg', 'rg is required on PATH'),
-    pytest.param('pwsh', 'PowerShell 7 is required',
-                 marks=pytest.mark.skipif(sys.platform != 'win32', reason='Windows host prerequisite')),
 ])
-def test_missing_runtime_tool_reports_the_actual_prerequisite(monkeypatch, tool, message):
-    import shutil
-    discover = shutil.which
-    monkeypatch.setattr(shutil, 'which', lambda name: None if name == tool else discover(name))
+def test_missing_runtime_tool_reports_the_actual_prerequisite(monkeypatch, available_host_tools, platform, tool, message):
+    import forge.sandbox.launcher as launcher
+    monkeypatch.setattr(launcher, 'sys', SimpleNamespace(platform=platform))
+    del available_host_tools[tool]
     with pytest.raises(ContractError, match=message) as rejected:
         verify_runtime()
     assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
 
 
-def test_missing_linux_system_bubblewrap_reports_the_install_requirement(monkeypatch):
+def test_missing_windows_powershell_reports_the_install_requirement(monkeypatch, available_host_tools):
     import forge.sandbox.launcher as launcher
-    from types import SimpleNamespace
+    monkeypatch.setattr(launcher, 'sys', SimpleNamespace(platform='win32'))
+    del available_host_tools['pwsh']
+    with pytest.raises(ContractError, match='PowerShell 7 is required') as rejected:
+        verify_runtime()
+    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
+
+
+def test_missing_linux_system_bubblewrap_reports_the_install_requirement(monkeypatch, available_host_tools):
+    import forge.sandbox.launcher as launcher
     original_resolve = Path.resolve
     def resolve(path, *args, **kwargs):
         if path.as_posix() == '/usr/bin/bwrap':
