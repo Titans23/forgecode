@@ -41,9 +41,25 @@ uv tool install dist/forge_code-0.1.2-py3-none-any.whl
 
 wheel 仍使用本机 Node、Git、ripgrep 和平台沙盒前置条件。全局用户工具环境和沙盒项目分开；在项目内部的 `.venv` 安装 ForgeCode 时，安装目录保护可能拒绝该项目的沙盒启动。
 
-## 持续对话
+## 模型配置
 
-在用户 `~/.forge/.env` 或目标项目 `.env` 中设置模型连接，例如 `ANTHROPIC_API_KEY` 和 `MODEL_ID`；也支持 `FORGE_PROVIDER=openai_responses` / `deepseek` 及对应 API key、`FORGE_MODEL`、`FORGE_BASE_URL`。优先级为进程环境变量 > 项目配置 > 用户配置。`forge config` 检查配置，不回显密钥；配置不放进安装包，更新后仍可使用。
+npm 安装自动创建 `~/.forge/.env`，存在时不覆盖。直接安装 Python wheel 的用户可运行 `forge config init`。命令修改用户级配置，不会改写当前项目的 `.env`：
+
+```text
+forge config setup
+forge config setup --from-env .env
+forge config set model your-model-id
+forge config set base-url https://your-provider-endpoint
+forge config set api-key
+forge config path
+forge config
+```
+
+`setup` 按提示设置协议、模型、服务地址与 API Key；输入密钥时隐藏内容。同一协议下再次设置可以留空保留密钥，更换协议需重新输入。`--from-env` 仅导入模型字段，保留源文件和用户配置中的其他条目。`set` 修改单项；API Key 只通过隐藏提示输入，不放在命令参数中。
+
+用户配置按原样读取，兼容 `ANTHROPIC_API_KEY`、`MODEL_ID` 等原有字段；也支持 `openai_responses` 和 `deepseek` 协议。优先级为进程环境变量 > 项目 `.env` > 用户配置；项目内检查的有效配置可能覆盖刚修改的用户配置。`forge config` 只检查配置，不验证网络连接、不调用模型、不显示密钥。
+
+## 持续对话
 
 ```text
 forge --profile terminal

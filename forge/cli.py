@@ -13,9 +13,11 @@ import threading
 from typing import Annotated, Any, Callable
 
 import typer
-from dotenv import load_dotenv, set_key
+from click import Choice
+from dotenv import dotenv_values, load_dotenv, set_key
 
 from forge import __version__
+from forge import config as model_config
 from forge.channels import (
     ChannelConfig,
     ChannelConfigurationError,
@@ -68,6 +70,9 @@ feishu_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(feishu_app, name='feishu')
+config_app = typer.Typer(help='Check or configure the model connection.', invoke_without_command=True,
+                         no_args_is_help=False, add_completion=False)
+app.add_typer(config_app, name='config')
 
 
 def version_callback(value: bool) -> None:
@@ -200,14 +205,8 @@ def print_configuration_error(error: Exception) -> None:
         return
     typer.echo('Model configuration is incomplete.', err=True)
     typer.echo(str(error), err=True)
-    typer.echo(
-        'Set ANTHROPIC_API_KEY and MODEL_ID before starting ForgeCode.',
-        err=True,
-    )
-    typer.echo(
-        'ANTHROPIC_BASE_URL is optional and defaults to the official API.',
-        err=True,
-    )
+    typer.echo('Run forge config setup to configure your model connection.', err=True)
+    typer.echo(f'User configuration: {model_config.FORGECODE_ENV_PATH}', err=True)
 
 
 def run_interactive_chat(
@@ -894,16 +893,21 @@ def list_sessions() -> None:
         )
 
 
-@app.command('config')
-def show_config() -> None:
-    '''Check the Anthropic-compatible model configuration.'''
+@config_app.callback()
+def show_config(ctx: typer.Context) -> None:
+    '''Check effective settings without making a model request or displaying the key.'''
+    if ctx.invoked_subcommand is not None:
+        return
     try:
         config = ForgeConfig.from_env()
     except ConfigurationError as error:
         print_configuration_error(error)
         raise typer.Exit(code=1) from error
 
-    typer.echo('Anthropic configuration is ready.')
+    label = {'anthropic': 'Anthropic', 'openai_responses': 'OpenAI Responses', 'deepseek': 'DeepSeek'}[config.provider]
+    typer.echo(f'{label} configuration is ready.')
+    typer.echo(f'User configuration: {model_config.FORGECODE_ENV_PATH}')
+    typer.echo('Priority: process environment > project .env > user configuration.')
     typer.echo(f'Model ID: {config.model_id}')
     typer.echo(f'Base URL: {config.base_url}')
     typer.echo(f'Max output tokens: {config.max_tokens:,}')
@@ -919,6 +923,92 @@ def show_config() -> None:
         )
     )
     typer.echo('API key: configured')
+
+
+@config_app.command('init')
+def initialize_model_config() -> None:
+    '''Create the user configuration without replacing an existing file.'''
+    try:
+        created = model_config.initialize_user_config()
+    except (OSError, ConfigurationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f'User configuration {"created" if created else "preserved"}: {model_config.FORGECODE_ENV_PATH}')
+    typer.echo('Run forge config setup to configure your model connection.')
+
+
+@config_app.command('path')
+def model_config_path() -> None:
+    '''Show the user configuration file location.'''
+    typer.echo(str(model_config.FORGECODE_ENV_PATH))
+
+
+@config_app.command('setup')
+def setup_model_config(
+    from_env: Annotated[Path | None, typer.Option('--from-env', exists=True, dir_okay=False,
+                                                help='Import only model settings from this .env file.')] = None,
+) -> None:
+    '''Configure the user model connection, with hidden API key input.'''
+    try:
+        if from_env is not None:
+            config = ForgeConfig.from_env(dotenv_values(from_env, interpolate=False))
+        else:
+            values = model_config.read_user_config()
+            previous_provider = values.get('FORGE_PROVIDER', 'anthropic')
+            providers = ['anthropic', 'openai_responses', 'deepseek']
+            typer.echo(f'User configuration: {model_config.FORGECODE_ENV_PATH}')
+            provider = typer.prompt('Provider', type=Choice(providers),
+                                    default=previous_provider if previous_provider in providers else 'anthropic')
+            try:
+                previous = ForgeConfig.from_env(values) if provider == previous_provider else None
+            except ConfigurationError:
+                previous = None
+            model = typer.prompt('Model ID', default=previous.model_id if previous else None)
+            default_url = ForgeConfig(api_key='unused', model_id='unused', provider=provider).base_url
+            base_url = typer.prompt('Base URL', default=previous.base_url if previous else default_url)
+            key = typer.prompt('API key (leave empty to keep existing)' if previous else 'API key',
+                               hide_input=True, default='' if previous else None, show_default=False)
+            config = ForgeConfig.from_env({**values, 'FORGE_PROVIDER': provider, 'FORGE_MODEL': model,
+                'FORGE_BASE_URL': base_url, 'FORGE_API_KEY': key or (previous.api_key if previous else '')})
+        model_config.save_user_config({
+            'FORGE_PROVIDER': config.provider, 'FORGE_MODEL': config.model_id,
+            'FORGE_BASE_URL': config.base_url, 'FORGE_API_KEY': config.api_key,
+            'MODEL_MAX_TOKENS': str(config.max_tokens),
+            'MODEL_CONTEXT_WINDOW': str(config.context_window) if config.context_window is not None else '',
+            'MODEL_REQUEST_TIMEOUT_SECONDS': str(config.request_timeout_seconds),
+            'FORGE_REASONING_EFFORT': config.reasoning_effort or '',
+        })
+    except (OSError, ConfigurationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f'Model settings saved: {model_config.FORGECODE_ENV_PATH}')
+    typer.echo('Run forge config to check effective settings. Project .env and process variables take priority.')
+
+
+@config_app.command('set')
+def set_model_config(
+    setting: Annotated[str, typer.Argument(help='model, base-url or api-key; use setup to change provider.')],
+    value: Annotated[str | None, typer.Argument(help='Omit for api-key to enter it privately.')] = None,
+) -> None:
+    '''Change one user setting without displaying or passing API keys as arguments.'''
+    fields = {'model': 'FORGE_MODEL', 'base-url': 'FORGE_BASE_URL', 'api-key': 'FORGE_API_KEY'}
+    if setting not in fields:
+        raise typer.BadParameter('Choose model, base-url or api-key. Use forge config setup to change provider.')
+    if setting == 'api-key':
+        if value is not None:
+            raise typer.BadParameter('Omit the API key argument; enter it at the hidden prompt instead.')
+        value = typer.prompt('API key', hide_input=True)
+    if value is None or not value.strip():
+        raise typer.BadParameter('A nonempty value is required.')
+    try:
+        value = value.strip()
+        if setting == 'base-url':
+            value = ForgeConfig(api_key='unused', model_id='unused', base_url=value).base_url
+        model_config.save_user_config({fields[setting]: value})
+    except (OSError, ConfigurationError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f'Saved {setting}: {model_config.FORGECODE_ENV_PATH}')
 
 
 

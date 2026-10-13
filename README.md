@@ -22,7 +22,7 @@ npm run setup
 
 `npm run setup` 自动准备 uv 和 Python，按锁文件安装构建依赖、编译沙盒、生成 Python wheel 和 npm 包，再安装全局 `forge`。运行时所需的 Git、ripgrep 和 Windows PowerShell 7 也会自动准备，下载校验 SHA-256；直接复用已有 Node。无需手动执行 `uv sync`、`npm ci` 或构建脚本，安装过程不调用模型。构建日志位于 `dist/package-build.log`。Windows x64/NTFS 启动不需要 WSL 或 Docker。
 
-Windows 和 Ubuntu 22.04 / 24.04 x64 使用同一安装命令，在本机构建对应平台的包。当前优先完成 Windows；Ubuntu 原生验证已暂停，Linux 还需要系统 Git、bubblewrap 和可用的 user namespace。
+Windows 和 Ubuntu x64 使用同一安装命令，在本机构建对应平台的包。安装与原生沙盒已在 Windows 10 和 WSL2 Ubuntu 26.04 上验证；Ubuntu 22.04 / 24.04 的原生验收仍待完成。Linux 还需要系统 Git、bubblewrap 和可用的 user namespace。
 
 以后更新时，在这个源码目录执行：
 
@@ -35,14 +35,27 @@ npm run setup
 
 ### 2. 配置模型连接
 
-在用户目录 `~/.forge/.env` 中填写模型连接，即可在多个项目中使用；也可以在目标项目的 `.env` 中填写项目专用配置。默认使用 Anthropic：
+安装会自动创建用户配置 `~/.forge/.env`（Windows 为 `%USERPROFILE%\.forge\.env`）；已有文件保持原样。首次使用运行：
 
-```dotenv
-ANTHROPIC_API_KEY=你的密钥
-MODEL_ID=你可用的模型ID
+```sh
+forge config setup
 ```
 
-将占位内容替换为实际值，密钥不要提交到 Git。优先级为：进程环境变量 > 项目 `.env` > 用户 `~/.forge/.env`。模型配置与安装包分开保存，升级时不会覆盖。
+按提示选择协议、模型 ID、服务地址并输入 API Key，密钥输入隐藏。支持 `anthropic`、`openai_responses` 和 `deepseek`。配置一次后可在多个项目使用；创建空文件不会自动获得 API Key，也不会调用模型。
+
+已有 `.env` 时可只导入其中的模型配置；该操作更新用户级模型设置，不复制飞书等其他凭据：
+
+```sh
+forge config setup --from-env .env
+forge config set model your-model-id
+forge config set base-url https://your-provider-endpoint
+forge config set api-key
+forge config path
+```
+
+`set api-key` 使用隐藏输入，不接受命令行密钥参数。更换服务协议请重新运行 `setup`。`forge config init` 可单独创建配置文件，重复运行不会覆盖已有内容。
+
+也可以编辑用户 `.env` 或目标项目 `.env`；兼容 `ANTHROPIC_API_KEY`、`MODEL_ID` 等原有字段。优先级为：进程环境变量 > 项目 `.env` > 用户配置。用户文件中的值按原样读取，升级不会覆盖配置，密钥不要提交到 Git。
 
 ### 3. 检查配置并启动
 

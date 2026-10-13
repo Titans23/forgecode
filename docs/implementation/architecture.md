@@ -26,6 +26,8 @@ workspace-write提供已验证的写限制；OS读取和网络继承宿主。初
 
 ## 3. 开发与验证
 
+模型配置由 forge.config 读取与保存。npm 安装只创建缺失的用户 `.forge/.env`；`forge config setup/set` 写入用户文件，`forge config` 检查进程、项目和用户配置合并后的有效值。密钥隐藏输入，写入不覆盖其他配置条目；配置命令不调用模型。
+
 日常工作区为D:\projects\forgecode的main，只维护当前说明和任务。历史通过和旧授权不能证明当前能力。虚拟环境、npm依赖、沙盒构建和.local报告均可重建且不提交。
 
 运行contracts、quality和regression；改变原生边界时再运行terminal-native。清理不授权付费模型、管理员设置或生产签名。

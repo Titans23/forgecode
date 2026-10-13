@@ -6,19 +6,75 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
+import tempfile
 from urllib.parse import urlsplit
 
-from dotenv import dotenv_values, load_dotenv
+from dotenv import dotenv_values, load_dotenv, set_key
 
 
 DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
 DEFAULT_MODEL_MAX_TOKENS = 8_192
 DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS = 120.0
 FORGECODE_ENV_PATH = Path.home() / '.forge' / '.env'
+USER_CONFIG_TEMPLATE = (
+    '# ForgeCode user configuration. Run: forge config setup\n'
+    '# Priority: process environment > project .env > this file.\n'
+    '# FORGE_PROVIDER=anthropic\n'
+    '# FORGE_MODEL=your-model-id\n'
+    '# FORGE_API_KEY=your-api-key\n'
+    '# FORGE_BASE_URL=https://your-provider-endpoint\n'
+)
+USER_MODEL_FIELDS = {
+    'FORGE_PROVIDER', 'FORGE_MODEL', 'FORGE_API_KEY', 'FORGE_BASE_URL',
+    'FORGE_REASONING_EFFORT', 'MODEL_MAX_TOKENS', 'MODEL_CONTEXT_WINDOW',
+    'MODEL_REQUEST_TIMEOUT_SECONDS',
+}
 
 
 class ConfigurationError(ValueError):
     '''Raised when ForgeCode model configuration is incomplete or invalid.'''
+
+
+def initialize_user_config() -> bool:
+    """Create an empty user configuration once, without touching existing settings."""
+    path = FORGECODE_ENV_PATH
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        if not path.is_file():
+            raise ConfigurationError('The user configuration path is not a file.')
+        return False
+    with os.fdopen(descriptor, 'w', encoding='utf-8', newline='\n') as stream:
+        stream.write(USER_CONFIG_TEMPLATE)
+    return True
+
+
+def read_user_config() -> dict[str, str]:
+    if not FORGECODE_ENV_PATH.is_file():
+        return {}
+    return {key: value for key, value in dotenv_values(FORGECODE_ENV_PATH, interpolate=False).items()
+            if value is not None}
+
+
+def save_user_config(updates: Mapping[str, str]) -> None:
+    """Replace only requested model fields, preserving other entries and comments."""
+    if not updates or not updates.keys() <= USER_MODEL_FIELDS:
+        raise ConfigurationError('Unsupported user model setting.')
+    if any(any(char in value for char in '\r\n\0') for value in updates.values()):
+        raise ConfigurationError('Model settings must contain a single line without NUL characters.')
+    path = FORGECODE_ENV_PATH
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    content = path.read_text(encoding='utf-8') if path.exists() else USER_CONFIG_TEMPLATE
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+        stream.write(content)
+    try:
+        for key, value in updates.items():
+            set_key(temporary, key, value.replace('\\', '\\\\'), quote_mode='always', encoding='utf-8')
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +144,7 @@ class ForgeConfig:
         if environ is None:
             project_env = Path.cwd() / '.env'
             inherited = dict(os.environ)
-            global_values = dotenv_values(FORGECODE_ENV_PATH) if FORGECODE_ENV_PATH.is_file() else {}
+            global_values = read_user_config()
             project_values = dotenv_values(project_env) if project_env.is_file() else {}
             layers = [global_values, project_values, inherited]
             source = {key: value for layer in layers for key, value in layer.items() if value is not None}

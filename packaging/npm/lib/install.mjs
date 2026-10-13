@@ -1,8 +1,9 @@
-import { prepareRuntime } from './runtime.mjs';
+import { prepareRuntime, run } from './runtime.mjs';
 
 try {
-  await prepareRuntime();
-  console.error('ForgeCode installed. Run forge in your project directory.');
+  const runtime = await prepareRuntime();
+  run(runtime.python, ['-I', '-X', 'utf8', '-m', 'forge', 'config', 'init'], { env: runtime.environment });
+  console.error('ForgeCode installed. Configure your model with forge config setup, then run forge in your project.');
 } catch (error) {
   console.error('ForgeCode installation failed: ' + error.message);
   process.exitCode = 1;
