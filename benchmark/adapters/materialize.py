@@ -11,6 +11,54 @@ from benchmark.adapters.protocol import capture_tree, content_hash, file_bytes
 from forge.application.models import ContractError, strict_loads
 
 
+async def materialize_dataset(dataset, *, ref, task_names, n_tasks, destination):
+    """Freeze one official package dataset and its selected task bytes."""
+    from harbor.registry.client.package import PackageDatasetClient
+    from harbor.tasks.client import TaskClient
+    from harbor.models.task.task import Task
+    entry = next((get_benchmark(key) for key in ('terminal-bench-2', 'swe-bench-verified')
+                  if get_benchmark(key).dataset == dataset), None)
+    if entry is None:
+        raise ValueError('The frozen runner supports Terminal-Bench 2.0 and SWE-bench Verified.')
+    client = PackageDatasetClient()
+    async with asyncio.timeout(300):
+        metadata = await client.get_dataset_metadata(f'{dataset}@{ref}')
+        available = {task.get_name(): task for task in metadata.task_ids}
+        if len(available) != len(metadata.task_ids) or len(set(task_names)) != len(task_names):
+            raise ValueError('Duplicate task identifiers are not allowed.')
+        if set(task_names) - available.keys():
+            raise ValueError('Unknown exact task IDs: ' + ', '.join(sorted(set(task_names) - available.keys())))
+        names = sorted(task_names or available)
+        if n_tasks is not None:
+            names = names[:n_tasks]
+        if not names:
+            raise ValueError('No tasks selected.')
+        ids = [available[name] for name in names]
+        if any(not re.fullmatch(r'sha256:[0-9a-f]{64}', task.ref or '') for task in ids):
+            raise ValueError('Official task metadata must resolve to immutable content digests.')
+        destination = Path(destination)
+        destination.mkdir(parents=True, exist_ok=False)
+        downloaded = await TaskClient().download_tasks(ids, output_dir=destination, export=True)
+        dataset_files = await client.download_dataset_files(metadata, output_dir=destination / '.dataset')
+    manifest = {'schema_version': 'forge.harbor.taskset.v1', 'benchmark': entry.key,
+                'dataset': dataset, 'version': metadata.version, 'usage': 'evaluation-only',
+                'dataset_files': {name: sha256(file_bytes(path)).hexdigest()
+                                  for name, path in dataset_files.items()}, 'tasks': {}}
+    for name, task_id, result in zip(names, ids, downloaded.results, strict=True):
+        if result.content_hash != task_id.ref.removeprefix('sha256:'):
+            raise ValueError('Task download identity differs from the frozen dataset.')
+        task = Task(result.path)
+        if task.config.environment.os.value != 'linux':
+            raise ValueError('This protocol requires Linux task environments.')
+        manifest['tasks'][name] = {'directory': result.path.relative_to(destination).as_posix(),
+            'source': task_id.model_dump(mode='json'), 'content_sha256': content_hash(capture_tree(result.path)),
+            'harbor_checksum': task.checksum, 'os': 'linux',
+            'agent_timeout_seconds': task.config.agent.timeout_sec,
+            'verifier_timeout_seconds': task.config.verifier.timeout_sec}
+    (destination / 'taskset.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    return manifest
+
+
 async def materialize_registry(registry_path, *, benchmark, version, task_ids, destination):
     entry = get_benchmark(benchmark)
     if entry.status != 'ready' or not task_ids or len(set(task_ids)) != len(task_ids):

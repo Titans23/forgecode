@@ -1,43 +1,18 @@
 from __future__ import annotations
 
 import json
+import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 
-from benchmark.harbor.run_dataset import build_command, container_base_url
+import pytest
+
+from benchmark.harbor.run_dataset import container_base_url
 import benchmark.harbor.run_terminal as terminal_runner
 from benchmark.harbor.summarize import summarize_run
 from benchmark.harbor.snapshot import freeze_source
 
 
-def test_generic_harbor_command_uses_dataset_and_safe_env_mapping(
-    tmp_path: Path,
-) -> None:
-    command = build_command(
-        harbor='harbor',
-        dataset='swe-bench/swe-bench-verified',
-        env_file=tmp_path / '.env',
-        output_dir=tmp_path / 'out',
-        cache_dir=tmp_path / 'cache',
-        model='gpt-test',
-        base_url='http://host.docker.internal:54982',
-        tasks=('repo__issue-1',),
-        n_tasks=2,
-        concurrency=3,
-        timeout_multiplier=2.5,
-        force_build=True,
-    )
-
-    assert command[command.index('-d') + 1] == 'swe-bench/swe-bench-verified'
-    assert command[command.index('-a') + 1].endswith(
-        'benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent'
-    )
-    assert command[command.index('-i') + 1] == 'repo__issue-1'
-    assert command[command.index('-l') + 1] == '2'
-    assert command[command.index('-n') + 1] == '3'
-    assert '--timeout-multiplier' in command
-    assert '--force-build' in command
-    assert 'FORGECODE_API_KEY=${ANTHROPIC_API_KEY}' in command
-    assert not any('sk-' in value for value in command)
 
 
 def test_loopback_provider_is_rewritten_only_for_containers() -> None:
@@ -46,7 +21,7 @@ def test_loopback_provider_is_rewritten_only_for_containers() -> None:
     )
 
 
-def test_terminal_entrypoint_uses_full_fixed_task_ids_and_concurrency(
+def test_terminal_entrypoint_does_not_inject_model_tasks_or_concurrency(
     monkeypatch,
 ) -> None:
     received: list[str] = []
@@ -60,19 +35,124 @@ def test_terminal_entrypoint_uses_full_fixed_task_ids_and_concurrency(
 
     assert terminal_runner.main(()) == 0
 
-    task_values = [
-        received[index + 1]
-        for index, value in enumerate(received[:-1])
-        if value == '--task'
-    ]
-    assert task_values == list(terminal_runner.FIXED_TERMINAL_TASKS)
-    assert '--concurrency' in received
-    assert received[received.index('--concurrency') + 1] == '10'
-    assert received[received.index('--max-retries') + 1] == '3'
-    assert received[received.index('--model') + 1] == 'gpt-5.6-luna'
+    assert received == []
     assert container_base_url('https://api.example/v1') == (
         'https://api.example/v1'
     )
+
+
+@pytest.mark.parametrize('dataset', ['terminal-bench/terminal-bench-2', 'swe-bench/swe-bench-verified'])
+def test_dry_run_freezes_shared_configuration_without_starting_a_job(tmp_path, monkeypatch, capsys, dataset):
+    from benchmark.harbor import run_dataset as runner
+    import forge.config as settings
+    monkeypatch.setattr(settings.os, 'environ', {'MODEL_ID': 'process-model', 'XDG_DATA_HOME': str(tmp_path)})
+    monkeypatch.chdir(tmp_path)
+    user = tmp_path / 'user.env'
+    user.write_text('FORGE_API_KEY=private-fixture-key\nFORGE_MODEL=user-model\n')
+    monkeypatch.setattr(settings, 'FORGECODE_ENV_PATH', user)
+    project = tmp_path / 'project.env'
+    project.write_text('MODEL_ID=project-model\nMODEL_MAX_TOKENS=4096\n')
+    monkeypatch.setattr(runner, 'preconditions', lambda source: {'linux': False, 'docker_access': False})
+    output = tmp_path / 'uncreated'
+    with pytest.raises(SystemExit):
+        runner.main(['--dry-run'], default_dataset=dataset)
+    assert runner.main(['--n-tasks', '1', '--env-file', str(project), '--model', 'explicit-model',
+                        '--output-dir', str(output), '--dry-run'], default_dataset=dataset) == 0
+    rendered = capsys.readouterr().out
+    data = json.loads(rendered)
+    assert data['model']['model_id'] == 'explicit-model' and data['model']['max_tokens'] == 4096
+    assert data['model']['base_url'] == 'https://api.anthropic.com'
+    assert data['concurrency'] == data['attempts'] == 1 and data['task_retries'] == 0
+    assert data['budget'] == {'max_model_calls': 120, 'max_tool_calls': 240, 'wall_seconds': 1800}
+    assert not data['ready'] and data['model_calls'] == 0
+    assert 'private-fixture-key' not in rendered and not output.exists()
+
+
+def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, monkeypatch):
+    from benchmark.harbor import run_dataset as runner
+    from benchmark.adapters.materialize import materialize_dataset, resolve_task
+    from harbor.registry.client.package import PackageDatasetClient
+    from harbor.tasks.client import TaskClient
+    from harbor.models.task.id import PackageTaskId
+    from harbor.models.job.config import JobConfig
+    import forge.config as settings
+    monkeypatch.setattr(settings.os, 'environ', {'XDG_DATA_HOME': str(tmp_path)})
+    monkeypatch.chdir(tmp_path)
+    user = tmp_path / 'user.env'
+    user.write_text('FORGE_API_KEY=offline-fixture-secret\nFORGE_MODEL=fixture-model\nFORGE_REASONING_EFFORT=high\n')
+    monkeypatch.setattr(settings, 'FORGECODE_ENV_PATH', user)
+    metadata = SimpleNamespace(version='sha256:' + 'd' * 64, task_ids=[
+        PackageTaskId(org='terminal-bench', name=name, ref='sha256:' + 'a' * 64) for name in ('z', 'a')])
+    async def get_metadata(self, name):
+        assert name == 'terminal-bench/terminal-bench-2@latest'
+        return metadata
+    async def files(self, *args, **kwargs):
+        return {}
+    async def download(self, ids, *, output_dir, export):
+        results = []
+        assert export and [item.name for item in ids] == ['a']
+        for task in ids:
+            path = output_dir / task.name
+            (path / 'environment').mkdir(parents=True)
+            (path / 'tests').mkdir()
+            (path / 'instruction.md').write_text('Offline structural fixture, not a benchmark result.')
+            (path / 'task.toml').write_text('[agent]\ntimeout_sec=60\n')
+            (path / 'environment/Dockerfile').write_text('FROM scratch\n')
+            (path / 'tests/test.sh').write_text('exit 0\n')
+            results.append(SimpleNamespace(path=path, content_hash='a' * 64))
+        return SimpleNamespace(results=results)
+    monkeypatch.setattr(PackageDatasetClient, 'get_dataset_metadata', get_metadata)
+    monkeypatch.setattr(PackageDatasetClient, 'download_dataset_files', files)
+    monkeypatch.setattr(TaskClient, 'download_tasks', download)
+    output = tmp_path / 'run'
+    taskset = asyncio.run(materialize_dataset('terminal-bench/terminal-bench-2', ref='latest',
+        task_names=[], n_tasks=1, destination=output / 'tasks'))
+    assert list(taskset['tasks']) == ['terminal-bench/a']
+    assert taskset['usage'] == 'evaluation-only' and taskset['version'] == metadata.version
+    args = runner.build_parser(default_dataset='terminal-bench/terminal-bench-2').parse_args(['--n-tasks', '1'])
+    config, manifest = runner.effective_configuration(args)
+    manifest.update(run_id='fixture-run', source_manifest={'fixture': True})
+    job = runner.frozen_job(args, manifest, taskset, tmp_path / 'source', output)
+    raw = job.model_dump_json(context={'redact_sensitive_env': False})
+    restored = JobConfig.model_validate_json(raw)
+    assert 'offline-fixture-secret' not in raw and config.api_key == 'offline-fixture-secret'
+    assert restored.agents[0].env['FORGECODE_MODEL_MAX_TOKENS'] == '8192'
+    assert restored.agents[0].env['FORGECODE_REASONING_EFFORT'] == 'high'
+    assert Path(restored.agents[0].kwargs['source_dir']) == tmp_path / 'source'
+    assert restored.agents[0].max_timeout_sec == 1800 and restored.retry.max_retries == 0
+    assert not restored.datasets and len(restored.tasks) == 1
+    assert json.loads(restored.agents[0].kwargs['frozen_configuration'])['model']['model_id'] == 'fixture-model'
+    # Exercise the actual CLI preparation with tiny offline source/task fixtures.
+    source = tmp_path / 'source'
+    for relative in ('pyproject.toml', 'README.md', 'uv.lock', 'forge/__init__.py',
+                     'benchmark/__init__.py', 'benchmark/harbor/__init__.py', 'benchmark/core/__init__.py'):
+        path = source / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('')
+    monkeypatch.setattr(runner, 'PROJECT_ROOT', source)
+    monkeypatch.setattr(runner, 'preconditions', lambda source: {'offline_fixture': True})
+    monkeypatch.setattr(runner, 'harbor_executable', lambda: 'offline-fixture-harbor')
+    prepared = tmp_path / 'prepared'
+    def controller(command, *, cwd, env, output_dir, metadata):
+        assert command[:3] == ['offline-fixture-harbor', 'run', '--config']
+        assert cwd == output_dir == prepared and env['FORGECODE_API_KEY'] == 'offline-fixture-secret'
+        assert metadata['run_id'].startswith('run-')
+        return 0
+    monkeypatch.setattr('benchmark.harbor.controller.run_controller', controller)
+    arguments = ['--n-tasks', '1', '--source-dir', str(source), '--output-dir', str(prepared)]
+    assert runner.main(arguments, default_dataset='terminal-bench/terminal-bench-2') == 0
+    saved = json.loads((prepared / 'experiment.json').read_text())
+    assert saved['source_manifest']['files']['uv.lock']
+    assert 'offline-fixture-secret' not in (prepared / 'harbor.json').read_text()
+    with pytest.raises(FileExistsError):
+        runner.main(arguments, default_dataset='terminal-bench/terminal-bench-2')
+    (output / 'tasks/a/instruction.md').write_text('changed')
+    with pytest.raises(ValueError, match='changed'):
+        resolve_task(output / 'tasks', taskset, 'terminal-bench/a')
+    with pytest.raises(ValueError, match='Unknown exact task'):
+        asyncio.run(materialize_dataset('terminal-bench/terminal-bench-2', ref='latest',
+            task_names=['missing'], n_tasks=None, destination=tmp_path / 'invalid'))
+    assert not (tmp_path / 'invalid').exists()
 
 
 def test_summary_counts_single_attempt_benchmark_results(tmp_path: Path) -> None:
@@ -154,13 +234,6 @@ def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: 
     assert len(manifest['content_sha256']) == 64
 
 
-def test_command_passes_frozen_source_to_every_harbor_trial(tmp_path: Path) -> None:
-    command = build_command(
-        harbor='harbor', dataset='probe', env_file=tmp_path / '.env',
-        output_dir=tmp_path / 'runs', cache_dir=tmp_path / 'cache',
-        model='probe', base_url='http://example.test', source_dir=tmp_path / 'frozen',
-    )
-    assert f'source_dir={(tmp_path / "frozen").resolve()}' in command
 
 
 def test_summary_distinguishes_kernel_deadline_and_verifier_timeout(tmp_path: Path):

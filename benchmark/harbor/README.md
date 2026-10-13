@@ -23,20 +23,26 @@ Use [`../README.md`](../README.md) for the capability matrix and the required
 report fields. The generic Dataset runner deliberately does not install the
 Aider feedback plugin for SWE-bench or Terminal-Bench.
 
-## Fixed Terminal-Bench comparison
+## Frozen public benchmark runs
 
-`python -m benchmark.harbor.run_terminal` defaults to the controlled ten-task
-set used for ForgeCode kernel comparisons: `break-filter-js-from-html`,
-`build-pov-ray`, `circuit-fibsqrt`, `compile-compcert`,
-`distribution-search`, `make-mips-interpreter`, `overfull-hbox`,
-`path-tracing`, `protein-assembly`, and `video-processing`. The default is
-concurrency 10, Harbor retry 3, model `gpt-5.6-luna`, context window 128000,
-maximum output 16384, 120 model calls, 240 tool calls, 1800 seconds per task,
-setup multiplier 12, and 8 installation retries with a 30-second interval.
-The cache defaults to `benchmark/.cache/harbor` on the same drive as this
-checkout, and `--force-build` is not added automatically. Record the exact
-dataset revision, code commit, raw reward, verifier execution status, and
-infrastructure classification for every comparison round.
+Terminal-Bench 2.0 and SWE-bench Verified use Harbor **0.18.0** on Linux/WSL
+with Docker. Choose exactly one scope: repeated `--task` IDs, `--n-tasks N`,
+or `--all`. There is no implicit model or task subset. Defaults are concurrency
+1, one attempt, zero task retries, 120 model requests, 240 tool calls and 1800
+agent seconds per task; the official task deadline remains an upper bound.
+Model settings use `ForgeConfig`: explicit options > process > project `.env`
+> user `~/.forge/.env`. The evaluation context defaults to 128000 only when
+unset; `--context-window` overrides it. `--dry-run` shows effective settings
+and prerequisites without downloading tasks or calling a model.
+
+Runs and cache default to `~/.local/share/forgecode/evaluation/` (or XDG data
+home). `--output-dir` selects a new run directory. `experiment.json` records
+the resolved dataset digest, selected task checksums, source and lock hashes,
+model settings, Harness budget and official verifier identity. `harbor.json`
+launches those local frozen tasks; credentials remain environment templates.
+The locked install, structured result and pre-verifier patch paths are enabled.
+`--agent oracle` runs official reference solutions without a model; successful
+offline tests alone do not establish native or live-model acceptance.
 
 The generic dataset runner freezes package bytes once under
 `<output-dir>/.source-snapshots/candidate-*/source` before starting Harbor.
@@ -62,7 +68,7 @@ uv run harbor --version
 uv run harbor dataset download aider-polyglot --cache
 ```
 
-The runner reads model settings from `.env`. When the configured provider is
+The public benchmark runner merges user, project and process model settings. When the configured provider is
 on host `localhost`, it automatically rewrites the container endpoint to
 `host.docker.internal` without changing `.env`.
 

@@ -9,6 +9,7 @@ import shlex
 import shutil
 from time import monotonic
 from typing import Final, override
+from uuid import uuid4
 
 from harbor.agents.installed.base import BaseInstalledAgent, with_prompt_template
 from harbor.environments.base import BaseEnvironment
@@ -100,7 +101,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
         self._package = package
         self._frozen_configuration = json.loads(frozen_configuration) if frozen_configuration else None
-        if package is not None and (self._frozen_configuration or {}).get('plan'):
+        if package is not None and self._frozen_configuration:
             raise ValueError('A bound RunSpec requires its frozen local source, not a package override.')
         self._phase_deadline: float | None = None
 
@@ -177,6 +178,13 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
         await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
         if self._frozen_configuration:
+            if 'run_id' in self._frozen_configuration:
+                self._frozen_configuration['scope'] = {
+                    'run_id': self._frozen_configuration['run_id'],
+                    'trial_id': str(self.context_id or self.logs_dir.parent.name),
+                    'trace_id': uuid4().hex, 'span_id': uuid4().hex[:16],
+                }
+                self._frozen_configuration['attempt_id'] = 'attempt-' + str(uuid4())
             frozen=self.logs_dir/'forgecode-harness.json'
             frozen.write_text(json.dumps(self._frozen_configuration),encoding='utf-8')
             await environment.upload_file(frozen,'/installed-agent/forgecode-harness.json')
@@ -223,13 +231,15 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         if source is None:
             raise ValueError('No local ForgeCode source directory is available.')
         plan = (self._frozen_configuration or {}).get('plan')
+        manifest = (self._frozen_configuration or {}).get('source_manifest')
         if plan:
             from benchmark.adapters.harbor import export_runspec
-            from benchmark.harbor.snapshot import verify_frozen_source
             expected = export_runspec(plan['spec'], plan['resolved_snapshots'])
             if plan['spec_hash'] != expected['spec_hash']:
                 raise ValueError('Frozen plan hash changed before staging')
             manifest = plan['resolved_snapshots']['source']['manifest']
+        if manifest is not None:
+            from benchmark.harbor.snapshot import verify_frozen_source
             verify_frozen_source(source, manifest)
         required = (
             source / 'pyproject.toml',
@@ -273,7 +283,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             shutil.copy2(source/'uv.lock',staged/'uv.lock')
         if (source/'benchmark/catalog.py').is_file():
             shutil.copy2(source/'benchmark/catalog.py',staged/'benchmark/catalog.py')
-        if plan:
+        if manifest is not None:
             verify_frozen_source(staged, manifest)
         return staged
 
@@ -311,6 +321,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             'export FORGE_PROVIDER="${FORGECODE_PROVIDER:-anthropic}"; '
             'export FORGE_REASONING_EFFORT="${FORGECODE_REASONING_EFFORT:-}"; '
             'export MODEL_ID="${FORGECODE_MODEL}"; '
+            'export FORGE_MODEL="${FORGECODE_MODEL}"; '
             'export ANTHROPIC_BASE_URL="${FORGECODE_BASE_URL}"; '
             'export FORGE_BASE_URL="${FORGECODE_BASE_URL}"; '
             'export MODEL_MAX_TOKENS="${FORGECODE_MODEL_MAX_TOKENS:-16384}"; '

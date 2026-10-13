@@ -5,10 +5,10 @@
   "development_branch": "main",
   "current_task": "T01",
   "next_recommended_task": null,
-  "delivery_stage": "E00",
+  "delivery_stage": "E01",
   "delivery_stages": {
-    "E00": "verified_pending_ci",
-    "E01": "pending",
+    "E00": "complete_ci_38381398509",
+    "E01": "verified_pending_ci",
     "E02": "pending",
     "E03": "pending",
     "E04": "pending",
@@ -26,7 +26,7 @@
       "verification": {},
       "evidence_ids": [],
       "blocked_reasons": [
-        "Ubuntu 22.04/24.04 native acceptance and live model experiments remain unverified."
+        "WSL Docker socket access is denied; E05 native benchmark and live-model acceptance remain pending explicit authorization."
       ]
     },
     "T02": {

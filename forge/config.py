@@ -35,6 +35,29 @@ class ConfigurationError(ValueError):
     '''Raised when ForgeCode model configuration is incomplete or invalid.'''
 
 
+def model_environment(project_env: Path | None = None,
+                      overrides: Mapping[str, str] | None = None) -> dict[str, str]:
+    """Merge the shared user/project/process/explicit model configuration."""
+    project_env = project_env or Path.cwd() / '.env'
+    layers = [read_user_config(),
+              dotenv_values(project_env) if project_env.is_file() else {},
+              dict(os.environ), dict(overrides or {})]
+    source = {key: value for layer in layers for key, value in layer.items() if value is not None}
+    provider = source.get('FORGE_PROVIDER', 'anthropic')
+    aliases = [('FORGE_API_KEY', {'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
+                                 'deepseek': 'DEEPSEEK_API_KEY'}.get(provider)),
+               ('FORGE_MODEL', 'MODEL_ID'),
+               ('FORGE_BASE_URL', {'anthropic': 'ANTHROPIC_BASE_URL', 'openai_responses': 'OPENAI_BASE_URL',
+                                  'deepseek': 'DEEPSEEK_BASE_URL'}.get(provider))]
+    for canonical, specific in aliases:
+        for layer in reversed(layers):
+            if any(name in layer and layer[name] is not None for name in (canonical, specific)):
+                source.pop(specific, None)
+                source[canonical] = layer.get(canonical) or layer.get(specific) or ''
+                break
+    return source
+
+
 def initialize_user_config() -> bool:
     """Create an empty user configuration once, without touching existing settings."""
     path = FORGECODE_ENV_PATH
@@ -143,25 +166,7 @@ class ForgeConfig:
         '''Load settings from the environment or the nearest supported .env.'''
         if environ is None:
             project_env = Path.cwd() / '.env'
-            inherited = dict(os.environ)
-            global_values = read_user_config()
-            project_values = dotenv_values(project_env) if project_env.is_file() else {}
-            layers = [global_values, project_values, inherited]
-            source = {key: value for layer in layers for key, value in layer.items() if value is not None}
-            provider = source.get('FORGE_PROVIDER', 'anthropic')
-            # Alias names must respect the same global < project < process priority.
-            aliases = [('FORGE_API_KEY', {'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
-                                         'deepseek': 'DEEPSEEK_API_KEY'}.get(provider)),
-                       ('FORGE_MODEL', 'MODEL_ID'),
-                       ('FORGE_BASE_URL', {'anthropic': 'ANTHROPIC_BASE_URL', 'openai_responses': 'OPENAI_BASE_URL',
-                                          'deepseek': 'DEEPSEEK_BASE_URL'}.get(provider))]
-            for canonical, specific in aliases:
-                for layer in reversed(layers):
-                    if any(name in layer and layer[name] is not None for name in (canonical, specific)):
-                        value = layer.get(canonical) or layer.get(specific) or ''
-                        source.pop(specific, None)
-                        source[canonical] = value
-                        break
+            source = model_environment(project_env)
             # Hooks/channels retain the existing project dotenv environment behavior.
             if project_env.is_file():
                 load_dotenv(dotenv_path=project_env, override=False)

@@ -107,11 +107,6 @@ def test_journal_tail_refuses_corruption_without_mutating(tmp_path, suffix):
 
 
 def test_reasoning_override_is_in_container_command(tmp_path):
-    from benchmark.harbor.run_dataset import build_command
-    command = build_command(harbor='harbor', dataset='offline', env_file=tmp_path / 'env',
-                            output_dir=tmp_path, cache_dir=tmp_path, model='offline',
-                            base_url='http://localhost', reasoning_effort='high')
-    assert 'FORGECODE_REASONING_EFFORT=high' in command
     from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
     script = ForgeCodeHarborAgent(logs_dir=tmp_path)._run_command('Offline test')
     assert 'export FORGE_REASONING_EFFORT="${FORGECODE_REASONING_EFFORT:-}"' in script

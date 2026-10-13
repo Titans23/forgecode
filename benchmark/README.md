@@ -21,43 +21,40 @@ uv run python -m benchmark list --json
 也可以通过统一入口选择一个已接入的基准；其余参数会原样转发给对应
 runner：
 
-```powershell
-uv run python -m benchmark run swe-bench-verified --n-tasks 1 --concurrency 1
-uv run python -m benchmark run terminal-bench-2 --n-tasks 1 --concurrency 1
+```bash
+uv run python -m benchmark run swe-bench-verified --n-tasks 1 --dry-run
+uv run python -m benchmark run terminal-bench-2 --n-tasks 1 --dry-run
 ```
 
 ## 运行前准备
 
-```powershell
-uv sync
+以下公开基准命令在 WSL/Linux 终端执行，使用独立环境，不复用 Windows `.venv`：
+
+```bash
+export UV_PROJECT_ENVIRONMENT="$HOME/.local/share/forgecode/evaluation/.venv"
+uv sync --locked --extra evaluation --python 3.12.13
 docker version
 uv run harbor --version
 ```
 
-`.env` 至少需要包含 `MODEL_ID` 和 `ANTHROPIC_BASE_URL`。API key 仍然从
-`ANTHROPIC_API_KEY` 读取；runner 只通过 Harbor 的环境变量映射传递，不把
-密钥写入命令行参数或结果文件。
+Terminal-Bench 2.0 和 SWE-bench Verified 固定 Harbor 0.18.0，在 WSL/Linux + Docker
+运行。模型配置复用 `forge config setup` 的用户配置，项目 `.env`、进程环境与显式
+参数按优先级覆盖；密钥只通过环境变量传递。默认运行数据保存在用户数据目录，
+不进入 Git。必须指定 `--task`、`--n-tasks` 或 `--all`。
 
 先用单任务验证安装和模型连通性，再扩大规模：
 
-```powershell
-uv run python -m benchmark.harbor.run_swebench `
-  --n-tasks 1 `
-  --concurrency 1 `
-  --output-dir benchmark/runs/harbor/swe-bench-smoke
-
-uv run python -m benchmark.harbor.run_terminal `
-  --n-tasks 1 `
-  --concurrency 1 `
-  --output-dir benchmark/runs/harbor/terminal-bench-smoke
+```bash
+uv run python -m benchmark.harbor.run_swebench --n-tasks 1
+uv run python -m benchmark.harbor.run_terminal --n-tasks 1
 ```
 
-正式运行前可用 `--dry-run` 检查 Harbor 命令。`--task` 可以重复传入，
+正式运行前可用 `--dry-run` 检查有效配置和环境前置条件。`--task` 可以重复传入，
 也可以用 `--n-tasks` 做小规模 smoke/stratified run：
 
-```powershell
-uv run python -m benchmark.harbor.run_swebench `
-  --task <harbor-task-name> `
+```bash
+uv run python -m benchmark.harbor.run_swebench \
+  --task '<exact-harbor-task-id>' \
   --dry-run
 ```
 
@@ -65,21 +62,14 @@ uv run python -m benchmark.harbor.run_swebench `
 
 SWE-bench Verified 不使用 Aider 专用的 feedback repair：
 
-```powershell
-uv run python -m benchmark.harbor.run_swebench `
-  --concurrency 1 `
-  --max-retries 3 `
-  --output-dir benchmark/runs/harbor/swe-bench-verified
+```bash
+uv run python -m benchmark.harbor.run_swebench --all
 ```
 
-Terminal-Bench 任务更广、资源差异更大，建议先单并发；如果使用云沙箱，
-可传 Harbor 支持的 `--environment`，例如 `--environment daytona`：
+Terminal-Bench 默认单并发、每题一次、任务级重试 0；当前公开基准协议使用本机 Docker：
 
-```powershell
-uv run python -m benchmark.harbor.run_terminal `
-  --concurrency 4 `
-  --environment daytona `
-  --output-dir benchmark/runs/harbor/terminal-bench
+```bash
+uv run python -m benchmark.harbor.run_terminal --all
 ```
 
 Aider Polyglot 保留原有入口和一次 verifier-feedback repair 协议：

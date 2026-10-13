@@ -125,6 +125,10 @@ async def run_turn(
                 context_window=harness['max_context_tokens'],reasoning_effort=parameters['reasoning_effort'])
             runtime_bindings=RuntimeBindings(config=config,data_root=Path(os.environ['FORGE_DATA_DIR']),trusted_extensions=False,
                 permission_manager=PermissionManager(project,load_stored_rules=False))
+        if frozen_configuration.get('model'):
+            actual = {key: value for key, value in asdict(runtime_bindings.config).items() if key != 'api_key'}
+            if actual != frozen_configuration['model']:
+                raise ValueError('Actual model configuration differs from frozen experiment')
         if bound_plan:
             config=runtime_bindings.config
             model=bound_plan['spec']['model']
