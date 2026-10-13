@@ -73,6 +73,7 @@ class SessionJournal:
         sequence: int = 0,
         parent_uuid: str | None = None,
         inline_payload_bytes: int = DEFAULT_INLINE_PAYLOAD_BYTES,
+        deferred: bool = False,
     ) -> None:
         self.path = path
         self.session_id = session_id
@@ -85,7 +86,23 @@ class SessionJournal:
         self._tool_started_ids: set[str] = set()
         self._tool_completed_ids: set[str] = set()
         self.read_only = False
+        self._pending: list[tuple[str, dict[str, Any]]] | None = [] if deferred else None
         self._hydrate_tool_event_ids()
+
+    @property
+    def deferred(self) -> bool:
+        return self._pending is not None
+
+    def commit(self) -> None:
+        """Persist a new interactive session before its first actual turn."""
+        if self._pending is None:
+            return
+        with exclusive_append(self.path):
+            while self._pending:
+                kind, payload = self._pending[0]
+                self._append_locked(kind, payload)
+                self._pending.pop(0)
+        self._pending = None
 
     def _hydrate_tool_event_ids(self) -> None:
         '''Load prior tool ids so resumed compatibility events stay idempotent.'''
@@ -329,6 +346,10 @@ class SessionJournal:
     def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         if self.read_only:
             raise SessionError('Legacy sessions are read-only. Fork this session to continue in the new format.')
+        if self._pending is not None:
+            if event_type != 'session_stopped':
+                self._pending.append((event_type, payload))
+            return {}
         try:
             with exclusive_append(self.path):
                 return self._append_locked(event_type, payload)
@@ -469,8 +490,9 @@ class SessionStore:
         model: str,
         name: str | None = None,
         provider: str = '',
+        deferred: bool = False,
     ) -> SessionJournal:
-        if self.index_path.exists():
+        if not deferred and self.index_path.exists():
             self.index_path.unlink()
         session_id = f'session-{uuid4().hex[:24]}'
         path = self.directory / f'{session_id}.jsonl'
@@ -478,6 +500,7 @@ class SessionStore:
             path,
             session_id=session_id,
             project_root=self.project_root,
+            deferred=deferred,
         )
         journal.append(
             'session_started',
@@ -504,7 +527,7 @@ class SessionStore:
         journal = self.create(model=model, name=name, provider=provider or source.info.provider)
         journal.append(
             'session_forked',
-            {'source_session_id': source.info.session_id},
+            {'source_session_id': source.info.session_id, 'source_sequence': source.info.sequence},
         )
         journal.append('message_checkpoint', {'messages': messages})
         journal.record_task_state(task)
@@ -583,13 +606,72 @@ class SessionStore:
             )
         return tuple(history)
 
+    def transcript(self, identifier: str, *, through: int | None = None,
+                   ancestors: frozenset[str] = frozenset()) -> tuple[list[dict[str, Any]], list[str]]:
+        """Read visible history without substituting compacted model context."""
+        state = self.load(identifier)
+        if state.info.session_id in ancestors:
+            raise SessionCorruptError('Session ancestry contains a cycle.')
+        ancestors = ancestors | {state.info.session_id}
+        messages: list[dict[str, Any]] = []
+        notices: list[str] = []
+        checkpoints: dict[str, int] = {}
+        turn_prompt = False
+        turn_boundary = 0
+        for record in self._read_records(state.info.path):
+            if through is not None and record['sequence'] > through:
+                break
+            kind = record['type']
+            if kind not in {'session_forked', 'turn_started', 'user_message', 'assistant_message',
+                            'tool_result_message', 'message_checkpoint', 'checkpoint_created',
+                            'conversation_rewound'}:
+                continue
+            payload = self._payload(record, state.info.path)
+            if kind == 'session_forked':
+                if payload.get('source_sequence') is not None:
+                    try:
+                        messages, parent_notices = self.transcript(payload['source_session_id'],
+                            through=payload['source_sequence'], ancestors=ancestors)
+                        notices.extend(parent_notices)
+                    except SessionError:
+                        notices.append('Parent session history is unavailable; showing saved branch context.')
+                else:
+                    notices.append('Older branch has no historical boundary; showing its saved context.')
+            elif kind == 'turn_started':
+                turn_boundary = len(messages)
+                messages.append({'role': 'user', 'content': payload.get('prompt', '')})
+                turn_prompt = True
+            elif kind == 'user_message':
+                message = message_from(payload)
+                if turn_prompt and messages and messages[-1] == message:
+                    pass
+                else:
+                    messages.append(message)
+                turn_prompt = False
+            elif kind in {'assistant_message', 'tool_result_message'}:
+                messages.append(message_from(payload))
+                turn_prompt = False
+            elif kind == 'message_checkpoint' and not messages:
+                messages = list(payload.get('messages') or [])
+            elif kind == 'checkpoint_created':
+                # Checkpoints restore the conversation before this turn.
+                checkpoints[payload['checkpoint_id']] = turn_boundary
+            elif kind == 'conversation_rewound':
+                boundary = checkpoints.get(payload.get('checkpoint_id', ''))
+                if boundary is not None:
+                    messages = messages[:boundary]
+                else:
+                    messages = list(payload.get('messages') or [])
+                    notices.append('Rewind history boundary unavailable; showing saved context.')
+                turn_prompt = False
+        return messages, list(dict.fromkeys(notices))
+
     def latest(self) -> SessionState:
-        sessions = self.list()
-        if not sessions:
-            raise SessionNotFoundError(
-                f'No saved ForgeCode session for {self.project_root}'
-            )
-        return self.load(sessions[0].session_id)
+        for info in self.list():
+            state = self.load(info.session_id)
+            if state.messages or state.active_task is not None:
+                return state
+        raise SessionNotFoundError(f'No saved ForgeCode conversation for {self.project_root}')
 
     def load(self, identifier: str) -> SessionState:
         clean_identifier = identifier.strip()
@@ -640,6 +722,9 @@ class SessionStore:
             payload = json.loads(self.index_path.read_text(encoding='utf-8'))
             entries = payload['sessions']
             if not isinstance(entries, list):
+                return None
+            if {path.stem for path in self.directory.glob('session-*.jsonl')} != {
+                    entry.get('session_id') for entry in entries if isinstance(entry, dict)}:
                 return None
             sessions: list[SessionInfo] = []
             for entry in entries:

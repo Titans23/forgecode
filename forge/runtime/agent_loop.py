@@ -493,6 +493,8 @@ class Conversation:
 
     async def session_start(self, *, source: str = 'new') -> None:
         '''Emit SessionStart at most once for the active session.'''
+        if self.session_journal is not None and self.session_journal.deferred:
+            return
         if self._hooks_started:
             return
         self._hooks_started = True
@@ -519,6 +521,7 @@ class Conversation:
         self._hooks_started = False
 
     async def session_resume_with_hooks(self, identifier: str) -> str:
+        self._resume_target(identifier)
         await self.session_end(reason='resume')
         notice = self.session_resume(identifier)
         if self.mcp_manager is not None:
@@ -832,6 +835,8 @@ class Conversation:
     def session_history(self) -> str:
         if self.session_store is None or self.session_journal is None:
             return 'Session persistence is unavailable.'
+        if self.session_journal.deferred:
+            return 'No conversation history yet.'
         events = self.session_store.history(
             self.session_journal.session_id
         )
@@ -867,7 +872,7 @@ class Conversation:
         cleaned = self.session_journal.rename(name)
         return f'Renamed session to {cleaned}.'
 
-    def session_resume(self, identifier: str) -> str:
+    def _resume_target(self, identifier: str):
         if self.session_store is None:
             raise ValueError('Session persistence is unavailable.')
         state, journal = self.session_store.open(identifier)
@@ -875,16 +880,17 @@ class Conversation:
             raise ValueError('Legacy sessions are read-only; fork one before continuing.')
         if state.info.provider and state.info.provider != getattr(self.client, 'provider', ''):
             raise ValueError('This session uses a different provider; open it with its profile or fork it.')
-        if (
-            self.session_journal is not None
-            and state.info.session_id == self.session_journal.session_id
-        ):
-            return f'Session {state.info.session_id} is already active.'
         if not state.messages and state.active_task is None:
             raise ValueError(
                 f'Session {state.info.session_id} has no resumable '
                 'conversation history.'
             )
+        return state, journal
+
+    def session_resume(self, identifier: str) -> str:
+        state, journal = self._resume_target(identifier)
+        if self.session_journal is not None and state.info.session_id == self.session_journal.session_id:
+            return f'Session {state.info.session_id} is already active.'
         if self.session_journal is not None:
             self.session_journal.record_stopped()
         self.messages[:] = list(state.messages)
@@ -917,6 +923,8 @@ class Conversation:
     def session_branch(self, name: str | None = None) -> str:
         if self.session_store is None or self.session_journal is None:
             raise ValueError('Session persistence is unavailable.')
+        if self.session_journal.deferred:
+            raise ValueError('Start a conversation before creating a branch.')
         source = self.session_store.load(self.session_journal.session_id)
         model = str(getattr(self.client, 'model', source.info.model))
         journal = self.session_store.fork(
@@ -949,7 +957,10 @@ class Conversation:
         previous_id = self.session_journal.session_id
         self.session_journal.record_stopped()
         model = str(getattr(self.client, 'model', ''))
-        journal = self.session_store.create(model=model, provider=str(getattr(self.client, 'provider', '')))
+        journal = self.session_store.create(
+            model=model, provider=str(getattr(self.client, 'provider', '')),
+            deferred=getattr(self, 'defer_new_sessions', False),
+        )
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
         if self.mcp_manager is not None:

@@ -549,6 +549,36 @@ def test_session_commands_do_not_call_model(
     assert conversation.prompts == []
 
 
+@pytest.mark.parametrize('commands', ['', '\n\n', '/history\n/clear\n', '/resume\n'])
+def test_empty_interactive_start_does_not_create_sessions_or_trajectories(monkeypatch, commands):
+    from forge.sessions.trajectory import TrajectoryRecorder
+    monkeypatch.setattr(cli_module, 'create_trajectory_recorder', TrajectoryRecorder.create)
+    for _ in range(2):
+        result = runner.invoke(app, [], input=commands)
+        assert result.exit_code == 0, result.output
+    assert SessionStore(Path.cwd()).list() == ()
+    assert not list(Path.cwd().rglob('session-*.jsonl'))
+    assert not (Path.cwd() / '.forge/trajectories').exists()
+
+
+@pytest.mark.parametrize('arguments,commands', [
+    (['--continue'], ''), (['--resume', 'saved'], ''),
+    ([], '/resume saved\n'), ([], '/resume saved\n/history all\n'),
+])
+def test_resume_renders_saved_turns_without_creating_a_session(arguments, commands):
+    store = SessionStore(Path.cwd())
+    journal = store.create(model='test-model', name='saved')
+    for i in range(12):
+        journal.record_user_message({'role': 'user', 'content': f'old-question-{i:02}'}, None)
+        journal.record_assistant_message({'role': 'assistant', 'content': f'old-answer-{i:02}'})
+    empty = store.create(model='test-model')
+    result = runner.invoke(app, arguments, input=commands)
+    assert result.exit_code == 0, result.output
+    assert 'old-question-02' in result.output and 'old-answer-11' in result.output
+    assert ('old-question-00' in result.output) == ('/history all' in commands)
+    assert {s.session_id for s in store.list()} == {journal.session_id, empty.session_id}
+
+
 def test_resume_options_exclude_empty_sessions(tmp_path: Path) -> None:
     root = tmp_path / 'project'
     root.mkdir()

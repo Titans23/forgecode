@@ -49,6 +49,27 @@ def terminal_with_output() -> tuple[TerminalUI, StringIO]:
     return TerminalUI(console=console), output
 
 
+def test_saved_history_limits_user_turns_and_summarizes_tools():
+    terminal, output = terminal_with_output()
+    messages = []
+    for i in range(12):
+        messages.extend([{'role': 'user', 'content': f'question-{i:02}'},
+                         {'role': 'assistant', 'content': f'answer-{i:02}'}])
+    messages.extend([
+        {'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'call', 'name': 'read_file', 'input': {}}]},
+        {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'call', 'content': 'x' * 500}]},
+    ])
+    terminal.show_history('session-test', messages)
+    visible = output.getvalue()
+    assert 'question-00' not in visible and 'question-02' in visible
+    assert '2 earlier turn(s)' in visible and '/history all' in visible
+    assert 'read_file' in visible and 'completed' in visible and 'x' * 201 not in visible
+    output.seek(0)
+    output.truncate()
+    terminal.show_history('session-test', messages, limit=None)
+    assert 'question-00' in output.getvalue()
+
+
 def test_delete_permission_prompt_is_concise_and_one_shot(
     monkeypatch,
 ) -> None:

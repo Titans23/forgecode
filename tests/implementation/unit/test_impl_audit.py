@@ -22,7 +22,8 @@ def test_audit_discovers_root_from_another_cwd_and_preserves_user_files(tmp_path
     # repository while this audit is running. Its user's Git/content state must
     # remain unchanged, including staged, unstaged and untracked modifications.
     repository=tmp_path/'repository'
-    subprocess.run(['git','-c','core.longpaths=true','clone','--quiet','--local','--no-hardlinks',str(SCRIPT.parent.parent),str(repository)],check=True)
+    # Share read-only Git objects; the fixture still owns its index and worktree.
+    subprocess.run(['git','-c','core.longpaths=true','clone','--quiet','--local','--shared',str(SCRIPT.parent.parent),str(repository)],check=True)
     tracked=repository/'README.md';tracked.write_bytes(b'controlled staged user edit\r\n')
     subprocess.run(['git','add','README.md'],cwd=repository,check=True)
     tracked.write_bytes(tracked.read_bytes()+b'controlled unstaged user edit\r\n')

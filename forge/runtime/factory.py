@@ -42,6 +42,7 @@ def create_runtime(
     conversation_factory: Callable[..., Conversation] | None = None,
     task_relation: str | None = None,
     bindings: RuntimeBindings | None = None,
+    defer_new_session: bool = False,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Create a Conversation and all dependencies for any product surface.'''
     if model_override is not None and not fork_session:
@@ -70,6 +71,9 @@ def create_runtime(
 
     if continue_session or resume_identifier is not None:
         state, journal = store.open(resume_identifier)
+        if defer_new_session and not state.messages and state.active_task is None:
+            from forge.sessions.store import SessionError
+            raise SessionError('Session has no resumable conversation history.')
         if journal.read_only and not fork_session:
             from forge.sessions.store import SessionError
             raise SessionError('Legacy sessions are read-only; use --fork-session with --resume to continue.')
@@ -134,7 +138,8 @@ def create_runtime(
         task_policy=task_policy,
         **options,
     )
-    journal = store.create(model=str(getattr(model, 'model', '')), provider=config.provider)
+    journal = store.create(model=str(getattr(model, 'model', '')), provider=config.provider,
+                           deferred=defer_new_session)
     conversation.session_journal = journal
     conversation.session_store = store
     conversation.checkpoint_store = CheckpointStore.for_session(

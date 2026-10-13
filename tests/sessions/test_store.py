@@ -15,6 +15,47 @@ from forge.sessions.store import (
 from forge.tasks.state import ActiveTask
 
 
+def test_deferred_session_only_persists_when_committed(tmp_path):
+    store = SessionStore(tmp_path, data_root=tmp_path / 'data')
+    journal = store.create(model='test', deferred=True)
+    journal.rename('pending')
+    journal.record_stopped()
+    assert not store.directory.exists()
+    store.directory.mkdir(parents=True)
+    assert store.list() == ()
+    journal.commit()
+    journal.record_user_message({'role': 'user', 'content': 'hello'}, None)
+    journal.commit()
+    assert store.list()[0].session_id == journal.session_id
+    empty = store.create(model='test')
+    assert store.latest().info.session_id == journal.session_id
+    assert store.load(journal.session_id).info.name == 'pending'
+    assert sum(r['type'] == 'session_started' for r in store._read_records(journal.path)) == 1
+    assert empty.path.exists()
+
+
+def test_transcript_keeps_original_text_across_compaction_fork_and_rewind(tmp_path):
+    store = SessionStore(tmp_path, data_root=tmp_path / 'data')
+    journal = store.create(model='test')
+    journal.inline_payload_bytes = 32
+    for i in range(12):
+        journal.record_turn_started(f'question {i}', None)
+        journal.record_checkpoint_created(f'point-{i}', [], None)
+        journal.record_user_message({'role': 'user', 'content': f'question {i}'}, None)
+        journal.record_assistant_message({'role': 'assistant', 'content': f'answer {i}'})
+    journal.record_context_compacted([{'role': 'user', 'content': 'compacted summary'}])
+    branch = store.fork(store.load(journal.session_id), messages=[], task=None, model='test')
+    journal.record_user_message({'role': 'user', 'content': 'later parent message'}, None)
+    messages, notices = store.transcript(branch.session_id)
+    assert len(messages) == 24 and not notices
+    assert messages[0]['content'] == 'question 0'
+    assert messages[-1]['content'] == 'answer 11'
+    journal.append('conversation_rewound', {'checkpoint_id': 'point-2', 'messages': []})
+    messages, notices = store.transcript(journal.session_id)
+    assert [m['content'] for m in messages] == ['question 0', 'answer 0', 'question 1', 'answer 1']
+    assert not notices
+
+
 def test_session_round_trip_restores_messages_and_task(
     tmp_path: Path,
 ) -> None:

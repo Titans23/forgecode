@@ -24,6 +24,7 @@ def test_documented_demo_executes_actual_tools_and_durable_evidence(tmp_path):
         capture_output=True,text=True,encoding='utf-8',timeout=60)
     assert result.returncode==0,result.stderr
     report=json.loads((target/'demo-report.json').read_text(encoding='utf-8'))
+    assert json.loads(result.stdout)==report
     assert report['status']=='pass' and all(report['checks'].values())
     assert report['origin']=='scripted' and report['mode']=='local-trusted'
     assert report['eligible_for_benchmark'] is False and report['sandbox_acceptance']=='blocked'

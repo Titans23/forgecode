@@ -108,6 +108,13 @@ class TurnRunner:
 
     async def _prepare_turn(self, prompt: str) -> None:
         c = self.conversation
+        if self.journal is not None:
+            self.journal.commit()
+            self.journal.record_turn_started(prompt, c.task_manager.active)
+        user_message = {'role': 'user', 'content': prompt}
+        self.messages.append(user_message)
+        if self.journal is not None:
+            self.journal.record_user_message(user_message, c.task_manager.active)
         from forge.observability.events import current
         recorder=current()
         if self.journal is not None or c.event_recorder is not None or recorder:
@@ -119,8 +126,6 @@ class TurnRunner:
             c.tool_executor.checkpoint_store = c.checkpoint_store
         c.permission_manager.bind_session(self.journal)
         await c.session_start(source='stream')
-        if self.journal is not None:
-            self.journal.record_turn_started(prompt, c.task_manager.active)
         c._persisted_event_keys.clear()
         decision = None
         router = c.intent_router
@@ -141,7 +146,7 @@ class TurnRunner:
                 self._check_budget()
                 self.state.record_model_request(stage='routing')
             try:
-                routed = await router.route(prompt, c.task_manager.active, self.messages)
+                routed = await router.route(prompt, c.task_manager.active, self.messages[:-1])
             finally:
                 if original_client is not None:
                     router.client = original_client
@@ -180,10 +185,8 @@ class TurnRunner:
             self.checkpoint_id = c.checkpoint_store.begin()
             if self.journal is not None:
                 self.journal.record_checkpoint_created(self.checkpoint_id, c.messages, c.task_manager.active)
-        user_message = {'role': 'user', 'content': prompt}
-        self.messages.append(user_message)
         if self.journal is not None:
-            self.journal.record_user_message(user_message, c.task_manager.active)
+            self.journal.record_task_state(c.task_manager.active)
         if self.tracker is not None:
             await self.tracker.begin_turn()
             if previous is not None and decision is not None and decision.intent == 'continue_task':

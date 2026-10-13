@@ -56,6 +56,7 @@ SLASH_COMMANDS = (
     SlashCommandSpec('/resume ', '/resume [session]', '选择并切换会话上下文'),
     SlashCommandSpec('/status', '/status', '查看当前会话状态'),
     SlashCommandSpec('/history', '/history', '查看当前会话历史'),
+    SlashCommandSpec('/history all', '/history all', '显示完整对话'),
     SlashCommandSpec('/rename ', '/rename name', '重命名当前会话'),
     SlashCommandSpec('/branch ', '/branch [name]', '从当前上下文创建会话分支'),
     SlashCommandSpec('/clear', '/clear', '保存当前会话并开始空白会话'),
@@ -436,6 +437,43 @@ class TerminalUI:
             '[dim]Ask a question or describe a coding task.[/]'
         )
         self.console.print()
+
+    def show_history(self, session_id, messages, *, notices=(), limit=10):
+        """Render saved conversation without replaying model or tool operations."""
+        starts = [i for i, message in enumerate(messages) if message.get('role') == 'user'
+                  and (isinstance(message.get('content'), str) or any(
+                      block.get('type') == 'text' for block in message.get('content', [])
+                      if isinstance(block, dict)))]
+        omitted = max(0, len(starts) - limit) if limit is not None else 0
+        start = starts[omitted] if omitted else 0
+        self.console.print(Text(f'History · {session_id}', style='bold cyan'))
+        if omitted:
+            self.console.print(Text(f'{omitted} earlier turn(s) omitted. Use /history all to view them.', style='dim'))
+        for notice in notices:
+            self.console.print(Text(notice, style='yellow'))
+        tools = {}
+        for message in messages[start:]:
+            role, content = message.get('role'), message.get('content')
+            if role not in {'user', 'assistant'}:
+                continue
+            blocks = [{'type': 'text', 'text': content}] if isinstance(content, str) else content or []
+            for block in blocks:
+                kind = block.get('type')
+                if kind == 'text' and block.get('text'):
+                    self.console.print(Text('You' if role == 'user' else 'ForgeCode', style='bold cyan' if role == 'user' else 'bold'))
+                    self.console.print(Markdown(block['text']))
+                elif kind == 'tool_use':
+                    tools[block.get('id')] = block.get('name', 'tool')
+                    self.console.print(Text(f"Tool · {block.get('name', 'tool')}", style='dim'))
+                elif kind == 'tool_result':
+                    result = block.get('content', '')
+                    if isinstance(result, list):
+                        result = ' '.join(str(item.get('text', '')) for item in result if isinstance(item, dict))
+                    brief = ' '.join(str(result).split())[:200]
+                    name = tools.get(block.get('tool_use_id'), 'tool')
+                    status = 'failed' if block.get('is_error') else 'completed'
+                    self.console.print(Text(f'{name} · {status}: {brief}', style='dim'))
+        self.console.print(Text('End of saved history', style='dim'))
 
     def read_prompt(self) -> str:
         '''Read one message, preserving bracketed multi-line terminal paste.'''

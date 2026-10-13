@@ -42,7 +42,8 @@ SYMBOLS = {
 }
 SUITES = {
     'audit': ['tests/implementation/unit/test_impl_audit.py'],
-    'unit': ['tests/implementation/unit', 'tests/test_api.py', 'tests/test_cli.py'],
+    'unit': ['tests/implementation/unit', 'tests/test_api.py', 'tests/test_cli.py',
+             'tests/sessions', 'tests/test_terminal.py'],
     'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
     'regression': ['tests'],
     'terminal-native': ['tests/native/verify_terminal_native.py'],

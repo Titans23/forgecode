@@ -263,7 +263,11 @@ def test_existing_cli_signatures_and_original_tool_schemas_match_f25_golden(tmp_
         actual = list(inspect.signature(function).parameters)
         previous = baseline['parameters'][function.__name__]
         assert actual[:len(previous)] == previous
-        assert actual[len(previous):] == (['sandbox', 'approval', 'read_root', 'write_root'] if function is main else [])
+        additions = ['sandbox', 'approval', 'read_root', 'write_root'] if function is main else (
+            ['defer_new_session'] if function is create_runtime else [])
+        assert actual[len(previous):] == additions
+        if function is create_runtime:
+            assert inspect.signature(function).parameters['defer_new_session'].default is False
 
 
 def test_actual_history_cli_requires_preview_hash_and_imports_twice_without_duplicate(tmp_path):

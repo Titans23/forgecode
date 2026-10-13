@@ -14,6 +14,11 @@ Prepare development dependencies with uv sync --locked --all-extras --group dev,
 npm ci --ignore-scripts, and uv run --no-sync python scripts/build_bridge.py.
 Run checks appropriate to the change. Add behavior tests for code changes;
 document-only edits need reference and consistency checks, not new tests.
+During development run changed behavior, failures and related modules. Once
+stable, run the relevant regression once, push and check CI. Do not repeat the
+full suite on Windows, WSL and CI by default; expand it for shared-core changes
+or uncovered risks. Use JUnit timings to reduce duplicate setup, retaining
+persistence, permissions, cancellation, contracts and data-isolation coverage.
 
 Keep documentation small:
 - README and docs/install/terminal-quickstart.md explain installation and use.

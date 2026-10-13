@@ -70,6 +70,10 @@ forge --continue --fork-session
 
 会话中使用 `/context`、`/compact`、`/task`、`/history`、`/rename NAME`、`/resume`；Ctrl+C 停止并清理进程。既有 Journal 保存已提交上下文和执行事实；中断且没有完成记录的工具不会自动重放。
 
+新交互会话在首次提交对话时才保存；直接退出或仅查看历史不会生成空会话。
+恢复会话默认显示最近 10 轮，`/history all` 显示完整可用对话；工具历史以摘要展示，
+不会重新执行。`/clear` 保留旧会话，新会话等待下一次对话再保存。
+
 ## 权限
 
 ```text

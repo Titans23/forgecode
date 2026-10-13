@@ -291,11 +291,8 @@ async def _run_interactive_chat(
         if permission_manager is not None:
             permission_manager.approval_handler = approve_permission
             permission_manager.bind_session(resolved_journal)
-        resolved_recorder = (
-            recorder
-            if recorder is not None
-            else create_trajectory_recorder(Path.cwd())
-        )
+        resolved_recorder = recorder
+        resolved_session.defer_new_sessions = True
         client = getattr(resolved_session, 'client', None)
         model = getattr(client, 'model', 'configured model')
         resolved_terminal.show_welcome(model)
@@ -315,6 +312,7 @@ async def _run_interactive_chat(
                     'had no durable completion record and will not be replayed.'
                 )
             resolved_terminal.show_notice('Session', notice)
+            show_session_history(resolved_session, resolved_terminal)
 
         while True:
             resume_options = build_resume_options(resolved_session)
@@ -366,6 +364,10 @@ async def _run_interactive_chat(
                 )
                 continue
 
+            if prompt.strip() == '/history all':
+                show_session_history(resolved_session, resolved_terminal, limit=None)
+                continue
+
             if prompt.strip() == '/history':
                 resolved_terminal.show_notice(
                     'History',
@@ -393,6 +395,7 @@ async def _run_interactive_chat(
                             resolved_session, selected
                         )
                         resolved_terminal.show_notice('Session', notice)
+                        show_session_history(resolved_session, resolved_terminal)
                     except (OSError, ValueError, SessionError) as error:
                         resolved_terminal.show_error(error)
                 elif not resume_options:
@@ -414,6 +417,7 @@ async def _run_interactive_chat(
                         resolved_session, identifier
                     )
                     resolved_terminal.show_notice('Session', notice)
+                    show_session_history(resolved_session, resolved_terminal)
                 except (OSError, ValueError, SessionError) as error:
                     resolved_terminal.show_error(error)
                 continue
@@ -621,6 +625,8 @@ async def _run_interactive_chat(
                 continue
 
             try:
+                if resolved_recorder is None:
+                    resolved_recorder = create_trajectory_recorder(Path.cwd())
                 with resolved_terminal.stream_response() as response_view:
                     active_response_view = response_view
                     try:
@@ -758,6 +764,7 @@ def create_session_runtime(
         execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
         conversation_factory=Conversation,
+        defer_new_session=True,
         **({'bindings': bindings} if bindings is not None else {}),
     )
 
@@ -802,6 +809,19 @@ async def start_interactive_session_async(
     start = getattr(session, 'session_start', None)
     if start is not None:
         await start(source=source)
+
+
+def show_session_history(session, terminal, *, limit=10):
+    journal = getattr(session, 'session_journal', None)
+    store = getattr(session, 'session_store', None)
+    if store is None or journal is None or journal.deferred:
+        terminal.show_notice('History', 'No saved conversation history.')
+        return
+    try:
+        messages, notices = store.transcript(journal.session_id)
+        terminal.show_history(journal.session_id, messages, notices=notices, limit=limit)
+    except (SessionError, OSError, ValueError) as error:
+        terminal.show_notice('History', f'History unavailable: {error}')
 
 
 async def resume_interactive_session_async(

@@ -51,6 +51,39 @@ class TaskQueryRouter:
         )
 
 
+@pytest.mark.parametrize('failure', [RuntimeError, asyncio.CancelledError])
+def test_first_interactive_turn_is_durable_before_model_failure(tmp_path, failure):
+    store = SessionStore(tmp_path, data_root=tmp_path / 'data')
+    journal = store.create(model='test-model', deferred=True)
+
+    class FailingClient(DummyClient):
+        async def stream(self, messages, **kwargs):
+            assert journal.path.is_file()
+            assert store.latest().messages[0]['content'] == 'keep this request'
+            assert store.transcript(journal.session_id)[0][0]['content'] == 'keep this request'
+            raise failure('offline model failure')
+            yield  # Make the failing provider an async generator.
+
+    async def run():
+        class Router(TaskQueryRouter):
+            async def route(self, prompt, active_task, recent_messages):
+                assert recent_messages == []
+                assert store.latest().messages[0]['content'] == prompt
+                return await super().route(prompt, active_task, recent_messages)
+
+        conversation = Conversation(client=FailingClient(), context_root=tmp_path,
+                                    session_journal=journal, session_store=store, intent_router=Router())
+        await conversation.session_start()
+        assert not journal.path.exists()
+        with pytest.raises(failure, match='offline model failure'):
+            async for _ in conversation.stream('keep this request'):
+                pass
+        assert journal.path.is_file()
+        assert not journal.deferred
+        assert store.transcript(journal.session_id)[0][0]['content'] == 'keep this request'
+    asyncio.run(run())
+
+
 def completed_session(
     root: Path,
     data_root: Path,
@@ -209,6 +242,7 @@ def test_cli_runtime_restores_recorded_model(
     journal = SessionStore(root, data_root=data_root).create(
         model='recorded-model'
     )
+    journal.record_user_message({'role': 'user', 'content': 'A saved conversation'}, None)
 
     conversation, resumed, state = create_session_runtime(
         root,

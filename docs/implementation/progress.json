@@ -3,8 +3,17 @@
   "active_scope": "terminal-harness",
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
-  "current_task": null,
+  "current_task": "T01",
   "next_recommended_task": null,
+  "delivery_stage": "E00",
+  "delivery_stages": {
+    "E00": "verified_pending_ci",
+    "E01": "pending",
+    "E02": "pending",
+    "E03": "pending",
+    "E04": "pending",
+    "E05": "pending"
+  },
   "tasks": {
     "F00": {
       "implementation_status": "implemented",

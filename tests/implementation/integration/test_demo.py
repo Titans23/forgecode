@@ -2,8 +2,6 @@ import asyncio
 from hashlib import sha256
 import json
 from pathlib import Path
-import subprocess
-import sys
 
 import pytest
 
@@ -44,16 +42,6 @@ def test_real_rpc_demo_reads_repairs_and_verifies_without_duplicate_turn(tmp_pat
     # Existing files are not reset on a second demo invocation.
     with pytest.raises(FileExistsError):
         run_demo(path)
-
-
-def test_one_command_demo_runs_and_persists_report(tmp_path):
-    directory = tmp_path / 'command-demo'
-    result = subprocess.run([sys.executable, '-m', 'forge.testing.demo', '--output-dir', str(directory)],
-        capture_output=True, text=True, encoding='utf-8', timeout=90)
-    assert result.returncode == 0, result.stderr
-    report = json.loads(result.stdout)
-    assert report['status'] == 'pass'
-    assert json.loads((directory / 'demo-report.json').read_text()) == report
 
 
 def test_production_default_uses_provider_model_and_strict_readiness(tmp_path):

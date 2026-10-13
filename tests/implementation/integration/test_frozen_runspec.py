@@ -72,28 +72,6 @@ def test_repair_plan_cli_is_offline_and_refuses_to_overwrite(tmp_path):
         methods.store.close()
 
 
-def test_frozen_source_binding_rejects_changed_bytes_and_changed_inventory(tmp_path):
-    from benchmark.harbor.snapshot import verify_frozen_source
-    source = freeze_source(Path(__file__).resolve().parents[3], tmp_path / 'snapshots')
-    manifest = json.loads((source.parent / 'manifest.json').read_text(encoding='utf-8'))
-    verify_frozen_source(source, manifest)
-    changed = source / 'benchmark/catalog.py'
-    original = changed.read_bytes()
-    changed.write_bytes(original + b'\n# changed after planning\n')
-    with pytest.raises(ValueError, match='Frozen source'):
-        verify_frozen_source(source, manifest)
-    changed.write_bytes(original)
-    added = source / 'forge/unplanned.py'
-    added.write_text('raise RuntimeError("unplanned code")', encoding='utf-8')
-    with pytest.raises(ValueError, match='Frozen source'):
-        verify_frozen_source(source, manifest)
-    added.unlink()
-    forged = deepcopy(manifest)
-    forged['content_sha256'] = '0' * 64
-    with pytest.raises(ValueError, match='Frozen source'):
-        verify_frozen_source(source, forged)
-
-
 def test_harbor_materialize_refuses_inconsistent_plan_before_writing_job(tmp_path):
     from benchmark.adapters.harbor import HarborAdapter
     methods, spec = make_evaluation(tmp_path)
@@ -163,12 +141,15 @@ def test_bound_runner_rejects_drift_before_any_model_request(tmp_path, drift):
 
 
 def test_frozen_and_staged_official_package_imports_its_own_adapter(tmp_path):
+    from benchmark.harbor.snapshot import verify_frozen_source
     source = freeze_source(Path(__file__).resolve().parents[3], tmp_path / 'snapshots')
+    manifest = json.loads((source.parent / 'manifest.json').read_text(encoding='utf-8'))
+    verify_frozen_source(source, manifest)
     methods, spec = make_evaluation(tmp_path / 'metadata')
     try:
         spec, values, _ = freeze_spec(methods.store, spec)
         values['source'] = {'schema_version': 'forge.harbor.source.v1',
-            'manifest': json.loads((source.parent / 'manifest.json').read_text(encoding='utf-8'))}
+            'manifest': manifest}
         spec['source']['source_snapshot']['sha256'] = canonical_hash(values['source'])
         configuration = json.dumps({'plan': export_runspec(spec, values)})
     finally:
@@ -197,11 +178,25 @@ print('isolated frozen imports passed')
         assert result.stdout.strip() == 'isolated frozen imports passed'
     assert not (source / '.env').exists()
     assert not (staged / '.env').exists()
-    (source / 'benchmark/catalog.py').write_text('changed after validation', encoding='utf-8')
+    changed = source / 'benchmark/catalog.py'
+    original = changed.read_bytes()
+    changed.write_text('changed after validation', encoding='utf-8')
+    with pytest.raises(ValueError, match='Frozen source'):
+        verify_frozen_source(source, manifest)
     with pytest.raises(ValueError, match='Frozen source'):
         ForgeCodeHarborAgent(logs_dir=tmp_path / 'changed-logs', source_dir=source,
             frozen_configuration=configuration)._stage_local_source()
     assert not (tmp_path / 'changed-logs/forgecode-source').exists()
+    changed.write_bytes(original)
+    added = source / 'forge/unplanned.py'
+    added.write_text('raise RuntimeError("unplanned code")', encoding='utf-8')
+    with pytest.raises(ValueError, match='Frozen source'):
+        verify_frozen_source(source, manifest)
+    added.unlink()
+    forged = deepcopy(manifest)
+    forged['content_sha256'] = '0' * 64
+    with pytest.raises(ValueError, match='Frozen source'):
+        verify_frozen_source(source, forged)
 
 
 @pytest.mark.parametrize('field', ['harness', 'environment', 'grader', 'pricing', 'network_cache', 'model_parameters'])
