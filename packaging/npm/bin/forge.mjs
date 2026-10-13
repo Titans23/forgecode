@@ -4,7 +4,7 @@ import { prepareRuntime } from '../lib/runtime.mjs';
 
 try {
   const runtime = await prepareRuntime();
-  const child = spawn(runtime.python, ['-I', '-m', 'forge', ...process.argv.slice(2)],
+  const child = spawn(runtime.python, ['-I', '-X', 'utf8', '-m', 'forge', ...process.argv.slice(2)],
     { env: runtime.environment, stdio: 'inherit', shell: false });
   child.on('error', error => { console.error(error.message); process.exitCode = 1; });
   child.on('exit', (code, signal) => { process.exitCode = code ?? (signal ? 130 : 1); });
