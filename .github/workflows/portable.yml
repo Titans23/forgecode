@@ -35,12 +35,12 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: portable-${{ matrix.os }}
+          include-hidden-files: true
           path: |
             .local/ci/
             .local/implementation/*/*.xml
             .local/implementation/*/*.json
             .local/implementation/*/*.log
-            docs/implementation/evidence/
           if-no-files-found: error
           retention-days: 14
   dependency-security:
@@ -66,8 +66,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: actual-dependency-security
+          include-hidden-files: true
+          retention-days: 14
           path: |
             .local/implementation/*/*.json
             .local/implementation/*/*.log
-            docs/implementation/evidence/
           if-no-files-found: error

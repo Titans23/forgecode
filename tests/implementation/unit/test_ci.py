@@ -50,6 +50,7 @@ def test_floating_action_pin_is_rejected(tmp_path):
 
 
 def test_repository_workflows_have_no_pr_secret_paths():
+    from fnmatch import fnmatch
     workflows=list((ROOT/'.github/workflows').glob('*.yml'))
     assert len(workflows)>=2
     for path in workflows:check_workflow(path)
@@ -57,6 +58,18 @@ def test_repository_workflows_have_no_pr_secret_paths():
     assert set(portable['jobs']['portable']['strategy']['matrix']['os'])=={'ubuntu-22.04','ubuntu-24.04','windows-2025'}
     assert 'secrets.' not in (ROOT/'.github/workflows/portable.yml').read_text()
     assert any('impl.py verify --suite security' in s.get('run','') for s in portable['jobs']['dependency-security']['steps'])
+    for path in workflows:
+        workflow=yaml.load(path.read_text(),Loader=yaml.BaseLoader)
+        for job in workflow['jobs'].values():
+            for step in job['steps']:
+                if not step.get('uses','').startswith('actions/upload-artifact@'):
+                    continue
+                options=step['with'];patterns=options['path'].splitlines()
+                assert options['include-hidden-files']=='true'
+                assert all(pattern.startswith('.local/') for pattern in patterns)
+                assert any(fnmatch('.local/implementation/evidence/run.json',pattern) for pattern in patterns)
+                if options['name'].startswith(('portable-', 'native-')):
+                    assert any(fnmatch('.local/implementation/run/junit.xml',pattern) for pattern in patterns)
 
 
 def test_ci_native_runtime_guard_rejects_fork_pr_even_with_valid_labels():
@@ -88,7 +101,7 @@ def fresh_records(tmp_path,monkeypatch):
             report=tmp_path/'.local/implementation'/identity/'packaging.json'
             write(report,{'status':'pass','checks':[{'name':'synthetic verdict fixture','status':'pass'}]})
             record.update(report_ref=report.relative_to(tmp_path).as_posix(),report_hash=sha256(report.read_bytes()).hexdigest())
-        write(impl.DOCS/('evidence/'+identity+'.json'),record);ids.append(identity)
+        write(impl.ROOT/('.local/implementation/evidence/'+identity+'.json'),record);ids.append(identity)
     return ids
 
 
@@ -104,7 +117,7 @@ def test_ci_rejects_changed_source_and_another_platform(tmp_path,monkeypatch):
     source=tmp_path/'tests/test_example.py';before=source.read_bytes();source.write_text('def test_changed(): pass\n')
     assert evaluate_gate(tmp_path,'ci',ids)['status']=='fail'
     source.write_bytes(before)
-    path=tmp_path/'docs/implementation/evidence'/(''+ids[0]+'.json')
+    path=tmp_path/'.local/implementation/evidence'/(''+ids[0]+'.json')
     record=json.loads(path.read_bytes());record['platform']='darwin';write(path,record)
     assert evaluate_gate(tmp_path,'ci',ids)['status']=='fail'
 

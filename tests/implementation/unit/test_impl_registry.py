@@ -29,11 +29,12 @@ def test_unknown_and_unimplemented_task_commands_cannot_pass(monkeypatch, capsys
 def test_implementation_gate_requires_all_tasks_and_untampered_evidence(tmp_path, monkeypatch):
     impl = load_impl()
     docs = tmp_path / 'docs' / 'implementation'
-    (docs / 'evidence').mkdir(parents=True)
+    docs.mkdir(parents=True)
+    (tmp_path / '.local/implementation/evidence').mkdir(parents=True)
     state = {'tasks': {'F00': {'implementation_status': 'implemented', 'evidence_ids': ['test'], 'blocked_reasons': []},
                        'F01': {'implementation_status': 'todo', 'evidence_ids': [], 'blocked_reasons': []}}}
     (docs / 'progress.json').write_text(json.dumps(state))
-    (docs / 'evidence/test.json').write_text(json.dumps({'report_ref': 'missing.xml', 'report_hash': 'a' * 64}))
+    (tmp_path / '.local/implementation/evidence/test.json').write_text(json.dumps({'report_ref': 'missing.xml', 'report_hash': 'a' * 64}))
     monkeypatch.setattr(impl, 'DOCS', docs)
     monkeypatch.setattr(impl, 'ROOT', tmp_path)
     result = impl.gate('implementation')

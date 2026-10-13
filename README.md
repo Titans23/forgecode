@@ -102,4 +102,4 @@ uv run --no-sync python scripts/impl.py verify --suite terminal-native
 npm run test:unit
 ```
 
-确定性测试、原生平台、安装 wheel 与真实模型实验分别记录。当前范围及证据见 [T01](docs/implementation/tasks/T01.md)、[progress](docs/implementation/progress.json) 和 [handoff](docs/implementation/handoff.md)。终端版本已按用户要求快进更新到 main；真实模型预算与管理员安装需要另行授权。
+确定性测试、原生平台、安装 wheel 与真实模型实验分别验证。运行报告保存在已忽略的 `.local/implementation`，不提交到文档目录。开发约定见 [AGENTS.md](AGENTS.md)，当前待办见 [progress.json](docs/implementation/progress.json)。真实模型预算与管理员安装需要另行授权。

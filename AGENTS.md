@@ -1,25 +1,34 @@
 # ForgeCode repository instructions
 
-Use FastCtx read, grep and glob with absolute paths for local inspection when
-available. Use FastCtx replace for mechanical replacements and apply_patch for
-semantic edits. Preserve unrelated user changes, credentials and session data.
+Develop in D:/projects/forgecode on main. Preserve unrelated changes, credentials
+and session data. Do not create another routine checkout.
 
-## Current terminal Harness
+Use FastCtx read, grep and glob with absolute paths when available; otherwise
+use rg. Use apply_patch for semantic edits.
 
-Develop in D:/projects/forgecode on main. Read the current architecture and task
-state; do not resume retired desktop plans or create another routine checkout.
-Audit the real F00 interfaces first, then follow current backlog dependencies.
+Read docs/implementation/architecture.md and progress.json, then the relevant
+task card and backlog dependencies. Audit real interfaces before changing them.
+Keep the existing Python Harness and CLI; do not resume retired desktop plans.
 
-Read `docs/implementation/PLANS.md`, `progress.json`, `handoff.md` and chapters
-0–3 of `architecture.md` before continuing. Read each task card and its referenced
-chapters. Begin with the real F00 audit, then follow `backlog.json` dependencies.
-Keep the existing Python Harness and CLI; adapt their actual interfaces.
+Prepare development dependencies with uv sync --locked --all-extras --group dev,
+npm ci --ignore-scripts, and uv run --no-sync python scripts/build_bridge.py.
+Run checks appropriate to the change. Add behavior tests for code changes;
+document-only edits need reference and consistency checks, not new tests.
 
-For each task add behavior tests, run regression, and update progress, task,
-evidence and handoff. Implementation, native Windows/Linux acceptance and live
-model experiments are separate. Record unavailable resources as blocked and
-continue independent work. Never substitute fake sandbox results for native tests.
+Keep documentation small:
+- README and docs/install/terminal-quickstart.md explain installation and use.
+- architecture.md explains the current design; progress.json tracks current work.
+- Task cards describe scope and dependencies, not chronological work logs.
+- Update existing instructions when behavior changes. Do not create per-run
+  acceptance reports, handoff diaries, authorization copies or summary documents.
+- Generated test/audit reports belong under ignored .local/implementation or CI
+  artifacts. Do not commit them. Preserve the two frozen experiment inputs
+  referenced by experiments/delivery-repair.json without rewriting their bytes.
+
+Keep implementation checks, native platform acceptance and live model experiments
+distinct. Missing resources remain unverified; never substitute fake sandbox
+results. Historical test counts do not establish current-source acceptance.
 
 Do not spend model API budget or run administrator setup without explicit user
-authorization. The current user has authorized uploading tested development
-versions to GitHub; this does not authorize paid experiments or system setup.
+authorization. Uploading tested development versions to GitHub is authorized;
+paid experiments and system setup are not.

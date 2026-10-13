@@ -3,140 +3,34 @@
   "active_scope": "terminal-harness",
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
-  "base_commit": "7564021a4c797b45418603f4de18f2852b89f8fe",
-  "current_task": "T02",
+  "current_task": null,
   "next_recommended_task": null,
-  "current_authorization_ref": "evidence/human-authorization-terminal-20261012.json",
-  "local_startup_installation": {
-    "checkout": "D:/learn_project/forgecode",
-    "date": "2026-10-13",
-    "implementation_status": "implemented",
-    "delivery": "clone/pull source then npm run setup: automatic bootstrap, locked build and global npm installation for the current platform; npm registry unpublished",
-    "evidence_ref": "evidence/source-installation-20261013.json",
-    "previous_package_evidence_ref": "evidence/npm-installation-20261012.json",
-    "historical_evidence_ref": "evidence/windows-install-startup-20261012.json",
-    "verification": {
-      "targeted_python": "pass: 5 archive checks; runtime behavior covered by current full regression",
-      "node_installer": "pass: 9",
-      "installation_and_repeat": "pass: automatic source bootstrap/build/global installation; limited PATH and invalid VIRTUAL_ENV verified",
-      "ordinary_cmd_config_and_startup": "pass",
-      "native_windows_installed_wheel": "previous archive: 6 passed (historical); current archive: real global CLI startup passed; Node 22.17.1 reused",
-      "quality": "pass",
-      "full_regression": "pass: 1340; local Feishu disabled only in the regression process",
-      "native_ubuntu_22_04": "not completed; user paused",
-      "native_ubuntu_24_04": "not completed; user paused"
-    },
-    "remaining_issues": [
-      "Ubuntu native validation remains uncompleted and paused by user; WSL/Docker and their data, tests and backups were uninstalled/deleted under explicit authorization.",
-      "WSL optional-feature disable requires a reboot; the machine was not automatically restarted.",
-      "npm registry publication and live model experiments were not performed."
-    ],
-    "active_platform_scope": "Windows; Linux native validation paused by user",
-    "uninstall_evidence_ref": "evidence/windows-wsl-docker-uninstall-20261012.json"
-  },
   "tasks": {
     "F00": {
       "implementation_status": "implemented",
-      "verification": {
-        "audit": "pass"
-      },
-      "evidence_ids": [
-        "20261012T105012Z-731c66e9"
-      ],
+      "verification": {},
+      "evidence_ids": [],
       "blocked_reasons": []
     },
     "T01": {
       "implementation_status": "implemented",
-      "verification": {
-        "regression": "pass_with_recorded_corrections",
-        "native_linux": "blocked",
-        "live_model_experiments": "blocked"
-      },
-      "evidence_ids": [
-        "T02-regression-20261012",
-        "20261012T105057Z-660fc8f3"
-      ],
+      "verification": {},
+      "evidence_ids": [],
       "blocked_reasons": [
-        "Ubuntu22/24 native acceptance and live model experiments are unverified."
+        "Ubuntu 22.04/24.04 native acceptance and live model experiments remain unverified."
       ]
     },
     "T02": {
       "implementation_status": "implemented",
-      "verification": {
-        "contracts": "pass",
-        "quality": "pass",
-        "regression": "pass_with_recorded_corrections",
-        "native_windows": "pass",
-        "dependency_security": "pass",
-        "external_session_cleanup": "pass",
-        "external_old_worktree_cleanup": "blocked"
-      },
-      "evidence_ids": [
-        "20261012T105057Z-b229a83b",
-        "20261012T105057Z-54d9b09e",
-        "20261012T105057Z-660fc8f3",
-        "20261012T105106Z-7ef007df",
-        "20261012T111323Z-842968e7",
-        "T02-regression-20261012",
-        "20261012T111959Z-ecb96d91"
-      ],
-      "blocked_reasons": [
-        "Automatic approval review rejected deletion of the old unregistered C:/Users/3dimaging/.codex/worktrees/terminal-harness/forgecode residue: blocked by policy."
-      ]
+      "verification": {},
+      "evidence_ids": [],
+      "blocked_reasons": []
     }
   },
-  "authorization": {
-    "discard_old_local_changes_and_sessions": true,
-    "create_backup": false,
-    "tested_development_upload": true,
-    "paid_model_calls": false,
-    "administrator_setup": false
-  },
-  "cleanup": {
-    "status": "workspace_clean_external_cleanup_blocked",
-    "retired_tests": "tests/implementation/unit/test_f31_handoff.py (9 retired handoff tests; two new behavior tests added)",
-    "credentials": "Existing .env and saved Git authentication remain private and untracked.",
-    "obsolete_documents_removed": 796,
-    "frozen_protocol_report_retained": "evidence/F20-20261006T223459Z-harbor-report.json",
-    "retired_scripts": [
-      "scripts/resume_f31.py",
-      "scripts/ui_list_performance.mjs",
-      "scripts/test-runtime-linux.ps1"
-    ],
-    "old_task_checkout": "Git registration removed; filesystem removal hit long Windows paths, and direct recursive removal was rejected by automatic policy review.",
-    "local_workspace_old_changes_and_sessions": "removed without backups",
-    "user_data_sessions_remaining": 0,
-    "user_data_project_directory": "C:/Users/3dimaging/.forge/projects/forgecode-59ecdad9853ada94",
-    "development_worktrees": [
-      "D:/projects/forgecode"
-    ],
-    "external_session_cleanup": "Completed by structured per-file deletion after shell-command rejection; all 46 verified project files removed, other projects untouched.",
-    "user_data_project_files_removed": 46
-  },
-  "verification_scope": {
-    "source_commit": "817e826e6cde714911622ca8d32d6b73c735966b",
-    "source_inventory_hash": "2983fa994337cd9e29a8e212635435cb5c350388b0b3be5b0151d7e5ae570df1",
-    "original_regression_commit": "6f2ce39f16c8483bd9d8456c09d7754269c5ad16",
-    "original_source_inventory_hash": "7ffb3725d23228eec65c871564481269da272a28d8f731263c608f8981927d3e",
-    "unique_regression_cases": 1324,
-    "original_run": {
-      "passed": 1318,
-      "failed": 5,
-      "warnings": 7
-    },
-    "corrected_rechecks": {
-      "passed": 40,
-      "failed": 0,
-      "scope": "delivery9, documented11, registry3, gates17; original1323 plus one new verifier-format test"
-    },
-    "source_native_windows_tests": 6,
-    "native_scope": "Original source snapshot; runtime code unchanged by the final test-only correction. No new wheel or Linux native acceptance claimed.",
-    "model_calls": 0,
-    "administrator_setup": false,
-    "validation_only_delta": [
-      "scripts/evidence_gate.py",
-      "tests/implementation/unit/test_gates.py",
-      "tests/implementation/unit/test_impl_registry.py"
-    ]
-  }
+  "remaining_work": [
+    "Ubuntu 22.04/24.04 native acceptance.",
+    "Live model and training experiments, subject to separate authorization.",
+    "npm registry publication and production release requirements."
+  ],
+  "verification_policy": "Run-specific results live in .local/implementation; regenerate evidence before invoking a gate. Empty evidence_ids do not establish acceptance."
 }

@@ -99,3 +99,40 @@ def test_invalid_command_has_specified_usage_exit_code(tmp_path):
                             capture_output=True, text=True)
     assert result.returncode == 3
     assert json.loads(result.stderr)['status'] == 'invalid_configuration'
+
+
+def test_verify_keeps_real_reports_local_and_gate_can_read_them(tmp_path, monkeypatch):
+    from scripts.evidence_gate import check_evidence, load_evidence
+    impl = load_impl()
+    monkeypatch.setattr(impl, 'ROOT', tmp_path)
+    monkeypatch.setattr(impl, 'DOCS', tmp_path / 'docs/implementation')
+    monkeypatch.setitem(impl.SUITES, 'unit', ['tests/test_example.py'])
+    (tmp_path / 'tests').mkdir()
+    (tmp_path / 'tests/test_example.py').write_text('def test_actual(): assert 2 + 2 == 4\n')
+    (tmp_path / 'scripts').mkdir()
+    (tmp_path / 'scripts/build_bridge.py').write_text('# No bridge needed by this isolated report-storage fixture.\n')
+    subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
+    subprocess.run(['git', 'add', '.'], cwd=tmp_path, check=True)
+    subprocess.run(['git', '-c', 'user.name=Report test', '-c', 'user.email=report@example.invalid',
+                    'commit', '-qm', 'fixture'], cwd=tmp_path, check=True)
+
+    record = impl.verify('unit')
+    assert record['status'] == 'pass'
+    saved = load_evidence(tmp_path, record['evidence_id'])
+    assert saved == record
+    assert check_evidence(tmp_path, saved)['counts']['collected'] == 1
+    assert not (tmp_path / 'docs').exists()
+    (tmp_path / record['report_ref']).write_text('<testsuites/>')
+    import pytest
+    with pytest.raises(ValueError, match='hash changed'):
+        check_evidence(tmp_path, saved)
+
+
+def test_explicit_audit_output_does_not_create_documentation(tmp_path, monkeypatch):
+    impl = load_impl()
+    monkeypatch.setattr(impl, 'ROOT', tmp_path)
+    # Keep the actual task registry for argument parsing; only redirect outputs.
+    monkeypatch.setattr(impl, 'audit', lambda: {'code_map': {'fixture': 'signature'}})
+    assert impl.main(['audit', '--write']) == 0
+    assert json.loads((tmp_path / '.local/implementation/audit/code-map.json').read_text()) == {'fixture': 'signature'}
+    assert not (tmp_path / 'docs').exists()

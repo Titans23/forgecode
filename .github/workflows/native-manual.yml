@@ -38,11 +38,13 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: native-${{ matrix.device }}
+          include-hidden-files: true
+          retention-days: 14
           path: |
             .local/ci/
+            .local/implementation/*/*.xml
             .local/implementation/*/*.json
             .local/implementation/*/*.log
-            docs/implementation/evidence/
           if-no-files-found: error
   packaged:
     if: github.event_name == 'workflow_dispatch' && github.repository == 'Titans23/forgecode' && github.ref == 'refs/heads/main' && inputs.layer == 'packaged'
@@ -72,10 +74,11 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: packaged-${{ matrix.device }}
+          include-hidden-files: true
+          retention-days: 14
           path: |
             .local/ci/
             .local/terminal/wheels/
             .local/implementation/*/*.json
             .local/implementation/*/*.log
-            docs/implementation/evidence/
           if-no-files-found: error

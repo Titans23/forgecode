@@ -14,7 +14,7 @@ npm run setup
 
 命令自动准备 uv、Python，按锁文件安装 Node 构建依赖、编译沙盒、构建并校验 wheel/npm 包，再全局安装 `forge`。构建日志保存在 `dist/package-build.log`。包安装器继续自动校验并准备运行时工具，直接复用已有 Node。用户配置保存在安装包之外，升级不会清空旧包正在使用的 Python 环境。Windows x64/NTFS 原生沙盒不需要 WSL 或 Docker。
 
-Ubuntu 22.04 / 24.04 的实现分支保留，但按用户当前要求暂停原生验证；不能将其视为已验证的发布平台。Linux 仍需系统 Git、bubblewrap 和可用的非特权 user namespace。安装器不会执行 sudo、关闭系统保护策略或在沙盒失败后自动切换为 full-access。
+安装与原生沙盒已在 Windows 10 和 WSL2 Ubuntu 26.04（ext4 工作区）上验证；Ubuntu 22.04 / 24.04 仍待原生验证。Linux 需要系统 Git、bubblewrap 和可用的非特权 user namespace。安装器不会执行 sudo、关闭系统保护策略或在沙盒失败后自动切换为 full-access。
 
 更新时在源码目录执行 `git pull --ff-only`，再执行 `npm run setup`。开发包尚未发布到 npm registry；该命令直接安装 `dist` 中本机生成的包，不需要手动下载 `.tgz`。安装仓库与目标项目分开，在目标项目运行 `forge`。
 
@@ -114,4 +114,4 @@ uv run --no-sync python scripts/impl.py verify --suite terminal-native
 npm run test:unit
 ```
 
-确定性回归、原生沙盒、安装 wheel、真实模型实验分别留证。本轮 Windows10 原生及独立 wheel 检查已有真实证据；Ubuntu22/24 原生验收和真实模型实验的状态见 `docs/implementation/progress.json`，不使用模拟结果替代。
+确定性回归、原生沙盒、安装 wheel 和真实模型实验分别验证。自动报告保存在 `.local/implementation`，不写入文档目录；当前待办见 [progress.json](../implementation/progress.json)。

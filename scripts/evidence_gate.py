@@ -61,7 +61,7 @@ def check_evidence(root, record):
 
 def load_evidence(root, evidence_id):
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',evidence_id):raise ValueError('Invalid evidence identity')
-    path=owned_file(root,'docs/implementation/evidence/'+evidence_id+'.json')
+    path=owned_file(root,'.local/implementation/evidence/'+evidence_id+'.json')
     value=json.loads(path.read_bytes())
     if value.get('evidence_id')!=evidence_id:raise ValueError('Evidence identity mismatch')
     datetime.fromisoformat(value['start'])

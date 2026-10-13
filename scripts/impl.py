@@ -295,7 +295,7 @@ def verify(suite: str, task_id: str | None = None, *, prepared_source_hash: str 
                 'report_ref': report_path.relative_to(ROOT).as_posix(),
                 'report_hash': sha256(report_path.read_bytes()).hexdigest() if report_path.exists() else None,
                 'status': status, 'tests': counts}
-    write_json(DOCS / 'evidence' / f'{evidence_id}.json', evidence)
+    write_json(ROOT / '.local/implementation/evidence' / f'{evidence_id}.json', evidence)
     return evidence
 
 
@@ -307,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = Parser(description=__doc__)
     subs = parser.add_subparsers(dest='command', required=True)
     audit_parser = subs.add_parser('audit', help='Read actual repository symbols and toolchain')
-    audit_parser.add_argument('--write', action='store_true', help='Save audit and code-map in docs/implementation')
+    audit_parser.add_argument('--write', action='store_true', help='Save audit and code-map in .local/implementation/audit')
     doctor_parser = subs.add_parser('doctor', help='Diagnose development dependencies')
     doctor_parser.add_argument('--scope', choices=['development'], default='development')
     doctor_parser.add_argument('--check-network', action='store_true')
@@ -326,8 +326,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == 'audit':
             report = audit()
             if args.write:
-                write_json(DOCS / 'repo-audit.json', report)
-                write_json(DOCS / 'code-map.json', report['code_map'])
+                write_json(ROOT / '.local/implementation/audit/repo-audit.json', report)
+                write_json(ROOT / '.local/implementation/audit/code-map.json', report['code_map'])
         elif args.command == 'doctor':
             report = doctor(args.check_network)
         elif args.command == 'status':
