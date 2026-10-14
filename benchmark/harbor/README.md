@@ -54,6 +54,16 @@ valid grading rate, elapsed time and tokens. All frozen tasks remain in the
 denominator, including tasks that never started. A recovered provider error or
 an ordinary nonzero tool exit does not replace the final terminal outcome.
 
+The Journal now retains visible text chunks, incomplete tool arguments and
+actual request snapshots, per-attempt retry/terminal metadata, and tool timing
+and exit codes. `report` indexes private Journals, external payloads, patches,
+verifier results and logs with hashes. Record closure and response completeness
+are independent; missing response markers, inputs or tool results remain
+incomplete even after a turn end. `export <run-dir> --format atif` validates
+offline ATIF v1.7 using Harbor 0.18.0, writes a redacted sharing projection under
+`exports/atif` (or a new `--output-dir`), and preserves original private records.
+Public benchmark trajectories remain `evaluation-only`.
+
 The generic dataset runner freezes package bytes once under
 `<output-dir>/.source-snapshots/candidate-*/source` before starting Harbor.
 The adjacent manifest records the Git revision and per-file/content hashes;

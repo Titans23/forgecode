@@ -53,6 +53,23 @@ def test_report_counts_unstarted_tasks_and_keeps_official_scores(tmp_path):
     assert main(['report', str(tmp_path)]) == main(['status', str(tmp_path)]) == 0
 
 
+def test_atif_export_is_offline_private_source_preserving_and_refuses_overwrite(tmp_path):
+    from forge.sessions.store import SessionStore
+    from benchmark.harbor.summarize import export_atif, evaluation_trace_index
+    journal = SessionStore(tmp_path, data_root=tmp_path / 'job/trial/agent/state').create(model='fixture')
+    journal.record_turn_started('diagnostic fixture', None)
+    journal.record_turn_cancelled('cancelled fixture')
+    (tmp_path / 'experiment.json').write_text(json.dumps({'run_id': 'fixture', 'dataset': 'terminal-bench/terminal-bench-2'}))
+    output = tmp_path / 'share'
+    original = journal.path.read_bytes()
+    index = evaluation_trace_index(tmp_path)
+    assert index['journals'][0]['record_closed'] and not index['journals'][0]['responses_complete']
+    assert export_atif(tmp_path, output)['usage'] == 'evaluation-only'
+    assert json.loads((output / 'trajectory-1.json').read_text())['extra']['usage'] == 'evaluation-only'
+    assert journal.path.read_bytes() == original
+    with pytest.raises(FileExistsError): export_atif(tmp_path, output)
+
+
 def test_missing_official_result_keeps_kernel_usage_and_timeout(tmp_path):
     path = trial(tmp_path, reason='time_budget_exhausted')
     (path / 'result.json').unlink()

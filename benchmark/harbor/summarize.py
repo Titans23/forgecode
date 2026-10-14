@@ -531,14 +531,67 @@ def evaluation_report(run_dir: Path) -> dict:
     if controller.get('started_at'):
         end = datetime.fromisoformat(controller['finished_at']) if controller.get('finished_at') else datetime.now(timezone.utc)
         elapsed = max(0, (end - datetime.fromisoformat(controller['started_at'])).total_seconds())
+    try:
+        trace = evaluation_trace_index(run_dir)
+    except (OSError, ValueError) as error:
+        trace = {'available': False, 'reason': str(error)}
     return {'schema_version': 'forge.evaluation.report.v1', 'run_id': experiment['run_id'],
             'dataset': experiment['dataset'], 'usage': experiment['usage'], 'controller': controller,
-            'cleanup_state': resource_state, 'official_job_result': official, 'tasks': outcomes,
+            'cleanup_state': resource_state, 'official_job_result': official, 'tasks': outcomes, 'trajectory': trace,
             'classification_counts': {key: counts[key] for key in CATEGORIES},
             'task_count': len(tasks), 'valid_grading_rate': graded / len(tasks) if tasks else 0,
             'elapsed_seconds': elapsed, 'model_calls': model_calls, 'tool_calls': tool_calls,
             'input_tokens': input_tokens, 'output_tokens': output_tokens,
             'score_policy': 'Official raw results are preserved; failures remain in the frozen task denominator.'}
+
+
+def evaluation_trace_index(run_dir: Path) -> dict:
+    """Index private Journal facts and official outputs without copying a second log."""
+    from hashlib import sha256
+    from forge.sessions.trajectory import journal_events, journal_completeness
+    from benchmark.adapters.protocol import file_bytes
+    journals, artifacts, seen = [], [], set()
+    for trial in sorted((run_dir / 'job').glob('*')):
+        if not trial.is_dir(): continue
+        for path in sorted(trial.rglob('*')):
+            relative = path.relative_to(run_dir).as_posix()
+            if not path.is_file() or 'forgecode-source' in path.parts or path.suffix == '.lock': continue
+            raw = file_bytes(path)
+            digest = sha256(raw).hexdigest()
+            artifacts.append({'path': relative, 'sha256': digest, 'bytes': len(raw)})
+            if path.name.startswith('session-') and path.suffix == '.jsonl':
+                if digest in seen: continue
+                seen.add(digest)
+                events = journal_events(path)
+                journals.append({'path': relative, 'sha256': digest,
+                    **journal_completeness(events, truncated_tail=not raw.endswith(b'\n'))})
+    return {'schema_version': 'forge.evaluation.trace-index.v1', 'journals': journals,
+            'artifacts': artifacts, 'private': True, 'fact_source': 'Journal'}
+
+
+def export_atif(run_dir: Path, destination: Path) -> dict:
+    from forge.sessions.trajectory import journal_to_atif
+    from forge.config import model_environment
+    experiment = _read_object(run_dir / 'experiment.json')
+    index = evaluation_trace_index(run_dir)
+    if not index['journals']:
+        raise ValueError('No available Journal trajectory to export.')
+    values = model_environment()
+    secrets = tuple(value for key, value in values.items() if any(part in key.upper() for part in ('KEY', 'SECRET', 'PASSWORD', 'TOKEN')))
+    trajectories = []
+    for journal in index['journals']:
+        trajectory = journal_to_atif(run_dir / journal['path'], secrets=secrets)
+        trajectory['extra'].update(run_id=experiment['run_id'], dataset=experiment['dataset'], usage='evaluation-only')
+        trajectories.append(trajectory)
+    destination.mkdir(parents=True, exist_ok=False)
+    for i, trajectory in enumerate(trajectories):
+        (destination / f'trajectory-{i + 1}.json').write_text(json.dumps(trajectory, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    # The share index is deliberately limited to hashes and file associations.
+    share_index = {'schema_version': 'forge.evaluation.atif-export.v1', 'run_id': experiment['run_id'],
+        'usage': 'evaluation-only', 'files': [f'trajectory-{i + 1}.json' for i in range(len(trajectories))],
+        'source_journals': index['journals']}
+    (destination / 'index.json').write_text(json.dumps(share_index, indent=2) + '\n', encoding='utf-8')
+    return share_index
 
 
 def main(argv: list[str] | None = None) -> int:

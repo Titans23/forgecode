@@ -459,6 +459,8 @@ class ToolExecutor:
                 error_code=record.error_code,
                 workspace_revision=record.workspace_revision,
                 environment_epoch=record.environment_epoch,
+                duration_seconds=record.duration_seconds,
+                exit_code=result.metadata.get('exit_code'),
             )
         from forge.observability.events import current
         recorder=current()

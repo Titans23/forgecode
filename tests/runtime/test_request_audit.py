@@ -2,7 +2,7 @@ import asyncio
 
 from forge.runtime.model_budget import BudgetedModelClient
 from forge.runtime.model_client import ModelCallError
-from forge.runtime.state import ModelRetryScheduled, ModelTextDelta, ModelUsageUpdate, TokenUsage
+from forge.runtime.state import ModelRetryScheduled, ModelTextDelta, ModelUsageUpdate, TokenUsage, ModelToolCallStarted, ModelToolCallArgumentsDelta
 from forge.runtime.turn_state import TurnState
 
 
@@ -21,6 +21,8 @@ def test_actual_attempt_lifecycle_survives_failure_without_event_consumer():
             yield ModelRetryScheduled(2, 'server_error', 0)
             request_observer.get()()
             yield ModelTextDelta('partial')
+            yield ModelToolCallStarted(0, 'call', 'read_file')
+            yield ModelToolCallArgumentsDelta(0, '{"path":')
             raise ModelCallError('stream_interrupted', 'interrupted', retryable=False)
 
     async def run():
@@ -37,5 +39,8 @@ def test_actual_attempt_lifecycle_survives_failure_without_event_consumer():
     assert ends[0]['outcome'] == 'retrying'
     assert ends[1]['reason'] == 'stream_interrupted'
     assert ends[1]['text_characters'] == 7
+    assert ends[1]['response_complete'] is False
+    assert next(p for k, p in events if k == 'model_request_chunk')['text'] == 'partial'
+    assert [p for k, p in events if k == 'model_tool_chunk'][-1]['partial_json'] == '{"path":'
     assert starts[0]['stage'] == 'compaction'
     assert state.model_calls == 2 and state.usage.input_tokens == 3

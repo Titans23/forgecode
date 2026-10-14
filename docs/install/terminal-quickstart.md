@@ -100,6 +100,7 @@ forge --profile evaluation run terminal-bench-2 --n-tasks 1 --dry-run
 forge --profile evaluation status <run-dir>
 forge --profile evaluation cancel <run-dir>
 forge --profile evaluation report <run-dir>
+forge --profile evaluation export <run-dir> --format atif
 ```
 
 `terminal = core + terminal`，`evaluation = core + evaluation`；启动器只导入选中入口。需要 Harbor 时安装 `forge-code[evaluation]`；飞书兼容命令使用可选 `forge-code[channels]`。默认安装没有 Electron、React 或运行 Web 的入口。后续客户端/SDK 使用 Python API；本轮没有发布新的 GUI、HTTP 服务或 SDK 服务器。

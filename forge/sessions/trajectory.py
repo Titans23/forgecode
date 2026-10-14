@@ -237,3 +237,119 @@ def sanitize(value: Any) -> Any:
 
 def redact_text(value: str) -> str:
     return _SENSITIVE_ASSIGNMENT.sub(r'\1\2[REDACTED]', _BEARER_TOKEN.sub(r'\1[REDACTED]', value))
+
+
+def journal_events(path: Path) -> list[dict]:
+    """Validate the selected Journal chain and resolve verified external payloads."""
+    from forge.sessions.store import SessionStore
+    return [{**record, 'payload': SessionStore._payload(record, path)}
+            for record in SessionStore._read_records(path)]
+
+
+def journal_completeness(events, *, truncated_tail=False) -> dict:
+    turns, ended, requests, finishes, inputs, tools, tool_ends = set(), set(), {}, {}, {}, set(), set()
+    chunks, results = {}, set()
+    for event in events:
+        kind, payload = event['type'], event['payload']
+        turn = event.get('turn_id') or payload.get('turn_id')
+        if kind == 'turn_started': turns.add(turn)
+        elif kind in {'turn_completed', 'turn_cancelled', 'turn_error'}: ended.add(turn)
+        elif kind == 'model_input_snapshot': inputs[payload['sha256']] = payload
+        elif kind == 'model_request_started': requests[payload['request_id']] = payload
+        elif kind == 'model_request_finished': finishes[payload['request_id']] = payload
+        elif kind == 'model_request_chunk':
+            key = payload['request_id']
+            chunks[key] = chunks.get(key, 0) + len(payload.get('text', ''))
+        elif kind == 'tool_started': tools.add(payload['tool_call_id'])
+        elif kind == 'tool_completed': tool_ends.add(payload['tool_call_id'])
+        elif kind == 'tool_result_message':
+            for block in payload.get('message', {}).get('content', []):
+                if isinstance(block, dict) and block.get('type') == 'tool_result':
+                    results.add(block['tool_use_id'])
+    closed = bool(turns) and turns <= ended and requests.keys() <= finishes.keys() and tools <= tool_ends and not truncated_tail
+    problems = []
+    if not closed: problems.append('open_lifecycle')
+    if not requests: problems.append('no_model_requests')
+    if tools - results: problems.append('missing_tool_results')
+    from forge.runtime.request_snapshot import RequestSnapshot
+    for key, request in requests.items():
+        snapshot, finish = inputs.get(request.get('input_sha256')), finishes.get(key, {})
+        if snapshot is None:
+            problems.append('missing_model_input')
+        else:
+            RequestSnapshot.restore(snapshot)
+        if finish.get('response_complete') is not True or finish.get('outcome') != 'completed':
+            problems.append('incomplete_response')
+        if finish.get('text_characters', 0) != chunks.get(key, 0):
+            problems.append('missing_response_text')
+    return {'record_closed': closed, 'responses_complete': not problems,
+            'training_eligible': False, 'training_reason': 'Provenance and independent acceptance must be checked by training export.',
+            'problems': sorted(set(problems)), 'model_requests': len(requests)}
+
+
+def journal_to_atif(path: Path, *, secrets=()) -> dict:
+    """Offline ATIF v1.7 projection of Journal facts; no inferred private reasoning."""
+    from hashlib import sha256
+    from harbor.models.trajectories.trajectory import Trajectory
+    from forge.observability.export_queue import redact
+    events = journal_events(path)
+    if not events:
+        raise ValueError('Journal contains no events.')
+    complete = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\n'))
+    inputs, starts, texts, partial_tools, steps, tool_steps = {}, {}, {}, {}, [], {}
+    tool_results = {}
+    for event in events:
+        if event['type'] == 'tool_result_message':
+            message = event['payload'].get('message', event['payload'])
+            for block in message.get('content', []):
+                if isinstance(block, dict) and block.get('type') == 'tool_result':
+                    tool_results[block['tool_use_id']] = block
+    def step(source, message, event, **fields):
+        value = {'step_id': len(steps) + 1, 'source': source, 'message': message,
+                 'timestamp': event.get('timestamp'), 'extra': {'journal_event_uuid': event['uuid'], **fields.pop('extra', {})}, **fields}
+        steps.append(value)
+        return value
+    for event in events:
+        kind, payload = event['type'], event['payload']
+        if kind == 'model_input_snapshot': inputs[payload['sha256']] = payload
+        elif kind == 'turn_started': step('user', payload['prompt'], event)
+        elif kind == 'model_request_started': starts[payload['request_id']] = event
+        elif kind == 'model_request_chunk': texts.setdefault(payload['request_id'], []).append(payload.get('text', ''))
+        elif kind == 'model_tool_chunk':
+            key = payload['request_id']
+            block = partial_tools.setdefault(key, {}).setdefault(str(payload['index']), {'partial_json': ''})
+            block.update({key: value for key, value in payload.items() if key not in {'partial_json', 'turn_id'}})
+            block['partial_json'] += payload.get('partial_json', '')
+        elif kind == 'model_request_finished':
+            key = payload['request_id']
+            snapshot = inputs.get(payload.get('input_sha256'), {})
+            blocks = payload.get('tool_blocks') or {}
+            calls = [{'tool_call_id': block['id'], 'function_name': block['name'], 'arguments': block['arguments']}
+                     for block in blocks.values() if block.get('complete') and 'arguments' in block]
+            value = step('agent', ''.join(texts.pop(key, [])), event,
+                model_name=payload.get('returned_model') or payload.get('requested_model'), llm_call_count=1,
+                tool_calls=calls or None, extra={'request': payload, 'actual_model_input': snapshot.get('request'),
+                    'partial_tools': partial_tools.get(key, {}), 'incomplete': payload.get('response_complete') is not True})
+            for call in calls: tool_steps[call['tool_call_id']] = value
+            starts.pop(key, None)
+        elif kind == 'tool_completed':
+            value = tool_steps.get(payload['tool_call_id'])
+            if value:
+                block = tool_results.get(payload['tool_call_id'], {})
+                value.setdefault('observation', {'results': []})['results'].append({
+                    'source_call_id': payload['tool_call_id'],
+                    'content': json.dumps(block.get('content'), ensure_ascii=False), 'extra': payload})
+        elif kind in {'context_compacted', 'session_resumed', 'session_forked', 'conversation_rewound'}:
+            step('system', kind, event, extra={'relationship': payload})
+    for key, event in starts.items():
+        step('agent', ''.join(texts.get(key, [])), event, llm_call_count=1,
+             extra={'request_id': key, 'incomplete': True, 'partial_tools': partial_tools.get(key, {})})
+    if not steps:
+        step('system', 'No conversation messages are available.', events[0])
+    value = {'schema_version': 'ATIF-v1.7', 'session_id': events[0]['session_id'],
+             'agent': {'name': 'ForgeCode', 'version': '0.1.2'}, 'steps': steps,
+             'extra': {'journal_sha256': sha256(path.read_bytes()).hexdigest(), 'completeness': complete,
+                       'usage': 'diagnostic', 'redacted': True}}
+    # Sharing projection only: raw Journal stays private and unmodified.
+    shared = redact(sanitize(value), secrets)
+    return Trajectory.model_validate(shared).to_json_dict()

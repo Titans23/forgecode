@@ -86,6 +86,8 @@ class BudgetedModelClient:
                     'usage': asdict(usage) if usage is not None else None,
                     'raw_usage': raw_usage, 'provider_request_id': provider_request_id, 'returned_model': returned_model,
                     'usage_is_final':usage_is_final,
+                    'response_complete': outcome == 'completed' and request['stop_reason'] is not None
+                        and all(block.get('complete') for block in request['tool_blocks'].values()),
                     **({'debug_output':{'text':''.join(debug_chunks),'text_truncated':debug_truncated,
                         'scope':'client_text_deltas'}} if capture_text else {}),
                 })
@@ -157,15 +159,21 @@ class BudgetedModelClient:
                                 debug_truncated=debug_truncated or len(raw_text)>remaining
                             request['text_characters'] += len(event.text)
                             emit('model_request_chunk',{'request_id':request['request_id'],'size_bytes':len(event.text.encode('utf-8')),
+                                'text': event.text,
                                 'client_observed_at_utc':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'client_monotonic_ns':str(monotonic_ns())})
                         elif isinstance(event, ModelToolCallStarted):
                             request['tool_blocks'][str(event.index)] = {'id': event.id, 'name': event.name, 'argument_characters': 0, 'complete': False}
+                            emit('model_tool_chunk', {'request_id': request['request_id'], 'index': event.index,
+                                'id': event.id, 'name': event.name})
                         elif isinstance(event, ModelToolCallArgumentsDelta):
                             block = request['tool_blocks'].setdefault(str(event.index), {'complete': False, 'argument_characters': 0})
                             block['argument_characters'] += len(event.partial_json)
+                            emit('model_tool_chunk', {'request_id': request['request_id'], 'index': event.index,
+                                'partial_json': event.partial_json})
                         elif isinstance(event, ModelToolCallCompleted):
                             block = request['tool_blocks'].setdefault(str(event.tool_call.index), {})
-                            block.update(id=event.tool_call.id, name=event.tool_call.name, complete=True)
+                            block.update(id=event.tool_call.id, name=event.tool_call.name, complete=True,
+                                         arguments=event.tool_call.arguments)
                         elif isinstance(event, ModelResponseCompleted):
                             request['stop_reason'] = event.stop_reason
                         elif isinstance(event, ModelRetryScheduled):

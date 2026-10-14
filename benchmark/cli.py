@@ -35,11 +35,20 @@ def build_parser() -> argparse.ArgumentParser:
     for command in ('status', 'cancel', 'report'):
         child = subparsers.add_parser(command, help=f'{command} an evaluation run')
         child.add_argument('run_dir', type=Path)
+    export = subparsers.add_parser('export', help='export offline diagnostic trajectories')
+    export.add_argument('run_dir', type=Path)
+    export.add_argument('--format', choices=['atif'], required=True)
+    export.add_argument('--output-dir', type=Path)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == 'export':
+        from benchmark.harbor.summarize import export_atif
+        value = export_atif(args.run_dir, args.output_dir or args.run_dir / 'exports/atif')
+        print(json.dumps(value, ensure_ascii=True, indent=2))
+        return 0
     if args.command in {'status', 'cancel', 'report'}:
         from benchmark.harbor.controller import controller_status, cancel_run
         from benchmark.harbor.summarize import evaluation_report

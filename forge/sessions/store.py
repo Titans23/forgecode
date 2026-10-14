@@ -228,6 +228,8 @@ class SessionJournal:
         error_code: str | None = None,
         workspace_revision: int | None = None,
         environment_epoch: int | None = None,
+        duration_seconds: float | None = None,
+        exit_code: int | None = None,
     ) -> None:
         if tool_call_id in self._tool_completed_ids:
             return
@@ -237,6 +239,8 @@ class SessionJournal:
             'success': success,
             'status': status,
             'error_code': error_code,
+            'duration_seconds': duration_seconds,
+            'exit_code': exit_code,
             **(provenance or {}),
         }
         if workspace_revision is not None:
@@ -975,7 +979,8 @@ class SessionStore:
             verification_history=tuple(verification_history.values()),
         )
 
-    def _read_records(self, path: Path) -> list[dict[str, Any]]:
+    @staticmethod
+    def _read_records(path: Path) -> list[dict[str, Any]]:
         try:
             lines = path.read_text(encoding='utf-8').splitlines()
         except OSError as error:
@@ -999,7 +1004,7 @@ class SessionStore:
                 )
             records.append(record)
             line_numbers.append(index + 1)
-        return self._select_valid_record_chain(records, line_numbers, path)
+        return SessionStore._select_valid_record_chain(records, line_numbers, path)
 
     @staticmethod
     def _select_valid_record_chain(

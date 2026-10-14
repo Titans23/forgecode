@@ -25,6 +25,60 @@ from forge.sessions.trajectory import TrajectoryRecorder
 from forge.tools.base import ToolResult
 
 
+def test_journal_atif_resolves_payloads_and_distinguishes_closure_from_completeness(tmp_path):
+    import asyncio
+    from forge.sessions.store import SessionStore
+    from forge.sessions.trajectory import journal_events, journal_completeness, journal_to_atif
+    from forge.runtime.model_budget import BudgetedModelClient
+    from forge.runtime.turn_state import TurnState
+    from forge.runtime.state import ModelToolCallStarted, ModelToolCallArgumentsDelta, ModelTextDelta
+    from harbor.models.trajectories.trajectory import Trajectory
+    journal = SessionStore(tmp_path, data_root=tmp_path / 'data').create(model='offline-fixture')
+    journal.inline_payload_bytes = 64
+    journal.record_turn_started('Use api_key=fixture-secret', None)
+    state = TurnState(request_event_sink=journal.append)
+    class Client:
+        model = 'offline-fixture'
+        async def stream(self, **kwargs):
+            yield ModelTextDelta('Visible response')
+            yield ModelToolCallStarted(0, 'call', 'read_file')
+            yield ModelToolCallArgumentsDelta(0, '{"path":"README.md"}')
+            yield ModelToolCallCompleted(ToolCall(0, 'call', 'read_file', {'path': 'README.md'}))
+            yield ModelResponseCompleted('tool_use')
+    async def run():
+        async for _ in BudgetedModelClient(Client(), state).stream([{'role': 'user', 'content': 'api_key=fixture-secret'}]): pass
+    asyncio.run(run())
+    journal.record_tool_started('call', 'read_file', {'path': 'README.md'})
+    journal.record_tool_completed('call', 'read_file', True, duration_seconds=.2, exit_code=0)
+    journal.record_tool_result_message({'role': 'user', 'content': [
+        {'type': 'tool_result', 'tool_use_id': 'call', 'content': 'file contents'}]}, None)
+    journal.append('turn_completed', {'status': 'completed'})
+    events = journal_events(journal.path)
+    assert journal_completeness(events)['record_closed']
+    assert journal_completeness(events)['responses_complete']
+    assert not journal_completeness(events)['training_eligible']
+    before = journal.path.read_bytes()
+    atif = journal_to_atif(journal.path)
+    Trajectory.model_validate(atif)
+    assert atif['schema_version'] == 'ATIF-v1.7' and 'fixture-secret' not in json.dumps(atif)
+    agent = next(step for step in atif['steps'] if step['source'] == 'agent')
+    assert agent['message'] == 'Visible response'
+    assert agent['observation']['results'][0]['extra']['duration_seconds'] == .2
+    assert agent['observation']['results'][0]['extra']['exit_code'] == 0
+    assert journal.path.read_bytes() == before
+    incomplete = [e for e in events if e['type'] != 'model_request_finished']
+    assert not journal_completeness(incomplete)['record_closed']
+    legacy = [{**e, 'payload': {k: v for k, v in e['payload'].items() if k != 'response_complete'}} for e in events]
+    assert journal_completeness(legacy)['record_closed'] and not journal_completeness(legacy)['responses_complete']
+    journal.record_turn_started('interrupted', None)
+    journal.append('model_request_started', {'request_id': 'unfinished'})
+    journal.append('model_request_chunk', {'request_id': 'unfinished', 'text': 'partial text'})
+    journal.append('model_tool_chunk', {'request_id': 'unfinished', 'index': 0, 'partial_json': '{"path":'})
+    partial = journal_to_atif(journal.path)['steps'][-1]
+    assert partial['message'] == 'partial text' and partial['extra']['incomplete']
+    assert partial['extra']['partial_tools']['0']['partial_json'] == '{"path":'
+
+
 def test_trajectory_records_lifecycle_without_large_tool_content(
     tmp_path: Path,
 ) -> None:
