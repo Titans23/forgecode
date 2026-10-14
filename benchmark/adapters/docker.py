@@ -99,3 +99,35 @@ def cleanup_state(receipts):
         if any(baseline[key] for key in ('containers','volumes','networks')):states.append('unknown');continue
         states.append('residual' if any(query['after'][key] for key in ('containers','volumes','networks')) else 'clean')
     return 'unknown' if 'unknown' in states else 'residual' if 'residual' in states else 'clean'
+
+
+async def reconcile_resources(receipt_path):
+    """Remove resources only after an empty baseline proves current-run ownership."""
+    path = Path(receipt_path)
+    if not path.exists():
+        return 'unknown'
+    receipts = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
+    for row in [r for r in receipts if r.get('phase') == 'baseline']:
+        baseline = row['inventory']
+        if any(baseline[key] for key in ('containers', 'volumes', 'networks')):
+            return 'unknown'
+        known = set()
+        for prior in receipts:
+            if prior.get('resource_id') == row['resource_id'] and prior.get('phase') == 'resource_query':
+                known.update((prior.get('before') or {}).get('volumes', []))
+        before = await docker_inventory(baseline['project'], known)
+        if before['daemon_id'] != baseline['daemon_id']:
+            return 'unknown'
+        if before['containers']:
+            await docker_query('rm', '--force', *before['containers'])
+        if before['volumes']:
+            await docker_query('volume', 'rm', *before['volumes'])
+        if before['networks']:
+            await docker_query('network', 'rm', *before['networks'])
+        after = await docker_inventory(baseline['project'], before['volumes'])
+        with path.open('a', encoding='utf-8') as stream:
+            for entry in ({'resource_id': row['resource_id'], 'phase': 'stop_returned', 'delete_requested': True},
+                          {'resource_id': row['resource_id'], 'phase': 'resource_query', 'before': before, 'after': after}):
+                stream.write(json.dumps(entry) + '\n')
+            stream.flush(); os.fsync(stream.fileno())
+    return cleanup_state([json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()])

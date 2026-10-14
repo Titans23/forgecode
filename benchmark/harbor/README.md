@@ -44,6 +44,16 @@ The locked install, structured result and pre-verifier patch paths are enabled.
 `--agent oracle` runs official reference solutions without a model; successful
 offline tests alone do not establish native or live-model acceptance.
 
+`forge --profile evaluation status <run-dir>` reads the owning controller;
+`cancel` writes an idempotent request for that controller to stop its process
+group and reconcile only resources with a matching Docker ownership receipt.
+Ctrl+C uses the same stop path. Unconfirmed cleanup remains `unknown`, without
+restarting paid tasks. `report` retains the raw official job result and task
+rewards, alongside execution/grading/termination axes, nine outcome categories,
+valid grading rate, elapsed time and tokens. All frozen tasks remain in the
+denominator, including tasks that never started. A recovered provider error or
+an ordinary nonzero tool exit does not replace the final terminal outcome.
+
 The generic dataset runner freezes package bytes once under
 `<output-dir>/.source-snapshots/candidate-*/source` before starting Harbor.
 The adjacent manifest records the Git revision and per-file/content hashes;

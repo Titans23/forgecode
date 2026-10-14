@@ -6,6 +6,38 @@ import signal
 import subprocess
 
 
+def stop_process_group(process, *, grace_seconds=10):
+    """Stop only the group created by this controller, then confirm child exit."""
+    if os.name == 'nt':
+        if process.poll() is not None:
+            return True
+        subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                       capture_output=True, timeout=grace_seconds)
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGINT)
+        except ProcessLookupError:
+            return True
+    try:
+        process.wait(timeout=grace_seconds)
+    except subprocess.TimeoutExpired:
+        if os.name == 'nt':
+            process.kill()
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        process.wait(timeout=grace_seconds)
+    if os.name != 'nt':
+        # A child can exit while descendants remain in the owned process group.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    return process.poll() is not None
+
+
 async def run_process(argv, *, cwd, env, output_dir, timeout_seconds):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=False)

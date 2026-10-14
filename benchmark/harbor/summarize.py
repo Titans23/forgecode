@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
@@ -289,14 +290,6 @@ def summarize_run(run_dir: Path) -> RunSummary:
     )
 
 
-_MODEL_FAILURE_REASONS = {
-    'server_error', 'stream_interrupted', 'empty_model_response', 'incomplete_tool_call',
-    'stream_termination_missing', 'connection_error', 'timeout', 'rate_limit',
-    'authentication_error', 'invalid_model_protocol', 'conflicting_model_content',
-    'provider_protocol_error', 'overloaded', 'provider_error', 'http_401', 'http_403', 'http_429',
-}
-
-
 @dataclass(frozen=True, slots=True)
 class TrialAssessment:
     primary_outcome: str
@@ -307,7 +300,7 @@ class TrialAssessment:
 
 
 def _valid_reward(value: object) -> bool:
-    return type(value) in {int, float} and math.isfinite(value)
+    return type(value) in {int, float} and math.isfinite(value) and 0 <= value <= 1
 
 
 def _trial_payloads(trial_dir: Path) -> tuple[dict[str, Any], ...]:
@@ -324,6 +317,9 @@ def _trial_payloads(trial_dir: Path) -> tuple[dict[str, Any], ...]:
     # A host timeout can interrupt the final stdout payload/export. Journals
     # live directly on the log mount, so account for observed requests there.
     turns: dict[str, dict[str, Any]] = {}
+    structured = trial_dir / 'agent/forgecode-result.json'
+    if structured.is_file():
+        return (_read_object(structured),)
     seen: set[str] = set()
     for log in sorted((trial_dir / 'agent').rglob('session-*.jsonl')):
         for line in log.read_text(encoding='utf-8', errors='replace').splitlines():
@@ -354,35 +350,21 @@ def _trial_payloads(trial_dir: Path) -> tuple[dict[str, Any], ...]:
 
 
 def assess_trial(trial_dir: Path, result: dict[str, Any], payloads: tuple[dict[str, Any], ...]) -> TrialAssessment:
-    '''Choose one outcome only after all independent observations are loaded.'''
-    exception = result.get('exception_info')
-    exception_type = _exception_type(exception)
-    verifier = result.get('verifier_result')
-    rewards = verifier.get('rewards') if isinstance(verifier, dict) else None
-    reward = rewards.get('reward') if isinstance(rewards, dict) else None
-    environment = _verifier_environment_failure(trial_dir)
-    reasons = {str(p.get('stop_reason')) for p in payloads if p.get('stop_reason')}
-    model_reasons = reasons & _MODEL_FAILURE_REASONS
-    timeout = ('time_budget_exhausted' in reasons or _is_agent_timeout(exception)
-               or _missing_result_type(trial_dir) == 'AgentTimeout')
-    faults = sorted(model_reasons | (reasons & {'time_budget_exhausted'}) | ({'agent_timeout'} if timeout else set())
-                    | ({exception_type} if exception else set()) | ({environment} if environment else set()))
-    if environment or 'verifier' in exception_type.casefold():
-        return TrialAssessment('verifier_environment_failure', 'environment_failed', False,
-                               environment or exception_type, tuple(faults))
-    verifier_state = ('passed' if reward == 1 else 'failed') if _valid_reward(reward) else 'unknown'
-    if model_reasons or _is_model_service_failure(exception):
-        return TrialAssessment('model_protocol_failure', verifier_state, False,
-                               sorted(model_reasons)[0] if model_reasons else exception_type, tuple(faults))
-    if timeout:
-        # A deadline is an agent outcome; a contradictory reward remains raw.
-        return TrialAssessment('agent_timeout', verifier_state, _valid_reward(reward),
-                               'AgentTimeout', tuple(faults))
-    if exception is not None:
-        return TrialAssessment('infrastructure_failure', 'unknown', False, exception_type, tuple(faults))
-    if not _valid_reward(reward):
-        return TrialAssessment('unknown', 'unknown', False, 'MissingOrInvalidReward', tuple(faults))
-    return TrialAssessment('pass' if reward == 1 else 'agent_failure', verifier_state, True)
+    from benchmark.adapters.protocol import classify_result
+    terminal = payloads[-1] if payloads else {}
+    if _missing_result_type(trial_dir) == 'AgentTimeout':
+        terminal = {**terminal, 'status': 'timed_out'}
+    classified = classify_result(result, terminal, verifier_fault=_verifier_environment_failure(trial_dir))
+    legacy = {'passed': 'pass', 'acceptance_failed': 'agent_failure',
+              'model_failure': 'model_protocol_failure', 'budget_exhausted': 'agent_timeout',
+              'grader_failure': 'verifier_environment_failure',
+              'environment_failure': 'infrastructure_failure', 'harness_failure': 'infrastructure_failure',
+              'cancelled_or_incomplete': 'unfinished', 'unknown': 'infrastructure_failure' if result.get('exception_info') else 'unknown'}
+    verifier = ('passed' if classified['grade_result'] == 'pass' else 'failed') if classified['grading_state'] == 'graded' else ('environment_failed' if classified['grading_state'] == 'grader_error' else 'unknown')
+    eligible = classified['grading_state'] == 'graded' and classified['category'] in {'passed', 'acceptance_failed', 'budget_exhausted'}
+    return TrialAssessment(legacy[classified['category']], verifier, eligible,
+        classified['termination_reason'] if classified['category'] not in {'passed', 'acceptance_failed'} else '',
+        tuple(classified['observed_faults']))
 
 
 def _empty_language_stats() -> dict[str, int | float]:
@@ -405,30 +387,8 @@ def _exception_type(exception_info: object) -> str:
     return 'unknown'
 
 
-def _is_agent_timeout(exception_info: object) -> bool:
-    exception_type = _exception_type(exception_info).casefold()
-    return 'agent' in exception_type and 'timeout' in exception_type
 
 
-def _is_model_service_failure(exception_info: object) -> bool:
-    if not isinstance(exception_info, dict):
-        return False
-    exception_type = _exception_type(exception_info).casefold()
-    if exception_type.startswith(('api', 'anthropic', 'provider', 'modelcall', 'modelprotocol')) or 'ratelimit' in exception_type:
-        return True
-    text = ' '.join(
-        str(exception_info.get(key) or '')
-        for key in ('exception_type', 'exception_message')
-    ).casefold()
-    markers = (
-        'rate limit',
-        'ratelimit',
-        'connection refused',
-        'connection reset',
-        'service unavailable',
-        'http 5',
-    )
-    return any(marker in text for marker in markers)
 
 
 _VERIFIER_ENVIRONMENT_MARKERS: tuple[tuple[str, str], ...] = (
@@ -519,6 +479,66 @@ def _safe_int(value: object) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def evaluation_report(run_dir: Path) -> dict:
+    """Project raw official grades and terminal evidence onto the frozen task set."""
+    from benchmark.adapters.protocol import CATEGORIES, classify_result
+    from benchmark.adapters.docker import cleanup_state
+    from benchmark.harbor.controller import controller_status
+    experiment = _read_object(run_dir / 'experiment.json')
+    job_dir = run_dir / 'job'
+    official = _read_object(job_dir / 'result.json') if (job_dir / 'result.json').is_file() else None
+    controller = controller_status(run_dir)
+    tasks = experiment['taskset']['tasks']
+    trials = {}
+    model_calls = tool_calls = input_tokens = output_tokens = 0
+    for directory in sorted(job_dir.iterdir()) if job_dir.is_dir() else []:
+        if not directory.is_dir() or not (directory / 'config.json').is_file():
+            continue
+        result = _read_object(directory / 'result.json') if (directory / 'result.json').is_file() else {}
+        config = _read_object(directory / 'config.json')
+        name = result.get('task_name') or Path((config.get('task') or {}).get('path', '')).name
+        matches = [task for task, record in tasks.items()
+                   if task == name or Path(record['directory']).name == name]
+        if len(matches) != 1:
+            raise ValueError(f'Trial identity is outside the frozen task set: {name}')
+        payloads = _trial_payloads(directory)
+        terminal = payloads[-1] if payloads else {}
+        if _missing_result_type(directory) == 'AgentTimeout':
+            terminal = {**terminal, 'status': 'timed_out'}
+        classification = classify_result(result, terminal, verifier_fault=_verifier_environment_failure(directory),
+            cancelled=controller['status'] == 'cancelled' and not result.get('finished_at'))
+        trials.setdefault(matches[0], []).append({**classification, 'trial': directory.name,
+            'official_result': str((directory / 'result.json').relative_to(run_dir)),
+            'evidence': {'exception': result.get('exception_info'), 'agent_terminal': terminal}})
+        for payload in payloads:
+            model_calls += _safe_int(payload.get('model_calls'))
+            tool_calls += _safe_int(payload.get('tool_calls'))
+            usage = payload.get('usage') or {}
+            input_tokens += sum(_safe_int(usage.get(key)) for key in ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'))
+            output_tokens += _safe_int(usage.get('output_tokens'))
+    outcomes = {}
+    for task in tasks:
+        attempts = trials.get(task, [])
+        outcomes[task] = (attempts[-1] if attempts else classify_result({}, cancelled=controller['status'] == 'cancelled'))
+        outcomes[task] = {**outcomes[task], 'attempts': attempts}
+    receipts = run_dir / 'resources.jsonl'
+    resource_state = cleanup_state([json.loads(line) for line in receipts.read_text(encoding='utf-8').splitlines()]) if receipts.exists() else 'unknown'
+    counts = Counter(item['category'] for item in outcomes.values())
+    graded = sum(item['grading_state'] == 'graded' for item in outcomes.values())
+    elapsed = None
+    if controller.get('started_at'):
+        end = datetime.fromisoformat(controller['finished_at']) if controller.get('finished_at') else datetime.now(timezone.utc)
+        elapsed = max(0, (end - datetime.fromisoformat(controller['started_at'])).total_seconds())
+    return {'schema_version': 'forge.evaluation.report.v1', 'run_id': experiment['run_id'],
+            'dataset': experiment['dataset'], 'usage': experiment['usage'], 'controller': controller,
+            'cleanup_state': resource_state, 'official_job_result': official, 'tasks': outcomes,
+            'classification_counts': {key: counts[key] for key in CATEGORIES},
+            'task_count': len(tasks), 'valid_grading_rate': graded / len(tasks) if tasks else 0,
+            'elapsed_seconds': elapsed, 'model_calls': model_calls, 'tool_calls': tool_calls,
+            'input_tokens': input_tokens, 'output_tokens': output_tokens,
+            'score_policy': 'Official raw results are preserved; failures remain in the frozen task denominator.'}
 
 
 def main(argv: list[str] | None = None) -> int:

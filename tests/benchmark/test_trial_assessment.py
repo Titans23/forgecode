@@ -5,6 +5,54 @@ import pytest
 from benchmark.harbor.summarize import summarize_run
 
 
+@pytest.mark.parametrize('exception,status,reward,category', [
+    (None, {'status': 'completed'}, 1, 'passed'),
+    (None, {'status': 'failed', 'stop_reason': 'acceptance_unmet'}, 0, 'acceptance_failed'),
+    (None, {'status': 'failed', 'stop_reason': 'authentication_error'}, 0, 'model_failure'),
+    ('ToolExecutionError', {}, None, 'harness_failure'),
+    ('AgentSetupTimeoutError', {}, None, 'environment_failure'),
+    ('VerifierTimeoutError', {}, 0, 'grader_failure'),
+    (None, {'status': 'failed', 'stop_reason': 'model_budget_exhausted'}, 1, 'budget_exhausted'),
+    (None, {'status': 'cancelled'}, None, 'cancelled_or_incomplete'),
+    ('UnexpectedException', {}, None, 'unknown'),
+])
+def test_shared_terminal_classification_preserves_grade_axes(exception, status, reward, category):
+    from benchmark.adapters.protocol import classify_result, normalize
+    result = {'exception_info': {'exception_type': exception} if exception else None,
+              'verifier_result': {'rewards': {'reward': reward}}, 'finished_at': 'observed'}
+    actual = classify_result(result, status)
+    assert actual['category'] == category
+    assert normalize(runner_exit=1, result=result, agent_status=status)['category'] == category
+    assert actual['official_rewards'] == {'reward': reward}
+    if category == 'budget_exhausted':
+        assert actual['grade_result'] == 'pass' and actual['termination_reason'] == 'model_budget_exhausted'
+
+
+def test_recovered_errors_and_nonzero_tool_exit_do_not_replace_final_success():
+    from benchmark.adapters.protocol import classify_result
+    status = {'status': 'completed', 'stop_reason': 'completed',
+              'observed_errors': ['rate_limit'], 'tool_exit_codes': [2, 0]}
+    assert classify_result({'verifier_result': {'rewards': {'reward': 1}}}, status)['category'] == 'passed'
+
+
+def test_report_counts_unstarted_tasks_and_keeps_official_scores(tmp_path):
+    from benchmark.harbor.summarize import evaluation_report
+    from benchmark.cli import main
+    (tmp_path / 'experiment.json').write_text(json.dumps({'run_id': 'fixture', 'dataset': 'fixture',
+        'usage': 'evaluation-only', 'taskset': {'tasks': {'a': {'directory': 'a'}, 'b': {'directory': 'b'}}}}))
+    job = tmp_path / 'job'; job.mkdir()
+    official = {'finished_at': 'now', 'stats': {'official_score': 0.5}}
+    (job / 'result.json').write_text(json.dumps(official))
+    path = trial(job, reward=1, reason='tool_budget_exhausted')
+    (path / 'config.json').write_text(json.dumps({'task': {'path': '/tasks/a'}}))
+    report = evaluation_report(tmp_path)
+    assert report['official_job_result'] == official and report['task_count'] == 2
+    assert report['classification_counts']['budget_exhausted'] == 1
+    assert report['classification_counts']['cancelled_or_incomplete'] == 1
+    assert report['valid_grading_rate'] == .5 and report['tasks']['a']['grade_result'] == 'pass'
+    assert main(['report', str(tmp_path)]) == main(['status', str(tmp_path)]) == 0
+
+
 def test_missing_official_result_keeps_kernel_usage_and_timeout(tmp_path):
     path = trial(tmp_path, reason='time_budget_exhausted')
     (path / 'result.json').unlink()

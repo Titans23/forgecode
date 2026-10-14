@@ -9,6 +9,16 @@ from forge.application.models import ContractError, canonical_hash, strict_loads
 
 
 NORMALIZATION_VERSION = 'forge.harbor.normalization.v1'
+MODEL_FAILURE_REASONS = {
+    'server_error', 'stream_interrupted', 'empty_model_response', 'incomplete_tool_call',
+    'stream_termination_missing', 'connection_error', 'timeout', 'rate_limit',
+    'authentication_error', 'invalid_model_protocol', 'conflicting_model_content',
+    'provider_protocol_error', 'model_protocol_error', 'overloaded', 'provider_error',
+    'http_401', 'http_403', 'http_429',
+}
+CATEGORIES = ('passed', 'acceptance_failed', 'model_failure', 'harness_failure',
+              'environment_failure', 'grader_failure', 'budget_exhausted',
+              'cancelled_or_incomplete', 'unknown')
 MAX_FILES = 20000
 MAX_FILE_BYTES = 100 * 1024 * 1024
 MAX_TOTAL_BYTES = 1024 * 1024 * 1024
@@ -77,18 +87,54 @@ def reward_result(value):
     return text or '0', 'pass' if reward == 1 else 'fail'
 
 
+def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled=False):
+    """Classify terminal evidence; recovered errors never replace the final outcome."""
+    result, agent_status = result or {}, agent_status or {}
+    exception = result.get('exception_info') or {}
+    error = exception.get('exception_type', '')
+    reason = agent_status.get('stop_reason') or ''
+    status = agent_status.get('status', 'indeterminate')
+    rewards = (result.get('verifier_result') or {}).get('rewards') or {}
+    reward, grade = reward_result(rewards.get('reward'))
+    grader_failure = bool(verifier_fault or error.startswith(('Verifier', 'RewardFile'))
+                          or error in {'GraderError', 'InvalidRewardError'})
+    grading = 'grader_error' if grader_failure else 'graded' if reward is not None else 'unscored'
+    # Raw reward remains evidence even when the grader itself failed.
+    verdict = grade if grading == 'graded' else 'unknown'
+    terminal_faults = [value for value in (reason, error, verifier_fault) if value]
+    if reason.endswith('_budget_exhausted') or error == 'AgentTimeoutError' or status in {'timed_out', 'budget_exhausted'}:
+        category, execution, termination = 'budget_exhausted', 'finished', reason or 'agent_deadline'
+    elif cancelled or status == 'cancelled' or reason == 'cancelled':
+        category, execution, termination = 'cancelled_or_incomplete', 'cancelled', 'cancelled'
+    elif grader_failure:
+        category, execution, termination = 'grader_failure', 'finished', verifier_fault or error
+    elif reason in MODEL_FAILURE_REASONS or error.startswith(('Api', 'API', 'Anthropic', 'Provider', 'ModelCall', 'ModelProtocol', 'RateLimit', 'Authentication')):
+        category, execution, termination = 'model_failure', 'error', reason or error
+    elif error.startswith(('Environment', 'AgentSetup', 'Docker', 'ImageBuild')):
+        category, execution, termination = 'environment_failure', 'error', error
+    elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'harness_error'}:
+        category, execution, termination = 'harness_failure', 'error', reason or error
+    elif error:
+        category, execution, termination = 'unknown', 'error', error
+    elif reward is not None:
+        category, execution, termination = ('passed' if grade == 'pass' else 'acceptance_failed'), 'finished', reason or 'completed'
+    elif not result.get('finished_at') and status == 'indeterminate':
+        category, execution, termination = 'cancelled_or_incomplete', 'unfinished', 'incomplete'
+    else:
+        category, execution, termination = 'unknown', 'finished', reason or 'missing_or_invalid_reward'
+    return {'category': category, 'execution_state': execution, 'grading_state': grading,
+            'grade_result': verdict, 'termination_reason': termination, 'agent_outcome': status,
+            'raw_reward_decimal': reward, 'official_rewards': rewards, 'observed_faults': terminal_faults}
+
+
 def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner'):
     """Shell exit, internal completion and authoritative verifier reward are separate."""
+    classified = classify_result(result, agent_status)
     exception = (result or {}).get('exception_info') or {}
     error_type = exception.get('exception_type', '')
-    rewards = ((result or {}).get('verifier_result') or {}).get('rewards') or {}
-    reward, grade_result = reward_result(rewards.get('reward'))
-    if error_type in {'RewardFileNotFoundError','RewardFileEmptyError','RewardFileInvalidError'}:
-        grade_state, grade_result, reward = 'unscored', 'unknown', None
-    elif error_type.startswith('Verifier') or error_type in {'GraderError','InvalidRewardError'}:
-        grade_state, grade_result, reward = 'grader_error', 'unknown', None
-    else:
-        grade_state = 'graded' if reward is not None else 'unscored'
+    rewards = classified['official_rewards']
+    grade_state, grade_result = classified['grading_state'], classified['grade_result']
+    reward = classified['raw_reward_decimal'] if grade_state == 'graded' else None
     origin = None
     if error_type.startswith(('Environment','AgentSetup')):
         origin = 'environment_setup'
@@ -97,7 +143,9 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
     elif runner_exit != 0:
         origin = 'runner_crash'
     agent_outcome = (agent_status or {}).get('status', 'indeterminate')
-    if agent_outcome not in {'completed','failed','cancelled','timed_out','indeterminate'}:
+    if classified['category'] == 'budget_exhausted':
+        agent_outcome = 'budget_exhausted'
+    if agent_outcome not in {'completed','failed','cancelled','timed_out','indeterminate', 'budget_exhausted'}:
         agent_outcome = 'indeterminate'
     return {'normalization_version':NORMALIZATION_VERSION,'execution_state':'error' if origin else 'finished',
         'grading_state':grade_state,'grade_result':grade_result,'raw_reward_decimal':reward,
@@ -105,7 +153,8 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
         'runner_exit_code':runner_exit,'exception_type':error_type or None,
         'reason':'missing_or_invalid_reward' if grade_state=='unscored' else error_type or None,
         'execution_label':'official-environment','provenance':provenance,
-        'official_rewards':rewards}
+        'official_rewards':rewards, 'category': classified['category'],
+        'termination_reason': classified['termination_reason'], 'observed_faults': classified['observed_faults']}
 
 
 def collect_harbor(root, *, task_name, task_checksum, runner_exit):

@@ -2,8 +2,45 @@ import json
 import os
 from pathlib import Path
 import sys
+import threading
+import time
+
+import pytest
 
 from benchmark.harbor.controller import run_controller, controller_status
+
+
+@pytest.mark.parametrize('interrupt', [False, True])
+def test_owned_controller_cancels_real_child_and_records_unknown_cleanup(tmp_path, interrupt):
+    from benchmark.harbor.controller import cancel_run
+    import signal
+    observed = []
+    def cancel():
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            state = controller_status(tmp_path)
+            if state['status'] == 'running':
+                if interrupt:
+                    if os.name == 'nt':
+                        _thread.interrupt_main()
+                    else:
+                        os.kill(os.getpid(), signal.SIGINT)
+                else:
+                    observed.append(cancel_run(tmp_path))
+                return
+            time.sleep(.02)
+    import _thread
+    worker = threading.Thread(target=cancel)
+    worker.start()
+    code = run_controller([sys.executable, '-c', 'import time; time.sleep(60)'],
+        cwd=tmp_path, env=os.environ.copy(), output_dir=tmp_path, interval=.05)
+    worker.join(timeout=10)
+    state = controller_status(tmp_path)
+    assert code == 130 and state['status'] == 'cancelled' and state['child_stopped']
+    assert state['cleanup_state'] == 'unknown'
+    if not interrupt:
+        assert observed[0]['cancel_requested']
+    assert not cancel_run(tmp_path)['cancel_requested']
 
 
 def test_real_child_exit_is_recorded_without_job_result(tmp_path):

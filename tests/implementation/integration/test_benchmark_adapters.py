@@ -274,3 +274,26 @@ def test_docker_cleanup_requires_same_daemon_and_empty_resource_queries():
     assert cleanup_state([*rows[:-1],{**rows[-1],'after':{**empty,'daemon_id':'different'}}])=='unknown'
     assert cleanup_state([*rows,{'resource_id':'a','phase':'query_failed'}])=='unknown'
     assert cleanup_state([*rows,{'resource_id':'b','phase':'start_intent'}])=='unknown'
+
+
+@pytest.mark.parametrize('foreign', [False, True])
+def test_cancel_cleanup_queries_owned_project_and_refuses_foreign_daemon(tmp_path, monkeypatch, foreign):
+    import benchmark.adapters.docker as docker
+    empty = {'daemon_id': 'fixture', 'project': 'owned', 'containers': [], 'volumes': [], 'networks': []}
+    receipt = tmp_path / 'resources.jsonl'
+    receipt.write_text('\n'.join(json.dumps(r) for r in [
+        {'resource_id': 'run', 'phase': 'start_intent'},
+        {'resource_id': 'run', 'phase': 'baseline', 'inventory': empty}]) + '\n')
+    calls = []
+    inventories = iter([{**empty, 'daemon_id': 'foreign' if foreign else 'fixture',
+                        'containers': ['c'], 'volumes': ['v'], 'networks': ['n']}, empty])
+    async def inventory(project, known_volumes=()):
+        assert project == 'owned'
+        return next(inventories)
+    async def query(*arguments):
+        calls.append(arguments)
+        return ''
+    monkeypatch.setattr(docker, 'docker_inventory', inventory)
+    monkeypatch.setattr(docker, 'docker_query', query)
+    assert asyncio.run(docker.reconcile_resources(receipt)) == ('unknown' if foreign else 'clean')
+    assert calls == ([] if foreign else [('rm', '--force', 'c'), ('volume', 'rm', 'v'), ('network', 'rm', 'n')])

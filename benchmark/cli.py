@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+from pathlib import Path
 from typing import Sequence
 
 from benchmark.catalog import BENCHMARKS, get_benchmark, ready_benchmarks
@@ -31,11 +32,23 @@ def build_parser() -> argparse.ArgumentParser:
         'runner_args', nargs=argparse.REMAINDER,
         help='arguments forwarded to the selected benchmark runner',
     )
+    for command in ('status', 'cancel', 'report'):
+        child = subparsers.add_parser(command, help=f'{command} an evaluation run')
+        child.add_argument('run_dir', type=Path)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command in {'status', 'cancel', 'report'}:
+        from benchmark.harbor.controller import controller_status, cancel_run
+        from benchmark.harbor.summarize import evaluation_report
+        if not args.run_dir.is_dir():
+            raise SystemExit('Run directory does not exist.')
+        value = (cancel_run(args.run_dir) if args.command == 'cancel' else
+                 controller_status(args.run_dir) if args.command == 'status' else evaluation_report(args.run_dir))
+        print(json.dumps(value, ensure_ascii=True, indent=2))
+        return 0
     if args.command == 'list':
         values = [spec.to_dict() for spec in BENCHMARKS]
         if args.as_json:
