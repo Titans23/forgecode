@@ -196,8 +196,11 @@ def test_checkpoint_prune_keeps_only_latest_manifests(
     root.mkdir()
     store = CheckpointStore(root, tmp_path / 'checkpoints')
     checkpoint_ids = [store.begin() for _ in range(4)]
+    import os
+    for identifier in checkpoint_ids:
+        os.utime(store._manifest_path(identifier), (1_700_000_000, 1_700_000_000))
 
-    removed = store.prune(maximum=2)
+    removed = store.prune(maximum=2, retention_days=36500)
 
     assert set(removed) == set(checkpoint_ids[:2])
     assert len(store.list()) == 2

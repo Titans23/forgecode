@@ -200,10 +200,19 @@ class CheckpointStore:
             path.stem
             for path in sorted(
                 self.directory.glob('checkpoint-*.json'),
-                key=lambda item: item.stat().st_mtime,
+                key=self._creation_order,
                 reverse=True,
             )
         )
+
+    @staticmethod
+    def _creation_order(path: Path):
+        # Filesystem timestamps can tie or change when a checkpoint is updated.
+        try:
+            manifest = json.loads(path.read_text(encoding='utf-8'))
+            return datetime.fromisoformat(manifest['created_at']).timestamp(), path.name
+        except (OSError, ValueError, KeyError, TypeError):
+            return path.stat().st_mtime, path.name
 
     def latest_restorable(self) -> str | None:
         '''Return the newest checkpoint containing at least one file snapshot.'''
@@ -233,7 +242,7 @@ class CheckpointStore:
             return ()
         manifests = sorted(
             self.directory.glob('checkpoint-*.json'),
-            key=lambda item: item.stat().st_mtime,
+            key=self._creation_order,
             reverse=True,
         )
         now = datetime.now().astimezone().timestamp()
