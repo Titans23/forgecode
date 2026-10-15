@@ -93,3 +93,23 @@ def compare_specs(specs):
                 if group not in ('harness','source'):
                     blocking.append(group)
     return {'comparable': not blocking, 'differences': differences[:100]}
+
+
+def compare_conditions(baseline, candidate, *, change):
+    """Compare explicit frozen conditions; no hypothesis test or score filtering."""
+    if change not in {'model', 'harness'}:
+        raise ValueError('Declare --change harness or model.')
+    differences, blockers = [], []
+    def visit(left, right, path):
+        if isinstance(left, dict) and isinstance(right, dict):
+            for key in sorted(left.keys() | right.keys()):
+                visit(left.get(key), right.get(key), f'{path}.{key}' if path else key)
+        elif left != right:
+            differences.append(path)
+            if path.split('.')[0] != change: blockers.append(path)
+    visit(baseline, candidate, '')
+    missing = [f'{side}.{key}' for side, values in (('baseline', baseline), ('candidate', candidate))
+               for key, value in values.items() if value is None or value == {}]
+    return {'controlled_conditions': not blockers and not missing, 'declared_change': change,
+            'differences': differences, 'unexpected_differences': blockers, 'missing_evidence': missing,
+            'statistical_significance': 'not_estimated'}

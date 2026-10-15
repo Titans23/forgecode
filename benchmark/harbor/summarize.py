@@ -594,6 +594,125 @@ def export_atif(run_dir: Path, destination: Path) -> dict:
     return share_index
 
 
+def comparison_conditions(run_dir: Path) -> dict:
+    experiment = _read_object(run_dir / 'experiment.json')
+    source = experiment.get('source_manifest', {}).get('files', {})
+    # Only Harness package bytes may change in a Harness comparison. Runner,
+    # verifier, dependency and protocol code remain controlled conditions.
+    harness_files = {key: value for key, value in source.items() if key.startswith('forge/')}
+    fixed_files = {key: value for key, value in source.items() if not key.startswith('forge/') and key != 'README.md'}
+    driver = experiment.get('driver_manifest', {}).get('files', {})
+    driver_files = {key: value for key, value in driver.items() if not key.startswith('forge/') and key != 'README.md'}
+    tasks = experiment.get('taskset', {}).get('tasks', {})
+    task_identities = {key: {name: value for name, value in item.items() if name != 'directory'} for key, item in tasks.items()}
+    receipts = run_dir / 'resources.jsonl'
+    environment = {}
+    if receipts.is_file():
+        for line in receipts.read_text(encoding='utf-8').splitlines():
+            row = json.loads(line)
+            if row.get('phase') == 'environment':
+                environment.setdefault(row['task'], []).append(row['identity'])
+    environment = {key: sorted(values, key=lambda value: json.dumps(value, sort_keys=True)) for key, values in environment.items()}
+    return {'dataset': {'name': experiment.get('dataset'), 'version': experiment.get('taskset', {}).get('version'), 'tasks': task_identities},
+        'budget': experiment.get('budget'), 'protocol': {key: experiment.get(key) for key in
+            ('harbor_version', 'attempts', 'task_retries', 'concurrency', 'timeout_multiplier', 'agent_setup_timeout_multiplier')},
+        'grader': experiment.get('grader'), 'dependencies_and_runner': fixed_files or None,
+        'driver': driver_files or None,
+        'environment': environment or None,
+        'model': {'configuration': experiment.get('model'), 'parameters': experiment.get('parameters')},
+        'harness': {'agent': experiment.get('agent'), 'configuration': experiment.get('harness'), 'files': harness_files}}
+
+
+def compare_runs(baseline: Path, candidate: Path, *, change: str) -> dict:
+    from benchmark.core.metrics import compare_conditions
+    from decimal import Decimal
+    conditions = [comparison_conditions(path) for path in (baseline, candidate)]
+    compared = compare_conditions(*conditions, change=change)
+    reports = [evaluation_report(path) for path in (baseline, candidate)]
+    for side, path, condition in zip(('baseline', 'candidate'), (baseline, candidate), conditions, strict=True):
+        if not condition['dataset']['tasks'] or not condition['dataset']['version']:
+            compared['missing_evidence'].append(f'{side}.frozen_taskset')
+        for key in ('harbor_version', 'attempts', 'task_retries', 'concurrency', 'timeout_multiplier', 'agent_setup_timeout_multiplier'):
+            if condition['protocol'].get(key) is None:
+                compared['missing_evidence'].append(f'{side}.protocol.{key}')
+        receipts = path / 'resources.jsonl'
+        identified = {row.get('session') for row in (json.loads(line) for line in receipts.read_text(encoding='utf-8').splitlines())
+                      if row.get('phase') == 'environment' and row.get('identity')} if receipts.is_file() else set()
+        report = reports[0 if side == 'baseline' else 1]
+        for task, result in report['tasks'].items():
+            if result.get('trial', '') + '__env' not in identified:
+                compared['missing_evidence'].append(f'{side}.{task}.environment')
+    changes = {}
+    for task in sorted(reports[0]['tasks'].keys() | reports[1]['tasks'].keys()):
+        left, right = (report['tasks'].get(task, {}) for report in reports)
+        rewards = [item.get('raw_reward_decimal') for item in (left, right)]
+        changes[task] = {'baseline_category': left.get('category'), 'candidate_category': right.get('category'),
+            'baseline_reward': rewards[0], 'candidate_reward': rewards[1],
+            'reward_delta': str(Decimal(rewards[1]) - Decimal(rewards[0])) if all(value is not None for value in rewards) else None,
+            'baseline_attempts': left.get('attempts', []), 'candidate_attempts': right.get('attempts', [])}
+        for side, result in (('baseline', left), ('candidate', right)):
+            if len(result.get('attempts', [])) != 1 or result.get('grading_state') != 'graded':
+                compared['missing_evidence'].append(f'{side}.{task}.single_completed_grade')
+    if compared['missing_evidence']: compared['controlled_conditions'] = False
+    return {'schema_version': 'forge.evaluation.comparison.v1', **compared, 'tasks': changes,
+        'official_results': [report['official_job_result'] for report in reports],
+        'interpretation': 'Descriptive per-task changes only; no statistical significance or causal improvement claim.'}
+
+
+def export_sft(run_dir: Path, destination: Path, *, tokenizer_dir: Path | None) -> dict:
+    """Offline export contract for qualified training inputs; public tests never qualify."""
+    from hashlib import sha256
+    from extensions.qwen_tool_distillation import (evaluation_only_source, TraceRejected,
+        journal_training_records, clean_episode, validate_training_episode, tokenizer_identity,
+        qwen_token_counter, build_sft_rows, write_sft_jsonl)
+    experiment = _read_object(run_dir / 'experiment.json')
+    taskset_path = run_dir / 'tasks/taskset.json'
+    taskset = _read_object(taskset_path) if taskset_path.is_file() else experiment.get('taskset', {})
+    if evaluation_only_source({key: experiment.get(key) for key in ('dataset', 'usage', 'taskset')}) or evaluation_only_source(taskset):
+        raise TraceRejected(['Terminal-Bench and SWE-bench test inputs are permanently evaluation-only.'])
+    training = experiment.get('training') or {}
+    expected_tokenizer = training.get('tokenizer') or {}
+    if not training.get('sources') or not expected_tokenizer or tokenizer_dir is None:
+        raise TraceRejected(['Training source, overlap evidence and a local target tokenizer are required.'])
+    identity = tokenizer_identity(tokenizer_dir, model_id=expected_tokenizer.get('id', ''), revision=expected_tokenizer.get('revision', ''))
+    if identity != expected_tokenizer:
+        raise TraceRejected(['Target tokenizer bytes differ from the declared snapshot.'])
+    report = evaluation_report(run_dir)
+    index = evaluation_trace_index(run_dir)
+    if not index['journals']: raise TraceRejected(['No Journal is available for training export.'])
+    episodes = []
+    for journal in index['journals']:
+        source = training['sources'].get(journal['sha256'])
+        if not source: raise TraceRejected(['Journal is not bound to training provenance.'])
+        frozen_task = taskset.get('tasks', {}).get(source.get('task_id'), {})
+        if not frozen_task.get('content_sha256') or frozen_task['content_sha256'] != (source.get('metadata') or {}).get('task_content_sha256'):
+            raise TraceRejected(['Training source does not match frozen task content.'])
+        task = report['tasks'].get(source.get('task_id'), {})
+        if task.get('category') != 'passed' or len(task.get('attempts', [])) != 1:
+            raise TraceRejected(['Training requires one independently successful task attempt.'])
+        trial = Path(journal['path']).parts[1]
+        if trial != task.get('trial'):
+            raise TraceRejected(['Journal and independent acceptance belong to different trials.'])
+        evidence = run_dir / task['official_result']
+        outcome = {'success': True, 'validated': True, 'completion_gate_accepted': True,
+                   'validator': experiment.get('grader'), 'evidence_sha256': sha256(evidence.read_bytes()).hexdigest()}
+        records = clean_episode(journal_training_records(run_dir / journal['path'], source=source, outcome=outcome))
+        validate_training_episode(records, target_tokenizer=identity)
+        episodes.append(records)
+    # Validate every episode before loading optional libraries or creating output.
+    counter = qwen_token_counter(str(tokenizer_dir))
+    rows = [row for records in episodes for row in build_sft_rows(records, token_counter=counter, target_tokenizer=identity)]
+    if not rows: raise TraceRejected(['No complete training targets were produced.'])
+    destination.mkdir(parents=True, exist_ok=False)
+    write_sft_jsonl(destination / 'samples.jsonl', rows)
+    manifest = {'schema_version': 'forge.training.export.v1', 'rows': len(rows), 'tokenizer': identity,
+                'source_journals': [{**item, 'training_eligible': True,
+                    'training_reason': 'Source, split, overlap, acceptance and tokenizer qualified at export.'} for item in index['journals']],
+                'run_id': experiment['run_id']}
+    (destination / 'index.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    return manifest
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('run_dir', type=Path)

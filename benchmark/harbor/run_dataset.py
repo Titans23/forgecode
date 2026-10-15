@@ -155,6 +155,7 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'harbor_version': '0.18.0', 'usage': 'evaluation-only', 'model': model,
         'agent': args.agent, 'concurrency': args.concurrency, 'attempts': 1, 'task_retries': args.max_retries,
         'budget': budget, 'timeout_multiplier': args.timeout_multiplier or 1,
+        'agent_setup_timeout_multiplier': args.agent_setup_timeout_multiplier,
         'parameters': {'temperature': None, 'top_p': None, 'max_output_tokens': config.max_tokens,
                        'reasoning_effort': config.reasoning_effort} if config else None,
         'harness': {'max_context_tokens': model['context_window'], 'compaction_enabled': True,
@@ -230,6 +231,7 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
     source = freeze_source(args.source_dir, output / '.source-snapshots')
     driver = source if args.source_dir.resolve() == PROJECT_ROOT else freeze_source(PROJECT_ROOT, output / '.driver-snapshots')
     manifest.update(source_manifest=json.loads((source.parent / 'manifest.json').read_text(encoding='utf-8')),
+                    driver_manifest=json.loads((driver.parent / 'manifest.json').read_text(encoding='utf-8')),
                     taskset=taskset, grader={'harbor_version': '0.18.0', 'protocol': 'official-task-verifier'})
     job = frozen_job(args, manifest, taskset, source, output)
     (output / 'experiment.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')

@@ -101,6 +101,8 @@ forge --profile evaluation status <run-dir>
 forge --profile evaluation cancel <run-dir>
 forge --profile evaluation report <run-dir>
 forge --profile evaluation export <run-dir> --format atif
+forge --profile evaluation compare <baseline> <candidate> --change harness
+forge --profile evaluation export <qualified-training-run> --format sft --tokenizer-dir <local-tokenizer>
 ```
 
 `terminal = core + terminal`，`evaluation = core + evaluation`；启动器只导入选中入口。需要 Harbor 时安装 `forge-code[evaluation]`；飞书兼容命令使用可选 `forge-code[channels]`。默认安装没有 Electron、React 或运行 Web 的入口。后续客户端/SDK 使用 Python API；本轮没有发布新的 GUI、HTTP 服务或 SDK 服务器。
@@ -129,6 +131,12 @@ asyncio.run(main())
 `evals.runner` 保留 `EvalCase/EvalOutcome`、可调用的离线用例接口和可复现的仓库版本/命令证据；`benchmark.cli`、`benchmark.harbor.run_forge.run_turn`、RunSpec/ResultBundle 及独立 verifier 保持原协议。终端初始化不加载 Harbor，正式评测需要兼容的外部环境和单独的模型预算授权。
 
 后训练复用 `extensions.qwen_tool_distillation`：`TraceRecorder/RecordingModelClient` 记录实际模型请求及工具事件，`RecordedConversation` 接收独立 outcome validator，`ForgeCodeRolloutEnvironment` 提供 reset/step 和注入式执行/完成门禁，`RewardEvidence` 保存奖励组成。`clean_episode`、`build_sft_rows`、`build_dpo_row` 和 split manifest 保留版本、来源、许可、脱敏与数据划分检查。采集与导出需要显式调用，不加载 transformers/ms-swift、不启动训练集群或付费实验。
+
+`compare` 必须声明 `--change harness|model`，逐题展示原始判分变化，并检查任务内容、预算、协议、判分器、依赖和实际 Docker 镜像及资源限制。缺少环境证据或存在额外变化时不视为受控比较；单次比较不提供统计显著性结论。旧运行缺少的证据不会自动补造。
+
+Terminal-Bench、SWE-bench Verified 的任务永久为 `evaluation-only`，修改 `usage/split` 不能用于训练导出；可用 ATIF 作脱敏诊断。SFT 从已有 Journal 离线转换为 Qwen/ms-swift 格式，保留上下文 loss mask，不新增执行日志。当前只验收导出接口及合成夹具，没有接入真实训练任务集。
+
+训练输入契约在 `experiment.json.training` 中：`sources` 用 Journal SHA-256 关联 `EpisodeSource`，`tokenizer` 包含 `id/revision/files_sha256`。来源 metadata 必须绑定 `task_content_sha256` 和 `overlap_check`（`status=passed`、方法、包含训练/保留集的 assignments，以及该列表排序键 JSON 的 SHA-256 `reference_sha256`）；导出重新检查仓库、任务和内容跨划分重叠。来源须公开且许可获准，独立判分必须成功，轨迹和工具执行证明必须完整；缺少证据一律拒绝。只从显式本地目录加载目标 tokenizer，校验其字节摘要，不自动下载。旧扩展的 `build-sft` 同样要求本地 tokenizer 和这些来源约束。
 
 ## 验证
 

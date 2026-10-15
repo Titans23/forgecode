@@ -40,6 +40,22 @@ async def docker_inventory(project, known_volumes=()):
     return {'daemon_id':daemon,'project':project,'containers':sorted(containers),'volumes':sorted(volumes),'networks':sorted(networks)}
 
 
+async def environment_identity(project):
+    '''Record image IDs and host limits without reading container credentials.'''
+    containers = (await docker_query('ps', '--quiet', '--no-trunc', '--filter',
+                                    'label=com.docker.compose.project=' + project)).splitlines()
+    if not containers: raise ValueError('No running task containers to identify')
+    images = []
+    for container in containers:
+        value = json.loads(await docker_query('inspect', '--format',
+            '{"image":{{json .Image}},"platform":{{json .Platform}},"memory":{{json .HostConfig.Memory}},"nano_cpus":{{json .HostConfig.NanoCpus}},"pids_limit":{{json .HostConfig.PidsLimit}}}', container))
+        if not value.get('image', '').startswith('sha256:'): raise ValueError('Docker image identity is missing')
+        images.append(value)
+    host = json.loads(await docker_query('info', '--format',
+        '{"version":{{json .ServerVersion}},"kernel":{{json .KernelVersion}},"os":{{json .OSType}},"architecture":{{json .Architecture}}}'))
+    return {'host': host, 'containers': sorted(images, key=lambda value: json.dumps(value, sort_keys=True))}
+
+
 class EvaluationDockerEnvironment(BoundedDockerEnvironment):
     def __init__(self,*args,receipt_path,**kwargs):
         super().__init__(*args,**kwargs)
@@ -64,6 +80,11 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
         self._receipt('baseline',inventory=baseline)
         await super().start(*args,**kwargs)
         self._receipt('started')
+        try:
+            identity = await environment_identity(project)
+            self._receipt('environment', task=self.environment_name, session=self.session_id, identity=identity)
+        except Exception as error:
+            self._receipt('environment_unknown', reason=type(error).__name__)
 
     async def stop(self,delete):
         baseline=getattr(self,'_resource_baseline',None)

@@ -380,9 +380,17 @@ def test_cleaner_rejects_unvalidated_or_unlicensed_data(tmp_path: Path) -> None:
 
 def test_sft_keeps_exact_system_and_masks_context(tmp_path: Path) -> None:
     records = _valid_trace(tmp_path / 'trace.jsonl')
+    from hashlib import sha256
+    assignments = [{'task_id': 'task-1', 'repository': 'owner/repo', 'split': 'train', 'content_sha256': 'a' * 64},
+                   {'task_id': 'holdout', 'repository': 'fixture/holdout', 'split': 'test', 'content_sha256': 'b' * 64}]
+    records[0]['payload']['metadata'] = {'fixture': True, 'task_content_sha256': 'a' * 64, 'overlap_check': {
+        'status': 'passed', 'method': 'synthetic fixture exact task/repository check',
+        'reference_sha256': sha256(json.dumps(assignments, sort_keys=True).encode()).hexdigest(), 'assignments': assignments}}
+    records[-1]['payload'].update(validator='synthetic-fixture-validator', evidence_sha256='e' * 64)
+    tokenizer = {'id': 'synthetic-character-counter-fixture', 'revision': 'fixture-v1', 'files_sha256': 'c' * 64}
     response = next(item for item in records if item['record_type'] == 'model_response')
     response['payload']['text'] = '<think>hidden</think>visible'
-    rows = build_sft_rows(records, token_counter=len, max_tokens=10_000)
+    rows = build_sft_rows(records, token_counter=len, target_tokenizer=tokenizer, max_tokens=10_000)
     assert rows[0]['messages'][0] == {
         'role': 'system',
         'content': 'SYSTEM-SENTINEL',
@@ -394,6 +402,26 @@ def test_sft_keeps_exact_system_and_masks_context(tmp_path: Path) -> None:
         'loss': True,
     }
     assert all(not message['loss'] for message in rows[0]['messages'][:-1])
+    assert rows[0]['metadata']['target_tokenizer'] == tokenizer
+    # Every rejection uses the same small trace; no extra launches or builds.
+    import copy
+    for field, value in [('split', 'test'), ('benchmark', 'Terminal-Bench 2.0'), ('benchmark', 'SWE-bench Verified'),
+                         ('license_id', 'unknown'), ('source_revision', 'latest'), ('metadata', {})]:
+        rejected = copy.deepcopy(records)
+        rejected[0]['payload'][field] = value
+        with pytest.raises(TraceRejected): build_sft_rows(rejected, token_counter=len, target_tokenizer=tokenizer)
+    for field, value in [('success', False), ('validated', False), ('evidence_sha256', '')]:
+        rejected = copy.deepcopy(records)
+        rejected[-1]['payload'][field] = value
+        with pytest.raises(TraceRejected): build_sft_rows(rejected, token_counter=len, target_tokenizer=tokenizer)
+    with pytest.raises(TraceRejected): build_sft_rows(records, token_counter=len, target_tokenizer={})
+    with pytest.raises(TraceRejected): build_sft_rows([r for r in records if r['record_type'] != 'model_response'], token_counter=len, target_tokenizer=tokenizer)
+    rejected = copy.deepcopy(records)
+    rejected[0]['payload']['metadata']['overlap_check']['assignments'].append(
+        {'task_id': 'holdout', 'repository': 'owner/repo', 'split': 'test'})
+    overlap = rejected[0]['payload']['metadata']['overlap_check']
+    overlap['reference_sha256'] = sha256(json.dumps(overlap['assignments'], sort_keys=True).encode()).hexdigest()
+    with pytest.raises(TraceRejected, match='cross splits'): build_sft_rows(rejected, token_counter=len, target_tokenizer=tokenizer)
 
 
 def test_schema_validation_handles_nested_constraints() -> None:

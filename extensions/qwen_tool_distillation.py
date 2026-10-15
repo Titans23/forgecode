@@ -1287,7 +1287,7 @@ def clean_episode(
 TokenCounter = Callable[[str], int]
 
 
-def qwen_token_counter(model: str = DEFAULT_MODEL) -> TokenCounter:
+def qwen_token_counter(model: str = DEFAULT_MODEL, *, local_files_only: bool = True) -> TokenCounter:
     '''Load the exact Qwen tokenizer only when dataset export is requested.'''
     try:
         from transformers import AutoTokenizer
@@ -1295,19 +1295,73 @@ def qwen_token_counter(model: str = DEFAULT_MODEL) -> TokenCounter:
         raise RuntimeError(
             'Exact SFT slicing requires `pip install transformers`.'
         ) from error
-    tokenizer = AutoTokenizer.from_pretrained(model, trust_remote_code=False)
+    tokenizer = AutoTokenizer.from_pretrained(model, trust_remote_code=False, local_files_only=local_files_only)
     return lambda text: len(tokenizer.encode(text, add_special_tokens=False))
+
+
+def tokenizer_identity(directory: Path, *, model_id: str, revision: str) -> dict:
+    '''Identify an already downloaded tokenizer; export never downloads assets.'''
+    from benchmark.adapters.protocol import capture_tree, content_hash
+    if not directory.is_dir() or not (directory / 'tokenizer_config.json').is_file():
+        raise ValueError('Provide a local tokenizer directory with tokenizer_config.json.')
+    files = capture_tree(directory)
+    if not files: raise ValueError('Tokenizer snapshot is empty.')
+    return {'id': model_id, 'revision': revision, 'files_sha256': content_hash(files)}
+
+
+def journal_training_records(path: Path, *, source: dict, outcome: dict) -> list[dict]:
+    '''Project existing Journal facts in memory into the Qwen exporter contract.'''
+    from forge.sessions.trajectory import journal_events, journal_completeness
+    events = journal_events(path)
+    completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\n'))
+    if not completeness['record_closed'] or not completeness['responses_complete']:
+        raise TraceRejected(['Journal is incomplete: ' + ', '.join(completeness['problems'])])
+    records, snapshots, texts, calls = [], {}, {}, {}
+    def append(kind, payload):
+        records.append({'sequence': len(records), 'episode_id': events[0]['session_id'],
+                        'record_type': kind, 'payload': payload})
+    append('episode_started', source)
+    for event in events:
+        kind, payload = event['type'], event['payload']
+        if kind == 'model_input_snapshot': snapshots[payload['sha256']] = payload['request']
+        elif kind == 'model_request_started':
+            request = snapshots[payload['input_sha256']]
+            append('model_request', {**request, 'request_id': payload['request_id'],
+                'messages': canonical_messages(request['messages']), 'tools': to_openai_tools(request['tools'])})
+        elif kind == 'model_request_chunk': texts.setdefault(payload['request_id'], []).append(payload.get('text', ''))
+        elif kind == 'model_request_finished':
+            key = payload['request_id']
+            blocks = list((payload.get('tool_blocks') or {}).values())
+            for block in blocks: calls[(event.get('turn_id'), block['id'])] = key
+            append('model_response', {'request_id': key, 'text': ''.join(texts.get(key, [])),
+                'tool_calls': blocks, 'finish_reason': payload.get('stop_reason'),
+                'truncated': not payload.get('response_complete'), 'error': None})
+        elif kind == 'tool_completed':
+            append('tool_result', {**payload, 'request_id': calls.get((event.get('turn_id'), payload['tool_call_id'])),
+                'executed': payload.get('status') == 'executed',
+                # Missing sandbox/permission proof is never inferred from success.
+                'execution_verified': payload.get('execution_verified') is True})
+        elif kind in {'session_forked', 'conversation_rewound'}:
+            raise TraceRejected(['Branched or rewound training episodes require explicit source selection.'])
+        elif kind in {'turn_cancelled', 'turn_error'}:
+            raise TraceRejected(['Cancelled or failed turns cannot be exported for training.'])
+        elif kind == 'turn_completed' and (payload.get('status') != 'completed' or payload.get('completion_reasons')):
+            raise TraceRejected(['Training episode did not complete successfully.'])
+    append('outcome', outcome)
+    return records
 
 
 def build_sft_rows(
     records: Iterable[dict[str, Any]],
     *,
     token_counter: TokenCounter,
+    target_tokenizer: Mapping[str, Any],
     max_tokens: int = 8_192,
 ) -> list[dict[str, Any]]:
     '''Build next-action rows without ever truncating system/tools/latest error.'''
     values = clean_episode(records)
     start = next(item['payload'] for item in values if item['record_type'] == 'episode_started')
+    validate_training_episode(values, target_tokenizer=target_tokenizer)
     responses = {
         item['payload']['request_id']: item['payload']
         for item in values
@@ -1352,10 +1406,63 @@ def build_sft_rows(
                     'task_template': start['task_template'],
                     'split': start['split'],
                     'behavior': start.get('behavior', 'tool_use'),
+                    'target_tokenizer': dict(target_tokenizer),
+                    'source_metadata': start.get('metadata', {}),
                 },
             }
         )
     return rows
+
+
+def evaluation_only_source(value: Any) -> bool:
+    '''Public test identities remain held out regardless of a mutable split label.'''
+    if isinstance(value, Mapping):
+        return any(evaluation_only_source(item) for item in value.values())
+    if isinstance(value, (tuple, list)):
+        return any(evaluation_only_source(item) for item in value)
+    normalized = re.sub(r'[^a-z0-9]+', '', str(value or '').casefold())
+    return any(name in normalized for name in ('terminalbench', 'swebench', 'aiderpolyglot', 'evaluationonly'))
+
+
+def validate_training_episode(records, *, target_tokenizer):
+    '''Qualify export separately from diagnostic trace cleaning.'''
+    from hashlib import sha256
+    start = next(item['payload'] for item in records if item['record_type'] == 'episode_started')
+    outcome = next(item['payload'] for item in records if item['record_type'] == 'outcome')
+    reasons = []
+    if evaluation_only_source({key: start.get(key) for key in ('task_id', 'repository', 'benchmark', 'usage')}):
+        reasons.append('public benchmark tasks are evaluation-only')
+    if start.get('split') != 'train': reasons.append('SFT requires the train split')
+    if any(not start.get(key) for key in ('task_id', 'repository', 'source_revision', 'task_template')):
+        reasons.append('training source identity is incomplete')
+    if not re.fullmatch(r'[0-9a-f]{40,64}', str(start.get('source_revision', ''))):
+        reasons.append('training source revision must be immutable')
+    metadata = start.get('metadata') or {}
+    overlap = metadata.get('overlap_check') or {}
+    assignments = overlap.get('assignments') or []
+    expected_digest = sha256(json.dumps(assignments, sort_keys=True).encode()).hexdigest()
+    if (overlap.get('status') != 'passed' or not overlap.get('method') or overlap.get('reference_sha256') != expected_digest
+            or not any(item.get('split') in {'test', 'validation'} for item in assignments)
+            or not any(all(item.get(key) == start.get(key) for key in ('task_id', 'repository', 'split')) for item in assignments)):
+        reasons.append('training/holdout overlap evidence is missing')
+    else:
+        validate_split_manifest(assignments, require_aider_225=False)
+        identity = start['task_id']
+        if any(item.get('task_id') == identity and item.get('split') != 'train' for item in assignments):
+            reasons.append('task overlaps a held-out split')
+        content = metadata.get('task_content_sha256')
+        if not content or any(item.get('content_sha256') == content and item.get('split') != 'train' for item in assignments):
+            reasons.append('task content overlaps a held-out split or lacks an identity')
+    if not outcome.get('success') or not outcome.get('validated') or not outcome.get('validator') or not outcome.get('evidence_sha256'):
+        reasons.append('independent successful acceptance evidence is required')
+    requests = [item['payload'].get('request_id') for item in records if item['record_type'] == 'model_request']
+    responses = [item['payload'] for item in records if item['record_type'] == 'model_response']
+    if (not requests or len(set(requests)) != len(requests) or sorted(requests) != sorted(item.get('request_id', '') for item in responses)
+            or any(item.get('truncated') or item.get('error') or item.get('partial_tool_calls') or not item.get('finish_reason') for item in responses)):
+        reasons.append('training requires complete request/response pairs')
+    if any(not target_tokenizer.get(key) for key in ('id', 'revision', 'files_sha256')):
+        reasons.append('target tokenizer identity is incomplete')
+    if reasons: raise TraceRejected(reasons)
 
 
 def write_sft_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> None:
@@ -1802,7 +1909,9 @@ def _cli() -> int:
     build = subcommands.add_parser('build-sft')
     build.add_argument('trace', type=Path)
     build.add_argument('output', type=Path)
-    build.add_argument('--model', default=DEFAULT_MODEL)
+    build.add_argument('--model', type=Path, required=True, help='Local tokenizer snapshot directory.')
+    build.add_argument('--tokenizer-id', required=True)
+    build.add_argument('--tokenizer-revision', required=True)
     arguments = parser.parse_args()
     if arguments.command == 'preflight':
         print(json.dumps(preflight(), ensure_ascii=False, indent=2))
@@ -1811,9 +1920,11 @@ def _cli() -> int:
         write_training_assets(arguments.output)
         return 0
     if arguments.command == 'build-sft':
+        identity = tokenizer_identity(arguments.model, model_id=arguments.tokenizer_id, revision=arguments.tokenizer_revision)
+        records = clean_episode(load_trace(arguments.trace))
+        validate_training_episode(records, target_tokenizer=identity)
         rows = build_sft_rows(
-            load_trace(arguments.trace),
-            token_counter=qwen_token_counter(arguments.model),
+            records, token_counter=qwen_token_counter(str(arguments.model)), target_tokenizer=identity,
         )
         write_sft_jsonl(arguments.output, rows)
         return 0

@@ -276,6 +276,21 @@ def test_docker_cleanup_requires_same_daemon_and_empty_resource_queries():
     assert cleanup_state([*rows,{'resource_id':'b','phase':'start_intent'}])=='unknown'
 
 
+def test_environment_identity_records_actual_images_and_limits_without_credentials(monkeypatch):
+    from benchmark.adapters import docker
+    calls = []
+    async def query(*args):
+        calls.append(args)
+        if args[0] == 'ps': return 'fixture-container'
+        if args[0] == 'inspect': return json.dumps({'image': 'sha256:fixture', 'memory': 1024, 'nano_cpus': 1})
+        return json.dumps({'version': 'fixture', 'architecture': 'x86_64'})
+    monkeypatch.setattr(docker, 'docker_query', query)
+    identity = asyncio.run(docker.environment_identity('owned-fixture'))
+    assert identity['containers'][0]['image'] == 'sha256:fixture'
+    assert identity['containers'][0]['memory'] == 1024
+    assert all('.Env' not in str(call) and '.Config}}' not in str(call) for call in calls)
+
+
 @pytest.mark.parametrize('foreign', [False, True])
 def test_cancel_cleanup_queries_owned_project_and_refuses_foreign_daemon(tmp_path, monkeypatch, foreign):
     import benchmark.adapters.docker as docker
