@@ -5,14 +5,14 @@
   "development_branch": "main",
   "current_task": "T01",
   "next_recommended_task": null,
-  "delivery_stage": "E04",
+  "delivery_stage": "E05",
   "delivery_stages": {
     "E00": "complete_ci_38381398509",
     "E01": "complete_ci_38385533523",
     "E02": "complete_ci_38499924116",
     "E03": "complete_ci_38501286167",
-    "E04": "verified_pending_ci",
-    "E05": "pending"
+    "E04": "complete_ci_38695605107",
+    "E05": "pending_environment_and_live_model_authorization"
   },
   "tasks": {
     "F00": {
@@ -26,7 +26,8 @@
       "verification": {},
       "evidence_ids": [],
       "blocked_reasons": [
-        "WSL Docker socket access is denied; E05 native benchmark and live-model acceptance remain pending explicit authorization."
+        "WSL Python 3.12 and Harbor 0.18.0 are ready; Docker socket access requires an explicitly authorized group adjustment.",
+        "The configured local model endpoint is not listening on Windows or WSL; a reachable provider and explicit live-model budget are required for E05."
       ]
     },
     "T02": {
