@@ -9,6 +9,44 @@ from benchmark.harbor.summarize import summarize_run
 from harbor.environments.docker.docker import DockerEnvironment
 
 
+def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+    from uuid import uuid4
+    from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
+    from harbor.models.agent.context import AgentContext
+    from forge.observability.events import Scope
+    from forge.observability.recorder import JournalRecorder
+    from forge.runtime.turn_state import TurnState
+    from forge.sessions.store import SessionStore
+    agent = ForgeCodeHarborAgent(logs_dir=tmp_path,
+        frozen_configuration=json.dumps({'run_id': 'run-' + str(uuid4())}))
+    workspace = tmp_path / 'workspace'
+    workspace.mkdir()
+    subprocess.run(['git', 'init', str(workspace)], check=True, capture_output=True)
+    (workspace / 'baseline.txt').write_text('fixture baseline\n')
+    subprocess.run(['git', 'add', '.'], cwd=workspace, check=True, capture_output=True)
+    subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+        'commit', '-m', 'synthetic fixture'], cwd=workspace, check=True, capture_output=True)
+    async def upload(*args): pass
+    async def create_deliverable(*args, **kwargs): (workspace / 'new.py').write_text('print("fixture")\n')
+    async def exec_fixture(*args, **kwargs):
+        result = subprocess.run(kwargs['command'], shell=True, cwd=workspace, capture_output=True, text=True)
+        return SimpleNamespace(return_code=result.returncode, stdout=result.stdout)
+    monkeypatch.setattr(agent, 'exec_as_agent', create_deliverable)
+    asyncio.run(agent.run('synthetic task', SimpleNamespace(upload_file=upload, exec=exec_fixture), AgentContext()))
+    frozen = json.loads((tmp_path / 'forgecode-harness.json').read_text())
+    scope = frozen['scope']
+    assert frozen['harbor_trial_id'] == str(agent.context_id or tmp_path.parent.name)
+    journal = SessionStore(tmp_path, data_root=tmp_path / 'state').create(model='fixture')
+    recorder = JournalRecorder(journal, scope=Scope(trace_id=scope['trace_id'], span_id=scope['span_id'],
+        identities={key: scope[key] for key in ('run_id', 'trial_id')} | {'attempt_id': frozen['attempt_id']}))
+    recorder.reserve_budget(TurnState(max_seconds=30))
+    assert journal.path.read_text().count('budget.reserved') == 1
+    assert '+print("fixture")' in (tmp_path / 'forgecode-pregrade.patch').read_text()
+    assert (workspace / 'new.py').read_text() == 'print("fixture")\n'
+
+
 def test_uv_download_timeout_is_not_a_task_failure(tmp_path):
     trial = tmp_path / 'trial'
     (trial / 'verifier').mkdir(parents=True)

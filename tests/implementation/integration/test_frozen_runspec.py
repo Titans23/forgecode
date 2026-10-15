@@ -231,6 +231,12 @@ def test_export_validates_snapshot_schema_and_does_not_mutate_the_plan(tmp_path)
         original = deepcopy((spec, values))
         exported = export_runspec(spec, values)
         assert (spec, values) == original
+        changed_spec, changed_values = deepcopy(original)
+        changed_values['harness']['parent_budget']['max_model_calls'] = None
+        group, key, _ = REFERENCES['harness']
+        changed_spec[group][key]['sha256'] = canonical_hash(changed_values['harness'])
+        with pytest.raises(ContractError, match='budgets must match'):
+            export_runspec(changed_spec, changed_values)
         assert exported['spec_hash'] == canonical_hash(spec)
         values['environment']['unrecognized_authority'] = 'trusted'
         spec['execution']['environment_snapshot']['sha256'] = canonical_hash(values['environment'])

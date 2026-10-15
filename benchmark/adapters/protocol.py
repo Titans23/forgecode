@@ -94,10 +94,12 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
     error = exception.get('exception_type', '')
     reason = agent_status.get('stop_reason') or ''
     status = agent_status.get('status', 'indeterminate')
+    failure_stage = next((phase for phase in ('verifier', 'agent_execution', 'agent_setup', 'environment_setup')
+                          if error and result.get(phase)), None)
     rewards = (result.get('verifier_result') or {}).get('rewards') or {}
     reward, grade = reward_result(rewards.get('reward'))
     grader_failure = bool(verifier_fault or error.startswith(('Verifier', 'RewardFile'))
-                          or error in {'GraderError', 'InvalidRewardError'})
+                          or error in {'GraderError', 'InvalidRewardError'} or failure_stage == 'verifier')
     grading = 'grader_error' if grader_failure else 'graded' if reward is not None else 'unscored'
     # Raw reward remains evidence even when the grader itself failed.
     verdict = grade if grading == 'graded' else 'unknown'
@@ -110,9 +112,9 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
         category, execution, termination = 'grader_failure', 'finished', verifier_fault or error
     elif reason in MODEL_FAILURE_REASONS or error.startswith(('Api', 'API', 'Anthropic', 'Provider', 'ModelCall', 'ModelProtocol', 'RateLimit', 'Authentication')):
         category, execution, termination = 'model_failure', 'error', reason or error
-    elif error.startswith(('Environment', 'AgentSetup', 'Docker', 'ImageBuild')):
+    elif error.startswith(('Environment', 'AgentSetup', 'Docker', 'ImageBuild')) or failure_stage in {'environment_setup', 'agent_setup'}:
         category, execution, termination = 'environment_failure', 'error', error
-    elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'harness_error'}:
+    elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'harness_error'} or failure_stage == 'agent_execution':
         category, execution, termination = 'harness_failure', 'error', reason or error
     elif error:
         category, execution, termination = 'unknown', 'error', error
@@ -124,7 +126,8 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
         category, execution, termination = 'unknown', 'finished', reason or 'missing_or_invalid_reward'
     return {'category': category, 'execution_state': execution, 'grading_state': grading,
             'grade_result': verdict, 'termination_reason': termination, 'agent_outcome': status,
-            'raw_reward_decimal': reward, 'official_rewards': rewards, 'observed_faults': terminal_faults}
+            'raw_reward_decimal': reward, 'official_rewards': rewards, 'observed_faults': terminal_faults,
+            'failure_stage': failure_stage}
 
 
 def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner'):
@@ -136,7 +139,7 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
     grade_state, grade_result = classified['grading_state'], classified['grade_result']
     reward = classified['raw_reward_decimal'] if grade_state == 'graded' else None
     origin = None
-    if error_type.startswith(('Environment','AgentSetup')):
+    if classified['category'] == 'environment_failure':
         origin = 'environment_setup'
     elif grade_state == 'grader_error':
         origin = 'grader_infrastructure'

@@ -35,6 +35,15 @@ def test_recovered_errors_and_nonzero_tool_exit_do_not_replace_final_success():
     assert classify_result({'verifier_result': {'rewards': {'reward': 1}}}, status)['category'] == 'passed'
 
 
+@pytest.mark.parametrize('stage,category', [('environment_setup', 'environment_failure'),
+    ('agent_setup', 'environment_failure'), ('agent_execution', 'harness_failure'), ('verifier', 'grader_failure')])
+def test_generic_official_exception_uses_structured_phase(stage, category):
+    from benchmark.adapters.protocol import classify_result
+    result = {'exception_info': {'exception_type': 'RuntimeError'}, stage: {'started_at': 'fixture', 'finished_at': 'fixture'}}
+    classified = classify_result(result)
+    assert classified['category'] == category and classified['failure_stage'] == stage
+
+
 def test_report_counts_unstarted_tasks_and_keeps_official_scores(tmp_path):
     from benchmark.harbor.summarize import evaluation_report
     from benchmark.cli import main

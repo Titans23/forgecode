@@ -83,12 +83,20 @@ def freeze_source(source: Path, destination: Path) -> Path:
         ['git', 'rev-parse', 'HEAD'], cwd=source, capture_output=True,
         text=True, check=False, timeout=15,
     )
-    diff = subprocess.run(['git','-c','core.fsmonitor=false','diff','--no-ext-diff','--no-textconv','--binary','HEAD'],
-        cwd=source,capture_output=True,check=False,timeout=15)
+    # Captured file hashes are authoritative. Optional Git provenance can be
+    # slow on WSL/DrvFS and must not invalidate the verified byte snapshot.
+    try:
+        diff = subprocess.run(['git','--no-optional-locks','-c','core.fsmonitor=false','diff',
+            '--no-ext-diff','--no-textconv','--binary','HEAD','--','forge','benchmark','pyproject.toml','uv.lock','README.md'],
+            cwd=source,capture_output=True,check=False,timeout=15)
+        diff_status = 'captured' if diff.returncode == 0 else 'unavailable'
+    except subprocess.TimeoutExpired:
+        diff, diff_status = None, 'timeout'
     manifest = {
         'schema_version': 1,
         'git_revision': revision.stdout.strip() if revision.returncode == 0 else None,
-        'dirty_diff_sha256':sha256(diff.stdout).hexdigest() if diff.returncode==0 and diff.stdout else None,
+        'dirty_diff_sha256':sha256(diff.stdout).hexdigest() if diff is not None and diff.returncode==0 and diff.stdout else None,
+        'git_diff_status': diff_status,
         # The content digest, not HEAD alone, identifies a dirty candidate.
         'content_sha256': sha256(json.dumps(before, sort_keys=True).encode()).hexdigest(),
         'files': before,

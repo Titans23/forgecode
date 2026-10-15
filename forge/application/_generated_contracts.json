@@ -8731,17 +8731,26 @@
             "max_model_calls": {
               "maximum": 9007199254740991,
               "minimum": 1,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "max_tool_calls": {
               "maximum": 9007199254740991,
               "minimum": 1,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "wall_seconds": {
               "maximum": 9007199254740991,
               "minimum": 1,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           "required": [

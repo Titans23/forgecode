@@ -63,6 +63,18 @@ def configured_values(env_file: Path) -> dict[str, str]:
     return model_environment(env_file)
 
 
+def budget_limit(value) -> int | None:
+    if value is None or value == 'unlimited':
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError('Budget must be a positive integer or unlimited.') from error
+    if parsed < 1:
+        raise ValueError('Budget must be a positive integer or unlimited.')
+    return parsed
+
+
 def harbor_executable() -> str:
     candidate = Path(sys.executable).with_name('harbor.exe' if os.name == 'nt' else 'harbor')
     if candidate.is_file():
@@ -84,6 +96,7 @@ def build_parser(
     selection.add_argument('--n-tasks', type=int)
     selection.add_argument('--all', action='store_true')
     parser.add_argument('--dataset-ref', default='latest', help='Resolved to an immutable digest before launch.')
+    parser.add_argument('--taskset-dir', type=Path, help='Reuse a previously frozen official taskset after verifying its bytes.')
     parser.add_argument('--concurrency', type=int, default=1)
     parser.add_argument('--max-retries', type=int, default=0)
     parser.add_argument('--model')
@@ -106,9 +119,10 @@ def build_parser(
     parser.add_argument('--agent', choices=[AGENT, 'oracle'], default=AGENT)
     parser.add_argument('--source-dir', type=Path, default=PROJECT_ROOT,
                         help='Source checkout to freeze for a controlled baseline/candidate comparison.')
-    parser.add_argument('--max-model-calls', type=int, default=120)
-    parser.add_argument('--max-tool-calls', type=int, default=240)
-    parser.add_argument('--max-turn-seconds', type=int, default=1800)
+    parser.add_argument('--max-model-calls', type=budget_limit, default=120)
+    parser.add_argument('--max-tool-calls', type=budget_limit, default=240)
+    parser.add_argument('--max-turn-seconds', type=budget_limit, default=1800,
+                        help='Agent limit or unlimited; official benchmark deadlines always apply.')
     parser.add_argument('--agent-setup-timeout-multiplier', type=int, default=12)
     parser.add_argument('--timeout-multiplier', type=float)
     parser.add_argument('--force-build', action='store_true')
@@ -156,6 +170,9 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'agent': args.agent, 'concurrency': args.concurrency, 'attempts': 1, 'task_retries': args.max_retries,
         'budget': budget, 'timeout_multiplier': args.timeout_multiplier or 1,
         'agent_setup_timeout_multiplier': args.agent_setup_timeout_multiplier,
+        'grader': {'harbor_version': '0.18.0', 'protocol': 'official-task-verifier',
+                   'env': {'UV_HTTP_TIMEOUT': '120', 'UV_CACHE_DIR': '/opt/forgecode-cache',
+                           'UV_PYTHON_INSTALL_DIR': '/opt/forgecode-cache/python'}},
         'parameters': {'temperature': None, 'top_p': None, 'max_output_tokens': config.max_tokens,
                        'reasoning_effort': config.reasoning_effort} if config else None,
         'harness': {'max_context_tokens': model['context_window'], 'compaction_enabled': True,
@@ -166,7 +183,8 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
 def frozen_job(args, manifest, taskset, source, output):
     """Use the pinned Harbor models, with no moving dataset resolution at launch."""
     from harbor.models.job.config import JobConfig, RetryConfig
-    from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig
+    from harbor.models.metric.config import MetricConfig
+    from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig, VerifierConfig
     from benchmark.adapters.materialize import resolve_task
     frozen = {key: manifest[key] for key in ('run_id', 'parameters', 'harness', 'source_manifest', 'model')}
     if frozen['model']:
@@ -184,6 +202,8 @@ def frozen_job(args, manifest, taskset, source, output):
                 'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
                 'max_turn_seconds': args.max_turn_seconds})
     return JobConfig(job_name='job', jobs_dir=output, n_attempts=1, n_concurrent_trials=args.concurrency,
+        metrics=[MetricConfig()],
+        verifier=VerifierConfig(env=manifest['grader']['env']),
         retry=RetryConfig(max_retries=args.max_retries), timeout_multiplier=args.timeout_multiplier or 1,
         agent_setup_timeout_multiplier=args.agent_setup_timeout_multiplier,
         environment=EnvironmentConfig(import_path='benchmark.adapters.docker:EvaluationDockerEnvironment',
@@ -198,8 +218,7 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
          default_output_dir: Path | None = None) -> int:
     parser = build_parser(default_dataset=default_dataset, default_output_dir=default_output_dir)
     args = parser.parse_args(argv)
-    for name in ('concurrency', 'max_model_calls', 'max_tool_calls', 'max_turn_seconds',
-                 'agent_setup_timeout_multiplier'):
+    for name in ('concurrency', 'agent_setup_timeout_multiplier'):
         if getattr(args, name) < 1:
             parser.error(f'--{name.replace("_", "-")} must be positive')
     if args.n_tasks is not None and args.n_tasks < 1 or args.max_retries < 0:
@@ -221,18 +240,20 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
         parser.error('Unmet prerequisites: ' + ', '.join(key for key, ready in checks.items() if not ready))
     if config and not local_provider_available(config.base_url):
         parser.error('The configured local model provider is not listening.')
-    from benchmark.adapters.materialize import materialize_dataset
+    from benchmark.adapters.materialize import materialize_dataset, reuse_taskset
     from benchmark.harbor.snapshot import freeze_source
     from benchmark.harbor.controller import run_controller
     output.mkdir(parents=True, exist_ok=False)
     manifest['run_id'] = 'run-' + str(uuid4())
-    taskset = asyncio.run(materialize_dataset(args.dataset, ref=args.dataset_ref,
-        task_names=args.task, n_tasks=args.n_tasks, destination=output / 'tasks'))
+    selection = dict(dataset=args.dataset, ref=args.dataset_ref, task_names=args.task,
+                     n_tasks=args.n_tasks, destination=output / 'tasks')
+    taskset = (reuse_taskset(args.taskset_dir, **selection) if args.taskset_dir else
+               asyncio.run(materialize_dataset(**selection)))
     source = freeze_source(args.source_dir, output / '.source-snapshots')
     driver = source if args.source_dir.resolve() == PROJECT_ROOT else freeze_source(PROJECT_ROOT, output / '.driver-snapshots')
     manifest.update(source_manifest=json.loads((source.parent / 'manifest.json').read_text(encoding='utf-8')),
                     driver_manifest=json.loads((driver.parent / 'manifest.json').read_text(encoding='utf-8')),
-                    taskset=taskset, grader={'harbor_version': '0.18.0', 'protocol': 'official-task-verifier'})
+                    taskset=taskset)
     job = frozen_job(args, manifest, taskset, source, output)
     (output / 'experiment.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     configuration = output / 'harbor.json'
@@ -241,8 +262,7 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
     configuration.write_text(job.model_dump_json(indent=2, context={'redact_sensitive_env': False}) + '\n', encoding='utf-8')
     args.cache_dir.mkdir(parents=True, exist_ok=True)
     command = [harbor_executable(), 'run', '--config', str(configuration), '-y']
-    if args.agent == AGENT:
-        command += ['--plugin', 'benchmark.harbor.deadline_plugin:ForgeCodeDeadlinePlugin']
+    command += ['--plugin', 'benchmark.harbor.deadline_plugin:ForgeCodeDeadlinePlugin']
     env = {**os.environ, 'PYTHONPATH': str(driver), 'PYTHONUTF8': '1', 'PYTHONIOENCODING': 'utf-8'}
     if config:
         env['FORGECODE_API_KEY'] = config.api_key

@@ -97,6 +97,7 @@ forge --show-profile
 forge --profile evaluation list --json
 forge --profile evaluation run aider-polyglot --help
 forge --profile evaluation run terminal-bench-2 --n-tasks 1 --dry-run
+forge --profile evaluation run terminal-bench-2 --task terminal-bench/make-mips-interpreter --concurrency 4 --max-model-calls unlimited --max-tool-calls unlimited --max-turn-seconds unlimited --dry-run
 forge --profile evaluation status <run-dir>
 forge --profile evaluation cancel <run-dir>
 forge --profile evaluation report <run-dir>
@@ -133,6 +134,8 @@ asyncio.run(main())
 后训练复用 `extensions.qwen_tool_distillation`：`TraceRecorder/RecordingModelClient` 记录实际模型请求及工具事件，`RecordedConversation` 接收独立 outcome validator，`ForgeCodeRolloutEnvironment` 提供 reset/step 和注入式执行/完成门禁，`RewardEvidence` 保存奖励组成。`clean_episode`、`build_sft_rows`、`build_dpo_row` 和 split manifest 保留版本、来源、许可、脱敏与数据划分检查。采集与导出需要显式调用，不加载 transformers/ms-swift、不启动训练集群或付费实验。
 
 `compare` 必须声明 `--change harness|model`，逐题展示原始判分变化，并检查任务内容、预算、协议、判分器、依赖和实际 Docker 镜像及资源限制。缺少环境证据或存在额外变化时不视为受控比较；单次比较不提供统计显著性结论。旧运行缺少的证据不会自动补造。
+
+预算参数显式设为 `unlimited` 时，取消对应的 ForgeCode 额外上限，冻结配置记录为 `null`；官方任务期限仍由 Harbor 执行。任务 ID 使用注册表完整名称，如 `terminal-bench/make-mips-interpreter`。`--taskset-dir <已冻结任务目录>` 复用已经下载的官方任务，重新核验内容与任务校验和后复制到新运行，避免重复网络下载；必须匹配数据集及显式指定的版本，未指定版本时采用该目录的冻结版本。WSL 读取 Git 差异超时会明确记入源码清单，实际冻结文件仍逐一进行哈希校验。判分器复用已有 uv 缓存，并采用 120 秒下载等待；这些设置进入冻结配置，官方判分期限保持原值。
 
 Terminal-Bench、SWE-bench Verified 的任务永久为 `evaluation-only`，修改 `usage/split` 不能用于训练导出；可用 ATIF 作脱敏诊断。SFT 从已有 Journal 离线转换为 Qwen/ms-swift 格式，保留上下文 loss mask，不新增执行日志。当前只验收导出接口及合成夹具，没有接入真实训练任务集。
 

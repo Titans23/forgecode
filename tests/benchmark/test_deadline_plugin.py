@@ -22,6 +22,15 @@ def test_resolved_deadline_reaches_kernel_and_reserves_cleanup(tmp_path, monkeyp
     monkeypatch.setattr('benchmark.harbor.forgecode_agent.monotonic', lambda: 112)
     with pytest.raises(TimeoutError):
         agent.effective_turn_seconds()
+    unlimited = ForgeCodeHarborAgent(logs_dir=tmp_path, max_model_calls=None, max_tool_calls='unlimited', max_turn_seconds=None)
+    with pytest.raises(ValueError, match='official Harbor'): unlimited.effective_turn_seconds()
+    unlimited.set_phase_timeout(3000)
+    command = unlimited._run_command('fixture task')
+    assert '--max-model-calls unlimited --max-tool-calls unlimited' in command
+    assert '--max-turn-seconds 2970 ' in command
+    from benchmark.harbor.run_forge import build_parser
+    parsed = build_parser().parse_args(['--message', 'fixture', '--max-model-calls', 'unlimited', '--max-tool-calls', 'unlimited'])
+    assert parsed.max_model_calls is None and parsed.max_tool_calls is None
 
 
 def test_plugin_passes_actual_phase_timeout_and_restores_hook(tmp_path, monkeypatch):
@@ -35,7 +44,7 @@ def test_plugin_passes_actual_phase_timeout_and_restores_hook(tmp_path, monkeypa
     agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
     plugin = ForgeCodeDeadlinePlugin()
     async def exercise():
-        await plugin.on_job_start(None)
+        await plugin.on_job_start(SimpleNamespace(config=SimpleNamespace(tasks=[]), _metrics={}))
         await Trial._run_agent_phase(SimpleNamespace(agent=agent), timeout_sec=1200)
         await plugin.on_job_end(None)
     asyncio.run(exercise())
@@ -50,10 +59,11 @@ def test_deadline_adapter_rejects_duplicate_installation(monkeypatch):
     monkeypatch.setattr(Trial, '_run_agent_phase', original)
     async def run():
         first, second = ForgeCodeDeadlinePlugin(), ForgeCodeDeadlinePlugin()
-        await first.on_job_start(None)
+        job = SimpleNamespace(config=SimpleNamespace(tasks=[]), _metrics={})
+        await first.on_job_start(job)
         try:
             with pytest.raises(RuntimeError, match='already installed'):
-                await second.on_job_start(None)
+                await second.on_job_start(job)
         finally:
             await first.on_job_end(None)
         assert Trial._run_agent_phase is original

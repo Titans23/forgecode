@@ -12,7 +12,7 @@
     "E02": "complete_ci_38499924116",
     "E03": "complete_ci_38501286167",
     "E04": "complete_ci_38695605107",
-    "E05": "pending_environment_and_live_model_authorization"
+    "E05": "verified_code_native_and_live"
   },
   "tasks": {
     "F00": {
@@ -25,10 +25,7 @@
       "implementation_status": "implemented",
       "verification": {},
       "evidence_ids": [],
-      "blocked_reasons": [
-        "WSL Python 3.12 and Harbor 0.18.0 are ready; Docker socket access requires an explicitly authorized group adjustment.",
-        "The configured local model endpoint is not listening on Windows or WSL; a reachable provider and explicit live-model budget are required for E05."
-      ]
+      "blocked_reasons": []
     },
     "T02": {
       "implementation_status": "implemented",
@@ -39,7 +36,7 @@
   },
   "remaining_work": [
     "Ubuntu 22.04/24.04 native acceptance.",
-    "Live model and training experiments, subject to separate authorization.",
+    "Training-data collection, actual training and new-model re-evaluation are outside this delivery.",
     "npm registry publication and production release requirements."
   ],
   "verification_policy": "Run-specific results live in .local/implementation; regenerate evidence before invoking a gate. Empty evidence_ids do not establish acceptance."

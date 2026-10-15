@@ -1,4 +1,4 @@
-'''Forward Harbor's resolved per-phase deadline without changing its timeout policy.'''
+'''Bind frozen task metrics and forward the pinned Harbor phase deadline.'''
 
 from functools import wraps
 from importlib.metadata import version
@@ -12,6 +12,11 @@ class ForgeCodeDeadlinePlugin(BaseJobPlugin):
         from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
         if version('harbor') != '0.18.0':
             raise RuntimeError('Deadline adapter requires the validated Harbor 0.18.0 release.')
+        # Harbor 0.18.0 resolves metrics for datasets and "adhoc", but omits
+        # source names on explicit frozen TaskConfigs. Preserve their identity.
+        for task in job.config.tasks:
+            if task.source and not job._metrics.get(task.source):
+                job._metrics[task.source] = list(job._metrics['adhoc'])
         current = Trial._run_agent_phase
         if getattr(current, '_forge_deadline_adapter', False):
             raise RuntimeError('A ForgeCode deadline adapter is already installed in this process.')

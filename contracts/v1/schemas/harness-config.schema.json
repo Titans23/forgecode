@@ -22,17 +22,17 @@
       "additionalProperties": false,
       "properties": {
         "max_model_calls": {
-          "type": "integer",
+          "type": ["integer", "null"],
           "minimum": 1,
           "maximum": 9007199254740991
         },
         "max_tool_calls": {
-          "type": "integer",
+          "type": ["integer", "null"],
           "minimum": 1,
           "maximum": 9007199254740991
         },
         "wall_seconds": {
-          "type": "integer",
+          "type": ["integer", "null"],
           "minimum": 1,
           "maximum": 9007199254740991
         }

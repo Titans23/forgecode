@@ -66,6 +66,14 @@ def test_dry_run_freezes_shared_configuration_without_starting_a_job(tmp_path, m
     assert data['budget'] == {'max_model_calls': 120, 'max_tool_calls': 240, 'wall_seconds': 1800}
     assert not data['ready'] and data['model_calls'] == 0
     assert 'private-fixture-key' not in rendered and not output.exists()
+    assert runner.main(['--n-tasks', '1', '--env-file', str(project), '--concurrency', '4',
+        '--max-model-calls', 'unlimited', '--max-tool-calls', 'unlimited', '--max-turn-seconds', 'unlimited', '--dry-run'],
+        default_dataset=dataset) == 0
+    unlimited = json.loads(capsys.readouterr().out)
+    assert unlimited['concurrency'] == 4
+    assert unlimited['budget'] == dict(max_model_calls=None, max_tool_calls=None, wall_seconds=None)
+    from forge.application.models import validate
+    assert validate('harness-config', unlimited['harness']) == unlimited['harness']
 
 
 def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, monkeypatch):
@@ -75,6 +83,8 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     from harbor.tasks.client import TaskClient
     from harbor.models.task.id import PackageTaskId
     from harbor.models.job.config import JobConfig
+    from harbor.job import Job
+    from benchmark.harbor.deadline_plugin import ForgeCodeDeadlinePlugin
     import forge.config as settings
     monkeypatch.setattr(settings.os, 'environ', {'XDG_DATA_HOME': str(tmp_path)})
     monkeypatch.chdir(tmp_path)
@@ -120,6 +130,18 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     assert restored.agents[0].env['FORGECODE_REASONING_EFFORT'] == 'high'
     assert Path(restored.agents[0].kwargs['source_dir']) == tmp_path / 'source'
     assert restored.agents[0].max_timeout_sec == 1800 and restored.retry.max_retries == 0
+    assert len(restored.metrics) == 1 and restored.metrics[0].type.value == 'mean'
+    assert restored.verifier.env == manifest['grader']['env']
+    assert restored.verifier.env['UV_HTTP_TIMEOUT'] == '120' and restored.verifier.max_timeout_sec is None
+    async def resolve_metrics():
+        metrics = await Job._resolve_metrics(restored, restored.tasks)
+        plugin = ForgeCodeDeadlinePlugin()
+        await plugin.on_job_start(SimpleNamespace(config=restored, _metrics=metrics))
+        try:
+            assert len(metrics[restored.tasks[0].source]) == 1
+        finally:
+            await plugin.on_job_end(None)
+    asyncio.run(resolve_metrics())
     assert not restored.datasets and len(restored.tasks) == 1
     assert json.loads(restored.agents[0].kwargs['frozen_configuration'])['model']['model_id'] == 'fixture-model'
     # Exercise the actual CLI preparation with tiny offline source/task fixtures.
@@ -139,7 +161,7 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
         assert metadata['run_id'].startswith('run-')
         return 0
     monkeypatch.setattr('benchmark.harbor.controller.run_controller', controller)
-    arguments = ['--n-tasks', '1', '--source-dir', str(source), '--output-dir', str(prepared)]
+    arguments = ['--n-tasks', '1', '--source-dir', str(source), '--output-dir', str(prepared), '--taskset-dir', str(output / 'tasks')]
     assert runner.main(arguments, default_dataset='terminal-bench/terminal-bench-2') == 0
     saved = json.loads((prepared / 'experiment.json').read_text())
     assert saved['source_manifest']['files']['uv.lock']
@@ -149,6 +171,10 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     (output / 'tasks/a/instruction.md').write_text('changed')
     with pytest.raises(ValueError, match='changed'):
         resolve_task(output / 'tasks', taskset, 'terminal-bench/a')
+    from benchmark.adapters.materialize import reuse_taskset
+    with pytest.raises(ValueError, match='changed'):
+        reuse_taskset(output / 'tasks', dataset=taskset['dataset'], ref='latest', task_names=[], n_tasks=1, destination=tmp_path / 'tampered-copy')
+    assert not (tmp_path / 'tampered-copy').exists()
     with pytest.raises(ValueError, match='Unknown exact task'):
         asyncio.run(materialize_dataset('terminal-bench/terminal-bench-2', ref='latest',
             task_names=['missing'], n_tasks=None, destination=tmp_path / 'invalid'))
@@ -203,7 +229,7 @@ def test_unfinished_job_still_reports_observed_agent_timeout(tmp_path: Path) -> 
     assert summary.job_finished is False
 
 
-def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: Path) -> None:
+def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: Path, monkeypatch) -> None:
     source = tmp_path / 'repo'
     for relative, content in {
         'pyproject.toml': '[project]\nname="probe"',
@@ -220,6 +246,13 @@ def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: 
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding='utf-8')
 
+    import subprocess
+    original = subprocess.run
+    def metadata(command, **kwargs):
+        if 'diff' in command:
+            raise subprocess.TimeoutExpired(command, kwargs['timeout'])
+        return original(command, **kwargs)
+    monkeypatch.setattr('benchmark.harbor.snapshot.subprocess.run', metadata)
     frozen = freeze_source(source, tmp_path / 'snapshots')
     (source / 'forge/runner.py').write_text('VERSION = 2', encoding='utf-8')
     (source / 'benchmark/core/spec.py').write_text('VERSION = 2', encoding='utf-8')
@@ -232,6 +265,7 @@ def test_snapshot_pins_package_bytes_and_excludes_environment_secrets(tmp_path: 
     manifest = json.loads((frozen.parent / 'manifest.json').read_text())
     assert 'forge/runner.py' in manifest['files']
     assert len(manifest['content_sha256']) == 64
+    assert manifest['git_diff_status'] == 'timeout' and manifest['dirty_diff_sha256'] is None
 
 
 

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import time
 
 
 def _now():
@@ -18,7 +19,16 @@ def _write(path, value):
         json.dump(value, stream, indent=2)
         stream.flush()
         os.fsync(stream.fileno())
-    temporary.replace(path)
+    # A concurrent status reader can briefly deny replacement on Windows.
+    # Keep the previous complete JSON visible; persistent denial still fails.
+    for attempt in range(20):
+        try:
+            temporary.replace(path)
+            break
+        except PermissionError as error:
+            if getattr(error, 'winerror', None) not in {5, 32} or attempt == 19:
+                raise
+            time.sleep(.025)
 
 
 def controller_status(output_dir: Path) -> dict:

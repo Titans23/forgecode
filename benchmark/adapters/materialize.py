@@ -11,6 +11,36 @@ from benchmark.adapters.protocol import capture_tree, content_hash, file_bytes
 from forge.application.models import ContractError, strict_loads
 
 
+def reuse_taskset(source, *, dataset, ref, task_names, n_tasks, destination):
+    """Copy only verified frozen inputs; never resolve a moving remote task again."""
+    source, destination = Path(source), Path(destination)
+    manifest = json.loads(file_bytes(source / 'taskset.json'))
+    if manifest['dataset'] != dataset or (ref != 'latest' and manifest['version'] != ref):
+        raise ValueError('Frozen taskset dataset/revision differs from the requested experiment.')
+    names = sorted(task_names or manifest['tasks'])
+    if n_tasks is not None: names = names[:n_tasks]
+    if not names or len(names) != len(set(names)) or set(names) - manifest['tasks'].keys():
+        raise ValueError('Choose exact, unique task IDs from the frozen taskset.')
+    # Validate all selected bytes before creating the new run's immutable copy.
+    captured = {name: capture_tree(resolve_task(source, manifest, name)) for name in names}
+    dataset_files = capture_tree(source / '.dataset') if (source / '.dataset').is_dir() else {}
+    if {name: sha256(content).hexdigest() for name, content in dataset_files.items()} != manifest.get('dataset_files', {}):
+        raise ValueError('Frozen dataset metadata files changed.')
+    destination.mkdir(parents=True, exist_ok=False)
+    for name, files in captured.items():
+        for relative, content in files.items():
+            target = destination / manifest['tasks'][name]['directory'] / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+    for relative, content in dataset_files.items():
+        target = destination / '.dataset' / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+    frozen = {**manifest, 'tasks': {name: manifest['tasks'][name] for name in names}}
+    (destination / 'taskset.json').write_text(json.dumps(frozen, indent=2) + '\n', encoding='utf-8')
+    return frozen
+
+
 async def materialize_dataset(dataset, *, ref, task_names, n_tasks, destination):
     """Freeze one official package dataset and its selected task bytes."""
     from harbor.registry.client.package import PackageDatasetClient

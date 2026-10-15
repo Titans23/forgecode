@@ -86,8 +86,8 @@ async def run_turn(
     message: str,
     *,
     resume: bool,
-    max_model_calls: int,
-    max_tool_calls: int,
+    max_model_calls: int | None,
+    max_tool_calls: int | None,
     max_turn_seconds: float = 1800,
     frozen_configuration: dict | None = None,
     runtime_bindings=None,
@@ -117,7 +117,7 @@ async def run_turn(
             raise ValueError('Unsupported sampling parameter must not be silently ignored')
         if (harness['parent_budget']['max_model_calls'],harness['parent_budget']['max_tool_calls'])!=(max_model_calls,max_tool_calls):
             raise ValueError('Frozen call budget differs from launch arguments')
-        if max_turn_seconds>harness['parent_budget']['wall_seconds']:
+        if harness['parent_budget']['wall_seconds'] is not None and max_turn_seconds>harness['parent_budget']['wall_seconds']:
             raise ValueError('Launch deadline cannot exceed frozen parent budget')
         policy=replace(policy,max_delivery_repairs=harness['max_delivery_repairs'])
         if runtime_bindings is None:
@@ -237,14 +237,15 @@ async def run_turn(
 
 
 def build_parser() -> argparse.ArgumentParser:
+    from benchmark.harbor.run_dataset import budget_limit
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', type=Path, default=Path('.'))
     message = parser.add_mutually_exclusive_group(required=True)
     message.add_argument('--message')
     message.add_argument('--message-file', type=Path)
     parser.add_argument('--resume', action='store_true')
-    parser.add_argument('--max-model-calls', type=int, default=120)
-    parser.add_argument('--max-tool-calls', type=int, default=240)
+    parser.add_argument('--max-model-calls', type=budget_limit, default=120)
+    parser.add_argument('--max-tool-calls', type=budget_limit, default=240)
     parser.add_argument('--max-turn-seconds', type=float, default=1800)
     parser.add_argument('--frozen-configuration',type=Path)
     parser.add_argument('--result-file',type=Path)
@@ -253,8 +254,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.max_model_calls < 1 or args.max_tool_calls < 1:
-        raise SystemExit('Model and tool call limits must be positive.')
     if args.max_turn_seconds <= 0:
         raise SystemExit('Turn time limit must be positive.')
     instruction = args.message

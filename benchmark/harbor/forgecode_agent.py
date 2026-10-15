@@ -70,9 +70,9 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
     def __init__(
         self,
         *args,
-        max_model_calls: int | str = 120,
-        max_tool_calls: int | str = 240,
-        max_turn_seconds: float | str = 1800,
+        max_model_calls: int | str | None = 120,
+        max_tool_calls: int | str | None = 240,
+        max_turn_seconds: float | str | None = 1800,
         install_retries: int | str = 5,
         install_retry_delay_seconds: float | str = 20,
         source_dir: str | Path | None = None,
@@ -81,11 +81,10 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self._max_model_calls = _positive_int(
-            max_model_calls, 'max_model_calls'
-        )
-        self._max_tool_calls = _positive_int(max_tool_calls, 'max_tool_calls')
-        self._max_turn_seconds = _positive_float(
+        from benchmark.harbor.run_dataset import budget_limit
+        self._max_model_calls = budget_limit(max_model_calls)
+        self._max_tool_calls = budget_limit(max_tool_calls)
+        self._max_turn_seconds = None if max_turn_seconds in (None, 'unlimited') else _positive_float(
             max_turn_seconds, 'max_turn_seconds'
         )
         self._install_retries = _positive_int(
@@ -111,13 +110,15 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
     def effective_turn_seconds(self) -> float:
         # 实际预算取 kernel 上限与 Harbor 剩余期限的较小值，并留出日志清理时间。
         if self._phase_deadline is None:
+            if self._max_turn_seconds is None:
+                raise ValueError('Unlimited kernel time requires an official Harbor phase deadline.')
             return self._max_turn_seconds
         remaining = self._phase_deadline - monotonic()
         if remaining <= 0:
             raise TimeoutError('Harbor phase deadline expired before agent launch.')
         # Leave time for interpreter startup, supervisor shutdown and log export.
         reserve = min(30.0, remaining / 2)
-        return min(self._max_turn_seconds, remaining - reserve)
+        return remaining - reserve if self._max_turn_seconds is None else min(self._max_turn_seconds, remaining - reserve)
 
     @staticmethod
     @override
@@ -179,9 +180,10 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
         if self._frozen_configuration:
             if 'run_id' in self._frozen_configuration:
+                self._frozen_configuration['harbor_trial_id'] = str(self.context_id or self.logs_dir.parent.name)
                 self._frozen_configuration['scope'] = {
                     'run_id': self._frozen_configuration['run_id'],
-                    'trial_id': str(self.context_id or self.logs_dir.parent.name),
+                    'trial_id': 'trial-' + str(uuid4()),
                     'trace_id': uuid4().hex, 'span_id': uuid4().hex[:16],
                 }
                 self._frozen_configuration['attempt_id'] = 'attempt-' + str(uuid4())
@@ -197,8 +199,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             env={'FORGECODE_DISABLE_GLOBAL_SKILLS': '1'},
         )
         if self._frozen_configuration:
-            # Snapshot the tracked patch before the official verifier starts; no Agent completion claim is used.
-            result=await environment.exec(command='git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary HEAD')
+            # Include new deliverable files without committing or changing their bytes.
+            result=await environment.exec(command='git -c core.hooksPath=/dev/null add --intent-to-add -- . && git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary HEAD')
             if result.return_code!=0 or len(result.stdout.encode())>100*1024*1024:
                 raise RuntimeError('Pre-grader tracked patch capture unavailable')
             (self.logs_dir/'forgecode-pregrade.patch').write_bytes(result.stdout.encode())
@@ -333,8 +335,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             + ('--frozen-configuration /installed-agent/forgecode-harness.json --result-file /logs/agent/forgecode-result.json ' if self._frozen_configuration else '')
             +
             f'{resume_arg}'
-            f'--max-model-calls {self._max_model_calls} '
-            f'--max-tool-calls {self._max_tool_calls} '
+            f'--max-model-calls {self._max_model_calls or "unlimited"} '
+            f'--max-tool-calls {self._max_tool_calls or "unlimited"} '
             f'--max-turn-seconds {shlex.quote(timeout)} '
             f'{message_arg} '
             f'2>&1 | tee /logs/agent/{log_name}; '
