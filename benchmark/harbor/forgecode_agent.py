@@ -201,9 +201,10 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         if self._frozen_configuration:
             # Include new deliverable files without committing or changing their bytes.
             result=await environment.exec(command='git -c core.hooksPath=/dev/null add --intent-to-add -- . && git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary HEAD')
-            if result.return_code!=0 or len(result.stdout.encode())>100*1024*1024:
+            patch = (result.stdout or '').encode()
+            if result.return_code!=0 or len(patch)>100*1024*1024:
                 raise RuntimeError('Pre-grader tracked patch capture unavailable')
-            (self.logs_dir/'forgecode-pregrade.patch').write_bytes(result.stdout.encode())
+            (self.logs_dir/'forgecode-pregrade.patch').write_bytes(patch)
 
     async def _prepare_install_spec(self, environment: BaseEnvironment) -> str:
         if self._package is not None:

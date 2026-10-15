@@ -46,6 +46,13 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     assert '+print("fixture")' in (tmp_path / 'forgecode-pregrade.patch').read_text()
     assert (workspace / 'new.py').read_text() == 'print("fixture")\n'
 
+    # Harbor represents successful commands with no output as stdout=None.
+    # An unchanged workspace still needs an empty patch and official grading.
+    async def empty_diff(*args, **kwargs):
+        return SimpleNamespace(return_code=0, stdout=None)
+    asyncio.run(agent.run('unchanged task', SimpleNamespace(upload_file=upload, exec=empty_diff), AgentContext()))
+    assert (tmp_path / 'forgecode-pregrade.patch').read_bytes() == b''
+
 
 def test_uv_download_timeout_is_not_a_task_failure(tmp_path):
     trial = tmp_path / 'trial'
