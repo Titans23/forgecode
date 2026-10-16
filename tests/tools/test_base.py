@@ -40,6 +40,7 @@ def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> 
         'list_directory',
         'find_files',
         'read_file',
+        'view_image',
         'grep',
         'load_skill',
         'read_skill_resource',
@@ -70,6 +71,13 @@ def test_default_registry_hides_legacy_edit_tools_from_model(tmp_path: Path) -> 
         for definition in registry.definitions
     )
     assert registry.effect('read_file') == 'read_only'
+    assert registry.effect('view_image') == 'read_only'
+    from types import SimpleNamespace
+    from forge.runtime.agent_loop import Conversation
+    conversation = object.__new__(Conversation)
+    conversation.registry = registry
+    conversation.client = SimpleNamespace(provider='deepseek')
+    assert 'view_image' not in [item['name'] for item in conversation._tool_definitions()]
     assert registry.effect('create_directory') == 'workspace_write'
     assert registry.effect('remove_directory') == 'workspace_write'
     assert registry.effect('write_file') == 'workspace_write'
