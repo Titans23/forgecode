@@ -168,10 +168,11 @@ def test_verifier_cache_is_scoped_and_keeps_official_script(tmp_path, monkeypatc
     monkeypatch.setattr(BoundedDockerEnvironment, 'exec', execute)
     env = object.__new__(EvaluationDockerEnvironment)
     asyncio.run(env.exec(command='official-test', env={'FORGECODE_VERIFIER_CACHE': '1'}))
-    asyncio.run(env.exec(command='agent-command', env={'PATH': '/original'}))
+    asyncio.run(env.exec('agent-command', '/app', {'PATH': '/original'}, 7, 'root'))
     assert calls[0]['env'] == {'UV_DOWNLOAD_URL': 'file:///opt/forgecode-verifier', 'UV_OFFLINE': '1'}
     assert calls[0]['command'].endswith('official-test')
-    assert calls[1] == {'command': 'agent-command', 'env': {'PATH': '/original'}}
+    assert calls[1] == {'command': 'agent-command', 'cwd': '/app', 'env': {'PATH': '/original'},
+                        'timeout_sec': 7, 'user': 'root'}
 
 
 def test_transport_budget_does_not_shorten_agent_execution(monkeypatch):

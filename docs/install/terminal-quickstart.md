@@ -131,7 +131,9 @@ asyncio.run(main())
 
 `evals.runner` 保留 `EvalCase/EvalOutcome`、可调用的离线用例接口和可复现的仓库版本/命令证据；`benchmark.cli`、`benchmark.harbor.run_forge.run_turn`、RunSpec/ResultBundle 及独立 verifier 保持原协议。终端初始化不加载 Harbor，正式评测需要兼容的外部环境和单独的模型预算授权。
 
-公开基准可先用 `run terminal-bench-2 --all --prepare-only --output-dir <准备目录>` 准备安装依赖，不读取模型配置或调用模型。准备阶段复用官方预构建镜像，缓存 Git/curl、uv 0.12.5、Python 3.12.13 和锁定的 Harness 依赖；派生镜像通过断网导入检查，原始镜像和任务文件不改动。正式运行增加 `--prepared-images <准备目录>/prepared-images.json`，启动前核对全部所选镜像及源码指纹，任务启动仅检查安装；源码变化后需重新准备，下载缓存仍可复用。该方式目前要求 Debian/Ubuntu 的官方预构建镜像；未指定缓存清单的既有安装路径继续保留。任务自身和官方判分器的额外下载仍遵循原脚本，不能视为完全离线评测。
+公开基准可先用 `run terminal-bench-2 --task terminal-bench/cancel-async-tasks --prepare-only --output-dir <准备目录>` 准备依赖，不读取模型配置或调用模型；多题重复指定 `--task`。准备阶段复用 Debian/Ubuntu 官方预构建镜像，缓存 Git/curl、uv 0.12.5、Python 3.12.13 和锁定的 Harness 依赖，并缓存标准 uvx 判分入口所需的官方 uv 0.9.5、Python 和包依赖。派生镜像通过断网检查，判分缓存使用各容器独立的写时复制层，原始镜像及官方测试脚本不改动。正式运行增加 `--prepared-images <准备目录>/prepared-images.json`，启动前核对所选任务、源码及缓存身份；源码变化后需重新准备，下载缓存仍可复用。非标准判分依赖命令会在准备阶段明确报错，不承诺任意任务集均已支持预热。任务自身的系统包、业务数据和网络操作仍遵循原任务，不能视为完全离线评测；未指定清单的既有安装路径保留。
+
+可以让助手通过内置 `view_image` 查看本地 PNG/JPEG/GIF/WebP，单张最多 512 KiB；较大图片先裁剪或缩小。图片沿用现有文件读取权限，支持 Anthropic 和 Responses 适配器；DeepSeek 文本适配器不提供此工具。
 
 依赖准备支持 Linux x86_64；Debian 11 使用官方安全更新归档，仍校验 TLS 与仓库签名。
 
