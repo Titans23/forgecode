@@ -133,6 +133,8 @@ asyncio.run(main())
 
 公开基准可先用 `run terminal-bench-2 --all --prepare-only --output-dir <准备目录>` 准备安装依赖，不读取模型配置或调用模型。准备阶段复用官方预构建镜像，缓存 Git/curl、uv 0.12.5、Python 3.12.13 和锁定的 Harness 依赖；派生镜像通过断网导入检查，原始镜像和任务文件不改动。正式运行增加 `--prepared-images <准备目录>/prepared-images.json`，启动前核对全部所选镜像及源码指纹，任务启动仅检查安装；源码变化后需重新准备，下载缓存仍可复用。该方式目前要求 Debian/Ubuntu 的官方预构建镜像；未指定缓存清单的既有安装路径继续保留。任务自身和官方判分器的额外下载仍遵循原脚本，不能视为完全离线评测。
 
+依赖准备支持 Linux x86_64；Debian 11 使用官方安全更新归档，仍校验 TLS 与仓库签名。
+
 补丁采集在模型启动前记录 Git 基线，空目录也创建空提交；最终差异以这个固定提交为准，包含模型途中提交的代码。采集错误保留返回码及简短 stderr，不用空补丁代替失败。
 
 后训练复用 `extensions.qwen_tool_distillation`：`TraceRecorder/RecordingModelClient` 记录实际模型请求及工具事件，`RecordedConversation` 接收独立 outcome validator，`ForgeCodeRolloutEnvironment` 提供 reset/step 和注入式执行/完成门禁，`RewardEvidence` 保存奖励组成。`clean_episode`、`build_sft_rows`、`build_dpo_row` 和 split manifest 保留版本、来源、许可、脱敏与数据划分检查。采集与导出需要显式调用，不加载 transformers/ms-swift、不启动训练集群或付费实验。

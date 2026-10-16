@@ -107,19 +107,23 @@ def test_prepared_agent_checks_installation_without_download_or_upload(tmp_path,
     assert all(word not in commands[0] for word in ('apt-get', 'https://', ' sync ', ' install '))
 
 
-def test_preparation_stops_at_failed_authenticated_package_index(tmp_path):
+@pytest.mark.parametrize('distribution,release,archived', [
+    ('debian', 'bullseye', True), ('debian', 'bookworm', False), ('ubuntu', 'noble', False)])
+def test_preparation_stops_at_failed_authenticated_package_index(tmp_path, distribution, release, archived):
     import subprocess
     from benchmark.harbor.prepare import _prerequisites
-    for name, body in {'find': 'exit 0', 'apt-get': 'printf "%s\\n" "$*"; exit 42'}.items():
+    (tmp_path / 'os-release').write_text(f'ID={distribution}\nVERSION_CODENAME={release}\n', newline='\n')
+    for name, body in {'find': 'printf "%s\\n" "$*"', 'apt-get': 'printf "%s\\n" "$*"; exit 42'}.items():
         script = tmp_path / name
         script.write_text('#!/bin/sh\n' + body + '\n', newline='\n')
         script.chmod(0o755)
     result = subprocess.run([str(_bash()), '--noprofile', '--norc', '-c',
-        'cd "$FIXTURE_PATH"; export PATH="$PWD"; ' + _prerequisites()],
+        'cd "$FIXTURE_PATH"; export PATH="$PWD"; ' + _prerequisites('./os-release')],
         env={**os.environ, 'FIXTURE_PATH': tmp_path.as_posix()}, capture_output=True, text=True)
     assert result.returncode == 42
     assert 'CaInfo=/opt/forgecode-preparation-ca.pem' in result.stdout
     assert 'Error-Mode=any update' in result.stdout and ' install ' not in result.stdout
+    assert ('archive.debian.org' in result.stdout) is archived
 
 
 def test_uv_download_timeout_is_not_a_task_failure(tmp_path):

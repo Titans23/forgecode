@@ -95,13 +95,21 @@ def _uv_binary(cache: Path) -> Path:
     return target
 
 
-def _prerequisites() -> str:
+def _prerequisites(os_release: str = '/etc/os-release') -> str:
     # Official TB2 images are Debian/Ubuntu. HTTPS avoids proxy failures seen
     # with their HTTP sources; the separate archive cache survives docker-clean.
     return (
         'set -eu; if ! command -v git >/dev/null || ! command -v curl >/dev/null; then '
         "find /etc/apt -type f \\( -name '*.list' -o -name '*.sources' \\) "
         "-exec sed -i 's|http://|https://|g' {} +; "
+        # Bullseye's signed security index is still served by deb.debian.org,
+        # but its package files moved to Debian's archive after LTS ended.
+        f'if [ -r {shlex.quote(os_release)} ]; then . {shlex.quote(os_release)}; '
+        'if [ "${ID:-}" = debian ] && [ "${VERSION_CODENAME:-}" = bullseye ]; then '
+        "find /etc/apt -type f \\( -name '*.list' -o -name '*.sources' \\) "
+        "-exec sed -i 's|https://deb.debian.org/debian-security|https://archive.debian.org/debian-security|g;"
+        "s|https://security.debian.org/debian-security|https://archive.debian.org/debian-security|g' {} +; "
+        'fi; fi; '
         'apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=60 '
         '-o Acquire::https::CaInfo=/opt/forgecode-preparation-ca.pem '
         '-o Acquire::PDiffs=false -o APT::Update::Error-Mode=any update; '
