@@ -9,7 +9,6 @@ from benchmark.harbor.summarize import summarize_run
 from harbor.environments.docker.docker import DockerEnvironment
 
 
-@pytest.mark.skipif(sys.platform == 'win32', reason='Runs the Linux task installation shell')
 @pytest.mark.parametrize('present', [(), ('curl',), ('git',), ('curl', 'git')])
 def test_minimal_task_tools_are_installed_only_when_missing(tmp_path, present):
     import os
@@ -20,12 +19,18 @@ def test_minimal_task_tools_are_installed_only_when_missing(tmp_path, present):
     commands.mkdir()
     log = tmp_path / 'apt-calls'
     for name in present:
-        (commands / name).symlink_to('/bin/true')
+        tool = commands / name
+        tool.write_text('#!/bin/sh\nexit 0\n', newline='\n')
+        tool.chmod(0o755)
     apt = commands / 'apt-get'
-    apt.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALL_LOG"\n')
+    apt.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALL_LOG"\n', newline='\n')
     apt.chmod(0o755)
-    subprocess.run([shutil.which('bash'), '-e', '-c', _prerequisite_install_command()],
-        env={**os.environ, 'PATH': str(commands), 'CALL_LOG': str(log)}, check=True)
+    from pathlib import Path
+    bash = (Path(shutil.which('git')).resolve().parents[1] / 'bin/bash.exe'
+            if sys.platform == 'win32' else shutil.which('bash'))
+    command = 'cd "$FIXTURE_PATH"; export PATH="$PWD"; ' + _prerequisite_install_command()
+    subprocess.run([str(bash), '--noprofile', '--norc', '-e', '-c', command],
+        env={**os.environ, 'FIXTURE_PATH': commands.as_posix(), 'CALL_LOG': log.as_posix()}, check=True)
     assert (log.read_text().splitlines() if log.exists() else []) == ([] if len(present) == 2 else [
         'update', 'install -y --no-install-recommends ca-certificates curl git'])
 
