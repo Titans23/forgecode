@@ -57,6 +57,14 @@ async def environment_identity(project):
 
 
 class EvaluationDockerEnvironment(BoundedDockerEnvironment):
+    async def exec(self, *, command, env=None, **kwargs):
+        if env and env.get('FORGECODE_VERIFIER_CACHE') == '1':
+            env = {key: value for key, value in env.items() if key != 'FORGECODE_VERIFIER_CACHE'}
+            env['UV_DOWNLOAD_URL'] = 'file:///opt/forgecode-verifier'
+            env['UV_OFFLINE'] = '1'
+            command = 'export PATH=/opt/forgecode-verifier/bin:"$PATH"; ' + command
+        return await super().exec(command=command, env=env, **kwargs)
+
     def __init__(self,*args,receipt_path,prepared_images=None,**kwargs):
         if prepared_images:
             config = kwargs['task_env_config']

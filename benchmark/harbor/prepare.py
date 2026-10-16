@@ -122,11 +122,14 @@ def _prerequisites(os_release: str = '/etc/os-release') -> str:
     )
 
 
-def prepare_images(source: Path, source_manifest: dict, images: set[str], cache: Path, output: Path) -> dict:
+def prepare_images(source: Path, source_manifest: dict, images: set[str], cache: Path, output: Path,
+                   *, verifier_dependencies: list[list[str]] | None = None) -> dict:
     verify_frozen_source(source, source_manifest)
     digest = source_manifest['content_sha256']
     cache.mkdir(parents=True, exist_ok=True)
     uv = _uv_binary(cache)
+    from benchmark.harbor.verifier_cache import prepare_bootstrap, warm_dependencies
+    bootstrap, bootstrap_receipt = prepare_bootstrap(cache)
     bases = {name: image_info(name) for name in sorted(images)}
     if not bases:
         raise ValueError('No task images selected')
@@ -136,17 +139,21 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
     manifest = {'schema_version': 1, 'source_sha256': digest, 'uv_version': UV_VERSION,
                 'python_version': PYTHON_VERSION, 'wheel_platform': 'x86_64-manylinux_2_28',
                 'uv_binary_sha256': sha256(uv.read_bytes()).hexdigest(),
-                'images': {}}
+                'images': {}, 'verifier_bootstrap': bootstrap_receipt,
+                'verifier_dependencies': verifier_dependencies or []}
     runtime = f'forgecode-evaluation-runtime:{digest[:24]}'
     with tempfile.TemporaryDirectory(prefix='prepare-', dir=cache) as temporary:
         context = Path(temporary)
         shutil.copytree(source, context / 'source')
         shutil.copy2(uv, context / 'uv')
+        shutil.copytree(bootstrap, context / 'verifier')
         (context / 'source-sha256').write_text(digest + '\n')
         dockerfile = context / 'Dockerfile'
         dockerfile.write_text('\n'.join([
             'FROM ' + next(iter(bases.values()))['local_tag'], 'USER root',
             'COPY --chmod=755 uv /opt/forgecode-agent/bin/uv',
+            'COPY verifier /opt/forgecode-verifier',
+            'COPY --chmod=755 verifier/curl /opt/forgecode-verifier/bin/curl',
             'COPY source /installed-agent/forgecode-src',
             'COPY source-sha256 /opt/forgecode-agent/source-sha256',
             'RUN --mount=type=cache,id=forgecode-uv,target=/opt/forgecode-cache '
@@ -162,6 +169,7 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
         subprocess.run(['docker', 'build', '--progress=plain', '-t', runtime, str(context)], check=True)
         runtime_id = image_info(runtime)['id']
         manifest['runtime_image_id'] = runtime_id
+        warm_dependencies(runtime, cache, verifier_dependencies or [])
         # Small final context: task images copy the already-installed runtime.
         shutil.rmtree(context / 'source')
         logs = output.parent / 'image-builds'
@@ -178,6 +186,7 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
                 + _prerequisites(),
                 f'COPY --link --from={runtime} /opt/forgecode-agent /opt/forgecode-agent',
                 f'COPY --link --from={runtime} /opt/forgecode-python /opt/forgecode-python',
+                f'COPY --link --from={runtime} /opt/forgecode-verifier /opt/forgecode-verifier',
                 'USER ' + (base['config'].get('User') or 'root'),
                 'RUN --network=none ' + installed_check(digest),
                 f'LABEL {SOURCE_LABEL}="{digest}" {BASE_LABEL}="{base["id"]}"',

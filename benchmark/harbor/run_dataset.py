@@ -267,12 +267,17 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
     if args.prepare_only or args.prepared_images:
         from benchmark.harbor.prepare import prepare_images, task_images, validate_prepared
         images = task_images(output / 'tasks', taskset)
+        from benchmark.harbor.verifier_cache import verifier_specs
+        specs = verifier_specs(output / 'tasks', taskset)
         if args.prepare_only:
             prepare_images(source, manifest['source_manifest'], images, args.cache_dir,
-                           output / 'prepared-images.json')
+                           output / 'prepared-images.json', verifier_dependencies=specs)
             print(f'Prepared images: {output / "prepared-images.json"}', flush=True)
             return 0
         prepared = json.loads(args.prepared_images.read_text(encoding='utf-8'))
+        if not prepared.get('verifier_bootstrap') or any(s not in prepared.get('verifier_dependencies', []) for s in specs):
+            raise ValueError('Prepared images lack the selected verifier dependency cache; prepare again')
+        manifest['grader']['env']['FORGECODE_VERIFIER_CACHE'] = '1'
         manifest['prepared_image_mapping'] = validate_prepared(prepared, manifest['source_manifest']['content_sha256'], images)
         manifest['prepared_images'] = prepared
     job = frozen_job(args, manifest, taskset, source, output)

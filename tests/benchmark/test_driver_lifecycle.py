@@ -59,6 +59,7 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
         # Model-side commits must not disappear from the final patch.
         subprocess.run(['git', 'add', '.'], cwd=workspace, check=True, capture_output=True)
         subprocess.run(['git', 'commit', '-m', 'synthetic model change'], cwd=workspace, check=True, capture_output=True)
+        (workspace / '.git/index.lock').write_text('checkpoint interrupted')
     async def exec_fixture(*args, **kwargs):
         result = subprocess.run([str(_bash()), '--noprofile', '--norc', '-c', kwargs['command']],
             cwd=workspace, capture_output=True, text=True)
@@ -75,6 +76,7 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     assert journal.path.read_text().count('budget.reserved') == 1
     assert '+print("fixture")' in (tmp_path / 'forgecode-pregrade.patch').read_text()
     assert (workspace / 'new.py').read_text() == 'print("fixture")\n'
+    assert (workspace / '.git/index.lock').read_text() == 'checkpoint interrupted'
 
     # Harbor represents successful commands with no output as stdout=None.
     # An unchanged workspace still needs an empty patch and official grading.
@@ -88,7 +90,7 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     async def failed_diff(*args, **kwargs):
         if 'rev-parse HEAD' in kwargs['command']:
             return await exec_fixture(*args, **kwargs)
-        return SimpleNamespace(return_code=128, stdout=None, stderr='synthetic missing Git object')
+        return SimpleNamespace(return_code=128, stdout='synthetic missing Git object', stderr='')
     with pytest.raises(RuntimeError, match='synthetic missing Git object'):
         asyncio.run(agent.run('failed capture', SimpleNamespace(upload_file=upload, exec=failed_diff), AgentContext()))
     assert json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())['return_code'] == 128
@@ -140,6 +142,31 @@ def test_uv_download_timeout_is_not_a_task_failure(tmp_path):
     assert summary.verifier_environment_failures == 1
     assert summary.agent_failures == summary.scored_trials == 0
     assert summary.raw_rewards == {'trial': 0.0}
+
+
+def test_verifier_cache_is_scoped_and_keeps_official_script(tmp_path, monkeypatch):
+    from benchmark.harbor.verifier_cache import verifier_specs, INSTALLER_URL
+    from benchmark.adapters.docker import EvaluationDockerEnvironment
+    task = tmp_path / 'task'
+    (task / 'tests').mkdir(parents=True)
+    script = task / 'tests/test.sh'
+    original = f'curl -LsSf {INSTALLER_URL} | sh\nuvx -p 3.13 -w pytest==8.4.1 pytest /tests/test_outputs.py\n'
+    script.write_text(original)
+    monkeypatch.setattr('benchmark.adapters.materialize.resolve_task', lambda *args: task)
+    assert verifier_specs(tmp_path, {'tasks': ['fixture']}) == [['-p', '3.13', '-w', 'pytest==8.4.1']]
+    assert script.read_text() == original
+    script.write_text(original.replace('3.13', '${UNKNOWN}'))
+    with pytest.raises(ValueError, match='Unresolved'):
+        verifier_specs(tmp_path, {'tasks': ['fixture']})
+    calls = []
+    async def execute(self, **kwargs): calls.append(kwargs)
+    monkeypatch.setattr(BoundedDockerEnvironment, 'exec', execute)
+    env = object.__new__(EvaluationDockerEnvironment)
+    asyncio.run(env.exec(command='official-test', env={'FORGECODE_VERIFIER_CACHE': '1'}))
+    asyncio.run(env.exec(command='agent-command', env={'PATH': '/original'}))
+    assert calls[0]['env'] == {'UV_DOWNLOAD_URL': 'file:///opt/forgecode-verifier', 'UV_OFFLINE': '1'}
+    assert calls[0]['command'].endswith('official-test')
+    assert calls[1] == {'command': 'agent-command', 'env': {'PATH': '/original'}}
 
 
 def test_transport_budget_does_not_shorten_agent_execution(monkeypatch):

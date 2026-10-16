@@ -216,10 +216,11 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
         if self._frozen_configuration:
             # Include new deliverable files without committing or changing their bytes.
-            result=await environment.exec(command='git -c core.hooksPath=/dev/null add --intent-to-add -- . && git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline))
+            result=await environment.exec(command=_patch_capture_command(baseline))
             patch = (result.stdout or '').encode()
             diagnostic = {'baseline': baseline, 'return_code': result.return_code,
-                          'patch_bytes': len(patch), 'stderr': (getattr(result, 'stderr', '') or '')[-4096:]}
+                          'patch_bytes': len(patch), 'stderr': (getattr(result, 'stderr', '') or '')[-4096:],
+                          'error_output': (result.stdout or '')[-4096:] if result.return_code else ''}
             (self.logs_dir / 'forgecode-patch-capture.json').write_text(json.dumps(diagnostic), encoding='utf-8')
             if result.return_code!=0 or len(patch)>100*1024*1024:
                 raise RuntimeError('Pre-grader tracked patch capture unavailable: ' + json.dumps(diagnostic))
@@ -401,6 +402,20 @@ class LegacyBaselineHarborAgent(ForgeCodeHarborAgent):
             f'timeout --kill-after=10s {self._max_turn_seconds + 15:g} ',
             f'timeout --kill-after=10s {self._max_turn_seconds:g} ',
         )
+
+
+def _patch_capture_command(baseline: str) -> str:
+    # Runtime checkpoints may leave the working index locked on interruption.
+    # Collection owns a separate index and never stages into the Agent's index.
+    return (
+        'set -e; capture_dir=$(mktemp -d); '
+        'trap \'rm -f "$capture_dir/index" "$capture_dir/index.lock"; rmdir "$capture_dir"\' EXIT; '
+        'export GIT_INDEX_FILE="$capture_dir/index"; '
+        'git -c core.hooksPath=/dev/null read-tree ' + shlex.quote(baseline) + '; '
+        'git -c core.hooksPath=/dev/null -c core.fsmonitor=false add --intent-to-add -- .; '
+        'git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null '
+        'diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline)
+    )
 
 
 def _git_baseline_command() -> str:
