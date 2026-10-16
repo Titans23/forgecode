@@ -6,6 +6,7 @@ import re
 import shlex
 import shutil
 import subprocess
+from uuid import uuid4
 
 VERSION = '0.9.5'
 INSTALLER_URL = f'https://astral.sh/uv/{VERSION}/install.sh'
@@ -74,3 +75,25 @@ def warm_dependencies(image: str, cache: Path, specs: list[list[str]]) -> None:
                 '-e', 'UV_HTTP_TIMEOUT=120']
         subprocess.run(base + [image, '-ec', command], check=True)
         subprocess.run(base + ['--network', 'none', '-e', 'UV_OFFLINE=1', image, '-ec', command], check=True)
+
+
+def freeze_cache_layer(image: str, cache: Path) -> str:
+    """One immutable layer; each task gets Docker's private copy-on-write cache."""
+    name = 'forgecode-cache-freeze-' + uuid4().hex
+    tag = 'forgecode-verifier-cache:' + uuid4().hex
+    command = ('mkdir -p /opt/forgecode-verifier/cache; '
+               'for item in /opt/forgecode-cache/*-v[0-9]* /opt/forgecode-cache/python; do '
+               '[ ! -e "$item" ] || cp -a "$item" /opt/forgecode-verifier/cache/; done')
+    subprocess.run(['docker', 'create', '--name', name, '--network', 'none', '--entrypoint', '/bin/sh',
+                    '--mount', f'type=bind,source={cache.resolve()},target=/opt/forgecode-cache,readonly',
+                    image, '-ec', command], check=True, stdout=subprocess.DEVNULL)
+    try:
+        subprocess.run(['docker', 'start', '--attach', name], check=True)
+        # docker start reports transport success even if the contained copy fails.
+        status = subprocess.check_output(['docker', 'inspect', '--format', '{{.State.ExitCode}}', name], text=True).strip()
+        if status != '0':
+            raise RuntimeError('Verifier cache snapshot failed')
+        subprocess.run(['docker', 'commit', name, tag], check=True, stdout=subprocess.DEVNULL)
+    finally:
+        subprocess.run(['docker', 'rm', '--force', name], check=True, stdout=subprocess.DEVNULL)
+    return tag

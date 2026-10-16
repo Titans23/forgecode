@@ -21,6 +21,7 @@ UV_VERSION = '0.12.5'
 PYTHON_VERSION = '3.12.13'
 SOURCE_LABEL = 'org.forgecode.source-sha256'
 BASE_LABEL = 'org.forgecode.base-image'
+CACHE_LABEL = 'org.forgecode.verifier-cache'
 
 
 def installed_check(digest: str) -> str:
@@ -66,7 +67,9 @@ def validate_prepared(manifest: dict, digest: str, images: set[str]) -> dict:
         prepared = image_info(entry['image_id'])
         labels = prepared['config'].get('Labels') or {}
         if (image_info(original)['id'] != entry['base_id'] or prepared['id'] != entry['image_id']
-                or labels.get(SOURCE_LABEL) != digest or labels.get(BASE_LABEL) != entry['base_id']):
+                or labels.get(SOURCE_LABEL) != digest or labels.get(BASE_LABEL) != entry['base_id']
+                or (manifest.get('verifier_cache_image_id')
+                    and labels.get(CACHE_LABEL) != manifest['verifier_cache_image_id'])):
             raise ValueError(f'Prepared image provenance mismatch: {original}')
     return {original: entries[original]['image_id'] for original in sorted(images)}
 
@@ -128,7 +131,7 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
     digest = source_manifest['content_sha256']
     cache.mkdir(parents=True, exist_ok=True)
     uv = _uv_binary(cache)
-    from benchmark.harbor.verifier_cache import prepare_bootstrap, warm_dependencies
+    from benchmark.harbor.verifier_cache import prepare_bootstrap, warm_dependencies, freeze_cache_layer
     bootstrap, bootstrap_receipt = prepare_bootstrap(cache)
     bases = {name: image_info(name) for name in sorted(images)}
     if not bases:
@@ -170,13 +173,15 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
         runtime_id = image_info(runtime)['id']
         manifest['runtime_image_id'] = runtime_id
         warm_dependencies(runtime, cache, verifier_dependencies or [])
+        cache_image = freeze_cache_layer(runtime, cache)
+        manifest['verifier_cache_image_id'] = image_info(cache_image)['id']
         # Small final context: task images copy the already-installed runtime.
         shutil.rmtree(context / 'source')
         logs = output.parent / 'image-builds'
         logs.mkdir(exist_ok=True)
         def build_image(item):
             original, base = item
-            key = sha256((base['id'] + digest + runtime_id).encode()).hexdigest()[:24]
+            key = sha256((base['id'] + digest + runtime_id + manifest['verifier_cache_image_id']).encode()).hexdigest()[:24]
             tag = 'forgecode-evaluation-prepared:' + key
             recipe = context / (key + '.Dockerfile')
             recipe.write_text('\n'.join([
@@ -187,9 +192,11 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
                 f'COPY --link --from={runtime} /opt/forgecode-agent /opt/forgecode-agent',
                 f'COPY --link --from={runtime} /opt/forgecode-python /opt/forgecode-python',
                 f'COPY --link --from={runtime} /opt/forgecode-verifier /opt/forgecode-verifier',
+                f'COPY --link --from={cache_image} /opt/forgecode-verifier/cache /opt/forgecode-cache',
                 'USER ' + (base['config'].get('User') or 'root'),
                 'RUN --network=none ' + installed_check(digest),
-                f'LABEL {SOURCE_LABEL}="{digest}" {BASE_LABEL}="{base["id"]}"',
+                f'LABEL {SOURCE_LABEL}="{digest}" {BASE_LABEL}="{base["id"]}" '
+                f'{CACHE_LABEL}="{manifest["verifier_cache_image_id"]}"',
             ]) + '\n')
             log = logs / (key + '.log')
             with log.open('w') as stream:

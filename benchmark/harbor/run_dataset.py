@@ -216,8 +216,8 @@ def frozen_job(args, manifest, taskset, source, output):
         environment=EnvironmentConfig(import_path='benchmark.adapters.docker:EvaluationDockerEnvironment',
             kwargs={'receipt_path': str(output / 'resources.jsonl'),
                     'prepared_images': manifest.get('prepared_image_mapping', {})},
-            force_build=args.force_build, mounts=[{'type': 'bind', 'source': str(args.cache_dir.resolve()),
-                                                 'target': '/opt/forgecode-cache'}]),
+            force_build=args.force_build, mounts=[] if manifest.get('prepared_image_mapping') else [
+                {'type': 'bind', 'source': str(args.cache_dir.resolve()), 'target': '/opt/forgecode-cache'}]),
         agents=[agent], tasks=[TaskConfig(path=resolve_task(output / 'tasks', taskset, name),
                                           source=args.dataset) for name in taskset['tasks']])
 
@@ -275,7 +275,8 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
             print(f'Prepared images: {output / "prepared-images.json"}', flush=True)
             return 0
         prepared = json.loads(args.prepared_images.read_text(encoding='utf-8'))
-        if not prepared.get('verifier_bootstrap') or any(s not in prepared.get('verifier_dependencies', []) for s in specs):
+        if (not prepared.get('verifier_cache_image_id') or not prepared.get('verifier_bootstrap')
+                or any(s not in prepared.get('verifier_dependencies', []) for s in specs)):
             raise ValueError('Prepared images lack the selected verifier dependency cache; prepare again')
         manifest['grader']['env']['FORGECODE_VERIFIER_CACHE'] = '1'
         manifest['prepared_image_mapping'] = validate_prepared(prepared, manifest['source_manifest']['content_sha256'], images)

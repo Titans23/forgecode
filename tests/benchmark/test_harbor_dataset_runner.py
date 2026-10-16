@@ -38,6 +38,11 @@ def test_preparation_requires_no_model_and_rejects_stale_or_incomplete_images(mo
         prepare.validate_prepared(manifest, 'd' * 64, {'official:fixture'})
     with pytest.raises(ValueError, match='cover all'):
         prepare.validate_prepared(manifest, digest, {'missing:fixture'})
+    manifest['verifier_cache_image_id'] = 'sha256:cache'
+    with pytest.raises(ValueError, match='provenance mismatch'):
+        prepare.validate_prepared(manifest, digest, {'official:fixture'})
+    records[image]['config']['Labels'][prepare.CACHE_LABEL] = 'sha256:cache'
+    assert prepare.validate_prepared(manifest, digest, {'official:fixture'}) == {'official:fixture': image}
     records['official:fixture']['id'] = 'sha256:' + 'e' * 64
     with pytest.raises(ValueError, match='provenance mismatch'):
         prepare.validate_prepared(manifest, digest, {'official:fixture'})
@@ -172,6 +177,9 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     assert len(restored.metrics) == 1 and restored.metrics[0].type.value == 'mean'
     assert restored.verifier.env == manifest['grader']['env']
     assert restored.verifier.env['UV_HTTP_TIMEOUT'] == '120' and restored.verifier.max_timeout_sec is None
+    isolated = runner.frozen_job(args, {**manifest, 'prepared_image_mapping': {'fixture': 'sha256:prepared'}},
+                                taskset, tmp_path / 'source', output)
+    assert not isolated.environment.mounts
     async def resolve_metrics():
         metrics = await Job._resolve_metrics(restored, restored.tasks)
         plugin = ForgeCodeDeadlinePlugin()
