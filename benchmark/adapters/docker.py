@@ -57,7 +57,12 @@ async def environment_identity(project):
 
 
 class EvaluationDockerEnvironment(BoundedDockerEnvironment):
-    def __init__(self,*args,receipt_path,**kwargs):
+    def __init__(self,*args,receipt_path,prepared_images=None,**kwargs):
+        if prepared_images:
+            config = kwargs['task_env_config']
+            if config.docker_image not in prepared_images:
+                raise ValueError('Task image was not prepared before evaluation')
+            kwargs['task_env_config'] = config.model_copy(update={'docker_image': prepared_images[config.docker_image]})
         super().__init__(*args,**kwargs)
         self._receipt_path=Path(receipt_path)
         self._receipt_id=uuid4().hex

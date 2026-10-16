@@ -126,6 +126,11 @@ def build_parser(
     parser.add_argument('--agent-setup-timeout-multiplier', type=int, default=12)
     parser.add_argument('--timeout-multiplier', type=float)
     parser.add_argument('--force-build', action='store_true')
+    preparation = parser.add_mutually_exclusive_group()
+    preparation.add_argument('--prepare-only', action='store_true',
+                             help='Cache installed task images without model access; write prepared-images.json.')
+    preparation.add_argument('--prepared-images', type=Path,
+                             help='Require previously prepared images matching this frozen source.')
     parser.add_argument('--dry-run', action='store_true')
     return parser
 
@@ -157,7 +162,7 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'FORGE_PROVIDER': args.provider, 'FORGE_MODEL': args.model, 'FORGE_BASE_URL': args.base_url,
         'FORGE_REASONING_EFFORT': args.reasoning_effort, 'MODEL_MAX_TOKENS': args.max_output_tokens,
         'MODEL_CONTEXT_WINDOW': args.context_window}.items() if value is not None}
-    config = None if args.agent == 'oracle' else ForgeConfig.from_env(model_environment(args.env_file, overrides))
+    config = None if args.agent == 'oracle' or args.prepare_only else ForgeConfig.from_env(model_environment(args.env_file, overrides))
     model = {key: value for key, value in asdict(config).items() if key != 'api_key'} if config else None
     if model:
         # Keep the existing evaluation context limit explicit when the user has not set one.
@@ -187,6 +192,8 @@ def frozen_job(args, manifest, taskset, source, output):
     from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig, VerifierConfig
     from benchmark.adapters.materialize import resolve_task
     frozen = {key: manifest[key] for key in ('run_id', 'parameters', 'harness', 'source_manifest', 'model')}
+    if manifest.get('prepared_images'):
+        frozen['prepared_images'] = True
     if frozen['model']:
         frozen['model'] = {**frozen['model'], 'base_url': container_base_url(frozen['model']['base_url'])}
     model = frozen['model']
@@ -207,7 +214,8 @@ def frozen_job(args, manifest, taskset, source, output):
         retry=RetryConfig(max_retries=args.max_retries), timeout_multiplier=args.timeout_multiplier or 1,
         agent_setup_timeout_multiplier=args.agent_setup_timeout_multiplier,
         environment=EnvironmentConfig(import_path='benchmark.adapters.docker:EvaluationDockerEnvironment',
-            kwargs={'receipt_path': str(output / 'resources.jsonl')},
+            kwargs={'receipt_path': str(output / 'resources.jsonl'),
+                    'prepared_images': manifest.get('prepared_image_mapping', {})},
             force_build=args.force_build, mounts=[{'type': 'bind', 'source': str(args.cache_dir.resolve()),
                                                  'target': '/opt/forgecode-cache'}]),
         agents=[agent], tasks=[TaskConfig(path=resolve_task(output / 'tasks', taskset, name),
@@ -225,6 +233,8 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
         parser.error('Task count must be positive and retries non-negative.')
     if args.timeout_multiplier is not None and not 0 < args.timeout_multiplier <= 1:
         parser.error('Timeout multiplier must be in (0, 1]; official benchmark deadlines cannot be extended.')
+    if (args.prepare_only or args.prepared_images) and (args.agent == 'oracle' or args.force_build):
+        parser.error('Prepared images require the ForgeCode agent and prebuilt official task images.')
     try:
         config, manifest = effective_configuration(args)
     except ValueError as error:
@@ -254,6 +264,17 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
     manifest.update(source_manifest=json.loads((source.parent / 'manifest.json').read_text(encoding='utf-8')),
                     driver_manifest=json.loads((driver.parent / 'manifest.json').read_text(encoding='utf-8')),
                     taskset=taskset)
+    if args.prepare_only or args.prepared_images:
+        from benchmark.harbor.prepare import prepare_images, task_images, validate_prepared
+        images = task_images(output / 'tasks', taskset)
+        if args.prepare_only:
+            prepare_images(source, manifest['source_manifest'], images, args.cache_dir,
+                           output / 'prepared-images.json')
+            print(f'Prepared images: {output / "prepared-images.json"}', flush=True)
+            return 0
+        prepared = json.loads(args.prepared_images.read_text(encoding='utf-8'))
+        manifest['prepared_image_mapping'] = validate_prepared(prepared, manifest['source_manifest']['content_sha256'], images)
+        manifest['prepared_images'] = prepared
     job = frozen_job(args, manifest, taskset, source, output)
     (output / 'experiment.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     configuration = output / 'harbor.json'

@@ -21,6 +21,45 @@ def test_loopback_provider_is_rewritten_only_for_containers() -> None:
     )
 
 
+def test_preparation_requires_no_model_and_rejects_stale_or_incomplete_images(monkeypatch):
+    from benchmark.harbor import prepare, run_dataset
+    monkeypatch.setattr(run_dataset.ForgeConfig, 'from_env', lambda *args: pytest.fail('Preparation read model credentials'))
+    args = run_dataset.build_parser(default_dataset='terminal-bench/terminal-bench-2').parse_args(['--all', '--prepare-only'])
+    config, _ = run_dataset.effective_configuration(args)
+    assert config is None
+    digest, base, image = 'a' * 64, 'sha256:' + 'b' * 64, 'sha256:' + 'c' * 64
+    records = {'official:fixture': {'id': base}, image: {'id': image, 'config': {'Labels': {
+        prepare.SOURCE_LABEL: digest, prepare.BASE_LABEL: base}}}}
+    monkeypatch.setattr(prepare, 'image_info', records.__getitem__)
+    manifest = {'schema_version': 1, 'source_sha256': digest,
+                'images': {'official:fixture': {'base_id': base, 'image_id': image}}}
+    assert prepare.validate_prepared(manifest, digest, {'official:fixture'}) == {'official:fixture': image}
+    with pytest.raises(ValueError, match='frozen source'):
+        prepare.validate_prepared(manifest, 'd' * 64, {'official:fixture'})
+    with pytest.raises(ValueError, match='cover all'):
+        prepare.validate_prepared(manifest, digest, {'missing:fixture'})
+    records['official:fixture']['id'] = 'sha256:' + 'e' * 64
+    with pytest.raises(ValueError, match='provenance mismatch'):
+        prepare.validate_prepared(manifest, digest, {'official:fixture'})
+
+
+def test_prepared_environment_preserves_official_constraints(tmp_path, monkeypatch):
+    from benchmark.adapters.docker import EvaluationDockerEnvironment, BoundedDockerEnvironment
+    from harbor.models.task.config import EnvironmentConfig
+    original = EnvironmentConfig(docker_image='official:fixture', cpus=2, memory_mb=1024, allow_internet=False)
+    received = {}
+    monkeypatch.setattr(BoundedDockerEnvironment, '__init__', lambda self, **kwargs: received.update(kwargs))
+    EvaluationDockerEnvironment(receipt_path=tmp_path / 'receipt', task_env_config=original,
+                                prepared_images={'official:fixture': 'sha256:prepared'})
+    assert original.docker_image == 'official:fixture'
+    changed = received['task_env_config']
+    assert changed.docker_image == 'sha256:prepared'
+    assert changed.model_dump(exclude={'docker_image'}) == original.model_dump(exclude={'docker_image'})
+    with pytest.raises(ValueError, match='not prepared'):
+        EvaluationDockerEnvironment(receipt_path=tmp_path / 'receipt', task_env_config=original,
+                                    prepared_images={'missing:fixture': 'sha256:prepared'})
+
+
 def test_terminal_entrypoint_does_not_inject_model_tasks_or_concurrency(
     monkeypatch,
 ) -> None:

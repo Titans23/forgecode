@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import json
+import re
 from pathlib import Path
 import shlex
 import shutil
@@ -135,6 +136,11 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
 
     @override
     async def install(self, environment: BaseEnvironment) -> None:
+        if (self._frozen_configuration or {}).get('prepared_images'):
+            from benchmark.harbor.prepare import installed_check
+            digest = self._frozen_configuration['source_manifest']['content_sha256']
+            await self.exec_as_agent(environment, command=installed_check(digest))
+            return
         install_spec = await self._prepare_install_spec(environment)
         user = shlex.quote(str(environment.default_user or 'root'))
         await self.exec_as_root(
@@ -191,6 +197,15 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             frozen=self.logs_dir/'forgecode-harness.json'
             frozen.write_text(json.dumps(self._frozen_configuration),encoding='utf-8')
             await environment.upload_file(frozen,'/installed-agent/forgecode-harness.json')
+            baseline_file = self.logs_dir / 'forgecode-patch-baseline.txt'
+            if resume and baseline_file.is_file():
+                baseline = baseline_file.read_text().strip()
+            else:
+                result = await environment.exec(command='set -e; ' + _git_baseline_command() + 'git rev-parse HEAD')
+                baseline = (result.stdout or '').strip().splitlines()[-1] if result.stdout else ''
+                if result.return_code != 0 or not re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', baseline):
+                    raise RuntimeError('Pre-agent Git baseline unavailable: ' + str(getattr(result, 'stderr', '') or result.stdout)[-4096:])
+                baseline_file.write_text(baseline + '\n', encoding='utf-8')
         await self.exec_as_agent(
             environment,
             command=self._run_command(
@@ -201,10 +216,13 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
         if self._frozen_configuration:
             # Include new deliverable files without committing or changing their bytes.
-            result=await environment.exec(command='git -c core.hooksPath=/dev/null add --intent-to-add -- . && git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary HEAD')
+            result=await environment.exec(command='git -c core.hooksPath=/dev/null add --intent-to-add -- . && git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline))
             patch = (result.stdout or '').encode()
+            diagnostic = {'baseline': baseline, 'return_code': result.return_code,
+                          'patch_bytes': len(patch), 'stderr': (getattr(result, 'stderr', '') or '')[-4096:]}
+            (self.logs_dir / 'forgecode-patch-capture.json').write_text(json.dumps(diagnostic), encoding='utf-8')
             if result.return_code!=0 or len(patch)>100*1024*1024:
-                raise RuntimeError('Pre-grader tracked patch capture unavailable')
+                raise RuntimeError('Pre-grader tracked patch capture unavailable: ' + json.dumps(diagnostic))
             (self.logs_dir/'forgecode-pregrade.patch').write_bytes(patch)
 
     async def _prepare_install_spec(self, environment: BaseEnvironment) -> str:
@@ -309,7 +327,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         # The kernel owns the task deadline. The outer guard leaves only a
         # bounded cleanup/logging grace period, with no extra model/tool work.
         watchdog_timeout = format(effective_seconds + 15, 'g')
-        baseline = '' if resume else _git_baseline_command()
+        baseline = '' if resume or self._frozen_configuration else _git_baseline_command()
         message_arg = (
             f'--message-file {shlex.quote(message_file)}'
             if message_file is not None
@@ -390,7 +408,7 @@ def _git_baseline_command() -> str:
         "find . -type f \\( -name '*.sh' -o -name gradlew \\) "
         "  -exec sed -i 's/\\r$//' {} \\; 2>/dev/null || true; "
         'if command -v git >/dev/null 2>&1 && '
-        '  ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then '
+        '  ! git rev-parse --verify HEAD >/dev/null 2>&1; then '
         '  git init --quiet; '
         '  git config user.email forgecode-harbor@example.test; '
         '  git config user.name "ForgeCode Harbor"; '
@@ -399,7 +417,7 @@ def _git_baseline_command() -> str:
         "\\ntarget/\\ncoverage/\\n__pycache__/\\n.pytest_cache/\\n' "
         '    >> .git/info/exclude; '
         '  git add -A; '
-        '  git commit --quiet -m "Harbor evaluation baseline"; '
+        '  git commit --quiet --allow-empty -m "Harbor evaluation baseline"; '
         'fi; '
     )
 
