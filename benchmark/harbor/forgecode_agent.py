@@ -409,12 +409,14 @@ def _patch_capture_command(baseline: str) -> str:
     # Collection owns a separate index and never stages into the Agent's index.
     return (
         'set -e; capture_dir=$(mktemp -d); '
-        'trap \'rm -f "$capture_dir/index" "$capture_dir/index.lock"; rmdir "$capture_dir"\' EXIT; '
+        'trap \'rm -f "$capture_dir/index" "$capture_dir/index.lock" "$capture_dir/stderr"; rmdir "$capture_dir"\' EXIT; '
         'export GIT_INDEX_FILE="$capture_dir/index"; '
-        'git -c core.hooksPath=/dev/null read-tree ' + shlex.quote(baseline) + '; '
-        'git -c core.hooksPath=/dev/null -c core.fsmonitor=false add --intent-to-add -- .; '
+        'capture_status=0; { git -c core.hooksPath=/dev/null read-tree ' + shlex.quote(baseline) + ' && '
+        'git -c core.hooksPath=/dev/null -c core.fsmonitor=false add --intent-to-add -- . && '
         'git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null '
-        'diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline)
+        'diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline) + '; '
+        '} 2>"$capture_dir/stderr" || capture_status=$?; '
+        'if [ "$capture_status" -ne 0 ]; then cat "$capture_dir/stderr"; exit "$capture_status"; fi'
     )
 
 

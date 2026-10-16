@@ -59,10 +59,14 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
         # Model-side commits must not disappear from the final patch.
         subprocess.run(['git', 'add', '.'], cwd=workspace, check=True, capture_output=True)
         subprocess.run(['git', 'commit', '-m', 'synthetic model change'], cwd=workspace, check=True, capture_output=True)
+        nested = workspace / 'cloned'
+        subprocess.run(['git', 'init', str(nested)], check=True, capture_output=True)
+        subprocess.run(['git', '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.test',
+                        'commit', '--allow-empty', '-m', 'fixture'], cwd=nested, check=True, capture_output=True)
         (workspace / '.git/index.lock').write_text('checkpoint interrupted')
     async def exec_fixture(*args, **kwargs):
         result = subprocess.run([str(_bash()), '--noprofile', '--norc', '-c', kwargs['command']],
-            cwd=workspace, capture_output=True, text=True)
+            cwd=workspace, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         return SimpleNamespace(return_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
     monkeypatch.setattr(agent, 'exec_as_agent', create_deliverable)
     asyncio.run(agent.run('synthetic task', SimpleNamespace(upload_file=upload, exec=exec_fixture), AgentContext()))
@@ -75,6 +79,7 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     recorder.reserve_budget(TurnState(max_seconds=30))
     assert journal.path.read_text().count('budget.reserved') == 1
     assert '+print("fixture")' in (tmp_path / 'forgecode-pregrade.patch').read_text()
+    assert 'warning:' not in (tmp_path / 'forgecode-pregrade.patch').read_text()
     assert (workspace / 'new.py').read_text() == 'print("fixture")\n'
     assert (workspace / '.git/index.lock').read_text() == 'checkpoint interrupted'
 
