@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+from time import perf_counter_ns
 from typing import Any, Iterable
 from uuid import uuid4
 
@@ -62,6 +63,7 @@ class CheckpointStore:
             'schema_version': 1,
             'checkpoint_id': checkpoint_id,
             'created_at': datetime.now().astimezone().isoformat(),
+            'created_monotonic_ns': perf_counter_ns(),
             'root': str(self.root),
             'files': {},
         }
@@ -207,12 +209,14 @@ class CheckpointStore:
 
     @staticmethod
     def _creation_order(path: Path):
-        # Filesystem timestamps can tie or change when a checkpoint is updated.
+        # Filesystem and wall-clock timestamps can tie on Windows. Use the
+        # monotonic creation clock to break ties without random ID ordering.
         try:
             manifest = json.loads(path.read_text(encoding='utf-8'))
-            return datetime.fromisoformat(manifest['created_at']).timestamp(), path.name
+            return (datetime.fromisoformat(manifest['created_at']).timestamp(),
+                    int(manifest.get('created_monotonic_ns', 0)), path.name)
         except (OSError, ValueError, KeyError, TypeError):
-            return path.stat().st_mtime, path.name
+            return path.stat().st_mtime, 0, path.name
 
     def latest_restorable(self) -> str | None:
         '''Return the newest checkpoint containing at least one file snapshot.'''

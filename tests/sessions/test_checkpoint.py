@@ -190,12 +190,27 @@ def test_checkpoint_deduplicates_original_blob(tmp_path: Path) -> None:
 
 
 def test_checkpoint_prune_keeps_only_latest_manifests(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch,
 ) -> None:
+    from datetime import datetime
+    from types import SimpleNamespace
+    import forge.sessions.checkpoint as checkpoints
+    fixed = datetime.now()
+    class FrozenClock(datetime):
+        @classmethod
+        def now(cls): return fixed
+    identifiers = iter(SimpleNamespace(hex=f'{n:020x}' + '0' * 12) for n in (4, 3, 2, 1))
+    monkeypatch.setattr(checkpoints, 'datetime', FrozenClock)
+    monkeypatch.setattr(checkpoints, 'uuid4', lambda: next(identifiers))
     root = tmp_path / 'project'
     root.mkdir()
     store = CheckpointStore(root, tmp_path / 'checkpoints')
-    checkpoint_ids = [store.begin() for _ in range(4)]
+    checkpoint_ids = [CheckpointStore(root, store.directory).begin() for _ in range(4)]
+    # Legacy manifests without the tie-breaker remain readable.
+    legacy = store._load_manifest(checkpoint_ids[0])
+    legacy.pop('created_monotonic_ns')
+    store._write_manifest(checkpoint_ids[0], legacy)
+    assert store.list() == tuple(reversed(checkpoint_ids))
     import os
     for identifier in checkpoint_ids:
         os.utime(store._manifest_path(identifier), (1_700_000_000, 1_700_000_000))
