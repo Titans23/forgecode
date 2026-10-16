@@ -99,14 +99,16 @@ def _prerequisites() -> str:
     # Official TB2 images are Debian/Ubuntu. HTTPS avoids proxy failures seen
     # with their HTTP sources; the separate archive cache survives docker-clean.
     return (
-        'if ! command -v git >/dev/null || ! command -v curl >/dev/null; then '
+        'set -eu; if ! command -v git >/dev/null || ! command -v curl >/dev/null; then '
         "find /etc/apt -type f \\( -name '*.list' -o -name '*.sources' \\) "
         "-exec sed -i 's|http://|https://|g' {} +; "
         'apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=60 '
-        '-o Acquire::PDiffs=false update; '
+        '-o Acquire::https::CaInfo=/opt/forgecode-preparation-ca.pem '
+        '-o Acquire::PDiffs=false -o APT::Update::Error-Mode=any update; '
         'mkdir -p /opt/forgecode-apt/archives/partial; '
         'DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 '
-        '-o Acquire::https::Timeout=60 -o Dir::Cache::archives=/opt/forgecode-apt/archives '
+        '-o Acquire::https::Timeout=60 -o Acquire::https::CaInfo=/opt/forgecode-preparation-ca.pem '
+        '-o Dir::Cache::archives=/opt/forgecode-apt/archives '
         'install -y --no-install-recommends ca-certificates curl git; '
         'rm -rf /var/lib/apt/lists/*; fi'
     )
@@ -163,10 +165,11 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
             recipe = context / (key + '.Dockerfile')
             recipe.write_text('\n'.join([
                 'FROM ' + base['local_tag'], 'USER root',
-                f'COPY --from={runtime} /opt/forgecode-agent /opt/forgecode-agent',
-                f'COPY --from={runtime} /opt/forgecode-python /opt/forgecode-python',
+                f'COPY --from={runtime} /opt/forgecode-agent/.venv/lib/python3.12/site-packages/certifi/cacert.pem /opt/forgecode-preparation-ca.pem',
                 f'RUN --mount=type=cache,id=forgecode-apt-{base["id"][7:23]},target=/opt/forgecode-apt,sharing=locked '
                 + _prerequisites(),
+                f'COPY --from={runtime} /opt/forgecode-agent /opt/forgecode-agent',
+                f'COPY --from={runtime} /opt/forgecode-python /opt/forgecode-python',
                 'USER ' + (base['config'].get('User') or 'root'),
                 'RUN --network=none ' + installed_check(digest),
                 f'LABEL {SOURCE_LABEL}="{digest}" {BASE_LABEL}="{base["id"]}"',

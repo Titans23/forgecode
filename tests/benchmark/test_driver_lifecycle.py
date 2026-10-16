@@ -107,6 +107,21 @@ def test_prepared_agent_checks_installation_without_download_or_upload(tmp_path,
     assert all(word not in commands[0] for word in ('apt-get', 'https://', ' sync ', ' install '))
 
 
+def test_preparation_stops_at_failed_authenticated_package_index(tmp_path):
+    import subprocess
+    from benchmark.harbor.prepare import _prerequisites
+    for name, body in {'find': 'exit 0', 'apt-get': 'printf "%s\\n" "$*"; exit 42'}.items():
+        script = tmp_path / name
+        script.write_text('#!/bin/sh\n' + body + '\n', newline='\n')
+        script.chmod(0o755)
+    result = subprocess.run([str(_bash()), '--noprofile', '--norc', '-c',
+        'cd "$FIXTURE_PATH"; export PATH="$PWD"; ' + _prerequisites()],
+        env={**os.environ, 'FIXTURE_PATH': tmp_path.as_posix()}, capture_output=True, text=True)
+    assert result.returncode == 42
+    assert 'CaInfo=/opt/forgecode-preparation-ca.pem' in result.stdout
+    assert 'Error-Mode=any update' in result.stdout and ' install ' not in result.stdout
+
+
 def test_uv_download_timeout_is_not_a_task_failure(tmp_path):
     trial = tmp_path / 'trial'
     (trial / 'verifier').mkdir(parents=True)
