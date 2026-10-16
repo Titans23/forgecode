@@ -141,7 +141,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             environment,
             command=(
                 'set -euo pipefail; '
-                f'mkdir -p {shlex.quote(_AGENT_ROOT)} '
+                + (_prerequisite_install_command() if self._frozen_configuration else '')
+                + f'mkdir -p {shlex.quote(_AGENT_ROOT)} '
                 f'{shlex.quote(_AGENT_ROOT + "/bin")} '
                 f'{shlex.quote(_CACHE_DIR)}; '
                 f'chown -R {user}:{user} {shlex.quote(_AGENT_ROOT)}; '
@@ -449,6 +450,15 @@ def _install_command(
         '  attempt="$((attempt + 1))"; '
         'done'
     )
+
+
+def _prerequisite_install_command() -> str:
+    # Official public task images include minimal Debian/Ubuntu environments.
+    # curl bootstraps pinned uv; git captures the baseline and final patch.
+    return ('if ! command -v curl >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then '
+        'apt-get update; '
+        'DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl git; '
+        'fi; ')
 
 
 def _locked_install_command(source: str) -> str:

@@ -244,7 +244,7 @@ def test_feedback_plugin_restores_trial_factory() -> None:
 
 
 def test_adapter_rejects_invalid_limits(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match='max_model_calls'):
+    with pytest.raises(ValueError, match='Budget must be a positive integer or unlimited'):
         ForgeCodeHarborAgent(logs_dir=tmp_path, max_model_calls=0)
     with pytest.raises(ValueError, match='max_turn_seconds'):
         ForgeCodeHarborAgent(logs_dir=tmp_path, max_turn_seconds='nan')

@@ -131,6 +131,8 @@ asyncio.run(main())
 
 `evals.runner` 保留 `EvalCase/EvalOutcome`、可调用的离线用例接口和可复现的仓库版本/命令证据；`benchmark.cli`、`benchmark.harbor.run_forge.run_turn`、RunSpec/ResultBundle 及独立 verifier 保持原协议。终端初始化不加载 Harbor，正式评测需要兼容的外部环境和单独的模型预算授权。
 
+公开基准的最小 Debian/Ubuntu 镜像缺少 curl 或 Git 时，Harness 在任务容器内安装 curl、Git 和 CA 证书，再执行锁定的 uv/Python 安装；已有工具齐全时跳过系统包安装。
+
 后训练复用 `extensions.qwen_tool_distillation`：`TraceRecorder/RecordingModelClient` 记录实际模型请求及工具事件，`RecordedConversation` 接收独立 outcome validator，`ForgeCodeRolloutEnvironment` 提供 reset/step 和注入式执行/完成门禁，`RewardEvidence` 保存奖励组成。`clean_episode`、`build_sft_rows`、`build_dpo_row` 和 split manifest 保留版本、来源、许可、脱敏与数据划分检查。采集与导出需要显式调用，不加载 transformers/ms-swift、不启动训练集群或付费实验。
 
 `compare` 必须声明 `--change harness|model`，逐题展示原始判分变化，并检查任务内容、预算、协议、判分器、依赖和实际 Docker 镜像及资源限制。缺少环境证据或存在额外变化时不视为受控比较；单次比较不提供统计显著性结论。旧运行缺少的证据不会自动补造。

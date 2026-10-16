@@ -9,6 +9,27 @@ from benchmark.harbor.summarize import summarize_run
 from harbor.environments.docker.docker import DockerEnvironment
 
 
+@pytest.mark.skipif(sys.platform == 'win32', reason='Runs the Linux task installation shell')
+@pytest.mark.parametrize('present', [(), ('curl',), ('git',), ('curl', 'git')])
+def test_minimal_task_tools_are_installed_only_when_missing(tmp_path, present):
+    import os
+    import shutil
+    import subprocess
+    from benchmark.harbor.forgecode_agent import _prerequisite_install_command
+    commands = tmp_path / 'bin'
+    commands.mkdir()
+    log = tmp_path / 'apt-calls'
+    for name in present:
+        (commands / name).symlink_to('/bin/true')
+    apt = commands / 'apt-get'
+    apt.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALL_LOG"\n')
+    apt.chmod(0o755)
+    subprocess.run([shutil.which('bash'), '-e', '-c', _prerequisite_install_command()],
+        env={**os.environ, 'PATH': str(commands), 'CALL_LOG': str(log)}, check=True)
+    assert (log.read_text().splitlines() if log.exists() else []) == ([] if len(present) == 2 else [
+        'update', 'install -y --no-install-recommends ca-certificates curl git'])
+
+
 def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, monkeypatch):
     import subprocess
     from types import SimpleNamespace
