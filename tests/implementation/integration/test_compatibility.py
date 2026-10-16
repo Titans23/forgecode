@@ -256,9 +256,11 @@ def test_existing_cli_signatures_and_original_tool_schemas_match_f25_golden(tmp_
     from forge.tools import create_default_registry
     baseline=json.loads((ROOT/'tests/implementation/fixtures/compatibility-f25.json').read_text())
     registry=create_default_registry(tmp_path)
-    encoded=json.dumps(registry.definitions,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
+    original = [definition for definition in registry.definitions if definition['name'] in baseline['tools']]
+    encoded=json.dumps(original,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
     assert sha256(encoded).hexdigest()==baseline['tool_schemas_sha256_by_os'][os.name]
-    assert [value['name'] for value in registry.definitions]==baseline['tools']
+    assert [value['name'] for value in original]==baseline['tools']
+    assert {value['name'] for value in registry.definitions} - set(baseline['tools']) == {'view_image'}
     for function in (main,create_session_runtime,create_runtime):
         actual = list(inspect.signature(function).parameters)
         previous = baseline['parameters'][function.__name__]
