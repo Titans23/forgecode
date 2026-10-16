@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from concurrent.futures import ThreadPoolExecutor
 import io
 import json
 from pathlib import Path
@@ -28,7 +29,7 @@ def installed_check(digest: str) -> str:
         'git --version; curl --version >/dev/null; '
         '/opt/forgecode-agent/bin/uv --version; '
         '/opt/forgecode-agent/.venv/bin/python -I -c '
-        + shlex.quote('import forge.launch, benchmark.harbor.run_forge; '
+        + shlex.quote('import forge.launch, benchmark.harbor.run_forge, cryptography.hazmat.bindings._rust; '
                      'import sys; assert sys.version_info[:3] == (3, 12, 13)')
     )
 
@@ -123,7 +124,8 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
         base['local_tag'] = 'forgecode-evaluation-base:' + base['id'].removeprefix('sha256:')
         subprocess.run(['docker', 'tag', base['id'], base['local_tag']], check=True)
     manifest = {'schema_version': 1, 'source_sha256': digest, 'uv_version': UV_VERSION,
-                'python_version': PYTHON_VERSION, 'uv_binary_sha256': sha256(uv.read_bytes()).hexdigest(),
+                'python_version': PYTHON_VERSION, 'wheel_platform': 'x86_64-manylinux_2_28',
+                'uv_binary_sha256': sha256(uv.read_bytes()).hexdigest(),
                 'images': {}}
     runtime = f'forgecode-evaluation-runtime:{digest[:24]}'
     with tempfile.TemporaryDirectory(prefix='prepare-', dir=cache) as temporary:
@@ -140,8 +142,11 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
             'RUN --mount=type=cache,id=forgecode-uv,target=/opt/forgecode-cache '
             'export UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=5 UV_CACHE_DIR=/opt/forgecode-cache '
             'UV_PYTHON_INSTALL_DIR=/opt/forgecode-python UV_PROJECT_ENVIRONMENT=/opt/forgecode-agent/.venv; '
-            f'/opt/forgecode-agent/bin/uv python install {PYTHON_VERSION} && '
+            f'UV_PYTHON_INSTALL_DIR=/opt/forgecode-cache/python /opt/forgecode-agent/bin/uv python install {PYTHON_VERSION} && '
+            'mkdir -p /opt/forgecode-python && '
+            f'cp -a /opt/forgecode-cache/python/cpython-{PYTHON_VERSION}-* /opt/forgecode-python/ && '
             '/opt/forgecode-agent/bin/uv sync --frozen --no-dev --no-editable '
+            '--python-platform x86_64-manylinux_2_28 '
             f'--python {PYTHON_VERSION} --project /installed-agent/forgecode-src',
         ]) + '\n')
         subprocess.run(['docker', 'build', '--progress=plain', '-t', runtime, str(context)], check=True)
@@ -149,22 +154,38 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
         manifest['runtime_image_id'] = runtime_id
         # Small final context: task images copy the already-installed runtime.
         shutil.rmtree(context / 'source')
-        for index, (original, base) in enumerate(bases.items(), 1):
+        logs = output.parent / 'image-builds'
+        logs.mkdir(exist_ok=True)
+        def build_image(item):
+            original, base = item
             key = sha256((base['id'] + digest + runtime_id).encode()).hexdigest()[:24]
             tag = 'forgecode-evaluation-prepared:' + key
-            dockerfile.write_text('\n'.join([
+            recipe = context / (key + '.Dockerfile')
+            recipe.write_text('\n'.join([
                 'FROM ' + base['local_tag'], 'USER root',
                 f'COPY --from={runtime} /opt/forgecode-agent /opt/forgecode-agent',
                 f'COPY --from={runtime} /opt/forgecode-python /opt/forgecode-python',
-                'RUN --mount=type=cache,id=forgecode-apt,target=/opt/forgecode-apt,sharing=locked '
+                f'RUN --mount=type=cache,id=forgecode-apt-{base["id"][7:23]},target=/opt/forgecode-apt,sharing=locked '
                 + _prerequisites(),
                 'USER ' + (base['config'].get('User') or 'root'),
                 'RUN --network=none ' + installed_check(digest),
                 f'LABEL {SOURCE_LABEL}="{digest}" {BASE_LABEL}="{base["id"]}"',
             ]) + '\n')
-            print(f'Preparing {index}/{len(bases)}: {original}', flush=True)
-            subprocess.run(['docker', 'build', '--progress=plain', '-t', tag, str(context)], check=True)
-            manifest['images'][original] = {'base_id': base['id'], 'image_id': image_info(tag)['id']}
-            output.write_text(json.dumps(manifest, indent=2) + '\n')
+            log = logs / (key + '.log')
+            with log.open('w') as stream:
+                result = subprocess.run(['docker', 'build', '--progress=plain', '-f', str(recipe),
+                                         '-t', tag, str(context)], stdout=stream, stderr=subprocess.STDOUT)
+            if result.returncode:
+                raise RuntimeError(f'Image preparation failed for {original}; see {log}')
+            return original, {'base_id': base['id'], 'image_id': image_info(tag)['id']}
+        items = list(bases.items())
+        # Four bounded builds use per-base apt caches. Stop after a failed
+        # batch instead of launching paid trials with missing installations.
+        for offset in range(0, len(items), 4):
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                for original, entry in pool.map(build_image, items[offset:offset + 4]):
+                    manifest['images'][original] = entry
+                    output.write_text(json.dumps(manifest, indent=2) + '\n')
+                    print(f'Prepared {len(manifest["images"])}/{len(bases)}: {original}', flush=True)
     validate_prepared(manifest, digest, images)
     return manifest
