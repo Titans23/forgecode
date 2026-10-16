@@ -10,17 +10,33 @@ def resolve_stored_check(arguments, evidence):
     check_id = arguments.get('check_id')
     if not check_id:
         return arguments
-    source = next((item for item in reversed(evidence) if item.check_id == check_id), None)
+    from forge.tools.verify import VerifyInput
+    VerifyInput.model_validate(arguments)
+    source = next((item for item in reversed(evidence)
+                   if check_id in (item.check_id, item.verification_id)), None)
     if source is None or not source.check_spec:
         raise ValueError('Unknown stored check ID in this task')
+    from copy import deepcopy
+    if arguments.get('revision_reason', '').strip():
+        if arguments.get('cwd', source.cwd) != source.cwd:
+            raise ValueError('Checker repair must preserve the original cwd.')
+        # One reference carries the stored invocation, assertions and scope.
+        # The existing inheritance validator still rejects weakened assertions.
+        revised = {**deepcopy(source.check_spec), **arguments, 'check_id': None,
+                   'cwd': source.cwd, 'inherit_checks_from': list(dict.fromkeys([
+                       *arguments.get('inherit_checks_from', []), source.verification_id]))}
+        return inherit_check_arguments(revised, evidence)
     for key, value in arguments.items():
         if key not in {'check_id', 'timeout_seconds'} and source.check_spec.get(key) != value:
             raise ValueError('Stored check definitions are immutable; create a revised checker explicitly')
-    from copy import deepcopy
-    return {**deepcopy(source.check_spec), 'check_id': check_id,
+    return {**deepcopy(source.check_spec), 'check_id': source.check_id,
             **({'timeout_seconds': arguments['timeout_seconds']} if 'timeout_seconds' in arguments else {})}
 
 def checker_repair_guidance(item) -> str:
+    if item.output_checks and item.check_spec:
+        return (f'Use verify.check_id="{item.check_id or item.verification_id}" with the corrected command '
+                'and revision_reason. Omit output_checks and cwd: the original assertions, requirements '
+                'and working directory are inherited automatically. Changing thresholds is not a checker repair.')
     if item.output_checks:
         return ('Use verify.inherit_checks_from with this verification ID and revision_reason; '
                 'omit rewritten old output_checks. Original assertions and cwd must be preserved.')

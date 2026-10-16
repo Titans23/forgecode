@@ -63,6 +63,36 @@ def test_inheritance_rejects_unknown_and_weaker_assertions():
             inherit_check_arguments({**args, 'output_checks': [{**record().output_checks[0], key: value}]}, [record()])
 
 
+def test_repair_reference_executes_corrected_checker_without_weakening_contract(tmp_path):
+    from forge.runtime.check_contracts import resolve_stored_check
+    from forge.runtime.agent_loop import verification_from_result
+    from forge.runtime.workspace import WorkspaceTracker
+    from forge.tools.verify import VerifyInput, VerifyTool
+    old = replace(record(), check_id='definition', check_spec={
+        'command': 'python old.py', 'cwd': str(tmp_path), 'output_checks': list(record().output_checks),
+        'requirement_ids': ['r1']})
+    repair = {'check_id': 'old', 'command': f'"{sys.executable}" -',
+              'stdin': 'import json; print(json.dumps({"quality":0.97}))',
+              'revision_reason': 'Emit measured values as JSON instead of a Python dict'}
+    resolved = resolve_stored_check(repair, [old])
+    assert resolved['supersedes'] == ['old'] and resolved['requirement_ids'] == ['r1']
+    async def exercise():
+        tracker = WorkspaceTracker(tmp_path)
+        await tracker.begin_turn()
+        result = await VerifyTool(tmp_path, tracker).execute(VerifyInput.model_validate(resolved))
+        assert result.success and checker_revision_covers(old, verification_from_result(result))
+    asyncio.run(exercise())
+    for change in ({'cwd': 'elsewhere'}, {'revision_reason': ''}, {'revision_reason': None},
+                   {'inherit_checks_from': None},
+                   {'output_checks': [{**old.output_checks[0], 'expected': 0.8}]}):
+        with pytest.raises(ValueError):
+            resolve_stored_check({**repair, **change}, [old])
+    unstructured = replace(old, output_checks=(), check_spec={
+        'command': old.command, 'cwd': old.cwd})
+    with pytest.raises(ValueError, match='unstructured'):
+        resolve_stored_check(repair, [unstructured])
+
+
 def test_multiple_legacy_sources_are_preserved_as_conjunctive_checks():
     old = record()
     other = replace(old, verification_id='other', output_checks=({**old.output_checks[0],
