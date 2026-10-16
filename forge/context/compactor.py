@@ -22,6 +22,7 @@ from forge.runtime.state import (
 COMPACTABLE_TOOL_NAMES = frozenset(
     {
         'read_file',
+        'view_image',
         'list_directory',
         'grep',
         'find_files',
@@ -141,7 +142,7 @@ async def summarize_history(
     restoration_messages: list[dict[str, Any]] | None = None,
 ) -> FullCompactionResult:
     '''Ask the configured model only for a structured continuity summary.'''
-    transcript = json.dumps(messages, ensure_ascii=False, default=str)
+    transcript = json.dumps(describe_images(messages), ensure_ascii=False, default=str)
     prompt = (
         'Summarize this ForgeCode task history as one JSON object. '
         'Return JSON only, with fields goal, constraints, findings, '
@@ -290,7 +291,8 @@ def persist_large_tool_results(
     config: CompactionConfig,
 ) -> list[str]:
     '''Persist oversized outputs and replace them with bounded references.'''
-    blocks = list(iter_tool_result_blocks(messages))
+    # Image blocks must reach the provider as images, never as base64 previews.
+    blocks = [b for b in iter_tool_result_blocks(messages) if isinstance(b.get('content'), str)]
     total = sum(len(str(block.get('content', ''))) for block in blocks)
     candidates = [
         block
@@ -651,6 +653,10 @@ def shorten_old_tool_results(
     for block in old_blocks:
         if str(block.get('tool_use_id', '')) in protected:
             continue
+        if isinstance(block.get('content'), list):
+            block['content'] = json.dumps(describe_images(block['content']), ensure_ascii=False)
+            shortened += 1
+            continue
         content = str(block.get('content', ''))
         if len(content) <= config.old_tool_result_limit:
             continue
@@ -685,6 +691,18 @@ def shorten_old_tool_results(
         )
         shortened += 1
     return shortened
+
+
+def describe_images(value, *, budget=False):
+    """Text summaries omit binary data; budget estimates reserve 2048 tokens/image."""
+    if isinstance(value, list):
+        return [describe_images(item, budget=budget) for item in value]
+    if isinstance(value, dict):
+        if value.get('type') == 'image':
+            return {'type': 'text', 'text': (' ' * 8192 if budget else
+                    '[Image omitted from text summary; use view_image on the original path to inspect it again.]')}
+        return {key: describe_images(item, budget=budget) for key, item in value.items()}
+    return value
 
 
 def iter_tool_result_blocks(

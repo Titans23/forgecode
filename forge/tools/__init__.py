@@ -46,6 +46,7 @@ def create_default_registry(
     from forge.tools.search import FindFilesTool, GrepTool
     from forge.tools.shell import RunCommandTool
     from forge.tools.verify import VerifyTool
+    from forge.tools.image import ViewImageTool
     from forge.runtime.workspace import WorkspaceTracker
     from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
 
@@ -56,6 +57,7 @@ def create_default_registry(
             ListDirectoryTool(root),
             FindFilesTool(root),
             ReadFileTool(root),
+            ViewImageTool(root),
             GrepTool(root),
             LoadSkillTool(root, skill_manager),
             ReadSkillResourceTool(root, skill_manager),

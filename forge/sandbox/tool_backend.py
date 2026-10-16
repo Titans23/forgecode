@@ -5,7 +5,7 @@ from forge.application.models import ContractError, canonical_hash, validate
 from forge.tools.base import ToolError, ToolResult
 
 
-FILE_TOOLS = frozenset({'list_directory', 'find_files', 'read_file', 'grep', 'create_directory',
+FILE_TOOLS = frozenset({'list_directory', 'find_files', 'read_file', 'view_image', 'grep', 'create_directory',
     'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch', 'git_status', 'git_diff'})
 PROCESS_TOOLS = frozenset({'run_command', 'verify'})
 

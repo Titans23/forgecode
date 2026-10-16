@@ -156,6 +156,8 @@ def measure_messages(
     messages: list[dict[str, Any]],
 ) -> tuple[int, int]:
     '''Return serialized characters and raw tool-result characters.'''
+    from forge.context.compactor import describe_images
+    messages = describe_images(messages, budget=True)
     total = 0
     tool_results = 0
     for message in messages:

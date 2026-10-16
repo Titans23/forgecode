@@ -21,6 +21,16 @@ def run(coroutine: object) -> ToolResult:
     return asyncio.run(coroutine)  # type: ignore[arg-type]
 
 
+def test_image_rejects_non_image_and_bounds_transport(tmp_path):
+    from forge.tools.image import ViewImageTool, MAX_IMAGE_BYTES
+    tool = ViewImageTool(tmp_path)
+    path = tmp_path / 'image.png'
+    path.write_bytes(b'not image data')
+    assert run(tool.run({'path': 'image.png'})).error.code == 'unsupported_image'
+    path.write_bytes(b'\x89PNG\r\n\x1a\n' + b'x' * MAX_IMAGE_BYTES)
+    assert run(tool.run({'path': 'image.png'})).error.code == 'image_too_large'
+
+
 def create_repository(root: Path) -> None:
     (root / 'src').mkdir()
     (root / 'src' / 'app.py').write_text(

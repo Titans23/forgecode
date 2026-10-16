@@ -88,6 +88,47 @@ def test_validated_atomic_patch_retains_original_tool_result_schema(tmp_path):
     assert result['observations']['public.py']['sha256'] == sha256(target.read_bytes()).hexdigest()
 
 
+def test_image_worker_provider_context_and_journal_preserve_visual_input(tmp_path):
+    import base64
+    from forge.tools.base import ToolResult
+    from forge.runtime.agent_loop import build_tool_result_message
+    from forge.runtime.state import ToolCall
+    from forge.runtime.providers import responses_input, chat_messages
+    from forge.runtime.model_client import ModelProtocolError
+    from forge.context.compactor import persist_large_tool_results, CompactionConfig, shorten_old_tool_results
+    from forge.context.manager import measure_messages
+    from forge.sessions.store import SessionStore
+    root, control, workspace, policy = fixture(tmp_path)
+    encoded = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
+    (root / 'image.png').write_bytes(base64.b64decode(encoded))
+    reply = invoke(control, workspace, policy, name='view_image', arguments={'path': 'image.png'})
+    assert reply['status'] == 'ok' and reply['result']['success']
+    call = ToolCall(0, 'image-call', 'view_image', {'path': 'image.png'})
+    message = build_tool_result_message([(call, ToolResult(**reply['result']))])
+    assert message['content'][0]['content'][1]['source']['data'] == encoded
+    assert encoded not in message['content'][0]['content'][0]['text']
+    assert responses_input([message])[0]['output'][1]['image_url'] == 'data:image/png;base64,' + encoded
+    with pytest.raises(ModelProtocolError, match='does not support image'):
+        chat_messages([message])
+    store = SessionStore(root, data_root=control / 'sessions')
+    journal = store.create(model='fixture')
+    journal.record_user_message({'role': 'user', 'content': 'Inspect image.png'}, None)
+    journal.record_assistant_message({'role': 'assistant', 'content': [
+        {'type': 'tool_use', 'id': 'image-call', 'name': 'view_image', 'input': {'path': 'image.png'}}]})
+    journal.record_tool_result_message(message, None)
+    assert store.load(journal.session_id).messages[-1] == message
+    assert persist_large_tool_results([message], control / 'artifacts', CompactionConfig(tool_result_inline_limit=10)) == []
+    assert message['content'][0]['content'][1]['type'] == 'image'
+    assert measure_messages([message])[0] > 8192
+    messages = [{'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'image-call', 'name': 'view_image'}]},
+                message, {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'image-call', 'content': 'recent'}]}]
+    shorten_old_tool_results(messages, CompactionConfig(keep_recent_tool_results=1))
+    assert encoded not in str(message) and 'view_image' in str(message)
+    assert encoded in str(store.load(journal.session_id).messages)
+    denied = invoke(control, workspace, policy, name='view_image', arguments={'path': '../synthetic-private/secret.txt'})
+    assert denied['status'] == 'error' and denied['error']['code'] == 'POLICY_DENIED'
+
+
 @pytest.mark.parametrize('path', ['.env', '.git/config', '.forge/state.json', '../synthetic-private/secret.txt', '../control/config.json'])
 def test_worker_protected_reads_are_real_denials(tmp_path, path):
     root, control, workspace, policy = fixture(tmp_path)
@@ -176,7 +217,7 @@ def test_real_helper_backend_observer_checkpoint_and_external_edit(tmp_path, mon
         edit = await executor.execute(ToolCall(0, 'edit', 'apply_patch', patch), checkpoint_id=checkpoint)
         assert edit.result.success and edit.workspace_change.revision == 1
         assert tracker.changed_paths == ('a.txt',)
-        metadata = json.loads((checkpoints.directory / (checkpoint + '.json')).read_text())
+        metadata = json.loads((checkpoints.directory / (checkpoint + '.json')).read_text(encoding='utf-8'))
         assert metadata['files']['a.txt']['before_sha256'] == sha256(original).hexdigest()
         assert (checkpoints.blob_directory / sha256(original).hexdigest()).read_bytes() == original
         with pytest.raises(CheckpointError):

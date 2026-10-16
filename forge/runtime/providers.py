@@ -51,6 +51,8 @@ def chat_messages(messages, system=None):
                 calls.append({'id': part['id'], 'type': 'function', 'function': {
                     'name': part['name'], 'arguments': json.dumps(part['input'], ensure_ascii=False)}})
             elif kind == 'tool_result':
+                if isinstance(part.get('content'), list) and any(p.get('type') == 'image' for p in part['content']):
+                    raise ModelProtocolError('This DeepSeek adapter does not support image input.')
                 results.append({'role': 'tool', 'tool_call_id': part['tool_use_id'],
                                 'content': _text(part.get('content', ''))})
             else:
@@ -82,8 +84,13 @@ def responses_input(messages):
                 output.append({'type': 'function_call', 'call_id': part['id'],
                                'name': part['name'], 'arguments': json.dumps(part['input'], ensure_ascii=False)})
             elif kind == 'tool_result':
+                result = part.get('content', '')
+                if isinstance(result, list):
+                    result = [({'type': 'input_image', 'image_url':
+                                'data:' + p['source']['media_type'] + ';base64,' + p['source']['data']}
+                               if p['type'] == 'image' else {'type': 'input_text', 'text': p['text']}) for p in result]
                 output.append({'type': 'function_call_output', 'call_id': part['tool_use_id'],
-                               'output': _text(part.get('content', ''))})
+                               'output': result if isinstance(result, list) else _text(result)})
             else:
                 raise ModelProtocolError(f'Unsupported message part for Responses: {kind}')
     return output

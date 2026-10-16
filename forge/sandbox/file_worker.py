@@ -249,9 +249,10 @@ async def execute(request):
         RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool)
     from forge.tools.search import FindFilesTool, GrepTool
     from forge.tools.git import GitStatusTool, GitDiffTool
+    from forge.tools.image import ViewImageTool
     tools = {tool.name: tool(access.root) for tool in (CreateDirectoryTool, ListDirectoryTool,
         ReadFileTool, RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool, FindFilesTool, GrepTool,
-        GitStatusTool, GitDiffTool)}
+        GitStatusTool, GitDiffTool, ViewImageTool)}
     name, arguments = request['name'], request['arguments']
     if name in ('run_command', 'verify'):
         from forge.tools.shell import RunCommandTool

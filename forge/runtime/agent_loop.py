@@ -289,9 +289,10 @@ class Conversation:
         return '\n\n'.join(part for part in parts if part)
 
     def _tool_definitions(self) -> list[dict[str, Any]] | None:
-        if self.registry is not None:
-            return self.registry.definitions
-        return self.tools
+        definitions = self.registry.definitions if self.registry is not None else self.tools
+        if getattr(self.client, 'provider', '') == 'deepseek' and definitions:
+            return [item for item in definitions if item['name'] != 'view_image']
+        return definitions
 
     @property
     def capabilities(self) -> dict:
@@ -1008,11 +1009,17 @@ def build_tool_result_message(
     '''Build one user message containing ordered Anthropic tool results.'''
     content: list[dict[str, Any]] = []
     for tool_call, result in tool_results:
+        if tool_call.name == 'view_image' and result.success and 'image' in result.metadata:
+            from dataclasses import replace
+            description = replace(result, metadata={k: v for k, v in result.metadata.items() if k != 'image'})
+            body = [{'type': 'text', 'text': serialize_tool_result(description)}, result.metadata['image']]
+        else:
+            body = serialize_tool_result(result)
         content.append(
             {
                 'type': 'tool_result',
                 'tool_use_id': tool_call.id,
-                'content': serialize_tool_result(result),
+                'content': body,
                 'is_error': not result.success,
             }
         )
