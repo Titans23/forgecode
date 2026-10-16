@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import io
 import json
 from pathlib import Path
@@ -168,8 +168,8 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
                 f'COPY --from={runtime} /opt/forgecode-agent/.venv/lib/python3.12/site-packages/certifi/cacert.pem /opt/forgecode-preparation-ca.pem',
                 f'RUN --mount=type=cache,id=forgecode-apt-{base["id"][7:23]},target=/opt/forgecode-apt,sharing=locked '
                 + _prerequisites(),
-                f'COPY --from={runtime} /opt/forgecode-agent /opt/forgecode-agent',
-                f'COPY --from={runtime} /opt/forgecode-python /opt/forgecode-python',
+                f'COPY --link --from={runtime} /opt/forgecode-agent /opt/forgecode-agent',
+                f'COPY --link --from={runtime} /opt/forgecode-python /opt/forgecode-python',
                 'USER ' + (base['config'].get('User') or 'root'),
                 'RUN --network=none ' + installed_check(digest),
                 f'LABEL {SOURCE_LABEL}="{digest}" {BASE_LABEL}="{base["id"]}"',
@@ -181,14 +181,15 @@ def prepare_images(source: Path, source_manifest: dict, images: set[str], cache:
             if result.returncode:
                 raise RuntimeError(f'Image preparation failed for {original}; see {log}')
             return original, {'base_id': base['id'], 'image_id': image_info(tag)['id']}
-        items = list(bases.items())
-        # Four bounded builds use per-base apt caches. Stop after a failed
-        # batch instead of launching paid trials with missing installations.
-        for offset in range(0, len(items), 4):
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                for original, entry in pool.map(build_image, items[offset:offset + 4]):
-                    manifest['images'][original] = entry
-                    output.write_text(json.dumps(manifest, indent=2) + '\n')
-                    print(f'Prepared {len(manifest["images"])}/{len(bases)}: {original}', flush=True)
+        # Keep four builds busy; stop queued builds on failure or interruption.
+        pool = ThreadPoolExecutor(max_workers=4)
+        try:
+            for future in as_completed([pool.submit(build_image, item) for item in bases.items()]):
+                original, entry = future.result()
+                manifest['images'][original] = entry
+                output.write_text(json.dumps(manifest, indent=2) + '\n')
+                print(f'Prepared {len(manifest["images"])}/{len(bases)}: {original}', flush=True)
+        finally:
+            pool.shutdown(wait=True, cancel_futures=True)
     validate_prepared(manifest, digest, images)
     return manifest
