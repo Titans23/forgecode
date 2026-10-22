@@ -67,6 +67,52 @@ def test_cancel_closes_stream_and_allows_next_turn(tmp_path):
     asyncio.run(run())
 
 
+def test_cancel_after_streamed_text_closes_in_context_and_resumes_pending_input(tmp_path):
+    from contextlib import aclosing
+    from forge.runtime.model_budget import request_observer, wire_observer
+
+    class StreamingModel(Model):
+        calls = 0
+        closed = 0
+
+        async def stream(self, *args, **kwargs):
+            self.calls += 1
+            try:
+                yield ModelTextDelta('partial' if self.calls == 1 else 'recovered')
+                yield ModelResponseCompleted('end_turn')
+            finally:
+                await asyncio.sleep(0)
+                self.closed += 1
+
+    async def run():
+        model = StreamingModel()
+        async with await HarnessSession.open(options(tmp_path, profile=RunProfile(intent_routing=False)),
+                model_client_factory=lambda *a, **k: model) as session:
+            async def consume():
+                try:
+                    async with aclosing(session.stream('first')) as stream:
+                        async for event in stream:
+                            if isinstance(event, ModelTextDelta):
+                                session.queue_input('next', follow_up=True)
+                                assert session.cancel()
+                except asyncio.CancelledError:
+                    pass
+                else:
+                    pytest.fail('Cancellation was not delivered')
+                assert model.closed == 1
+                assert request_observer.get() is None
+                assert wire_observer.get() is None
+                assert not session.running
+                # The same consumer can recover without a second cancellation.
+                await asyncio.sleep(0)
+                assert (await session.run_next()).text == 'recovered'
+                assert not session.pending_inputs
+                assert model.closed == 2
+            await asyncio.create_task(consume())
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_profile_is_independent_of_sandbox(tmp_path):
     assert RunProfile.evaluation().max_model_calls > 0
     assert options(tmp_path, profile=RunProfile.evaluation()).sandbox == 'full-access'

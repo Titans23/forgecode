@@ -19,6 +19,9 @@ def test_steering_is_admitted_at_request_boundary_and_followup_waits(tmp_path):
                 assert messages[-1]['content'] == 'Implement the task'
             else:
                 assert messages[-1]['content'] == 'Use Python'
+                contract = kwargs['system'].split('[Current turn contract]\n', 1)[1].split('[Runtime request tools]', 1)[0]
+                assert 'Implement the task' in contract
+                assert 'Use Python' in contract
             yield ModelTextDelta('done')
             yield ModelResponseCompleted('end_turn')
 

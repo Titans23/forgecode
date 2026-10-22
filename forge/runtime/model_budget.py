@@ -49,6 +49,11 @@ class BudgetedModelClient:
         return getattr(self.client, name)
 
     async def stream(self, messages, tools=None, system=None):
+        task = asyncio.current_task()
+        if task is not None and task.cancelling():
+            await asyncio.sleep(0)
+        # Handled cancellation counts can remain on a consumer reused for a new turn.
+        previous_cancellations = task.cancelling() if task is not None else 0
         # 冻结本次输入，避免流式请求期间共享消息被修改而破坏轨迹复现。
         snapshot = RequestSnapshot.capture(messages=messages, tools=tools, system=system, client=self.client)
         frozen = snapshot.payload
@@ -97,7 +102,7 @@ class BudgetedModelClient:
             nonlocal usage, raw_usage, provider_request_id, returned_model, usage_is_final, request, request_started, attempt_no, retry_started_ns
             nonlocal debug_chunks,debug_bytes,debug_truncated
             task = asyncio.current_task()
-            if task is not None and task.cancelling():
+            if task is not None and task.cancelling() > previous_cancellations:
                 raise asyncio.CancelledError
             end_request('indeterminate', 'missing_attempt_boundary')
             if usage is not None:

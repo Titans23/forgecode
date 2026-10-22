@@ -83,8 +83,9 @@ class TurnRunner:
         try:
             async with asyncio.timeout(self.state.max_seconds):
                 await self._prepare_turn(prompt, content=content, input_id=input_id)
-                async for event in self._loop():
-                    yield event
+                async with aclosing(self._loop()) as stream:
+                    async for event in stream:
+                        yield event
         except BudgetExhausted as error:
             yield await self._finish('failed', error.reason, error.reason, (error.reason,))
         except TimeoutError:
@@ -442,8 +443,9 @@ class TurnRunner:
                 message['provider_state'] = provider_state
             self._append_assistant(message)
             if calls and c.registry is not None:
-                async for event in self._batch(calls):
-                    yield event
+                async with aclosing(self._batch(calls)) as stream:
+                    async for event in stream:
+                        yield event
                 if self.terminal is not None:
                     if self.terminal[0] in {'completed', 'partial'} and c.inbox.peek('steering'):
                         self.terminal = None
@@ -472,8 +474,11 @@ class TurnRunner:
                 self.journal.record_user_message(message, c.task_manager.active, input_id=item['id'])
             c.inbox.consumed(item['id'])
             self.messages.append(message)
+            directive = input_text(item['content'])
+            self.state.goal += ('\n\nLater user adjustment (supersedes conflicting earlier '
+                                'user instructions; unchanged requirements still apply):\n' + directive)
             if c.task_manager.active is not None:
-                c.task_manager.continue_active(input_text(item['content']))
+                c.task_manager.continue_active(directive)
             c._last_task_context = c.task_manager.system_suffix()
             self._commit_messages()
 

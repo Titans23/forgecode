@@ -16,7 +16,17 @@
     "native_acceptance": "windows_6_passed_linux_unavailable",
     "performance_evidence": ".local/implementation/architecture-performance.json",
     "native_evidence": ".local/implementation/architecture-native-windows.xml",
-    "live_model_experiments": "blocked_requires_explicit_budget_authorization"
+    "live_model_experiments": "controlled_ablations_not_run",
+    "live_api_smoke": {
+      "status": "passed_after_steering_and_cancellation_fixes",
+      "evidence_ref": ".local/implementation/live-api-20261022T115217Z/summary.json",
+      "cases_passed": 6,
+      "requests_started": 18,
+      "cancelled_requests": 2,
+      "related_regression": {"passed": 576, "failures": 0, "errors": 0, "skipped": 0},
+      "regression_evidence_ref": ".local/implementation/live-api-20261022T115217Z/regression.xml",
+      "quality_evidence_id": "20261022T120550Z-731f9c86"
+    }
   },
   "next_recommended_task": null,
   "delivery_stage": "E05",

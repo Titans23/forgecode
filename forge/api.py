@@ -193,7 +193,9 @@ class HarnessSession:
                     self.recorder.record_event(event)
                     yield event
                     if self._task.cancelling():
-                        raise asyncio.CancelledError
+                        # Deliver a pending cancel once, before closing streams.
+                        # A caught cancellation may leave cancelling() nonzero.
+                        await asyncio.sleep(0)
         except Exception as error:
             self.recorder.record_error(error)
             raise
