@@ -16,7 +16,19 @@
     "native_acceptance": "windows_6_passed_linux_unavailable",
     "performance_evidence": ".local/implementation/architecture-performance.json",
     "native_evidence": ".local/implementation/architecture-native-windows.xml",
-    "live_model_experiments": "controlled_ablations_not_run",
+    "live_model_experiments": "small_component_pilot_complete_full_benchmark_not_run",
+    "live_component_pilot": {
+      "scope": "synthetic_component_ablations_not_whole_release_benchmark",
+      "evidence_ref": ".local/implementation/p1-p4-pilot-20261022T123507Z/analysis.json",
+      "plan_ref": ".local/implementation/p1-p4-pilot-20261022T123507Z/plan.json",
+      "source_commit": "35c04866d5bc8f67cd44bf4a6379c59596f99fbe",
+      "live_scenarios": 8,
+      "requests_started": 20,
+      "request_limit": 24,
+      "budget_limited_turns": 2,
+      "storage_pairs": 3,
+      "interpretation": "Explore ownership repair confirmed; routing latency inconclusive; scoped outputs correct but both turns budget-limited; storage microbenchmark improved. P2 and native parallel-read speed not isolated."
+    },
     "live_api_smoke": {
       "status": "passed_after_steering_and_cancellation_fixes",
       "evidence_ref": ".local/implementation/live-api-20261022T115217Z/summary.json",
