@@ -3,7 +3,7 @@ import asyncio
 import os
 import sys
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 
 
 class ParentLease:

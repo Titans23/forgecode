@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import stat
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 
 
 def file_identity(path):

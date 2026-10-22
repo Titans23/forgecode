@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import sys
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 
 
 _SOURCE = Path(__file__).resolve().parents[2]

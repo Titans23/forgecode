@@ -171,7 +171,8 @@ def test_actual_explore_requests_inherit_trace_and_tool_parent_without_separate_
     ]
     clients=[]
     def factory(config,**kwargs):
-        client=ScriptedClient(child if len(clients)>=2 else main)
+        assert kwargs.get('max_tokens') is None  # Explicit tasks need no routing client.
+        client=ScriptedClient(child if clients else main)
         clients.append(client)
         return client
     service,store,_,_,_,params=setup(tmp_path,factory=factory)

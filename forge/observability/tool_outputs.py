@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from forge.file_selection import selected_file
-from forge.application.models import ContractError, strict_loads
+from forge.protocol import ContractError, strict_loads
 from forge.engine.persistence import encoded
 from forge.observability.export_queue import redact
 from forge.sessions.store import SessionStore

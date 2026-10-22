@@ -1,7 +1,7 @@
 """Durable display messages from the real Harness stream, with bounded storage."""
 import json
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.application.sessions import session_view
 from forge.engine.event_stream import accepted_view
 from forge.runtime.state import ModelTextDelta, ToolExecutionStarted, ToolExecutionCompleted, TurnCompleted

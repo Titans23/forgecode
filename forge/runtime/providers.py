@@ -80,6 +80,10 @@ def responses_input(messages):
             kind = part.get('type')
             if kind == 'text':
                 output.append({'role': message['role'], 'content': part.get('text', '')})
+            elif kind == 'image':
+                source = part['source']
+                output.append({'role': message['role'], 'content': [{'type': 'input_image',
+                    'image_url': 'data:' + source['media_type'] + ';base64,' + source['data']}]})
             elif kind == 'tool_use':
                 output.append({'type': 'function_call', 'call_id': part['id'],
                                'name': part['name'], 'arguments': json.dumps(part['input'], ensure_ascii=False)})
@@ -109,6 +113,12 @@ def _call(index, identity, name, arguments):
 
 class NativeModelClient:
     observes_request_budget = True
+
+    @property
+    def capabilities(self):
+        from forge.runtime.capabilities import ModelCapabilities
+        return ModelCapabilities(image_transport=self.provider == 'openai_responses',
+            context_window=self.context_window, max_output_tokens=self.max_tokens)
 
     def __init__(self, config: ForgeConfig, *, max_tokens=None, client=None, max_attempts=3):
         if config.provider not in {'deepseek', 'openai_responses'}:
@@ -182,6 +192,12 @@ class NativeModelClient:
                 reason = ('timeout' if isinstance(error, APITimeoutError) else 'connection_error'
                           if status is None else 'rate_limit' if status == 429 else 'server_error'
                           if status >= 500 else 'request_rejected')
+                if status in (400, 413):
+                    body = getattr(error, 'body', None)
+                    detail = json.dumps(body, default=str).lower() if body else str(error).lower()
+                    if any(marker in detail for marker in ('context_length_exceeded', 'context_window_exceeded',
+                            'maximum context length', 'context window', 'prompt is too long', 'too many tokens')):
+                        reason = 'context_overflow'
                 if retryable and not semantic_output and attempt < self.max_attempts:
                     delay = min(8.0, 2 ** (attempt - 1)) + random.random() * .25
                     yield ModelRetryScheduled(attempt, reason, delay)

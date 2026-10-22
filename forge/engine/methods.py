@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import sys
 
-from forge.application.models import ContractError, METHODS, canonical_hash, validate
+from forge.protocol import ContractError, METHODS, canonical_hash, validate
 from forge.application.approvals import ApprovalService, ConfirmationNonces
 from forge.application.connections import ConnectionService
 from forge.application.session_views import create_default_session, submit, snapshot

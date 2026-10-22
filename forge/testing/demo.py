@@ -13,7 +13,7 @@ import sys
 import tempfile
 
 from forge.application.harness_adapter import LocalTrustedBackend
-from forge.application.models import strict_loads
+from forge.protocol import strict_loads
 from forge.application.services import ApplicationServices
 from forge.application.sessions import turn_view
 from forge.config import ForgeConfig

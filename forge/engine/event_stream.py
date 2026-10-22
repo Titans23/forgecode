@@ -6,7 +6,7 @@ import json
 import secrets
 from time import time
 
-from forge.application.models import ContractError, validate
+from forge.protocol import ContractError, validate
 from forge.application.sessions import session_view
 from forge.engine.persistence import encoded, new_id
 

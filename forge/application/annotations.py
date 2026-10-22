@@ -3,7 +3,7 @@ from collections import Counter
 from copy import deepcopy
 import json
 
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.observability.export_queue import redact
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, fields
 from typing import Any, Literal
 from uuid import uuid4
 
-from forge.tools.base import ToolResult
+from forge.tool_types import ToolResult
 from forge.runtime.delivery import CompletionReport
 
 

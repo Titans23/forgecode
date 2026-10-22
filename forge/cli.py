@@ -176,7 +176,7 @@ def main(
 
 def print_configuration_error(error: Exception) -> None:
     '''Print actionable model configuration guidance.'''
-    from forge.application.models import ContractError
+    from forge.protocol import ContractError
     if isinstance(error, ContractError):
         typer.echo(f'{error.kind}: {error}', err=True)
         return
@@ -270,8 +270,12 @@ async def _run_interactive_chat(
     try:
         resolved_terminal = terminal if terminal is not None else TerminalUI()
         active_response_view: StreamingResponseView | None = None
+        turn_input = None
+        auto_queue = True
 
         async def approve_permission(request: Any):
+            if turn_input is not None:
+                await turn_input.pause()
             if active_response_view is not None:
                 active_response_view.pause_for_prompt()
             try:
@@ -282,6 +286,8 @@ async def _run_interactive_chat(
             finally:
                 if active_response_view is not None:
                     active_response_view.resume_after_prompt()
+                if turn_input is not None:
+                    turn_input.resume()
 
         permission_manager = getattr(
             resolved_session,
@@ -318,13 +324,38 @@ async def _run_interactive_chat(
             resume_options = build_resume_options(resolved_session)
             resolved_terminal.set_resume_options(resume_options)
             try:
-                prompt = await read_terminal_prompt(resolved_terminal)
+                inbox = getattr(resolved_session, 'inbox', None)
+                queued = inbox.peek() if inbox is not None and auto_queue else None
+                if queued is not None:
+                    from forge.messages import input_text
+                    prompt = input_text(queued['content'])
+                else:
+                    prompt = await read_terminal_prompt(resolved_terminal)
             except (KeyboardInterrupt, EOFError, typer.Abort):
                 resolved_terminal.show_goodbye()
                 return
 
             if not prompt.strip():
                 continue
+
+            if prompt.strip() == '/pending' and inbox is not None:
+                from forge.messages import input_text
+                resolved_terminal.show_notice('Pending', '\n'.join(
+                    f"{item['id']}: {item['mode']} — {input_text(item['content'])[:100]}"
+                    for item in inbox.pending) or 'No queued inputs.')
+                continue
+            if prompt.startswith('/discard ') and inbox is not None:
+                removed = inbox.discard(prompt[len('/discard '):].strip())
+                resolved_terminal.show_notice('Pending', 'Removed.' if removed else 'Input ID not found.')
+                continue
+            if prompt.strip() == '/next' and inbox is not None:
+                queued = inbox.peek()
+                if queued is None:
+                    resolved_terminal.show_notice('Pending', 'No queued inputs.')
+                    continue
+                from forge.messages import input_text
+                prompt = input_text(queued['content'])
+                auto_queue = True
 
             if prompt.strip() == '/context':
                 stats = getattr(resolved_session, 'context_stats', None)
@@ -619,7 +650,7 @@ async def _run_interactive_chat(
                 continue
 
             try:
-                prompt = expand_file_mentions(prompt, Path.cwd())
+                prompt = queued['content'] if queued is not None else expand_file_mentions(prompt, Path.cwd())
             except ValueError as error:
                 resolved_terminal.show_notice('File mention', str(error))
                 continue
@@ -630,12 +661,33 @@ async def _run_interactive_chat(
                 with resolved_terminal.stream_response() as response_view:
                     active_response_view = response_view
                     try:
-                        await render_streamed_turn(
+                        render = render_streamed_turn(
                             resolved_session,
                             prompt,
                             response_view,
                             resolved_recorder,
+                            **({'input_id': queued['id']} if queued is not None else {}),
                         )
+                        if (isinstance(resolved_terminal, TerminalUI) and resolved_terminal.console.is_terminal
+                                and resolved_terminal.prompt_session is not None and inbox is not None):
+                            from forge.terminal_input import TurnInput
+                            from prompt_toolkit.patch_stdout import patch_stdout
+                            turn_input = TurnInput(resolved_terminal, resolved_session,
+                                lambda text: expand_file_mentions(text, Path.cwd()))
+                            turn_input.turn = asyncio.create_task(render)
+                            try:
+                                with patch_stdout(raw=True):
+                                    turn_input.resume()
+                                    await turn_input.turn
+                            except asyncio.CancelledError:
+                                auto_queue = False
+                                response_view.cancel()
+                                resolved_terminal.show_notice('Cancelled', 'Turn stopped. Use /pending to inspect queued inputs and /next to continue.')
+                            finally:
+                                await turn_input.pause()
+                                turn_input = None
+                        else:
+                            await render
                     finally:
                         active_response_view = None
             except (KeyboardInterrupt, typer.Abort):
@@ -653,9 +705,12 @@ FILE_MENTION_PATTERN = re.compile(r'(?<!\S)@([^\s]+)')
 
 
 def expand_file_mentions(prompt: str, root: Path) -> str:
-    '''Append UTF-8 working-directory files referenced as @path.'''
+    '''Attach bounded UTF-8 files and images referenced as @path.'''
+    from forge.messages import MAX_TEXT_BYTES, MAX_IMAGE_BYTES, image_block, normalize_input
     resolved_root = root.resolve()
     references: list[tuple[str, str]] = []
+    images = []
+    text_bytes = len(prompt.encode('utf-8'))
     seen: set[Path] = set()
     for match in FILE_MENTION_PATTERN.finditer(prompt):
         raw_path = match.group(1)
@@ -672,19 +727,31 @@ def expand_file_mentions(prompt: str, root: Path) -> str:
             raise ValueError(f'@{raw_path} is not a file.')
         if candidate in seen:
             continue
+        is_image = candidate.suffix.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+        limit = MAX_IMAGE_BYTES if is_image else MAX_TEXT_BYTES - text_bytes
+        if limit < 0:
+            raise ValueError('Referenced text exceeds 256 KiB')
+        with candidate.open('rb') as stream:
+            data = stream.read(limit + 1)
+        if len(data) > limit:
+            raise ValueError(f'@{raw_path} exceeds the attachment size limit')
+        if is_image:
+            images.append(image_block(data))
+            seen.add(candidate)
+            continue
         try:
-            content = candidate.read_text(encoding='utf-8')
+            content = data.decode('utf-8')
         except UnicodeDecodeError as error:
             raise ValueError(f'@{raw_path} is not a UTF-8 text file.') from error
         seen.add(candidate)
+        text_bytes += len(data)
         references.append((relative.as_posix(), content))
-    if not references:
-        return prompt
     blocks = [
         f'[Referenced file: {path}]\n{content}'
         for path, content in references
     ]
-    return prompt + '\n\n' + '\n\n'.join(blocks)
+    text = prompt + ('\n\n' + '\n\n'.join(blocks) if blocks else '')
+    return normalize_input([{'type': 'text', 'text': text}, *images] if images else text)
 
 
 async def render_streamed_turn(
@@ -692,12 +759,13 @@ async def render_streamed_turn(
     prompt: str,
     response_view: StreamingResponseView,
     recorder: TrajectoryRecorder | None = None,
+    *, input_id=None,
 ) -> None:
     '''Forward conversation stream events to the live terminal view.'''
     if recorder is not None:
         recorder.record_user_message(prompt)
     try:
-        async for event in session.stream(prompt):
+        async for event in session.stream(prompt, **({'input_id': input_id} if input_id else {})):
             record_session_event = getattr(
                 session,
                 'record_session_event',

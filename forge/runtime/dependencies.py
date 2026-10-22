@@ -14,6 +14,8 @@ class ToolExecutionBackend(Protocol):
 
     async def execute(self, call, registry): ...
 
+    async def close(self) -> dict | None: ...
+
 
 class EventRecorder(Protocol):
     def record(self, event) -> None: ...
@@ -28,16 +30,21 @@ class RuntimeBindings:
     data_root: Path | None = None
     permission_manager: PermissionManager | None = None
     backend: ToolExecutionBackend | None = None
+    owns_tool_backend: bool = True
     recorder: EventRecorder | None = None
     trusted_extensions: bool = True
     task_relation: str | None = None
     max_model_calls: int | None = None
     max_tool_calls: int | None = None
     wall_seconds: int | None = None
+    max_parallel_reads: int = 4
+    intent_routing: bool = True
     turn_baseline_handler: Callable[[], Awaitable[None] | None] | None = None
 
     def conversation_options(self):
         options = {'tool_backend': self.backend, 'event_recorder': self.recorder,
+                   'max_parallel_reads': self.max_parallel_reads,
+                   'owns_tool_backend': self.owns_tool_backend,
                    'turn_baseline_handler': self.turn_baseline_handler}
         if self.permission_manager is not None:
             options['permission_manager'] = self.permission_manager

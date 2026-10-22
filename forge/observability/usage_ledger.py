@@ -129,7 +129,7 @@ def calculate_cost(usage,rates):
 
 
 def start_request(store,body):
-    from forge.application.models import ContractError
+    from forge.protocol import ContractError
     a=body['attributes']
     scope = [body[key] for key in ('run_id', 'trial_id', 'attempt_id')]
     if any(scope) and not all(scope):
@@ -150,7 +150,7 @@ def start_request(store,body):
 
 
 def update_request(store,body):
-    from forge.application.models import ContractError
+    from forge.protocol import ContractError
     a=body['attributes']
     request_id=a['model_request_id']
     row=store.connection.execute('SELECT * FROM usage_ledger WHERE request_id=?',(request_id,)).fetchone()
@@ -192,7 +192,7 @@ def update_request(store,body):
             (snapshot['snapshot_id'],snapshot['sha256'])).fetchone()
         value=json.loads(source[0])
         if 'rates' not in value:
-            from forge.application.models import validate
+            from forge.protocol import validate
             validate('pricing',value)
             value={'revision':value['revision'],'currency':value['currency'],'source':'frozen-pricing:'+value['effective_at_utc'],
                 'rates':[{'provider':value['provider'],'model':value['model'],'per_million':{key:value[field] for key,field in (
@@ -210,7 +210,7 @@ def update_request(store,body):
 
 def confirm_usage(store,request_id,raw_usage,*,returned_model=None,provider_request_id=None):
     """Trusted late-provider callback. A confirmation replaces the unknown row."""
-    from forge.application.models import ContractError
+    from forge.protocol import ContractError
     source=store.connection.execute("SELECT body_json FROM events WHERE json_extract(body_json,'$.event_type')='model.request.started' "
         "AND json_extract(body_json,'$.attributes.model_request_id')=? AND json_extract(body_json,'$.origin')='trusted_engine'",(request_id,)).fetchone()
     if source is None:

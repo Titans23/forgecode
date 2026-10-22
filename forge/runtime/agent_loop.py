@@ -18,6 +18,7 @@ from forge.context.manager import (
     ContextStats,
 )
 from forge.context.working import WorkingState
+from forge.messages import UserInput
 from forge.hooks import HookEvent, HookManager, HookOutcome
 from forge.permissions.policy import PermissionManager
 from forge.runtime.router import IntentRouter
@@ -108,6 +109,8 @@ class Conversation:
         include_task_tools: bool = True,
         task_relation: str | None = None,
         tool_backend: Any | None = None,
+        owns_tool_backend: bool = True,
+        max_parallel_reads: int = 4,
         event_recorder: Any | None = None,
         turn_baseline_handler: Any | None = None,
     ) -> None:
@@ -116,7 +119,24 @@ class Conversation:
         if task_relation not in {None, 'new', 'active'}:
             raise ValueError('Explicit task_relation must be new or active.')
         self.task_relation = task_relation
+        import warnings
+        for name, value, previous_default in (
+            ('repeated_tool_limit', repeated_tool_limit, 2),
+            ('stagnation_warning', stagnation_warning, 4),
+            ('stagnation_limit', stagnation_limit, 8),
+            ('change_exploration_limit', change_exploration_limit, 8),
+            ('completion_decision_limit', completion_decision_limit, 3),
+            ('mutation_recovery_limit', mutation_recovery_limit, 4),
+        ):
+            if value != previous_default:
+                warnings.warn(f'{name} is deprecated and has no effect; use explicit turn budgets.',
+                              DeprecationWarning, stacklevel=2)
         self.event_recorder = event_recorder
+        self.owns_tool_backend = owns_tool_backend
+        if type(max_parallel_reads) is not int or not 1 <= max_parallel_reads <= 8:
+            raise ValueError('max_parallel_reads must be between 1 and 8')
+        self.max_parallel_reads = max_parallel_reads
+        self._close_task = None
         self.turn_baseline_handler = turn_baseline_handler
         if max_iterations is not None and max_iterations < 1:
             raise ValueError('max_iterations must be positive')
@@ -155,12 +175,10 @@ class Conversation:
             if system_prompt is not None
             else load_system_prompt()
         )
-        self.messages: list[dict[str, Any]] = [
-            dict(message) for message in (initial_messages or [])
-        ]
-        self.session_journal = session_journal
-        self.checkpoint_store = checkpoint_store
-        self.session_store = session_store
+        from forge.sessions.controller import SessionController
+        self.session = SessionController(messages=initial_messages or (), journal=session_journal,
+            store=session_store, checkpoints=checkpoint_store)
+        self._running = False
         self.hook_manager = hook_manager
         self._hooks_started = False
         self._pending_hook_context: list[str] = []
@@ -235,7 +253,6 @@ class Conversation:
         self.turn_state: TurnState | None = None
         # Task evidence outlives an individual TurnRunner. Recovery populates
         # this collection from durable observations, never from model summaries.
-        self.verification_history: list[VerificationEvidence] = []
         self.task_manager.evidence_provider = lambda: tuple(
             item for item in self.verification_history
             if item.task_id == (self.task_manager.active.id if self.task_manager.active else ''))
@@ -281,6 +298,56 @@ class Conversation:
         self._last_repository_context = self._repository_context('')
         self._last_task_context = ''
 
+    # Compatibility properties retain the released Conversation API while the
+    # controller owns session state and the runner owns only current-turn state.
+    @property
+    def messages(self):
+        return self.session.messages
+
+    @messages.setter
+    def messages(self, value):
+        self.session.commit_messages(value)
+
+    @property
+    def session_journal(self):
+        return self.session.journal
+
+    @session_journal.setter
+    def session_journal(self, value):
+        self.session.journal = value
+
+    @property
+    def session_store(self):
+        return self.session.store
+
+    @session_store.setter
+    def session_store(self, value):
+        self.session.store = value
+
+    @property
+    def checkpoint_store(self):
+        return self.session.checkpoints
+
+    @checkpoint_store.setter
+    def checkpoint_store(self, value):
+        self.session.checkpoints = value
+
+    @property
+    def verification_history(self):
+        return self.session.verification
+
+    @verification_history.setter
+    def verification_history(self, value):
+        self.session.verification[:] = value
+
+    @property
+    def inbox(self):
+        return self.session.inbox
+
+    def _require_idle(self):
+        if self._running:
+            raise RuntimeError('Cancel the active turn before changing session history')
+
     def _repository_context(self, query: str) -> str:
         parts = [self.context.repository.system_suffix(query)]
         if self.skill_manager is not None:
@@ -290,14 +357,20 @@ class Conversation:
 
     def _tool_definitions(self) -> list[dict[str, Any]] | None:
         definitions = self.registry.definitions if self.registry is not None else self.tools
-        if getattr(self.client, 'provider', '') == 'deepseek' and definitions:
+        from forge.runtime.capabilities import capabilities_for
+        if not capabilities_for(self.client).accepts_images and definitions:
             return [item for item in definitions if item['name'] != 'view_image']
         return definitions
 
     @property
     def capabilities(self) -> dict:
+        from dataclasses import asdict
+        from forge.runtime.capabilities import capabilities_for
         policy = self.completion_gate.policy if self.completion_gate else TaskPolicy()
-        return {'delivery_repair': {**policy.delivery_repair_capability,
+        return {'model': asdict(capabilities_for(self.client)),
+                'input': {'text': True, 'image': capabilities_for(self.client).accepts_images,
+                          'model_modalities_verified': capabilities_for(self.client).model_input_modalities is not None},
+                'delivery_repair': {**policy.delivery_repair_capability,
                                    'supported': self.completion_gate is not None}}
 
     @property
@@ -315,8 +388,30 @@ class Conversation:
             reserved_output_tokens=getattr(self.client, 'max_tokens', 0),
         )
 
-    async def stream(self, prompt: str) -> AsyncIterator[ConversationEvent]:
+    def queue_input(self, prompt: UserInput, *, follow_up=False) -> str:
+        from forge.messages import normalize_input
+        from forge.runtime.capabilities import capabilities_for
+        if self._close_task is not None:
+            raise RuntimeError('Conversation is closed')
+        prompt = normalize_input(prompt)
+        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):
+            if not capabilities_for(self.client).accepts_images:
+                raise ValueError('Configured model adapter does not support image input')
+        return self.inbox.queue(prompt, follow_up=follow_up)
+
+    async def stream(self, prompt: UserInput, *, input_id=None) -> AsyncIterator[ConversationEvent]:
         '''Compatibility entry point delegated to the turn runner.'''
+        from forge.messages import normalize_input
+        from forge.runtime.capabilities import capabilities_for
+        prompt = normalize_input(prompt)
+        if self._running or self._close_task is not None:
+            raise RuntimeError('Conversation is closed or already running a turn')
+        if input_id is not None and not any(item['id'] == input_id and item['content'] == prompt
+                                           for item in self.inbox.pending):
+            raise ValueError('Queued input is missing or differs from the submitted content')
+        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):
+            if not capabilities_for(self.client).accepts_images:
+                raise ValueError('Configured model adapter does not support image input')
         from forge.runtime.runner import TurnRunner
         from forge.sessions.workspace_lock import workspace_execution
         runner = TurnRunner(self)
@@ -327,15 +422,19 @@ class Conversation:
         recorder=(JournalRecorder(self.session_journal,scope=getattr(self.session_journal,'observation_scope',None),
                   scope_sink=getattr(self.session_journal,'observation_scope_sink',None)) if self.session_journal else inherited)
         with ownership, recorder.turn(nested=self.session_journal is None) if recorder else nullcontext():
-            if self.turn_baseline_handler is not None:
-                baseline = self.turn_baseline_handler()
-                if baseline is not None:
-                    await baseline
-            async with aclosing(runner.run(prompt)) as stream:
-                async for event in stream:
-                    if self.event_recorder is not None:
-                        self.event_recorder.record(event)
-                    yield event
+            self._running = True
+            try:
+                if self.turn_baseline_handler is not None:
+                    baseline = self.turn_baseline_handler()
+                    if baseline is not None:
+                        await baseline
+                async with aclosing(runner.run(prompt, input_id=input_id)) as stream:
+                    async for event in stream:
+                        if self.event_recorder is not None:
+                            self.event_recorder.record(event)
+                        yield event
+            finally:
+                self._running = False
 
     def record_model_request(self, kind: str, attributes: dict[str, Any]) -> None:
         if self.session_journal is not None:
@@ -441,6 +540,7 @@ class Conversation:
 
     async def compact(self) -> CompactionReport:
         '''Manually summarize committed history for the /compact command.'''
+        self._require_idle()
         if not self.messages:
             return CompactionReport(
                 success=True,
@@ -522,6 +622,7 @@ class Conversation:
         self._hooks_started = False
 
     async def session_resume_with_hooks(self, identifier: str) -> str:
+        self._require_idle()
         self._resume_target(identifier)
         await self.session_end(reason='resume')
         notice = self.session_resume(identifier)
@@ -534,6 +635,7 @@ class Conversation:
         self,
         name: str | None = None,
     ) -> str:
+        self._require_idle()
         await self.session_end(reason='branch')
         notice = self.session_branch(name)
         if self.mcp_manager is not None:
@@ -542,6 +644,7 @@ class Conversation:
         return notice
 
     async def session_clear_with_hooks(self) -> str:
+        self._require_idle()
         await self.session_end(reason='clear')
         notice = self.session_clear()
         if self.mcp_manager is not None:
@@ -721,6 +824,13 @@ class Conversation:
         return self.skill_manager.show(name)
 
     async def runtime_close(self, *, reason: str = 'exit') -> dict | None:
+        """Drain the owned resources once; children only close their own clients."""
+        import asyncio
+        if self._close_task is None:
+            self._close_task = asyncio.create_task(self._close_runtime(reason=reason))
+        return await asyncio.shield(self._close_task)
+
+    async def _close_runtime(self, *, reason: str) -> dict | None:
         cleanup = None
         try:
             await self.session_end(reason=reason)
@@ -736,7 +846,7 @@ class Conversation:
                         if close is not None:
                             await close()
             finally:
-                if self.tool_executor is not None and self.tool_executor.backend is not None:
+                if self.owns_tool_backend and self.tool_executor is not None and self.tool_executor.backend is not None:
                     close_backend = getattr(self.tool_executor.backend, 'close', None)
                     if close_backend is not None:
                         cleanup = await close_backend()
@@ -764,6 +874,7 @@ class Conversation:
         *,
         mode: str = 'both',
     ) -> str:
+        self._require_idle()
         if self.checkpoint_store is None:
             raise ValueError('File checkpoints are unavailable.')
         if mode not in {'code', 'conversation', 'both'}:
@@ -834,67 +945,26 @@ class Conversation:
         )
 
     def session_history(self) -> str:
-        if self.session_store is None or self.session_journal is None:
-            return 'Session persistence is unavailable.'
-        if self.session_journal.deferred:
-            return 'No conversation history yet.'
-        events = self.session_store.history(
-            self.session_journal.session_id
-        )
-        return '\n'.join(
-            '- {}: {}{}'.format(
-                item['sequence'],
-                item['type'],
-                ' — {}'.format(item['summary'])
-                if item['summary']
-                else '',
-            )
-            for item in events
-        )
+        return self.session.history()
 
     def session_candidates(self) -> str:
-        if self.session_store is None:
-            return 'Session persistence is unavailable.'
-        sessions = self.session_store.list()
-        if not sessions:
-            return 'No saved ForgeCode sessions for this project.'
-        return '\n'.join(
-            '- {}{} [{}]'.format(
-                item.session_id,
-                ' ({})'.format(item.name) if item.name else '',
-                item.status,
-            )
-            for item in sessions
-        )
+        return self.session.candidates()
 
     def session_rename(self, name: str) -> str:
-        if self.session_journal is None:
-            raise ValueError('Session persistence is unavailable.')
-        cleaned = self.session_journal.rename(name)
-        return f'Renamed session to {cleaned}.'
+        return self.session.rename(name)
 
     def _resume_target(self, identifier: str):
-        if self.session_store is None:
-            raise ValueError('Session persistence is unavailable.')
-        state, journal = self.session_store.open(identifier)
-        if journal.read_only:
-            raise ValueError('Legacy sessions are read-only; fork one before continuing.')
-        if state.info.provider and state.info.provider != getattr(self.client, 'provider', ''):
-            raise ValueError('This session uses a different provider; open it with its profile or fork it.')
-        if not state.messages and state.active_task is None:
-            raise ValueError(
-                f'Session {state.info.session_id} has no resumable '
-                'conversation history.'
-            )
-        return state, journal
+        return self.session.resume_target(identifier, getattr(self.client, 'provider', ''))
 
     def session_resume(self, identifier: str) -> str:
+        self._require_idle()
         state, journal = self._resume_target(identifier)
         if self.session_journal is not None and state.info.session_id == self.session_journal.session_id:
             return f'Session {state.info.session_id} is already active.'
         if self.session_journal is not None:
             self.session_journal.record_stopped()
         self.messages[:] = list(state.messages)
+        self.inbox.restore(state.pending_inputs)
         self.verification_history[:] = state.verification_history
         self.task_manager.restore(state.active_task)
         self._last_task_context = self.task_manager.system_suffix()
@@ -922,6 +992,7 @@ class Conversation:
         return f'Resumed {state.info.session_id}.{warning}'
 
     def session_branch(self, name: str | None = None) -> str:
+        self._require_idle()
         if self.session_store is None or self.session_journal is None:
             raise ValueError('Session persistence is unavailable.')
         if self.session_journal.deferred:
@@ -936,6 +1007,7 @@ class Conversation:
             name=name,
         )
         original_id = self.session_journal.session_id
+        self.inbox.restore(())
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
         if self.mcp_manager is not None:
@@ -950,6 +1022,8 @@ class Conversation:
         )
 
     def session_clear(self) -> str:
+        self._require_idle()
+        self.inbox.restore(())
         self.verification_history.clear()
         if self.session_store is None or self.session_journal is None:
             self.messages.clear()
@@ -1009,10 +1083,12 @@ def build_tool_result_message(
     '''Build one user message containing ordered Anthropic tool results.'''
     content: list[dict[str, Any]] = []
     for tool_call, result in tool_results:
-        if tool_call.name == 'view_image' and result.success and 'image' in result.metadata:
+        blocks = result.metadata.get('content_blocks') or ([result.metadata['image']] if 'image' in result.metadata else [])
+        if blocks:
             from dataclasses import replace
-            description = replace(result, metadata={k: v for k, v in result.metadata.items() if k != 'image'})
-            body = [{'type': 'text', 'text': serialize_tool_result(description)}, result.metadata['image']]
+            from forge.messages import normalize_input
+            description = replace(result, metadata={k: v for k, v in result.metadata.items() if k not in {'image', 'content_blocks'}})
+            body = [{'type': 'text', 'text': serialize_tool_result(description)}, *normalize_input(blocks)]
         else:
             body = serialize_tool_result(result)
         content.append(
@@ -1137,71 +1213,7 @@ def summarize_changed_paths(
     return rendered
 
 
-def mutation_target_paths(
-    tool_call: ToolCall,
-    *,
-    maximum: int | None = 5,
-) -> tuple[str, ...]:
-    '''Extract only path evidence, never the potentially large write body.'''
-    paths: list[str] = []
-    direct_path = tool_call.arguments.get('path')
-    if isinstance(direct_path, str) and direct_path.strip():
-        direct_path = direct_path.strip().replace('\\', '/')
-        paths.append(direct_path)
-    patch = tool_call.arguments.get('patch')
-    if isinstance(patch, str):
-        prefixes = (
-            '*** Update File:',
-            '*** Add File:',
-            '*** Delete File:',
-            '*** Move to:',
-            '+++ b/',
-            '--- a/',
-        )
-        for line in patch.splitlines():
-            stripped = line.strip()
-            prefix = next(
-                (
-                    candidate
-                    for candidate in prefixes
-                    if stripped.startswith(candidate)
-                ),
-                None,
-            )
-            if prefix is None:
-                continue
-            path = stripped[len(prefix):].strip().replace('\\', '/')
-            if path and path != '/dev/null':
-                paths.append(path)
-    unique = tuple(dict.fromkeys(paths))
-    return unique if maximum is None else unique[:maximum]
-
-
-def checkpoint_mutation_paths(
-    root: Path,
-    tool_call: ToolCall,
-) -> tuple[str, ...]:
-    '''Expand recursive directory deletion into checkpoint-restorable entries.'''
-    targets = mutation_target_paths(tool_call, maximum=None)
-    if tool_call.name != 'remove_directory' or not targets:
-        return targets
-    raw_path = targets[0]
-    candidate = (root.resolve() / raw_path).resolve()
-    try:
-        candidate.relative_to(root.resolve())
-    except ValueError:
-        return targets
-    if not candidate.is_dir():
-        return targets
-    descendants = sorted(
-        (
-            path.relative_to(root.resolve()).as_posix()
-            for path in candidate.rglob('*')
-            if not path.is_symlink()
-        ),
-        key=lambda path: (path.count('/'), path),
-    )
-    return tuple(dict.fromkeys((raw_path, *descendants)))
+from forge.tools.paths import mutation_target_paths, checkpoint_mutation_paths
 
 
 def verification_missing_dependency(result: ToolResult) -> bool:

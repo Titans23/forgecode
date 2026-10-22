@@ -5,7 +5,7 @@ import json
 from benchmark.core.metrics import compare_specs, compute_metrics
 from benchmark.core.scheduler import EvaluationScheduler, emit
 from benchmark.core.spec import freeze_spec, INFRASTRUCTURE_ERRORS
-from forge.application.models import ContractError, METHODS, canonical_hash, validate
+from forge.protocol import ContractError, METHODS, canonical_hash, validate
 from forge.engine.persistence import encoded, new_id, utc_now
 
 

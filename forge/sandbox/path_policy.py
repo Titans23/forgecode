@@ -5,7 +5,7 @@ from pathlib import Path, PureWindowsPath
 import re
 import stat
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 
 
 SENSITIVE = {'.git', '.forge', '.env', 'id_rsa', 'id_ed25519', 'credentials', 'credentials.json'}

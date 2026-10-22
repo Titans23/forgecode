@@ -59,6 +59,7 @@ class SessionState:
     active_task: ActiveTask | None
     indeterminate_tools: tuple[dict[str, Any], ...]
     verification_history: tuple[VerificationEvidence, ...] = ()
+    pending_inputs: tuple[dict[str, Any], ...] = ()
 
 
 class SessionJournal:
@@ -87,7 +88,23 @@ class SessionJournal:
         self._tool_completed_ids: set[str] = set()
         self.read_only = False
         self._pending: list[tuple[str, dict[str, Any]]] | None = [] if deferred else None
+        self._append_capture = None
         self._hydrate_tool_event_ids()
+
+    def capture_appends(self):
+        """Capture committed records for one live projection; historical reads stay independent."""
+        from contextlib import contextmanager
+        @contextmanager
+        def capture():
+            if self._append_capture is not None:
+                raise RuntimeError('This journal already has a live append capture')
+            records = []
+            self._append_capture = records
+            try:
+                yield records
+            finally:
+                self._append_capture = None
+        return capture()
 
     @property
     def deferred(self) -> bool:
@@ -139,8 +156,9 @@ class SessionJournal:
         self,
         message: dict[str, Any],
         task: ActiveTask | None,
+        *, input_id: str | None = None,
     ) -> None:
-        self.append('user_message', {'message': message})
+        self.append('user_message', {'message': message, **({'input_id': input_id} if input_id else {})})
         self.record_task_state(task)
 
     def record_assistant_message(self, message: dict[str, Any]) -> None:
@@ -403,6 +421,8 @@ class SessionJournal:
             file.flush()
             os.fsync(file.fileno())
         self.parent_uuid = event_uuid
+        if self._append_capture is not None:
+            self._append_capture.append(json.loads(serialized))
         return record
 
     def _assert_append_head(self) -> None:
@@ -821,10 +841,21 @@ class SessionStore:
         indeterminate_records: dict[tuple[str, str], dict[str, Any]] = {}
         replay_turn = ''
         verification_history: dict[str, VerificationEvidence] = {}
+        pending_inputs = {}
 
         for record in records[1:]:
             payload = self._payload(record, path)
             event_type = record['type']
+            if event_type == 'input_queued':
+                pending_inputs[payload['id']] = payload
+            elif event_type == 'input_discarded':
+                pending_inputs.pop(payload['id'], None)
+            elif event_type == 'input_deferred':
+                for identity in payload['ids']:
+                    if identity in pending_inputs:
+                        pending_inputs[identity] = {**pending_inputs[identity], 'mode': 'follow_up'}
+            elif event_type == 'user_message' and payload.get('input_id'):
+                pending_inputs.pop(payload['input_id'], None)
             observations = []
             if event_type == 'verification_recorded':
                 observations = [payload.get('evidence')]
@@ -977,6 +1008,7 @@ class SessionStore:
             active_task=task,
             indeterminate_tools=tuple(indeterminate_tools),
             verification_history=tuple(verification_history.values()),
+            pending_inputs=tuple(pending_inputs.values()),
         )
 
     @staticmethod

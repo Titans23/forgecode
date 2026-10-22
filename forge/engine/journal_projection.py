@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.sessions.store import SessionError, SessionStore
 from forge.storage_paths import private_storage_path
@@ -25,7 +25,22 @@ class JournalProjector:
     def project_attempt(self, path: Path, attempt_id: str):
         return self.project(path, None, trusted=True, attempt_id=attempt_id)
 
-    def _project(self, path: Path, session_id: str | None, *, trusted, attempt_id=None):
+    def project_appends(self, journal, session_id, captured):
+        """Project only records fsynced by the current owner; full recovery still validates disk."""
+        if not captured:
+            return 0
+        records = list(captured)
+        self.current_event = None
+        try:
+            applied = self._project(journal.path, session_id, trusted=True, records=records)
+        except ContractError as error:
+            if error.kind == 'EVENT_CONFLICT' and self.current_event:
+                self.store.quarantine_event(*self.current_event)
+            raise
+        del captured[:len(records)]
+        return applied
+
+    def _project(self, path: Path, session_id: str | None, *, trusted, attempt_id=None, records=None):
         path = Path(path).resolve(strict=True)
         if trusted and not private_storage_path(path).is_relative_to(private_storage_path((self.store.data_dir/'harness').resolve())):
             raise ContractError('Trusted Journal must be in the private Harness directory',kind='POLICY_DENIED',code=-32010)
@@ -34,7 +49,7 @@ class JournalProjector:
         if (attempt_id and (not trusted or session_id is not None or attempt is None)) or (not attempt_id and session is None):
             raise ContractError('Projection session not found', kind='NOT_FOUND', code=-32010)
         reader = SessionStore(path.parent, data_root=self.store.data_dir)
-        records = reader._read_records(path)
+        records = reader._read_records(path) if records is None else records
         if not records:
             return 0
         source = 'journal:' + records[0]['session_id']

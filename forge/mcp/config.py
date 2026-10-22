@@ -102,6 +102,7 @@ def load_mcp_servers(
     root: Path,
     *,
     user_path: Path | None = None,
+    environ=None,
 ) -> dict[str, MCPServerConfig]:
     '''Load user config then apply project entries by server name.'''
     paths = (
@@ -123,7 +124,7 @@ def load_mcp_servers(
                 raise MCPConfigurationError(
                     f'{path}: invalid MCP server name {name!r}.'
                 )
-            expanded = _expand_environment(value, path)
+            expanded = _expand_environment(value, path, environ)
             if isinstance(expanded, dict) and 'type' not in expanded:
                 if 'command' in expanded:
                     expanded['type'] = 'stdio'
@@ -166,11 +167,12 @@ def _read_json(path: Path) -> dict[str, object]:
     return value
 
 
-def _expand_environment(value: object, path: Path) -> object:
+def _expand_environment(value: object, path: Path, environ=None) -> object:
+    environ = os.environ if environ is None else environ
     if isinstance(value, str):
         def replace(match: re.Match[str]) -> str:
             name = match.group(1)
-            resolved = os.environ.get(name)
+            resolved = environ.get(name)
             if resolved is None:
                 raise MCPConfigurationError(
                     f'{path}: environment variable {name} is not set.'
@@ -179,10 +181,10 @@ def _expand_environment(value: object, path: Path) -> object:
 
         return _ENV_PATTERN.sub(replace, value)
     if isinstance(value, list):
-        return [_expand_environment(item, path) for item in value]
+        return [_expand_environment(item, path, environ) for item in value]
     if isinstance(value, dict):
         return {
-            str(key): _expand_environment(item, path)
+            str(key): _expand_environment(item, path, environ)
             for key, item in value.items()
         }
     return value

@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from uuid import UUID
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.sandbox.path_policy import inspect_path
 
 

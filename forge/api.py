@@ -11,7 +11,8 @@ from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
 from uuid import uuid4
 
-from forge.config import ForgeConfig
+from forge.config import ForgeConfig, model_environment
+from forge.messages import UserInput
 from forge.permissions.policy import PermissionManager
 from forge.runtime.dependencies import RuntimeBindings
 from forge.runtime.factory import create_runtime
@@ -25,8 +26,14 @@ class RunProfile:
     max_model_calls: int = 80
     max_tool_calls: int = 120
     wall_seconds: int = 1800
+    max_parallel_reads: int = 4
+    intent_routing: bool = True
 
     def __post_init__(self):
+        if type(self.intent_routing) is not bool:
+            raise ValueError('intent_routing must be a boolean')
+        if type(self.max_parallel_reads) is not int or not 1 <= self.max_parallel_reads <= 8:
+            raise ValueError('max_parallel_reads must be between 1 and 8')
         if any(type(value) is not int or value < 1 for value in (self.max_model_calls, self.max_tool_calls, self.wall_seconds)):
             raise ValueError('Profile budgets must be positive')
 
@@ -76,10 +83,10 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
     from forge.sandbox.tool_backend import FileToolBackend
     from forge.sessions.store import SessionStore
 
-    config = options.config or ForgeConfig.from_env()
     root = Path(options.root).resolve(strict=True)
     if not root.is_dir():
         raise ValueError('Workspace must be a directory')
+    config = options.config or ForgeConfig.from_env(model_environment(root / '.env'))
     data = SessionStore(root, data_root=options.data_root).data_root
     if root == data or data.is_relative_to(root) or root.is_relative_to(data):
         raise ValueError('Session storage and workspace must be separate')
@@ -112,6 +119,8 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=model_client_factory,
         permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
         max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
+        max_parallel_reads=options.profile.max_parallel_reads,
+        intent_routing=options.profile.intent_routing,
         wall_seconds=options.profile.wall_seconds)
     try:
         from forge.runtime.profile import ExecutionProfile
@@ -150,15 +159,36 @@ class HarnessSession:
     def running(self):
         return self._task is not None
 
-    async def stream(self, prompt: str):
+    def queue_input(self, prompt: UserInput, *, follow_up=False):
+        if self._closed:
+            raise RuntimeError('Session is closed')
+        return self.conversation.queue_input(prompt, follow_up=follow_up)
+
+    @property
+    def pending_inputs(self):
+        return self.conversation.inbox.pending
+
+    async def run_next(self):
+        item = self.conversation.inbox.peek()
+        if item is None:
+            raise ValueError('No queued input')
+        result = None
+        async for event in self.stream(item['content'], input_id=item['id']):
+            if isinstance(event, TurnCompleted):
+                result = event.result
+        if result is None:
+            raise RuntimeError('Harness ended without a terminal result')
+        return result
+
+    async def stream(self, prompt: UserInput, *, input_id=None):
         if self._closed or self.running:
             raise RuntimeError('Session is closed or already running a turn')
-        if not isinstance(prompt, str) or not prompt.strip():
-            raise ValueError('Prompt must contain text')
+        from forge.messages import normalize_input
+        prompt = normalize_input(prompt)
         self._task = asyncio.current_task()
-        self.recorder.record_user_message(prompt)
         try:
-            async with aclosing(self.conversation.stream(prompt)) as stream:
+            self.recorder.record_user_message(prompt)
+            async with aclosing(self.conversation.stream(prompt, **({'input_id': input_id} if input_id else {}))) as stream:
                 async for event in stream:
                     self.recorder.record_event(event)
                     yield event
@@ -170,7 +200,7 @@ class HarnessSession:
         finally:
             self._task = None
 
-    async def run(self, prompt: str) -> TurnResult:
+    async def run(self, prompt: UserInput) -> TurnResult:
         result = None
         async for event in self.stream(prompt):
             if isinstance(event, TurnCompleted):
@@ -195,11 +225,8 @@ class HarnessSession:
             task = self._task
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
-        try:
-            await self.conversation.runtime_close()
-            self.journal.record_stopped()
-        finally:
-            self.cleanup = await self.backend.close()
+        self.cleanup = await self.conversation.runtime_close()
+        self.journal.record_stopped()
         return self.cleanup
 
     async def __aenter__(self):

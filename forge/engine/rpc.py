@@ -8,7 +8,7 @@ import queue
 import threading
 import sys
 
-from forge.application.models import ContractError, ErrorKind, MAX_FRAME_BYTES, METHODS, strict_loads, validate, validate_request
+from forge.protocol import ContractError, ErrorKind, MAX_FRAME_BYTES, METHODS, strict_loads, validate, validate_request
 from forge.engine.persistence import encoded, new_id
 from forge.engine.scheduler import TurnScheduler
 

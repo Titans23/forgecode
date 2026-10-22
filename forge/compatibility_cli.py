@@ -9,7 +9,7 @@ history=typer.Typer(help='Readonly legacy scan, verified backup, explicit hash c
 
 def run_history(operation,data_dir,profile_id,project=None,source=None,confirmation=None,legacy_id=None,offset=0):
     from forge.application.legacy_import import LegacyImporter
-    from forge.application.models import ContractError
+    from forge.protocol import ContractError
     from forge.engine.persistence import Store
     try:
         with Store(data_dir) as store:

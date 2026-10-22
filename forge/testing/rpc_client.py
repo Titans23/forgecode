@@ -2,7 +2,7 @@
 import asyncio
 import json
 
-from forge.application.models import strict_loads, validate
+from forge.protocol import strict_loads, validate
 
 
 class RpcClient:

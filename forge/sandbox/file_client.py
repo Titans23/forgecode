@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from uuid import uuid4
 
-from forge.application.models import ContractError, MAX_FRAME_BYTES, canonical_hash, strict_loads, validate
+from forge.protocol import ContractError, MAX_FRAME_BYTES, canonical_hash, strict_loads, validate
 from forge.sandbox.launcher import ROOT, bridge_environment
 
 

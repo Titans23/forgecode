@@ -143,3 +143,29 @@ def test_event_export_redacts_bearer_and_opaque_provider_continuation():
     assert 'private-token-value' not in json.dumps(exported)
     continuation = event_dict(ModelProviderState('openai_responses', {'private': 'opaque-secret'}))
     assert 'opaque-secret' not in json.dumps(continuation)
+
+
+def test_api_uses_requested_workspace_config_and_can_disable_routing(tmp_path, monkeypatch):
+    from dataclasses import replace
+    from forge.config import USER_MODEL_FIELDS
+    for name in (*USER_MODEL_FIELDS, 'ANTHROPIC_API_KEY', 'MODEL_ID'):
+        monkeypatch.delenv(name, raising=False)
+    other = tmp_path / 'other'
+    other.mkdir()
+    (other / '.env').write_text('FORGE_MODEL=wrong-workspace\n')
+    monkeypatch.chdir(other)
+    settings = options(tmp_path)
+    (settings.root / '.env').write_text('FORGE_MODEL=requested-workspace\nFORGE_PROVIDER=anthropic\nFORGE_API_KEY=offline-fixture\n')
+    seen = []
+    def factory(config, **kwargs):
+        seen.append((config.model_id, kwargs))
+        return Model()
+    async def run():
+        async with await HarnessSession.open(replace(settings, config=None,
+                profile=RunProfile(intent_routing=False)), model_client_factory=factory) as session:
+            assert (await session.run('hello')).model_calls == 1
+        assert seen == [('requested-workspace', {})]
+    asyncio.run(run())
+    import os
+    assert 'FORGE_API_KEY' not in os.environ
+    assert 'FORGE_MODEL' not in os.environ

@@ -8,7 +8,7 @@ from pathlib import Path
 import secrets
 from time import monotonic
 
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.permissions.context import tool_approval_context
 from forge.permissions.policy import ApprovalResponse

@@ -39,6 +39,21 @@ class FakePromptSession:
         return self.response
 
 
+def test_cancelled_stream_preserves_partial_output_without_running_indicators():
+    from forge.terminal import StreamingResponseView
+    output = StringIO()
+    console = Console(file=output, width=100, color_system=None)
+    view = StreamingResponseView(console)
+    view.append_text('Partial response')
+    view.start_tool(ToolCall(0, 'pending', 'run_command', {'command': 'long task'}))
+    view.cancel()
+    console.print(view._render())
+    rendered = output.getvalue()
+    assert 'Partial response' in rendered and 'cancelled' in rendered
+    assert '正在运行' not in rendered and 'streaming' not in rendered
+    assert '结果需核实' in rendered and 'may be incomplete' in rendered
+
+
 def terminal_with_output() -> tuple[TerminalUI, StringIO]:
     output = StringIO()
     console = Console(

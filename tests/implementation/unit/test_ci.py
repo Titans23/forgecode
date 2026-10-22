@@ -136,3 +136,19 @@ def test_deleted_source_is_removed_from_fingerprint(tmp_path):
     previous=source_fingerprint(tmp_path)
     source.unlink()
     assert source_fingerprint(tmp_path)!=previous
+
+
+def test_default_ci_includes_all_portable_feature_test_files():
+    from scripts.impl import SUITES
+    selected = SUITES['unit'] + SUITES['portable']
+    missing = []
+    for path in (ROOT / 'tests').rglob('test_*.py'):
+        relative = path.relative_to(ROOT).as_posix()
+        if '/fixtures/' in relative or '/native/' in relative:
+            continue
+        if relative.startswith('tests/implementation/') and not any(
+                relative.startswith(f'tests/implementation/{group}/') for group in ('unit', 'portable', 'integration')):
+            continue  # Implementation harness fixtures are not feature tests.
+        if not any(relative == entry or relative.startswith(entry + '/') for entry in selected):
+            missing.append(relative)
+    assert missing == []

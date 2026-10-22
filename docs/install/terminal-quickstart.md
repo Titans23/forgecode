@@ -70,6 +70,10 @@ forge --continue --fork-session
 
 会话中使用 `/context`、`/compact`、`/task`、`/history`、`/rename NAME`、`/resume`；Ctrl+C 停止并清理进程。既有 Journal 保存已提交上下文和执行事实；中断且没有完成记录的工具不会自动重放。
 
+交互终端执行中可以直接输入调整意见，在下次模型请求前应用；`/follow 任务` 排队到当前回合之后，`/cancel` 停止当前回合并保留会话。审批提示会暂时独占输入。取消后用 `/pending` 查看待处理输入、`/next` 继续一项、`/discard 输入ID` 删除一项。待处理输入随 Journal 保存；文本重定向等非交互输入保持顺序处理。
+
+`@path` 可附加 UTF-8 文本或 PNG/JPEG/GIF/WebP。文字合计不超过 256 KiB，最多 8 张图片，单张不超过 512 KiB。较大图片先裁剪或缩小。发送图像前请选择支持视觉的具体模型；适配器支持图像传输不代表服务端任意模型都支持视觉。
+
 新交互会话在首次提交对话时才保存；直接退出或仅查看历史不会生成空会话。
 恢复会话默认显示最近 10 轮，`/history all` 显示完整可用对话；工具历史以摘要展示，
 不会重新执行。`/clear` 保留旧会话，新会话等待下一次对话再保存。
@@ -126,6 +130,10 @@ asyncio.run(main())
 ```
 
 `run` 返回既有 `TurnResult`；`stream` 返回既有结构化事件；`event_dict` 提供 `forge.harness.event.v1` JSON 载荷并隐藏 opaque provider continuation、脱敏常见凭据字段。`session.cancel()` 取消当前消费任务，调用方处理 `asyncio.CancelledError` 后可继续下一轮。消费流时用 `contextlib.aclosing` 保证提前离开也关闭流；关闭会话返回真实 cleanup report。审批回调可通过 `approval_handler` 传入，接口不会解析 CLI 文本。
+
+API 同时接受 `[{'type': 'text', 'text': '分析图片'}, image_block(png_bytes)]`，`image_block` 从 `forge.messages` 导入。执行中使用 `session.queue_input('追加约束')`；`follow_up=True` 排队新任务。`session.pending_inputs` 返回待办，`await session.run_next()` 明确执行下一项。同一会话不能并发启动多个回合。
+
+`RunProfile(max_parallel_reads=4, intent_routing=True)` 控制独立读取并发和前置意图分类；原生单输出流后端仍串行。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。完成报告中的运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
 
 ## 评测与后训练
 

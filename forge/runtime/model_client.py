@@ -111,6 +111,12 @@ class AnthropicModelClient:
 
     provider = DEFAULT_MODEL_PROVIDER
 
+    @property
+    def capabilities(self):
+        from forge.runtime.capabilities import ModelCapabilities
+        return ModelCapabilities(image_transport=True, context_window=self.context_window,
+                                 max_output_tokens=self.max_tokens)
+
     @classmethod
     def from_config(
         cls,

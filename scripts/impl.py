@@ -42,10 +42,10 @@ SYMBOLS = {
 }
 SUITES = {
     'audit': ['tests/implementation/unit/test_impl_audit.py'],
-    'unit': ['tests/implementation/unit', 'tests/test_api.py', 'tests/test_cli.py',
-             'tests/sessions', 'tests/test_terminal.py', 'tests/test_config.py', 'tests/benchmark',
-             'tests/runtime/test_request_audit.py', 'tests/runtime/test_request_snapshot.py',
-             'tests/extensions/test_qwen_tool_distillation.py'],
+    'unit': ['tests/implementation/unit', *sorted(
+        path.relative_to(ROOT).as_posix() for path in (ROOT / 'tests').iterdir()
+        if path.name not in {'implementation', 'native', 'fixtures', '__pycache__'}
+        and (path.is_dir() or path.name.startswith('test_') and path.suffix == '.py'))],
     'portable': ['tests/implementation/portable', 'tests/implementation/integration'],
     'regression': ['tests'],
     'terminal-native': ['tests/native/verify_terminal_native.py'],

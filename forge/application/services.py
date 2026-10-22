@@ -11,7 +11,7 @@ from typing import Protocol
 from urllib.parse import urlsplit
 
 from forge.application.harness_adapter import HarnessAdapter
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 from forge.application.sessions import outcome_for, session_view, turn_view
 from forge.application.workspaces import WorkspaceService
 from forge.application.session_views import TurnMessages
@@ -277,6 +277,7 @@ class ApplicationServices:
         model_cleanup_error = None
         messages = None
         observation_timer=None
+        append_capture = None
         try:
             reference = json.loads(turn['config_json'])
             configuration = json.loads(self.store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
@@ -335,11 +336,15 @@ class ApplicationServices:
                 self.store.connection.execute('UPDATE turns SET native_ref=? WHERE id=?', (adapter.journal.session_id, turn_id))
             last_projection=0.0
             last_sequence=-1
+            projector = JournalProjector(self.store)
+            append_capture = adapter.journal.capture_appends()
+            captured = append_capture.__enter__()
+            projector.project(adapter.journal.path, turn['session_id'], trusted=True)
             def project_live():
                 nonlocal last_projection,last_sequence,projection_error
                 if adapter.journal.sequence==last_sequence:return
                 try:
-                    JournalProjector(self.store).project(adapter.journal.path,turn['session_id'],trusted=True)
+                    projector.project_appends(adapter.journal, turn['session_id'], captured)
                     last_sequence=adapter.journal.sequence;last_projection=asyncio.get_running_loop().time()
                 except Exception as error:
                     projection_error=error
@@ -382,6 +387,8 @@ class ApplicationServices:
         except Exception as error:
             outcome, reason = 'indeterminate' if adapter else 'failed', type(error).__name__
         finally:
+            if append_capture is not None:
+                append_capture.__exit__(None, None, None)
             if observation_timer is not None:
                 observation_timer.cancel()
                 await asyncio.gather(observation_timer,return_exceptions=True)

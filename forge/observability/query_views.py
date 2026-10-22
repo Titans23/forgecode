@@ -2,7 +2,7 @@
 from decimal import Decimal,localcontext
 import json
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.observability.usage_ledger import decimal_text,SAFE_INTEGER
 
 

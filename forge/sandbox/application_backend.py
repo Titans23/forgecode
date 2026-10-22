@@ -1,7 +1,7 @@
 """Create an actual owned Bridge/file boundary per accepted turn, before any model request."""
 import asyncio
 from pathlib import Path
-from forge.application.models import ContractError,canonical_hash,validate
+from forge.protocol import ContractError,canonical_hash,validate
 from forge.sandbox.file_client import FileWorkerClient
 from forge.sandbox.tool_backend import FileToolBackend
 

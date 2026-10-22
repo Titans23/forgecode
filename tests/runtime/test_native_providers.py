@@ -6,7 +6,7 @@ import pytest
 from openai import AsyncOpenAI
 
 from forge.config import ForgeConfig, ConfigurationError
-from forge.runtime.model_client import ModelProtocolError
+from forge.runtime.model_client import ModelCallError, ModelProtocolError
 from forge.runtime.providers import NativeModelClient, chat_messages, responses_input
 from forge.runtime.state import ModelToolCallCompleted, ModelProviderState, ModelUsageUpdate
 
@@ -111,3 +111,23 @@ def test_explicit_provider_selects_credentials_and_endpoint_without_guessing():
     assert config.provider == 'deepseek'
     with pytest.raises(ConfigurationError, match='provider'):
         ForgeConfig(api_key='test', model_id='test', provider='guess-from-model')
+
+
+@pytest.mark.parametrize('provider', ['deepseek', 'openai_responses'])
+@pytest.mark.parametrize('code,reason', [('context_length_exceeded', 'context_overflow'),
+                                       ('invalid_parameter', 'request_rejected')])
+def test_native_error_preserves_context_overflow_recovery(provider, code, reason):
+    async def run():
+        calls = []
+        def handler(request):
+            calls.append(request)
+            return httpx.Response(400, json={'error': {'code': code, 'message': code}})
+        async with AsyncOpenAI(api_key='offline', base_url='https://offline.invalid',
+                http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler))) as sdk:
+            adapter = NativeModelClient(ForgeConfig(api_key='offline', model_id='test', provider=provider), client=sdk)
+            with pytest.raises(ModelCallError) as raised:
+                async for _ in adapter.stream([{'role': 'user', 'content': 'test'}]):
+                    pass
+            assert raised.value.reason == reason
+            assert len(calls) == 1
+    asyncio.run(run())

@@ -66,6 +66,32 @@ def test_worker_real_write_read_search_and_owned_metadata(tmp_path):
     assert write['observations']['a.txt']['sha256'] == read['result']['metadata']['sha256']
 
 
+def test_parent_file_worker_remains_usable_after_explore(tmp_path):
+    import asyncio
+    from forge.sandbox.file_client import FileWorkerClient
+    from forge.sandbox.tool_backend import FileToolBackend
+    from forge.subagents.explore import ExploreRepositoryTool
+    from forge.tools.base import ToolRegistry
+    from forge.tools.filesystem import ReadFileTool
+    from forge.runtime.state import ToolCall
+    from tests.subagents.test_explore import FakeExploreClient, valid_report
+    root, control, workspace, policy = fixture(tmp_path)
+    (root / 'after.txt').write_text('parent still works')
+    async def run():
+        backend = FileToolBackend(FileWorkerClient(workspace, policy, local_control=control))
+        explore = ExploreRepositoryTool(root, client_factory=lambda: FakeExploreClient(valid_report()),
+                                        tool_backend=backend)
+        registry = ToolRegistry([explore, ReadFileTool(root)])
+        try:
+            result = await backend.execute(ToolCall(0, 'child', 'explore_repository', {'question': 'Inspect'}), registry)
+            assert result.success
+            result = await backend.execute(ToolCall(0, 'parent', 'read_file', {'path': 'after.txt'}), registry)
+            assert result.success and 'parent still works' in result.content
+        finally:
+            assert (await backend.close())['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_stale_patch_does_not_overwrite_external_edit(tmp_path):
     root, control, workspace, policy = fixture(tmp_path)
     target = root / 'public.py'

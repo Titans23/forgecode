@@ -2,7 +2,7 @@
 from pathlib import Path
 from datetime import datetime, timezone
 
-from forge.application.models import ContractError, validate
+from forge.protocol import ContractError, validate
 from forge.engine.journal_projection import JournalProjector, journal_facts
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.sessions.store import SessionStore

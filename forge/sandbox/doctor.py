@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.sandbox.capabilities import unavailable_report,windows_supported
 from forge.sandbox.launcher import bridge_environment, verify_runtime
 from forge.sandbox.path_policy import inspect_path

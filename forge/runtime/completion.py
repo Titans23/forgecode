@@ -47,6 +47,13 @@ class TaskPolicy:
     )
 
     @property
+    def has_contract(self) -> bool:
+        from dataclasses import fields
+        return any(bool(getattr(self, item.name)) for item in fields(self)
+                   if item.name not in {'forbidden_paths', 'max_delivery_repairs'}) or (
+                       self.forbidden_paths != TaskPolicy().forbidden_paths)
+
+    @property
     def effective_delivery_repairs(self) -> int:
         return max(0, min(2, self.max_delivery_repairs))
 

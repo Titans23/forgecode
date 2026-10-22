@@ -15,7 +15,7 @@ import stat
 import sys
 from time import monotonic
 
-from forge.application.models import ContractError, MAX_FRAME_BYTES, canonical_hash, strict_loads, validate
+from forge.protocol import ContractError, MAX_FRAME_BYTES, canonical_hash, strict_loads, validate
 from forge.sandbox.path_policy import PathPolicy, SENSITIVE, inspect_path
 
 
@@ -248,11 +248,11 @@ async def execute(request):
     from forge.tools.filesystem import (CreateDirectoryTool, ListDirectoryTool, ReadFileTool,
         RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool)
     from forge.tools.search import FindFilesTool, GrepTool
-    from forge.tools.git import GitStatusTool, GitDiffTool
+    from forge.tools.git import GitStatusTool, GitDiffTool, GitLogTool
     from forge.tools.image import ViewImageTool
     tools = {tool.name: tool(access.root) for tool in (CreateDirectoryTool, ListDirectoryTool,
         ReadFileTool, RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool, FindFilesTool, GrepTool,
-        GitStatusTool, GitDiffTool, ViewImageTool)}
+        GitStatusTool, GitDiffTool, GitLogTool, ViewImageTool)}
     name, arguments = request['name'], request['arguments']
     if name in ('run_command', 'verify'):
         from forge.tools.shell import RunCommandTool
@@ -281,7 +281,7 @@ async def execute(request):
     if not result.success and result.error.code in ('POLICY_DENIED', 'STALE_FILE'):
         fail(result.error.code, result.error.message)
     paths = result.metadata.get('target_paths', [])
-    if 'path' in result.metadata:
+    if result.metadata.get('path') is not None:
         paths = [*paths, result.metadata['path']]
     observations = {str(path): access.observation(path) for path in dict.fromkeys(paths)}
     return asdict(result), observations

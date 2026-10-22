@@ -3,7 +3,7 @@ from pathlib import Path
 from contextlib import aclosing
 import asyncio
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.permissions.policy import PermissionManager
 from forge.runtime.dependencies import RuntimeBindings
 from forge.runtime.factory import create_runtime
@@ -34,6 +34,7 @@ class HarnessAdapter:
         permissions = PermissionManager(root, mode='supervised', approval_handler=approval_handler,
                                         load_stored_rules=False)
         bindings = RuntimeBindings(config=config, data_root=data_root, backend=backend, recorder=recorder,
+            owns_tool_backend=False,
             model_client_factory=model_client_factory, permission_manager=permissions, trusted_extensions=False,
             task_relation=task_relation, max_model_calls=budget['max_model_calls'],
             max_tool_calls=budget['max_tool_calls'], wall_seconds=budget['wall_seconds'],

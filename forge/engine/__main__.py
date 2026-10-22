@@ -75,7 +75,7 @@ def main(argv=None):
             from forge.engine.test_profile import load_scripted_profile
             from forge.observability.export_queue import ObservationOptions
             from forge.observability.usage_ledger import PriceBook
-            from forge.application.models import strict_loads
+            from forge.protocol import strict_loads
             prices=PriceBook(strict_loads(args.pricing_file.read_bytes())) if args.pricing_file else None
             observations=ObservationOptions(capture_mode=args.capture_mode,prices=prices,endpoint=args.otlp_endpoint,metadata_export_confirmed=args.export_metadata)
             scripted = load_scripted_profile(args.scripted_fixture) if args.scripted_fixture else None

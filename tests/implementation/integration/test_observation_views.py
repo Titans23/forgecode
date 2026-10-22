@@ -93,7 +93,8 @@ def test_explore_parent_summary_is_not_a_second_cost_row(tmp_path):
     child=[[ModelTextDelta(report),ModelUsageUpdate(TokenUsage(3,1))]]
     clients=[]
     def factory(config,**kw):
-        client=ScriptedClient(child if len(clients)>=2 else main)
+        assert kw.get('max_tokens') is None  # Explicit tasks need no routing client.
+        client=ScriptedClient(child if clients else main)
         clients.append(client)
         return client
     service,store,_,_,_,params=setup(tmp_path,factory=factory,observation_options=ObservationOptions(prices=book()))

@@ -197,6 +197,13 @@ class ContextManager:
         self.last_report: CompactionReport | None = None
         self.durable_summary: TaskSummary | None = None
         self.repository = RepositoryContext(self.root)
+        self.token_scale = 1.0
+
+    def observe_usage(self, messages, system, tools, actual_input_tokens):
+        """Calibrate conservatively from reported usage, never synthetic/missing usage."""
+        estimate = context_stats(messages, system_prompt=system, tools=tools).estimated_tokens
+        if actual_input_tokens is not None and actual_input_tokens > 0 and estimate > 0:
+            self.token_scale = max(1.0, actual_input_tokens / estimate)
 
     @property
     def stats(self) -> ContextStats:
@@ -528,7 +535,7 @@ class ContextManager:
             + stats.tool_schema_characters
         )
         return (
-            max(visible_projected_tokens, stored_projected_tokens)
+            max(visible_projected_tokens, stored_projected_tokens) * self.token_scale
             >= input_budget * self.config.auto_compact_ratio
         )
 
@@ -555,6 +562,9 @@ def original_user_instructions(messages: list[dict[str, Any]]) -> list[str]:
     prefix = '[ForgeCode original user instructions]\n'
     for message in messages:
         content = message.get('content')
+        if isinstance(content, list):
+            content = '\n'.join(block['text'] for block in content
+                                if isinstance(block, dict) and block.get('type') == 'text')
         if message.get('role') != 'user' or not isinstance(content, str):
             continue
         if content.startswith(prefix):

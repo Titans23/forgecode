@@ -68,7 +68,7 @@ class TrajectoryRecorder:
         return recorder
 
     def record_user_message(self, content: str) -> None:
-        self._write('user_message', {'content': redact_text(content)})
+        self._write('user_message', {'content': sanitize(content)})
 
     def record_error(self, error: Exception) -> None:
         self._write(

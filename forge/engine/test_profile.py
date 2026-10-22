@@ -2,7 +2,7 @@
 import asyncio
 from dataclasses import dataclass
 
-from forge.application.models import ContractError, strict_loads
+from forge.protocol import ContractError, strict_loads
 from forge.permissions.policy import ApprovalResponse
 from forge.permissions.risk import classify_tool_call
 from forge.runtime.state import ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, TokenUsage, ToolCall

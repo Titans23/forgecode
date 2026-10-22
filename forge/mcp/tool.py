@@ -166,16 +166,20 @@ def mcp_result_to_tool_result(
     remote_name: str,
     exposed_name: str,
 ) -> ToolResult:
-    '''Convert all MCP content variants into bounded model-visible text.'''
+    '''Preserve supported visual content and bound every model-visible payload.'''
     rendered: list[str] = []
+    images = []
     for block in result.content:
         if isinstance(block, types.TextContent):
             rendered.append(block.text)
         elif isinstance(block, types.ImageContent):
-            rendered.append(
-                f'[MCP image: {block.mimeType}; '
-                f'{len(block.data)} base64 characters]'
-            )
+            from forge.messages import normalize_input
+            try:
+                images = normalize_input([*images, {'type': 'image', 'source': {
+                    'type': 'base64', 'media_type': block.mimeType, 'data': block.data}}])
+            except ValueError as error:
+                return ToolResult.fail('unsupported_mcp_image', str(error))
+            rendered.append(f'[MCP image: {block.mimeType}]')
         elif isinstance(block, types.AudioContent):
             rendered.append(
                 f'[MCP audio: {block.mimeType}; '
@@ -212,6 +216,8 @@ def mcp_result_to_tool_result(
         'tool': exposed_name,
         'truncated': truncated,
     }
+    if images:
+        metadata['content_blocks'] = images
     result_unknown = (
         '[mcp_result_unknown]' in content
         or _contains_result_unknown(result.structuredContent)

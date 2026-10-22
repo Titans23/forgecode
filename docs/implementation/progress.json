@@ -1,9 +1,23 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "active_scope": "terminal-harness",
-  "development_checkout": "D:/projects/forgecode",
+  "development_checkout": "D:/learn_project/forgecode",
   "development_branch": "main",
   "current_task": "T01",
+  "architecture_improvement": {
+    "P1": "implemented_offline_verified",
+    "P2": "implemented_offline_verified",
+    "P3": "implemented_offline_verified",
+    "P4": "implemented_offline_verified",
+    "regression_evidence_id": "20261022T100228Z-5370abd9",
+    "quality_evidence_id": "20261022T100234Z-88a0daee",
+    "regression": {"collected": 1441, "failures": 0, "errors": 0, "skipped": 0},
+    "quality_checks_passed": 7,
+    "native_acceptance": "windows_6_passed_linux_unavailable",
+    "performance_evidence": ".local/implementation/architecture-performance.json",
+    "native_evidence": ".local/implementation/architecture-native-windows.xml",
+    "live_model_experiments": "blocked_requires_explicit_budget_authorization"
+  },
   "next_recommended_task": null,
   "delivery_stage": "E05",
   "delivery_stages": {

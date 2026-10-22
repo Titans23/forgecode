@@ -7,7 +7,7 @@ from benchmark.adapters.harbor import export_runspec
 from forge.file_selection import selected_file
 from benchmark.core.metrics import compare_specs
 from benchmark.core.spec import REFERENCES, freeze_spec, resolve_snapshot
-from forge.application.models import ContractError, canonical_hash, validate, strict_loads
+from forge.protocol import ContractError, canonical_hash, validate, strict_loads
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.observability.export_queue import redact
 import re

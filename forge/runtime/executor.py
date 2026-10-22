@@ -30,6 +30,7 @@ ScopeChecker = Callable[[ToolCall], ToolResult | None]
 PathResolver = Callable[[ToolCall], tuple[str, ...]]
 HookContextSink = Callable[[HookOutcome], None]
 ResultTransformer = Callable[[ToolResult], Awaitable[ToolResult]]
+Operation = Callable[[ToolCall], Awaitable[ToolResult]]
 
 
 @dataclass(frozen=True, slots=True)

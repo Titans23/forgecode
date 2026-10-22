@@ -201,11 +201,10 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
             registry=create_explore_registry(self.root),
             max_iterations=self.config.max_iterations,
             max_turn_input_tokens=self.config.max_input_tokens,
-            stagnation_warning=4,
-            stagnation_limit=6,
             context_root=self.root,
             include_task_tools=False,
             tool_backend=self.tool_backend,
+            owns_tool_backend=False,
             event_recorder=self.event_recorder,
         )
         completed = None

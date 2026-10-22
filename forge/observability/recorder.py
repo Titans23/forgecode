@@ -6,7 +6,7 @@ from uuid import UUID
 from time import monotonic
 from decimal import Decimal
 
-from forge.application.models import validate_event
+from forge.protocol import validate_event
 from forge.observability.events import Scope, active, bind, clock_text, digest, identifier
 
 

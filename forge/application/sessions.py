@@ -1,7 +1,7 @@
 """Read-only business views preserve the native Harness terminal explanation."""
 import json
 
-from forge.application.models import ContractError, validate
+from forge.protocol import ContractError, validate
 
 
 def session_view(store, session_id):

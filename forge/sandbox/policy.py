@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import re
 
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 from forge.sandbox.path_policy import PathPolicy, audit_workspace_links, denied, git_metadata_paths, inspect_path
 
 

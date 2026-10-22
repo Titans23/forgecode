@@ -13,7 +13,7 @@ from pathlib import Path
 import stat
 import time
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.engine.persistence import encoded
 from forge.sandbox.path_policy import PathPolicy, inspect_path, _stat_identity
 

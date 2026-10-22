@@ -41,7 +41,21 @@ testpaths = ['tests']
 norecursedirs = ['fixtures']
 cache_dir = '.local/cache/pytest'
 
+[tool.ruff]
+cache-dir = '.local/cache/ruff'
+target-version = 'py312'
+
+[tool.ruff.lint]
+select = ['E9', 'F63', 'F7', 'F82']
+
+[tool.mypy]
+files = ['forge/messages.py', 'forge/tool_types.py', 'forge/runtime/capabilities.py']
+follow_imports = 'skip'
+cache_dir = '.local/cache/mypy'
+
 [dependency-groups]
 dev = [
+    "mypy>=2.4.0",
     "pytest>=9.1.1",
+    "ruff>=0.17.1",
 ]

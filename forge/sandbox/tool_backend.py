@@ -1,12 +1,12 @@
 """Harness file boundary. Native session creation/supervision is owned separately."""
 from dataclasses import replace
 
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 from forge.tools.base import ToolError, ToolResult
 
 
 FILE_TOOLS = frozenset({'list_directory', 'find_files', 'read_file', 'view_image', 'grep', 'create_directory',
-    'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch', 'git_status', 'git_diff'})
+    'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch', 'git_status', 'git_diff', 'git_log'})
 PROCESS_TOOLS = frozenset({'run_command', 'verify'})
 
 
@@ -40,7 +40,7 @@ class FileToolBackend:
             if validation is not None:
                 return validation
             try:
-                from forge.runtime.agent_loop import mutation_target_paths
+                from forge.tools.paths import mutation_target_paths
                 import os
                 from pathlib import Path
                 targets = {Path(os.path.abspath(Path(self.observer.workspace['canonical_path']) / path))
@@ -65,8 +65,13 @@ class FileToolBackend:
                 return ToolResult.fail(error.kind, str(error), metadata={'execution_boundary': self.mode + '-file-worker'})
         # These tools mutate trusted task state or dispatch Explore with this same
         # backend. Hooks/MCP/skill extensions cannot inherit a sandbox label.
-        safe_control = {'finish_task', 'review_delivery', 'explore_repository', 'load_skill', 'read_skill_resource',
+        safe_control = {'finish_task', 'review_delivery', 'load_skill', 'read_skill_resource',
             'task_get', 'task_plan', 'task_update', 'task_revise_requirement', 'read_context_artifact'}
+        if call.name == 'explore_repository':
+            from forge.subagents.explore import ExploreRepositoryTool
+            implementation = registry.implementation(call.name)
+            if type(implementation) is ExploreRepositoryTool and implementation.tool_backend is self:
+                return await registry.execute(call.name, call.arguments)
         if call.name in safe_control and registry.provenance(call.name).get('source') == 'builtin':
             return await registry.execute(call.name, call.arguments)
         if self.mode == 'local-trusted':

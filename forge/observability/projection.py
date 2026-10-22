@@ -1,6 +1,6 @@
 """Derived query tables, updated only when a new trusted event is committed."""
 import json
-from forge.application.models import canonical_hash
+from forge.protocol import canonical_hash
 from forge.observability.events import span_attributes
 
 
@@ -14,7 +14,7 @@ def project(store, body):
         identity=(body['trace_id'],body['span_id'])
         row=connection.execute('SELECT parent_id FROM spans WHERE trace_id=? AND span_id=?',identity).fetchone()
         if row is not None and row[0]!=body['parent_span_id']:
-            from forge.application.models import ContractError
+            from forge.protocol import ContractError
             raise ContractError('Span parent conflicts with its original identity',kind='EVENT_CONFLICT',code=-32010)
         connection.execute('INSERT OR IGNORE INTO spans VALUES(?,?,?,?,?,?)',
             (*identity,body['parent_span_id'],attributes.get('operation_started_at_utc') or body['occurred_at_utc'],None,json.dumps(span_attributes(body))))
@@ -41,10 +41,10 @@ def project(store, body):
         request_id=attributes['model_request_id']
         row=connection.execute('SELECT * FROM model_requests WHERE id=?',(request_id,)).fetchone()
         if row is None:
-            from forge.application.models import ContractError
+            from forge.protocol import ContractError
             raise ContractError('Model terminal event has no request boundary',kind='EVENT_CONFLICT',code=-32010)
         if row['state']!='running' or (row['invocation_id'],row['attempt_no'],row['role'])!=(attributes['invocation_id'],attributes['attempt_no'],attributes['role']):
-            from forge.application.models import ContractError
+            from forge.protocol import ContractError
             raise ContractError('Model terminal identity differs from its request',kind='EVENT_CONFLICT',code=-32010)
         connection.execute('UPDATE model_requests SET state=? WHERE id=?',
             ('finished' if event_type.endswith('.finished') else 'failed',request_id))

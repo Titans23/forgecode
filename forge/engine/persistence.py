@@ -11,7 +11,7 @@ import time
 from time import monotonic_ns
 from uuid import uuid4
 
-from forge.application.models import ContractError, canonical_hash, validate, validate_event
+from forge.protocol import ContractError, canonical_hash, validate, validate_event
 
 
 def new_id(prefix):

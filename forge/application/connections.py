@@ -6,7 +6,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 from forge.config import DEFAULT_MODEL_MAX_TOKENS, DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
 from forge.engine.persistence import encoded, new_id, utc_now
 

@@ -3,6 +3,8 @@
 import asyncio
 from collections.abc import AsyncIterator
 import json
+from types import SimpleNamespace
+import pytest
 from pathlib import Path
 from typing import Any
 
@@ -250,3 +252,46 @@ def test_raw_exploration_stays_out_of_parent_result(tmp_path: Path) -> None:
     assert len(result.content) < len(raw_evidence) / 10
     assert result.metadata['model_calls'] == 2
     assert result.metadata['input_tokens'] == 240
+
+
+@pytest.mark.parametrize('mode', ['workspace-write', 'read-only', 'local-trusted'])
+def test_explore_borrows_parent_backend_and_parent_can_continue(tmp_path, mode):
+    from forge.sandbox.tool_backend import FileToolBackend
+    from forge.tools.base import ToolRegistry, ToolResult
+
+    class Observer:
+        native = SimpleNamespace(mode=mode) if mode != 'local-trusted' else None
+        closed = False
+
+        async def close(self):
+            self.closed = True
+            return {'state': 'clean'}
+
+    observer = Observer()
+    backend = FileToolBackend(observer)
+    client = FakeExploreClient(valid_report())
+    tool = ExploreRepositoryTool(tmp_path, client_factory=lambda: client, tool_backend=backend)
+    registry = ToolRegistry([tool])
+
+    async def run():
+        for index in range(2):
+            result = await backend.execute(ToolCall(index, f'explore-{index}', tool.name,
+                {'question': 'Investigate without closing shared resources.'}), registry)
+            assert result.success
+            assert not observer.closed
+        await backend.close()
+        assert observer.closed
+
+    asyncio.run(run())
+
+
+def test_restricted_backend_rejects_explore_with_another_execution_boundary(tmp_path):
+    from forge.sandbox.tool_backend import FileToolBackend
+    from forge.tools.base import ToolRegistry
+    backend = FileToolBackend(SimpleNamespace(native=SimpleNamespace(mode='workspace-write')))
+    client = FakeExploreClient(valid_report())
+    tool = ExploreRepositoryTool(tmp_path, client_factory=lambda: client)
+    result = asyncio.run(backend.execute(ToolCall(0, 'unbound', tool.name,
+        {'question': 'Must not escape the prepared boundary.'}), ToolRegistry([tool])))
+    assert result.error.code == 'CAPABILITY_UNSATISFIED'
+    assert client.calls == []

@@ -1,6 +1,10 @@
 '''Validated user/project configuration for official chat channels.'''
 
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from forge.channels.models import InboundMessage
 
 import json
 import os
@@ -42,16 +46,16 @@ _FEISHU_ENV_FIELDS = {
 }
 
 
-def _env_list(name: str) -> list[str]:
+def _env_list(name: str, environ) -> list[str]:
     return [
         item.strip()
-        for item in re.split(r'[,\n]', os.environ[name])
+        for item in re.split(r'[,\n]', environ[name])
         if item.strip()
     ]
 
 
-def _env_bool(name: str) -> bool:
-    value = os.environ[name].strip().lower()
+def _env_bool(name: str, environ) -> bool:
+    value = environ[name].strip().lower()
     if value in _TRUE_VALUES:
         return True
     if value in _FALSE_VALUES:
@@ -61,25 +65,26 @@ def _env_bool(name: str) -> bool:
     )
 
 
-def _env_float(name: str) -> float:
+def _env_float(name: str, environ) -> float:
     try:
-        return float(os.environ[name].strip())
+        return float(environ[name].strip())
     except ValueError as error:
         raise ChannelConfigurationError(f'{name} must be a number.') from error
 
 
-def _apply_feishu_environment(merged: dict[str, object]) -> None:
-    if not any(name in os.environ for name in _FEISHU_ENV_FIELDS):
+def _apply_feishu_environment(merged: dict[str, object], environ=None) -> None:
+    environ = os.environ if environ is None else environ
+    if not any(name in environ for name in _FEISHU_ENV_FIELDS):
         return
     channel_name = (
-        os.environ.get('FEISHU_CHANNEL_NAME', '').strip() or 'feishu-main'
+        environ.get('FEISHU_CHANNEL_NAME', '').strip() or 'feishu-main'
     )
     if not _CHANNEL_NAME.fullmatch(channel_name):
         raise ChannelConfigurationError(
             f'FEISHU_CHANNEL_NAME is invalid: {channel_name!r}.'
         )
     if channel_name not in merged and not any(
-        name in os.environ
+        name in environ
         for name in ('FEISHU_ALLOWED_USERS', 'FEISHU_ALLOWED_CHATS')
     ):
         return
@@ -89,7 +94,7 @@ def _apply_feishu_environment(merged: dict[str, object]) -> None:
             for name, value in merged.items()
             if isinstance(value, dict) and value.get('platform') == 'feishu'
         ]
-        if 'FEISHU_CHANNEL_NAME' not in os.environ and len(feishu_names) == 1:
+        if 'FEISHU_CHANNEL_NAME' not in environ and len(feishu_names) == 1:
             channel_name = feishu_names[0]
     raw_current = merged.get(channel_name, {})
     current = dict(raw_current) if isinstance(raw_current, dict) else {}
@@ -104,21 +109,21 @@ def _apply_feishu_environment(merged: dict[str, object]) -> None:
             'appSecretEnv': 'FEISHU_APP_SECRET',
         }
     )
-    if 'FEISHU_ENABLED' in os.environ:
-        current['enabled'] = _env_bool('FEISHU_ENABLED')
-    if 'FEISHU_TRANSPORT' in os.environ:
-        current['transport'] = os.environ['FEISHU_TRANSPORT'].strip()
-    if 'FEISHU_TENANT_ID' in os.environ:
-        current['tenantId'] = os.environ['FEISHU_TENANT_ID'].strip()
-    if 'FEISHU_ALLOWED_USERS' in os.environ:
-        current['allowedUsers'] = _env_list('FEISHU_ALLOWED_USERS')
-    if 'FEISHU_ALLOWED_CHATS' in os.environ:
-        current['allowedChats'] = _env_list('FEISHU_ALLOWED_CHATS')
-    if 'FEISHU_REQUIRE_MENTION' in os.environ:
-        current['requireMention'] = _env_bool('FEISHU_REQUIRE_MENTION')
-    if 'FEISHU_APPROVAL_TIMEOUT_SECONDS' in os.environ:
+    if 'FEISHU_ENABLED' in environ:
+        current['enabled'] = _env_bool('FEISHU_ENABLED', environ)
+    if 'FEISHU_TRANSPORT' in environ:
+        current['transport'] = environ['FEISHU_TRANSPORT'].strip()
+    if 'FEISHU_TENANT_ID' in environ:
+        current['tenantId'] = environ['FEISHU_TENANT_ID'].strip()
+    if 'FEISHU_ALLOWED_USERS' in environ:
+        current['allowedUsers'] = _env_list('FEISHU_ALLOWED_USERS', environ)
+    if 'FEISHU_ALLOWED_CHATS' in environ:
+        current['allowedChats'] = _env_list('FEISHU_ALLOWED_CHATS', environ)
+    if 'FEISHU_REQUIRE_MENTION' in environ:
+        current['requireMention'] = _env_bool('FEISHU_REQUIRE_MENTION', environ)
+    if 'FEISHU_APPROVAL_TIMEOUT_SECONDS' in environ:
         current['approvalTimeoutSeconds'] = _env_float(
-            'FEISHU_APPROVAL_TIMEOUT_SECONDS'
+            'FEISHU_APPROVAL_TIMEOUT_SECONDS', environ
         )
     merged[channel_name] = current
 
@@ -159,11 +164,12 @@ class ChannelConfig(BaseModel):
             )
         return self
 
-    def credential_status(self) -> tuple[bool, tuple[str, ...]]:
+    def credential_status(self, environ=None) -> tuple[bool, tuple[str, ...]]:
+        environ = os.environ if environ is None else environ
         missing = tuple(
             name
             for name in (self.app_id_env, self.app_secret_env)
-            if not os.environ.get(name, '').strip()
+            if not environ.get(name, '').strip()
         )
         return not missing, missing
 
@@ -197,9 +203,11 @@ def load_channel_settings(
     root: Path,
     *,
     user_path: Path | None = None,
+    environ=None,
 ) -> ChannelSettings:
     '''Load user config and apply project entries by channel name.'''
-    load_dotenv(dotenv_path=root.resolve() / '.env', override=False)
+    if environ is None:
+        load_dotenv(dotenv_path=root.resolve() / '.env', override=False)
     paths = (
         user_path or Path.home() / '.forge' / 'channels.json',
         root.resolve() / '.forge' / 'channels.json',
@@ -225,7 +233,7 @@ def load_channel_settings(
                     f'{path}: invalid channel name {name!r}.'
                 )
             merged[str(name)] = value
-    _apply_feishu_environment(merged)
+    _apply_feishu_environment(merged, environ)
     try:
         return ChannelSettings.model_validate({'channels': merged})
     except ValidationError as error:

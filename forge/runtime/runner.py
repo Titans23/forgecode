@@ -71,9 +71,10 @@ class TurnRunner:
     def journal(self):
         return self.conversation.session_journal
 
-    async def run(self, prompt: str):
-        if not prompt.strip():
-            raise ValueError('prompt must not be empty')
+    async def run(self, prompt: str, *, input_id=None):
+        from forge.messages import input_text, normalize_input
+        content = normalize_input(prompt)
+        prompt = input_text(content)
         c = self.conversation
         c.turn_state = self.state
         c._kernel_owns_events = True
@@ -81,7 +82,7 @@ class TurnRunner:
         self.messages = [*c.messages]
         try:
             async with asyncio.timeout(self.state.max_seconds):
-                await self._prepare_turn(prompt)
+                await self._prepare_turn(prompt, content=content, input_id=input_id)
                 async for event in self._loop():
                     yield event
         except BudgetExhausted as error:
@@ -93,6 +94,7 @@ class TurnRunner:
                 ('time_budget_exhausted',),
             )
         except (asyncio.CancelledError, GeneratorExit):
+            c.inbox.defer_steering()
             if self.journal is not None and not self.finished:
                 self._commit_messages()
                 self.journal.record_turn_cancelled(
@@ -106,15 +108,17 @@ class TurnRunner:
         finally:
             c._kernel_owns_events = False
 
-    async def _prepare_turn(self, prompt: str) -> None:
+    async def _prepare_turn(self, prompt: str, *, content=None, input_id=None) -> None:
         c = self.conversation
         if self.journal is not None:
             self.journal.commit()
             self.journal.record_turn_started(prompt, c.task_manager.active)
-        user_message = {'role': 'user', 'content': prompt}
+        user_message = {'role': 'user', 'content': prompt if content is None else content}
         self.messages.append(user_message)
         if self.journal is not None:
-            self.journal.record_user_message(user_message, c.task_manager.active)
+            self.journal.record_user_message(user_message, c.task_manager.active, input_id=input_id)
+        if input_id is not None:
+            c.inbox.consumed(input_id)
         from forge.observability.events import current
         recorder=current()
         if self.journal is not None or c.event_recorder is not None or recorder:
@@ -314,6 +318,7 @@ class TurnRunner:
         c = self.conversation
         while True:
             self._check_budget()
+            self._admit_steering()
             tools = self._tools()
             system = self._system()
             await self._compact(system, tools)
@@ -339,7 +344,8 @@ class TurnRunner:
             provider_completed = False
             try:
                 client = BudgetedModelClient(c.client, self.state)
-                async with aclosing(client.stream(c.context.prepare(self.messages), tools=tools, system=system)) as stream:
+                request_messages = c.context.prepare(self.messages)
+                async with aclosing(client.stream(request_messages, tools=tools, system=system)) as stream:
                     async for event in stream:
                         if isinstance(event, ModelProviderState):
                             provider_state = {'provider': event.provider, 'data': event.data}
@@ -412,6 +418,8 @@ class TurnRunner:
                 yield await self._finish('failed', getattr(error, 'reason', 'model_protocol_error'), str(error), (str(error),))
                 return
             yield ModelCallCompleted(iteration)
+            if usage is not None:
+                c.context.observe_usage(request_messages, system, tools, usage.total_input_tokens)
             text = ''.join(parts)
             if usage is None and not provider_completed:
                 raise ModelResponseError('Model response did not contain token usage.')
@@ -437,8 +445,13 @@ class TurnRunner:
                 async for event in self._batch(calls):
                     yield event
                 if self.terminal is not None:
+                    if self.terminal[0] in {'completed', 'partial'} and c.inbox.peek('steering'):
+                        self.terminal = None
+                        continue
                     yield await self._finish(*self.terminal)
                     return
+                continue
+            if c.inbox.peek('steering'):
                 continue
             reasons = await self._completion_reasons()
             if reasons:
@@ -450,8 +463,24 @@ class TurnRunner:
             yield await self._finish('completed', 'completed', self.continued_text + text, ())
             return
 
+    def _admit_steering(self):
+        from forge.messages import input_text
+        c = self.conversation
+        while (item := c.inbox.peek('steering')) is not None:
+            message = {'role': 'user', 'content': item['content']}
+            if self.journal is not None:
+                self.journal.record_user_message(message, c.task_manager.active, input_id=item['id'])
+            c.inbox.consumed(item['id'])
+            self.messages.append(message)
+            if c.task_manager.active is not None:
+                c.task_manager.continue_active(input_text(item['content']))
+            c._last_task_context = c.task_manager.system_suffix()
+            self._commit_messages()
+
     async def _batch(self, calls: list[ToolCall]):
         from forge.runtime.agent_loop import verification_from_result
+        from forge.runtime.read_pool import ReadPool, independent_reads
+        pool = ReadPool()
         c = self.conversation
         executor = c.tool_executor
         assert executor is not None
@@ -468,11 +497,19 @@ class TurnRunner:
         interrupted = False
         self.batch_active = True
         try:
-            for call in ordered:
+            for index, call in enumerate(ordered):
                 if not self.state.can_request_tool_batch(0):
                     batch_reason = 'tool_budget_exhausted'
                     self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))
-                if batch_reason:
+                if not batch_reason and not pool.contains(call):
+                    if self.state.budget_reason(include_model=False):
+                        raise BudgetExhausted(self.state.budget_reason(include_model=False))
+                    for parallel in independent_reads(c, ordered, index, c.max_parallel_reads):
+                        yield ToolExecutionStarted(parallel)
+                        pool.start(parallel, executor, self._scope_error)
+                if pool.contains(call):
+                    outcome = await pool.result(call)
+                elif batch_reason:
                     outcome = executor.record_result(call, ToolResult.fail(
                         batch_reason, 'This tool did not execute. Replan using the preceding results.',
                     ), status='cancelled')
@@ -573,12 +610,15 @@ class TurnRunner:
                 self._protocol_feedback('finish_task must be submitted alone.')
         finally:
             # Closing/cancelling an event stream must not leave a replayable tail.
+            drained = await pool.close()
             done = {call.id for call, _ in results}
             for call in ordered:
                 if call.id not in done:
-                    outcome = executor.record_result(call, ToolResult.fail(
-                        'not_executed_after_interruption', 'The tool did not execute before the turn stopped.',
-                    ), status='cancelled')
+                    outcome = drained.get(call.id)
+                    if outcome is None or isinstance(outcome, BaseException):
+                        outcome = executor.record_result(call, ToolResult.fail(
+                            'not_executed_after_interruption', 'The tool did not execute before the turn stopped.',
+                        ), status='cancelled')
                     self.state.record_execution(outcome.record)
                     results.append((call, outcome.result))
             self._append_results(results)
@@ -590,8 +630,22 @@ class TurnRunner:
             raise asyncio.CancelledError
 
     def _scope_error(self, call: ToolCall) -> ToolResult | None:
-        from forge.runtime.agent_loop import mutation_target_paths
+        from forge.tools.paths import mutation_target_paths
         c = self.conversation
+        paths = mutation_target_paths(call, maximum=None)
+        if isinstance(call.arguments.get('cwd'), str):
+            paths = (*paths, call.arguments['cwd'])
+        c.context.repository.observe_paths(paths)
+        try:
+            updated_context = c._repository_context(self.state.goal)
+        except (OSError, ValueError) as error:
+            return ToolResult.fail('repository_instructions_unavailable', str(error))
+        if updated_context != c._last_repository_context:
+            c._last_repository_context = updated_context
+            if c.registry.effect(call.name) in {'workspace_write', 'process'}:
+                return ToolResult.fail('scoped_instructions_required',
+                    'New or changed repository instructions apply to this target. '
+                    'Read the updated repository instructions in the next request before retrying.')
         if self.read_only and c.registry.effect(call.name) != 'read_only':
             return ToolResult.fail('read_only_intent', 'The current user turn only authorizes inspection.')
         if c.registry.effect(call.name) != 'workspace_write':
@@ -630,6 +684,7 @@ class TurnRunner:
         return decision.reasons
 
     async def _review_delivery(self, result: ToolResult) -> ToolResult:
+        c = self.conversation
         if not result.success or not result.metadata.get('review_delivery'):
             return result
         from forge.runtime.delivery import completion_report
@@ -640,7 +695,7 @@ class TurnRunner:
             status='completed', evidence=tuple(self.state.evidence.verification),
             workspace_revision=self.tracker.revision if self.tracker else 0,
             environment_epoch=getattr(self.tracker, 'environment_epoch', 0),
-            reasons=reasons, has_contract=self.conversation.completion_gate is not None,
+            reasons=reasons, has_contract=bool(c.completion_gate and c.completion_gate.policy.has_contract),
             usage_complete=self.state.unknown_usage_requests == 0,
         )
         content = report.summary()
@@ -804,7 +859,7 @@ class TurnRunner:
         self._append_results(results)
 
     def _commit_messages(self) -> None:
-        self.conversation.messages[:] = self.messages
+        self.conversation.session.commit_messages(self.messages)
 
     async def _finish(self, status: str, reason: str, text: str, reasons: tuple[str, ...]):
         from dataclasses import fields
@@ -823,10 +878,7 @@ class TurnRunner:
         self._commit_messages()
         evidence = tuple(self.state.evidence.verification)
         policy = c.completion_gate.policy if c.completion_gate is not None else None
-        has_contract = policy is not None and any(
-            bool(getattr(policy, field.name)) for field in fields(policy)
-            if field.name not in {'forbidden_paths', 'max_delivery_repairs'})
-        has_contract = has_contract or bool(policy and policy.forbidden_paths != TaskPolicy().forbidden_paths)
+        has_contract = bool(policy and policy.has_contract)
         report = completion_report(status=status, evidence=evidence,
             workspace_revision=self.state.workspace_revision,
             environment_epoch=self.state.environment_epoch, reasons=reasons,

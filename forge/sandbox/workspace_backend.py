@@ -9,7 +9,7 @@ import shutil
 import sys
 from uuid import uuid4
 
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 from forge.sandbox.capabilities import CapabilityReport, FEATURES, windows_supported
 from forge.sandbox.launcher import ROOT, bridge_environment, verify_runtime
 from forge.sandbox.path_policy import inspect_path

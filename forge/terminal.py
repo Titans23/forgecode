@@ -602,6 +602,7 @@ class StreamingResponseView:
         self.request_usage: TokenUsage | None = None
         self.model_calls = 0
         self.completed = False
+        self.cancelled = False
         self.result: TurnResult | None = None
         self._live_running = False
         self._prompt_paused = False
@@ -723,6 +724,12 @@ class StreamingResponseView:
         self.completed = True
         self.live.update(self._render(), refresh=True)
 
+    def cancel(self) -> None:
+        """Stop progress indicators without inventing a model or tool outcome."""
+        self.cancelled = True
+        self.completed = True
+        self.live.update(self._render(), refresh=True)
+
     def block_completion(self, reasons: tuple[str, ...]) -> None:
         '''Show why a tentative final answer was rejected by the runtime.'''
         details = '\n'.join(f'- {reason}' for reason in reasons)
@@ -735,6 +742,8 @@ class StreamingResponseView:
 
     def _render(self) -> Group:
         content = self._render_timeline()
+        if self.cancelled:
+            return Group(content, Text('↳ cancelled · token usage may be incomplete', style='dim'))
         renderables: list[object] = [content]
         if self.result is not None and (
             self.result.changed_paths
@@ -754,6 +763,8 @@ class StreamingResponseView:
 
     def _render_timeline(self) -> Group | Spinner:
         if not self.timeline:
+            if self.cancelled:
+                return Group(Text('Turn cancelled.', style='yellow'))
             return Spinner(
                 'dots',
                 Text('Waiting for model...', style='bright_cyan'),
@@ -840,7 +851,9 @@ class StreamingResponseView:
             for activity in group.activities
         )
         count = len(group.activities)
-        if pending:
+        if pending and self.cancelled:
+            rendered.append('？工具已中断，结果需核实', style='yellow')
+        elif pending:
             rendered.append('● ', style='bold bright_cyan')
             rendered.append(
                 '正在运行工具' if count == 1 else f'正在运行 {count} 个工具',
@@ -874,7 +887,7 @@ class StreamingResponseView:
             rendered.append('  └─ ' if is_last else '  ├─ ', style='dim')
             result = activity.result
             if result is None:
-                rendered.append('● ', style='bright_cyan')
+                rendered.append('? ' if self.cancelled else '● ', style='yellow' if self.cancelled else 'bright_cyan')
             elif result.success:
                 rendered.append('✓ ', style='green')
             else:

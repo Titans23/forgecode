@@ -3,6 +3,10 @@
 from __future__ import annotations
 from pathlib import Path
 from importlib import import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from forge.runtime.profile import ExecutionProfile
 
 from forge.tools.base import ToolRegistry
 _EXPORT_MODULES = {

@@ -107,6 +107,25 @@ def test_journal_result_durable_projection_failure_restarts_without_execution(tm
     assert journal.path.read_bytes() == before
 
 
+def test_live_projection_reads_only_committed_new_records_and_full_replay_still_validates(tmp_path, monkeypatch):
+    from forge.sessions.store import SessionStore
+    store, _, session = initialize(tmp_path)
+    path = store.data_dir / 'harness' / 'live.jsonl'
+    journal = SessionJournal(path, session_id=uuid4().hex, project_root=tmp_path)
+    journal.append('session_started', {})
+    with store, journal.capture_appends() as captured:
+        projector = JournalProjector(store)
+        assert projector.project(path, session['id'], trusted=True) == 1
+        journal.append('user_message', {'message': {'role': 'user', 'content': 'new input'}})
+        with monkeypatch.context() as patch:
+            patch.setattr(SessionStore, '_read_records', lambda *args: (_ for _ in ()).throw(
+                AssertionError('Live projection must not rescan the log')))
+            assert projector.project_appends(journal, session['id'], captured) == 1
+            assert projector.project_appends(journal, session['id'], captured) == 0
+        assert captured == []
+        assert projector.project(path, session['id'], trusted=True) == 0
+
+
 def test_wal_backup_restores_committed_data_while_writer_is_open(tmp_path):
     store, workspace, session = initialize(tmp_path)
     with store:

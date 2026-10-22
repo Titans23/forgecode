@@ -4,7 +4,7 @@ import platform as host_platform
 import sys
 from datetime import datetime, timezone
 
-from forge.application.models import ContractError, validate
+from forge.protocol import ContractError, validate
 
 
 FEATURES = ('read_isolation', 'write_isolation', 'direct_network_isolation', 'dns_isolation',
