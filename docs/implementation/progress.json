@@ -17,6 +17,18 @@
     "performance_evidence": ".local/implementation/architecture-performance.json",
     "native_evidence": ".local/implementation/architecture-native-windows.xml",
     "live_model_experiments": "small_component_pilot_complete_full_benchmark_not_run",
+    "live_code_ablation_round2": {
+      "status": "blocked_gateway_unreachable_no_valid_model_samples",
+      "plan_ref": ".local/implementation/code-ablation-round2-20261022T145328Z/plan.json",
+      "evidence_ref": ".local/implementation/code-ablation-round2-20261022T145328Z/analysis.json",
+      "native_grader_preflight": "baseline_fails_reference_passes",
+      "planned_runs": 18,
+      "request_limit": 216,
+      "client_stream_invocations": 24,
+      "observed_network_attempts": 6,
+      "completed_model_responses": 0,
+      "interpretation": "Infrastructure failures are not model-performance samples; successful-task latency and token metrics remain unavailable. Restore the configured gateway before starting a fresh measured batch."
+    },
     "live_component_pilot": {
       "scope": "synthetic_component_ablations_not_whole_release_benchmark",
       "evidence_ref": ".local/implementation/p1-p4-pilot-20261022T123507Z/analysis.json",
