@@ -7,7 +7,7 @@
   "architecture_improvement": {
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",
-    "P3": "scoped_auto_loading_restored_offline_native_ci_verified_live_comparison_rate_limited",
+    "P3": "scoped_auto_loading_restored_verified_live_comparison_complete_no_stable_performance_gain",
     "P4": "incremental_projection_retained_parallel_reads_and_usage_calibration_removed",
     "performance_pruning": {
       "status": "implemented_verified",
@@ -27,7 +27,7 @@
       "contracts_evidence_id": "20261023T100303Z-4aaddcd5"
     },
     "scoped_instruction_restoration": {
-      "status": "implemented_offline_native_ci_verified_live_comparison_partial",
+      "status": "implemented_offline_native_ci_verified_live_comparison_complete",
       "scope": "Accessed-ancestor rule injection and unseen-rule write/process gate only; serial tools and fixed compaction threshold retained.",
       "reason": "User requested isolated restoration after offline diagnosis found occasional saved rule reads; live performance benefit remains unverified.",
       "baseline_commit": "2d06b933a7e6583e355248590d777581f24c4c80",
@@ -41,24 +41,26 @@
       "live_evidence_directory": ".local/implementation/p3-restoration-comparison-20261023T155415Z",
       "live_plan": {"tasks": 4, "repetitions_per_condition": 2, "planned_runs": 16, "calls_per_turn": 18, "request_limit": 288, "failed_reruns": 0},
       "live_result": {
-        "status": "rate_limit_stop_gateway_not_restored",
+        "status": "completed_16_frozen_trials_with_one_rate_limit_failure",
         "analysis_ref": ".local/implementation/p3-restoration-comparison-20261023T155415Z/analysis.json",
         "audit_ref": ".local/implementation/p3-restoration-comparison-20261023T155415Z/audit.json",
-        "attempted_runs": 5,
-        "fully_successful_runs": 4,
+        "attempted_runs": 16,
+        "fully_successful_runs": 15,
         "rate_limited_runs": 1,
         "budget_exhausted_runs": 0,
-        "not_attempted_runs": 11,
-        "network_requests": 57,
+        "not_attempted_runs": 0,
+        "network_requests": 201,
         "requests_without_final_usage": 1,
-        "operational_full_completion": {"before": "2/2", "after": "2/3"},
-        "infrastructure_excluded_full_completion": {"before": "2/2", "after": "2/2"},
-        "success_only_mean_requests": {"before": 13, "after": 13},
-        "success_only_mean_seconds": {"before": 133.169, "after": 143.247},
-        "success_only_mean_total_tokens": {"before": 110306, "after": 114231},
-        "both_successful_pairs": 2,
-        "observed_mechanism": "All four successful runs explicitly read candidate/AGENTS.md, including both restored runs. The state-task request reduction comes from one multi-tool response; the restored queue run adds an explicit root-rule read. No unseen-rule gate rejection occurred. These trajectories do not yet demonstrate saved rule reads from automatic injection.",
-        "interpretation": "Partial first repetition only: state compatibility uses 14 to 13 requests after restoration, queue discard 12 to 13; no consistent reduction demonstrated. Paired task-weighted changes: requests +0.6%, time +8.9%, total tokens +4.7%, based on only two tasks. Run 005 failed on gateway rate_limit and retains unknown final request usage; it is not a successful task or evidence of a P3 correctness regression. Actual rule injection is absent in baseline and observed in restored successful runs. Original results remain frozen, no failed slot rerun, 11 unused slots retained. User confirmed gateway is not restored; no further model calls. P3 remains restored; parallel scheduler and usage calibration remain absent."
+        "operational_full_completion": {"before": "8/8", "after": "7/8"},
+        "infrastructure_excluded_full_completion": {"before": "8/8", "after": "7/7"},
+        "success_only_mean_requests": {"before": 13.375, "after": 12.714},
+        "success_only_mean_seconds": {"before": 141.038, "after": 142.388},
+        "success_only_mean_total_tokens": {"before": 122588.375, "after": 116390.143},
+        "both_successful_pairs": 7,
+        "paired_task_weighted_change_percent": {"requests": -6.513, "seconds": 1.632, "total_tokens": -3.372},
+        "continuation_ref": ".local/implementation/p3-restoration-comparison-20261023T155415Z/continue_campaign.py",
+        "observed_mechanism": "All 15 successful runs explicitly read candidate/AGENTS.md, including all seven restored runs. In seven matched successful pairs, requests fall from 93 to 89: five model round trips saved by tool batching offset one net extra tool; explicit rule reads remain 7 versus 7 and artifact reads 5 versus 5. No unseen-rule gate rejection occurred. These trajectories show no saved rule reads from automatic injection, and do not establish that P3 caused the different model batching choices.",
+        "interpretation": "All 16 slots attempted once; original five-run results and continuation prefix preserved, source/usage/success audits passed. Seven both-successful pairs across four tasks: restored requests -6.5% (exploratory interval -17.2% to +2.1%), time +1.6% (-7.8% to +11.1%), total tokens -3.4% (-13.6% to +4.9%). Two task means improve and two worsen; no stable performance or completion benefit established. Successful-only group means have unequal task coverage, so matched results are primary. Run 005 remains a gateway rate_limit failure with unknown final request usage, not a success or evidence of P3 correctness regression. The scheduled continuation completed all 11 unused slots without another infrastructure failure. P3 remains restored; parallel scheduler and usage calibration remain absent. No further model calls."
       }
     },
     "scoped_instruction_removal": {
