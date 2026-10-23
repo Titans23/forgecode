@@ -6,9 +6,26 @@
   "current_task": "T01",
   "architecture_improvement": {
     "P1": "implemented_offline_verified",
-    "P2": "implemented_offline_verified",
+    "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",
     "P3": "scoped_auto_loading_removed_multimodal_and_steering_retained",
-    "P4": "implemented_offline_verified",
+    "P4": "incremental_projection_retained_parallel_reads_and_usage_calibration_removed",
+    "performance_pruning": {
+      "status": "implemented_verified",
+      "removed": ["parallel_read_scheduler_and_configuration", "reported_usage_ratio_compaction_calibration"],
+      "retained_basis": {
+        "P1": "Live Explore ablation demonstrated parent helper survival; keep correctness and ownership fixes.",
+        "P2": "One contract and runtime construction path replaces duplicates; no independent speed benefit claimed.",
+        "P3_features": "Image input, image tools, steering and cancellation passed live API smoke; functionality rather than speed evidence.",
+        "storage": "Real SQLite/fsync projection comparison retains equal events and final integrity replay; current 100-record check reduced 3.127s to 1.531s.",
+        "routing": "The 90-trial paired comparison used more total tokens with routing disabled."
+      },
+      "storage_check_ref": ".local/implementation/performance-pruning/storage.json",
+      "regression": {"passed": 646, "failures": 0, "errors": 0, "skipped": 0},
+      "regression_ref": ".local/implementation/performance-pruning/regression.xml",
+      "native_evidence_id": "20261023T100303Z-73b7e286",
+      "quality_evidence_id": "20261023T100303Z-09f4d1b7",
+      "contracts_evidence_id": "20261023T100303Z-4aaddcd5"
+    },
     "scoped_instruction_removal": {
       "status": "implemented_verified",
       "reason": "The 90-trial P3 ablation did not demonstrate completion or performance gains. Remove path observation, nested-rule injection and its tool retry gate; retain project-wide rules, memory, multimodal input, steering and intent routing.",

@@ -135,7 +135,7 @@ asyncio.run(main())
 
 API 同时接受 `[{'type': 'text', 'text': '分析图片'}, image_block(png_bytes)]`，`image_block` 从 `forge.messages` 导入。执行中使用 `session.queue_input('追加约束')`；`follow_up=True` 排队新任务。`session.pending_inputs` 返回待办，`await session.run_next()` 明确执行下一项。同一会话不能并发启动多个回合。
 
-`RunProfile(max_parallel_reads=4, intent_routing=True)` 控制独立读取并发和前置意图分类；原生单输出流后端仍串行。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。完成报告中的运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
+`RunProfile(intent_routing=True)` 控制前置意图分类。工具批次按顺序执行，`max_parallel_reads` 参数已移除，旧调用应删除该参数。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。完成报告中的运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
 
 ## 评测与后训练
 

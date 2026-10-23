@@ -26,14 +26,11 @@ class RunProfile:
     max_model_calls: int = 80
     max_tool_calls: int = 120
     wall_seconds: int = 1800
-    max_parallel_reads: int = 4
     intent_routing: bool = True
 
     def __post_init__(self):
         if type(self.intent_routing) is not bool:
             raise ValueError('intent_routing must be a boolean')
-        if type(self.max_parallel_reads) is not int or not 1 <= self.max_parallel_reads <= 8:
-            raise ValueError('max_parallel_reads must be between 1 and 8')
         if any(type(value) is not int or value < 1 for value in (self.max_model_calls, self.max_tool_calls, self.wall_seconds)):
             raise ValueError('Profile budgets must be positive')
 
@@ -119,7 +116,6 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=model_client_factory,
         permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
         max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
-        max_parallel_reads=options.profile.max_parallel_reads,
         intent_routing=options.profile.intent_routing,
         wall_seconds=options.profile.wall_seconds)
     try:

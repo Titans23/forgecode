@@ -419,8 +419,6 @@ class TurnRunner:
                 yield await self._finish('failed', getattr(error, 'reason', 'model_protocol_error'), str(error), (str(error),))
                 return
             yield ModelCallCompleted(iteration)
-            if usage is not None:
-                c.context.observe_usage(request_messages, system, tools, usage.total_input_tokens)
             text = ''.join(parts)
             if usage is None and not provider_completed:
                 raise ModelResponseError('Model response did not contain token usage.')
@@ -484,8 +482,6 @@ class TurnRunner:
 
     async def _batch(self, calls: list[ToolCall]):
         from forge.runtime.agent_loop import verification_from_result
-        from forge.runtime.read_pool import ReadPool, independent_reads
-        pool = ReadPool()
         c = self.conversation
         executor = c.tool_executor
         assert executor is not None
@@ -502,19 +498,11 @@ class TurnRunner:
         interrupted = False
         self.batch_active = True
         try:
-            for index, call in enumerate(ordered):
+            for call in ordered:
                 if not self.state.can_request_tool_batch(0):
                     batch_reason = 'tool_budget_exhausted'
                     self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))
-                if not batch_reason and not pool.contains(call):
-                    if self.state.budget_reason(include_model=False):
-                        raise BudgetExhausted(self.state.budget_reason(include_model=False))
-                    for parallel in independent_reads(c, ordered, index, c.max_parallel_reads):
-                        yield ToolExecutionStarted(parallel)
-                        pool.start(parallel, executor, self._scope_error)
-                if pool.contains(call):
-                    outcome = await pool.result(call)
-                elif batch_reason:
+                if batch_reason:
                     outcome = executor.record_result(call, ToolResult.fail(
                         batch_reason, 'This tool did not execute. Replan using the preceding results.',
                     ), status='cancelled')
@@ -615,15 +603,12 @@ class TurnRunner:
                 self._protocol_feedback('finish_task must be submitted alone.')
         finally:
             # Closing/cancelling an event stream must not leave a replayable tail.
-            drained = await pool.close()
             done = {call.id for call, _ in results}
             for call in ordered:
                 if call.id not in done:
-                    outcome = drained.get(call.id)
-                    if outcome is None or isinstance(outcome, BaseException):
-                        outcome = executor.record_result(call, ToolResult.fail(
-                            'not_executed_after_interruption', 'The tool did not execute before the turn stopped.',
-                        ), status='cancelled')
+                    outcome = executor.record_result(call, ToolResult.fail(
+                        'not_executed_after_interruption', 'The tool did not execute before the turn stopped.',
+                    ), status='cancelled')
                     self.state.record_execution(outcome.record)
                     results.append((call, outcome.result))
             self._append_results(results)

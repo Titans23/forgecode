@@ -110,7 +110,6 @@ class Conversation:
         task_relation: str | None = None,
         tool_backend: Any | None = None,
         owns_tool_backend: bool = True,
-        max_parallel_reads: int = 4,
         event_recorder: Any | None = None,
         turn_baseline_handler: Any | None = None,
     ) -> None:
@@ -133,9 +132,6 @@ class Conversation:
                               DeprecationWarning, stacklevel=2)
         self.event_recorder = event_recorder
         self.owns_tool_backend = owns_tool_backend
-        if type(max_parallel_reads) is not int or not 1 <= max_parallel_reads <= 8:
-            raise ValueError('max_parallel_reads must be between 1 and 8')
-        self.max_parallel_reads = max_parallel_reads
         self._close_task = None
         self.turn_baseline_handler = turn_baseline_handler
         if max_iterations is not None and max_iterations < 1:

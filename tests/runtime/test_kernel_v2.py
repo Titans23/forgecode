@@ -254,6 +254,84 @@ def test_conversation_exposes_only_controlled_artifact_reader(tmp_path: Path) ->
     assert tool is not None and tool.manager is conversation.context
 
 
+@pytest.mark.parametrize('outcome', ['success', 'failure', 'cancel'])
+def test_read_batch_runs_in_order_and_stops_before_unexecuted_tail(tmp_path, outcome):
+    from forge.runtime.agent_loop import Conversation
+    from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted, ModelTextDelta
+    from forge.tools.base import ToolRegistry
+    from forge.tools.filesystem import ReadFileTool
+
+    for index in range(3):
+        if not (outcome == 'failure' and index == 1):
+            (tmp_path / f'{index}.txt').write_text(f'file {index}', encoding='utf-8')
+
+    async def exercise():
+        tool = ReadFileTool(tmp_path)
+        execute = tool.execute
+        paths = []
+        active = maximum = 0
+        second_started = asyncio.Event()
+
+        async def observed(arguments):
+            nonlocal active, maximum
+            paths.append(arguments.path)
+            active += 1
+            maximum = max(maximum, active)
+            try:
+                if outcome == 'cancel' and arguments.path == '1.txt':
+                    second_started.set()
+                    await asyncio.Future()
+                await asyncio.sleep(0)
+                return await execute(arguments)
+            finally:
+                active -= 1
+
+        tool.execute = observed
+
+        class Model:
+            calls = 0
+
+            async def stream(self, messages, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    for index in (2, 0, 1):
+                        yield ModelToolCallCompleted(ToolCall(index, str(index), 'read_file', {'path': f'{index}.txt'}))
+                else:
+                    assert [block['tool_use_id'] for block in messages[-1]['content']] == ['0', '1', '2']
+                    yield ModelTextDelta('done')
+                yield ModelResponseCompleted('tool_use' if self.calls == 1 else 'end_turn')
+
+        conversation = Conversation(client=Model(), registry=ToolRegistry([tool]),
+            context_root=tmp_path, include_task_tools=False)
+
+        async def consume():
+            async for _ in conversation.stream('Read the three files.'):
+                pass
+
+        task = asyncio.create_task(consume())
+        try:
+            if outcome == 'cancel':
+                await asyncio.wait_for(second_started.wait(), 2)
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            else:
+                await task
+            assert maximum == 1 and active == 0
+            assert paths == (['0.txt', '1.txt', '2.txt'] if outcome == 'success' else ['0.txt', '1.txt'])
+            records = conversation.turn_state.execution_records
+            assert [record.tool_call_id for record in records] == ['0', '1', '2']
+            if outcome != 'success':
+                assert records[-1].status == 'cancelled'
+                assert not records[-1].success
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            await conversation.runtime_close()
+
+    run(exercise())
+
+
 def test_verification_evidence_is_invalidated_by_environment_epoch(
     tmp_path: Path,
 ) -> None:
