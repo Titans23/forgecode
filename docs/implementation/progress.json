@@ -7,7 +7,7 @@
   "architecture_improvement": {
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",
-    "P3": "scoped_auto_loading_removed_multimodal_and_steering_retained",
+    "P3": "scoped_auto_loading_restored_offline_native_verified_live_comparison_pending",
     "P4": "incremental_projection_retained_parallel_reads_and_usage_calibration_removed",
     "performance_pruning": {
       "status": "implemented_verified",
@@ -25,6 +25,19 @@
       "native_evidence_id": "20261023T100303Z-73b7e286",
       "quality_evidence_id": "20261023T100303Z-09f4d1b7",
       "contracts_evidence_id": "20261023T100303Z-4aaddcd5"
+    },
+    "scoped_instruction_restoration": {
+      "status": "implemented_offline_native_verified_live_comparison_pending",
+      "scope": "Accessed-ancestor rule injection and unseen-rule write/process gate only; serial tools and fixed compaction threshold retained.",
+      "reason": "User requested isolated restoration after offline diagnosis found occasional saved rule reads; live performance benefit remains unverified.",
+      "baseline_commit": "2d06b933a7e6583e355248590d777581f24c4c80",
+      "regression": {"passed": 535, "failures": 0, "errors": 0, "skipped": 0},
+      "regression_ref": ".local/implementation/p3-rule-restoration/regression.xml",
+      "quality_evidence_id": "20261023T155332Z-41cf5dfc",
+      "contracts_evidence_id": "20261023T155332Z-db118f48",
+      "native_evidence_id": "20261023T155443Z-80035092",
+      "live_evidence_directory": ".local/implementation/p3-restoration-comparison-20261023T155415Z",
+      "live_plan": {"tasks": 4, "repetitions_per_condition": 2, "planned_runs": 16, "calls_per_turn": 18, "request_limit": 288, "failed_reruns": 0}
     },
     "scoped_instruction_removal": {
       "status": "implemented_verified",

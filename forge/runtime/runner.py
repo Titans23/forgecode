@@ -57,6 +57,7 @@ class TurnRunner:
         self.reactive_compaction_used = False
         self.batch_active = False
         self.pending_feedback: list[str] = []
+        self.request_repository_context = ''
         self.mutation_attempted = False
         self.mutation_failed = False
         self.consecutive_tool_protocol_errors = 0
@@ -321,6 +322,7 @@ class TurnRunner:
             self._check_budget()
             self._admit_steering()
             tools = self._tools()
+            self.request_repository_context = c._last_repository_context
             system = self._system()
             await self._compact(system, tools)
             self._check_budget()
@@ -622,11 +624,26 @@ class TurnRunner:
     def _scope_error(self, call: ToolCall) -> ToolResult | None:
         from forge.tools.paths import mutation_target_paths
         c = self.conversation
+        paths = mutation_target_paths(call, maximum=None)
+        observed = paths
+        if isinstance(call.arguments.get('cwd'), str):
+            observed = (*observed, call.arguments['cwd'])
+        c.context.repository.observe_paths(observed)
+        try:
+            updated_context = c._repository_context(self.state.goal)
+        except (OSError, ValueError) as error:
+            return ToolResult.fail('repository_instructions_unavailable', str(error))
+        c._last_repository_context = updated_context
+        # Reads may discover rules earlier in this batch; only the next model
+        # request can see them. Do not let a later write bypass that boundary.
+        if updated_context != self.request_repository_context and c.registry.effect(call.name) in {'workspace_write', 'process'}:
+            return ToolResult.fail('scoped_instructions_required',
+                'New or changed repository instructions apply to this target. '
+                'Read the updated repository instructions in the next request before retrying.')
         if self.read_only and c.registry.effect(call.name) != 'read_only':
             return ToolResult.fail('read_only_intent', 'The current user turn only authorizes inspection.')
         if c.registry.effect(call.name) != 'workspace_write':
             return None
-        paths = mutation_target_paths(call, maximum=None)
         if c.task_manager.outside_scope(paths):
             return ToolResult.fail('outside_task_scope', 'The operation targets paths outside the explicit user scope.')
         if c.completion_gate is not None:

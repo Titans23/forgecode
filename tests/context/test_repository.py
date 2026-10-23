@@ -103,7 +103,26 @@ def test_hardlinked_instructions_cannot_read_another_file(tmp_path):
         RepositoryContext(tmp_path).instructions()
 
 
-def test_nested_rules_are_read_explicitly_without_blocking_tools(tmp_path):
+def test_accessed_ancestor_rules_are_ordered_refreshed_and_scoped(tmp_path):
+    (tmp_path / 'AGENTS.md').write_text('root rule')
+    (tmp_path / 'src' / 'nested').mkdir(parents=True)
+    (tmp_path / 'other').mkdir()
+    rule = tmp_path / 'src' / 'AGENTS.md'
+    rule.write_text('src rule')
+    (tmp_path / 'src' / 'nested' / 'FORGE.md').write_text('nested rule')
+    (tmp_path / 'other' / 'AGENTS.md').write_text('unrelated rule')
+    context = RepositoryContext(tmp_path)
+    assert 'src rule' not in context.instructions()
+    context.observe_paths(['src/nested/new.py', '../outside/file.py'])
+    text = context.instructions()
+    assert text.index('root rule') < text.index('src rule') < text.index('nested rule')
+    assert 'Applies to src/nested/' in text
+    assert 'unrelated rule' not in text
+    rule.write_text('updated rule')
+    assert 'updated rule' in context.instructions()
+
+
+def test_nested_rules_are_injected_after_read_and_refreshed_next_turn(tmp_path):
     import asyncio
     from forge.runtime.agent_loop import Conversation
     from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted, ModelTextDelta, ToolCall
@@ -122,20 +141,17 @@ def test_nested_rules_are_read_explicitly_without_blocking_tools(tmp_path):
 
         async def stream(self, messages, system, **kwargs):
             self.calls += 1
-            assert 'Nested project notice.' not in system
-            assert ('Updated root rule.' if self.calls == 5 else 'Root project rule.') in system
+            assert ('Nested project notice.' in system) == (self.calls > 1)
+            assert ('Updated root rule.' if self.calls == 4 else 'Root project rule.') in system
             if self.calls == 1:
                 yield ModelToolCallCompleted(ToolCall(0, 'read-input', 'read_file', {'path': 'src/input.txt'}))
             elif self.calls == 2:
                 yield ModelToolCallCompleted(ToolCall(0, 'write-result', 'write_file',
                     {'path': 'src/result.txt', 'content': 'result'}))
-            elif self.calls == 3:
-                assert (tmp_path / 'src' / 'result.txt').read_text() == 'result'
-                yield ModelToolCallCompleted(ToolCall(0, 'read-rules', 'read_file', {'path': 'src/AGENTS.md'}))
             else:
-                assert 'Nested project notice.' in str(messages)
+                assert (tmp_path / 'src' / 'result.txt').read_text() == 'result'
                 yield ModelTextDelta('done')
-            yield ModelResponseCompleted('tool_use' if self.calls <= 3 else 'end_turn')
+            yield ModelResponseCompleted('tool_use' if self.calls <= 2 else 'end_turn')
 
     async def run():
         model = Model()
@@ -143,14 +159,63 @@ def test_nested_rules_are_read_explicitly_without_blocking_tools(tmp_path):
             registry=ToolRegistry([ReadFileTool(tmp_path), WriteFileTool(tmp_path)]), include_task_tools=False,
             permission_manager=PermissionManager(tmp_path, mode='auto', load_stored_rules=False))
         try:
-            async for _ in conversation.stream('Read the input, create src/result.txt, then read src/AGENTS.md.'):
+            async for _ in conversation.stream('Read the input, then create src/result.txt.'):
                 pass
-            assert model.calls == 4
+            assert model.calls == 3
             assert conversation.turn_state.stop_reason == 'completed'
             root_rule.write_text('Updated root rule.', encoding='utf-8')
             async for _ in conversation.stream('Summarize the previous work.'):
                 pass
-            assert model.calls == 5
+            assert model.calls == 4
+        finally:
+            await conversation.runtime_close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('read_in_same_batch', [False, True])
+def test_unseen_rules_block_write_until_next_model_request(tmp_path, read_in_same_batch):
+    import asyncio
+    from forge.runtime.agent_loop import Conversation
+    from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted, ModelTextDelta, ToolCall
+    from forge.permissions.policy import PermissionManager
+    from forge.tools.base import ToolRegistry
+    from forge.tools.filesystem import ReadFileTool, WriteFileTool
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'AGENTS.md').write_text('Include the project notice in new files.')
+    (tmp_path / 'src' / 'input.txt').write_text('input')
+    target = tmp_path / 'src' / 'result.txt'
+
+    class Model:
+        calls = 0
+
+        async def stream(self, messages, system, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                if read_in_same_batch:
+                    yield ModelToolCallCompleted(ToolCall(0, 'read', 'read_file', {'path': 'src/input.txt'}))
+                yield ModelToolCallCompleted(ToolCall(1, 'unseen-write', 'write_file',
+                    {'path': 'src/result.txt', 'content': 'missing notice'}))
+            elif self.calls == 2:
+                assert not target.exists()
+                assert 'Include the project notice' in system
+                assert 'scoped_instructions_required' in str(messages[-1])
+                yield ModelToolCallCompleted(ToolCall(0, 'informed-write', 'write_file',
+                    {'path': 'src/result.txt', 'content': 'project notice'}))
+            else:
+                yield ModelTextDelta('done')
+            yield ModelResponseCompleted('tool_use' if self.calls < 3 else 'end_turn')
+
+    async def run():
+        conversation = Conversation(client=Model(), context_root=tmp_path,
+            registry=ToolRegistry([ReadFileTool(tmp_path), WriteFileTool(tmp_path)]), include_task_tools=False,
+            permission_manager=PermissionManager(tmp_path, mode='auto', load_stored_rules=False))
+        try:
+            async for _ in conversation.stream('Create src/result.txt'):
+                pass
+            assert target.read_text() == 'project notice'
+            # This boundary-only fixture supplies no independent delivery
+            # evidence to clear the rejected write; do not claim acceptance.
+            assert conversation.turn_state.stop_reason == 'acceptance_unmet'
         finally:
             await conversation.runtime_close()
     asyncio.run(run())
