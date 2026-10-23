@@ -181,31 +181,17 @@ class MemoryStore:
 
 
 class RepositoryContext:
-    '''Load scoped repository instructions and query-relevant memory.'''
+    '''Load project-wide repository instructions and query-relevant memory.'''
 
     def __init__(self, root: Path) -> None:
         self.root = root.resolve()
         self.memory = MemoryStore(self.root)
-        self._scopes: set[Path] = set()
-
-    def observe_paths(self, paths) -> None:
-        """Activate only ancestor rules of paths actually used by this session."""
-        for raw in paths:
-            candidate = (self.root / raw).resolve(strict=False)
-            if not candidate.is_relative_to(self.root):
-                continue
-            directory = candidate if candidate.is_dir() else candidate.parent
-            while directory != self.root and directory.is_relative_to(self.root):
-                self._scopes.add(directory)
-                directory = directory.parent
 
     def instructions(self) -> str:
         paths = [self.root / 'AGENTS.md', self.root / 'FORGE.md']
         rules = self.root / '.forge' / 'rules'
         if rules.exists():
             paths.extend(sorted(rules.glob('*.md')))
-        for directory in sorted(self._scopes, key=lambda path: (len(path.parts), path.as_posix())):
-            paths.extend((directory / 'AGENTS.md', directory / 'FORGE.md'))
         sections: list[str] = []
         total = 0
         for path in paths:
@@ -219,9 +205,7 @@ class RepositoryContext:
                 raise ValueError(f'Repository instruction file exceeds 16000 characters: {path.relative_to(self.root)}')
             if total + len(content) > 32_000:
                 raise ValueError('Applicable repository instructions exceed the 32000-character budget')
-            scope = '.' if path.parent == rules else path.parent.relative_to(self.root).as_posix()
-            sections.append(f'## {path.relative_to(self.root).as_posix()}\n'
-                            f'Applies to {scope}/ and descendants; deeper instructions apply within their own scope.\n{content}')
+            sections.append(f'## {path.relative_to(self.root).as_posix()}\n{content}')
             total += len(content)
         return '\n\n'.join(sections)
 

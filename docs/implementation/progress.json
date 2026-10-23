@@ -7,8 +7,17 @@
   "architecture_improvement": {
     "P1": "implemented_offline_verified",
     "P2": "implemented_offline_verified",
-    "P3": "implemented_offline_verified",
+    "P3": "scoped_auto_loading_removed_multimodal_and_steering_retained",
     "P4": "implemented_offline_verified",
+    "scoped_instruction_removal": {
+      "status": "implemented_verified",
+      "reason": "The 90-trial P3 ablation did not demonstrate completion or performance gains. Remove path observation, nested-rule injection and its tool retry gate; retain project-wide rules, memory, multimodal input, steering and intent routing.",
+      "regression": {"passed": 590, "failures": 0, "errors": 0, "skipped": 0},
+      "regression_ref": ".local/implementation/scoped-instruction-removal/regression.xml",
+      "native_evidence_id": "20261023T095059Z-397d487a",
+      "quality_evidence_id": "20261023T094929Z-0a4c5f00",
+      "contracts_evidence_id": "20261023T095009Z-f0d7a081"
+    },
     "regression_evidence_id": "20261022T100228Z-5370abd9",
     "quality_evidence_id": "20261022T100234Z-88a0daee",
     "regression": {"collected": 1441, "failures": 0, "errors": 0, "skipped": 0},

@@ -637,20 +637,6 @@ class TurnRunner:
     def _scope_error(self, call: ToolCall) -> ToolResult | None:
         from forge.tools.paths import mutation_target_paths
         c = self.conversation
-        paths = mutation_target_paths(call, maximum=None)
-        if isinstance(call.arguments.get('cwd'), str):
-            paths = (*paths, call.arguments['cwd'])
-        c.context.repository.observe_paths(paths)
-        try:
-            updated_context = c._repository_context(self.state.goal)
-        except (OSError, ValueError) as error:
-            return ToolResult.fail('repository_instructions_unavailable', str(error))
-        if updated_context != c._last_repository_context:
-            c._last_repository_context = updated_context
-            if c.registry.effect(call.name) in {'workspace_write', 'process'}:
-                return ToolResult.fail('scoped_instructions_required',
-                    'New or changed repository instructions apply to this target. '
-                    'Read the updated repository instructions in the next request before retrying.')
         if self.read_only and c.registry.effect(call.name) != 'read_only':
             return ToolResult.fail('read_only_intent', 'The current user turn only authorizes inspection.')
         if c.registry.effect(call.name) != 'workspace_write':

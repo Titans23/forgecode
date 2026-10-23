@@ -122,3 +122,13 @@ def test_request_stats_use_cheap_compaction_and_keep_stored_totals() -> None:
     assert stats.projected_tokens == (
         stats.estimated_tokens + stats.reserved_output_tokens
     )
+
+
+def test_reported_usage_can_raise_compaction_estimate_without_erasing_history(tmp_path):
+    messages = [{'role': 'user', 'content': '中文内容' * 500}]
+    context = ContextManager(messages, tmp_path)
+    assert not context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=1024)
+    context.observe_usage(messages, '', None, 3000)
+    assert context.token_scale > 1
+    assert context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=1024)
+    assert messages[0]['content'].startswith('中文内容')
