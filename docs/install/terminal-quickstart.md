@@ -90,7 +90,9 @@ forge --sandbox full-access --approval supervised
 forge --sandbox workspace-write --approval plan
 ```
 
-默认 `workspace-write` 允许所选项目写入；指定 `--write-root` 后只授予列出的既有子目录。普通文件编辑复用已选写入范围，删除、命令及其他风险仍经过权限决策。`read-only` 拒绝文件修改；`full-access` 显式使用宿主执行。`plan/supervised/auto` 是独立的审批策略，切换它不会改变沙盒范围。
+默认 `workspace-write` 允许所选项目写入；指定 `--write-root` 后只授予列出的既有子目录。普通文件编辑复用已选写入范围，删除、命令及其他风险仍经过权限决策。`read-only` 禁止修改项目，但允许每次执行的私有临时文件；执行结束后清理。`full-access` 显式使用宿主执行。`plan/supervised/auto` 是独立的审批策略，切换它不会改变沙盒范围。
+
+Windows 沙盒命令中的 `python` 通过会话级小型虚拟环境复用本机解释器和依赖，使默认临时目录继承已隔离的私有 ACL；会话退出后清理该环境。普通启动、`python -I` 及其 Python 子进程支持此适配。显式 `-S`、其他绝对路径解释器或在私有临时范围之外创建 `0700` 目录不经过适配，仍可能受 [CPython 的 Windows 受限令牌兼容问题](https://github.com/python/cpython/issues/134587)影响。
 
 文件工具按读取/写入范围限制访问，并拒绝凭据、控制目录及不安全链接。当前 OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程、Linux 动态硬链接等限制仍存在，能力记录为 partial。初始化使用真实边界探针，失败直接拒绝任务。强隔离的正式评测要求不能由此替代。
 

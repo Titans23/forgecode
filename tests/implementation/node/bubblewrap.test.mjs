@@ -21,10 +21,11 @@ test('Linux boundary rejects ambiguous or overlapping roots', () => {
   }
 });
 
-test('read-only launches have no writable filesystem binds', () => {
+test('read-only launches grant only private scratch writes', () => {
   const result = bubblewrapArgv('/work', '/control/temp', '/runtime/node', [], true);
   assert.ok(result.includes('--ro-bind'));
-  assert.ok(!result.includes('--bind'));
+  assert.equal(result.filter(arg => arg === '--bind').length, 1);
+  assert.deepEqual(result.slice(result.indexOf('--bind'), result.indexOf('--bind') + 3), ['--bind', '/control/temp', '/control/temp']);
 });
 
 test('explicit subdirectory scope binds only that directory and private temp', () => {

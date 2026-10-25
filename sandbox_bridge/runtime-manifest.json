@@ -8680,7 +8680,7 @@
     },
     {
       "path": "sandbox_bridge/dist/bubblewrap.js",
-      "sha256": "4f1cc0179b791865034addeb1037a62ab84acd7e00e744a06f57ea0d0465be41"
+      "sha256": "70b9f1eb8137fd9fc56b7e71faa1cd4de9d171ee23bc71ab648f46daeb1ef9a0"
     },
     {
       "path": "sandbox_bridge/dist/dispatcher.js",
@@ -8692,7 +8692,7 @@
     },
     {
       "path": "sandbox_bridge/dist/workspace-runner.js",
-      "sha256": "70aeb1037cdda3477283949b6580b079471545e52175699d919f88fb536ce611"
+      "sha256": "767c95649cfc9d7086534bc047a57a46cea6c8c4f9384a4c71249903d80bbaab"
     },
     {
       "path": "sandbox_bridge/package.json",

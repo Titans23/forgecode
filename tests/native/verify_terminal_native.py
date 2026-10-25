@@ -156,3 +156,46 @@ def test_native_public_session_continues_with_structured_events(tmp_path):
             assert events[-1]['payload']['result']['text'] == 'offline native response'
         assert session.cleanup['state'] == 'clean'
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('mode', ['read-only', 'workspace-write'])
+def test_native_python_private_temporary_directory_and_cleanup(tmp_path, mode):
+    async def run():
+        options = settings(tmp_path, mode)
+        script = """
+from pathlib import Path
+import tempfile, os, subprocess, sys, json
+with tempfile.TemporaryDirectory() as directory:
+    path = Path(directory)
+    (path / 'nested').mkdir()
+    (path / 'nested/result').write_text('temporary data')
+    assert (path / 'nested/result').read_text() == 'temporary data'
+    if os.name == 'nt':
+        import win32security
+        scope = json.loads(os.environ['FORGE_NATIVE_SCOPE'])
+        acl = win32security.GetFileSecurity(str(path), win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
+        allowed = {win32security.ConvertSidToStringSid(acl.GetAce(i)[2]) for i in range(acl.GetAceCount()) if acl.GetAce(i)[0][0] == 0}
+        assert scope['tempSid'] in allowed
+        assert not allowed.intersection({'S-1-1-0','S-1-5-11','S-1-5-32-545','S-1-5-4'})
+assert not path.exists()
+subprocess.run([sys.executable, '-I', '-c', 'import tempfile; t=tempfile.TemporaryDirectory(); t.cleanup()'], check=True)
+try:
+    Path('../escape.txt').write_text('must be denied')
+except OSError:
+    pass
+else:
+    raise AssertionError('OS write scope was widened')
+print('private temporary directory passed')
+"""
+        (options.root / 'temp_check.py').write_text(script, encoding='utf-8')
+        async with await HarnessSession.open(options) as session:
+            for command in ('python temp_check.py', 'python -I temp_check.py'):
+                result = await session.backend.execute(ToolCall(0, 'temp', 'run_command',
+                    {'command': command, 'timeout_seconds': 15}), session.conversation.registry)
+                assert result.success and 'private temporary directory passed' in result.content, result
+            native = session.backend.observer.native
+        assert session.cleanup['state'] == 'clean'
+        assert not list(native.control_root.glob('temp-*'))
+        assert not (native.control_root / 'python-runtime').exists()
+        assert not (options.root.parent / 'escape.txt').exists()
+    asyncio.run(run())

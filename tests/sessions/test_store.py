@@ -352,3 +352,16 @@ def test_session_index_is_rebuilt_when_journal_changes(
     )
 
     assert store.list()[0].sequence == 3
+
+
+def test_session_index_detects_append_with_unchanged_timestamp(tmp_path: Path) -> None:
+    import os
+    root = tmp_path / 'project'
+    root.mkdir()
+    store = SessionStore(root, data_root=tmp_path / 'data')
+    journal = store.create(model='test-model')
+    assert store.list()[0].sequence == 1
+    before = journal.path.stat()
+    journal.record_user_message({'role': 'user', 'content': 'new event'}, None)
+    os.utime(journal.path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    assert store.list()[0].sequence == 3

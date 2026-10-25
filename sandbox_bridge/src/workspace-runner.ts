@@ -1,7 +1,7 @@
 /** Fixed DSH entry. ForgeCode owns the enclosing Job and revokes temp grants after it is empty. */
 import { spawn } from 'node:child_process';
 import { lstat, realpath } from 'node:fs/promises';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { delimiter, dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readLaunchPayload } from './launch-payload.js';
 import { commandArgv, commandEnvironment, decodeLaunchPayload } from './dispatcher.js';
@@ -25,6 +25,11 @@ async function main() {
     args.pop();
     if (!Array.isArray(writeRoots) || !writeRoots.every(root => typeof root === 'string' && isAbsolute(root)))
       throw new Error('Invalid write roots');
+  }
+  let pythonRuntime: string | undefined;
+  if (args.at(-2) === '--python-runtime') {
+    pythonRuntime = await directory(args.pop()!);
+    args.pop();
   }
   if (args.length === 2 && args[0] === '--cleanup-temp') {
     const temp = await directory(args[1]);
@@ -62,18 +67,26 @@ async function main() {
   if (!readOnly) {
     const workspaceGrant = AclWriteGrant.create(writeSid);
     try { for (const root of writeRoots) workspaceGrant.add(root, true); } finally { workspaceGrant.dispose(); }
-    const tempGrant = AclWriteGrant.create(tempSid);
-    tempGrant.add(temp);
   }
+  const tempGrant = AclWriteGrant.create(tempSid);
+  tempGrant.add(temp);
   const { payload } = decodeLaunchPayload(raw);
   const argv = commandArgv(payload.command, payload.shells, payload.tools);
   const environment = commandEnvironment(payload.command, payload.tools, temp);
+  if (pythonRuntime) {
+    if (pythonRuntime === workspace || pythonRuntime.startsWith(workspace + '\\') ||
+        pythonRuntime === temp || pythonRuntime.startsWith(temp + '\\')) throw new Error('Python runtime must be outside task writes');
+    environment.PATH = pythonRuntime + delimiter + environment.PATH;
+    environment.FORGE_NATIVE_SCOPE = JSON.stringify({ temp, tempSid });
+  }
   for (const key of Object.keys(process.env)) if (!(key in environment)) delete process.env[key];
   Object.assign(process.env, environment);
   process.chdir(payload.command.cwd);
-  const sandbox = new AclSandbox({ mode: readOnly ? 'read-only' : 'workspace-write',
+  // Project read-only still needs a private scratch capability. Use a distinct
+  // ungranted workspace SID so standing grants cannot authorize project writes.
+  const sandbox = new AclSandbox({ mode: 'workspace-write',
     writableDirs: readOnly ? [] : writeRoots, manageDacls: false,
-    ...(readOnly ? {} : { tempDir: temp, writeSid, tempWriteSid: tempSid }) });
+    tempDir: temp, writeSid: readOnly ? workspaceWriteSid('readonly:' + temp) : writeSid, tempWriteSid: tempSid });
   try {
     await sandbox.init();
     const child = sandbox.spawn({ command: argv[0], args: argv.slice(1), cwd: payload.command.cwd, stdio: 'inherit' });

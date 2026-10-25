@@ -761,6 +761,7 @@ class SessionStore:
                 if (
                     not path.is_file()
                     or path.stat().st_mtime_ns != entry.get('mtime_ns')
+                    or path.stat().st_size != entry.get('size_bytes')
                 ):
                     return None
                 sessions.append(
@@ -802,6 +803,7 @@ class SessionStore:
                     'sequence': info.sequence,
                     'message_count': info.message_count,
                     'mtime_ns': info.path.stat().st_mtime_ns,
+                    'size_bytes': info.path.stat().st_size,
                 }
                 for info in sessions
             ],

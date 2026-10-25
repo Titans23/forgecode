@@ -90,8 +90,10 @@ class WorkspaceWriteBackend:
         inspect_path(str(self.control_root), absolute=True).assert_current()
         self.control_root.mkdir(parents=True, exist_ok=False, mode=0o700)
         if sys.platform == 'win32':
-            from forge.sandbox.windows_worker import grant_controller_access
+            from forge.sandbox.windows_worker import grant_controller_access, prepare_python_runtime
             grant_controller_access(self.control_root)
+            self.python_runtime = self.control_root / 'python-runtime' / 'Scripts'
+            prepare_python_runtime(self.control_root)
         self._policy = snapshot
         identity = 'exec-' + str(uuid4())
         write_roots = snapshot.value['filesystem']['write_roots']
@@ -208,6 +210,8 @@ class WorkspaceWriteBackend:
             with payload.open('xb') as output: output.write(raw)
             argv = [str(self.runtime.node),str(self.runner),'--workspace',self.workspace['canonical_path'],'--temp',str(temp),
                 '--payload-file',str(payload),'--payload-sha256',sha256(raw).hexdigest()]
+            if sys.platform == 'win32':
+                argv += ['--python-runtime', str(self.python_runtime)]
             argv += ['--write-roots', json.dumps(self._policy.value['filesystem']['write_roots'])]
             if self.mode == 'read-only':
                 argv.append('--read-only')
@@ -235,7 +239,7 @@ class WorkspaceWriteBackend:
             clean = processes['state'] == 'clean'
             if clean and temp.exists():
                 try:
-                    if sys.platform == 'win32' and self.mode != 'read-only': await self._revoke_temp(temp)
+                    if sys.platform == 'win32': await self._revoke_temp(temp)
                     if temp.parent != self.control_root or temp.resolve() != temp: raise ValueError('Owned temp identity changed')
                     shutil.rmtree(private_storage_path(temp))
                     clean = not temp.exists()
@@ -302,7 +306,19 @@ class WorkspaceWriteBackend:
         if tasks:
             _,pending = await asyncio.wait(tasks,timeout=8)
             if pending: return self._report('unknown')
-        return self._report('clean' if all(e['cleanup']['state']=='clean' for e in self._executions.values()) else 'unknown')
+        if not all(e['cleanup']['state']=='clean' for e in self._executions.values()):
+            return self._report('unknown')
+        if getattr(self, 'python_runtime', None) is not None:
+            root = self.python_runtime.parent
+            try:
+                if root != self.control_root / 'python-runtime':
+                    raise ValueError('Python runtime ownership changed')
+                inspect_path(root, absolute=True).assert_current()
+                if root.exists():
+                    shutil.rmtree(private_storage_path(root))
+            except (OSError, ValueError):
+                return self._report('unknown')
+        return self._report('clean')
 
     async def aclose(self):
         await self.close()

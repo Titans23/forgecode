@@ -123,3 +123,28 @@ def test_failed_resource_reconciliation_remains_unknown(tmp_path, monkeypatch, f
         assert list(backend.control_root.glob('temp-exec-*'))
         assert (await backend.close())['state']=='unknown'
     asyncio.run(run())
+
+
+def test_partial_python_runtime_preparation_is_owned_and_cleaned(tmp_path, monkeypatch):
+    import forge.sandbox.workspace_backend as module
+    import forge.sandbox.windows_worker as worker
+    policy, backend = fixture(tmp_path)
+    monkeypatch.setattr(module, 'sys', SimpleNamespace(platform='win32'))
+    monkeypatch.setattr(module, 'windows_supported', lambda: True)
+    monkeypatch.setattr(module, 'verify_runtime', lambda root: SimpleNamespace(
+        root=tmp_path / 'installation', node=tmp_path / 'node', entry=tmp_path / 'runner', tools={}))
+    monkeypatch.setattr(worker, 'grant_controller_access', lambda directory: None)
+    def partial(control):
+        root = control / 'python-runtime'
+        root.mkdir()
+        (root / 'partial').write_text('partial preparation')
+        raise OSError('injected venv failure')
+    monkeypatch.setattr(worker, 'prepare_python_runtime', partial)
+    async def run():
+        with pytest.raises(OSError, match='venv failure'):
+            await backend.prepare(policy)
+        assert (backend.control_root / 'python-runtime').exists()
+        assert (await backend.close())['state'] == 'clean'
+        assert not (backend.control_root / 'python-runtime').exists()
+        assert backend.control_root.exists()
+    asyncio.run(run())

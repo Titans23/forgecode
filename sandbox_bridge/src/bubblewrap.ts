@@ -7,7 +7,7 @@ export function bubblewrapArgv(workspace: string, temp: string, executable: stri
     throw new Error('Separate absolute workspace and private temp required');
   }
   return ['--new-session', '--die-with-parent', '--unshare-user', '--unshare-pid', '--cap-drop', 'ALL',
-    '--ro-bind', '/', '/', ...(readOnly ? [] : [...writeRoots.flatMap(root => ['--bind', root, root]), '--bind', temp, temp]),
+    '--ro-bind', '/', '/', ...(readOnly ? [] : writeRoots.flatMap(root => ['--bind', root, root])), '--bind', temp, temp,
     '--proc', '/proc', '--dev', '/dev', '--chdir', workspace,
     '--setenv', 'TMPDIR', temp, '--setenv', 'TMP', temp, '--setenv', 'TEMP', temp,
     '--', executable, ...args];

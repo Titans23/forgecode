@@ -59,3 +59,18 @@ def grant_controller_access(directory):
     acl.AddAccessAllowedAceEx(win32security.ACL_REVISION, win32con.OBJECT_INHERIT_ACE | win32con.CONTAINER_INHERIT_ACE, FILE_ALL_ACCESS, sid)
     token.assert_current()
     win32security.SetNamedSecurityInfo(str(directory), win32security.SE_FILE_OBJECT, win32security.DACL_SECURITY_INFORMATION, None, None, acl, None)
+
+
+def prepare_python_runtime(control_root):
+    """Small private venv launcher; reuse installed Python and locked dependencies."""
+    import sysconfig
+    import venv
+    root = Path(control_root) / 'python-runtime'
+    venv.EnvBuilder(with_pip=False).create(root)
+    site = root / 'Lib/site-packages'
+    source = Path(__file__).with_name('windows_python_compat.py')
+    (site / 'forge_sandbox_compat.py').write_bytes(source.read_bytes())
+    (site / 'forge_sandbox_compat.pth').write_text(
+        f"import site; site.addsitedir({sysconfig.get_path('purelib')!r}); import forge_sandbox_compat; forge_sandbox_compat.install()\n",
+        encoding='utf-8')
+    return root / 'Scripts'
