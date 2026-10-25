@@ -6,8 +6,8 @@
   "current_task": "T01",
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
-    "current_checkpoint": "frozen_live_baseline_sealed_129_requests_0_of_12_operational_completions",
-    "next_checkpoint": "repair_all_role_accounting_and_native_change_observation_then_public_functional_verification",
+    "current_checkpoint": "all_role_accounting_ci_passed_native_change_observation_verified_locally",
+    "next_checkpoint": "native_observation_ci_then_public_functional_verification_and_separate_two_task_proposal",
     "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
     "done_conditions_ref": "docs/implementation/tasks/T01.md",
     "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
@@ -36,13 +36,23 @@
   },
   "native_real_repository_preflight": {
     "all_role_request_reader": {
-      "status": "implemented_zero_model_verified_ci_pending",
+      "status": "implemented_zero_model_verified_ci_passed_40183498680",
       "scope": "Read existing Journal observation request/tool events across roles; normalize raw provider usage with shared usage_ledger code. Do not add another ledger or rewrite frozen results. Legacy root-only logs are marked incomplete when terminal shared counts disagree; nested failures reach campaign stop classification.",
       "evidence": ".local/implementation/native-swe-adapter/accounting-final.xml",
       "focused_checks": 13,
       "quality": "20261025T100656Z-9a75e478",
       "cancelled_partial_usage_check": ".local/implementation/native-swe-adapter/accounting-final.xml",
       "actual_journal_check": "All 12 frozen real Journals read as 129 requests and matching disjoint input/output/cache components; zero new model calls. Partial usage and unfinalized admissions remain explicit."
+    },
+    "native_change_observation": {
+      "status": "windows_native_verified_ci_pending",
+      "scope": "Bounded output scheduling; confirmed edit-target fingerprints; unknown baseline remains unavailable. Git dirty paths plus ordinary ignored files are observed inside the existing native helper, without enabling host diff checks or widening quotas.",
+      "engineering_checks": {"related_passed": 55, "git_passed": 11, "evidence": [".local/implementation/native-swe-adapter/observation-regression.xml", ".local/implementation/native-swe-adapter/git-observation-final.xml"], "initial_test_failure": "Two Git fixture assertions initially differed because disabled global autocrlf changed clean status. Pin fixture-local autocrlf=false; production configuration is not rewritten."},
+      "native_evidence": [".local/implementation/native-swe-adapter/observation-native-final.xml", ".local/implementation/native-swe-adapter/observation-ignored-native.xml"],
+      "native_checks": 4,
+      "real_repository_evidence": ".local/implementation/native-swe-adapter/tracking-probe-3366e0e74a2f4761b3de193320ca9a34/results.json",
+      "real_repository_results": "pytest-5413 and Sphinx-10325 initial/post-compile observations complete; actual edits tracked, preexisting user bytes preserved, outside write denied, zero discarded bytes and clean shutdowns. Ordinary ignored files remain observable. Zero model calls; compileall proves syntax only.",
+      "limits": "Windows partial native isolation only. No strict OS read/network/hard-resource claim; Git configurations unsupported by the fast path retain the bounded filesystem scan and can remain incomplete."
     },
     "live_baseline": {
       "status": "complete_sealed_original_outcomes_preserved",

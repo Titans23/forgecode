@@ -208,6 +208,10 @@ class WorkspaceWriteBackend:
                     'text':retained.decode('utf-8',errors='replace'),'encoding':'utf-8','final':False}
                 try: self.outputs.put_nowait(frame)
                 except asyncio.QueueFull: entry['discarded_bytes'] += len(retained)
+                else:
+                    # Buffered reads may complete synchronously in a burst.
+                    # Let the already-waiting collector drain bounded frames.
+                    await asyncio.sleep(0)
 
     async def _run(self, entry):
         identity, command = entry['execution_id'], entry['command']

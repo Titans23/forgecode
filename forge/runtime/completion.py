@@ -120,7 +120,7 @@ class CompletionGate:
             reasons.append(
                 'Workspace change tracking is unavailable for this task.'
             )
-        if self.policy.require_changes and not changed_paths:
+        if tracker.available and self.policy.require_changes and not changed_paths:
             reasons.append(
                 'The task requires a code change, but the final Diff is empty.'
             )

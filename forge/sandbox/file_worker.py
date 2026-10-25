@@ -5,6 +5,7 @@ Path checks complement that restriction; portable invocation alone is not SRT.
 """
 import asyncio
 import base64
+import configparser
 from contextlib import redirect_stdout
 from dataclasses import asdict
 from hashlib import sha256
@@ -133,7 +134,83 @@ class FileAccess:
         except ContractError as error:
             raise ToolExecutionError(error.kind, str(error)) from error
 
-    def scan(self):
+    async def scan(self):
+        observed = await self._git_snapshot()
+        return observed if observed is not None else self._scan_filesystem()
+
+    async def _git_snapshot(self):
+        # Reuse Git dirty-path observation; never invoke repository hooks,
+        # filters/includes, worktree redirects or an executable from the task.
+        deadline = monotonic() + 10
+        metadata = self.root / '.git'
+        if not metadata.is_dir() or (self.root / '.gitmodules').exists() or (metadata / 'config.worktree').exists():
+            return None
+        from forge.sandbox.path_policy import _read_marker
+        try:
+            parser = configparser.RawConfigParser(allow_no_value=True)
+            parser.read_string(_read_marker(metadata / 'config'))
+            core_keys = {'repositoryformatversion', 'filemode', 'bare', 'logallrefupdates',
+                         'symlinks', 'ignorecase', 'autocrlf', 'eol', 'safecrlf', 'precomposeunicode', 'quotepath'}
+            if parser.defaults() or any(section != 'core' and section != 'user'
+                    and not section.startswith(('remote "', 'branch "')) for section in parser.sections()):
+                return None
+            if 'core' in parser and set(parser['core']) - core_keys:
+                return None
+            from forge.release.toolchains import core_tool
+            git = await asyncio.to_thread(core_tool, 'git')
+            if git.is_relative_to(self.root):
+                return None
+        except (OSError, ValueError, configparser.Error):
+            return None
+        from forge.tools.base import file_access_guard
+        from forge.tools.shell import run_process
+        from forge.runtime.workspace import parse_porcelain_paths, is_runtime_state_path
+        inherited = {key: value for key, value in os.environ.items() if key.upper().startswith('GIT_')}
+        for key in inherited:
+            os.environ.pop(key)
+        os.environ.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
+            GIT_OPTIONAL_LOCKS='0', GIT_TERMINAL_PROMPT='0', GIT_CEILING_DIRECTORIES=str(self.root.parent))
+        token = file_access_guard.set(self)
+        try:
+            result = await run_process([str(git), '--no-optional-locks', '-c', 'core.fsmonitor=false',
+                '-c', 'core.untrackedCache=false', '-c', 'core.hooksPath=' + os.devnull,
+                '-c', 'status.relativePaths=true', 'status', '--short', '-z',
+                '--untracked-files=all', '--ignored=no', '--', '.'], cwd=self.root,
+                timeout_seconds=max(0.001, deadline - monotonic()), max_output_bytes=65536)
+            # .gitignore is not an authorization boundary. Include ordinary
+            # ignored files so arbitrary commands cannot hide their edits.
+            others = await run_process([str(git), '--no-optional-locks', '-c', 'core.fsmonitor=false',
+                '-c', 'core.hooksPath=' + os.devnull, 'ls-files', '--others', '-z', '--', '.'],
+                cwd=self.root, timeout_seconds=max(0.001, deadline - monotonic()), max_output_bytes=65536)
+        except (OSError, ValueError):
+            return None
+        finally:
+            file_access_guard.reset(token)
+            for key in tuple(os.environ):
+                if key.upper().startswith('GIT_'):
+                    os.environ.pop(key)
+            os.environ.update(inherited)
+        for output in (result, others):
+            if (output.exit_code != 0 or output.timed_out or output.output_incomplete
+                    or output.stdout_truncated or output.stderr_truncated
+                    or '\ufffd' in output.stdout or (output.stdout and not output.stdout.endswith('\0'))):
+                return None
+        paths = tuple(dict.fromkeys((*parse_porcelain_paths(result.stdout), *others.stdout.split('\0')[:-1])))
+        files = {}
+        for path in paths:
+            if is_runtime_state_path(path):
+                continue
+            if len(files) >= 2000 or monotonic() > deadline:
+                return {'files': files, 'complete': False, 'reason': 'scan_limit'}
+            try:
+                files[path] = self.observation(path)
+            except (OSError, ValueError):
+                # The bounded filesystem path retains the existing handling
+                # of protected paths, unsafe links and incomplete observations.
+                return None
+        return {'files': files, 'complete': True}
+
+    def _scan_filesystem(self):
         files, pending, visited, complete = {}, [self.root], 0, True
         deadline = monotonic() + 10
         while pending:
@@ -241,7 +318,7 @@ async def execute(request):
     if operation == 'bootstrap':
         return {'loaded_modules': sorted(sys.modules)}, {}
     if operation == 'scan':
-        return access.scan(), {}
+        return await access.scan(), {}
     if operation == 'snapshot':
         return access.snapshot(request['paths'], request.get('recursive', False)), {}
     from forge.tools.base import file_access_guard

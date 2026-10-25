@@ -33,6 +33,7 @@ class WorkspaceTracker:
         self.revision = 0
         self.environment_epoch = 0
         self.available = False
+        self._baseline_complete = False
         self.git_available = False
         self._watched_paths: set[str] = set()
         self._carried_paths: set[str] = set()
@@ -43,6 +44,7 @@ class WorkspaceTracker:
         self._carried_paths.clear()
         snapshot = await self._capture()
         self.available = snapshot is not None
+        self._baseline_complete = self.available
         resolved = snapshot or WorkspaceSnapshot()
         self.baseline = resolved
         self.current = resolved
@@ -111,7 +113,13 @@ class WorkspaceTracker:
         if snapshot is None:
             self.available = False
             return None
-        self.available = True
+        self.available = self.observer is None or self._baseline_complete
+        if not self.available:
+            # A later full scan cannot reconstruct an unknown pre-turn tree.
+            # Keep only targets with a confirmed before-image, so unrelated
+            # preexisting/user edits are never attributed to this task.
+            snapshot = WorkspaceSnapshot({**self.current.files, **{
+                path: snapshot.files[path] for path in self._watched_paths if path in snapshot.files}})
         self._carried_paths.intersection_update(snapshot.files)
         paths = changed_paths(self.current, snapshot)
         if not paths:
@@ -123,15 +131,31 @@ class WorkspaceTracker:
     async def refresh_paths(self, paths: tuple[str, ...]) -> WorkspaceChange | None:
         '''Observe known edit targets without rescanning unrelated content.'''
         if self.observer is not None:
-            return await self.refresh()
-        files = dict(self.current.files)
-        for path in paths:
-            resolved = (self.root / path).resolve(strict=False)
+            if not paths:
+                return await self.refresh()
             try:
-                normalized = resolved.relative_to(self.root).as_posix()
-            except ValueError:
-                normalized = resolved.as_posix()
-            files[normalized] = fingerprint_path(self.root, normalized)
+                observation = await self.observer.snapshot(paths)
+                if not observation['complete']:
+                    self.available = False
+                    return None
+                files = dict(self.current.files)
+                for path, value in observation['files'].items():
+                    if path not in self._watched_paths:
+                        self.available = False
+                        continue
+                    files[path] = observation_fingerprint(value)
+            except (OSError, ValueError):
+                self.available = False
+                return None
+        else:
+            files = dict(self.current.files)
+            for path in paths:
+                resolved = (self.root / path).resolve(strict=False)
+                try:
+                    normalized = resolved.relative_to(self.root).as_posix()
+                except ValueError:
+                    normalized = resolved.as_posix()
+                files[normalized] = fingerprint_path(self.root, normalized)
         snapshot = WorkspaceSnapshot(files)
         changed = changed_paths(self.current, snapshot)
         if not changed:

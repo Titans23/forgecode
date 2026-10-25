@@ -137,6 +137,69 @@ def test_native_cancellation_reconciles_process_tree(tmp_path):
     asyncio.run(run())
 
 
+def test_native_large_checkpoint_preserves_edit_and_existing_user_changes(tmp_path):
+    """Actual helper protocol, not a model/capability benchmark."""
+    from dataclasses import replace
+    from hashlib import sha256
+    async def run():
+        options = settings(tmp_path, 'workspace-write')
+        source = options.root / 'src'
+        source.mkdir()
+        large = source / 'large.py'
+        large.write_bytes(b'# source data\n' * 24000 + b'# unique marker\n')
+        prior = source / 'user.py'
+        prior.write_bytes(b'# preexisting user edit\n')
+        async with await HarnessSession.open(replace(options, write_roots=(source,))) as session:
+            tracker = session.conversation.workspace_tracker
+            await tracker.begin_turn()
+            assert tracker.available
+            await tracker.watch_paths_async(('src/large.py',))
+            changed = await session.backend.execute(ToolCall(0, 'edit', 'replace_text',
+                {'path': 'src/large.py', 'old_text': '# unique marker', 'new_text': '# changed marker'}),
+                session.conversation.registry)
+            assert changed.success, changed
+            await tracker.refresh_paths(('src/large.py',))
+            assert tracker.available and tracker.changed_paths == ('src/large.py',)
+            snapshot = await session.backend.observer.snapshot(('src/large.py',))
+            value = snapshot['files']['src/large.py']
+            assert snapshot['complete']
+            assert base64.b64decode(value['content_base64']) == large.read_bytes()
+            assert value['sha256'] == sha256(large.read_bytes()).hexdigest()
+            assert prior.read_bytes() == b'# preexisting user edit\n'
+            denied = await session.backend.execute(ToolCall(0, 'deny', 'write_file',
+                {'path': 'outside.txt', 'content': 'escape'}), session.conversation.registry)
+            assert not denied.success and not (options.root / 'outside.txt').exists()
+            assert all(entry['discarded_bytes'] == 0 for entry in session.backend.observer.native._executions.values())
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
+def test_native_git_observation_tracks_command_edits_to_ignored_files(tmp_path):
+    import subprocess
+    import shutil
+    async def run():
+        options = settings(tmp_path, 'workspace-write')
+        git = shutil.which('git')
+        assert git is not None
+        subprocess.run([git, 'init', '--quiet', str(options.root)], check=True)
+        (options.root / '.gitignore').write_text('ignored.txt\n')
+        (options.root / 'ignored.txt').write_text('prior user content\n')
+        async with await HarnessSession.open(options) as session:
+            tracker = session.conversation.workspace_tracker
+            await tracker.begin_turn()
+            assert tracker.available and not tracker.git_available
+            # No watch_paths: an arbitrary command does not declare edit targets.
+            changed = await session.backend.execute(ToolCall(0, 'command', 'run_command',
+                {'command': 'python -', 'stdin': "from pathlib import Path;Path('ignored.txt').write_text('changed by command\\n')"}),
+                session.conversation.registry)
+            assert changed.success, changed
+            await tracker.refresh()
+            assert tracker.available and tracker.changed_paths == ('ignored.txt',)
+            assert (options.root / 'existing.txt').read_text() == 'preserve'
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_native_public_session_continues_with_structured_events(tmp_path):
     from forge.api import event_dict
     from forge.runtime.state import ModelTextDelta, ModelResponseCompleted

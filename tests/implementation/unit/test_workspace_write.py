@@ -169,3 +169,47 @@ def test_relocated_control_delete_failure_never_publishes_clean(tmp_path, monkey
     assert json.loads(locator.read_text())['state'] != 'clean'
     assert backend.control_root.exists()
     assert (backend.diagnostic_root / 'boundary.json').exists()
+
+
+@pytest.mark.parametrize('consume,command_limit,session_limit', [
+    (True, 1048576, 1048576), (False, 1048576, 1048576),
+    ('slow', 1048576, 1048576), (True, 16384, 1048576), (True, 1048576, 8192)])
+def test_burst_output_serves_active_consumer_without_relaxing_bounded_limits(
+        tmp_path, consume, command_limit, session_limit):
+    import base64
+    _, backend = fixture(tmp_path)
+    backend._policy = SimpleNamespace(value={'limits': {'session_artifact_bytes': session_limit}})
+    payload = bytes(range(256)) * 512
+    class BufferedReader:
+        position = 0
+        async def read(self, size):
+            chunk = payload[self.position:self.position + size]
+            self.position += len(chunk)
+            return chunk
+    entry = {'execution_id':new_id('exec'), 'owner':backend.owner, 'command':{'output_limit_bytes':command_limit},
+             'retained':0, 'discarded_bytes':0, 'stdout_bytes':0, 'publish':True, 'sequence':0}
+    async def run():
+        received = bytearray()
+        async def collect():
+            while (frame := await backend.outputs.get()) is not None:
+                received.extend(base64.b64decode(frame['raw_base64']))
+                if consume == 'slow':
+                    await asyncio.sleep(0.002)
+        consumer = asyncio.create_task(collect()) if consume else None
+        await backend._read(entry, 'stdout', BufferedReader())
+        assert backend.outputs.qsize() <= backend.outputs.maxsize == 8
+        if consumer is not None:
+            await backend.outputs.put(None)
+            await consumer
+            expected = min(len(payload), command_limit, session_limit)
+            if consume == 'slow':
+                assert 0 < len(received) <= expected
+                assert entry['discarded_bytes'] == len(payload) - len(received)
+            else:
+                assert bytes(received) == payload[:expected]
+                assert entry['discarded_bytes'] == len(payload) - expected
+        else:
+            assert entry['discarded_bytes'] > 0
+        assert entry['retained'] <= min(command_limit, session_limit)
+        assert backend._retained <= session_limit
+    asyncio.run(run())
