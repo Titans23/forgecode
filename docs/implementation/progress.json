@@ -50,9 +50,19 @@
       "engineering_checks": {"related_passed": 55, "git_passed": 11, "evidence": [".local/implementation/native-swe-adapter/observation-regression.xml", ".local/implementation/native-swe-adapter/git-observation-final.xml"], "initial_test_failure": "Two Git fixture assertions initially differed because disabled global autocrlf changed clean status. Pin fixture-local autocrlf=false; production configuration is not rewritten."},
       "native_evidence": [".local/implementation/native-swe-adapter/observation-native-final.xml", ".local/implementation/native-swe-adapter/observation-ignored-native.xml"],
       "native_checks": 4,
-      "real_repository_evidence": ".local/implementation/native-swe-adapter/tracking-probe-3366e0e74a2f4761b3de193320ca9a34/results.json",
+      "real_repository_evidence": [".local/implementation/native-swe-adapter/tracking-probe-3366e0e74a2f4761b3de193320ca9a34/results.json", ".local/implementation/native-swe-adapter/tracking-probe-0c78277bd6b444c8b335c77185fc5cde/results.json"],
       "real_repository_results": "pytest-5413 and Sphinx-10325 initial/post-compile observations complete; actual edits tracked, preexisting user bytes preserved, outside write denied, zero discarded bytes and clean shutdowns. Ordinary ignored files remain observable. Zero model calls; compileall proves syntax only.",
       "limits": "Windows partial native isolation only. No strict OS read/network/hard-resource claim; Git configurations unsupported by the fast path retain the bounded filesystem scan and can remain incomplete."
+    },
+    "public_verification_guidance": {
+      "status": "zero_model_verified_ci_pending",
+      "scope": "Classify quoted absolute Python compileall/py_compile invocations as structural. Public prompt distinguishes syntax checks from functional tests and permits reading/running existing public tests while preserving edit restrictions and hidden-test exclusion. EvalCase can explicitly opt into existing task/positive-verification policies; defaults remain unchanged and actual policy is recorded in run_configuration.",
+      "regression": {"evidence": ".local/implementation/native-swe-adapter/public-verification.xml", "related_passed": 92, "initial_failure": "New gate test omitted require_verification; corrected fixture enables the existing required-verification and positive-verification policies."},
+      "specific_checks": {"evidence": ".local/implementation/native-swe-adapter/pinned-verification.xml", "passed": 6},
+      "policy_checks": {"evidence": ".local/implementation/native-swe-adapter/opt-in-verification-fixed.xml", "passed": 3, "scope": "Real shared runner rejects syntax-only completion even when independent public/hidden graders pass; behavior check completes, native case factory retains both explicit policy flags. Initial fixture expected budget exhaustion, while the actual correct stop was acceptance_unmet; expectation corrected."},
+      "quality": "20261025T104625Z-78d1136e",
+      "model_api_calls": 0,
+      "limits": "No original experiment prompt, score, manifest or trajectory is rewritten. Behavioral command classification alone does not prove functional correctness; independent frozen grading remains required."
     },
     "live_baseline": {
       "status": "complete_sealed_original_outcomes_preserved",

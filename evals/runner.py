@@ -28,6 +28,7 @@ from forge.config import ForgeConfig, model_environment
 from forge.runtime.completion import TaskPolicy, matches_any
 from forge.runtime.model_client import ModelClient
 from forge.runtime.state import ToolCall, TurnResult
+from forge.runtime.verification import verification_kind
 from forge.sandbox.path_policy import inspect_path
 from forge.tools.shell import ProcessResult
 from forge.sessions.store import SessionStore
@@ -52,6 +53,8 @@ class EvalCase(BaseModel):
     build_command: str | None = None
     test_command: str = Field(min_length=1)
     hidden_test_command: str = Field(min_length=1)
+    require_task_verification: bool = Field(default=False, strict=True)
+    require_positive_verification: bool = Field(default=False, strict=True)
     timeout_seconds: float = Field(default=300, gt=0, le=1800)
     allowed_paths: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = ('tests/hidden/**',)
@@ -289,7 +292,8 @@ def build_agent_prompt(case: EvalCase) -> str:
     forbidden = (
         '\n'.join(f'- {path}' for path in case.forbidden_paths) or '- none'
     )
-    commands = [f'- public tests: {case.test_command}']
+    check_label = 'structural check (not functional tests)' if verification_kind(case.test_command) == 'structural' else 'public tests'
+    commands = [f'- {check_label}: {case.test_command}']
     if case.build_command is not None:
         commands.append(f'- build: {case.build_command}')
     return (
@@ -300,7 +304,11 @@ def build_agent_prompt(case: EvalCase) -> str:
         f'Forbidden modification paths:\n{forbidden}\n\n'
         'Required public verification commands:\n'
         + '\n'.join(commands)
-        + '\n\nUse the verify tool for the final relevant verification.'
+        + '\n\nUse the verify tool for the final relevant verification. Syntax compilation alone '
+        'does not establish task behavior. Run relevant existing public tests or a focused behavioral '
+        'check derived from the public problem statement. Forbidden modification paths restrict edits; '
+        'you may read and run existing public tests without changing them. Hidden evaluator tests '
+        'remain unavailable and must not be searched for.'
     )
 
 
@@ -371,7 +379,10 @@ async def run_case(
                 options = SessionOptions(workspace, sandbox=sandbox, approval='auto', config=config, profile=profile,
                     data_root=destination.resolve() / 'sessions' / outcome.run_id)
                 policy = TaskPolicy(require_changes=True, require_verification=True,
+                    require_task_verification=case.require_task_verification,
+                    require_positive_verification=case.require_positive_verification,
                     allowed_paths=case.allowed_paths, forbidden_paths=case.forbidden_paths)
+                outcome.run_configuration['task_policy'] = asdict(policy)
                 session = await HarnessSession.open(options, task_policy=policy, approval_handler=approval_handler,
                     model_client_factory=(lambda *args, **kwargs: client) if client is not None else model_client_factory)
                 outcome.session_id = session.session_id

@@ -148,6 +148,8 @@ class NativeTaskAdapter:
             allowed_paths=(self.scope + '/**',), forbidden_paths=('tests/**', 'testing/**', '.git/**', '.venv/**'),
             max_model_calls=limits['max_model_calls'], max_tool_calls=limits['max_tool_calls'],
             max_turn_seconds=limits['max_turn_seconds'], timeout_seconds=limits['verifier_timeout_seconds'],
+            require_task_verification=limits.get('require_task_verification', False),
+            require_positive_verification=limits.get('require_positive_verification', False),
             intent_routing=limits['intent_routing'])
 
     async def _environment(self, prepared, phase):

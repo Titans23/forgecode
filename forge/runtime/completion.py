@@ -211,8 +211,7 @@ class CompletionGate:
             ):
                 reasons.append(
                     'The latest verification is only a structural or no-op '
-                    'check; run a task-level test, build, lint, type-check, '
-                    'syntax check, or other command that exercises the requested '
+                    'check; run a task-level test or other command that exercises the requested '
                     'behavior.'
                 )
             if (
@@ -223,8 +222,7 @@ class CompletionGate:
                 )
             ):
                 reasons.append(
-                    'The successful verification only asserts an expected '
-                    'failure or masks a failing command; run a positive '
+                    'The successful verification does not establish positive task behavior; run a positive '
                     'end-to-end verification that exits 0 when the requested '
                     'behavior actually works.'
                 )

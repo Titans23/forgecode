@@ -61,7 +61,7 @@ Windows 原生会话的内部控制与执行临时目录放在 OS 解析的 Loca
 
 ## 3. 开发与验证
 
-验证器修正可使用 `verify(check_id=原检查ID, command=修正命令, revision_reason=原因)`；检查 ID 和执行记录 ID 均可引用，原断言、需求和工作目录自动继承。仍拒绝降低阈值、替换来源或改变工作目录；没有结构化断言的旧检查不能通过改写内联命令自动消除失败记录。
+验证器修正可使用 `verify(check_id=原检查ID, command=修正命令, revision_reason=原因)`；检查 ID 和执行记录 ID 均可引用，原断言、需求和工作目录自动继承。仍拒绝降低阈值、替换来源或改变工作目录；没有结构化断言的旧检查不能通过改写内联命令自动消除失败记录。绝对路径解释器的 compileall/py_compile 也只算结构检查；评测提示允许在禁止修改测试时读取、运行已有公开测试。EvalCase 可显式启用已有 require_task_verification/require_positive_verification 门禁，实际策略记录在运行配置；默认不升级日常任务，功能验收仍依赖行为检查及独立判分。
 
 `view_image` 通过现有文件授权边界读取 PNG/JPEG/GIF/WebP（最多 512 KiB），向 Anthropic/Responses 传递原生图像内容；DeepSeek 文本适配器不提供该工具。Journal 保存原始图像消息，近期图片不作为长文本截断；历史压缩移除活跃上下文中的旧图片并保留重新读取提示。图片上下文预算使用估算，实际 token 以服务端用量为准。
 

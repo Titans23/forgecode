@@ -43,11 +43,24 @@ def verification_kind(command: str) -> VerificationKind:
     return (
         'behavior'
         if any(
-            segment and not _NON_TASK_VERIFICATION.match(segment.strip())
+            segment and not _NON_TASK_VERIFICATION.match(_command_basename(segment.strip()))
             for segment in segments
         )
         else 'structural'
     )
+
+
+def _command_basename(command: str) -> str:
+    # Pinned interpreters use quoted absolute paths (including Windows paths).
+    # Their evidence strength is the same as the corresponding PATH command.
+    match = re.match(r'''^(?:"([^"]+)"|'([^']+)'|(\S+))(.*)$''', command, re.DOTALL)
+    if match is None:
+        return command
+    executable = next(value for value in match.groups()[:3] if value is not None)
+    name = executable.replace('\\', '/').rsplit('/', 1)[-1]
+    if name.lower().endswith('.exe'):
+        name = name[:-4]
+    return name + match[4]
 
 
 def verification_quality(command: str) -> VerificationQuality:

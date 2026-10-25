@@ -3,6 +3,7 @@ from dataclasses import replace
 import json
 from pathlib import Path
 import sys
+import pytest
 
 from forge.runtime.agent_loop import verification_from_result
 from forge.runtime.completion import CompletionGate, TaskPolicy, unresolved_verification_failures
@@ -10,6 +11,30 @@ from forge.runtime.state import VerificationEvidence
 from forge.runtime.workspace import WorkspaceTracker
 from forge.tools.verify import VerifyInput, VerifyTool
 from forge.tools.verification_checks import dormant_python_tests, OutputCheck, evaluate_output_checks
+
+
+@pytest.mark.parametrize('python', ['python', 'python.exe', 'python3.12',
+    '"C:\\task environment\\Scripts\\python.exe"', "'/opt/task environment/bin/python3.9'"])
+def test_pinned_interpreter_syntax_checks_remain_structural(python):
+    from forge.runtime.verification import verification_quality
+    for module in ('compileall', 'py_compile'):
+        assert verification_quality(f'{python} -m {module} source.py') == 'structural'
+    assert verification_quality(f'{python} -m pytest tests/test_public.py') == 'behavior'
+
+
+def test_pinned_compileall_cannot_satisfy_positive_behavior_gate(tmp_path):
+    async def run():
+        (tmp_path / 'source.py').write_text('value = 1\n')
+        tracker = WorkspaceTracker(tmp_path)
+        await tracker.begin_turn()
+        result = await VerifyTool(tmp_path, tracker).execute(VerifyInput(
+            command=f'"{sys.executable}" -m compileall -q source.py'))
+        assert result.success and result.metadata['verification_quality'] == 'structural'
+        decision = await CompletionGate(tmp_path, TaskPolicy(require_verification=True,
+            require_positive_verification=True)).evaluate(
+            tracker, verification_from_result(result), mutation_attempted=False)
+        assert not decision.allowed
+    asyncio.run(run())
 
 
 def test_python_definitions_do_not_execute_test_body(tmp_path):

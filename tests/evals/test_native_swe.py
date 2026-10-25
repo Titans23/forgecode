@@ -80,6 +80,15 @@ def task(tmp_path):
     return adapter, case
 
 
+def test_native_case_preserves_explicit_behavior_requirements(tmp_path):
+    adapter, _ = task(tmp_path)
+    limits = dict(max_model_calls=18, max_tool_calls=48, max_turn_seconds=900,
+                  verifier_timeout_seconds=600, intent_routing=False,
+                  require_task_verification=True, require_positive_verification=True)
+    case = adapter.case(1, limits)
+    assert case.require_task_verification and case.require_positive_verification
+
+
 def client_for(adapter, case, *, content='new\n', leak=False):
     calls = [ToolCall(0, 'edit', 'replace_text', {'path': 'src/value.txt', 'old_text': 'old\n', 'new_text': content}),
              ToolCall(0, 'verify', 'verify', {'command': case.test_command}),

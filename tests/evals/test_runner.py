@@ -247,6 +247,35 @@ def successful_client(case, *, path='value.txt', content='new\n', verification=N
     )
 
 
+def test_public_prompt_distinguishes_syntax_and_forbidden_test_edits():
+    from evals.runner import build_agent_prompt
+    case = make_case('0' * 40).model_copy(update={
+        'test_command': '"C:\\task environment\\python.exe" -m compileall -q src',
+        'forbidden_paths': ('tests/**',)})
+    prompt = build_agent_prompt(case)
+    assert 'structural check (not functional tests)' in prompt
+    assert 'read and run existing public tests without changing them' in prompt
+    assert case.hidden_test_command not in prompt
+
+
+@pytest.mark.parametrize('behavior', [False, True])
+def test_case_opt_in_behavior_policy_reaches_real_shared_completion_gate(tmp_path, behavior):
+    case = make_case(initialize_project(tmp_path)).model_copy(update={
+        'require_task_verification': True, 'require_positive_verification': True, 'max_model_calls': 4})
+    syntax = subprocess.list2cmdline([sys.executable, '-m', 'compileall', '-q', '.'])
+    client = successful_client(case, verification=case.test_command if behavior else syntax)
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+                                 client=client, sandbox='full-access'))
+    assert result.passed == behavior
+    assert result.public_tests.success and result.hidden_tests.success
+    assert result.run_configuration['task_policy']['require_task_verification']
+    assert result.run_configuration['task_policy']['require_positive_verification']
+    assert client.closed and result.cleanup['state'] == 'clean'
+    if not behavior:
+        assert result.task_status != 'completed' and result.stop_reason == 'acceptance_unmet'
+        assert 'structural' in Path(result.journal).read_text(encoding='utf-8')
+
+
 def test_budget_exhaustion_keeps_failed_attempt_even_when_public_grader_passes(tmp_path):
     case = make_case(initialize_project(tmp_path)).model_copy(update={'max_model_calls': 2})
     client = successful_client(case)
