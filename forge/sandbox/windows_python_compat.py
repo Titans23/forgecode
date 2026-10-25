@@ -6,6 +6,7 @@ Inherit the already-private ACL only below this root; do not alter permissions
 elsewhere. This compatibility hook is not the OS security boundary.
 """
 import os
+from functools import partial
 
 
 def install():
@@ -26,5 +27,14 @@ def install():
             mode = 0o777
         return original(path, mode, dir_fd=dir_fd)
 
-    mkdir._forge_native_compat = True
-    os.mkdir = mkdir
+    # Older pathlib stores os.mkdir on an accessor class. A Python function
+    # would bind an extra self there; a partial preserves built-in call behavior.
+    wrapped = partial(mkdir)
+    wrapped._forge_native_compat = True
+    os.mkdir = wrapped
+    # Editable installs may have imported legacy pathlib before this hook,
+    # leaving its accessor with the original built-in cached independently.
+    import pathlib
+    accessor = getattr(pathlib, '_normal_accessor', None)
+    if accessor is not None and accessor.mkdir is original:
+        accessor.mkdir = wrapped

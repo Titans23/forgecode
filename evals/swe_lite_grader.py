@@ -7,6 +7,7 @@ skip overrides, or reference fixes are part of this entry point.
 import argparse
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 def resolve_node_ids(labels, node_ids, aliases):
@@ -112,7 +113,13 @@ def main():
     # Frozen node IDs are relative to the evaluated workspace, even when a
     # temporary workspace sits below another repository's pytest configuration.
     # Do not override -c: the task's own test options must remain in force.
-    code = pytest.main(['--rootdir', str(Path.cwd()), '-rA', '--tb=short', '--color=no', *files], plugins=[recorder])
+    # Pytest's cache staging uses mkdir(0700), which can discard the restricted
+    # token's inherited write capability in a project directory on Windows.
+    # Keep cache artifacts in the already-owned execution scratch instead.
+    with TemporaryDirectory(prefix='forge-pytest-cache-') as scratch:
+        code = pytest.main(['--rootdir', str(Path.cwd()), '-o',
+                            'cache_dir=' + str(Path(scratch) / 'cache'),
+                            '-rA', '--tb=short', '--color=no', *files], plugins=[recorder])
     report = {'exit_code': int(code), 'mapping': recorder.mapping, 'tests': recorder.tests,
               'collection_errors': recorder.collection_errors}
     report['assessment'] = assessment(suite, report, expect_base=args.expect_base)

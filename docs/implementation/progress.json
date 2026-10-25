@@ -36,7 +36,7 @@
   },
   "native_real_repository_preflight": {
     "shared_adapter": {
-      "status": "implemented_native_and_related_regression_verified_ci_pending",
+      "status": "implemented_native_and_related_regression_verified_ci_passed_40175736795",
       "entry": "python -m evals.native_swe_campaign",
       "scope": "Existing HarnessSession, request budgets and Journal; source/dependencies share owned fixture lifetime with separate write scope. Agent cleanup precedes candidate capture and independent test-patch grading. No model loop duplication or retry.",
       "native_evidence": ".local/implementation/native-swe-adapter/native-owned-fixture.xml",
@@ -69,6 +69,16 @@
     "checks": {"regression": ".local/implementation/real-repo-preflight/evals-regression.xml", "regression_passed": 57, "quality": ".local/implementation/real-repo-preflight/quality.json", "quality_passed": 7, "contracts": ".local/implementation/real-repo-preflight/contracts.json", "contracts_passed": 2}
   },
   "sandbox_completion": {
+    "legacy_python_and_grader_cache": {
+      "status": "native_verified_ci_pending",
+      "change": "Scratch-only mkdir wrapper retains built-in callable behavior for Python 3.8/3.9 pathlib accessors, including earlier imports. Independent pytest cache is enabled inside owned execution scratch; project-wide 0700 semantics and OS privileges are not expanded.",
+      "evidence": [".local/implementation/native-swe-adapter/native-python-versions-fixed/results.json", ".local/implementation/native-swe-adapter/native-python-owned-cache/results.json", ".local/implementation/native-swe-adapter/legacy-wrapper-current-python-accepted.xml"],
+      "results": "pytest task reference: 93 required tests pass; Sphinx task reference: 6 required tests pass; current Python private scratch checks pass in both native modes. All clean; zero model calls.",
+      "failure_evidence": [".local/implementation/native-swe-adapter/native-python-versions-diagnostic/failed-outcome.json", ".local/implementation/native-swe-adapter/native-python-cached-accessor-fixed/failed-outcome.json", ".local/implementation/native-swe-adapter/sphinx-cache-locals.txt"],
+      "cause": "Sphinx completed six tests but timed out at 600s during pytest cache finalization. Read-only stack inspection found over one million mkdir retries with mode 0700 in the project. An owned native probe returned errno 13 / WinError 5. Scratch cache placement resolves it without skipping tests, disabling cacheprovider or raising deadlines.",
+      "related_checks": {"evidence": ".local/implementation/native-swe-adapter/cache-and-legacy.xml", "passed": 13},
+      "quality": "20261025T083547Z-e4b948d4"
+    },
     "native_internal_paths": {
       "status": "windows_verified_ci_pending",
       "scope": "OS-resolved short per-session internal control/scratch paths; original long artifact directories retain location and boundary diagnostics. Protected root frozen before admission; no global TEMP, administrator setup or Docker.",

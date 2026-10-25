@@ -136,3 +136,19 @@ def test_frozen_subset_references_and_budgets_are_consistent():
     assert len(plan['schedule']) == plan['runs'] == 12
     assert plan['total_model_request_cap'] == plan['runs'] * plan['per_run']['max_model_calls']
     assert plan['automatic_retries'] == plan['failed_reruns'] == 0
+
+
+def test_pytest_cache_remains_enabled_in_owned_temporary_storage(tmp_path):
+    (tmp_path / 'pytest.ini').write_text('[pytest]\ncache_dir = project-cache\n', encoding='utf-8')
+    source = '''from pathlib import Path
+def test_bug(pytestconfig):
+    location = Path(pytestconfig.cache._cachedir)
+    assert not location.is_relative_to(Path.cwd())
+    pytestconfig.cache.set('proof/value', 7)
+    assert pytestconfig.cache.get('proof/value', None) == 7
+    Path('cache-location.txt').write_text(str(location))
+'''
+    process, report = grade(tmp_path, source, {'FAIL_TO_PASS': ['test_task.py::test_bug'], 'PASS_TO_PASS': []})
+    assert process.returncode == 0 and report['assessment']['accepted'], process.stdout + process.stderr
+    assert not (tmp_path / 'project-cache').exists()
+    assert not Path((tmp_path / 'cache-location.txt').read_text()).exists()
