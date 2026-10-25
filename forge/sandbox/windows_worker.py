@@ -29,6 +29,13 @@ def windows_local_app_data():
     return directory
 
 
+def windows_native_runtime_root():
+    """OS-resolved private runtime location, independent of artifact path length."""
+    directory = windows_local_app_data() / 'ForgeCode' / 'native'
+    inspect_path(str(directory), absolute=True).assert_current()
+    return directory
+
+
 def grant_controller_access(directory):
     """Grant the current user explicit access to a fresh, owned private directory.
 

@@ -54,6 +54,18 @@
     "checks": {"regression": ".local/implementation/real-repo-preflight/evals-regression.xml", "regression_passed": 57, "quality": ".local/implementation/real-repo-preflight/quality.json", "quality_passed": 7, "contracts": ".local/implementation/real-repo-preflight/contracts.json", "contracts_passed": 2}
   },
   "sandbox_completion": {
+    "native_internal_paths": {
+      "status": "windows_verified_ci_pending",
+      "scope": "OS-resolved short per-session internal control/scratch paths; original long artifact directories retain location and boundary diagnostics. Protected root frozen before admission; no global TEMP, administrator setup or Docker.",
+      "native_evidence": [".local/implementation/native-short-runtime-acceptance.xml", ".local/implementation/native-short-runtime-cancel.xml"],
+      "native_results": "Long artifact read-only and workspace-write checks pass. Two concurrent sessions use separate roots; cancelling/closing one preserves the other. First cancellation test had invalid timestamp syntax; corrected test passes, original failure retained.",
+      "failure_injection": "Owned directory deletion failure returns unknown and never publishes clean; native paths are removed only after process cleanup is confirmed.",
+      "regression": {"evidence": ".local/implementation/native-short-runtime-regression.xml", "passed": 25},
+      "quality": "20261025T075606Z-b1aab2d9",
+      "contracts": "20261025T075716Z-63125bf8",
+      "real_task_integration": {"evidence": ".local/implementation/native-swe-adapter/native-task-compat.xml", "task": "pallets__flask-4992", "independent_tests_passed": 19, "model_api_calls": 0, "scope": "Scripted reference edit through real native helper/task interpreter; separate verifier and both clean shutdowns. Adapter remains a separate implementation checkpoint."},
+      "limits": "No strict read/network/hard-resource or Linux native acceptance claim. Real task adapter validation is separate and uses scripted model responses."
+    },
     "status": "in_progress",
     "delivery_priority": "unfinished_extension_outside_current_recruiting_critical_path",
     "architecture": "Native lightweight Windows/Linux sandbox only. User revoked Docker integration; installation and ordinary operation must not require Docker, images or a container daemon. No silent privilege fallback.",

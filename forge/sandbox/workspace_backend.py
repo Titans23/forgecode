@@ -31,7 +31,7 @@ def require_workspace_policy(policy):
 class WorkspaceWriteBackend:
     mode = 'workspace-write'
 
-    def __init__(self, workspace, owner, control_root, *, trusted_root=ROOT, mode='workspace-write'):
+    def __init__(self, workspace, owner, control_root, *, trusted_root=ROOT, mode='workspace-write', diagnostic_root=None):
         if mode not in ('read-only', 'workspace-write'):
             raise ValueError('Invalid native mode')
         self.mode = mode
@@ -39,6 +39,7 @@ class WorkspaceWriteBackend:
                                    'diagnostic_refs': [], 'completed_at_utc': None})
         self.workspace, self.owner = dict(workspace), dict(owner)
         self.control_root, self.trusted_root = Path(control_root).absolute(), Path(trusted_root)
+        self.diagnostic_root = Path(diagnostic_root).absolute() if diagnostic_root is not None else None
         self.outputs = asyncio.Queue(maxsize=8)
         self._prepared = None
         self._preparing = None
@@ -82,13 +83,26 @@ class WorkspaceWriteBackend:
         root = Path(self.workspace['canonical_path'])
         if any(path.is_relative_to(root) for path in (self.runtime.node, *self.runtime.tools.values())):
             raise ContractError('Host tools must be installed outside the selected workspace', kind='POLICY_DENIED', code=-32010)
-        for protected in (self.runtime.root, self.control_root):
+        protected_roots = [self.runtime.root, self.control_root]
+        if self.diagnostic_root is not None:
+            from forge.sandbox.windows_worker import windows_native_runtime_root
+            protected_roots.extend((self.diagnostic_root, windows_native_runtime_root()))
+        for protected in protected_roots:
             if root == protected or root.is_relative_to(protected) or protected.is_relative_to(root):
                 raise ContractError('Installation and control must be separate from workspace', kind='POLICY_DENIED', code=-32010)
         if self.mode == 'read-only' and snapshot.value['filesystem']['write_roots']:
             raise ContractError('Read-only cannot grant writable roots', kind='CAPABILITY_UNSATISFIED', code=-32010)
         inspect_path(str(self.control_root), absolute=True).assert_current()
+        if self.diagnostic_root is not None:
+            self.control_root.parent.mkdir(parents=True, exist_ok=True)
+            inspect_path(self.diagnostic_root, absolute=True).assert_current()
+            self.diagnostic_root.mkdir(parents=True, exist_ok=False)
+            self._diagnostic_anchor = inspect_path(self.diagnostic_root, absolute=True)
+            (self.diagnostic_root / 'control-location.json').write_text(json.dumps({
+                'control_root': str(self.control_root), 'owner': self.owner,
+                'policy_hash': snapshot.sha256, 'state': 'preparing'}, indent=2), encoding='utf-8')
         self.control_root.mkdir(parents=True, exist_ok=False, mode=0o700)
+        self._control_anchor = inspect_path(self.control_root, absolute=True)
         if sys.platform == 'win32':
             from forge.sandbox.windows_worker import grant_controller_access, prepare_python_runtime
             grant_controller_access(self.control_root)
@@ -316,6 +330,21 @@ class WorkspaceWriteBackend:
                 inspect_path(root, absolute=True).assert_current()
                 if root.exists():
                     shutil.rmtree(private_storage_path(root))
+            except (OSError, ValueError):
+                return self._report('unknown')
+        if self.diagnostic_root is not None and hasattr(self, '_control_anchor'):
+            try:
+                self._control_anchor.assert_current()
+                self._diagnostic_anchor.assert_current()
+                for name in ('boundary.json', 'boundary-failure.json'):
+                    source = self.control_root / name
+                    if source.is_file():
+                        (self.diagnostic_root / name).write_bytes(source.read_bytes())
+                self._control_anchor.assert_current()
+                shutil.rmtree(private_storage_path(self.control_root))
+                (self.diagnostic_root / 'control-location.json').write_text(json.dumps({
+                    'control_root': str(self.control_root), 'owner': self.owner,
+                    'policy_hash': self.policy_hash, 'state': 'clean'}, indent=2), encoding='utf-8')
             except (OSError, ValueError):
                 return self._report('unknown')
         return self._report('clean')

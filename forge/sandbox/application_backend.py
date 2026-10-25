@@ -1,5 +1,7 @@
 """Create an actual owned Bridge/file boundary per accepted turn, before any model request."""
 import asyncio
+import sys
+from uuid import UUID
 from pathlib import Path
 from forge.protocol import ContractError,canonical_hash,validate
 from forge.sandbox.file_client import FileWorkerClient
@@ -16,6 +18,9 @@ class NativeBackendFactory:
 
     @property
     def protected_roots(self):
+        if sys.platform == 'win32':
+            from forge.sandbox.windows_worker import windows_native_runtime_root
+            return (self.data_dir, windows_native_runtime_root())
         return (self.data_dir,)
 
     def check_request(self,policy,*,required_mode):
@@ -34,7 +39,13 @@ class NativeBackendFactory:
     async def open(self,workspace,policy,owner,turn_id):
         self.check_request(policy,required_mode=self.mode)
         from forge.sandbox.workspace_backend import WorkspaceWriteBackend
-        native=WorkspaceWriteBackend(workspace,owner,self.data_dir/'native'/turn_id,mode=self.mode)
+        diagnostic_root = self.data_dir/'native'/turn_id
+        control_root = diagnostic_root
+        if sys.platform == 'win32':
+            from forge.sandbox.windows_worker import windows_native_runtime_root
+            control_root = windows_native_runtime_root() / UUID(owner['sandbox_session_id'].removeprefix('sandbox-')).hex
+        native=WorkspaceWriteBackend(workspace,owner,control_root,mode=self.mode,
+            diagnostic_root=diagnostic_root if control_root != diagnostic_root else None)
         client=FileWorkerClient(workspace,policy,native=native)
         try:
             await native.prepare(policy)  # Real prerequisite/boundary proof, never invented verified capabilities.

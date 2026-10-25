@@ -1,4 +1,4 @@
-"""Actual Windows long-control-path ACL admission and cleanup; no model calls."""
+"""Actual Windows long artifacts with short private execution paths; no model calls."""
 
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -12,6 +12,7 @@ import pytest
 
 from forge.api import HarnessSession, RunProfile, SessionOptions
 from forge.config import ForgeConfig
+from forge.runtime.state import ToolCall
 from forge.sandbox.windows_worker import grant_controller_access
 
 
@@ -22,8 +23,7 @@ def test_native_long_temp_path_keeps_write_boundary_and_cleans_up(tmp_path, mode
     working = TemporaryDirectory(prefix='forge-long-workspace-', delete=False)
     root = Path(working.name)
     grant_controller_access(root)
-    # Native session IDs add about 48 chars and each execution another 47.
-    # Force the Win32 ACL target above MAX_PATH without changing system policy.
+    # Keep the original long artifact path; only managed runtime storage moves.
     prefix = tmp_path / 'control'
     padding = max(1, 174 - len(str(prefix)) - 1)
     data = prefix / ('d' * padding)
@@ -38,10 +38,12 @@ def test_native_long_temp_path_keeps_write_boundary_and_cleans_up(tmp_path, mode
             native = session.backend.observer.native
             boundary = json.loads((native.control_root / 'boundary.json').read_text())
             assert boundary['cleanup']['state'] == 'clean'
+            read = await session.backend.execute(ToolCall(0, 'read', 'read_file',
+                {'path': 'existing.txt'}), session.conversation.registry)
+            assert read.success and 'preserve' in read.content, read
             temp = native.control_root / ('temp-exec-' + str(uuid4()))
-            assert len(str(temp)) > 260
-            # Node's mkdtemp itself also requires an extended Windows path;
-            # the sandbox preserves canonical TEMP rather than rewriting all env.
+            assert len(str(temp)) < 260
+            assert len(str(native.diagnostic_root / temp.name)) > 260
             script = ("const fs=require('fs'),p=require('path');"
                       "const t=fs.mkdtempSync(p.toNamespacedPath(p.join(process.env.TEMP,'child-')));"
                       "fs.writeFileSync(p.join(t,'inside.txt'),'scratch');"
@@ -65,8 +67,46 @@ def test_native_long_temp_path_keeps_write_boundary_and_cleans_up(tmp_path, mode
             assert cleanup['confirmed'] and cleanup['cleanup']['state'] == 'clean'
             assert not (data / 'outside.txt').exists()
         assert session.cleanup['state'] == 'clean'
+        assert not native.control_root.exists()
+        locator = json.loads((native.diagnostic_root / 'control-location.json').read_text())
+        assert locator['state'] == 'clean'
+        assert locator['control_root'] == str(native.control_root)
+        assert (native.diagnostic_root / 'boundary.json').exists()
         assert not list(native.control_root.glob('temp-*'))
         assert (root / 'existing.txt').read_text() == 'preserve'
 
     asyncio.run(exercise())
     working.cleanup()  # Failed/uncertain native attempts retain their owned workspace.
+
+
+def test_native_short_runtime_sessions_cancel_independently(tmp_path):
+    assert sys.platform == 'win32'
+    grant_controller_access(tmp_path)
+    working = TemporaryDirectory(prefix='forge-runtime-owners-', delete=False)
+    root = Path(working.name)
+    grant_controller_access(root)
+    options = SessionOptions(root, data_root=tmp_path / ('d' * 90), sandbox='read-only',
+        config=ForgeConfig(api_key='offline-only', model_id='no-model-called'),
+        profile=RunProfile(intent_routing=False))
+
+    async def exercise():
+        async with await HarnessSession.open(options) as first:
+            async with await HarnessSession.open(options) as second:
+                one, two = first.backend.observer.native, second.backend.observer.native
+                assert one.control_root != two.control_root
+                identity = 'exec-' + str(uuid4())
+                await one.execute(identity, {'mode': 'argv',
+                    'argv': [str(one.runtime.node), '-e', 'setInterval(()=>{},1000)'],
+                    'cwd': str(root), 'environment': {}, 'output_limit_bytes': 1024,
+                    'deadline_utc': (datetime.now(timezone.utc) + timedelta(seconds=20)).isoformat().replace('+00:00', 'Z')})
+                await asyncio.sleep(0.4)
+                cancelled = await one.cancel(identity, 'acceptance', '')
+                assert cancelled['confirmed'] and cancelled['cleanup']['state'] == 'clean'
+                assert (await first.close())['state'] == 'clean'
+                assert not one.control_root.exists()
+                assert (two.control_root / 'boundary.json').exists()
+            assert second.cleanup['state'] == 'clean'
+            assert not two.control_root.exists()
+
+    asyncio.run(exercise())
+    working.cleanup()

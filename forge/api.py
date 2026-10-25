@@ -90,6 +90,7 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
     data.mkdir(parents=True, exist_ok=True)
     identity = 'turn-' + str(uuid4())
     control = data / 'native' / identity
+    backend_factory = None if options.sandbox == 'full-access' else NativeBackendFactory(data, mode=options.sandbox)
     info = root.stat()
     workspace = {'id': 'ws-' + str(uuid4()), 'canonical_path': str(root),
         'file_identity': f'{info.st_dev}:{info.st_ino}'}
@@ -104,13 +105,14 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
             'wall_time_seconds': options.profile.wall_seconds, 'command_output_bytes': 1048576,
             'session_artifact_bytes': 16777216}, 'environment_keys': [], 'fallback': 'deny',
         'session_mutation': 'replace_session'}
-    policy = compile_policy(policy, workspace, control_roots=(control,)).value
+    policy = compile_policy(policy, workspace, control_roots=(control,
+        *(backend_factory.protected_roots if backend_factory is not None else ()))).value
     if options.sandbox == 'full-access':
         backend = FileToolBackend(FileWorkerClient(workspace, policy, local_control=control))
     else:
         owner = {'engine_epoch': 'epoch-' + str(uuid4()), 'sandbox_session_id': 'sandbox-' + str(uuid4()),
             'execution_id': None}
-        backend = await NativeBackendFactory(data, mode=options.sandbox).open(workspace, policy, owner, identity)
+        backend = await backend_factory.open(workspace, policy, owner, identity)
     permissions = PermissionManager(root, mode=options.approval, approval_handler=approval_handler,
         execution_mode=options.sandbox, authorized_write_roots=tuple(map(Path, policy['filesystem']['write_roots'])))
     from forge.runtime.factory import create_model_client

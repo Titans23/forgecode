@@ -148,3 +148,24 @@ def test_partial_python_runtime_preparation_is_owned_and_cleaned(tmp_path, monke
         assert not (backend.control_root / 'python-runtime').exists()
         assert backend.control_root.exists()
     asyncio.run(run())
+
+
+def test_relocated_control_delete_failure_never_publishes_clean(tmp_path, monkeypatch):
+    import forge.sandbox.workspace_backend as module
+    from forge.sandbox.path_policy import inspect_path
+    _, backend = fixture(tmp_path)
+    backend.control_root.mkdir()
+    backend._control_anchor = inspect_path(backend.control_root, absolute=True)
+    backend.diagnostic_root = tmp_path / 'diagnostics'
+    backend.diagnostic_root.mkdir()
+    backend._diagnostic_anchor = inspect_path(backend.diagnostic_root, absolute=True)
+    locator = backend.diagnostic_root / 'control-location.json'
+    locator.write_text(json.dumps({'state': 'preparing'}))
+    (backend.control_root / 'boundary.json').write_text('{}')
+    def fail_delete(path):
+        raise OSError('injected owned directory deletion failure')
+    monkeypatch.setattr(module.shutil, 'rmtree', fail_delete)
+    assert asyncio.run(backend.close())['state'] == 'unknown'
+    assert json.loads(locator.read_text())['state'] != 'clean'
+    assert backend.control_root.exists()
+    assert (backend.diagnostic_root / 'boundary.json').exists()
