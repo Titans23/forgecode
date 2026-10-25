@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import Counter
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, field
@@ -442,13 +443,41 @@ async def run_case(
 
 
 def observed_requests(journal):
-    """Recover observed attempts/partial usage from the existing durable Journal."""
-    started, finished, tools = {}, {}, 0
-    for record in SessionStore._read_records(journal):
+    """Read existing all-role observations; old root-only logs remain explicit."""
+    records = SessionStore._read_records(journal)
+    direct, observations, terminal_counts = [], [], []
+    tool_ids = set()
+    from forge.observability.usage_ledger import token_usage
+    for record in records:
         kind = record.get('type')
-        if kind not in {'model_request_started', 'model_request_finished', 'tool_started'}:
+        if kind not in {'observation', 'model_request_started', 'model_request_finished', 'tool_started', 'turn_completed'}:
             continue
         payload = SessionStore._payload(record, journal)
+        if kind == 'turn_completed':
+            count = (payload.get('statistics') or {}).get('model_requests')
+            if count is not None:
+                terminal_counts.append(count)
+        elif kind != 'observation':
+            direct.append((kind, payload))
+        else:
+            event = payload['event']
+            attributes = event['attributes']
+            if event['event_type'] == 'tool.intent':
+                tool_ids.add(attributes['execution_id'])
+            elif event['event_type'] == 'model.request.started':
+                observations.append(('model_request_started', {
+                    'request_id': attributes['model_request_id'], 'role': attributes['role']}))
+            elif event['event_type'] in {'model.request.finished', 'model.request.failed'}:
+                raw = attributes.get('raw_usage')
+                usage = asdict(token_usage(attributes['provider'], raw)) if raw is not None else None
+                observations.append(('model_request_finished', {
+                    'request_id': attributes['model_request_id'], 'role': attributes['role'],
+                    'outcome': 'completed' if event['event_type'] == 'model.request.finished' else 'failed',
+                    'reason': attributes.get('error_kind', ''), 'usage': usage,
+                    'usage_is_final': attributes.get('usage_is_final')}))
+    all_roles = bool(observations)
+    started, finished, tools = {}, {}, 0
+    for kind, payload in observations if all_roles else direct:
         if kind == 'tool_started':
             tools += 1
             continue
@@ -470,14 +499,21 @@ def observed_requests(journal):
         if usage is not None:
             for key in totals:
                 totals[key] += usage[key]
-    return {'observed_requests': len(started), 'observed_tool_calls': tools,
-            'tool_scope': 'Root Journal tool events only; may omit nested tools. Terminal statistics hold shared-budget totals.',
+    expected = sum(terminal_counts) if terminal_counts else None
+    complete = expected is not None and expected == len(started)
+    return {'observed_requests': len(started), 'observed_tool_calls': len(tool_ids) if all_roles else tools,
+            'accounting_complete': complete, 'terminal_shared_requests': expected,
+            'missing_request_count': max(0, expected - len(started)) if expected is not None else None,
+            'request_roles': dict(Counter(entry.get('role', 'root_unclassified') for entry in started.values())),
+            'tool_scope': ('All-role Journal observation tool intents.' if all_roles else
+                'Legacy root-only tool events; nested coverage is not established.'),
             'reported_usage': totals if any(entry.get('usage') is not None for entry in finished.values()) else None,
-            'usage_complete': not unknown, 'unknown_usage_request_ids': unknown,
+            'usage_complete': not unknown and complete, 'unknown_usage_request_ids': unknown,
             'unfinished_request_ids': sorted(started.keys() - finished.keys()),
-            'request_outcomes': [{key: entry.get(key) for key in ('request_id', 'outcome', 'reason', 'usage_is_final')}
+            'request_outcomes': [{key: entry.get(key) for key in ('request_id', 'role', 'outcome', 'reason', 'usage_is_final')}
                                  for entry in finished.values()],
-            'scope': 'Observed Journal events; missing terminal aggregate usage is not replaced by zero'}
+            'scope': ('All-role Journal observations; usage normalized by the shared provider normalizer.' if all_roles else
+                'Legacy root-only Journal events; terminal shared totals checked when available.')}
 
 
 def record_agent_result(result, outcome):

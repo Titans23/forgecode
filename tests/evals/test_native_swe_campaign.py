@@ -12,7 +12,7 @@ def result(*, passed=False, requests=2, reason='', complete=True):
     return {'passed': passed, 'task_status': 'completed' if passed else 'partial',
         'cleanup': {'state': 'clean'}, 'usage': {'input_tokens': 10, 'output_tokens': 2},
         'agent_seconds': 3, 'total_seconds': 5, 'statistics': {'tool_requests': 4},
-        'request_evidence': {'observed_requests': requests, 'usage_complete': complete,
+        'request_evidence': {'observed_requests': requests, 'usage_complete': complete, 'accounting_complete': True,
             'reported_usage': {'input_tokens': 10, 'output_tokens': 2},
             'request_outcomes': [{'outcome': 'failed' if reason else 'completed', 'reason': reason}]}}
 
@@ -82,3 +82,12 @@ def test_interrupted_admission_requires_audit_even_with_resume(tmp_path, monkeyp
     campaign.save(output / 'campaign.json', state)
     with pytest.raises(ValueError, match='will not be replayed'):
         asyncio.run(campaign.campaign(plan_path, tmp_path, output, resume=True))
+
+
+def test_unfinalized_admission_is_visible_without_inventing_a_failure_or_usage():
+    summary = campaign.summarize([{'slot': 1, 'task': 'a', 'state': 'started'},
+        {'slot': 2, 'task': 'b', 'state': 'not_started'}])
+    assert summary['attempted'] == 1 and summary['complete'] == 0
+    assert summary['unfinalized_slots'] == [1] and summary['failures'] == []
+    assert not summary['request_accounting_complete']
+    assert summary['all_attempts_reported_tokens_lower_bound'] is None

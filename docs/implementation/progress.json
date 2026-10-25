@@ -35,6 +35,15 @@
     "limits": ["Existing cases are self-built engineering fixtures, not real-repository benchmark results", "OS sandbox remains partial", "SIGKILL of the whole evaluator is not covered by graceful cancellation tests", "Missing terminal aggregate usage is null, not zero", "Unconfirmed cleanup deliberately retains the workspace"]
   },
   "native_real_repository_preflight": {
+    "all_role_request_reader": {
+      "status": "implemented_zero_model_verified_ci_pending",
+      "scope": "Read existing Journal observation request/tool events across roles; normalize raw provider usage with shared usage_ledger code. Do not add another ledger or rewrite frozen results. Legacy root-only logs are marked incomplete when terminal shared counts disagree; nested failures reach campaign stop classification.",
+      "evidence": ".local/implementation/native-swe-adapter/accounting-final.xml",
+      "focused_checks": 13,
+      "quality": "20261025T100656Z-9a75e478",
+      "cancelled_partial_usage_check": ".local/implementation/native-swe-adapter/accounting-final.xml",
+      "actual_journal_check": "All 12 frozen real Journals read as 129 requests and matching disjoint input/output/cache components; zero new model calls. Partial usage and unfinalized admissions remain explicit."
+    },
     "live_baseline": {
       "status": "complete_sealed_original_outcomes_preserved",
       "runtime_commit": "fcecb40157c3cbe2ec32208210cf9316d547ac6c",

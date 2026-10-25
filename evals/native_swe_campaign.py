@@ -78,6 +78,8 @@ def stop_reason(outcome):
             return request['reason']
         if request.get('outcome') not in {'success', 'completed'}:
             return 'model_request_failed:' + str(request.get('reason'))
+    if evidence.get('accounting_complete') is not True:
+        return 'request_accounting_unavailable'
     if outcome.get('error'):
         return 'runner_error'
     if outcome.get('task_status') == 'cancelled':
@@ -87,10 +89,12 @@ def stop_reason(outcome):
 
 def costs(outcome):
     evidence = outcome.get('request_evidence') or {}
-    return {'requests': evidence.get('observed_requests'),
+    accounted = evidence.get('accounting_complete') is True
+    return {'requests': evidence.get('observed_requests') if accounted else None,
+            'reported_requests_lower_bound': evidence.get('observed_requests'),
             'tool_requests': (outcome.get('statistics') or {}).get('tool_requests'),
             'agent_seconds': outcome.get('agent_seconds'), 'total_seconds': outcome.get('total_seconds'),
-            'tokens': outcome.get('usage') if evidence.get('usage_complete') else None,
+            'tokens': outcome.get('usage') if accounted and evidence.get('usage_complete') else None,
             'reported_tokens_lower_bound': evidence.get('reported_usage')}
 
 
@@ -110,13 +114,15 @@ def summarize(slots):
             'completion_rate': len(successful) / len(attempted) if attempted else None,
             'remaining': len(slots) - len(attempted),
             'observed_requests_lower_bound': sum((item or {}).get('observed_requests', 0) for item in observed),
-            'request_accounting_complete': all(item is not None for item in observed),
+            'request_accounting_complete': all(item is not None and item.get('accounting_complete') is True
+                                                for item in observed),
+            'unfinalized_slots': [slot['slot'] for slot in attempted if slot['state'] != 'finished'],
             'failures': [{'slot': slot['slot'], 'task': slot['task'],
                           'status': slot.get('outcome', {}).get('task_status', 'interrupted'),
                           'stop_reason': slot.get('outcome', {}).get('stop_reason'),
                           'reasons': slot.get('outcome', {}).get('reasons', []),
                           'error': slot.get('outcome', {}).get('error')}
-                         for slot in attempted if slot not in successful],
+                         for slot in attempted if slot['state'] == 'finished' and slot not in successful],
             'all_attempts_reported_tokens_lower_bound': {
                 key: sum(usage[key] for usage in reported) for key in reported[0]} if reported else None,
             'successful_costs': success_costs,
