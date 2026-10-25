@@ -7,27 +7,27 @@ import asyncio
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from io import BytesIO
 import json
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
+import sys
 import tarfile
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 import yaml
 
-from forge.runtime.agent_loop import Conversation
+from forge.api import HarnessSession, RunProfile, SessionOptions
+from forge.config import ForgeConfig, model_environment
 from forge.runtime.completion import TaskPolicy, matches_any
-from forge.runtime.model_client import AnthropicModelClient, ModelClient
-from forge.runtime.router import ModelIntentRouter
-from forge.runtime.state import TurnCompleted, TurnResult
-from forge.sessions.trajectory import TrajectoryRecorder
-from forge.tools import create_default_registry
-from forge.tools.shell import ProcessResult, run_process
+from forge.runtime.model_client import ModelClient
+from forge.runtime.state import ToolCall, TurnResult
+from forge.sandbox.path_policy import inspect_path
+from forge.tools.shell import ProcessResult
+from uuid import uuid4
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -38,7 +38,7 @@ class EvalCase(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
-    id: str = Field(min_length=1)
+    id: str = Field(pattern=r'^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$')
     repo: str = Field(min_length=1)
     base_commit_repository: str = '.'
     base_commit: str = Field(min_length=1)
@@ -51,6 +51,18 @@ class EvalCase(BaseModel):
     allowed_paths: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = ('tests/hidden/**',)
     success_criteria: dict[str, bool] = Field(default_factory=dict)
+    max_model_calls: int = Field(default=80, gt=0, strict=True)
+    max_tool_calls: int = Field(default=120, gt=0, strict=True)
+    max_turn_seconds: int = Field(default=1800, gt=0, strict=True)
+    intent_routing: bool = True
+
+    @field_validator('repo')
+    @classmethod
+    def relative_fixture(cls, value):
+        path = PurePosixPath(value)
+        if path.is_absolute() or '..' in path.parts or str(path) != value or '\\' in value or ':' in value:
+            raise ValueError('Fixture repository must be a canonical relative path')
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +75,7 @@ class CommandEvidence:
     timed_out: bool
     stdout: str
     stderr: str
+    execution_boundary: str = 'host-process'
 
     @property
     def success(self) -> bool:
@@ -100,6 +113,15 @@ class EvalOutcome:
     diff_check: CommandEvidence | None = None
     trajectory: str | None = None
     error: str | None = None
+    run_id: str = field(default_factory=lambda: uuid4().hex)
+    stop_reason: str = ''
+    model_calls: int | None = None
+    usage: dict[str, Any] | None = None
+    session_id: str | None = None
+    journal: str | None = None
+    cleanup: dict[str, Any] | None = None
+    run_configuration: dict[str, Any] = field(default_factory=dict)
+    retained_workspace: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -131,12 +153,23 @@ class PreparedFixture(AbstractContextManager['PreparedFixture']):
     def __init__(self, project_root: Path, case: EvalCase) -> None:
         self.project_root = project_root.resolve()
         self.case = case
-        self._temporary = TemporaryDirectory(prefix=f'forge-{case.id}-')
+        self._temporary = TemporaryDirectory(prefix=f'forge-{case.id}-', delete=False)
         self.root = Path(self._temporary.name)
+        self.retain = False
+        if sys.platform == 'win32':
+            from forge.sandbox.windows_worker import grant_controller_access
+            grant_controller_access(self.root)
         self.workspace = self.root / PurePosixPath(case.repo)
         self.hidden_files: tuple[HiddenFile, ...] = ()
 
     def __enter__(self) -> PreparedFixture:
+        try:
+            return self._prepare()
+        except BaseException:
+            self._temporary.cleanup()
+            raise
+
+    def _prepare(self) -> PreparedFixture:
         repository = (
             self.project_root / self.case.base_commit_repository
         ).resolve()
@@ -161,16 +194,21 @@ class PreparedFixture(AbstractContextManager['PreparedFixture']):
             )
         self.hidden_files = remove_hidden_tests(self.workspace)
         initialize_workspace_git(self.workspace)
+        self._workspace_anchor = inspect_path(self.workspace, absolute=True)
         return self
 
     def restore_hidden_tests(self) -> None:
+        self._workspace_anchor.assert_current()
         for hidden in self.hidden_files:
             destination = self.workspace / PurePosixPath(hidden.path)
+            inspect_path(destination, absolute=True).assert_current()
             destination.parent.mkdir(parents=True, exist_ok=True)
+            inspect_path(destination, absolute=True).assert_current()
             destination.write_bytes(hidden.content)
 
     def __exit__(self, *args: object) -> None:
-        self._temporary.cleanup()
+        if not self.retain:
+            self._temporary.cleanup()
 
 
 def remove_hidden_tests(workspace: Path) -> tuple[HiddenFile, ...]:
@@ -219,16 +257,17 @@ def initialize_workspace_git(workspace: Path) -> None:
 
 async def execute_command(
     command: str,
-    workspace: Path,
     timeout_seconds: float,
+    *, session: HarnessSession,
 ) -> CommandEvidence:
-    result = await run_process(
-        command,
-        cwd=workspace,
-        timeout_seconds=timeout_seconds,
-        shell=True,
-    )
-    return CommandEvidence.from_process(command, result)
+    result = await session.backend.execute(ToolCall(0, 'grader-' + uuid4().hex, 'run_command',
+        {'command': command, 'timeout_seconds': timeout_seconds}), session.conversation.registry)
+    metadata = result.metadata
+    return CommandEvidence(command=command, exit_code=metadata.get('exit_code', 125),
+        duration_seconds=metadata.get('duration_seconds', 0), timed_out=metadata.get('timed_out', False),
+        stdout=bounded_output(metadata.get('stdout', '')),
+        stderr=bounded_output(metadata.get('stderr', '') or (result.summary if not result.success else '')),
+        execution_boundary=metadata.get('execution_boundary', session.backend.mode))
 
 
 def build_agent_prompt(case: EvalCase) -> str:
@@ -253,42 +292,9 @@ def build_agent_prompt(case: EvalCase) -> str:
 
 async def run_agent(
     case: EvalCase,
-    workspace: Path,
-    recorder: TrajectoryRecorder,
-    client: ModelClient | None,
+    session: HarnessSession,
 ) -> TurnResult:
-    policy = TaskPolicy(
-        require_changes=True,
-        require_verification=True,
-        allowed_paths=case.allowed_paths,
-        forbidden_paths=case.forbidden_paths,
-    )
-    agent_client = client or AnthropicModelClient.from_config()
-    intent_router = (
-        None
-        if client is not None
-        else ModelIntentRouter(AnthropicModelClient.from_config(max_tokens=600))
-    )
-    conversation = Conversation(
-        client=agent_client,
-        registry=create_default_registry(workspace),
-        task_policy=policy,
-        intent_router=intent_router,
-    )
-    prompt = build_agent_prompt(case)
-    recorder.record_user_message(prompt)
-    final: TurnResult | None = None
-    try:
-        async for event in conversation.stream(prompt):
-            recorder.record_event(event)
-            if isinstance(event, TurnCompleted):
-                final = event.result
-    except Exception as error:
-        recorder.record_error(error)
-        raise
-    if final is None:
-        raise RuntimeError('Agent Loop ended without TurnCompleted.')
-    return final
+    return await session.run(build_agent_prompt(case))
 
 
 async def run_case(
@@ -297,6 +303,10 @@ async def run_case(
     project_root: Path = PROJECT_ROOT,
     output_dir: Path | None = None,
     client: ModelClient | None = None,
+    config: ForgeConfig | None = None,
+    sandbox: str = 'workspace-write',
+    model_client_factory=None,
+    approval_handler=None,
 ) -> EvalOutcome:
     '''Run one case and persist evaluator-owned evidence outside the fixture.'''
     destination = (
@@ -306,69 +316,92 @@ async def run_case(
     )
     destination.mkdir(parents=True, exist_ok=True)
     outcome = EvalOutcome(case_id=case.id)
-    recorder: TrajectoryRecorder | None = None
-
     try:
+        if client is not None and model_client_factory is not None:
+            raise ValueError('Choose client or model_client_factory, not both')
+        if config is None:
+            if client is None:
+                config = ForgeConfig.from_env(model_environment(project_root / '.env'))
+            else:
+                provider = getattr(client, 'provider', 'anthropic')
+                config = ForgeConfig(api_key='injected-client', model_id=getattr(client, 'model', 'scripted-client'),
+                    provider=provider if provider in {'anthropic', 'deepseek', 'openai_responses'} else 'anthropic')
+        profile = RunProfile(name='evaluation', max_model_calls=case.max_model_calls,
+            max_tool_calls=case.max_tool_calls, wall_seconds=case.max_turn_seconds,
+            intent_routing=case.intent_routing if client is None else False)
+        outcome.run_configuration = {'provider': config.provider, 'model': config.model_id,
+            'profile': asdict(profile), 'sandbox': sandbox, 'injected_client': client is not None,
+            'base_commit': case.base_commit, 'repo': case.repo, 'verifier_timeout_seconds': case.timeout_seconds}
         with PreparedFixture(project_root, case) as prepared:
             workspace = prepared.workspace
-            if case.setup_command is not None:
-                outcome.setup = await execute_command(
-                    case.setup_command,
-                    workspace,
-                    case.timeout_seconds,
-                )
-                if not outcome.setup.success:
-                    outcome.reasons.append('Setup command failed.')
-
-            result: TurnResult | None = None
-            if not outcome.reasons:
-                recorder = TrajectoryRecorder.create(workspace)
-                try:
-                    result = await run_agent(case, workspace, recorder, client)
-                    outcome.task_status = result.status
-                    outcome.changed_paths = result.changed_paths
-
-                    if case.build_command is not None:
-                        outcome.build = await execute_command(
-                            case.build_command,
-                            workspace,
-                            case.timeout_seconds,
-                        )
-                    outcome.public_tests = await execute_command(
-                        case.test_command,
-                        workspace,
-                        case.timeout_seconds,
-                    )
-                    outcome.diff_check = await execute_command(
-                        'git diff HEAD --check',
-                        workspace,
-                        30,
-                    )
-
-                    prepared.restore_hidden_tests()
-                    outcome.hidden_tests = await execute_command(
-                        case.hidden_test_command,
-                        workspace,
-                        case.timeout_seconds,
-                    )
-                    outcome.reasons.extend(
-                        acceptance_reasons(case, result, outcome)
-                    )
-                finally:
-                    if recorder.path.exists():
-                        outcome.trajectory = copy_trajectory(
-                            recorder.path,
-                            destination,
-                            case.id,
-                        )
+            session = None
+            try:
+                options = SessionOptions(workspace, sandbox=sandbox, approval='auto', config=config, profile=profile,
+                    data_root=destination.resolve() / 'sessions' / outcome.run_id)
+                policy = TaskPolicy(require_changes=True, require_verification=True,
+                    allowed_paths=case.allowed_paths, forbidden_paths=case.forbidden_paths)
+                session = await HarnessSession.open(options, task_policy=policy, approval_handler=approval_handler,
+                    model_client_factory=(lambda *args, **kwargs: client) if client is not None else model_client_factory)
+                outcome.session_id = session.session_id
+                outcome.journal = str(session.journal.path)
+                outcome.trajectory = str(session.recorder.path)
+                async with session:
+                    if case.setup_command is not None:
+                        outcome.setup = await execute_command(case.setup_command, case.timeout_seconds, session=session)
+                        if not outcome.setup.success:
+                            outcome.reasons.append('Setup command failed.')
+                    if outcome.reasons:
+                        # No agent attempt after failed setup; still close the
+                        # admitted boundary and preserve a failed case report.
+                        outcome.stop_reason = 'setup_failed'
+                    else:
+                        result = await run_agent(case, session)
+                        await grade_result(case, prepared, session, result, outcome)
+            except BaseException as error:
+                report = getattr(error, 'cleanup_report', None)
+                if session is None and report is not None:
+                    outcome.cleanup = report
+                    if report.get('state') != 'clean':
+                        prepared.retain = True
+                        outcome.retained_workspace = str(workspace)
+                raise
+            finally:
+                if session is not None:
+                    outcome.cleanup = session.cleanup or {'state': 'unknown'}
+                    if outcome.cleanup.get('state') != 'clean':
+                        prepared.retain = True
+                        outcome.retained_workspace = str(workspace)
+                        outcome.reasons.append('Execution cleanup is unconfirmed; workspace retained.')
+    except asyncio.CancelledError:
+        outcome.task_status = 'cancelled'
+        outcome.stop_reason = 'cancelled'
+        outcome.error = 'CancelledError'
+        outcome.reasons.append('Evaluation cancelled; no success or automatic replay.')
+        raise
     except Exception as error:
         outcome.error = f'{type(error).__name__}: {error}'
         outcome.reasons.append('Evaluation runner failed.')
-
-    outcome.reasons = list(dict.fromkeys(outcome.reasons))
-    outcome.passed = not outcome.reasons and outcome.error is None
-    write_outcome(outcome, destination)
+    finally:
+        outcome.reasons = list(dict.fromkeys(outcome.reasons))
+        outcome.passed = not outcome.reasons and outcome.error is None and outcome.task_status == 'completed'
+        write_outcome(outcome, destination)
     return outcome
+
+
+async def grade_result(case, prepared, session, result, outcome):
+    """Evaluator-owned commands run outside the agent loop, within its boundary."""
+    outcome.task_status = result.status
+    outcome.changed_paths = result.changed_paths
+    outcome.stop_reason = result.stop_reason
+    outcome.model_calls = result.model_calls
+    outcome.usage = asdict(result.usage)
+    if case.build_command is not None:
+        outcome.build = await execute_command(case.build_command, case.timeout_seconds, session=session)
+    outcome.public_tests = await execute_command(case.test_command, case.timeout_seconds, session=session)
+    outcome.diff_check = await execute_command('git diff HEAD --check', 30, session=session)
+    prepared.restore_hidden_tests()
+    outcome.hidden_tests = await execute_command(case.hidden_test_command, case.timeout_seconds, session=session)
+    outcome.reasons.extend(acceptance_reasons(case, result, outcome))
 
 
 def acceptance_reasons(
@@ -415,17 +448,12 @@ def acceptance_reasons(
     return reasons
 
 
-def copy_trajectory(path: Path, output_dir: Path, case_id: str) -> str:
-    timestamp = datetime.now().astimezone().strftime('%Y%m%d-%H%M%S')
-    destination = output_dir / f'{case_id}-{timestamp}.jsonl'
-    shutil.copy2(path, destination)
-    return str(destination.resolve())
-
-
 def write_outcome(outcome: EvalOutcome, output_dir: Path) -> Path:
+    encoded = json.dumps(outcome.to_dict(), ensure_ascii=False, indent=2)
+    (output_dir / f'{outcome.case_id}-{outcome.run_id}.json').write_text(encoded, encoding='utf-8')
     path = output_dir / f'{outcome.case_id}-latest.json'
     path.write_text(
-        json.dumps(outcome.to_dict(), ensure_ascii=False, indent=2),
+        encoded,
         encoding='utf-8',
     )
     return path
@@ -464,11 +492,12 @@ def select_cases(
 async def run_selected_cases(
     cases: Sequence[tuple[Path, EvalCase]],
     output_dir: Path,
+    *, sandbox: str = 'workspace-write',
 ) -> list[EvalOutcome]:
     outcomes: list[EvalOutcome] = []
     for _, case in cases:
         print(f'[{case.id}] running', flush=True)
-        outcome = await run_case(case, output_dir=output_dir)
+        outcome = await run_case(case, output_dir=output_dir, sandbox=sandbox)
         outcomes.append(outcome)
         state = 'PASS' if outcome.passed else 'FAIL'
         print(f'[{case.id}] {state}', flush=True)
@@ -480,6 +509,10 @@ async def run_selected_cases(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='Run ForgeCode cases in disposable local workspaces.'
+    )
+    parser.add_argument(
+        '--sandbox', choices=('read-only', 'workspace-write', 'full-access'), default='workspace-write',
+        help='Execution boundary for agent and graders; full-access must be explicitly selected.',
     )
     parser.add_argument(
         '--case',
@@ -519,7 +552,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     outcomes = asyncio.run(
-        run_selected_cases(cases, arguments.output_dir.resolve())
+        run_selected_cases(cases, arguments.output_dir.resolve(), sandbox=arguments.sandbox)
     )
     passed = sum(outcome.passed for outcome in outcomes)
     print(f'\nResult: {passed}/{len(outcomes)} cases passed.', flush=True)

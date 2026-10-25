@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 from typing import Any
+import pytest
 
 from evals.runner import EvalCase, PreparedFixture, load_case, run_case
 from forge.runtime.state import (
@@ -77,14 +78,22 @@ def make_case(commit: str) -> EvalCase:
         ),
         allowed_paths=('value.txt',),
         forbidden_paths=('tests/hidden/**',),
+        max_model_calls=6,
+        max_tool_calls=12,
+        intent_routing=False,
     )
 
 
 class FakeModelClient:
     provider = 'fake'
+    model = 'scripted-evaluation'
 
     def __init__(self, *responses: list[ModelStreamEvent]) -> None:
         self.responses = list(responses)
+        self.closed = False
+
+    async def aclose(self):
+        self.closed = True
 
     async def stream(
         self,
@@ -98,6 +107,11 @@ class FakeModelClient:
 
 class FailingModelClient:
     provider = 'fake'
+    model = 'scripted-evaluation'
+    closed = False
+
+    async def aclose(self):
+        self.closed = True
 
     async def stream(
         self,
@@ -204,6 +218,7 @@ def test_run_case_passes_with_fake_agent_and_independent_hidden_test(
             project_root=tmp_path,
             output_dir=output_dir,
             client=client,
+            sandbox='full-access',  # Explicit trusted fixture mode; not native evidence.
         )
     )
 
@@ -220,6 +235,211 @@ def test_run_case_passes_with_fake_agent_and_independent_hidden_test(
         (output_dir / 'demo-001-latest.json').read_text(encoding='utf-8')
     )
     assert report['passed'] is True
+    assert client.closed and outcome.cleanup['state'] == 'clean'
+    assert Path(outcome.journal).is_file()
+
+
+def successful_client(case, *, path='value.txt', content='new\n', verification=None):
+    return FakeModelClient(
+        tool_response(ToolCall(0, 'edit', 'replace_text', {'path': path, 'old_text': 'old\n', 'new_text': content})),
+        tool_response(ToolCall(0, 'verify', 'verify', {'command': verification or case.test_command})),
+        final_response(),
+    )
+
+
+def test_budget_exhaustion_keeps_failed_attempt_even_when_public_grader_passes(tmp_path):
+    case = make_case(initialize_project(tmp_path)).model_copy(update={'max_model_calls': 2})
+    client = successful_client(case)
+    output = tmp_path / 'out'
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=output,
+        client=client, sandbox='full-access'))
+    assert not result.passed and result.task_status == 'failed'
+    assert 'budget' in result.stop_reason and result.model_calls == 2
+    assert result.public_tests.success and result.hidden_tests.success
+    assert client.closed and result.cleanup['state'] == 'clean'
+    records = list(output.glob('demo-001-*.json'))
+    assert len(records) == 2  # Immutable attempt plus convenience latest view.
+    assert all(not json.loads(path.read_text())['passed'] for path in records)
+
+
+def test_independent_grader_rejects_incorrect_edit_despite_claimed_completion(tmp_path):
+    case = make_case(initialize_project(tmp_path))
+    client = successful_client(case, content='wrong\n', verification='python -c "pass"')
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+        client=client, sandbox='full-access'))
+    assert not result.passed and not result.public_tests.success
+    assert 'Public tests failed.' in result.reasons
+    assert client.closed
+
+
+def test_provider_configuration_uses_shared_resolver_and_factory(tmp_path, monkeypatch):
+    import evals.runner as runner
+    import forge.runtime.factory as factory
+    case = make_case(initialize_project(tmp_path))
+    client = successful_client(case)
+    seen = []
+    monkeypatch.setattr(runner, 'model_environment', lambda path: {
+        'FORGE_PROVIDER': 'deepseek', 'FORGE_MODEL': 'configured-model',
+        'FORGE_API_KEY': 'offline-fixture-key', 'FORGE_BASE_URL': 'https://example.test/v1'})
+    def configured(config, **kwargs):
+        seen.append(config)
+        return client
+    monkeypatch.setattr(factory, 'create_model_client', configured)
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+        sandbox='full-access'))
+    assert result.passed
+    assert len(seen) == 1
+    assert (seen[0].provider, seen[0].model_id, seen[0].base_url) == (
+        'deepseek', 'configured-model', 'https://example.test/v1')
+    assert result.run_configuration['provider'] == 'deepseek' and client.closed
+
+
+def test_explicit_client_keeps_its_provider_in_session_metadata(tmp_path):
+    case = make_case(initialize_project(tmp_path))
+    client = successful_client(case)
+    client.provider = 'deepseek'
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+        client=client, sandbox='full-access'))
+    assert result.passed and client.closed
+    assert result.run_configuration['provider'] == 'deepseek'
+    records = [json.loads(line) for line in Path(result.journal).read_text(encoding='utf-8').splitlines()]
+    assert records[0]['payload']['provider'] == 'deepseek'
+
+
+def test_default_native_failure_never_falls_back_or_requests_model(tmp_path, monkeypatch):
+    from forge.sandbox.application_backend import NativeBackendFactory
+    from forge.protocol import ContractError
+    from forge.config import ForgeConfig
+    case = make_case(initialize_project(tmp_path))
+    async def unavailable(*args, **kwargs):
+        raise ContractError('native unavailable', kind='SANDBOX_UNAVAILABLE')
+    monkeypatch.setattr(NativeBackendFactory, 'open', unavailable)
+    called = []
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+        config=ForgeConfig(api_key='offline', model_id='fixture'),
+        model_client_factory=lambda *a, **k: called.append(True)))
+    assert not result.passed and 'native unavailable' in result.error
+    assert not called and result.session_id is None
+
+
+def test_cancelled_model_closes_client_and_persists_failed_attempt(tmp_path):
+    case = make_case(initialize_project(tmp_path))
+    output = tmp_path / 'out'
+    class WaitingClient(FakeModelClient):
+        async def stream(self, *args, **kwargs):
+            started.set()
+            await asyncio.Event().wait()
+            yield ModelTextDelta('unreachable')
+    async def run():
+        nonlocal started
+        started = asyncio.Event()
+        client = WaitingClient()
+        task = asyncio.create_task(run_case(case, project_root=tmp_path, output_dir=output,
+            client=client, sandbox='full-access'))
+        await asyncio.wait_for(started.wait(), 30)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert client.closed
+    started = None
+    asyncio.run(run())
+    result = json.loads((output / 'demo-001-latest.json').read_text())
+    assert result['task_status'] == 'cancelled' and not result['passed']
+    assert result['cleanup']['state'] == 'clean'
+    assert Path(result['journal']).is_file()
+
+
+@pytest.mark.parametrize('path', ['../escape', '/absolute', 'a/../b', 'C:/escape'])
+def test_fixture_scope_cannot_escape_owned_directory(path):
+    with pytest.raises(ValueError):
+        EvalCase.model_validate({**make_case('HEAD').model_dump(), 'repo': path})
+
+
+def test_router_initialization_failure_closes_already_created_model(tmp_path):
+    from forge.config import ForgeConfig
+    case = make_case(initialize_project(tmp_path)).model_copy(update={'intent_routing': True})
+    client = FakeModelClient()
+    def factory(config, **kwargs):
+        if kwargs:
+            raise RuntimeError('router initialization failed')
+        return client
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+        config=ForgeConfig(api_key='offline', model_id='configured-model'),
+        model_client_factory=factory, sandbox='full-access'))
+    assert not result.passed and 'router initialization failed' in result.error
+    assert client.closed and result.cleanup['state'] == 'clean'
+
+
+def test_task_policy_rejects_forbidden_edit_before_side_effect(tmp_path):
+    case = make_case(initialize_project(tmp_path)).model_copy(update={
+        'forbidden_paths': ('value.txt',), 'allowed_paths': ('elsewhere/**',)})
+    client = successful_client(case)
+    client.responses.extend(final_response() for _ in range(4))
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+        client=client, sandbox='full-access'))
+    assert not result.passed
+    assert not result.changed_paths and not result.public_tests.success
+    events = [json.loads(line) for line in Path(result.trajectory).read_text(encoding='utf-8').splitlines()]
+    failures = [event for event in events if 'outside_task_scope' in json.dumps(event)]
+    assert failures and 'Forbidden paths were modified: value.txt' in json.dumps(failures)
+    assert 'Paths outside the allowed scope were modified: value.txt' in json.dumps(failures)
+    assert client.closed and result.cleanup['state'] == 'clean'
+
+
+def test_tool_failure_preserves_result_and_closes_runtime(tmp_path):
+    case = make_case(initialize_project(tmp_path))
+    client = FakeModelClient(
+        tool_response(ToolCall(0, 'bad-read', 'read_file', {'path': 'missing.txt'})),
+        tool_response(ToolCall(0, 'failed', 'finish_task', {'task_kind': 'change', 'status': 'failed',
+            'summary': 'Required source is missing.', 'blocked_reasons': ['missing source']})))
+    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+        client=client, sandbox='full-access'))
+    assert not result.passed and result.task_status == 'failed'
+    assert client.closed and result.cleanup['state'] == 'clean'
+    assert 'missing.txt' in Path(result.trajectory).read_text(encoding='utf-8')
+
+
+def test_hidden_restore_rejects_agent_created_hardlink(tmp_path):
+    import os
+    case = make_case(initialize_project(tmp_path))
+    with PreparedFixture(tmp_path, case) as fixture:
+        outside = fixture.root / 'outside.txt'  # Same filesystem, outside the agent workspace.
+        outside.write_bytes(b'untouched')
+        hidden = fixture.workspace / 'tests/hidden/test_secret.txt'
+        hidden.parent.mkdir(parents=True)
+        os.link(outside, hidden)
+        with pytest.raises(ValueError, match='hardlink'):
+            fixture.restore_hidden_tests()
+        assert outside.read_bytes() == b'untouched'
+
+
+def test_unconfirmed_cleanup_cannot_be_success_and_preserves_workspace(tmp_path, monkeypatch):
+    import evals.runner as runner
+    from forge.api import HarnessSession
+    case = make_case(initialize_project(tmp_path))
+    client = successful_client(case)
+    owned = []
+    class ObservedFixture(PreparedFixture):
+        def _prepare(self):
+            result = super()._prepare()
+            owned.append(self)
+            return result
+    monkeypatch.setattr(runner, 'PreparedFixture', ObservedFixture)
+    close = HarnessSession.close
+    async def uncertain(session):
+        await close(session)  # Actual helpers are gone; inject reporting failure only.
+        session.cleanup = {'state': 'unknown'}
+        return session.cleanup
+    monkeypatch.setattr(HarnessSession, 'close', uncertain)
+    try:
+        result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
+            client=client, sandbox='full-access'))
+        assert not result.passed and result.public_tests.success and result.hidden_tests.success
+        assert result.cleanup['state'] == 'unknown'
+        assert Path(result.retained_workspace).exists() and client.closed
+    finally:
+        for fixture in owned:
+            fixture._temporary.cleanup()
 
 
 def test_run_case_preserves_trajectory_when_model_fails(
@@ -229,12 +449,14 @@ def test_run_case_preserves_trajectory_when_model_fails(
     case = make_case(commit)
     output_dir = tmp_path / 'out'
 
+    client = FailingModelClient()
     outcome = asyncio.run(
         run_case(
             case,
             project_root=tmp_path,
             output_dir=output_dir,
-            client=FailingModelClient(),
+            client=client,
+            sandbox='full-access',
         )
     )
 
@@ -243,3 +465,4 @@ def test_run_case_preserves_trajectory_when_model_fails(
     assert 'model unavailable' in outcome.error
     assert outcome.trajectory is not None
     assert Path(outcome.trajectory).is_file()
+    assert client.closed and outcome.cleanup['state'] == 'clean'

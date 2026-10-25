@@ -113,7 +113,16 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
         backend = await NativeBackendFactory(data, mode=options.sandbox).open(workspace, policy, owner, identity)
     permissions = PermissionManager(root, mode=options.approval, approval_handler=approval_handler,
         execution_mode=options.sandbox, authorized_write_roots=tuple(map(Path, policy['filesystem']['write_roots'])))
-    bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=model_client_factory,
+    from forge.runtime.factory import create_model_client
+    client_factory = model_client_factory or create_model_client
+    startup_clients = []
+    constructing = True
+    def tracked_client_factory(*args, **kwargs):
+        client = client_factory(*args, **kwargs)
+        if constructing:
+            startup_clients.append(client)
+        return client
+    bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=tracked_client_factory,
         permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
         max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
         intent_routing=options.profile.intent_routing,
@@ -126,9 +135,28 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
         journal.append('execution_profile', {'profile': asdict(options.profile), 'sandbox': options.sandbox,
             'approval': options.approval, 'policy': policy})
         return conversation, journal, state, backend
-    except BaseException:
-        await backend.close()
+    except BaseException as error:
+        failures, seen = [], set()
+        for client in startup_clients:
+            if id(client) in seen:
+                continue
+            seen.add(id(client))
+            try:
+                close = getattr(client, 'aclose', None)
+                if close is not None:
+                    await close()
+            except Exception as failure:
+                failures.append(type(failure).__name__)
+        try:
+            cleanup = await backend.close()
+        except Exception as failure:
+            cleanup = {'state': 'unknown', 'reason': type(failure).__name__}
+        error.cleanup_report = ({'state': 'unknown', 'client_close_errors': failures, 'backend': cleanup}
+            if failures else cleanup)
         raise
+    finally:
+        constructing = False
+        startup_clients.clear()
 
 
 class HarnessSession:
