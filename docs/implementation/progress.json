@@ -156,6 +156,17 @@
   },
   "sandbox_completion": {
     "legacy_python_and_grader_cache": {
+      "default_cache_recovery": {
+        "status": "windows_native_verified_ci_pending",
+        "scope": "Within existing native Python compatibility hook only: default process-local PYTEST_ADDOPTS selects owned execution scratch; cacheprovider stays enabled, explicit existing options retain precedence, no global PATH/environment or ACL expansion. Cache is cleaned with each execution, not persisted across commands.",
+        "before": ".local/implementation/native-swe-development-validation/sphinx-public-diagnostic-3eeb7d5676d44a10a1ba109626136cdf/results.json",
+        "after": ".local/implementation/native-swe-development-validation/sphinx-public-diagnostic-16b93b0504094519ad4d1ccd64e432eb/results.json",
+        "actual_results": "Same owned Sphinx base/candidate and pinned interpreter: both default-cache runs previously timed out after 100%; owned cache exposed base 18 pass and candidate 15 pass/3 fail. After the default-cache fix, original commands without explicit -o finish in 12.969s/9.578s with the same 18 pass/3 fail results. Assertions unchanged, 120s deadline unchanged, all cleanup clean. Candidate introduces properties/slots_attribute/coroutine regressions; six frozen target tests do not establish full regression safety.",
+        "unit": {"evidence": ".local/implementation/native-swe-development-validation/cache-related.xml", "passed": 25},
+        "native": {"evidence": [".local/implementation/native-swe-development-validation/cache-default-native.xml", ".local/implementation/native-swe-development-validation/cache-scratch-native.xml"], "passed": 4},
+        "quality": "20261025T115022Z-d28d24b3",
+        "model_api_calls": 0
+      },
       "status": "native_verified_ci_pending",
       "change": "Scratch-only mkdir wrapper retains built-in callable behavior for Python 3.8/3.9 pathlib accessors, including earlier imports. Independent pytest cache is enabled inside owned execution scratch; project-wide 0700 semantics and OS privileges are not expanded.",
       "evidence": [".local/implementation/native-swe-adapter/native-python-versions-fixed/results.json", ".local/implementation/native-swe-adapter/native-python-owned-cache/results.json", ".local/implementation/native-swe-adapter/legacy-wrapper-current-python-accepted.xml"],

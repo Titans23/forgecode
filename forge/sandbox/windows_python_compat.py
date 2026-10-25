@@ -17,6 +17,12 @@ def install():
     if not raw:
         return
     temporary = os.path.normcase(os.path.abspath(json.loads(raw)['temp']))
+    # pytest's default project cache uses mkdir(0700) outside private scratch.
+    # Keep cacheprovider enabled in the owned execution; explicit options win.
+    cache_option = 'cache_dir=' + os.path.join(temporary, 'pytest-cache').replace('\\', '/')
+    existing_options = os.environ.get('PYTEST_ADDOPTS', '')
+    if cache_option not in existing_options:
+        os.environ['PYTEST_ADDOPTS'] = f'-o "{cache_option}" {existing_options}'.strip()
     original = os.mkdir
 
     def mkdir(path, mode=0o777, *, dir_fd=None):

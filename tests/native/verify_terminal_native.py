@@ -4,6 +4,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -218,6 +219,36 @@ def test_native_public_session_continues_with_structured_events(tmp_path):
             assert events[-1]['type'] == 'TurnCompleted'
             assert events[-1]['payload']['result']['text'] == 'offline native response'
         assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows Python cache/ACL compatibility')
+@pytest.mark.parametrize('mode', ['read-only', 'workspace-write'])
+def test_native_pytest_default_private_cache_preserves_real_failures(tmp_path, mode):
+    async def run():
+        options = settings(tmp_path, mode)
+        (options.root/'test_cache.py').write_text(
+            'def test_pass():\n    assert True\ndef test_fail():\n    assert False, "visible real failure"\n')
+        script = '''import pytest, json, os, sys
+from pathlib import Path
+class Audit:
+    @pytest.hookimpl(trylast=True)
+    def pytest_configure(self, config):
+        scope = Path(json.loads(os.environ['FORGE_NATIVE_SCOPE'])['temp']).resolve()
+        assert config.pluginmanager.hasplugin('cacheprovider')
+        assert config.cache._cachedir.resolve().is_relative_to(scope)
+        print('owned pytest cache enabled')
+sys.exit(pytest.main(['-q', 'test_cache.py'], plugins=[Audit()]))
+'''
+        async with await HarnessSession.open(options) as session:
+            result = await session.backend.execute(ToolCall(0,'cache','run_command',
+                {'command':'python -','stdin':script,'timeout_seconds':30}),session.conversation.registry)
+            assert not result.success and result.metadata['exit_code']==1, result
+            assert not result.metadata['timed_out']
+            assert 'owned pytest cache enabled' in result.content and 'visible real failure' in result.content
+            assert '1 failed, 1 passed' in result.content
+            assert not (options.root/'.pytest_cache').exists()
+        assert session.cleanup['state']=='clean'
     asyncio.run(run())
 
 

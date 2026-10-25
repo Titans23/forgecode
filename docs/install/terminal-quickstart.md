@@ -94,6 +94,8 @@ forge --sandbox workspace-write --approval plan
 
 Windows 沙盒命令中的 `python` 通过会话级小型虚拟环境复用本机解释器和依赖，使默认临时目录继承已隔离的私有 ACL；会话退出后清理该环境。普通启动、`python -I` 及其 Python 子进程支持此适配。显式 `-S`、其他绝对路径解释器或在私有临时范围之外创建 `0700` 目录不经过适配，仍可能受 [CPython 的 Windows 受限令牌兼容问题](https://github.com/python/cpython/issues/134587)影响。
 
+Windows 原生 Python 命令的 pytest 缓存默认放入本次执行的私有临时目录，cacheprovider 保持启用；不修改全局配置，显式 `PYTEST_ADDOPTS` 和命令行选项按 pytest 的既有优先级覆盖。缓存随执行清理，不承诺跨命令的 `--lf` 或缓存持久化。
+
 文件工具按读取/写入范围限制访问，并拒绝凭据、控制目录及不安全链接。当前 OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程、Linux 动态硬链接等限制仍存在，能力记录为 partial。初始化使用真实边界探针，失败直接拒绝任务。强隔离的正式评测要求不能由此替代。
 
 `forge sandbox --json` 是只读环境诊断，未经项目初始化时会报告未验证/blocked；实际沙盒证明在启动项目会话时产生。
