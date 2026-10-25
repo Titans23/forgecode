@@ -27,6 +27,10 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 夹具的 setup、public/hidden verifier 和 diff check 是评测器独立触发的命令，走同一已选择执行边界，不消耗 Agent 的模型/工具预算，受各自命令时限约束。隐藏测试在 Agent 回合结束后恢复，拒绝链接目标；不能把这描述成 partial OS 边界下的绝对保密保证。`EvalOutcome.passed` 才是最终验收结果，Agent 声称完成不等于成功。每次尝试保留 run_id 报告和 Journal/trajectory；latest 只是同一尝试的便捷视图，不应重复计数。取消也保存失败记录；缺少终态聚合用量时留 null。清理未知时拒绝成功并保留工作区，避免在活跃进程可能存在时删除它。
 
+真实仓库任务冻结在 `experiments/native-swe-lite.json`，目前是公开 SWE-bench Lite 的 Windows 原生适配预检，不是官方成绩或模型完成率。`scripts/prepare_native_swe.py` 校验官方数据/源码摘要，使用任务独立解释器和依赖，先施加测试补丁复现失败，再只施加参考修复验证全部规定回归。`evals/swe_lite_grader.py` 校验冻结的原标签→全部实际 node ID 映射，拒绝缩小参数覆盖、跳过、xfail 和收集错误；命令生命周期复用 LocalProcessOwner，不证明 OS 强隔离。
+
+参考工作区、补丁、原始日志和 `runner-source.json` 只属于评测控制器；后者不是可运行 EvalCase。后续适配继续复用 HarnessSession/runner，从 base 重建 Agent 环境，结束后在评测器副本施加测试补丁并独立判分，审计工具读取中的答案泄漏并标记 invalid。当前原生读取/网络继承宿主，工作区外存放仅为输入分离，不是不可访问的安全隔离。模型回合尚未执行，具体预算及待完成门禁见 `experiments/native-swe-lite-plan.json`。
+
 | 状态/资源 | 唯一责任方 |
 |---|---|
 | 已提交消息、持久化句柄、验证历史、待处理输入 | SessionController；Conversation 保留兼容属性与会话操作接口 |

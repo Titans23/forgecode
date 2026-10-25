@@ -6,19 +6,19 @@
   "current_task": "T01",
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
-    "current_checkpoint": "eval_runner_HarnessSession_alignment",
-    "next_checkpoint": "freeze_small_real_open_source_repository_taskset_and_preflight_original_reference_and_regressions_without_model_calls",
+    "current_checkpoint": "real_repository_native_subset_preflight_and_freeze",
+    "next_checkpoint": "adapt_frozen_real_tasks_to_shared_runner_with_independent_post_agent_grading_and_leakage_audit_without_model_calls",
     "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
     "done_conditions_ref": "docs/implementation/tasks/T01.md",
     "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
     "resolved_gap": "evals.runner now uses HarnessSession, shared model configuration/factory, bounded RunProfile and TaskPolicy. Agent and independent graders share the explicit boundary. Startup-created clients close on construction failure. Engineering verification uses scripted models, not paid model calls.",
     "evidence_limits": "Source/test inventory is not current-source acceptance. API fixtures are scripted models. Recent native evidence covers Windows partial isolation. Historical live comparisons do not establish current-version or stable P3 performance gains.",
-    "ci_baseline": {"commit": "2f15169", "run_id": 40164196221, "status": "success", "observed": "All three portable jobs and dependency-security passed before the runtime migration."},
+    "ci_baseline": {"commit": "11453f8", "run_id": 40166449548, "status": "success", "observed": "Both Ubuntu portable jobs, Windows portable and dependency-security passed for the shared runtime migration."},
     "guardrails": ["no Docker for ordinary installation or execution", "no new paid model calls in this checkpoint", "preserve permission budget cancellation and cleanup boundaries", "do not label partial isolation strict", "commit and push every independently verified checkpoint; report SHA validation and actual CI state", "do not claim the unfinished sandbox goal achieved or delete it"],
     "deferred": ["full_cross_platform_native_os_isolation_expansion", "training_expansion"]
   },
   "eval_runtime_alignment": {
-    "status": "implemented_locally_verified_ci_pending",
+    "status": "implemented_locally_verified_ci_passed_40166449548",
     "scope": "Shared API lifecycle, config and budgets; TaskPolicy and independent public/hidden/path graders retained; default native workspace-write with no fallback; cancellation persisted; unknown cleanup prevents success and retains the owned fixture.",
     "engineering_evidence_only": true,
     "model_api_calls": 0,
@@ -33,6 +33,23 @@
     "quality_evidence_id": "20261025T053749Z-3d20ce34",
     "contracts_evidence_id": "20261025T053749Z-87ace2c4",
     "limits": ["Existing cases are self-built engineering fixtures, not real-repository benchmark results", "OS sandbox remains partial", "SIGKILL of the whole evaluator is not covered by graceful cancellation tests", "Missing terminal aggregate usage is null, not zero", "Unconfirmed cleanup deliberately retains the workspace"]
+  },
+  "native_real_repository_preflight": {
+    "status": "six_cases_frozen_and_native_preflight_passed_ci_pending",
+    "manifest": "experiments/native-swe-lite.json",
+    "model_plan": "experiments/native-swe-lite-plan.json",
+    "evidence": ".local/implementation/real-repo-preflight/summary.json",
+    "platform": "Windows x86_64 native host processes with owned-tree cleanup; not strict sandbox acceptance",
+    "selected_cases": ["pallets__flask-4992", "pallets__flask-5063", "pytest-dev__pytest-5413", "pytest-dev__pytest-5495", "sphinx-doc__sphinx-10325", "sphinx-doc__sphinx-11445"],
+    "selection": "Six preferred cases first, then predefined numeric-order same-repo replacements. Five exclusions and setup/collection diagnostics retained. No model outcomes influenced selection.",
+    "required_labels": {"FAIL_TO_PASS": 9, "PASS_TO_PASS": 263},
+    "native_results": {"cases_accepted": 6, "base_failed_target_tests": 9, "base_passed_regressions": 264, "reference_passed_tests": 273, "skipped_required_tests": 0},
+    "mapping": "Frozen original-label to all collected-node mapping; legacy whitespace truncation expands to every match. Missing parameters, skips, xfail, collection errors, duplicate/incomplete phases and cleanup uncertainty reject acceptance.",
+    "model_api_calls": 0,
+    "future_model_plan": {"runs": 12, "repetitions_per_task": 2, "requests_per_run": 18, "total_request_cap": 216, "automatic_retries": 0, "status": "not_executed_authorization_and_runner_adapter_pending"},
+    "adapter": "runner-source.json is controller metadata, not a runnable EvalCase. Next checkpoint reuses HarnessSession/runner, separate base-only dependencies and post-Agent test-patch grading; audit leakage and invalidate contaminated attempts.",
+    "limits": ["Public known tasks; not official SWE-bench scoring or unseen evaluation", "Reference-fix validation is not model completion rate", "Workspace separation is not confidentiality under partial host read/network inheritance", "Linux native adaptation and complete OS sandbox remain unverified"],
+    "checks": {"regression": ".local/implementation/real-repo-preflight/evals-regression.xml", "regression_passed": 57, "quality": ".local/implementation/real-repo-preflight/quality.json", "quality_passed": 7, "contracts": ".local/implementation/real-repo-preflight/contracts.json", "contracts_passed": 2}
   },
   "sandbox_completion": {
     "status": "in_progress",

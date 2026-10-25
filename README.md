@@ -121,4 +121,12 @@ uv run --no-sync python scripts/impl.py verify --suite terminal-native
 npm run test:unit
 ```
 
+真实仓库预检使用 [六任务清单](experiments/native-swe-lite.json)：Flask、pytest、Sphinx 各两个固定提交，来自公开 SWE-bench Lite。Windows 原生适配不等于官方 SWE-bench 分数，也不是未见任务；选择、排除理由、依赖版本和完整测试映射均冻结。以下命令只获取官方数据并验证原始失败、参考修复及全部规定回归项，不调用模型，不要求 Docker：
+
+```text
+uv run --no-sync --with pyarrow==19.0.1 python scripts/prepare_native_swe.py preflight
+```
+
+解释器、任务虚拟环境、原始补丁和每次日志均保存在 `.local/implementation/real-repo-preflight`。可用 `--case <清单ID>` 选择单项；每次显式执行保留独立结果，不覆盖失败。独立判分入口 `evals/swe_lite_grader.py` 要求冻结 suite 和 report 路径，原标签对应多个参数时必须全部执行；缺项、跳过、xfail、收集或清理失败都不通过。未来 Agent 只接收问题和全新的 base 源码快照，不能使用参考环境或补丁目录。后续模型计划见 [冻结计划](experiments/native-swe-lite-plan.json)，当前仅准备，不执行其 12 个模型回合。
+
 确定性测试、原生平台、安装 wheel 与真实模型实验分别验证。运行报告保存在已忽略的 `.local/implementation`，不提交到文档目录。开发约定见 [AGENTS.md](AGENTS.md)，当前待办见 [progress.json](docs/implementation/progress.json)。真实模型预算与管理员安装需要另行授权。

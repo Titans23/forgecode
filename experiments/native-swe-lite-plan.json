@@ -1,0 +1,128 @@
+{
+  "schema_version": "forge.native-swe-lite.plan.v1",
+  "status": "frozen_preparation_no_model_execution_authorized",
+  "model": {
+    "provider": "anthropic",
+    "model_id": "gpt-6.1-sol",
+    "max_tokens": 8192,
+    "context_window": 128000,
+    "request_timeout_seconds": 120.0,
+    "reasoning_effort": null,
+    "endpoint_sha256": "919fe08de07d05f243464f4629bfa749ab350d3009e4c27bd8c3c32d175bab65"
+  },
+  "task_manifest": "experiments/native-swe-lite.json",
+  "task_manifest_sha256": "76bdf3d1b006a7844c42f6e055829a703a028118c6f311bc90660ba8f87f5769",
+  "execution_entry": "evals.runner.run_case / HarnessSession; no separate Agent loop",
+  "adapter_status": "Not implemented in this checkpoint. runner-source.json is controller metadata, not a runnable EvalCase or model payload.",
+  "adapter_contract": {
+    "prepare": "Use PreparedFixture from the bare pinned base only, fresh local Git history and separate task environment; never reuse a reference-installed editable environment.",
+    "agent": "Only problem_statement, base source and generic runner instructions; no evaluator paths, reference fixes, test patch, hints or future history.",
+    "grade": "After Agent termination and owned-process cleanup, preserve candidate diff, restore trusted base test/config files and apply the pinned test_patch on an evaluator copy; grade against the frozen mapping with independent task dependencies. Never install or expose the gold patch during model execution.",
+    "accounting": "Reuse HarnessSession budgets and outcome records. Count every started slot, classify setup/model/budget/cancellation/grader/cleanup failures; keep successful costs separate. No second Agent loop.",
+    "leakage": "Audit Journal tool reads/commands for evaluator artifacts, future commits and answer exposure; any observed leakage marks the attempt invalid and never successful. Workspace separation does not prevent host reads/network under the current partial native boundary."
+  },
+  "source_policy": "Record tested ForgeCode commit and clean tree before execution; do not change implementation within the plan.",
+  "repetitions_per_task": 2,
+  "runs": 12,
+  "concurrency": 1,
+  "per_run": {
+    "max_model_calls": 18,
+    "max_tool_calls": 48,
+    "max_turn_seconds": 900,
+    "verifier_timeout_seconds": 600,
+    "intent_routing": false,
+    "sandbox": "workspace-write"
+  },
+  "total_model_request_cap": 216,
+  "automatic_retries": 0,
+  "failed_reruns": 0,
+  "schedule": [
+    {
+      "slot": 1,
+      "task": "pallets__flask-4992",
+      "repeat": 1
+    },
+    {
+      "slot": 2,
+      "task": "pallets__flask-5063",
+      "repeat": 1
+    },
+    {
+      "slot": 3,
+      "task": "pytest-dev__pytest-5413",
+      "repeat": 1
+    },
+    {
+      "slot": 4,
+      "task": "pytest-dev__pytest-5495",
+      "repeat": 1
+    },
+    {
+      "slot": 5,
+      "task": "sphinx-doc__sphinx-10325",
+      "repeat": 1
+    },
+    {
+      "slot": 6,
+      "task": "sphinx-doc__sphinx-11445",
+      "repeat": 1
+    },
+    {
+      "slot": 7,
+      "task": "pallets__flask-4992",
+      "repeat": 2
+    },
+    {
+      "slot": 8,
+      "task": "pallets__flask-5063",
+      "repeat": 2
+    },
+    {
+      "slot": 9,
+      "task": "pytest-dev__pytest-5413",
+      "repeat": 2
+    },
+    {
+      "slot": 10,
+      "task": "pytest-dev__pytest-5495",
+      "repeat": 2
+    },
+    {
+      "slot": 11,
+      "task": "sphinx-doc__sphinx-10325",
+      "repeat": 2
+    },
+    {
+      "slot": 12,
+      "task": "sphinx-doc__sphinx-11445",
+      "repeat": 2
+    }
+  ],
+  "stop_campaign_on": [
+    "rate_limit",
+    "model_timeout",
+    "response_stream_interrupted",
+    "native_boundary_failure",
+    "unconfirmed_cleanup"
+  ],
+  "attempt_accounting": "One slot starts at setup admission; failed setup recorded separately with zero model requests. Every model-attempted slot remains in operational completion denominator. No retries, replacements or new samples after model results.",
+  "full_success": "run_case passed AND completed terminal status AND nonempty allowed diff AND successful independent frozen F2P/P2P grading AND clean cleanup. Budget-exhausted/cancelled/infra failures are not success.",
+  "statistics": {
+    "completion": "All attempted slots with failures by category; setup failures separately visible.",
+    "success_only": [
+      "model requests",
+      "tool calls",
+      "wall seconds",
+      "input/output/cache tokens"
+    ],
+    "paired": "For two-success repeats report within-task paired costs; no before/after improvement inference without frozen comparison conditions.",
+    "missing_usage": "null, never zero; retain total known consumption across all attempts."
+  },
+  "gates_before_paid_execution": [
+    "Supervisor verifies authorization",
+    "All six current-source frozen native preflights accepted",
+    "Shared runner adapter and evaluator-only test restoration validated without model calls",
+    "Record and verify exact ForgeCode runtime commit, manifest/environment hashes and model config",
+    "Enforce cap at actual request boundary including any routing/subagent/retry, no automatic retries"
+  ]
+}

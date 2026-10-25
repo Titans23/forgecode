@@ -1,0 +1,281 @@
+{
+  "schema_version": "forge.native-swe-lite.v1",
+  "description": "Public known-task Windows native adaptation; not official SWE-bench scoring or an unseen benchmark.",
+  "dataset": {
+    "id": "princeton-nlp/SWE-bench_Lite",
+    "revision": "6ec7bb89b9342f664a54a6e0a6ea6501d3437cc2",
+    "split": "test",
+    "file": "data/test-00000-of-00001.parquet",
+    "sha256": "7a21f37b8bc179c7db5beeb14e88ac538ba283455c776e6b2535bbfb6e3551b4",
+    "license": "No dataset-wide license declared in the pinned card. Raw rows/patches are fetched locally, not redistributed in this repository.",
+    "card_sha256": "01d69da06269ac911e8d716a868838d53c9bf0a16b9b2fee9097cb5c84bff3d3"
+  },
+  "harness_reference": {
+    "repository": "SWE-bench/SWE-bench",
+    "commit": "02e7a74ffd0b707aab73d203fe87bdc7c76afc8e",
+    "purpose": "Inspect official test-label parsing/environment records; native preflight does not use the official Docker harness."
+  },
+  "selection": {
+    "initial": [
+      "pallets__flask-4992",
+      "pallets__flask-5063",
+      "pytest-dev__pytest-11143",
+      "pytest-dev__pytest-11148",
+      "sphinx-doc__sphinx-10325",
+      "sphinx-doc__sphinx-11445"
+    ],
+    "replacement_order": {
+      "pallets/flask": [
+        "pallets__flask-4045"
+      ],
+      "pytest-dev/pytest": [
+        "pytest-dev__pytest-5103",
+        "pytest-dev__pytest-5221",
+        "pytest-dev__pytest-5227",
+        "pytest-dev__pytest-5413",
+        "pytest-dev__pytest-5495",
+        "pytest-dev__pytest-5692",
+        "pytest-dev__pytest-6116",
+        "pytest-dev__pytest-7168",
+        "pytest-dev__pytest-7220",
+        "pytest-dev__pytest-7373",
+        "pytest-dev__pytest-7432",
+        "pytest-dev__pytest-7490",
+        "pytest-dev__pytest-8365",
+        "pytest-dev__pytest-8906",
+        "pytest-dev__pytest-9359"
+      ],
+      "sphinx-doc/sphinx": [
+        "sphinx-doc__sphinx-7686",
+        "sphinx-doc__sphinx-7738",
+        "sphinx-doc__sphinx-7975",
+        "sphinx-doc__sphinx-8273",
+        "sphinx-doc__sphinx-8282",
+        "sphinx-doc__sphinx-8435",
+        "sphinx-doc__sphinx-8474",
+        "sphinx-doc__sphinx-8506",
+        "sphinx-doc__sphinx-8595",
+        "sphinx-doc__sphinx-8627",
+        "sphinx-doc__sphinx-8713",
+        "sphinx-doc__sphinx-8721",
+        "sphinx-doc__sphinx-8801",
+        "sphinx-doc__sphinx-10451"
+      ]
+    },
+    "basis": "Implementation diversity and native reproducibility; recorded before preflight/model execution; no replacement based on model result."
+  },
+  "platform": "Windows x86_64",
+  "environments": {
+    "flask": {
+      "python": "3.11.10",
+      "package": "flask",
+      "requirements": "experiments/native-swe-lite/flask.txt",
+      "sha256": "1695e15c407d5e9b4fb427b3edd666bb50ca1b941cc7e4cab01d4cb6729e49a4",
+      "adaptation": "Task-local uv interpreter/venv; pinned native dependencies; editable base source with no dependency/build isolation resolution; SCM version derived from dataset version, no future Git history; no global Python/Node changes."
+    },
+    "pytest46": {
+      "python": "3.8.20",
+      "package": "pytest",
+      "requirements": "experiments/native-swe-lite/pytest46.txt",
+      "sha256": "7e618ababd9002feee2f47bab748ffde4cfce2822bf5727b4d5a62321d9f9e8f",
+      "adaptation": "Task-local uv interpreter/venv; pinned native dependencies; editable base source with no dependency/build isolation resolution; SCM version derived from dataset version, no future Git history; no global Python/Node changes."
+    },
+    "sphinx50": {
+      "python": "3.9.20",
+      "package": "sphinx",
+      "requirements": "experiments/native-swe-lite/sphinx50.txt",
+      "sha256": "b4e50ac34be830e358259d91404ee92f8fcc57eb90ea1e58b88fbc17a4cfe9de",
+      "adaptation": "Task-local uv interpreter/venv; pinned native dependencies; editable base source with no dependency/build isolation resolution; SCM version derived from dataset version, no future Git history; no global Python/Node changes."
+    },
+    "sphinx71": {
+      "python": "3.9.20",
+      "package": "sphinx",
+      "requirements": "experiments/native-swe-lite/sphinx71.txt",
+      "sha256": "1e9038205b422df501e65094634f9a65d437d2b25c343b08b189d46c3389b416",
+      "adaptation": "Task-local uv interpreter/venv; pinned native dependencies; editable base source with no dependency/build isolation resolution; SCM version derived from dataset version, no future Git history; no global Python/Node changes."
+    }
+  },
+  "cases": [
+    {
+      "id": "pallets__flask-4992",
+      "repo": "pallets/flask",
+      "base_commit": "4c288bc97ea371817199908d0d9b12de9dae327e",
+      "environment_setup_commit": "182ce3dd15dfa3537391c3efaf9c3ff407d134d4",
+      "version": "2.3",
+      "environment": "flask",
+      "row_sha256": "103368907ef0418b6f743c9fe912764d9278cb621849a7b996c910b6bddbfad4",
+      "archive_sha256": "4332930b3c5f0f1056a928b9fff059f2c743ec0484f71c7b7af731471a9cf26c",
+      "suite": "experiments/native-swe-lite/suites/pallets__flask-4992.json",
+      "suite_sha256": "b15d4c1c35686c0067fd1505220a97b0e01c07f527ad8189641df7215b0e64ac",
+      "license": {
+        "id": "BSD-3-Clause",
+        "path": "LICENSE.rst",
+        "sha256": "4631ec0db5fd90a547e336817264c6798214338146f8ac94b4a57f96ee8c9ec4"
+      },
+      "required": {
+        "FAIL_TO_PASS": 1,
+        "PASS_TO_PASS": 18,
+        "actual_nodes": 19
+      },
+      "preliminary_evidence": ".local/implementation/real-repo-preflight/cases/pallets__flask-4992/attempt-1e2ab851"
+    },
+    {
+      "id": "pallets__flask-5063",
+      "repo": "pallets/flask",
+      "base_commit": "182ce3dd15dfa3537391c3efaf9c3ff407d134d4",
+      "environment_setup_commit": "182ce3dd15dfa3537391c3efaf9c3ff407d134d4",
+      "version": "2.3",
+      "environment": "flask",
+      "row_sha256": "74beebcbeb98cd36be33bb680326c9a28a4c368af4def124a813861d46156f78",
+      "archive_sha256": "35d4dfce0745b2870059b713cffb106a5f060e641cdf7be6ea21d73c469812e8",
+      "suite": "experiments/native-swe-lite/suites/pallets__flask-5063.json",
+      "suite_sha256": "68cc661b568c2a8ed708b66c36106aca0cdc10f94d9983fc9a6cbce196f5d74e",
+      "license": {
+        "id": "BSD-3-Clause",
+        "path": "LICENSE.rst",
+        "sha256": "4631ec0db5fd90a547e336817264c6798214338146f8ac94b4a57f96ee8c9ec4"
+      },
+      "required": {
+        "FAIL_TO_PASS": 2,
+        "PASS_TO_PASS": 54,
+        "actual_nodes": 57
+      },
+      "preliminary_evidence": ".local/implementation/real-repo-preflight/cases/pallets__flask-5063/mapped-d106797b"
+    },
+    {
+      "id": "pytest-dev__pytest-5413",
+      "repo": "pytest-dev/pytest",
+      "base_commit": "450d2646233c670654744d3d24330b69895bb9d2",
+      "environment_setup_commit": "d5843f89d3c008ddcb431adbc335b080a79e617e",
+      "version": "4.6",
+      "environment": "pytest46",
+      "row_sha256": "567f2797c36dff4248d79b17fbdb03bed2f022182015bcf1cd770fc855475d52",
+      "archive_sha256": "83af808cb5fc553c5936487ff9ffe108da1fa2ad86c91bb7b89491b9c3e03b2a",
+      "suite": "experiments/native-swe-lite/suites/pytest-dev__pytest-5413.json",
+      "suite_sha256": "e98b53bcf9190372f4ab85f93bd8c2126c9342d58b3d1ed1dd47178a0c90f845",
+      "license": {
+        "id": "MIT",
+        "path": "LICENSE",
+        "sha256": "fa9e69101c2fbb58b29a7614fc59f9e8e354ceb7dbfb80385a860a8d0bb3dcdb"
+      },
+      "required": {
+        "FAIL_TO_PASS": 1,
+        "PASS_TO_PASS": 92,
+        "actual_nodes": 93
+      },
+      "preliminary_evidence": ".local/implementation/real-repo-preflight/cases/pytest-dev__pytest-5413/attempt-8be922c1"
+    },
+    {
+      "id": "pytest-dev__pytest-5495",
+      "repo": "pytest-dev/pytest",
+      "base_commit": "1aefb24b37c30fba8fd79a744829ca16e252f340",
+      "environment_setup_commit": "d5843f89d3c008ddcb431adbc335b080a79e617e",
+      "version": "4.6",
+      "environment": "pytest46",
+      "row_sha256": "dca9b25453b655b05f3f00187dac98f0ccb980785564ccfbcd416a1f47e309ae",
+      "archive_sha256": "5af7054809fe06247eb2dd40f0110817932cc0c6ab46177818f581131d342f9b",
+      "suite": "experiments/native-swe-lite/suites/pytest-dev__pytest-5495.json",
+      "suite_sha256": "e0bcd8086f23f4f3c31032d76d6a6b61b0d02be7bb5976ab0b3292f1e0b04507",
+      "license": {
+        "id": "MIT",
+        "path": "LICENSE",
+        "sha256": "fa9e69101c2fbb58b29a7614fc59f9e8e354ceb7dbfb80385a860a8d0bb3dcdb"
+      },
+      "required": {
+        "FAIL_TO_PASS": 2,
+        "PASS_TO_PASS": 86,
+        "actual_nodes": 88
+      },
+      "preliminary_evidence": ".local/implementation/real-repo-preflight/cases/pytest-dev__pytest-5495/attempt-b70b8a43"
+    },
+    {
+      "id": "sphinx-doc__sphinx-10325",
+      "repo": "sphinx-doc/sphinx",
+      "base_commit": "7bdc11e87c7d86dcc2a087eccb7a7c129a473415",
+      "environment_setup_commit": "60775ec4c4ea08509eee4b564cbf90f316021aff",
+      "version": "5.0",
+      "environment": "sphinx50",
+      "row_sha256": "997303435a67d7d6f08521ec12658d3d79b3d1d6dcf0706bcbdc2ddaf0b2021e",
+      "archive_sha256": "aca793db62cfd554ec549f6cbe4b6cbaed3334b27fda9895d97d136fa8c4fed2",
+      "suite": "experiments/native-swe-lite/suites/sphinx-doc__sphinx-10325.json",
+      "suite_sha256": "09428688167c57a37e5d53300f1ac5ba7f1f9be302fb26937173b01cf07cff54",
+      "license": {
+        "id": "BSD-2-Clause with file-specific notices in upstream LICENSE",
+        "path": "LICENSE",
+        "sha256": "19d575a3ce5743d97df39bf7640f00666f83b97e45d423a2a595549b1ea17d49"
+      },
+      "required": {
+        "FAIL_TO_PASS": 1,
+        "PASS_TO_PASS": 5,
+        "actual_nodes": 6
+      },
+      "preliminary_evidence": ".local/implementation/real-repo-preflight/cases/sphinx-doc__sphinx-10325/attempt-f8bade32"
+    },
+    {
+      "id": "sphinx-doc__sphinx-11445",
+      "repo": "sphinx-doc/sphinx",
+      "base_commit": "71db08c05197545944949d5aa76cd340e7143627",
+      "environment_setup_commit": "89808c6f49e1738765d18309244dca0156ee28f6",
+      "version": "7.1",
+      "environment": "sphinx71",
+      "row_sha256": "b7339d07c1a5c56cfd62dcdaac539b9578af6b3d7f3d969ea53804cd1e658233",
+      "archive_sha256": "e4ea99a1e6f18d974ad226e2d4c6d25e04fec4e2cbc8e8ec9c182383c21f3cae",
+      "suite": "experiments/native-swe-lite/suites/sphinx-doc__sphinx-11445.json",
+      "suite_sha256": "644c78c2366bcd851b455b1a23efb22887fd9d302a48ca5eae94a79cc5821c91",
+      "license": {
+        "id": "BSD-2-Clause with file-specific notices in upstream LICENSE",
+        "path": "LICENSE",
+        "sha256": "92974c2ed5f166c2e45b06dce2c3e35a70741709f815e775fa5826be69fed542"
+      },
+      "required": {
+        "FAIL_TO_PASS": 2,
+        "PASS_TO_PASS": 8,
+        "actual_nodes": 10
+      },
+      "preliminary_evidence": ".local/implementation/real-repo-preflight/cases/sphinx-doc__sphinx-11445/attempt-ec60bcb0"
+    }
+  ],
+  "input_policy": {
+    "agent_task": "Only official problem_statement plus a fresh base source snapshot; generic runtime/scoping instructions from evals.runner remain.",
+    "excluded": [
+      "gold patch",
+      "test patch",
+      "hints_text",
+      "FAIL_TO_PASS and PASS_TO_PASS",
+      "future commits",
+      "evaluator logs and reference environment"
+    ],
+    "source_projection": "evals.runner.PreparedFixture archives only base_commit, then initializes fresh baseline Git; evaluator working copies are never agent working copies.",
+    "limits": "Public source/tasks may be memorized. Current native boundary is partial; artifact separation is not an absolute confidentiality claim."
+  },
+  "exclusions": [
+    {
+      "id": "pytest-dev__pytest-11143",
+      "reason": "Required test_cwd_changed is skipped upstream on Windows; test_sys_pycache_prefix_integration also skips on Python 3.9 Windows. No skip overrides.",
+      "evidence": ".local\\implementation\\real-repo-preflight\\cases\\pytest-dev__pytest-11143\\mapped-bf10a72d"
+    },
+    {
+      "id": "pytest-dev__pytest-11148",
+      "reason": "Required test_no_brokenpipeerror_message skips on Windows; test_visit_ignores_errors and symlink invocation fail in both base/reference. Explicit four drive aliases did not make full regression pass.",
+      "evidence": ".local\\implementation\\real-repo-preflight\\cases\\pytest-dev__pytest-11148\\mapped-6b0c5a5b"
+    },
+    {
+      "id": "pytest-dev__pytest-5103",
+      "reason": "Static exclusion: required TestEarlyRewriteBailout::test_cwd_changed has an unconditional Windows skip in pinned source testing/test_assertrewrite.py:1369. Not reported as executed."
+    },
+    {
+      "id": "pytest-dev__pytest-5221",
+      "reason": "Native preflight: required package fixture regressions test_package_xunit_fixture and test_multiple_packages fail with reference fix.",
+      "evidence": ".local\\implementation\\real-repo-preflight\\cases\\pytest-dev__pytest-5221\\attempt-c201912f"
+    },
+    {
+      "id": "pytest-dev__pytest-5227",
+      "reason": "Official PASS_TO_PASS includes non-node log artifacts [, [100%] and [100%]------------------------------. Full list cannot map to collected tests; no entries removed.",
+      "evidence": ".local\\implementation\\real-repo-preflight\\cases\\pytest-dev__pytest-5227\\attempt-13d4854d"
+    }
+  ],
+  "preparation_diagnostics": [
+    "Missing importlib_metadata in initial pytest 4.6 environment was corrected using the declared upstream dependency, preserving both failed setup logs. No model calls were made.",
+    "Original direct-label collection failures retained; mapped grader covers all collected nodes for truncated labels and freezes that set."
+  ]
+}
