@@ -37,6 +37,8 @@ python -m forge.engine的stdio RPC及原main/renderer角色保留兼容；当前
 
 workspace-write提供已验证的写限制；OS读取和网络继承宿主。初始化失败拒绝任务，不回退宿主。full-access须显式选择。离线、原生、wheel、模型和训练分别验收。
 
+严格模式正在实现，采用用户确认的 Docker Linux 容器边界，保留原生轻量模式。`sandbox/docker_process.py` 管理本机引擎、固定镜像、断网、非 root、只读根、私有 tmpfs 配额、cgroup v2 资源限制及取消清理；不使用用户 Docker 代理配置，不挂载宿主工作区或 daemon socket。当前仅完成执行层，尚未接入 CLI/SDK，`strict` 仍拒绝准入；工作区导入/回写、网络白名单及完整验收要求见 T01，未完成前不得宣传为可用的严格沙盒。
+
 ## 3. 开发与验证
 
 验证器修正可使用 `verify(check_id=原检查ID, command=修正命令, revision_reason=原因)`；检查 ID 和执行记录 ID 均可引用，原断言、需求和工作目录自动继承。仍拒绝降低阈值、替换来源或改变工作目录；没有结构化断言的旧检查不能通过改写内联命令自动消除失败记录。
