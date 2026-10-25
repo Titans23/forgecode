@@ -7,10 +7,11 @@
   "sandbox_completion": {
     "status": "in_progress",
     "architecture": "User-selected Docker strict mode with retained native lightweight mode; no silent fallback.",
-    "execution_boundary": "Implemented isolated Docker process owner; eight real boundary/lifecycle tests pass on Windows Docker Desktop with Linux cgroup v2. Ubuntu 22.04/24.04 CI verification pending; this is not native bubblewrap acceptance.",
+    "execution_boundary": "Eight real boundary/lifecycle tests pass on Windows Docker Desktop and Ubuntu 22.04/24.04 CI jobs in run 40160220197; this is not native bubblewrap acceptance.",
     "evidence_ref": ".local/implementation/strict-sandbox/docker-foundation.xml",
     "quality_evidence_id": "20261025T035730Z-dfed777d",
     "contracts_evidence_id": "20261025T035730Z-b79e9c66",
+    "dependency_security": {"status": "fixed_locally_ci_pending", "packages": {"fast-uri": "3.1.9", "undici": "8.12.3", "zod": "4.6.7"}, "security_evidence_id": "20261025T040207Z-5f0fe686", "quality_evidence_id": "20261025T040207Z-3711717d", "native_evidence_id": "20261025T040208Z-942347c4"},
     "strict_cli_sdk": "not_connected_existing_strict_admission_still_denied",
     "remaining": ["authorized_workspace_import_and_conflict_checked_writeback", "file_command_verify_session_integration", "domain_allowlist_proxy_and_bypass_tests", "native_temporary_directory_fix", "ubuntu_native_acceptance", "installation_diagnostics_demo_and_final_completion_audit"]
   },
