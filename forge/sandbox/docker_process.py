@@ -6,7 +6,6 @@ import math
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import tempfile
 from uuid import uuid4
@@ -16,6 +15,28 @@ from forge.protocol import ContractError
 
 def unavailable(message):
     return ContractError(message, kind='SANDBOX_UNAVAILABLE', code=-32010)
+
+
+def docker_binary(forbidden_roots=()):
+    """Do not execute a project-supplied docker program, including Windows cwd search."""
+    roots = (Path.cwd().resolve(), *(Path(root).resolve() for root in forbidden_roots))
+    name = 'docker.exe' if os.name == 'nt' else 'docker'
+    for directory in os.get_exec_path():
+        if not directory or not Path(directory).is_absolute():
+            continue
+        if os.name == 'nt' and not re.match(r'^[A-Za-z]:[\\/]', directory):
+            continue
+        candidate = Path(directory) / name
+        if not candidate.is_file():
+            continue
+        candidate = candidate.resolve(strict=True)
+        if any(candidate.is_relative_to(root) for root in roots):
+            continue
+        if os.name == 'nt' and not re.match(r'^[A-Za-z]:[\\/]', str(candidate)):
+            continue
+        if os.access(candidate, os.X_OK):
+            return str(candidate)
+    raise unavailable('Docker must be installed outside the workspace on an absolute trusted PATH')
 
 
 @dataclass(frozen=True)
@@ -50,31 +71,28 @@ class DockerRuntime:
         self.closed = False
 
     @classmethod
-    async def connect(cls, image):
+    async def connect(cls, image, *, forbidden_roots=()):
         if not isinstance(image, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_./:@-]{0,255}', image):
             raise ValueError('An explicit local container image is required')
-        binary = shutil.which('docker')
-        if binary is None:
-            raise unavailable('Docker is required for strict isolation')
-        binary = str(Path(binary).resolve(strict=True))
-        endpoint = os.environ.get('DOCKER_HOST')
-        if not endpoint:
-            process = await cls._spawn([binary, 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'])
-            try:
-                async with asyncio.timeout(15):
-                    output, _ = await process.communicate()
-                if process.returncode:
-                    raise unavailable('Cannot resolve the selected Docker context')
-                endpoint = output.decode().strip()
-            finally:
-                if process.returncode is None:
-                    process.kill()
-                    await process.wait()
-        if not endpoint.startswith(('unix:///', 'npipe:////./pipe/')):
-            raise unavailable('Strict sandbox requires a local Unix socket or Windows named-pipe engine')
+        binary = docker_binary(forbidden_roots)
         config = tempfile.TemporaryDirectory(prefix='forge-docker-config-')
-        runtime = cls(binary, endpoint, image, config)
         try:
+            endpoint = os.environ.get('DOCKER_HOST')
+            if not endpoint:
+                process = await cls._spawn([binary, 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'], cwd=config.name)
+                try:
+                    async with asyncio.timeout(15):
+                        output, _ = await process.communicate()
+                    if process.returncode:
+                        raise unavailable('Cannot resolve the selected Docker context')
+                    endpoint = output.decode().strip()
+                finally:
+                    if process.returncode is None:
+                        process.kill()
+                        await process.wait()
+            if not endpoint.startswith(('unix:///', 'npipe:////./pipe/')):
+                raise unavailable('Strict sandbox requires a local Unix socket or Windows named-pipe engine')
+            runtime = cls(binary, endpoint, image, config)
             info = json.loads(await runtime.command('info', '--format', '{{json .}}'))
             if info.get('OSType') != 'linux' or info.get('CgroupVersion') != '2' or any(info.get(key) is not True
                     for key in ('MemoryLimit', 'SwapLimit', 'PidsLimit', 'CpuCfsQuota')):
@@ -101,7 +119,7 @@ class DockerRuntime:
         return [self.binary, '--host', self.endpoint, '--config', self.config.name, *args]
 
     async def command(self, *args):
-        process = await self._spawn(self.argv(*args), env=self.environment)
+        process = await self._spawn(self.argv(*args), env=self.environment, cwd=self.config.name)
         try:
             async with asyncio.timeout(30):
                 output, error = await process.communicate()
@@ -159,7 +177,7 @@ class DockerRuntime:
         create = asyncio.create_task(self.command(*options))
         try:
             await asyncio.shield(create)
-            process = await self._spawn(self.argv('start', '--attach', '--interactive', name), env=self.environment)
+            process = await self._spawn(self.argv('start', '--attach', '--interactive', name), env=self.environment, cwd=self.config.name)
             streams = [asyncio.create_task(drain(process.stdout, 'stdout')), asyncio.create_task(drain(process.stderr, 'stderr'))]
             async with asyncio.timeout(limits.seconds):
                 process.stdin.write(stdin)

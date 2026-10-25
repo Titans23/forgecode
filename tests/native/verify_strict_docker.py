@@ -6,6 +6,10 @@ import os
 import pytest
 
 from forge.sandbox.docker_process import ContainerLimits, DockerRuntime
+from forge.sandbox.docker_workspace import run_workspace
+from forge.sandbox.path_policy import PathPolicy, inspect_path
+from forge.sandbox.workspace_transfer import TransferLimits
+from forge.protocol import ContractError
 
 
 IMAGE = os.environ.get('FORGE_STRICT_TEST_IMAGE',
@@ -158,8 +162,137 @@ def test_real_close_during_admission_cannot_leave_a_late_container():
             await runtime.close()
             assert task.cancelled()
             assert not runtime.containers
-            with pytest.raises(Exception, match='closed'):
+            with pytest.raises(ContractError, match='closed'):
                 await runtime.run(['python', '-c', 'print("must not start")'])
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+def workspace_policy(root, *, writes=True):
+    return PathPolicy(inspect_path(root, absolute=True), 'strict_allowlist_required',
+        (root,), (root,) if writes else (), ())
+
+
+def test_real_workspace_code_fix_and_verification_roundtrip(tmp_path):
+    (tmp_path / 'calculator.py').write_text('def add(a, b):\n    return a - b\n')
+    (tmp_path / 'test_calculator.py').write_text('import unittest\nfrom calculator import add\n'
+        'class TestAdd(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(add(2, 3), 5)\n')
+    (tmp_path / '.env').write_text('synthetic credential excluded from input')
+    async def run():
+        runtime = await DockerRuntime.connect(IMAGE)
+        try:
+            fix = "from pathlib import Path; import subprocess,sys; assert not Path('.env').exists(); p=Path('calculator.py'); p.write_text(p.read_text().replace('a - b', 'a + b')); sys.exit(subprocess.call([sys.executable,'-B','-m','unittest','-v']))"
+            result = await run_workspace(runtime, workspace_policy(tmp_path), ['python', '-B', '-c', fix])
+            assert result['exit_code'] == 0 and b'OK' in result['stderr'], result
+            assert result['changed_paths'] == ['calculator.py']
+            assert 'return a + b' in (tmp_path / 'calculator.py').read_text()
+            verify = await run_workspace(runtime, workspace_policy(tmp_path, writes=False), ['python', '-B', '-m', 'unittest', '-v'])
+            assert verify['exit_code'] == 0 and not verify['changed_paths'], verify
+            assert (tmp_path / '.env').read_text() == 'synthetic credential excluded from input'
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('attack', ['symlink', 'protected', 'read-only'])
+def test_real_invalid_workspace_output_never_mutates_host(tmp_path, attack):
+    (tmp_path / 'code.py').write_text('original')
+    sources = {
+        'symlink': "from pathlib import Path; Path('code.py').write_text('changed'); Path('link').symlink_to('/etc/passwd')",
+        'protected': "from pathlib import Path; Path('code.py').write_text('changed'); Path('.env').write_text('forbidden')",
+        'read-only': "from pathlib import Path; Path('code.py').write_text('changed')",
+    }
+    async def run():
+        runtime = await DockerRuntime.connect(IMAGE)
+        try:
+            with pytest.raises(ContractError):
+                await run_workspace(runtime, workspace_policy(tmp_path, writes=attack != 'read-only'),
+                    ['python', '-c', sources[attack]])
+            assert (tmp_path / 'code.py').read_text() == 'original'
+            assert sorted(p.name for p in tmp_path.iterdir()) == ['code.py']
+            assert not runtime.containers
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+def test_real_concurrent_user_edit_rejects_sandbox_writeback(tmp_path):
+    (tmp_path / 'code.py').write_text('original')
+    async def run():
+        runtime = await DockerRuntime.connect(IMAGE)
+        task = asyncio.create_task(run_workspace(runtime, workspace_policy(tmp_path), ['python', '-c',
+            "from pathlib import Path; import time; Path('code.py').write_text('agent output'); time.sleep(1)"]))
+        try:
+            while not runtime.containers:
+                assert not task.done()
+                await asyncio.sleep(.01)
+            (tmp_path / 'code.py').write_text('concurrent user edit')
+            with pytest.raises(ContractError, match='changed while'):
+                await task
+            assert (tmp_path / 'code.py').read_text() == 'concurrent user edit'
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+def test_real_cancel_after_guest_write_does_not_publish_late_changes(tmp_path):
+    (tmp_path / 'code.py').write_text('original')
+    async def run():
+        runtime = await DockerRuntime.connect(IMAGE)
+        task = asyncio.create_task(run_workspace(runtime, workspace_policy(tmp_path), ['python', '-c',
+            "from pathlib import Path; import time; Path('code.py').write_text('guest change'); Path('ready').touch(); time.sleep(60)"]))
+        try:
+            for _ in range(100):
+                if runtime.containers:
+                    name = next(iter(runtime.containers))
+                    running = await runtime.command('ps', '--quiet', '--filter', 'name=^/' + name + '$')
+                    if running.strip():
+                        result = await runtime.command('exec', name, 'python', '-c',
+                            "from pathlib import Path; print(Path('/workspace/ready').exists())")
+                        if result.strip() == b'True':
+                            break
+                assert not task.done()
+                await asyncio.sleep(.05)
+            else:
+                pytest.fail('Guest write was not observed')
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert (tmp_path / 'code.py').read_text() == 'original'
+            assert not (tmp_path / 'ready').exists()
+            assert not runtime.containers
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+def test_real_detached_descendants_stop_before_workspace_export(tmp_path):
+    source = "import subprocess,sys; from pathlib import Path; subprocess.Popen([sys.executable,'-c',\"import time; from pathlib import Path; time.sleep(1); Path('late').write_text('late')\"],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); Path('early').write_text('early')"
+    async def run():
+        runtime = await DockerRuntime.connect(IMAGE)
+        try:
+            result = await run_workspace(runtime, workspace_policy(tmp_path), ['python', '-c', source])
+            assert result['exit_code'] == 0
+            assert result['changed_paths'] == ['early']
+            assert not (tmp_path / 'late').exists()
+            assert not runtime.containers
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+def test_real_workspace_output_quota_rejects_without_partial_publication(tmp_path):
+    (tmp_path / 'old').write_bytes(b'12')
+    async def run():
+        runtime = await DockerRuntime.connect(IMAGE)
+        try:
+            with pytest.raises(ContractError, match='no host changes'):
+                await run_workspace(runtime, workspace_policy(tmp_path), ['python', '-c',
+                    "from pathlib import Path; Path('old').write_bytes(b'new'); Path('big').write_bytes(b'12345')"],
+                    transfer_limits=TransferLimits(bytes=4))
+            assert (tmp_path / 'old').read_bytes() == b'12'
+            assert not (tmp_path / 'big').exists()
         finally:
             await runtime.close()
     asyncio.run(run())

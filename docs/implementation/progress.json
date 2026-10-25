@@ -11,9 +11,10 @@
     "evidence_ref": ".local/implementation/strict-sandbox/docker-foundation.xml",
     "quality_evidence_id": "20261025T035730Z-dfed777d",
     "contracts_evidence_id": "20261025T035730Z-b79e9c66",
-    "dependency_security": {"status": "fixed_locally_ci_pending", "packages": {"fast-uri": "3.1.9", "undici": "8.12.3", "zod": "4.6.7"}, "security_evidence_id": "20261025T040207Z-5f0fe686", "quality_evidence_id": "20261025T040207Z-3711717d", "native_evidence_id": "20261025T040208Z-942347c4"},
+    "dependency_security": {"status": "security_job_passed_in_40160515435", "packages": {"fast-uri": "3.1.9", "undici": "8.12.3", "zod": "4.6.7"}, "security_evidence_id": "20261025T040207Z-5f0fe686", "quality_evidence_id": "20261025T040207Z-3711717d", "native_evidence_id": "20261025T040208Z-942347c4"},
+    "workspace_transfer": {"status": "core_verified_tool_adapter_pending", "unit_checks": 26, "related_unit_checks": 85, "native_container_checks": 16, "unit_evidence_ref": ".local/implementation/strict-sandbox/transfer-unit.xml", "native_evidence_ref": ".local/implementation/strict-sandbox/docker-workspace.xml", "quality_evidence_id": "20261025T042008Z-0a47ae3c", "contracts_evidence_id": "20261025T041450Z-2454428c", "scope": "Bounded regular-file/directory snapshot; known sensitive/control paths excluded; malicious outputs and source conflicts rejected before mutation; per-file atomic publication, explicit partial I/O failure; actual code repair/verification and cancellation after guest mutation tested. Docker binary resolution excludes cwd/workspace and management commands use private cwd. Additional read roots, kernel-enforced per-subtree write scopes and Harness adapter remain unfinished."},
     "strict_cli_sdk": "not_connected_existing_strict_admission_still_denied",
-    "remaining": ["authorized_workspace_import_and_conflict_checked_writeback", "file_command_verify_session_integration", "domain_allowlist_proxy_and_bypass_tests", "native_temporary_directory_fix", "ubuntu_native_acceptance", "installation_diagnostics_demo_and_final_completion_audit"]
+    "remaining": ["kernel_scoped_write_roots_and_extra_read_roots", "file_command_verify_session_integration", "domain_allowlist_proxy_and_bypass_tests", "native_temporary_directory_fix", "ubuntu_native_acceptance", "node_minimum_alignment_image_installation_diagnostics_demo_and_final_completion_audit"]
   },
   "architecture_improvement": {
     "P1": "implemented_offline_verified",

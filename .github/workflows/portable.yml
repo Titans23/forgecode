@@ -68,7 +68,11 @@ jobs:
         with:
           name: strict-container-${{ matrix.os }}
           include-hidden-files: true
-          path: .local/ci/strict-container.xml
+          path: |
+            .local/ci/
+            .local/implementation/*/*.xml
+            .local/implementation/*/*.json
+            .local/implementation/*/*.log
           if-no-files-found: error
           retention-days: 14
   dependency-security:
