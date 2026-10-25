@@ -8692,7 +8692,7 @@
     },
     {
       "path": "sandbox_bridge/dist/workspace-runner.js",
-      "sha256": "767c95649cfc9d7086534bc047a57a46cea6c8c4f9384a4c71249903d80bbaab"
+      "sha256": "d5f09179cd3cbc8280d1cea50e203c26435cc090d439eabb585de6db00a05ea4"
     },
     {
       "path": "sandbox_bridge/package.json",

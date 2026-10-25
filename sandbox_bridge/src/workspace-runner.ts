@@ -1,7 +1,7 @@
 /** Fixed DSH entry. ForgeCode owns the enclosing Job and revokes temp grants after it is empty. */
 import { spawn } from 'node:child_process';
 import { lstat, realpath } from 'node:fs/promises';
-import { delimiter, dirname, isAbsolute, resolve } from 'node:path';
+import { delimiter, dirname, isAbsolute, resolve, toNamespacedPath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readLaunchPayload } from './launch-payload.js';
 import { commandArgv, commandEnvironment, decodeLaunchPayload } from './dispatcher.js';
@@ -36,7 +36,7 @@ async function main() {
     if (process.platform !== 'win32') throw new Error('ACL cleanup requires Windows');
     const { AclWriteGrant, tempWriteSid } = await import('@deepseek-ai/dsh-sandbox-windows-acl');
     const grant = AclWriteGrant.create(tempWriteSid(temp));
-    try { grant.add(temp); } finally { grant.dispose(); }
+    try { grant.add(toNamespacedPath(temp)); } finally { grant.dispose(); }
     // The parent also verifies an empty Job and removes this exact owned tree.
     process.stdout.write(JSON.stringify({ temp_grant_revoked: true }) + '\n');
     return;
@@ -66,10 +66,12 @@ async function main() {
   const writeSid = workspaceWriteSid(JSON.stringify([workspace, writeRoots])), tempSid = tempWriteSid(temp);
   if (!readOnly) {
     const workspaceGrant = AclWriteGrant.create(writeSid);
-    try { for (const root of writeRoots) workspaceGrant.add(root, true); } finally { workspaceGrant.dispose(); }
+    try { for (const root of writeRoots) workspaceGrant.add(toNamespacedPath(root), true); } finally { workspaceGrant.dispose(); }
   }
   const tempGrant = AclWriteGrant.create(tempSid);
-  tempGrant.add(temp);
+  // Win32 ACL calls need extended paths on Node even when fs/realpath accepts
+  // the long canonical path. Keep policy comparisons and SID identity unchanged.
+  tempGrant.add(toNamespacedPath(temp));
   const { payload } = decodeLaunchPayload(raw);
   const argv = commandArgv(payload.command, payload.shells, payload.tools);
   const environment = commandEnvironment(payload.command, payload.tools, temp);
