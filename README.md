@@ -138,6 +138,6 @@ uv run --no-sync --with pyarrow==19.0.1 python -m evals.native_swe_campaign --ex
 
 计划为六任务各两次、串行、每槽最多 18 次请求、总上限 216，零自动重试。限流、超时、流中断或清理未确认立即停止。恢复须显式 `--execute --resume`，仅执行未开始的槽；中断且未完成核对的槽不会重放。结果默认在 `.local/implementation/native-swe-live`，所有尝试计入完成率，成功任务费用单列。可用 `--replay-outcome <已保存结果.json> --output <新目录>` 在全新判分环境复核候选修改，不调用模型、不改变原失败记录。局部原生边界不保证宿主读取/网络保密，Journal 访问审计有此限制。
 
-当前证据：原始 12 槽完整完成 0/12，实际请求 129 次；后续两个已见任务的开发验证完整完成 0/2，请求 34 次，单独封存。后者的 Sphinx 候选通过全部 6 项冻结测试，但引入了另外 3 项公开回归，Agent 以 partial 结束，仍不算完整成功。其缓存收尾超时已零模型复现并修复，真实测试失败保留。没有成功任务时，成功耗时/token 统计为空。任务内容、分母、各尝试成本及证据摘要见 [progress.json](docs/implementation/progress.json)，不能据此宣称稳定提速或未见任务泛化。
+当前证据分开封存：原始 12 槽完整完成 0/12，请求 129 次；后续两个已见任务验证 0/2，请求 34 次；缓存修复与解释器指引后的同题验证仍为 0/2，请求 28 次。最新 Sphinx 候选通过原 6 项及补充 18 项公开回归，但后续命令令验证过期，默认未启用预算内修复反馈，因此 Agent 仍 partial。之前候选的 3 项公开回归和缓存超时也保留记录。没有成功任务时，成功耗时/token 统计为空。各组版本、分母、尝试成本及证据摘要见 [progress.json](docs/implementation/progress.json)，不能据此宣称稳定提速或未见任务泛化。
 
 确定性测试、原生平台、安装 wheel 与真实模型实验分别验证。运行报告保存在已忽略的 `.local/implementation`，不提交到文档目录。开发约定见 [AGENTS.md](AGENTS.md)，当前待办见 [progress.json](docs/implementation/progress.json)。真实模型预算与管理员安装需要另行授权。

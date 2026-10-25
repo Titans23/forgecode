@@ -6,8 +6,8 @@
   "current_task": "T01",
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
-    "current_checkpoint": "two_known_task_development_validation_sealed_34_requests_0_of_2_full_completions",
-    "next_checkpoint": "zero_model_interpreter_and_sphinx_public_cache_diagnosis_then_public_recovery_demo",
+    "current_checkpoint": "post_cache_guidance_development_validation_sealed_28_requests_0_of_2_full_completions",
+    "next_checkpoint": "explicit_existing_delivery_repair_option_zero_model_acceptance_then_public_cli_api_demo",
     "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
     "done_conditions_ref": "docs/implementation/tasks/T01.md",
     "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
@@ -35,6 +35,27 @@
     "limits": ["Existing cases are self-built engineering fixtures, not real-repository benchmark results", "OS sandbox remains partial", "SIGKILL of the whole evaluator is not covered by graceful cancellation tests", "Missing terminal aggregate usage is null, not zero", "Unconfirmed cleanup deliberately retains the workspace"]
   },
   "native_real_repository_preflight": {
+    "post_cache_guidance_validation": {
+      "status": "complete_sealed_28_requests_0_of_2_full_completions",
+      "runtime_commit": "58679576d7d384055afaa6b17f869c8e55ecfbd9",
+      "ci": {"run_id": 40191139325, "status": "success", "jobs": 4},
+      "attempted": 2, "fully_completed": 0, "model_requests_all_roles": 28,
+      "reported_tokens": {"uncached_input": 318028, "cache_read": 55552, "cache_write": 0, "output": 3865},
+      "successful_costs": null, "successful_pairs": 0,
+      "all_requests_usage_and_cleanup_complete": true,
+      "attempt_costs": [
+        {"task": "pytest-dev__pytest-5413", "requests": 18, "agent_seconds": 194.563, "total_seconds": 292.203, "uncached_input": 218213, "cache_read": 35712, "output": 2280, "full_success": false},
+        {"task": "sphinx-doc__sphinx-10325", "requests": 10, "agent_seconds": 207.719, "total_seconds": 443.406, "total_seconds_with_public_supplement": 561.359, "uncached_input": 99815, "cache_read": 19840, "output": 1585, "full_success": false}
+      ],
+      "independent_verdicts": "pytest original 93-node grader rejects; Sphinx original 6-node and separately frozen 18-node public regression both accept with all setup/call/teardown phases passing, no xfail. Both Agents remain partial, so overall 0/2.",
+      "failure_findings": "pytest uses the pinned interpreter, but unresolved failed assertions and attempts to change expected output prevent completion; do not weaken immutable checks. Sphinx runs a command after verify, increments the environment epoch and stales its verification. Existing max_delivery_repairs=0 ends the attempt with eight model requests unused; do not weaken freshness.",
+      "implementation_amendment": "After paid slot admission, before zero-model supplementation, the ignored supplement helper gained conservative exception receipts/unknown-cleanup retention. Timestamp and helper source hash are in supplement-safety-freeze.json and the seal. Original plan bytes/hash, Agent input, runtime, budgets, 18 nodes/120s and success predicate remain unchanged; not represented as pre-request helper freezing.",
+      "sealed_evidence": ".local/implementation/native-swe-post-cache-guidance/sealed/evidence-manifest.json",
+      "derived_report": ".local/implementation/native-swe-post-cache-guidance/sealed/report.json",
+      "source_campaign_sha256": "063afa7e6644116e2e6cffbd417ea2f04423dc97f1571962b1a0a7ab9f65b571",
+      "cumulative_requests_only": 191,
+      "limits": "Known-task development condition, separate from original 0/12 and earlier 0/2. No stable/causal speedup claim. Unused quota does not authorize another run. Native isolation remains partial."
+    },
     "development_validation": {
       "status": "complete_sealed_34_requests_0_of_2_full_completions",
       "purpose": "seen_task_development_validation",
