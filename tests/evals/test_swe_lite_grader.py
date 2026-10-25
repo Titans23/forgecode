@@ -98,6 +98,23 @@ def test_missing_or_collection_error_is_rejected(tmp_path, source):
     assert 'missing:test_task.py::test_bug' in report['assessment']['reasons']
 
 
+@pytest.mark.parametrize('own_config', [False, True])
+def test_workspace_node_ids_ignore_parent_root_and_preserve_task_options(tmp_path, own_config):
+    (tmp_path / 'pytest.ini').write_text('[pytest]\npython_functions = test_*\n', encoding='utf-8')
+    workspace = tmp_path / 'task'
+    workspace.mkdir()
+    function = 'test_bug'
+    if own_config:
+        (workspace / 'pytest.ini').write_text('[pytest]\npython_functions = check_*\n', encoding='utf-8')
+        function = 'check_bug'
+    suite = {'FAIL_TO_PASS': ['test_task.py::' + function], 'PASS_TO_PASS': []}
+    process, report = grade(workspace, f'def {function}():\n    assert True\n', suite)
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert report['assessment']['accepted']
+    assert report['assessment']['executed_tests'] == 1
+    assert report['mapping'] == suite['expected_mapping']
+
+
 def test_frozen_subset_references_and_budgets_are_consistent():
     root = GRADER.parents[1]
     manifest_bytes = (root / 'experiments/native-swe-lite.json').read_bytes()

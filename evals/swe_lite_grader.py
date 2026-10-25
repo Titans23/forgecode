@@ -109,7 +109,10 @@ def main():
         raise ValueError('A frozen preflight mapping is required for every label')
     recorder = TestRecorder(suite)
     files = sorted({label.split('::')[0] for label in labels})
-    code = pytest.main(['-rA', '--tb=short', '--color=no', *files], plugins=[recorder])
+    # Frozen node IDs are relative to the evaluated workspace, even when a
+    # temporary workspace sits below another repository's pytest configuration.
+    # Do not override -c: the task's own test options must remain in force.
+    code = pytest.main(['--rootdir', str(Path.cwd()), '-rA', '--tb=short', '--color=no', *files], plugins=[recorder])
     report = {'exit_code': int(code), 'mapping': recorder.mapping, 'tests': recorder.tests,
               'collection_errors': recorder.collection_errors}
     report['assessment'] = assessment(suite, report, expect_base=args.expect_base)
