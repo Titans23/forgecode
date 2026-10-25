@@ -4,6 +4,10 @@ ForgeCode 是一个终端 Agent Harness：复用既有 Python 代理循环，负
 
 当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 
+当前展示主线是可运行、可验证的 Harness：模型调用 → 授权工具执行 → 独立验证 → Journal 恢复，并用冻结任务报告完成率、失败类型、耗时和 token。现有能力、证据边界及下一步见 [T01](docs/implementation/tasks/T01.md) 和 [当前进展](docs/implementation/progress.json)。
+
+Windows 底层写限制复用 DSH，Linux 复用 bubblewrap；ForgeCode 层负责策略接入、执行所有权、验证与生命周期。当前 OS 读取、网络和硬资源隔离尚不完整，能力为 partial，不能表述为自研完整 OS 沙盒。完整强隔离不再是当前求职展示的前置条件；日常运行保持无 Docker 依赖。
+
 目录职责与开发入口见 [当前文档](docs/README.md)；虚拟环境、依赖、构建和测试产物不属于源码。
 
 ## 安装与启动

@@ -4,6 +4,8 @@
 
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
+当前优先目标是 Agent/Harness 实习项目的可验证展示：先盘点现有能力，再用小型冻结任务与失败注入验证模型→工具→验证→恢复闭环，最后准备 5 分钟 CLI/API 演示及贡献说明。完整跨平台 OS 强隔离仍是未完成扩展，移出这条关键路径；此优先级也约束旧 goal 的后续选题，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。
+
 ## 1. 目录与调用链
 
 | 目录 | 当前职责 |
@@ -20,6 +22,8 @@
 forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime，调用runtime.factory.create_runtime → Conversation.stream → TurnRunner → ToolExecutor → 原生工具。Journal记录会话副作用；Engine负责受理、调度与投影，不复制Journal事实。
 
 `create_runtime` 是唯一运行时装配函数，新建与恢复使用同一构造路径；项目模型配置读取传入的 root，不隐式读取其他工作目录。可选渠道/MCP 组合位于 `forge/integrations.py`。旧 `forge.application.models` 保留协议导入兼容。
+
+上述统一装配适用于当前 CLI/API 路径；旧 `evals.runner.run_agent` 仍直接创建 `Conversation` 和 Anthropic 客户端，不能据此声称所有评测入口已统一预算与清理。下一轮先核对并复用现有 API/runner，避免再建一套执行循环。
 
 | 状态/资源 | 唯一责任方 |
 |---|---|
@@ -75,3 +79,5 @@ Journal 是执行事实源；ATIF 和 SFT 都是离线投影。版本比较核�
 CI 的 unit 自动发现非 native/fixture 的功能测试目录，portable 覆盖实现集成与协议测试；有测试收录检查防止遗漏。quality 同时运行 Ruff、公共输入/结果类型的 mypy 和架构依赖检查。根据 JUnit 耗时减少重复准备，保留关键边界测试。
 离线存储性能基准：`uv run --no-sync python scripts/benchmark_architecture.py --records 100 --output .local/implementation/architecture-performance.json`。RunProfile.intent_routing=False 可用于单独测量前置路由开销，不改变默认权限。真实模型消融必须固定任务、模型、预算和环境后另行授权。
 清理不授权付费模型、管理员设置或生产签名。
+
+每个独立验收点完成相关检查后单独 commit、push，并报告 SHA/链接、验证范围和实际 CI 状态。源码存在、离线脚本模型通过、真实原生测试和真实模型收益是不同证据；完整完成率包含所有已尝试任务，预算耗尽、取消及基础设施失败不能算成功。成功任务成本与双成功配对另列，不用删掉失败后的均值代表总体改进。当前 P3 七个双成功配对的 token -3.4%、耗时 +1.6% 未证明稳定收益，不能摘取前者作为简历性能结论。

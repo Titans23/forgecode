@@ -10,6 +10,15 @@ Read docs/implementation/architecture.md and progress.json, then the relevant
 task card and backlog dependencies. Audit real interfaces before changing them.
 Keep the existing Python Harness and CLI; do not resume retired desktop plans.
 
+Current priority is an evidence-backed Agent/Harness internship portfolio.
+Follow the T01 priority queue: audit existing Harness behavior, freeze a small
+code-task evaluation, demonstrate one real failure/recovery loop, then prepare
+the CLI/API demo and contribution boundaries. Full native OS isolation is an
+unfinished extension outside this critical path; do not let an older persistent
+goal automatically restart unbounded sandbox work unless the user reprioritizes.
+Keep Docker out of ordinary installation/execution. Preserve current permission,
+budget and cleanup boundaries; never relabel partial isolation as strict.
+
 Prepare development dependencies with uv sync --locked --all-extras --group dev,
 npm ci --ignore-scripts, and uv run --no-sync python scripts/build_bridge.py.
 Run checks appropriate to the change. Add behavior tests for code changes;
@@ -19,6 +28,13 @@ stable, run the relevant regression once, push and check CI. Do not repeat the
 full suite on Windows, WSL and CI by default; expand it for shared-core changes
 or uncovered risks. Use JUnit timings to reduce duplicate setup, retaining
 persistence, permissions, cancellation, contracts and data-isolation coverage.
+
+For every independently verified checkpoint, commit the scoped changes and push
+to GitHub before starting the next checkpoint. Report the commit SHA/link,
+what changed, relevant validation and the actual CI state. Pending is not passed.
+Audit the diff before staging; do not mix credentials, generated reports or
+unrelated work. Do not force-push or fabricate a sequence of historical checks.
+If pushing fails, retain the local commit and report the concrete blocker.
 
 Keep documentation small:
 - README and docs/install/terminal-quickstart.md explain installation and use.

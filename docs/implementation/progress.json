@@ -4,8 +4,22 @@
   "development_checkout": "D:/learn_project/forgecode",
   "development_branch": "main",
   "current_task": "T01",
+  "delivery_focus": {
+    "objective": "Evidence-backed Agent/Harness internship portfolio",
+    "current_checkpoint": "direction_and_initial_evidence_inventory",
+    "next_checkpoint": "audit_existing_runner_against_HarnessSession_budget_cleanup_and_grading_before_freezing_tasks",
+    "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
+    "done_conditions_ref": "docs/implementation/tasks/T01.md",
+    "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
+    "observed_gap": "Legacy evals.runner.run_agent directly constructs Conversation and AnthropicModelClient; API policy/budget/lifecycle equivalence is not established. Reuse existing runtime rather than create another runner.",
+    "evidence_limits": "Source/test inventory is not current-source acceptance. API fixtures are scripted models. Recent native evidence covers Windows partial isolation. Historical live comparisons do not establish current-version or stable P3 performance gains.",
+    "ci_baseline": {"commit": "d3a0a4c", "run_id": 40163825897, "status": "in_progress", "observed": "dependency-security and portable Ubuntu 24.04 passed; Windows and Ubuntu 22.04 still running"},
+    "guardrails": ["no Docker for ordinary installation or execution", "no new paid model calls in this checkpoint", "preserve permission budget cancellation and cleanup boundaries", "do not label partial isolation strict", "commit and push every independently verified checkpoint; report SHA validation and actual CI state", "do not claim the unfinished sandbox goal achieved or delete it"],
+    "deferred": ["full_cross_platform_native_os_isolation_expansion", "training_expansion"]
+  },
   "sandbox_completion": {
     "status": "in_progress",
+    "delivery_priority": "unfinished_extension_outside_current_recruiting_critical_path",
     "architecture": "Native lightweight Windows/Linux sandbox only. User revoked Docker integration; installation and ordinary operation must not require Docker, images or a container daemon. No silent privilege fallback.",
     "execution_boundary": "Existing DSH/bubblewrap paths remain partial isolation. Docker prototype and CI removed before CLI/SDK integration. Its historical evidence does not establish native strict capabilities.",
     "native_route_validation": {"unit_checks": 83, "unit_evidence_ref": ".local/implementation/strict-sandbox/native-route-unit.xml", "quality_evidence_id": "20261025T043833Z-4c103006", "windows_native_checks": 6, "native_evidence_id": "20261025T043833Z-bc1e6bab", "scope": "Existing native file/command/Git/session/cancellation paths pass after removing Docker modules; full native strict isolation is still incomplete."},
@@ -239,7 +253,8 @@
     }
   },
   "remaining_work": [
-    "Ubuntu 22.04/24.04 native acceptance.",
+    "Follow T01 Harness evidence/taskset/recovery/demo priority queue; audit existing code before adding features.",
+    "Full native strict read/network/resource isolation and Ubuntu 22.04/24.04 native acceptance remain incomplete, outside the current recruiting critical path.",
     "Training-data collection, actual training and new-model re-evaluation are outside this delivery.",
     "npm registry publication and production release requirements."
   ],
