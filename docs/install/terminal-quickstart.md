@@ -141,6 +141,33 @@ API 同时接受 `[{'type': 'text', 'text': '分析图片'}, image_block(png_byt
 
 `RunProfile(intent_routing=True)` 控制前置意图分类。工具批次按顺序执行，`max_parallel_reads` 参数已移除，旧调用应删除该参数。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。完成报告中的运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
 
+## 5 分钟 Harness 演示
+
+先完成源码开发安装。在安装仓库运行下面的公开示例；它会创建与安装目录分开的新临时项目，无需用户模型配置，也不调用提供方：
+
+```text
+uv run --no-sync python examples/harness_demo.py --output .local/implementation/api-demo-001
+```
+
+重复演示时换一个新的输出目录。示例使用 `HarnessSession.stream`、真实原生文件/进程工具和同一个 TaskPolicy：修改 `value.txt`，运行行为检查，再执行命令使验证过期；第一次 `finish_task` 被拒后，在原 8 次请求预算内重新验证并完成，共 6 次脚本请求。`max_delivery_repairs=2` 只启用已有回合内反馈，不放宽新鲜度或断言。
+
+检查输出的两个文件：
+
+- `events.jsonl`：版本化事件，包括 WorkspaceChanged、两次 VerificationCompleted、工具结果和最后的 TurnCompleted。
+- `summary.json`：`status=completed`、`shared_model_calls=scripted_requests=6`、`original_request_limit=8`、`provider_api_calls=0`、`client_closed=true`、原生 `cleanup.state=clean` 和 `fixture_retained=false`。脚本 usage 是协议夹具值，不能当真实 token 成本。
+
+示例还用 `SessionStore.load` 只读重建会话，确认前后 Journal SHA-256 相同、不重放工具、不新开回合。原生清理未确认时保留新建夹具并写失败 summary；清理失败以非零状态退出。当前 Windows 原生实测约 75 秒；Linux 同一入口仍依赖 bubblewrap，不能由 Windows 结果替代验收。
+
+已有真实任务结果时，还能通过现有评测 CLI 在新副本独立核验保存的候选，不重新执行 Agent：
+
+```text
+uv run --no-sync --with pyarrow==19.0.1 python -m evals.native_swe_campaign --replay-outcome <保存的结果.json> --output <新的判分目录>
+```
+
+该命令需要对应的冻结任务缓存，输出 `replay.json` 和原生判分/清理证据；它不加载模型客户端，原尝试的 partial/failed、历史未知清理及完成率保持原样。只读状态重建、候选重新判分和同回合修复是三项不同能力。原 Agent 跨进程保留剩余预算续跑尚未实现；`forge --resume` 开启新回合。
+
+展示贡献时，底层 Windows 写限制归于 DSH，Linux 归于 bubblewrap；ForgeCode 复用已有 Python Agent 循环，工作集中在共享运行时接入、权限/预算传递、验证门禁、Journal、评测与生命周期证据。脚本模型演示和 `.env` 真实任务结果分别展示，不据此宣称自研 OS 隔离或稳定模型收益。
+
 ## 评测与后训练
 
 `evals.runner` 保留 `EvalCase/EvalOutcome`、可调用的离线用例接口和可复现的仓库版本/命令证据；`benchmark.cli`、`benchmark.harbor.run_forge.run_turn`、RunSpec/ResultBundle 及独立 verifier 保持原协议。终端初始化不加载 Harbor，正式评测需要兼容的外部环境和单独的模型预算授权。

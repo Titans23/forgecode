@@ -6,8 +6,8 @@
   "current_task": "T01",
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
-    "current_checkpoint": "existing_delivery_repair_explicit_eval_option_zero_model_verified_ci_pending",
-    "next_checkpoint": "public_cli_api_demo_and_reviewed_single_sphinx_repair_proposal_no_paid_execution_yet",
+    "current_checkpoint": "public_harness_demo_native_verified_ci_pending",
+    "next_checkpoint": "review_single_sphinx_repair_proposal_no_paid_execution_authorized",
     "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
     "done_conditions_ref": "docs/implementation/tasks/T01.md",
     "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
@@ -16,6 +16,22 @@
     "ci_baseline": {"commit": "11453f8", "run_id": 40166449548, "status": "success", "observed": "Both Ubuntu portable jobs, Windows portable and dependency-security passed for the shared runtime migration."},
     "guardrails": ["no Docker for ordinary installation or execution", "paid calls only within authorized frozen 12-slot 216-request plan after adapter validation", "preserve permission budget cancellation and cleanup boundaries", "do not label partial isolation strict", "commit and push every independently verified checkpoint; report SHA validation and actual CI state", "do not claim the unfinished sandbox goal achieved or delete it"],
     "deferred": ["full_cross_platform_native_os_isolation_expansion", "training_expansion"]
+  },
+  "public_harness_demo": {
+    "status": "windows_native_verified_ci_pending",
+    "entry": "uv run --no-sync python examples/harness_demo.py --output <new-directory>",
+    "documentation": "docs/install/terminal-quickstart.md#5-分钟-harness-演示",
+    "evidence": ".local/implementation/harness-public-demo-20261025-fixed/summary.json",
+    "events": ".local/implementation/harness-public-demo-20261025-fixed/events.jsonl",
+    "actual_result": "Real Windows workspace-write file modification, stale verification rejected, same-turn re-verification and completion in six of eight scripted requests; terminal shared model_calls also six. Native cleanup clean, client closed and fresh owned fixture removed. SessionStore.load preserves Journal bytes and replays no tools or model calls.",
+    "failure_receipts": {"evidence": ".local/implementation/harness-demo-failures-final.xml", "passed": 5, "scope": "Startup unknown cleanup retains fixture; clean startup failure removes only its own fixture; failed deletion retains fixture/receipt and remains nonzero, including otherwise successful flow. Scripted usage explicitly satisfies the model protocol."},
+    "quality": "20261025T131501Z-31c753f0",
+    "initial_failure": "First public example omitted model usage events; preserved original artifacts at .local/implementation/harness-public-demo-20261025. Fixed scripted protocol; no production provider change.",
+    "historical_candidate_recovery": {"evidence": ".local/implementation/harness-public-demo-slot08/fresh-grader/replay.json", "task": "pallets__flask-5063", "model_api_calls": 0, "executed_tests": 57, "accepted": false, "cleanup": "clean", "scope": "CLI regrades the original interrupted slot-eight saved candidate in a fresh verifier. Four regression failures remain. Original Agent partial, missing historical verifier cleanup and original 0/12 are unchanged."},
+    "historical_readonly_reconstruction": {"evidence": ".local/implementation/harness-public-demo-slot08/readonly-reconstruction.json", "messages": 26, "verifications": 3, "model_requests_historical": 13, "new_model_requests": 0, "journal_unchanged": true, "original_tools_replayed": 0},
+    "unknown_side_effect_check": ".local/implementation/harness-demo-unknown-side-effect.xml",
+    "provider_api_calls": 0,
+    "limits": "Scripted usage is synthetic protocol data, not provider token cost or real-model success. Native boundary remains partial. Readonly reconstruction and fresh grading are not cross-process Agent continuation with remaining budget. User confirmed the Harness demonstration remains first; full native sandbox expansion stays deferred."
   },
   "eval_runtime_alignment": {
     "status": "implemented_locally_verified_ci_passed_40166449548",
@@ -36,7 +52,8 @@
   },
   "native_real_repository_preflight": {
     "delivery_repair_eval_option": {
-      "status": "shared_runner_verified_ci_pending",
+      "status": "shared_runner_verified_ci_passed_40195452069",
+      "ci": {"runtime_commit": "c93288145a42d24625b468e10e97a01a68a143e9", "run_id": 40195452069, "status": "success", "jobs": 4},
       "scope": "EvalCase/NativeTaskAdapter explicitly pass existing TaskPolicy.max_delivery_repairs, strict integer 0..2, default 0, recorded in run_configuration. Existing TurnRunner owns the feedback and original request/tool/time budget; no new loop or assertion/freshness relaxation.",
       "checks": {"evidence": ".local/implementation/native-swe-post-cache-guidance/repair-pass-through.xml", "passed": 7, "scope": "Shared runner rejects stale verification, re-verifies and completes in six of six allowed scripted requests within one turn; identical gap stops at five/eight, exhausted four-request budget stops at four. Default/invalid input and adapter forwarding verified."},
       "admission_guard": {"evidence": ".local/implementation/native-swe-post-cache-guidance/repair-admission-guard.xml", "passed": 40, "scope": "Original twelve-slot identity permits only missing/strict int 0 repair; positive, bool, float, null/string values reject. Reviewed two-slot exact limits still reject added repair configuration."},

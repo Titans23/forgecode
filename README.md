@@ -108,6 +108,14 @@ forge --sandbox full-access --approval supervised
 
 默认依赖只加载终端 Harness 和沙盒。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。当前版本移除了 Electron、React、Vite 和运行中的 Web 客户端。
 
+源码开发环境准备好后，可用公开示例演示真实原生工具、验证过期、同回合预算内修复和 Journal 只读重建，无需模型密钥：
+
+```text
+uv run --no-sync python examples/harness_demo.py --output .local/implementation/api-demo-001
+```
+
+输出目录必须是新目录。预期为 `completed`、共享请求计数 6/8、`cleanup.state=clean`、`fixture_retained=false`，并生成 `events.jsonl` 和 `summary.json`。模型响应和 usage 是明确的脚本夹具，provider 调用为零，不代表真实模型完成率。具体演示、历史候选 CLI 复核及恢复边界见 [5 分钟演示](docs/install/terminal-quickstart.md#5-分钟-harness-演示)。
+
 ## 评测、后训练与验证
 
 保留 `evals.runner`、`benchmark` 的官方协议适配、RunSpec/ResultBundle、独立 grader 与可复现信息。后训练复用 `extensions.qwen_tool_distillation` 的模型/工具轨迹、rollout、反馈与奖励、版本化 SFT/DPO 导出及数据检查；训练框架只由显式功能加载。
