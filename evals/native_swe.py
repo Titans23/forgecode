@@ -155,6 +155,7 @@ class NativeTaskAdapter:
             max_turn_seconds=limits['max_turn_seconds'], timeout_seconds=limits['verifier_timeout_seconds'],
             require_task_verification=limits.get('require_task_verification', False),
             require_positive_verification=limits.get('require_positive_verification', False),
+            max_delivery_repairs=limits.get('max_delivery_repairs', 0),
             intent_routing=limits['intent_routing'])
 
     async def _environment(self, prepared, phase):

@@ -85,9 +85,10 @@ def test_native_case_preserves_explicit_behavior_requirements(tmp_path):
     adapter, _ = task(tmp_path)
     limits = dict(max_model_calls=18, max_tool_calls=48, max_turn_seconds=900,
                   verifier_timeout_seconds=600, intent_routing=False,
-                  require_task_verification=True, require_positive_verification=True)
+                  require_task_verification=True, require_positive_verification=True, max_delivery_repairs=2)
     case = adapter.case(1, limits)
     assert case.require_task_verification and case.require_positive_verification
+    assert case.max_delivery_repairs == 2
     interpreter = case.test_command.split(' -m compileall', 1)[0]
     assert case.task.startswith(adapter.row['problem_statement'])
     assert 'Task Python: ' + interpreter in case.task

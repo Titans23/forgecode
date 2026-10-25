@@ -55,6 +55,7 @@ class EvalCase(BaseModel):
     hidden_test_command: str = Field(min_length=1)
     require_task_verification: bool = Field(default=False, strict=True)
     require_positive_verification: bool = Field(default=False, strict=True)
+    max_delivery_repairs: int = Field(default=0, ge=0, le=2, strict=True)
     timeout_seconds: float = Field(default=300, gt=0, le=1800)
     allowed_paths: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = ('tests/hidden/**',)
@@ -381,6 +382,7 @@ async def run_case(
                 policy = TaskPolicy(require_changes=True, require_verification=True,
                     require_task_verification=case.require_task_verification,
                     require_positive_verification=case.require_positive_verification,
+                    max_delivery_repairs=case.max_delivery_repairs,
                     allowed_paths=case.allowed_paths, forbidden_paths=case.forbidden_paths)
                 outcome.run_configuration['task_policy'] = asdict(policy)
                 session = await HarnessSession.open(options, task_policy=policy, approval_handler=approval_handler,

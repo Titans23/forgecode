@@ -276,6 +276,58 @@ def test_case_opt_in_behavior_policy_reaches_real_shared_completion_gate(tmp_pat
         assert 'structural' in Path(result.journal).read_text(encoding='utf-8')
 
 
+@pytest.mark.parametrize('invalid', [-1, 3, True])
+def test_eval_repair_is_explicit_bounded_integer_with_zero_default(invalid):
+    from pydantic import ValidationError
+    data=make_case('0'*40).model_dump()
+    assert data['max_delivery_repairs']==0
+    data['max_delivery_repairs']=invalid
+    with pytest.raises(ValidationError):
+        EvalCase.model_validate(data)
+
+
+@pytest.mark.parametrize('scenario,budget,expected_calls', [('repair',6,6),('repeat-gap',8,5),('exhausted',4,4)])
+def test_opt_in_repair_reverifies_in_one_turn_without_new_budget(tmp_path, scenario, budget, expected_calls):
+    """Real shared runner/tools and independent graders; scripted client, no native/cloud claim."""
+    from forge.sessions.store import SessionStore
+    case=make_case(initialize_project(tmp_path)).model_copy(update={
+        'max_model_calls':budget,'max_delivery_repairs':2,'require_task_verification':True,
+        'require_positive_verification':True})
+    inspect=subprocess.list2cmdline([sys.executable,'-c','print("inspection after verification")'])
+    responses=[
+        tool_response(ToolCall(0,'edit','replace_text',{'path':'value.txt','old_text':'old\n','new_text':'new\n'})),
+        tool_response(ToolCall(0,'verify-first','verify',{'command':case.test_command})),
+        tool_response(ToolCall(0,'inspect-after-verify','run_command',{'command':inspect})),
+        final_response()]
+    if scenario=='repair':
+        responses.extend([tool_response(ToolCall(0,'verify-current','verify',{'command':case.test_command})),
+            tool_response(ToolCall(0,'finish-current','finish_task',{'task_kind':'change','status':'completed','summary':'Verified current revision'}))])
+    elif scenario=='repeat-gap':
+        responses.append(tool_response(ToolCall(0,'finish-again','finish_task',
+            {'task_kind':'change','status':'completed','summary':'No new evidence'})))
+    class Client(FakeModelClient):
+        calls=0
+        async def stream(self,messages,tools=None,system=None):
+            self.calls+=1
+            if self.calls==5:
+                assert any('Completion was not accepted' in str(message) for message in messages)
+                assert any('original budget still applies' in str(message) for message in messages)
+            async for event in super().stream(messages,tools,system):
+                yield event
+    client=Client(*responses)
+    result=asyncio.run(run_case(case,project_root=tmp_path,output_dir=tmp_path/'out',client=client,sandbox='full-access'))
+    assert client.calls==result.model_calls==result.statistics['model_requests']==expected_calls
+    assert result.run_configuration['profile']['max_model_calls']==budget
+    assert result.run_configuration['task_policy']['max_delivery_repairs']==2
+    assert result.passed==(scenario=='repair')
+    assert result.public_tests.success and result.hidden_tests.success
+    assert client.closed and result.cleanup['state']=='clean'
+    records=SessionStore._read_records(Path(result.journal))
+    assert sum(record['type']=='turn_started' for record in records)==1
+    if scenario!='repair':
+        assert result.task_status=='partial' and result.stop_reason=='acceptance_unmet'
+
+
 def test_budget_exhaustion_keeps_failed_attempt_even_when_public_grader_passes(tmp_path):
     case = make_case(initialize_project(tmp_path)).model_copy(update={'max_model_calls': 2})
     client = successful_client(case)

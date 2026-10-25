@@ -30,13 +30,25 @@ def test_reviewed_development_and_original_frozen_scopes_are_both_admitted(devel
         campaign.validate_scope(original, manifest)
 
 
+@pytest.mark.parametrize('repair', [0, 1, 2, False, True, 0.0, None, '0'])
+def test_original_campaign_cannot_enable_new_repair_behavior(repair):
+    plan=json.loads((campaign.ROOT/'experiments/native-swe-lite-plan.json').read_text())
+    manifest=json.loads((campaign.ROOT/'experiments/native-swe-lite.json').read_text())
+    plan['per_run']['max_delivery_repairs']=repair
+    if type(repair) is int and repair==0:
+        campaign.validate_scope(plan,manifest)
+    else:
+        with pytest.raises(ValueError,match='authorized frozen execution scope'):
+            campaign.validate_scope(plan,manifest)
+
+
 @pytest.mark.parametrize('field,value', [
     ('purpose', 'unreviewed'), ('runs', 3), ('repetitions_per_task', 2), ('concurrency', 2),
     ('total_model_request_cap', 37), ('automatic_retries', 1), ('failed_reruns', 1), ('replacement_tasks', 1),
     ('per_run.max_model_calls', 19), ('per_run.max_tool_calls', 49), ('per_run.max_turn_seconds', 901),
     ('per_run.verifier_timeout_seconds', 601), ('per_run.intent_routing', True), ('per_run.sandbox', 'full-access'),
     ('per_run.require_task_verification', False), ('per_run.require_positive_verification', False),
-    ('per_run.require_task_verification', 1)])
+    ('per_run.require_task_verification', 1), ('per_run.max_delivery_repairs', 2)])
 def test_development_admission_rejects_budget_or_policy_drift(development_plan, field, value):
     parts = field.split('.')
     container = development_plan['per_run'] if len(parts) == 2 else development_plan

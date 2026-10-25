@@ -52,6 +52,8 @@ def validate_scope(plan, manifest):
     if (plan['runs'] != 12 or plan['repetitions_per_task'] != 2 or plan['concurrency'] != 1
             or plan['per_run']['max_model_calls'] != 18 or plan['total_model_request_cap'] != 216
             or plan['automatic_retries'] != 0 or plan['failed_reruns'] != 0
+            or type(plan['per_run'].get('max_delivery_repairs', 0)) is not int
+            or plan['per_run'].get('max_delivery_repairs', 0) != 0
             or plan['per_run']['sandbox'] != 'workspace-write' or plan['per_run']['intent_routing']):
         raise ValueError('Campaign exceeds the authorized frozen execution scope')
     expected = [(case['id'], repetition) for repetition in (1, 2) for case in manifest['cases']]
