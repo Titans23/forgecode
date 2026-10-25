@@ -6,19 +6,21 @@
   "current_task": "T01",
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
-    "current_checkpoint": "public_harness_demo_native_verified_ci_pending",
-    "next_checkpoint": "review_single_sphinx_repair_proposal_no_paid_execution_authorized",
+    "current_checkpoint": "harness_delivery_frozen_for_internship_presentation",
+    "next_checkpoint": "maintain_current_demo_code_evidence_and_contribution_boundaries_no_new_experiments",
     "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
     "done_conditions_ref": "docs/implementation/tasks/T01.md",
     "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
     "resolved_gap": "evals.runner now uses HarnessSession, shared model configuration/factory, bounded RunProfile and TaskPolicy. Agent and independent graders share the explicit boundary. Startup-created clients close on construction failure. Engineering verification uses scripted models, not paid model calls.",
     "evidence_limits": "Source/test inventory is not current-source acceptance. API fixtures are scripted models. Recent native evidence covers Windows partial isolation. Historical live comparisons do not establish current-version or stable P3 performance gains.",
-    "ci_baseline": {"commit": "11453f8", "run_id": 40166449548, "status": "success", "observed": "Both Ubuntu portable jobs, Windows portable and dependency-security passed for the shared runtime migration."},
-    "guardrails": ["no Docker for ordinary installation or execution", "paid calls only within authorized frozen 12-slot 216-request plan after adapter validation", "preserve permission budget cancellation and cleanup boundaries", "do not label partial isolation strict", "commit and push every independently verified checkpoint; report SHA validation and actual CI state", "do not claim the unfinished sandbox goal achieved or delete it"],
+    "ci_baseline": {"commit": "a08885d63b19dcf67e722f73a0bee5b070959b1c", "run_id": 40197049096, "status": "success", "observed": "Both Ubuntu portable jobs, Windows portable and dependency-security passed. Native platform and live-model evidence remain separately scoped."},
+    "guardrails": ["no Docker for ordinary installation or execution", "original twelve-slot and later two plus two separately authorized conditions are sealed; 191 requests consumed; no new paid batch authorized", "preserve permission budget cancellation and cleanup boundaries", "do not label partial isolation strict", "commit and push every independently verified checkpoint; report SHA validation and actual CI state", "do not claim the unfinished sandbox goal achieved or delete it"],
+    "cancelled_extension": "Single Sphinx-10325/18-request/repair2 proposal cancelled before execution; uncommitted admission changes saved as ignored deferred-admission.patch and removed from main. No additional model requests or feature work.",
     "deferred": ["full_cross_platform_native_os_isolation_expansion", "training_expansion"]
   },
   "public_harness_demo": {
-    "status": "windows_native_verified_ci_pending",
+    "status": "windows_native_verified_ci_passed_40197049096",
+    "ci": {"commit": "a08885d63b19dcf67e722f73a0bee5b070959b1c", "run_id": 40197049096, "status": "success", "jobs": 4},
     "entry": "uv run --no-sync python examples/harness_demo.py --output <new-directory>",
     "documentation": "docs/install/terminal-quickstart.md#5-分钟-harness-演示",
     "evidence": ".local/implementation/harness-public-demo-20261025-fixed/summary.json",
@@ -31,7 +33,33 @@
     "historical_readonly_reconstruction": {"evidence": ".local/implementation/harness-public-demo-slot08/readonly-reconstruction.json", "messages": 26, "verifications": 3, "model_requests_historical": 13, "new_model_requests": 0, "journal_unchanged": true, "original_tools_replayed": 0},
     "unknown_side_effect_check": ".local/implementation/harness-demo-unknown-side-effect.xml",
     "provider_api_calls": 0,
-    "limits": "Scripted usage is synthetic protocol data, not provider token cost or real-model success. Native boundary remains partial. Readonly reconstruction and fresh grading are not cross-process Agent continuation with remaining budget. User confirmed the Harness demonstration remains first; full native sandbox expansion stays deferred."
+    "limits": "Scripted usage is synthetic protocol data, not provider token cost or real-model success. Native boundary remains partial. Readonly reconstruction and fresh grading are not cross-process Agent continuation with remaining budget. Harness demonstration is the current scope; full native sandbox expansion remains deferred."
+  },
+  "historical_release_evidence": {
+    "report_commit": "a9f290f3b00270ef787f6ed4a9b2ed87dc1722bb",
+    "archived_report": "EVALUATION_SUMMARY_20260813.md at report_commit; historical protocol also remains in benchmark/harbor/README.md",
+    "aider_polyglot": {
+      "record_type": "historical_release_report_not_current_source_acceptance",
+      "reported_model": "gpt-5.6-luna",
+      "reported_model_execution": "live provider via local proxy according to contemporaneous report; raw trial records not found in current checkout",
+      "reported_environment": "Harbor 0.18.0 / Docker 29.7.2",
+      "reported_dataset_commit": "f30b14415dd733c83627204bad0af69a89ceb46f",
+      "reported_raw_result": "211/225 = 93.78% final verifier reward, including one infrastructure error in denominator",
+      "reported_scored_result": "211/224 = 94.20%; strict first attempt 97/224 = 43.30%; 114 feedback repairs",
+      "reported_protocol": "One permitted same-session verifier-feedback repair; concurrency one, Harbor infrastructure max_retries three, setup timeout multiplier twelve and installation retries eight. Not single-attempt pass@1.",
+      "execution_source_commit": null,
+      "raw_results_found_in_current_checkout": false,
+      "missing_evidence": "Historical summary.json, job result.json, 225 trial/verifier/trajectory records and per-trial staged source or immutable source manifest. Release a9f290f includes post-run fixes and is not proof of the code bytes used during evaluation.",
+      "use": "May cite as explicitly attributed historical v0.1.1 report under its two-attempt protocol. Do not present as reproduced/current accuracy, current native task completion rate, or a measured improvement without original evidence."
+    },
+    "regression_448": {
+      "record_type": "historical_post_run_local_regression_statement",
+      "reported_passed": 448,
+      "source": "Contemporaneous v0.1.1 report records 448 passed and uv lock --check after post-run fixes",
+      "exact_tested_worktree_and_command_log": null,
+      "raw_junit_or_stdout_found": false,
+      "use": "Historical reported count only; not current-source acceptance, model API validation or proof of the 225-task result. Current acceptance is identified by CI commit/run and scoped native evidence."
+    }
   },
   "eval_runtime_alignment": {
     "status": "implemented_locally_verified_ci_passed_40166449548",
@@ -147,7 +175,7 @@
       "limits": "No original experiment prompt, score, manifest or trajectory is rewritten. Behavioral command classification alone does not prove functional correctness; independent frozen grading remains required."
     },
     "task_runtime_guidance": {
-      "status": "explicit_task_interpreter_guidance_verified_ci_pending",
+      "status": "explicit_task_interpreter_guidance_verified_ci_passed_40197049096",
       "diagnosis": "Fresh native pytest-5413 base: bare python is the Harness Python 3.12.13 with pytest 9.1.1/py shim; loading legacy project pytest fails on removed imp. The installed task interpreter is Python 3.8.20 and imports project pytest 4.6.0.dev0, py 1.11.0 and imp successfully. Task dependencies are present; default command selection and insufficient explicit guidance caused an avoidable environment mismatch.",
       "evidence": ".local/implementation/native-swe-development-validation/pytest-interpreter-proof.json",
       "evidence_sha256": "e2723949426b91ee565ae266276320c95d4d546a68e8cdc55a7364d122edfd9c",
@@ -179,7 +207,7 @@
       "failure_scope": "Nine independent gradings failed; one shared-budget exhaustion, one partial empty candidate, one interrupted verifier preparation. Six saved candidates disagree with runtime empty-Diff evidence. This is operational completion, not pure model correctness.",
       "accounting_correction": "Root model_request events undercount Explore: original summary 121 is a lower bound. Existing all-role observation model.request events give 129 and match terminal shared counts and disjoint provider usage. Original evidence is not rewritten.",
       "next_repairs": ["read all-role observations and preserve unknown usage", "reproduce incomplete native scan/transport then fix evidence without widening permissions or quotas", "guide functional verification using public issue/base tests; compileall proves syntax only"],
-      "additional_model_execution": "No new batch authorized by these results. At most two-task development-validation proposal follows offline fixes and separate review; never replace original failed slots."
+      "additional_model_execution": "Both later separately authorized two-task development conditions are complete and sealed under their own versions and denominators. No additional batch is scheduled; the single-Sphinx proposal was cancelled unexecuted. Original failed slots remain unchanged."
     },
     "shared_adapter": {
       "status": "implemented_native_and_related_regression_verified_ci_passed_40175736795",
@@ -217,7 +245,7 @@
   "sandbox_completion": {
     "legacy_python_and_grader_cache": {
       "default_cache_recovery": {
-        "status": "windows_native_verified_ci_pending",
+        "status": "windows_native_verified_ci_passed_40197049096",
         "scope": "Within existing native Python compatibility hook only: default process-local PYTEST_ADDOPTS selects owned execution scratch; cacheprovider stays enabled, explicit existing options retain precedence, no global PATH/environment or ACL expansion. Cache is cleaned with each execution, not persisted across commands.",
         "before": ".local/implementation/native-swe-development-validation/sphinx-public-diagnostic-3eeb7d5676d44a10a1ba109626136cdf/results.json",
         "after": ".local/implementation/native-swe-development-validation/sphinx-public-diagnostic-16b93b0504094519ad4d1ccd64e432eb/results.json",
@@ -227,7 +255,7 @@
         "quality": "20261025T115022Z-d28d24b3",
         "model_api_calls": 0
       },
-      "status": "native_verified_ci_pending",
+      "status": "windows_native_verified_ci_passed_40197049096",
       "change": "Scratch-only mkdir wrapper retains built-in callable behavior for Python 3.8/3.9 pathlib accessors, including earlier imports. Independent pytest cache is enabled inside owned execution scratch; project-wide 0700 semantics and OS privileges are not expanded.",
       "evidence": [".local/implementation/native-swe-adapter/native-python-versions-fixed/results.json", ".local/implementation/native-swe-adapter/native-python-owned-cache/results.json", ".local/implementation/native-swe-adapter/legacy-wrapper-current-python-accepted.xml"],
       "results": "pytest task reference: 93 required tests pass; Sphinx task reference: 6 required tests pass; current Python private scratch checks pass in both native modes. All clean; zero model calls.",
@@ -237,7 +265,7 @@
       "quality": "20261025T083547Z-e4b948d4"
     },
     "native_internal_paths": {
-      "status": "windows_verified_ci_pending",
+      "status": "windows_verified_ci_passed_40197049096",
       "scope": "OS-resolved short per-session internal control/scratch paths; original long artifact directories retain location and boundary diagnostics. Protected root frozen before admission; no global TEMP, administrator setup or Docker.",
       "native_evidence": [".local/implementation/native-short-runtime-acceptance.xml", ".local/implementation/native-short-runtime-cancel.xml"],
       "native_results": "Long artifact read-only and workspace-write checks pass. Two concurrent sessions use separate roots; cancelling/closing one preserves the other. First cancellation test had invalid timestamp syntax; corrected test passes, original failure retained.",
@@ -248,7 +276,7 @@
       "real_task_integration": {"evidence": ".local/implementation/native-swe-adapter/native-task-compat.xml", "task": "pallets__flask-4992", "independent_tests_passed": 19, "model_api_calls": 0, "scope": "Scripted reference edit through real native helper/task interpreter; separate verifier and both clean shutdowns. Adapter remains a separate implementation checkpoint."},
       "limits": "No strict read/network/hard-resource or Linux native acceptance claim. Real task adapter validation is separate and uses scripted model responses."
     },
-    "status": "in_progress",
+    "status": "deferred_incomplete",
     "delivery_priority": "unfinished_extension_outside_current_recruiting_critical_path",
     "architecture": "Native lightweight Windows/Linux sandbox only. User revoked Docker integration; installation and ordinary operation must not require Docker, images or a container daemon. No silent privilege fallback.",
     "execution_boundary": "Existing DSH/bubblewrap paths remain partial isolation. Docker prototype and CI removed before CLI/SDK integration. Its historical evidence does not establish native strict capabilities.",

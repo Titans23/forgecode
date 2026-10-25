@@ -99,3 +99,15 @@ CI 的 unit 自动发现非 native/fixture 的功能测试目录，portable 覆�
 每个独立验收点完成相关检查后单独 commit、push，并报告 SHA/链接、验证范围和实际 CI 状态。源码存在、离线脚本模型通过、真实原生测试和真实模型收益是不同证据；完整完成率包含所有已尝试任务，预算耗尽、取消及基础设施失败不能算成功。成功任务成本与双成功配对另列，不用删掉失败后的均值代表总体改进。当前 P3 七个双成功配对的 token -3.4%、耗时 +1.6% 未证明稳定收益，不能摘取前者作为简历性能结论。
 
 EvalCase 可显式设置已有 max_delivery_repairs（默认 0，最多 2），NativeTaskAdapter 将其传给同一个 TaskPolicy 并记录实际配置。完成被拒后，既有 TurnRunner 可在本回合剩余模型/工具/时间预算内反馈不同缺口；相同缺口重复、修复次数或预算耗尽仍终止。它不放宽验证断言或新鲜度，也不提供跨进程原预算续跑；CLI --resume 开启新回合。
+
+## 4. 核心调用链与证明边界
+
+| 调用链 | 机制与取舍 | 代码和现有验证入口 |
+|---|---|---|
+| Agent Loop → 工具/Explore → 压缩 | TurnRunner 按索引顺序执行工具，失败后记录未执行尾部。ContextVar 传入父 TurnState；支持请求观察协议的提供方按实际尝试扣预算，旧嵌入客户端按 stream 调用计数。子代理用量向父级累计，路由和摘要也计入。Explore 借用同一后端但不关闭它。压缩计算完整请求及输出预留，保存原始约束并成对保留 tool_use/result；这是预算与协议正确性，不是稳定提速结论。 | [TurnRunner._batch](../../forge/runtime/runner.py#L485)、[BudgetedModelClient.stream](../../forge/runtime/model_budget.py#L101)、[TurnState](../../forge/runtime/turn_state.py#L138)、[Explore](../../forge/subagents/explore.py#L198)、[压缩阈值](../../forge/context/manager.py#L473)；[共享预算](../../tests/runtime/test_shared_budget.py#L10)、[实际读取/压缩夹具](../../tests/implementation/integration/test_harness_regressions.py#L94) |
+| verify → check ledger → CompletionGate → 同回合反馈 | 文件 revision 与环境 epoch 同时匹配才是当前证据；普通进程执行保守地推进 epoch。检查按 ID 保存定义，修检查器必须继承原断言、需求和 cwd，不能改阈值冲掉失败。完成被拒后最多反馈两个不同缺口，仍扣原预算；行为检查和独立 grader 是不同层。 | [环境失效](../../forge/runtime/executor.py#L301)、[检查继承](../../forge/runtime/check_contracts.py#L62)、[完成门禁](../../forge/runtime/completion.py#L142)、[有界反馈](../../forge/runtime/runner.py#L770)；[不可削弱断言](../../tests/runtime/test_check_contracts.py#L57)、[公开原生演示](../../examples/harness_demo.py#L61) |
+| 规则激活 → 授权 → Journal intent → 执行/取消 → 状态重建 | 访问路径激活祖先规则；新规则尚未进入模型请求时，写入/进程先被拒绝，同批先读后写也不能绕过。统一执行器先授权；需要文件 checkpoint 时捕获 before image，intent fsync 后才执行。取消后的写入/进程结果可为 indeterminate。重建列出未匹配 intent，不自动重放；关闭只释放自己拥有的客户端和后端。 | [祖先规则](../../forge/context/repository.py#L191)、[请求边界](../../forge/runtime/runner.py#L624)、[授权/intent](../../forge/runtime/executor.py#L185)、[Journal fsync](../../forge/sessions/store.py#L381)、[重建未知工具](../../forge/sessions/store.py#L985)、[幂等关闭](../../forge/runtime/agent_loop.py#L822)；[未知副作用恢复](../../tests/implementation/integration/test_recovery.py#L55)、[Explore 后父后端仍可用](../../tests/implementation/integration/test_file_worker.py#L69) |
+
+上述 TurnRunner、验证契约、Journal 与评测接入是仓库代码；Anthropic/OpenAI SDK 提供传输，Pydantic 提供输入校验，DSH/bubblewrap 提供已声明的 OS 写边界。已有 Python Agent 循环、SDK 和 OS 后端的复用与项目层修改分开说明，不把模型、完整 OS 沙盒或训练框架归为本轮自研。
+
+测试入口说明覆盖内容，实际验收版本与报告以 progress.json 为准。脚本模型、真实本地进程/HTTP 夹具、原生平台验收和真实付费模型分别标注；只读恢复不等于原 Agent 跨进程原预算续跑。

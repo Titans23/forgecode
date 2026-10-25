@@ -1,7 +1,7 @@
 # ForgeCode Harbor evaluation
 
 This integration evaluates the current ForgeCode checkout as an installed
-Harbor agent. It follows the same core protocol used by FirstCoder:
+Harbor agent. The adapter uses this workflow:
 
 - stage only the package source needed to run the agent;
 - initialize an isolated Git baseline without exposing verifier files;
@@ -150,6 +150,16 @@ does not allow a verifier-feedback repair turn.
 
 ## Full 225-task run (2026-08-11/12)
 
+The following sections preserve historical release-report values, not current
+acceptance. Their provenance is the v0.1.1 report at Git commit
+[`a9f290f`](https://github.com/Titans23/forgecode/blob/a9f290f3b00270ef787f6ed4a9b2ed87dc1722bb/EVALUATION_SUMMARY_20260813.md).
+The referenced job/summary JSON and individual trials were not found in the
+current checkout during the documentation audit. The release commit includes
+post-run fixes; it does not identify the exact source bytes used by the run.
+The old adapter staged source separately for each trial without the immutable
+source manifest used by the current runner. Raw results, staged source and
+request/attempt records are needed to independently revalidate these numbers.
+
 Run directory: `benchmark/runs/harbor/full-225-luna-fixed/2026-08-11__22-30-48`.
 The run used Harbor 0.18.0, Docker 29.7.2, the Aider Polyglot dataset at
 commit `f30b14415dd733c83627204bad0af69a89ceb46f`, and model
@@ -169,24 +179,9 @@ These are the most useful code-quality signals from this run, but they come
 from a small, non-random survivor subset and must not be presented as the
 full-suite accuracy.
 
-For a publishable full-suite number, rerun after the provider cooldown
-clears and quota is available, preferably with the new rate-aware setup
-options:
-
-```powershell
-uv run python -m benchmark.harbor.run_aider `
-  --concurrency 1 `
-  --max-retries 3 `
-  --agent-setup-timeout-multiplier 12 `
-  --install-retries 8 `
-  --install-retry-delay-seconds 30 `
-  --force-build `
-  --ubuntu-mirror https://mirrors.aliyun.com/ubuntu `
-  --output-dir benchmark/runs/harbor/full-225-luna-rerun
-```
-
-Then report both the scored pass rates and the infrastructure-error rate. Do
-not fold provider outages into code failures.
+The recorded rerun below used the adjusted setup/retry options. It is a
+historical result, not a pending experiment; no additional paid run is scheduled.
+Keep the all-task denominator as well as the separately labelled scored subset.
 
 ## Full 225-task run (2026-08-12/13, GPT-5.6 Luna)
 
@@ -216,10 +211,14 @@ The most actionable ForgeCode defects were incorrect task-scope anchoring for
 and incomplete handling of exact hidden-test APIs and multi-step concurrency
 protocols.
 
-The run's raw token telemetry was 42,090,702 input tokens and 885,602 output
+The historical report records 42,090,702 input tokens and 885,602 output
 tokens across 3,488 model calls and 3,840 tool calls. Provider cost was not
 reported by the local proxy. After the run, scope canonicalization and
-`pytest`/`python` verification fallback were added; the local regression suite
-passes 448 tests and `uv lock --check` succeeds. The 225-task number above is
-the pre-rerun baseline; run a new full suite after these fixes for a direct
-before/after accuracy comparison.
+`pytest`/`python` verification fallback were added. The release report states
+`448 passed` and a successful `uv lock --check` for those post-run fixes;
+the exact tested worktree, command output and JUnit report are not available
+here. That count is not current-source acceptance or model evaluation evidence.
+The 211/225 result includes the allowed feedback repair (97/224 first-attempt
+passes and 114 repairs) and must be labelled as a historical reported result,
+not current accuracy or a measured improvement. Current CI and separately
+sealed native task conditions are tracked in `docs/implementation/progress.json`.
