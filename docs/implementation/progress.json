@@ -6,8 +6,8 @@
   "current_task": "T01",
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
-    "current_checkpoint": "real_repository_native_subset_preflight_and_freeze",
-    "next_checkpoint": "adapt_frozen_real_tasks_to_shared_runner_with_independent_post_agent_grading_and_leakage_audit_without_model_calls",
+    "current_checkpoint": "frozen_live_baseline_sealed_129_requests_0_of_12_operational_completions",
+    "next_checkpoint": "repair_all_role_accounting_and_native_change_observation_then_public_functional_verification",
     "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
     "done_conditions_ref": "docs/implementation/tasks/T01.md",
     "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
@@ -35,6 +35,30 @@
     "limits": ["Existing cases are self-built engineering fixtures, not real-repository benchmark results", "OS sandbox remains partial", "SIGKILL of the whole evaluator is not covered by graceful cancellation tests", "Missing terminal aggregate usage is null, not zero", "Unconfirmed cleanup deliberately retains the workspace"]
   },
   "native_real_repository_preflight": {
+    "live_baseline": {
+      "status": "complete_sealed_original_outcomes_preserved",
+      "runtime_commit": "fcecb40157c3cbe2ec32208210cf9316d547ac6c",
+      "ci": {"run_id": 40177464468, "status": "success", "jobs": 4},
+      "model": "project .env anthropic/gpt-6-luna",
+      "plan_sha256": "ffda8772256775998146906533ed9b59180ebcd1dc22c080a76ad4bd7aa7fc60",
+      "attempted": 12,
+      "fully_completed": 0,
+      "model_requests_all_roles": 129,
+      "request_cap": 216,
+      "reported_tokens": {"uncached_input": 1031311, "cache_read": 344448, "cache_write": 0, "output": 16766},
+      "unfinished_model_requests": 0,
+      "unknown_usage_requests": 0,
+      "successful_costs": null,
+      "paired_two_success_repeats": 0,
+      "evidence": ".local/implementation/native-swe-frozen-20261025/evidence-manifest.json",
+      "derived_accounting": ".local/implementation/native-swe-frozen-20261025/all-role-audit.json",
+      "source_campaign_sha256": "90a0524448fc184bbd36b0bedd01b66505e19b6d15723dd4aba9008d9a947171",
+      "platform_recovery": "Slot 8 Agent partial with 13 completed requests, 12 completed tools and complete usage; control-plane 401 interrupted independent dependency setup. Original bytes/hashes retained; only never-started 9-12 resumed. Historical grader cleanup remains unknown and both owned roots retained; current process reconciliation found none alive.",
+      "failure_scope": "Nine independent gradings failed; one shared-budget exhaustion, one partial empty candidate, one interrupted verifier preparation. Six saved candidates disagree with runtime empty-Diff evidence. This is operational completion, not pure model correctness.",
+      "accounting_correction": "Root model_request events undercount Explore: original summary 121 is a lower bound. Existing all-role observation model.request events give 129 and match terminal shared counts and disjoint provider usage. Original evidence is not rewritten.",
+      "next_repairs": ["read all-role observations and preserve unknown usage", "reproduce incomplete native scan/transport then fix evidence without widening permissions or quotas", "guide functional verification using public issue/base tests; compileall proves syntax only"],
+      "additional_model_execution": "No new batch authorized by these results. At most two-task development-validation proposal follows offline fixes and separate review; never replace original failed slots."
+    },
     "shared_adapter": {
       "status": "implemented_native_and_related_regression_verified_ci_passed_40175736795",
       "entry": "python -m evals.native_swe_campaign",
@@ -63,7 +87,7 @@
     "mapping": "Frozen original-label to all collected-node mapping; legacy whitespace truncation expands to every match. Missing parameters, skips, xfail, collection errors, duplicate/incomplete phases and cleanup uncertainty reject acceptance.",
     "ci_rootdir_fix": {"failed_run": 40168009713, "affected_jobs": ["ubuntu-22.04", "ubuntu-24.04", "windows-2025"], "cause": "CI puts pytest basetemp below the checkout; nested pytest discovered parent ForgeCode configuration and used checkout-relative node IDs. Direct local pytest used system temp outside the checkout. All three platforms showed the same three failures.", "change": "Anchor grader --rootdir to task cwd while preserving task pytest configuration and frozen mapping.", "reproduction": ".local/implementation/ci-rootdir-before.xml", "before": {"failed": 3, "passed": 6}, "verification": ".local/implementation/ci-rootdir-after.xml", "after_passed": 11, "existing_native_fixture": ".local/implementation/ci-rootdir-flask-native.json", "native_reference_passed": 19, "ci_status": "success_40168649129"},
     "model_api_calls": 0,
-    "future_model_plan": {"runs": 12, "repetitions_per_task": 2, "requests_per_run": 18, "total_request_cap": 216, "automatic_retries": 0, "status": "authorized_project_env_gpt_6_luna_adapter_validation_in_progress_no_calls_yet"},
+    "future_model_plan": {"runs": 12, "repetitions_per_task": 2, "requests_per_run": 18, "total_request_cap": 216, "automatic_retries": 0, "status": "completed_frozen_12_slots_129_actual_requests_0_operational_success"},
     "adapter": "runner-source.json is controller metadata, not a runnable EvalCase. Next checkpoint reuses HarnessSession/runner, separate base-only dependencies and post-Agent test-patch grading; audit leakage and invalidate contaminated attempts.",
     "limits": ["Public known tasks; not official SWE-bench scoring or unseen evaluation", "Reference-fix validation is not model completion rate", "Workspace separation is not confidentiality under partial host read/network inheritance", "Linux native adaptation and complete OS sandbox remain unverified"],
     "checks": {"regression": ".local/implementation/real-repo-preflight/evals-regression.xml", "regression_passed": 57, "quality": ".local/implementation/real-repo-preflight/quality.json", "quality_passed": 7, "contracts": ".local/implementation/real-repo-preflight/contracts.json", "contracts_passed": 2}
