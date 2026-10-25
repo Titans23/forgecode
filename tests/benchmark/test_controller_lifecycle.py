@@ -69,14 +69,21 @@ def test_owned_controller_cancels_real_child_and_records_unknown_cleanup(tmp_pat
     assert not cancel_run(tmp_path)['cancel_requested']
 
 
-def test_real_child_exit_is_recorded_without_job_result(tmp_path):
+@pytest.mark.parametrize('clock', ['system', 'same-tick'])
+def test_real_child_exit_is_recorded_without_job_result(tmp_path, monkeypatch, clock):
+    if clock == 'same-tick':
+        # Lifecycle writes can share one wall-clock tick. Keep the child real
+        # and make that condition deterministic instead of waiting for luck.
+        monkeypatch.setattr('benchmark.harbor.controller._now', lambda: '2026-10-25T10:53:46.789831+00:00')
     code = run_controller([sys.executable, '-c', 'import time; time.sleep(.1); raise SystemExit(7)'],
                           cwd=tmp_path, env=os.environ.copy(), output_dir=tmp_path, interval=.02)
     state = controller_status(tmp_path)
     assert code == state['exit_code'] == 7
     assert state['status'] == 'exited'
     assert state['child_pid'] != state['controller_pid']
-    assert state['started_at'] < state['heartbeat_at'] < state['finished_at']
+    assert state['started_at'] <= state['heartbeat_at'] <= state['finished_at']
+    if clock == 'same-tick':
+        assert state['started_at'] == state['heartbeat_at'] == state['finished_at']
 
 
 def test_expired_heartbeat_cannot_be_reported_as_running(tmp_path):

@@ -45,6 +45,7 @@
       "admission": "Existing campaign has a separate exact purpose/schedule/budget/policy branch; original twelve-slot checks remain unchanged. Runtime commit must match the reviewed plan before admission. Final commit CI success, clean tree and frozen model/input identities gate paid execution.",
       "checks": {"evidence": ".local/implementation/native-swe-development-validation/admission.xml", "passed": 31},
       "quality": "20261025T105637Z-351ac42e",
+      "ci_clock_repair": {"failed_run": 40186450986, "cause": "Windows heartbeat and finish writes can share a datetime.now clock tick; the strict less-than assertion was stronger than controller semantics.", "change": "Keep actual child exit/status/PID checks; accept nondecreasing timestamps and reproduce equality deterministically with a frozen test clock. No production timestamp changes or added sleeps.", "evidence": ".local/implementation/native-swe-development-validation/controller-clock.xml", "passed": 8},
       "proposal": ".local/implementation/native-swe-development-validation/proposal.json",
       "limits": "Development validation of previously seen failures; keep original 0/12 and 129 requests separate. No causal speedup, stable gain, unseen generalization or strict native isolation claim."
     },
