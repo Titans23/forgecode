@@ -97,6 +97,17 @@
       "model_api_calls": 0,
       "limits": "No original experiment prompt, score, manifest or trajectory is rewritten. Behavioral command classification alone does not prove functional correctness; independent frozen grading remains required."
     },
+    "task_runtime_guidance": {
+      "status": "explicit_task_interpreter_guidance_verified_ci_pending",
+      "diagnosis": "Fresh native pytest-5413 base: bare python is the Harness Python 3.12.13 with pytest 9.1.1/py shim; loading legacy project pytest fails on removed imp. The installed task interpreter is Python 3.8.20 and imports project pytest 4.6.0.dev0, py 1.11.0 and imp successfully. Task dependencies are present; default command selection and insufficient explicit guidance caused an avoidable environment mismatch.",
+      "evidence": ".local/implementation/native-swe-development-validation/pytest-interpreter-proof.json",
+      "evidence_sha256": "e2723949426b91ee565ae266276320c95d4d546a68e8cdc55a7364d122edfd9c",
+      "native_probe_commands": 4,
+      "change": "NativeTaskAdapter adds the existing task interpreter and python -m pytest invocation to public task instructions for every Python/import check. Bare commands and internal helper Python remain unchanged; no global PATH change, dependency stub, privilege expansion or new model loop.",
+      "checks": {"evidence": ".local/implementation/native-swe-development-validation/runtime-guidance.xml", "passed": 2, "scope": "Interpreter instructions match the existing syntax-check executable and reach the actual shared runner model context without evaluator patches/reference leakage; independent fixture grading still passes."},
+      "model_api_calls": 0,
+      "limits": "Discoverability fix only, not automatic command rewriting or demonstrated model-completion improvement. Both prior batches remain sealed; further paid execution needs a new concrete reviewed plan."
+    },
     "live_baseline": {
       "status": "complete_sealed_original_outcomes_preserved",
       "runtime_commit": "fcecb40157c3cbe2ec32208210cf9316d547ac6c",

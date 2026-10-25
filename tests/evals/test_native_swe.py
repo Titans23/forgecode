@@ -29,6 +29,7 @@ class ScriptedClient:
         prompt = json.dumps(messages) + (system or '')
         assert 'EVALUATOR_ONLY_TEST_MARKER' not in prompt
         assert 'GOLD_REFERENCE_MARKER' not in prompt
+        assert 'Task Python:' in prompt and 'all Python commands and import checks' in prompt
         assert self.adapter.spec['id'] not in prompt
         assert not (self.adapter.agent_workspace / 'tests/test_hidden.py').exists()
         yield ModelUsageUpdate(TokenUsage(10, 0))
@@ -87,6 +88,10 @@ def test_native_case_preserves_explicit_behavior_requirements(tmp_path):
                   require_task_verification=True, require_positive_verification=True)
     case = adapter.case(1, limits)
     assert case.require_task_verification and case.require_positive_verification
+    interpreter = case.test_command.split(' -m compileall', 1)[0]
+    assert case.task.startswith(adapter.row['problem_statement'])
+    assert 'Task Python: ' + interpreter in case.task
+    assert interpreter + ' -m pytest' in case.task
 
 
 def client_for(adapter, case, *, content='new\n', leak=False):

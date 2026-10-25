@@ -139,9 +139,14 @@ class NativeTaskAdapter:
 
     def case(self, ordinal, limits):
         python = str(Path('../environment') / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python'))
+        task = (self.row['problem_statement'] + '\n\nTask Python: ' + shell_command([python])
+            + '\nUse this task interpreter for all Python commands and import checks. '
+            + 'Run public pytest tests as ' + shell_command([python, '-m', 'pytest']) + '. '
+            + 'Bare python and pytest resolve to the Harness environment, whose versions and dependencies differ. '
+            + 'Check the task interpreter and import paths before changing dependency-related source code.')
         return EvalCase(id=f'native-swe-{ordinal:03d}', repo='.',
             base_commit_repository=str(self.cache / 'sources' / (self.spec['repo'].replace('/', '__') + '.git')),
-            base_commit=self.spec['base_commit'], task=self.row['problem_statement'],
+            base_commit=self.spec['base_commit'], task=task,
             source_archive_sha256=self.spec.get('archive_sha256'),
             test_command=shell_command([python, '-m', 'compileall', '-q', self.scope]),
             hidden_test_command='independent frozen grader (adapter required)',
