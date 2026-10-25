@@ -29,7 +29,7 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 真实仓库任务冻结在 `experiments/native-swe-lite.json`，目前是公开 SWE-bench Lite 的 Windows 原生适配预检，不是官方成绩或模型完成率。`scripts/prepare_native_swe.py` 校验官方数据/源码摘要，使用任务独立解释器和依赖，先施加测试补丁复现失败，再只施加参考修复验证全部规定回归。`evals/swe_lite_grader.py` 校验冻结的原标签→全部实际 node ID 映射，拒绝缩小参数覆盖、跳过、xfail 和收集错误；命令生命周期复用 LocalProcessOwner，不证明 OS 强隔离。
 
-参考工作区、补丁、原始日志和 `runner-source.json` 只属于评测控制器；后者不是可运行 EvalCase。后续适配继续复用 HarnessSession/runner，从 base 重建 Agent 环境，结束后在评测器副本施加测试补丁并独立判分，审计工具读取中的答案泄漏并标记 invalid。当前原生读取/网络继承宿主，工作区外存放仅为输入分离，不是不可访问的安全隔离。模型回合尚未执行，具体预算及待完成门禁见 `experiments/native-swe-lite-plan.json`。
+参考工作区、补丁、原始日志和 `runner-source.json` 只属于评测控制器；后者不是可运行 EvalCase。`evals.native_swe` 复用 HarnessSession/runner：所属夹具根中分开源码和依赖，清理未知时一并保留；Agent 结束后保存带摘要的增删改候选，在新副本施加测试补丁并独立判分。Journal 审计可见的答案来源访问，发现后标为 invalid；当前原生读取/网络继承宿主，因此输入分离不等于绝对保密。`evals.native_swe_campaign` 使用既有 OS 锁和 Journal，持久化槽位准入，串行执行冻结计划，禁用提供方重试，停止后只允许显式续跑未开始槽。预算耗尽不算成功，成功费用单列，未知用量不填零；候选可以不调用模型独立重放。具体预算和模型固定在 `experiments/native-swe-lite-plan.json`。
 
 | 状态/资源 | 唯一责任方 |
 |---|---|

@@ -23,11 +23,13 @@ from forge.runtime.state import (
 )
 
 
-def create_model_client(config=None, *, max_tokens=None):
+def create_model_client(config=None, *, max_tokens=None, max_retries=2):
     config = config or ForgeConfig.from_env()
+    if type(max_retries) is not int or max_retries < 0:
+        raise ValueError('max_retries must be a nonnegative integer')
     if config.provider == 'anthropic':
-        return AnthropicModelClient.from_config(config, max_tokens=max_tokens)
-    return NativeModelClient(config, max_tokens=max_tokens)
+        return AnthropicModelClient.from_config(config, max_tokens=max_tokens, max_retries=max_retries)
+    return NativeModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)
 
 
 def _parts(message):

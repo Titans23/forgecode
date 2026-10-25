@@ -127,6 +127,15 @@ npm run test:unit
 uv run --no-sync --with pyarrow==19.0.1 python scripts/prepare_native_swe.py preflight
 ```
 
-解释器、任务虚拟环境、原始补丁和每次日志均保存在 `.local/implementation/real-repo-preflight`。可用 `--case <清单ID>` 选择单项；每次显式执行保留独立结果，不覆盖失败。独立判分入口 `evals/swe_lite_grader.py` 要求冻结 suite 和 report 路径，原标签对应多个参数时必须全部执行；缺项、跳过、xfail、收集或清理失败都不通过。未来 Agent 只接收问题和全新的 base 源码快照，不能使用参考环境或补丁目录。后续模型计划见 [冻结计划](experiments/native-swe-lite-plan.json)，当前仅准备，不执行其 12 个模型回合。
+解释器、原始补丁和预检日志保存在 `.local/implementation/real-repo-preflight`。可用 `--case <清单ID>` 选择预检项。Agent 通过共享 HarnessSession 读取问题和全新的 base 源码；任务依赖在同一所属临时根的独立目录中。Agent 关闭后，判分器在另一份源码及依赖中重放候选修改、施加冻结测试补丁。全部规定参数必须执行，缺项、跳过、xfail、收集或清理失败都不通过。
+
+有界模型实验使用 [冻结计划](experiments/native-swe-lite-plan.json)，只读取项目 `.env` 的模型配置。先无调用校验，再在干净、已验证提交上显式执行：
+
+```text
+uv run --no-sync python -m evals.native_swe_campaign
+uv run --no-sync --with pyarrow==19.0.1 python -m evals.native_swe_campaign --execute
+```
+
+计划为六任务各两次、串行、每槽最多 18 次请求、总上限 216，零自动重试。限流、超时、流中断或清理未确认立即停止。恢复须显式 `--execute --resume`，仅执行未开始的槽；中断且未完成核对的槽不会重放。结果默认在 `.local/implementation/native-swe-live`，所有尝试计入完成率，成功任务费用单列。可用 `--replay-outcome <已保存结果.json> --output <新目录>` 在全新判分环境复核候选修改，不调用模型、不改变原失败记录。局部原生边界不保证宿主读取/网络保密，Journal 访问审计有此限制。
 
 确定性测试、原生平台、安装 wheel 与真实模型实验分别验证。运行报告保存在已忽略的 `.local/implementation`，不提交到文档目录。开发约定见 [AGENTS.md](AGENTS.md)，当前待办见 [progress.json](docs/implementation/progress.json)。真实模型预算与管理员安装需要另行授权。

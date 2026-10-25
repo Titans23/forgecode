@@ -1,9 +1,9 @@
 {
   "schema_version": "forge.native-swe-lite.plan.v1",
-  "status": "frozen_preparation_no_model_execution_authorized",
+  "status": "authorized_bounded_execution",
   "model": {
     "provider": "anthropic",
-    "model_id": "gpt-6.1-sol",
+    "model_id": "gpt-6-luna",
     "max_tokens": 8192,
     "context_window": 128000,
     "request_timeout_seconds": 120.0,
@@ -13,7 +13,7 @@
   "task_manifest": "experiments/native-swe-lite.json",
   "task_manifest_sha256": "76bdf3d1b006a7844c42f6e055829a703a028118c6f311bc90660ba8f87f5769",
   "execution_entry": "evals.runner.run_case / HarnessSession; no separate Agent loop",
-  "adapter_status": "Not implemented in this checkpoint. runner-source.json is controller metadata, not a runnable EvalCase or model payload.",
+  "adapter_status": "evals.native_swe uses the shared runner; dependencies are separate from source within each owned fixture; candidate replay and frozen test-patch grading begin after clean Agent shutdown.",
   "adapter_contract": {
     "prepare": "Use PreparedFixture from the bare pinned base only, fresh local Git history and separate task environment; never reuse a reference-installed editable environment.",
     "agent": "Only problem_statement, base source and generic runner instructions; no evaluator paths, reference fixes, test patch, hints or future history.",

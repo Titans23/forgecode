@@ -9,11 +9,13 @@ from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, field
 from io import BytesIO
 import json
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import sys
 import tarfile
+from time import monotonic
 from tempfile import TemporaryDirectory
 from typing import Any
 
@@ -27,6 +29,7 @@ from forge.runtime.model_client import ModelClient
 from forge.runtime.state import ToolCall, TurnResult
 from forge.sandbox.path_policy import inspect_path
 from forge.tools.shell import ProcessResult
+from forge.sessions.store import SessionStore
 from uuid import uuid4
 
 
@@ -42,6 +45,7 @@ class EvalCase(BaseModel):
     repo: str = Field(min_length=1)
     base_commit_repository: str = '.'
     base_commit: str = Field(min_length=1)
+    source_archive_sha256: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
     task: str = Field(min_length=1)
     setup_command: str | None = None
     build_command: str | None = None
@@ -122,6 +126,11 @@ class EvalOutcome:
     cleanup: dict[str, Any] | None = None
     run_configuration: dict[str, Any] = field(default_factory=dict)
     retained_workspace: str | None = None
+    independent_grading: dict[str, Any] | None = None
+    agent_seconds: float | None = None
+    total_seconds: float | None = None
+    request_evidence: dict[str, Any] | None = None
+    statistics: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -159,7 +168,8 @@ class PreparedFixture(AbstractContextManager['PreparedFixture']):
         if sys.platform == 'win32':
             from forge.sandbox.windows_worker import grant_controller_access
             grant_controller_access(self.root)
-        self.workspace = self.root / PurePosixPath(case.repo)
+        self.source_root = self.root / 'source'
+        self.workspace = self.source_root / PurePosixPath(case.repo)
         self.hidden_files: tuple[HiddenFile, ...] = ()
 
     def __enter__(self) -> PreparedFixture:
@@ -186,8 +196,11 @@ class PreparedFixture(AbstractContextManager['PreparedFixture']):
             check=True,
             capture_output=True,
         )
+        if self.case.source_archive_sha256 is not None and sha256(archive.stdout).hexdigest() != self.case.source_archive_sha256:
+            raise ValueError('Evaluation source archive differs from the frozen input')
         with tarfile.open(fileobj=BytesIO(archive.stdout), mode='r:') as file:
-            file.extractall(self.root, filter='data')
+            self.source_root.mkdir()
+            file.extractall(self.source_root, filter='data')
         if not self.workspace.is_dir():
             raise RuntimeError(
                 f'Fixture path missing from archive: {self.case.repo}'
@@ -307,8 +320,19 @@ async def run_case(
     sandbox: str = 'workspace-write',
     model_client_factory=None,
     approval_handler=None,
+    fixture_setup=None,
+    fixture_capture=None,
+    final_grader=None,
 ) -> EvalOutcome:
-    '''Run one case and persist evaluator-owned evidence outside the fixture.'''
+    '''Run one case; an optional independent grader runs only after clean session close.
+
+    fixture_setup(prepared) prepares trusted dependencies before creating clients.
+    fixture_capture(prepared, outcome) preserves candidate evidence after clean
+    close, including exceptions/cancellation without a terminal model result.
+    final_grader(case, prepared, result, outcome) grades a separate evaluator copy;
+    common acceptance (including budget/terminal status) remains authoritative.
+    '''
+    started = monotonic()
     destination = (
         output_dir
         if output_dir is not None
@@ -335,7 +359,14 @@ async def run_case(
         with PreparedFixture(project_root, case) as prepared:
             workspace = prepared.workspace
             session = None
+            result = None
             try:
+                if fixture_setup is not None:
+                    outcome.setup = await fixture_setup(prepared)
+                    if not outcome.setup.success:
+                        outcome.stop_reason = 'setup_failed'
+                        outcome.reasons.append('Setup command failed.')
+                        return outcome
                 options = SessionOptions(workspace, sandbox=sandbox, approval='auto', config=config, profile=profile,
                     data_root=destination.resolve() / 'sessions' / outcome.run_id)
                 policy = TaskPolicy(require_changes=True, require_verification=True,
@@ -355,8 +386,14 @@ async def run_case(
                         # admitted boundary and preserve a failed case report.
                         outcome.stop_reason = 'setup_failed'
                     else:
-                        result = await run_agent(case, session)
-                        await grade_result(case, prepared, session, result, outcome)
+                        agent_started = monotonic()
+                        try:
+                            result = await run_agent(case, session)
+                        finally:
+                            outcome.agent_seconds = monotonic() - agent_started
+                        record_agent_result(result, outcome)
+                        if final_grader is None:
+                            await grade_result(case, prepared, session, result, outcome)
             except BaseException as error:
                 report = getattr(error, 'cleanup_report', None)
                 if session is None and report is not None:
@@ -372,6 +409,16 @@ async def run_case(
                         prepared.retain = True
                         outcome.retained_workspace = str(workspace)
                         outcome.reasons.append('Execution cleanup is unconfirmed; workspace retained.')
+                    elif fixture_capture is not None:
+                        try:
+                            await fixture_capture(prepared, outcome)
+                        except Exception as error:
+                            prepared.retain = True
+                            outcome.retained_workspace = str(workspace)
+                            outcome.reasons.append('Candidate capture failed; workspace retained: ' + type(error).__name__)
+            if final_grader is not None and result is not None and outcome.cleanup.get('state') == 'clean':
+                await final_grader(case, prepared, result, outcome)
+                outcome.reasons.extend(acceptance_reasons(case, result, outcome))
     except asyncio.CancelledError:
         outcome.task_status = 'cancelled'
         outcome.stop_reason = 'cancelled'
@@ -382,19 +429,68 @@ async def run_case(
         outcome.error = f'{type(error).__name__}: {error}'
         outcome.reasons.append('Evaluation runner failed.')
     finally:
+        outcome.total_seconds = monotonic() - started
+        if outcome.journal is not None:
+            try:
+                outcome.request_evidence = observed_requests(Path(outcome.journal))
+            except Exception as error:
+                outcome.reasons.append('Request accounting could not be verified: ' + type(error).__name__)
         outcome.reasons = list(dict.fromkeys(outcome.reasons))
         outcome.passed = not outcome.reasons and outcome.error is None and outcome.task_status == 'completed'
         write_outcome(outcome, destination)
     return outcome
 
 
-async def grade_result(case, prepared, session, result, outcome):
-    """Evaluator-owned commands run outside the agent loop, within its boundary."""
+def observed_requests(journal):
+    """Recover observed attempts/partial usage from the existing durable Journal."""
+    started, finished, tools = {}, {}, 0
+    for record in SessionStore._read_records(journal):
+        kind = record.get('type')
+        if kind not in {'model_request_started', 'model_request_finished', 'tool_started'}:
+            continue
+        payload = SessionStore._payload(record, journal)
+        if kind == 'tool_started':
+            tools += 1
+            continue
+        bucket = started if kind == 'model_request_started' else finished
+        identity = payload['request_id']
+        if identity in bucket:
+            raise ValueError('Duplicate model request event')
+        bucket[identity] = payload
+    if finished.keys() - started.keys():
+        raise ValueError('Finished request has no recorded start')
+    totals = {key: 0 for key in ('input_tokens', 'output_tokens',
+                                'cache_creation_input_tokens', 'cache_read_input_tokens')}
+    unknown = []
+    for identity in started:
+        entry = finished.get(identity, {})
+        usage = entry.get('usage')
+        if usage is None or entry.get('usage_is_final') is not True:
+            unknown.append(identity)
+        if usage is not None:
+            for key in totals:
+                totals[key] += usage[key]
+    return {'observed_requests': len(started), 'observed_tool_calls': tools,
+            'tool_scope': 'Root Journal tool events only; may omit nested tools. Terminal statistics hold shared-budget totals.',
+            'reported_usage': totals if any(entry.get('usage') is not None for entry in finished.values()) else None,
+            'usage_complete': not unknown, 'unknown_usage_request_ids': unknown,
+            'unfinished_request_ids': sorted(started.keys() - finished.keys()),
+            'request_outcomes': [{key: entry.get(key) for key in ('request_id', 'outcome', 'reason', 'usage_is_final')}
+                                 for entry in finished.values()],
+            'scope': 'Observed Journal events; missing terminal aggregate usage is not replaced by zero'}
+
+
+def record_agent_result(result, outcome):
     outcome.task_status = result.status
     outcome.changed_paths = result.changed_paths
     outcome.stop_reason = result.stop_reason
     outcome.model_calls = result.model_calls
     outcome.usage = asdict(result.usage)
+    outcome.statistics = result.statistics
+
+
+async def grade_result(case, prepared, session, result, outcome):
+    """Evaluator-owned commands run outside the agent loop, within its boundary."""
     if case.build_command is not None:
         outcome.build = await execute_command(case.build_command, case.timeout_seconds, session=session)
     outcome.public_tests = await execute_command(case.test_command, case.timeout_seconds, session=session)
