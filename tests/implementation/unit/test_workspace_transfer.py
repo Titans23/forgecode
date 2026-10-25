@@ -93,8 +93,9 @@ def test_user_changes_are_preserved_as_stale_outputs(tmp_path, change):
     if change == 'edit':
         path.write_bytes(b'user edit')
     elif change == 'replace':
-        path.unlink()
-        path.write_bytes(b'original')
+        replacement = tmp_path / 'replacement'
+        replacement.write_bytes(b'original')
+        os.replace(replacement, path)
     else:
         (tmp_path / 'new-user-file').write_bytes(b'user edit')
     expected = path.read_bytes()

@@ -37,7 +37,7 @@ python -m forge.engine的stdio RPC及原main/renderer角色保留兼容；当前
 
 workspace-write提供已验证的写限制；OS读取和网络继承宿主。初始化失败拒绝任务，不回退宿主。full-access须显式选择。离线、原生、wheel、模型和训练分别验收。
 
-严格模式正在实现，采用用户确认的 Docker Linux 容器边界，保留原生轻量模式。`sandbox/docker_process.py` 管理本机引擎、固定镜像、断网、非 root、只读根、私有 tmpfs 配额、cgroup v2 资源限制及取消清理；不使用用户 Docker 代理配置，不挂载宿主工作区或 daemon socket。`docker_workspace.py` 将授权工作区的有界副本传入容器，排除已知凭据及控制路径；子进程清理后导出内容、目录和可执行标记，宿主独立校验返回路径、配额、写范围和源文件身份。单文件替换原子化，多文件应用不是文件系统事务，I/O中断明确返回已应用路径及 INDETERMINATE，不自动重放。当前执行层与工作区闭环已验证，尚未接入 CLI/SDK，`strict` 仍拒绝准入；额外读取根、工具适配、网络白名单及完整验收要求见 T01，未完成前不得宣传为可用的严格沙盒。
+严格模式正在实现，采用用户确认的 Docker Linux 容器边界，保留原生轻量模式。`sandbox/docker_process.py` 管理本机引擎、固定镜像、断网、非 root、只读根、私有 tmpfs 配额、cgroup v2 资源限制及取消清理；不使用用户 Docker 代理配置，不挂载原始宿主工作区或 daemon socket。`container_inputs.py` 将授权项目及额外读取根过滤为私有副本，排除已知凭据及控制路径；副本只读挂载到 `/inputs`、`/references/N` 和只读项目范围。授权写目录使用独立 tmpfs，容器内核拒绝其余目录的写入、改权限及重命名。所有输入共享传输配额，工作区写目录须已存在；Windows 挂载权限与原始逻辑执行标记分开处理。`docker_workspace.py` 在子进程清理后导出内容、目录和可执行标记，宿主独立校验返回路径、配额、写范围和源文件身份，同时检查外部参考输入未变化。单文件替换原子化，多文件应用不是文件系统事务，I/O中断明确返回已应用路径及 INDETERMINATE，不自动重放。当前执行层与工作区闭环已验证，尚未接入 CLI/SDK，`strict` 仍拒绝准入；工具适配、网络白名单及完整验收要求见 T01，未完成前不得宣传为可用的严格沙盒。
 
 ## 3. 开发与验证
 

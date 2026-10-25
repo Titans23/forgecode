@@ -34,7 +34,7 @@ def test_real_read_write_network_secret_and_temporary_directory_boundary(tmp_pat
     monkeypatch.setenv('FORGE_BOUNDARY_SECRET', 'synthetic environment secret')
     source = '''
 import json, os, pathlib, socket, tempfile
-assert os.getuid() == 65532
+assert os.getuid() == EXPECTED_UID
 assert 'FORGE_BOUNDARY_SECRET' not in os.environ
 assert not pathlib.Path(HOST_PATH).exists()
 assert not pathlib.Path('/var/run/docker.sock').exists()
@@ -67,7 +67,7 @@ for address in ('1.1.1.1', '172.17.0.1', '127.0.0.1'):
     else:
         raise AssertionError('unexpected network connection')
 print(json.dumps({'stdin': input(), 'temporary_directory': 'passed', 'boundary': 'passed'}))
-'''.replace('HOST_PATH', repr(str(secret)))
+'''.replace('HOST_PATH', repr(str(secret))).replace('EXPECTED_UID', str(os.getuid() if os.name != 'nt' and os.getuid() else 65532))
     result = run_python(source, stdin=b'owned input\n')
     assert result['exit_code'] == 0, result
     assert json.loads(result['stdout'])['stdin'] == 'owned input'
@@ -111,9 +111,22 @@ else:
 
 
 def test_real_memory_limit_reports_oom():
-    result = run_python('value = bytearray(512 * 1024 * 1024)',
+    # Docker's asynchronous OOMKilled event can lag container exit. Observe
+    # the kernel counter while the small parent remains in the cgroup instead.
+    source = '''
+import json, pathlib, subprocess, sys
+events = pathlib.Path('/sys/fs/cgroup/memory.events')
+def counters():
+    return dict(zip(*[iter(events.read_text().split())] * 2))
+before = int(counters()['oom_kill'])
+child = subprocess.run([sys.executable, '-c', 'value = bytearray(512 * 1024 * 1024)'])
+print(json.dumps({'exit_code': child.returncode, 'oom_kills': int(counters()['oom_kill']) - before}))
+'''
+    result = run_python(source,
         limits=ContainerLimits(memory_bytes=134217728, seconds=20))
-    assert result['exit_code'] == 137 and result['oom_killed'], result
+    assert result['exit_code'] == 0, result
+    evidence = json.loads(result['stdout'])
+    assert evidence['exit_code'] == -9 and evidence['oom_kills'] >= 1, evidence
 
 
 def test_real_output_is_drained_but_retention_is_bounded():
@@ -195,22 +208,67 @@ def test_real_workspace_code_fix_and_verification_roundtrip(tmp_path):
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('attack', ['symlink', 'protected', 'read-only'])
+@pytest.mark.parametrize('attack', ['symlink', 'protected'])
 def test_real_invalid_workspace_output_never_mutates_host(tmp_path, attack):
     (tmp_path / 'code.py').write_text('original')
     sources = {
         'symlink': "from pathlib import Path; Path('code.py').write_text('changed'); Path('link').symlink_to('/etc/passwd')",
         'protected': "from pathlib import Path; Path('code.py').write_text('changed'); Path('.env').write_text('forbidden')",
-        'read-only': "from pathlib import Path; Path('code.py').write_text('changed')",
     }
     async def run():
         runtime = await DockerRuntime.connect(IMAGE)
         try:
             with pytest.raises(ContractError):
-                await run_workspace(runtime, workspace_policy(tmp_path, writes=attack != 'read-only'),
+                await run_workspace(runtime, workspace_policy(tmp_path),
                     ['python', '-c', sources[attack]])
             assert (tmp_path / 'code.py').read_text() == 'original'
             assert sorted(p.name for p in tmp_path.iterdir()) == ['code.py']
+            assert not runtime.containers
+        finally:
+            await runtime.close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('scoped', [False, True])
+def test_real_kernel_write_scopes_and_readonly_references(tmp_path, scoped):
+    project, reference = tmp_path / 'project', tmp_path / 'reference'
+    project.mkdir()
+    reference.mkdir()
+    (project / 'src').mkdir()
+    (project / 'src/code').write_text('original')
+    (project / 'locked').write_text('locked')
+    (reference / 'example').write_text('reference')
+    (reference / '.env').write_text('synthetic secret')
+    policy = PathPolicy(inspect_path(project, absolute=True), 'strict_allowlist_required',
+        (project, reference), (project / 'src',) if scoped else (), ())
+    source = '''
+from pathlib import Path
+import errno
+assert Path('/references/0/example').read_text() == 'reference'
+assert not Path('/references/0/.env').exists()
+for name in ('/workspace/locked', '/references/0/example', '/inputs/project/locked', EXTRA):
+    path = Path(name)
+    for action in (lambda: path.write_text('escape'), lambda: path.chmod(0o777), lambda: path.rename(path.with_name('moved'))):
+        try:
+            action()
+        except OSError as error:
+            assert error.errno in (errno.EROFS, errno.EACCES, errno.EPERM, errno.EXDEV), error
+        else:
+            raise AssertionError('kernel permitted mutation: ' + name)
+if SCOPED:
+    Path('src/code').write_text('fixed')
+    Path('src/new').write_text('new')
+print('kernel scopes enforced')
+'''.replace('EXTRA', repr('/workspace/locked' if scoped else '/workspace/src/code')).replace('SCOPED', repr(scoped))
+    async def run():
+        runtime = await DockerRuntime.connect(IMAGE)
+        try:
+            result = await run_workspace(runtime, policy, ['python', '-B', '-c', source])
+            assert result['exit_code'] == 0, result
+            assert result['changed_paths'] == (['src/code', 'src/new'] if scoped else [])
+            assert result['read_roots'] == {str(reference): '/references/0'}
+            assert (project / 'locked').read_text() == 'locked'
+            assert (reference / 'example').read_text() == 'reference'
             assert not runtime.containers
         finally:
             await runtime.close()

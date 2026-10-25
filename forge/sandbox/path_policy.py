@@ -56,7 +56,7 @@ def _stat_identity(value):
 def _identity(path):
     try:
         return _stat_identity(path.lstat())
-    except FileNotFoundError:
+    except (FileNotFoundError, NotADirectoryError):
         return None
     except OSError as error:
         raise ContractError('Path identity cannot be inspected', kind='POLICY_DENIED', code=-32010) from error

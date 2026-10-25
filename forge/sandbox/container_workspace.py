@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -40,13 +41,19 @@ def stop_descendants():
 
 def execute(request):
     root = Path('/workspace')
-    tree = request['tree']  # Already validated by the trusted controller.
-    for name in sorted(tree['directories'], key=lambda name: (name.count('/'), name)):
-        (root / name).mkdir()
-    for name, record in tree['files'].items():
-        path = root / name
-        path.write_bytes(base64.b64decode(record['content'], validate=True))
-        path.chmod(0o755 if record['executable'] else 0o644)
+    executables = set(request['executables'])
+
+    def writable(name):
+        return any(not parent or name.startswith(parent + '/') for parent in request['writable_dirs'])
+
+    for name in request['writable_dirs']:
+        # Only these paths are writable tmpfs mounts; all remaining project
+        # files and reference roots are read-only kernel mounts.
+        shutil.copytree(Path('/inputs/project') / name, root / name, dirs_exist_ok=True)
+        for directory, _, names in os.walk(root / name):
+            for filename in names:
+                path = Path(directory) / filename
+                path.chmod(0o700 if path.relative_to(root).as_posix() in executables else 0o600)
     captured = {'stdout': bytearray(), 'stderr': bytearray()}
     retained = discarded = 0
     lock = threading.Lock()
@@ -99,7 +106,10 @@ def execute(request):
             total += len(data)
             if total > request['bytes_limit']:
                 raise RuntimeError('Workspace byte quota exceeded')
-            files[relative] = {'content': base64.b64encode(data).decode('ascii'), 'executable': bool(info.st_mode & 0o111)}
+            # Desktop bind mounts do not preserve Windows execute bits. Read-only
+            # files retain their original logical mode; writable copies use POSIX.
+            executable = bool(info.st_mode & 0o111) if writable(relative) else relative in executables
+            files[relative] = {'content': base64.b64encode(data).decode('ascii'), 'executable': executable}
     return {'tree': {'files': files, 'directories': directories}, 'exit_code': code,
         'stdout': base64.b64encode(captured['stdout']).decode('ascii'),
         'stderr': base64.b64encode(captured['stderr']).decode('ascii'), 'discarded_bytes': discarded}

@@ -146,6 +146,10 @@ class WorkspaceSnapshot:
     def encode(self):
         return self._encode(self.files, self.directories)
 
+    def assert_unchanged(self):
+        if self._capture() != (self.files, self.directories, self.identities):
+            raise rejected('Workspace changed while the sandbox was running; output was not applied', 'STALE_REVISION')
+
     @staticmethod
     def _file_identity(info):
         return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns, stat.S_IMODE(info.st_mode))
@@ -163,9 +167,7 @@ class WorkspaceSnapshot:
         affected = changed | removed_files | new_dirs | removed_dirs
         for name in sorted(affected):
             self.policy.authorize(self.root / name, write=True).assert_current()
-        current = self._capture()
-        if current != (self.files, self.directories, self.identities):
-            raise rejected('Workspace changed while the sandbox was running; output was not applied', 'STALE_REVISION')
+        self.assert_unchanged()
         for name in removed_dirs:
             if any(child.relative_to(self.root).as_posix() not in removed_files | removed_dirs for child in (self.root / name).iterdir()):
                 raise rejected('Directory removal would affect excluded or protected entries')

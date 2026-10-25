@@ -4,26 +4,32 @@ import base64
 from dataclasses import replace
 import json
 from pathlib import Path
+import tempfile
 
 from forge.protocol import strict_loads
 from forge.sandbox.docker_process import ContainerLimits
-from forge.sandbox.workspace_transfer import WorkspaceSnapshot, rejected
+from forge.sandbox.container_inputs import capture_inputs, prepare_inputs, writable_directories
+from forge.sandbox.workspace_transfer import rejected
 
 
 async def run_workspace(runtime, policy, argv, *, stdin=b'', limits=None, transfer_limits=None):
     limits = limits or ContainerLimits()
     if not argv or any(not isinstance(value, str) or '\0' in value for value in argv):
         raise ValueError('Command must be a nonempty argument vector')
-    snapshot = WorkspaceSnapshot(policy, limits=transfer_limits)
-    request = {'tree': snapshot.encode(), 'argv': list(argv), 'stdin': base64.b64encode(stdin).decode('ascii'),
+    snapshot, references = capture_inputs(policy, transfer_limits)
+    writable = writable_directories(snapshot)
+    request = {'writable_dirs': writable, 'argv': list(argv), 'stdin': base64.b64encode(stdin).decode('ascii'),
+        'executables': [name for name, (_, executable) in snapshot.files.items() if executable],
         'output_limit': limits.output_bytes, 'entries_limit': snapshot.limits.entries, 'bytes_limit': snapshot.limits.bytes}
     # File return transport has its own bound; command output retains the user's
     # smaller output limit. Nothing is silently clipped before writeback.
     transport_limit = 4 * ((snapshot.limits.bytes + 2) // 3) + snapshot.limits.entries * 5000 + 2 * limits.output_bytes + 65536
     source = Path(__file__).with_name('container_workspace.py').read_text(encoding='utf-8')
-    result = await runtime.run(['python', '-I', '-B', '-c', source],
-        stdin=json.dumps(request, ensure_ascii=False, separators=(',', ':')).encode('utf-8'),
-        limits=replace(limits, output_bytes=transport_limit))
+    with tempfile.TemporaryDirectory(prefix='forge-inputs-') as directory:
+        prepare_inputs(directory, snapshot, references, runtime)
+        result = await runtime.run(['python', '-I', '-B', '-c', source],
+            stdin=json.dumps(request, ensure_ascii=False, separators=(',', ':')).encode('utf-8'),
+            limits=replace(limits, output_bytes=transport_limit), input_root=directory, writable_dirs=writable)
     if result['exit_code'] or result['oom_killed'] or result['discarded_bytes']:
         raise rejected('Sandbox did not return a complete workspace; no host changes applied', 'INDETERMINATE')
     value = strict_loads(result['stdout'], max_bytes=transport_limit)
@@ -44,6 +50,9 @@ async def run_workspace(runtime, policy, argv, *, stdin=b'', limits=None, transf
         raise rejected('Sandbox command output exceeded quota', 'ARTIFACT_LIMIT')
     if asyncio.current_task().cancelling():
         raise asyncio.CancelledError
+    for reference in references:
+        reference.assert_unchanged()
     changed = snapshot.apply(value['tree'])
     return {**output, 'exit_code': value['exit_code'], 'discarded_bytes': value['discarded_bytes'],
-        'changed_paths': changed, 'image': result['image']}
+        'changed_paths': changed, 'image': result['image'],
+        'read_roots': {str(ref.root): f'/references/{index}' for index, ref in enumerate(references)}}

@@ -28,6 +28,7 @@ def test_docker_resolution_rejects_explicit_workspace_subdirectory(tmp_path, mon
     project.mkdir()
     executable(project / 'bin')
     expected = executable(installed)
+    monkeypatch.chdir(project)
     monkeypatch.setenv('PATH', os.pathsep.join([str(project / 'bin'), str(installed)]))
     assert docker_binary((project,)) == str(expected)
     monkeypatch.setenv('PATH', str(project / 'bin'))

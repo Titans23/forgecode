@@ -1,6 +1,8 @@
-"""Owned, offline Linux containers. No host mounts, daemon socket or host env in tasks."""
+"""Owned offline containers; only filtered input copies may be mounted read-only."""
 import asyncio
+import csv
 from dataclasses import dataclass
+import io
 import json
 import math
 import os
@@ -69,6 +71,8 @@ class DockerRuntime:
         self.containers = set()
         self._active = set()
         self.closed = False
+        self.uid = os.getuid() if os.name != 'nt' and os.getuid() else 65532
+        self.gid = os.getgid() if os.name != 'nt' and os.getuid() else 65532
 
     @classmethod
     async def connect(cls, image, *, forbidden_roots=()):
@@ -131,34 +135,59 @@ class DockerRuntime:
                 process.kill()
                 await process.wait()
 
-    async def run(self, argv, *, stdin=b'', limits=None):
+    async def run(self, argv, *, stdin=b'', limits=None, input_root=None, writable_dirs=('',)):
         if self.closed:
             raise unavailable('Docker runtime is closed')
         task = asyncio.current_task()
         self._active.add(task)
         try:
-            return await self._run(argv, stdin=stdin, limits=limits)
+            return await self._run(argv, stdin=stdin, limits=limits, input_root=input_root, writable_dirs=writable_dirs)
         finally:
             self._active.discard(task)
 
-    async def _run(self, argv, *, stdin, limits):
+    async def _run(self, argv, *, stdin, limits, input_root, writable_dirs):
         limits = limits or ContainerLimits()
         if not argv or any(not isinstance(v, str) or '\0' in v for v in argv):
             raise ValueError('Command must be a nonempty argument vector')
+        from forge.sandbox.workspace_transfer import relative_name
+        if len(writable_dirs) > 64 or len(set(writable_dirs)) != len(writable_dirs):
+            raise ValueError('At most 64 distinct writable directories are supported')
+        for root in writable_dirs:
+            if root:
+                relative_name(root)
+            if any(other != root and (not other or root.startswith(other + '/')) for other in writable_dirs):
+                raise ValueError('Writable directories must not overlap')
+        mounts = []
+        if input_root is not None:
+            input_root = Path(input_root)
+            if not input_root.is_absolute() or input_root.is_symlink() or not input_root.is_dir():
+                raise ValueError('Controller-owned absolute input directory required')
+            for name in ('project', 'references'):
+                if (input_root / name).is_symlink() or not (input_root / name).is_dir():
+                    raise ValueError('Prepared input tree is incomplete')
+            for source, target in ((input_root, '/inputs'), (input_root / 'references', '/references')):
+                mounts.extend(self._readonly_mount(source, target))
+            if '' not in writable_dirs:
+                mounts.extend(self._readonly_mount(input_root / 'project', '/workspace'))
+            for root in writable_dirs:
+                if not (input_root / 'project' / root).is_dir():
+                    raise ValueError('Writable directory is absent from the prepared snapshot')
         name = 'forge-strict-' + uuid4().hex
         self.containers.add(name)
-        # The three writable filesystems together cannot exceed disk_bytes.
+        # Writable project mounts, scratch and shared memory share the disk cap.
         scratch = limits.disk_bytes // 8
         workspace = limits.disk_bytes - 2 * scratch
         options = ['create', '--name', name, '--label', 'forge.owner=' + name,
             '--pull=never', '--network=none', '--read-only', '--cap-drop=ALL',
-            '--security-opt=no-new-privileges', '--user=65532:65532', '--init',
+            '--security-opt=no-new-privileges', f'--user={self.uid}:{self.gid}', '--init',
             '--memory', str(limits.memory_bytes), '--memory-swap', str(limits.memory_bytes),
             '--pids-limit', str(limits.pids), '--cpus', str(limits.cpus),
             '--ulimit', 'core=0', '--log-driver=none', '--interactive',
             '--shm-size', str(scratch), '--workdir=/workspace',
-            '--tmpfs', f'/workspace:rw,nosuid,nodev,uid=65532,gid=65532,mode=700,size={workspace}',
-            '--tmpfs', f'/tmp:rw,nosuid,nodev,noexec,uid=65532,gid=65532,mode=700,size={scratch}',
+            *mounts,
+            *[item for root in writable_dirs for item in ('--tmpfs',
+                f'/workspace{("/" + root) if root else ""}:rw,nosuid,nodev,uid={self.uid},gid={self.gid},mode=700,size={workspace // len(writable_dirs)}')],
+            '--tmpfs', f'/tmp:rw,nosuid,nodev,noexec,uid={self.uid},gid={self.gid},mode=700,size={scratch}',
             '--env=HOME=/tmp', '--env=TMPDIR=/tmp', '--entrypoint', argv[0], self.image, *argv[1:]]
         process = None
         streams = []
@@ -220,6 +249,12 @@ class DockerRuntime:
         if existing.strip():
             raise unavailable('Owned container cleanup is unconfirmed') from error
         self.containers.discard(name)
+
+    @staticmethod
+    def _readonly_mount(source, destination):
+        value = io.StringIO()
+        csv.writer(value, lineterminator='').writerow(['type=bind', 'src=' + str(source), 'dst=' + destination, 'readonly'])
+        return ['--mount', value.getvalue()]
 
     async def close(self):
         self.closed = True
