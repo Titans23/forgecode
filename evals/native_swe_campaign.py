@@ -29,6 +29,38 @@ def model_identity(config):
         'endpoint_sha256': hashlib.sha256(config.base_url.encode()).hexdigest()}
 
 
+def validate_scope(plan, manifest):
+    if 'purpose' in plan:
+        expected_limits = {
+            'max_model_calls': 18, 'max_tool_calls': 48, 'max_turn_seconds': 900,
+            'verifier_timeout_seconds': 600, 'intent_routing': False, 'sandbox': 'workspace-write',
+            'require_task_verification': True, 'require_positive_verification': True}
+        expected_schedule = [
+            {'slot': 1, 'task': 'pytest-dev__pytest-5413', 'repeat': 1},
+            {'slot': 2, 'task': 'sphinx-doc__sphinx-10325', 'repeat': 1}]
+        if (plan['purpose'] != 'seen_task_development_validation'
+                or plan.get('runs') != 2 or plan.get('repetitions_per_task') != 1
+                or plan.get('concurrency') != 1 or plan.get('total_model_request_cap') != 36
+                or plan.get('automatic_retries') != 0 or plan.get('failed_reruns') != 0
+                or plan.get('replacement_tasks') != 0 or plan.get('per_run') != expected_limits
+                or any(type(plan['per_run'][key]) is not type(value) for key, value in expected_limits.items())
+                or plan.get('schedule') != expected_schedule
+                or not {slot['task'] for slot in expected_schedule}.issubset({case['id'] for case in manifest['cases']})):
+            raise ValueError('Development validation differs from the reviewed two-slot scope')
+        return
+    # Preserve the original twelve-slot admission contract and task order.
+    if (plan['runs'] != 12 or plan['repetitions_per_task'] != 2 or plan['concurrency'] != 1
+            or plan['per_run']['max_model_calls'] != 18 or plan['total_model_request_cap'] != 216
+            or plan['automatic_retries'] != 0 or plan['failed_reruns'] != 0
+            or plan['per_run']['sandbox'] != 'workspace-write' or plan['per_run']['intent_routing']):
+        raise ValueError('Campaign exceeds the authorized frozen execution scope')
+    expected = [(case['id'], repetition) for repetition in (1, 2) for case in manifest['cases']]
+    if [(slot['task'], slot['repeat']) for slot in plan['schedule']] != expected or len(expected) != 12:
+        raise ValueError('Schedule differs from frozen six-task order')
+    if [slot['slot'] for slot in plan['schedule']] != list(range(1, 13)):
+        raise ValueError('Duplicate or missing slots')
+
+
 def validate_inputs(plan_path, cache):
     if sys.platform != 'win32':
         raise ValueError('This frozen native task environment is verified for Windows only')
@@ -41,16 +73,7 @@ def validate_inputs(plan_path, cache):
     config = ForgeConfig.from_env(dotenv_values(ROOT / '.env'))
     if model_identity(config) != plan['model']:
         raise ValueError('Project model configuration differs from frozen plan')
-    if (plan['runs'] != 12 or plan['repetitions_per_task'] != 2 or plan['concurrency'] != 1
-            or plan['per_run']['max_model_calls'] != 18 or plan['total_model_request_cap'] != 216
-            or plan['automatic_retries'] != 0 or plan['failed_reruns'] != 0
-            or plan['per_run']['sandbox'] != 'workspace-write' or plan['per_run']['intent_routing']):
-        raise ValueError('Campaign exceeds the authorized frozen execution scope')
-    expected = [(case['id'], repetition) for repetition in (1, 2) for case in manifest['cases']]
-    if [(slot['task'], slot['repeat']) for slot in plan['schedule']] != expected or len(expected) != 12:
-        raise ValueError('Schedule differs from frozen six-task order')
-    if [slot['slot'] for slot in plan['schedule']] != list(range(1, 13)):
-        raise ValueError('Duplicate or missing slots')
+    validate_scope(plan, manifest)
     for environment in manifest['environments'].values():
         if digest(ROOT / environment['requirements']) != environment['sha256']:
             raise ValueError('Frozen dependencies changed')
@@ -157,6 +180,8 @@ async def campaign(plan_path, cache, output, *, resume=False):
     if dirty.strip():
         raise ValueError('Commit and verify the runtime before paid execution')
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    if plan.get('purpose') == 'seen_task_development_validation' and plan.get('runtime_commit') != commit:
+        raise ValueError('Development runtime differs from the reviewed commit')
     freeze = {'runtime_commit': commit, 'plan_sha256': digest(plan_path), 'model': model_identity(config)}
     output.mkdir(parents=True, exist_ok=True)
     path = output / 'campaign.json'

@@ -6,8 +6,8 @@
   "current_task": "T01",
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
-    "current_checkpoint": "all_role_accounting_ci_passed_native_change_observation_verified_locally",
-    "next_checkpoint": "native_observation_ci_then_public_functional_verification_and_separate_two_task_proposal",
+    "current_checkpoint": "reviewed_two_slot_development_admission_locally_verified_ci_pending",
+    "next_checkpoint": "final_commit_ci_then_two_known_task_development_validation_and_failure_recovery_demo",
     "queue": ["existing_harness_capability_and_evidence_audit", "small_frozen_real_code_taskset_and_failure_injection", "one_real_long_horizon_failure_recovery_verification_loop", "five_minute_cli_api_demo_and_contribution_boundaries"],
     "done_conditions_ref": "docs/implementation/tasks/T01.md",
     "audited_interfaces": ["forge/api.py", "forge/sessions/store.py", "forge/runtime/turn_state.py", "forge/runtime/model_budget.py", "forge/context/compactor.py", "forge/runtime/runner.py", "forge/runtime/executor.py", "evals/runner.py", "benchmark/harbor/run_dataset.py"],
@@ -35,6 +35,19 @@
     "limits": ["Existing cases are self-built engineering fixtures, not real-repository benchmark results", "OS sandbox remains partial", "SIGKILL of the whole evaluator is not covered by graceful cancellation tests", "Missing terminal aggregate usage is null, not zero", "Unconfirmed cleanup deliberately retains the workspace"]
   },
   "native_real_repository_preflight": {
+    "development_validation": {
+      "status": "reviewed_scope_admission_verified_ci_pending_no_model_calls_yet",
+      "purpose": "seen_task_development_validation",
+      "tasks": ["pytest-dev__pytest-5413", "sphinx-doc__sphinx-10325"],
+      "runs": 2,
+      "request_cap": 36,
+      "scope": "One attempt per known task, serial, 18 shared actual requests and 48 tools per task; 900s Agent/600s grader. Require task and positive-verification policies. No retries, replacements or changes to the sealed original twelve slots.",
+      "admission": "Existing campaign has a separate exact purpose/schedule/budget/policy branch; original twelve-slot checks remain unchanged. Runtime commit must match the reviewed plan before admission. Final commit CI success, clean tree and frozen model/input identities gate paid execution.",
+      "checks": {"evidence": ".local/implementation/native-swe-development-validation/admission.xml", "passed": 31},
+      "quality": "20261025T105637Z-351ac42e",
+      "proposal": ".local/implementation/native-swe-development-validation/proposal.json",
+      "limits": "Development validation of previously seen failures; keep original 0/12 and 129 requests separate. No causal speedup, stable gain, unseen generalization or strict native isolation claim."
+    },
     "all_role_request_reader": {
       "status": "implemented_zero_model_verified_ci_passed_40183498680",
       "scope": "Read existing Journal observation request/tool events across roles; normalize raw provider usage with shared usage_ledger code. Do not add another ledger or rewrite frozen results. Legacy root-only logs are marked incomplete when terminal shared counts disagree; nested failures reach campaign stop classification.",

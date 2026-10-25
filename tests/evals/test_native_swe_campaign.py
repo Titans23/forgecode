@@ -1,11 +1,79 @@
 """Campaign admission/accounting faults with no model/network calls."""
 import asyncio
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 import evals.native_swe_campaign as campaign
+
+
+@pytest.fixture
+def development_plan():
+    plan = json.loads((campaign.ROOT / 'experiments/native-swe-lite-plan.json').read_text())
+    plan.update(purpose='seen_task_development_validation', runs=2, repetitions_per_task=1,
+        total_model_request_cap=36, replacement_tasks=0, runtime_commit='reviewed-commit', schedule=[
+            {'slot': 1, 'task': 'pytest-dev__pytest-5413', 'repeat': 1},
+            {'slot': 2, 'task': 'sphinx-doc__sphinx-10325', 'repeat': 1}])
+    plan['per_run'].update(require_task_verification=True, require_positive_verification=True)
+    return plan
+
+
+def test_reviewed_development_and_original_frozen_scopes_are_both_admitted(development_plan):
+    manifest = json.loads((campaign.ROOT / 'experiments/native-swe-lite.json').read_text())
+    original = json.loads((campaign.ROOT / 'experiments/native-swe-lite-plan.json').read_text())
+    campaign.validate_scope(original, manifest)
+    campaign.validate_scope(development_plan, manifest)
+    original['schedule'][1]['task'] = original['schedule'][0]['task']
+    with pytest.raises(ValueError, match='frozen six-task order'):
+        campaign.validate_scope(original, manifest)
+
+
+@pytest.mark.parametrize('field,value', [
+    ('purpose', 'unreviewed'), ('runs', 3), ('repetitions_per_task', 2), ('concurrency', 2),
+    ('total_model_request_cap', 37), ('automatic_retries', 1), ('failed_reruns', 1), ('replacement_tasks', 1),
+    ('per_run.max_model_calls', 19), ('per_run.max_tool_calls', 49), ('per_run.max_turn_seconds', 901),
+    ('per_run.verifier_timeout_seconds', 601), ('per_run.intent_routing', True), ('per_run.sandbox', 'full-access'),
+    ('per_run.require_task_verification', False), ('per_run.require_positive_verification', False),
+    ('per_run.require_task_verification', 1)])
+def test_development_admission_rejects_budget_or_policy_drift(development_plan, field, value):
+    parts = field.split('.')
+    container = development_plan['per_run'] if len(parts) == 2 else development_plan
+    container[parts[-1]] = value
+    manifest = {'cases': [{'id': slot['task']} for slot in development_plan['schedule']]}
+    with pytest.raises(ValueError, match='reviewed two-slot scope'):
+        campaign.validate_scope(development_plan, manifest)
+
+
+@pytest.mark.parametrize('fault', ['duplicate', 'reordered', 'replacement', 'repeat', 'extra', 'missing', 'no_task_gate', 'no_positive_gate'])
+def test_development_admission_rejects_unreviewed_slots_or_missing_gates(development_plan, fault):
+    manifest = {'cases': [{'id': slot['task']} for slot in development_plan['schedule']]}
+    schedule = development_plan['schedule']
+    if fault == 'duplicate':
+        schedule[1] = dict(schedule[0])
+    elif fault == 'reordered':
+        schedule.reverse()
+    elif fault == 'replacement':
+        schedule[1]['task'] = 'sphinx-doc__sphinx-11445'
+    elif fault == 'repeat':
+        schedule[1]['repeat'] = 2
+    elif fault == 'extra':
+        schedule.append(dict(schedule[0]))
+    elif fault == 'missing':
+        schedule.pop()
+    else:
+        development_plan['per_run'].pop('require_task_verification' if fault == 'no_task_gate' else 'require_positive_verification')
+    with pytest.raises(ValueError, match='reviewed two-slot scope'):
+        campaign.validate_scope(development_plan, manifest)
+
+
+def test_development_wrong_runtime_refuses_before_output_admission(tmp_path, monkeypatch, development_plan):
+    monkeypatch.setattr(campaign, 'validate_inputs', lambda *args: (development_plan, {}, object()))
+    monkeypatch.setattr(campaign.subprocess, 'check_output', lambda args, **kwargs: '' if 'status' in args else 'other-commit')
+    with pytest.raises(ValueError, match='reviewed commit'):
+        asyncio.run(campaign.campaign(Path('unused-plan.json'), tmp_path, tmp_path / 'out'))
+    assert not (tmp_path / 'out').exists()
 
 
 def result(*, passed=False, requests=2, reason='', complete=True):
