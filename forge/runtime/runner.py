@@ -226,28 +226,21 @@ class TurnRunner:
         c = self.conversation
         available = ', '.join(item['name'] for item in (self._tools() or ())) or 'none'
         return '\n\n'.join(part for part in (
-            c._system_prompt_with_task(), c._last_repository_context,
+            c._system_prompt_with_task(include_tool_availability=False), c._last_repository_context,
             c._permission_system_context(),
-            '[Current turn contract]\n' + self.state.goal,
+            ('[Current turn contract]\n' + self.state.goal
+             if c.task_manager.active is None or c.task_manager.active.goal != self.state.goal else ''),
             '[Runtime request tools]\nOnly the following tools are included in this model request: ' + available,
             self._evidence_context(),
-            'Task plans and scope hints organize work; they do not grant permissions. '
-            'Tool batches execute sequentially and stop after a failure. Failed checks '
-            'remain diagnostic evidence. Explain what verification actually covers and '
-            'what remains untested; a zero exit code alone does not prove the user goal. '
-            'Either a final answer or finish_task submits the same completion request. '
-            'Submission ends the turn; caller acceptance is reported separately. '
-            'When review_delivery is available, use it before submission to inspect gaps '
-            'while there is budget to repair. Choose independent checks: unseen algorithm inputs, '
-            'exact requested source components, observed sample values, and delivery in a clean '
-            'directory without reference programs. Do not weaken expectations to match output. '
-            'Use partial for incomplete delivery, failed for an unsuccessful attempt, '
-            'blocked only for a specific external dependency.',
+            'A final answer or finish_task submits the same completion request. '
+            'Caller acceptance is separate from the agent assessment. '
+            'review_delivery can inspect recorded gaps without ending the turn.',
             ('[Acceptance reconciliation]\nThe acceptance criteria above are source-anchored model interpretations, not independent proof or permissions. '
             'For each requirement, bind verify.output_checks.requirement_id and expected_source to an actual '
             'falsifiable measurement. Report missing or uncertain checks with finish_task status=failed; '
             'replanning does not remove requirements.'
-            if c.task_manager.active is not None and c.task_manager.active.acceptance_criteria else ''),
+            if c.completion_gate and c.completion_gate.policy.require_acceptance_reconciliation
+            and c.task_manager.active is not None and c.task_manager.active.acceptance_criteria else ''),
             '[Remaining turn budget]\n'
             + f'Model requests used: {self.state.model_calls}/{self.state.max_model_calls}; '
             + f'tool requests used: {self.state.tool_requests}/{self.state.max_tool_calls}; '
@@ -750,6 +743,19 @@ class TurnRunner:
         elif status == 'blocked' and not self.conversation.working_state.has_external_blocker:
             reasons = ('blocked requires observed external evidence such as permission, credentials, network, or an unavailable dependency. If the attempted task is unsuccessful, use finish_task status=failed; it does not require successful verification.',)
             observations.extend(reasons)
+        gate = self.conversation.completion_gate
+        if (status in {'partial', 'failed'} and task_kind == 'change'
+                and gate and gate.policy.require_task_verification
+                and not self.delivery_repair_reasons
+                and not self.conversation.working_state.has_external_blocker):
+            reasons = ('Before stopping an incomplete task, check for an actionable next step: '
+                       'compile supplied source, install a missing task dependency, or use the '
+                       'current execution profile to generate required files. Continue only '
+                       'within existing permissions and remaining budget. If no useful step '
+                       'is available, submit partial or failed again with the observed reason.',)
+            if self._offer_delivery_repair(reasons):
+                return ToolResult.fail('delivery_repair_required', reasons[0],
+                                       metadata={'acceptance_reasons': reasons})
         if observations and status == 'completed' and self._offer_delivery_repair(observations):
             return ToolResult.fail('delivery_repair_required',
                                    'Completion checks failed. Repair the observed gaps within the remaining budget, or submit an honest partial/failed result.',

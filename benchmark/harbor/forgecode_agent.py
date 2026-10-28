@@ -25,43 +25,22 @@ _INSTRUCTION_PATH: Final = '/tmp/forgecode-benchmark-instruction.txt'
 
 _BENCHMARK_EXECUTION_GUIDANCE: Final = '''
 
-[Terminal-Bench Acceptance Discipline]
-Treat the task specification as the acceptance contract, not the example
-sanity command. Before declaring completion:
-- preserve supplied inputs, harnesses, and tests unless the task explicitly
-  permits editing them; create the exact requested artifact at the exact path;
-- use a positive end-to-end check on the final artifact and current revision;
-  never make a command pass by expecting a failure, masking an error with
-  `true`, or changing a checker to return success;
-- exercise the requested behavior and important constraints, not only syntax,
-  file existence, output shape, one sample, or a successful build process;
-- if a task provides a local test script or reference input, inspect its
-  contract and run the strongest available check. A command that only proves
-  compilation or a weak sanity condition is not completion evidence;
-- after a failed command, group failures by root cause and change the
-  strategy. Do not spend the turn trying many equivalent URLs, arguments, or
-  rewrites that produce the same diagnostic;
-- do not claim success when an external dependency or build step is still
-  missing. Keep the original source and task contract intact while trying a
-  materially different, evidence-backed recovery.
-- for each explicit requirement, identify the observable result that would
-  falsify your implementation. A property asserted only from your own design
-  choices is circular evidence: compare against the supplied input, contract,
-  independently established component identity or independently labeled data.
-- turn measured acceptance thresholds into failing assertions, not just printed
-  numbers. verify.output_checks can compare the final stdout JSON object against
-  explicit expectations; alternatively assert them in the executed test itself.
-  Passing file-format checks cannot replace missing behavioral or edit-constraint
-  checks. A required target below threshold is failed, not completed with caveats.
-- confirm the test entrypoint actually invokes its tests. Importing a module or
-  running a script that only defines test functions is not running the tests.
-  If a supplied check has unavailable paths/dependencies, report that diagnostic
-  and reproduce its public contract locally without changing protected inputs.
-- before a completed declaration, reconcile every original requirement with
-  actual evidence, including input-to-output transformation constraints and
-  component identities. Clearly state which required checks are missing; do not
-  silently downgrade them to optional limitations. Plans remain organizational,
-  and neither a plan nor these instructions grants additional file permissions.
+[Public benchmark execution]
+This is a disposable task container. Within the task's permissions, commands may
+build supplied source, install dependencies and generate output files or datasets.
+Preserve supplied inputs, simulators and tests unless the task permits changes.
+Create the requested artifacts at the exact paths.
+
+Use verify to run the strongest available behavioral check on the final artifact.
+A test entrypoint must actually execute its tests, not merely import definitions.
+Assert required thresholds against the specification or independent reference;
+do not mask failures or weaken expectations. Missing executables may need building.
+Investigate a concrete recovery step before stopping, within the remaining budget.
+
+Official verifiers independently grade the result after your turn. Requirement IDs
+and JSON output_checks are optional here; assertions inside an executed test are
+valid checks. Explain untested requirements honestly; internal completion is not
+an official passing grade.
 '''
 
 

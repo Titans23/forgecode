@@ -36,7 +36,9 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
     require_task_verification=True,
     require_positive_verification=True,
     require_verification_coverage=True,
-    require_acceptance_reconciliation=True,
+    # Official verifiers own benchmark acceptance. Keep executed behavioral
+    # evidence, without requiring a second model-authored req-ID/JSON protocol.
+    require_acceptance_reconciliation=False,
     max_delivery_repairs=2,
 )
 MAX_RESULT_CHANGED_PATHS = 100

@@ -532,7 +532,7 @@ class TaskManager:
                     f'  Observable condition: {item.get("condition", "")}',
                     f'  Independent check: {item.get("check", "")}',
                 ])
-        if self._latest_directive:
+        if self._latest_directive and self._latest_directive != task.goal:
             lines.extend(
                 [
                     '',

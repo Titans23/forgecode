@@ -241,7 +241,14 @@ class ContextManager:
             self.config,
             scope_hints=scope_hints,
         )
-        return self.last_compaction.messages
+        prepared = self.last_compaction.messages
+        if self.last_compaction.removed_messages:
+            retained = set(original_user_instructions(prepared))
+            missing = [text for text in original_user_instructions(messages) if text and text not in retained]
+            if missing:
+                prepared.insert(0, {'role': 'user', 'content':
+                    '[ForgeCode original user instructions]\n' + json.dumps(missing, ensure_ascii=False)})
+        return prepared
 
     def persist_tool_result_message(
         self,
@@ -340,6 +347,17 @@ class ContextManager:
                 transcript_path=None,
                 reason='summary failure fuse is open',
             )
+        if not force and context_window_tokens is not None:
+            envelope = (before_stats.system_tokens + before_stats.repository_tokens
+                        + before_stats.tool_schema_tokens)
+            if envelope >= max(1, context_window_tokens - reserved_output_tokens) * self.config.auto_compact_ratio:
+                return CompactionReport(
+                    success=False, automatic=True,
+                    before_characters=before_stats.estimated_characters,
+                    after_characters=before_stats.estimated_characters,
+                    transcript_path=None,
+                    reason='Fixed request instructions and tools exceed the compaction threshold; history summarization cannot reduce them.',
+                )
         transcript_path = self.persist_transcript(messages)
         restoration_messages = deepcopy(messages)
         persist_large_tool_results(
@@ -399,9 +417,18 @@ class ContextManager:
                     break  # Explicit constraints alone may exceed the soft target.
                 units.pop(index)
             compacted = [message for unit in units for message in unit]
+        after = context_stats(self.prepare(compacted, scope_hints=scope_hints))
+        if not force and after.estimated_characters >= before_stats.estimated_characters:
+            self.summary_failures += 1
+            return CompactionReport(
+                success=False, automatic=True,
+                before_characters=before_stats.estimated_characters,
+                after_characters=after.estimated_characters,
+                transcript_path=transcript_path, usage=result.usage,
+                reason='Summary did not reduce the model-visible history; original history retained.',
+            )
         messages[:] = compacted
         self.summary_failures = 0
-        after = context_stats(messages)
         self.last_report = CompactionReport(
             success=True,
             automatic=not force,
@@ -491,13 +518,7 @@ class ContextManager:
         reserved_output_tokens: int,
     ) -> bool:
         if context_window_tokens is None:
-            return (
-                max(
-                    stats.estimated_characters,
-                    stats.stored_characters,
-                )
-                > self.config.auto_compact_characters
-            )
+            return stats.estimated_characters > self.config.auto_compact_characters
         # The output reservation is not available to the input.  Account for
         # the complete request envelope (system, repository, and schemas) and
         # trigger at 80% of the remaining input window.
@@ -505,17 +526,9 @@ class ContextManager:
         # ContextStats.estimated_tokens already includes the full visible
         # request envelope.  Adding the envelope a second time made normal
         # turns compact prematurely and inflated model cost.
-        visible_projected_tokens = stats.estimated_tokens
-        stored_projected_tokens = estimate_tokens(
-            stats.stored_characters
-            + stats.system_characters
-            + stats.repository_characters
-            + stats.tool_schema_characters
-        )
-        return (
-            max(visible_projected_tokens, stored_projected_tokens)
-            >= input_budget * self.config.auto_compact_ratio
-        )
+        # Cheap pruning already defines what will be sent. Archived history
+        # remains available for recovery, but is not pressure on this request.
+        return stats.estimated_tokens >= input_budget * self.config.auto_compact_ratio
 
     def persist_transcript(
         self,

@@ -72,3 +72,44 @@ def test_repair_cap_and_explicit_partial_are_terminal(tmp_path):
         'finish_task': True, 'status': 'partial', 'task_kind': 'change', 'summary': 'Still incomplete'})))
     assert result.success
     assert runner.terminal[:2] == ('partial', 'partial')
+
+
+@pytest.mark.parametrize('status', ['partial', 'failed'])
+def test_task_failure_gets_one_bounded_actionability_check(tmp_path, status):
+    from forge.runtime.state import ModelToolCallCompleted, ToolCall, TurnCompleted, ModelUsageUpdate, TokenUsage
+    class Client:
+        provider = 'fake'
+        calls = 0
+        async def stream(self, messages, tools=None, system=None):
+            self.calls += 1
+            yield ModelUsageUpdate(usage=TokenUsage(input_tokens=10, output_tokens=2))
+            if self.calls == 2:
+                assert 'compile supplied source' in str(messages)
+            yield ModelToolCallCompleted(tool_call=ToolCall(index=0, id=f'finish-{self.calls}',
+                name='finish_task', arguments={'status': status, 'task_kind': 'change',
+                'summary': 'The supplied executable is missing.'}))
+    client = Client()
+    conversation = Conversation(client=client, context_root=tmp_path,
+        registry=create_default_registry(tmp_path), max_iterations=3,
+        task_policy=TaskPolicy(require_task_verification=True, max_delivery_repairs=2))
+    async def run():
+        return [e async for e in conversation.stream('Build the supplied source.')]
+    result = next(e.result for e in asyncio.run(run()) if isinstance(e, TurnCompleted))
+    assert client.calls == result.model_calls == 2
+    assert result.status == status
+
+
+@pytest.mark.parametrize('status,exhausted', [('blocked', False), ('failed', True), ('partial', True)])
+def test_actionability_check_does_not_retry_blocked_or_exhausted_tasks(tmp_path, status, exhausted):
+    conversation = Conversation(client=object(), context_root=tmp_path,
+        registry=create_default_registry(tmp_path), max_iterations=1,
+        task_policy=TaskPolicy(require_task_verification=True, max_delivery_repairs=2))
+    runner = TurnRunner(conversation)
+    if exhausted:
+        runner.state.model_calls = 1
+    declaration = ToolResult.ok('finish', metadata={'finish_task': True, 'status': status,
+        'task_kind': 'change', 'summary': 'Cannot proceed', 'blocked_reasons': ['Unavailable dependency']})
+    result = asyncio.run(runner._finish_declaration(declaration))
+    assert result.success
+    assert runner.terminal is not None
+    assert not runner.delivery_repair_reasons

@@ -18,6 +18,19 @@
     "cancelled_extension": "Single Sphinx-10325/18-request/repair2 proposal cancelled before execution; uncommitted admission changes saved as ignored deferred-admission.patch and removed from main. No additional model requests or feature work.",
     "deferred": ["full_cross_platform_native_os_isolation_expansion", "training_expansion"]
   },
+  "harness_benchmark_remediation": {
+    "status": "implemented_offline_verified",
+    "reference": "deepseek-ai/deepseek-harness@f3803c96974ad4a94195fb97e5c637e9c2a3afe3: request-pressure pruning and remeasurement; no plugin architecture port",
+    "changes": ["execution-profile-specific command capabilities", "visible-request compaction with preserved user constraints and bounded nonshrinking summaries", "shorter shared and benchmark prompts without duplicate task text", "official benchmark grading without mandatory model-authored requirement IDs", "one actionability feedback within the existing delivery-repair and parent budgets"],
+    "validation": {
+      "core_regression": "677 passed; one old prompt-text assertion failed, updated to equivalent requirements and passed in the 18-test focused follow-up",
+      "integration": "110 passed: CLI/API, public benchmark adapter, cancellation and recovery",
+      "quality": "passed: Ruff, mypy, architecture, TypeScript and Node checks",
+      "contracts": "passed",
+      "evidence_root": ".local/implementation/harness-dsh-fix"
+    },
+    "limits": "No new paid model calls or benchmark rerun. Offline behavior validation does not establish improved Terminal-Bench score or model latency. Host permission, shared budget, Journal and cleanup boundaries remain in place."
+  },
   "public_harness_demo": {
     "status": "windows_native_verified_ci_passed_40197049096",
     "ci": {"commit": "a08885d63b19dcf67e722f73a0bee5b070959b1c", "run_id": 40197049096, "status": "success", "jobs": 4},

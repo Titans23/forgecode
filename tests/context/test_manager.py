@@ -96,7 +96,7 @@ def test_remaining_window_is_unavailable_without_configuration() -> None:
 
 def test_request_stats_use_cheap_compaction_and_keep_stored_totals() -> None:
     messages = [
-        {'role': 'user', 'content': f'message {index} ' + 'x' * 100}
+        {'role': 'assistant', 'content': f'message {index} ' + 'x' * 100}
         for index in range(10)
     ]
     manager = ContextManager(
@@ -132,3 +132,15 @@ def test_compaction_accounts_for_request_envelope_and_output_reservation(tmp_pat
         context_window_tokens=4096, reserved_output_tokens=1024)
     assert context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=4095)
     assert messages == [{'role': 'user', 'content': 'short request'}]
+
+
+def test_cheap_crop_preserves_user_constraints_without_a_model_summary(tmp_path):
+    from forge.context.manager import original_user_instructions
+    constraints = ['Do not modify supplied inputs.', 'Keep all output inside this workspace.']
+    messages = [{'role': 'user', 'content': text} for text in constraints]
+    messages += [{'role': 'assistant', 'content': 'Inspecting.'}] * 10
+    context = ContextManager(messages, tmp_path, CompactionConfig(message_limit=4, keep_recent_messages=2))
+    prepared = context.prepare(messages)
+    assert original_user_instructions(prepared) == constraints
+    assert len(prepared) < len(messages)
+    assert messages[:2] == [{'role': 'user', 'content': text} for text in constraints]

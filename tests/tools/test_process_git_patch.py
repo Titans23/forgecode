@@ -23,6 +23,25 @@ from forge.runtime.workspace import WorkspaceTracker
 shell_join = subprocess.list2cmdline if sys.platform == 'win32' else shlex.join
 
 
+@pytest.mark.parametrize('sandbox', [False, True])
+def test_command_description_matches_profile_and_large_file_capability(tmp_path, sandbox):
+    tool = RunCommandTool(tmp_path, execution_profile=(
+        ExecutionProfile.sandbox() if sandbox else ExecutionProfile.host()))
+    description = tool.definition['description']
+    assert ('Current execution profile: disposable sandbox' in description) == sandbox
+    assert ('Current execution profile: host' in description) == (not sandbox)
+    command = shell_join([sys.executable, '-c',
+        "from pathlib import Path; Path('samples.csv').write_text('1,2,3\\n' * 10000)"])
+    result = asyncio.run(tool.run({'command': command}))
+    if sandbox:
+        assert result.success
+        assert (tmp_path / 'samples.csv').stat().st_size > 30_000
+    else:
+        assert not result.success
+        assert result.error.code == 'shell_file_write_denied'
+        assert not (tmp_path / 'samples.csv').exists()
+
+
 def run(coroutine: object) -> ToolResult:
     return asyncio.run(coroutine)  # type: ignore[arg-type]
 

@@ -99,8 +99,7 @@ def _validation_recovery_hint(
         if tool_name == 'write_file':
             return (
                 'Create a smaller new-file skeleton and extend it through '
-                'focused apply_patch calls, or use write_file_chunk to assemble '
-                'the large new file in ordered chunks.'
+                'focused apply_patch calls.'
             )
         if tool_name == 'apply_patch':
             return 'Split the change into multiple focused patches.'

@@ -128,6 +128,12 @@ CI 的 unit 自动发现非 native/fixture 的功能测试目录，portable 覆�
 
 EvalCase 可显式设置已有 max_delivery_repairs（默认 0，最多 2），NativeTaskAdapter 将其传给同一个 TaskPolicy 并记录实际配置。完成被拒后，既有 TurnRunner 可在本回合剩余模型/工具/时间预算内反馈不同缺口；相同缺口重复、修复次数或预算耗尽仍终止。它不放宽验证断言或新鲜度，也不提供跨进程原预算续跑；CLI --resume 开启新回合。
 
+评测失败复查后的运行路径：`run_command` 根据同一 ExecutionProfile 生成当前能力说明；宿主仍禁止脚本写文件，评测容器可在原授权范围内生成数据和构建产物，编辑工具的单次字符上限不是命令生成文件的大小限制。
+
+参考 [DSH 的请求压力裁剪与重新测量](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/compaction/compaction-basic/src/index.ts)，自动压缩先按轻量裁剪后的完整请求计量，不因未发送的历史单独触发摘要；裁剪仍保留原始用户约束。固定提示本身过大时不调用摘要，无缩减收益的摘要保留原历史并计入已有三次失败上限。原始 Journal、工具配对、失败检查及模型预算继续保留。固定提示和当前任务去除重复内容，不引入新的压缩服务或插件系统。
+
+公开 benchmark 的官方 verifier 是任务通过与否的最终依据；内部仍要求当前版本的实际正向行为验证及覆盖说明，但不强制第二套模型自拟需求 ID／JSON 断言协议。其他调用方显式设置的严格验收契约不变。启用行为验证和交付修复时，无已观察外部阻塞的首次 partial/failed 可收到一次行动性诊断；它占用原有修复次数及总预算，重复失败、已给过反馈、预算耗尽或 blocked 不因此重试。取消仍沿用原停止与清理路径。
+
 ## 4. 核心调用链与证明边界
 
 | 调用链 | 机制与取舍 | 代码和现有验证入口 |

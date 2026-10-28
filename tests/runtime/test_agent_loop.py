@@ -1094,15 +1094,15 @@ def test_conversation_forwards_stream_and_returns_final_result() -> None:
 def test_system_prompt_defines_forgecode_identity() -> None:
     prompt = load_system_prompt()
 
-    assert 'Your product identity is ForgeCode.' in prompt
-    assert 'Do not claim to be Anthropic' in prompt
-    assert 'tools included in the current model request are available' in prompt
-    assert '`finish_task` is\n   optional structured completion' in prompt
-    assert 'Tool\n   schema errors, repeated reads' in prompt
-    assert 'Do not run destructive commands' in prompt
-    assert 'call `verify`' in prompt
-    assert 'Run dependent verification commands one at a' in prompt
-    assert 'choose the next check based on the goal and risk' in prompt
+    assert 'You are ForgeCode' in prompt
+    assert 'do not claim to be another product' in prompt
+    assert 'Use the tools available in this request' in prompt
+    assert 'finish_task is optional structured submission' in prompt
+    assert 'Tool schema errors and repeated reads\nare recoverable' in prompt
+    assert 'perform destructive actions without authorization' in prompt
+    assert 'use verify for the relevant test' in prompt
+    assert 'Batch\nindependent actions only' in prompt
+    assert 'Avoid unrelated optional checks' in prompt
 
 
 def test_conversation_accepts_an_explicit_system_prompt() -> None:

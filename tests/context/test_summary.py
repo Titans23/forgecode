@@ -117,11 +117,11 @@ def test_auto_compaction_only_runs_above_threshold(tmp_path: Path) -> None:
     assert len(client.calls) == 1
 
 
-def test_auto_compaction_counts_stored_history_after_cheap_crop(
+def test_auto_compaction_uses_visible_history_after_cheap_crop(
     tmp_path: Path,
 ) -> None:
     messages = [
-        {'role': 'user', 'content': f'message {index} ' + ('x' * 200)}
+        {'role': 'assistant', 'content': f'message {index} ' + ('x' * 200)}
         for index in range(20)
     ]
     manager = ContextManager(
@@ -135,10 +135,12 @@ def test_auto_compaction_counts_stored_history_after_cheap_crop(
     )
     client = SummaryClient(valid_summary())
 
-    report = asyncio.run(manager.compact_history(messages, client))
-
-    assert report is not None and report.success
-    assert len(client.calls) == 1
+    original = list(messages)
+    for window in (None, 1_000):
+        report = asyncio.run(manager.compact_history(messages, client, context_window_tokens=window))
+        assert report is None
+    assert client.calls == []
+    assert messages == original
 
 
 def test_configured_window_replaces_character_fallback(tmp_path: Path) -> None:
@@ -203,4 +205,28 @@ def test_summary_failures_open_fuse_after_three_attempts(
 
     assert all(report is not None and not report.success for report in reports)
     assert len(client.calls) == 3
+    assert reports[-1].reason == 'summary failure fuse is open'
+
+
+def test_static_request_pressure_does_not_spend_summary_budget(tmp_path):
+    messages = [{'role': 'user', 'content': 'Keep the supplied input unchanged.'}]
+    manager = ContextManager(messages, tmp_path)
+    client = SummaryClient(valid_summary())
+    report = asyncio.run(manager.compact_history(messages, client,
+        system_prompt='s' * 4_000, context_window_tokens=1_000, reserved_output_tokens=100))
+    assert report is not None and not report.success
+    assert 'instructions and tools' in report.reason
+    assert client.calls == []
+
+
+def test_nonshrinking_summary_preserves_history_and_has_bounded_cost(tmp_path):
+    messages = [{'role': 'user', 'content': 'Preserve the input; fix the code.'}]
+    original = list(messages)
+    manager = ContextManager(messages, tmp_path, CompactionConfig(auto_compact_characters=10))
+    client = SummaryClient(valid_summary())
+    reports = [asyncio.run(manager.compact_history(messages, client)) for _ in range(4)]
+    assert all(not report.success for report in reports)
+    assert reports[0].usage is not None
+    assert len(client.calls) == 3
+    assert messages == original
     assert reports[-1].reason == 'summary failure fuse is open'

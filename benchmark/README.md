@@ -101,7 +101,9 @@ export FORGE_BASE_URL='http://host.docker.internal:60578'
 
 以下使用 Bash、新输出目录、每题一次、任务级重试 0，显式固定预算和上下文。
 官方任务时限仍生效。`--max-retries 0` 不关闭同一预算内的交付修复（当前最多 2 次），
-也不等于关闭模型传输层重试。
+也不等于关闭模型传输层重试。首次无外部阻塞的提前放弃可获得一次诊断反馈，
+也占用上述修复次数与原预算，不是另一次任务尝试。最终由官方 verifier 判分；
+内部要求执行行为检查及说明覆盖范围，不强制额外填写需求 ID 或 JSON 断言协议。
 
 ```bash
 run_dir="$HOME/.local/share/forgecode/evaluation/terminal10-gpt6luna-$(date -u +%Y%m%dT%H%M%SZ)-c4"
