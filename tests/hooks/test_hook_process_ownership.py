@@ -105,7 +105,14 @@ def test_hook_preserves_protocol_environment_without_loaders_or_credentials(tmp_
     }
 
 
-def test_successful_hook_refuses_unconfirmed_cleanup(tmp_path, monkeypatch):
+@pytest.mark.parametrize(('code', 'timeout', 'primary_failure'), [
+    ("print('{\"decision\": \"allow\"}')", 8, ''),
+    ('import time; time.sleep(5)', 0.1, 'Hook timed out after 0.1 seconds.'),
+    ("import sys; sys.stdout.write('x' * 1000001); sys.stdout.flush()", 8,
+     'Hook output exceeded 1000000 bytes.'),
+])
+def test_hook_preserves_primary_failure_when_cleanup_is_unconfirmed(tmp_path, monkeypatch,
+        code, timeout, primary_failure):
     from forge.sandbox.process_owner import LocalProcessOwner
 
     close = LocalProcessOwner.close
@@ -115,11 +122,12 @@ def test_successful_hook_refuses_unconfirmed_cleanup(tmp_path, monkeypatch):
         return {'state': 'unknown', 'reason': 'injected report failure after actual cleanup'}
 
     monkeypatch.setattr(LocalProcessOwner, 'close', unconfirmed)
-    spec = HookSpec(id='unknown-cleanup', command=(sys.executable, '-c', "print('{\"decision\": \"allow\"}')"))
+    spec = HookSpec(id='unknown-cleanup', command=(sys.executable, '-c', code), timeout_seconds=timeout)
     result = asyncio.run(run_hook_command(tmp_path, spec, HookEvent(name='BeforeModelCall')))
 
     assert result.decision == 'error'
-    assert 'cleanup could not be confirmed' in result.reason
+    assert result.timed_out == bool('timed out' in primary_failure)
+    assert result.reason == (primary_failure + ' ' if primary_failure else '') + 'Hook process cleanup could not be confirmed.'
 
 
 @pytest.mark.parametrize('mode', ['cancel', 'timeout'])

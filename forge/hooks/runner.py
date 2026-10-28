@@ -93,7 +93,8 @@ async def run_hook_command(
                 pipe.close()
         cleanup = await owner.close()
     if cleanup.get('state') != 'clean':
-        failure = 'Hook process cleanup could not be confirmed.'
+        cleanup_failure = 'Hook process cleanup could not be confirmed.'
+        failure = f'{failure} {cleanup_failure}' if failure else cleanup_failure
     duration = time.monotonic() - started
     if failure:
         return CommandResult(
