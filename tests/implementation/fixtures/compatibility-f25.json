@@ -1,9 +1,10 @@
 {
   "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
-  "tool_schemas_sha256": "bb78a265b5f414b10a7904fffdade3cb8ea6344682b2f7db33ca6c6181047471",
-  "tool_schemas_sha256_by_os": {
-    "nt": "bb78a265b5f414b10a7904fffdade3cb8ea6344682b2f7db33ca6c6181047471",
-    "posix": "0c7ba6e53338679a98a4794ffb19cdf3c91cbd984aa4b3d5a7c00227a0799847"
+  "tool_definitions_commit": "86c8dd183e637e30db6e1203019dabd21dcf0932",
+  "tool_definitions_review": "Only read_file and run_command descriptions differ from F25; tool names and input schemas are unchanged. Snapshot uses actual host-profile definitions without restoring obsolete prose.",
+  "tool_definitions_sha256_by_os": {
+    "nt": "0c65fff0447b38b0e6e620e13114331d0feeb49236332086595ded7868608afb",
+    "posix": "48686d03f0343fcdefc1c6b62bbde866e2bdc0c1aaee9c50d454933fde5b95a6"
   },
   "tools": [
     "list_directory",
