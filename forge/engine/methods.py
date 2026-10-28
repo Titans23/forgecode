@@ -36,9 +36,10 @@ class EngineMethods:
         self.confirmations = ConfirmationNonces(self.store)
         self.connections = ConnectionService(service, self.confirmations)
         from forge.application.evaluation_client import EvaluationClient
-        self.evaluation_client=EvaluationClient(self)
+        self.evaluation_client=EvaluationClient(self.evaluations, connections=self.connections, events=self.events)
         from forge.application.annotations import AnnotationService
-        self.annotations=AnnotationService(self)
+        self.annotations=AnnotationService(self.evaluations, client=self.evaluation_client,
+                                           events=self.events, artifacts=self.artifacts)
         self.artifacts.annotations=self.annotations
         from forge.engine.recovery import RecoveryService
         self.recovery=RecoveryService(service)

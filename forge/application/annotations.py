@@ -45,12 +45,13 @@ def condition(spec, trial):
 
 
 class AnnotationService:
-    def __init__(self, methods):
-        self.methods,self.store,self.evaluations = methods,methods.store,methods.evaluations
-        self.profile = methods.service.profile_id
+    def __init__(self, evaluations, *, client, events, artifacts):
+        self.evaluations,self.store = evaluations,evaluations.store
+        self.client,self.events,self.artifacts = client,events,artifacts
+        self.profile = evaluations.service.profile_id
 
     def target(self, run_id, attempt_id):
-        spec,configuration_origin = self.methods.evaluation_client._spec(run_id)
+        spec,configuration_origin = self.client._spec(run_id)
         data = self.evaluations.report_data(run_id)
         attempt = next((a for a in data['attempts'] if a['id']==attempt_id),None)
         if attempt is None: raise ContractError('Attempt not found in this run/profile',kind='NOT_FOUND',code=-32010)
@@ -99,7 +100,7 @@ class AnnotationService:
         validate('failure.list.request',params)
         data=self.evaluations.report_data(params['run_id'])
         key={'collection':'failure.list','profile':self.profile,'run_id':params['run_id'],'category':params.get('category')}
-        after=self.methods.events.decode_cursor(params['cursor'],key) if params.get('cursor') else 0
+        after=self.events.decode_cursor(params['cursor'],key) if params.get('cursor') else 0
         trials={t['id']:t for t in data['trials']}
         rows=[]
         for attempt in data['attempts']:
@@ -111,7 +112,7 @@ class AnnotationService:
                 'execution_state':attempt['execution_state'],'cleanup_state':attempt['cleanup_state'],'grade_result':attempt.get('grade_result'),
                 'category':category,'origin':data.get('origin','local')})
         limit=params.get('limit',20);page=rows[after:after+limit]
-        return {'items':page,'next_cursor':self.methods.events.cursor(key,after+len(page)) if after+len(page)<len(rows) else None,'history_gap':False}
+        return {'items':page,'next_cursor':self.events.cursor(key,after+len(page)) if after+len(page)<len(rows) else None,'history_gap':False}
 
     def get(self,params):
         validate('failure.get.request',params)
@@ -168,7 +169,7 @@ class AnnotationService:
 
     def save_candidate(self,params):
         validate('failure.save_candidate.request',params)
-        existing=self.methods.service._existing_action('failure.save_candidate',params)
+        existing=self.evaluations.service._existing_action('failure.save_candidate',params)
         if existing is not None:return {**existing,'reused_existing_action':True}
         spec,data,attempt,trial,origin=self.target(params['run_id'],params['attempt_id'])
         if not failure(attempt):raise ContractError('Select a terminal failed or unscored attempt')
@@ -239,7 +240,7 @@ class AnnotationService:
         return list(dict.fromkeys(blockers))
 
     def candidate_view(self,row):
-        artifact=self.methods.artifacts.describe({'artifact_id':row['artifact_id']})
+        artifact=self.artifacts.describe({'artifact_id':row['artifact_id']})
         check=self.store.connection.execute('SELECT * FROM reproduction_checks WHERE candidate_id=? ORDER BY rowid DESC LIMIT 1',(row['id'],)).fetchone()
         blockers=self.proof(row,check['run_id'] if check else None,check['attempt_id'] if check else None)
         return {'candidate_id':row['id'],'fixture':artifact,'created_at':row['created_at'],

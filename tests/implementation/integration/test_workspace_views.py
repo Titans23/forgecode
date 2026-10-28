@@ -258,6 +258,46 @@ def test_model_stream_redacts_secret_split_across_deltas_and_bound_snapshot_mess
         store.close()
 
 
+def test_message_writers_share_durable_sequence_and_rollback(tmp_path, monkeypatch):
+    service, store, _, _, _, turn, _ = prepared(tmp_path)
+    accepted = service.start_turn(turn)
+    first = TurnMessages(store, accepted['turn_id'], '')
+    second = TurnMessages(store, accepted['turn_id'], '')
+    try:
+        first.append('assistant', 'first')
+        second.append('assistant', 'second')
+        original = store._turn_event
+        def fail(*args, **kwargs):
+            raise RuntimeError('event write failed')
+        monkeypatch.setattr(store, '_turn_event', fail)
+        with pytest.raises(RuntimeError, match='event write failed'):
+            first.append('assistant', 'rolled back')
+        monkeypatch.setattr(store, '_turn_event', original)
+        first.append('assistant', 'third')
+        rows = store.connection.execute('SELECT sequence,text FROM turn_messages WHERE turn_id=? ORDER BY sequence',
+            (accepted['turn_id'],)).fetchall()
+        assert [tuple(row) for row in rows] == [(1, 'first'), (2, 'second'), (3, 'third')]
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize('count,text', [(10000, ''), (512, '中\0' * 1024)], ids=['message-count', 'unicode-nul-characters'])
+def test_recreated_message_writer_obeys_persisted_limits(tmp_path, count, text):
+    service, store, _, _, _, turn, _ = prepared(tmp_path)
+    accepted = service.start_turn(turn)
+    try:
+        with store.transaction():
+            store.connection.executemany('INSERT INTO turn_messages(turn_id,sequence,kind,text) VALUES(?,?,?,?)',
+                [(accepted['turn_id'], index + 1, 'assistant', text) for index in range(count)])
+        messages = TurnMessages(store, accepted['turn_id'], '')
+        messages.append('assistant', 'must not exceed the saved quota')
+        assert store.connection.execute('SELECT COUNT(*) FROM turn_messages WHERE turn_id=?',
+            (accepted['turn_id'],)).fetchone()[0] == count
+        assert snapshot(service, {'session_id': turn['session_id']})['message_limit_reached']
+    finally:
+        store.close()
+
+
 def test_open_and_execute_do_not_load_project_hooks_mcp_or_env(tmp_path):
     from forge.hooks.config import load_hook_settings
     from forge.mcp.config import load_mcp_servers

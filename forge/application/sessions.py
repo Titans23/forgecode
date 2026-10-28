@@ -44,26 +44,34 @@ def accepted_view(row):
             'accepted': True, 'reused_existing_action': False}
 
 
+def message_usage(store, turn_id):
+    # Python len preserves the existing character quota, including embedded NULs.
+    sequence = count = used = 0
+    for sequence, text in store.connection.execute(
+            'SELECT sequence,text FROM turn_messages WHERE turn_id=? ORDER BY sequence', (turn_id,)):
+        count += 1
+        used += len(text)
+    return sequence, count, used
+
+
 class TurnMessages:
     def __init__(self, store, turn_id, credential):
         self.store, self.turn_id = store, turn_id
         self.secret = credential or ''
         self.pending = ''
-        self.used = 0
-        self.sequence = 0
 
     def append(self, kind, text, *, tool_name=None, status=None, execution_id=None):
-        if self.sequence >= 10000 or self.used >= 1048576:
-            return
         if self.secret:
             text = text.replace(self.secret, '[credential redacted]')
-        text = text[:min(2048, 1048576-self.used)]
-        self.sequence += 1
-        self.used += len(text)
         with self.store.transaction():
+            sequence, count, used = message_usage(self.store, self.turn_id)
+            if count >= 10000 or used >= 1048576:
+                return
+            text = text[:min(2048, 1048576-used)]
+            sequence += 1
             self.store.connection.execute('INSERT INTO turn_messages(turn_id,sequence,kind,text,tool_name,status,execution_id) VALUES(?,?,?,?,?,?,?)',
-                (self.turn_id, self.sequence, kind, text, tool_name, status, execution_id))
-            self.store._turn_event('session.message', self.turn_id, {'sequence': self.sequence, 'kind': kind})
+                (self.turn_id, sequence, kind, text, tool_name, status, execution_id))
+            self.store._turn_event('session.message', self.turn_id, {'sequence': sequence, 'kind': kind})
 
     def flush(self, final=False):
         # Retain enough characters to redact a key split across provider deltas.
@@ -112,10 +120,10 @@ def snapshot(service, params):
         configuration = json.loads(store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
             (session['configuration']['snapshot_id'],)).fetchone()[0])
         cursor = store.connection.execute('SELECT COALESCE(MAX(store_seq),0) FROM events').fetchone()[0]
-        limits = store.connection.execute('SELECT COUNT(*),COALESCE(SUM(length(text)),0) FROM turn_messages WHERE turn_id=?', (turn_id,)).fetchone()
+        _, count, used = message_usage(store, turn_id)
         return {'session': session, 'turns': [accepted_view(r) for r in rows[:100]], 'has_more_turns': len(rows)>100,
             'turn_id': turn_id, 'messages': [dict(r) for r in messages[:100]], 'has_more_messages': len(messages)>100,
-            'message_limit_reached': limits[0] >= 10000 or limits[1] >= 1048576,
+            'message_limit_reached': count >= 10000 or used >= 1048576,
             'snapshot_cursor': str(cursor), 'event_cursor': service.workspaces.cursors.cursor({'kind': 'all'}, cursor),
             'connection_id': configuration['connection_id']}
     finally:

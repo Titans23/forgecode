@@ -27,9 +27,10 @@ def secret_values(values,secrets=()):
 
 
 class EvaluationClient:
-    def __init__(self,methods):
-        self.methods,self.evaluations,self.store=methods,methods.evaluations,methods.store
-        self.profile=methods.service.profile_id
+    def __init__(self, evaluations, *, connections, events):
+        self.evaluations,self.store=evaluations,evaluations.store
+        self.connections,self.events=connections,events
+        self.profile=evaluations.service.profile_id
         self.target_observations={}
 
     def _spec(self,run_id):
@@ -88,7 +89,7 @@ class EvaluationClient:
             if not set(task_ids)<=set(spec['dataset']['task_ids']):raise ContractError('Task is absent from the frozen dataset')
             spec['dataset']['task_ids']=task_ids;spec['dataset']['task_revisions']={k:spec['dataset']['task_revisions'][k] for k in task_ids}
             if c['connection_id']:
-                row=self.methods.connections.row(c['connection_id']);metadata=json.loads(row['configuration_json'])
+                row=self.connections.row(c['connection_id']);metadata=json.loads(row['configuration_json'])
                 spec['model'].update(connection_id=row['id'],connection_revision=row['revision'],provider=metadata['provider'],requested_model=metadata['model_id'])
                 spec['model_mode']='live'
                 if 'rates' not in values['pricing']:
@@ -124,7 +125,7 @@ class EvaluationClient:
 
     def list_runs(self,params):
         key={'collection':'evaluation.list','profile':self.profile}
-        after=self.methods.events.decode_cursor(params['cursor'],key) if params.get('cursor') else 0
+        after=self.events.decode_cursor(params['cursor'],key) if params.get('cursor') else 0
         limit=params.get('limit',100)
         rows=self.store.connection.execute("SELECT * FROM (SELECT r.rowid*2 AS position,r.id,r.spec_json,r.state,'local' AS origin FROM runs r JOIN run_details d ON d.run_id=r.id WHERE d.profile_id=? UNION ALL SELECT rowid*2+1 AS position,id,spec_json,json_extract(report_json,'$.state') AS state,'imported_unverified' AS origin FROM imported_runs WHERE profile_id=?) WHERE position>? ORDER BY position LIMIT ?",(self.profile,self.profile,after,limit+1)).fetchall()
         items=[]
@@ -132,12 +133,12 @@ class EvaluationClient:
             spec=json.loads(row['spec_json']);items.append({'run_id':row['id'],'state':row['state'],'origin':row['origin'],
                 'dataset':spec['dataset']['name'],'revision':spec['dataset']['revision'],'model_mode':spec['model_mode'],
                 'planned_trials':len(spec['dataset']['task_ids'])*spec['protocol']['repeats']})
-        return {'items':items,'next_cursor':self.methods.events.cursor(key,rows[limit-1]['position']) if len(rows)>limit else None,'history_gap':False}
+        return {'items':items,'next_cursor':self.events.cursor(key,rows[limit-1]['position']) if len(rows)>limit else None,'history_gap':False}
 
     def snapshot(self,params):
         spec,configuration_origin=self._spec(params['run_id']);data=deepcopy(self.evaluations.report_data(params['run_id']))
         origin=data.get('origin','local');key={'collection':'evaluation.snapshot','profile':self.profile,'run_id':params['run_id'],'task_id':params.get('task_id')}
-        after=self.methods.events.decode_cursor(params['cursor'],key) if params.get('cursor') else 0
+        after=self.events.decode_cursor(params['cursor'],key) if params.get('cursor') else 0
         trials=[t for t in data['trials'] if not params.get('task_id') or t['task_id']==params['task_id']]
         if params.get('task_id') and params['task_id'] not in spec['dataset']['task_ids']:raise ContractError('Task does not belong to this run')
         limit=params.get('limit',20);page=trials[after:after+limit];ids={t['id'] for t in page}
@@ -159,7 +160,7 @@ class EvaluationClient:
         result={'run_id':params['run_id'],'spec':spec,'spec_hash':data['spec_hash'],'state':data['state'],'origin':origin,
             'configuration_origin':configuration_origin,'read_only':origin=='imported_unverified','compatible':compatible,'issues':issues,
             'metrics':data['metrics'],'trials':page,'attempts':views,'missing_evidence':sorted(missing)[:100],
-            'missing_evidence_count':len(missing),'next_cursor':self.methods.events.cursor(key,after+len(page)) if after+len(page)<len(trials) else None,
+            'missing_evidence_count':len(missing),'next_cursor':self.events.cursor(key,after+len(page)) if after+len(page)<len(trials) else None,
             'history_gap':False,'score_authority':data['score_authority']}
         if len(encoded(result).encode())>900000:raise ContractError('Snapshot exceeds bounded frame; reduce page size',kind='ARTIFACT_LIMIT',code=-32010)
         return result
@@ -200,7 +201,7 @@ class EvaluationClient:
         spec,origin=self._spec(params['run_id'])
         if self.store.connection.execute('SELECT 1 FROM imported_runs WHERE id=?',(params['run_id'],)).fetchone():raise ContractError('Imported result lacks resolved snapshots; export its original configuration separately')
         _,values,_=self._template(params['run_id'])
-        secrets=[self.methods.service.credentials.resolve(spec['model']['connection_id'])]
+        secrets=[self.evaluations.service.credentials.resolve(spec['model']['connection_id'])]
         if secret_values(values,secrets):raise ContractError('Configuration includes secret-bearing values; export refused')
         data={**export_runspec(spec,values),'configuration_origin':origin}
         row=self.store.publish_artifact(encoded(data).encode(),origin='trusted_engine',classification='metadata',profile_id=self.profile,max_bytes=1048576)

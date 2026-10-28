@@ -291,9 +291,9 @@
   "architecture_improvement": {
     "modularity_cleanup": {
       "status": "implemented_offline_verified",
-      "scope": ["tool_paths_single_owner", "tool_base_contract_and_registry_responsibility", "same_object_legacy_path_exports", "retain_explore_readonly_capabilities_shared_budget_and_borrowed_backend"],
+      "scope": ["durable_display_message_sequence_and_quota", "transactional_message_event_append", "explicit_evaluation_client_and_annotation_dependencies", "retain_journal_inbox_workspace_lock_and_permission_roles"],
       "preserved": ["Python Harness and CLI", "released helper imports", "permission budget persistence cancellation and data isolation"],
-      "verification": "144 related regression tests passed in 133 seconds: tools, Explore, permission boundaries, shared budgets, actual file worker and cancellation. Concurrent guard isolation and legacy import identity covered; moved path function ASTs unchanged. Contracts and all seven quality checks passed. Reports: .local/implementation/tools-*. CI, native sandbox acceptance and live model performance remain separately scoped."
+      "verification": "171 related regression tests passed in 142 seconds: sessions, application, workspace views, recovery, bound approvals, service lifecycle, evaluation client, failure annotations and bundles. New behavior tests cover multiple message writers, event rollback and persisted count/Unicode/NUL quotas. Contracts, all seven quality checks and repository audit passed. Reports: .local/implementation/session-application-*. CI, native sandbox acceptance and live model performance remain separately scoped."
     },
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",

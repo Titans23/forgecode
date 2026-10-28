@@ -29,6 +29,8 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 `application/sessions.py` 统一会话操作、消息和快照视图，事件传输层复用其返回结构；安全工具输出属于 `ObservationViews` 的查询方法。独立模块用于真实边界：SessionInbox 负责输入状态，Journal 负责持久化，Engine 负责 RPC 受理与恢复，不能以目录大小代替职责判断。仅依赖开发夹具的 RPC 演示位于 `scripts/harness_rpc_demo.py`，不再作为 `forge` 运行包的一部分。
 
+会话展示消息以 SQLite 记录为序号和配额的唯一依据，在同一事务内计算、追加并发布事件；不在写入器中复制计数。配额仍按字符计算，包含空字符，快照使用同一统计函数。评测视图与失败标注显式接收实际服务、游标和产物依赖，不持有整个 RPC 路由对象；profile 归属、幂等动作与证据权限仍由原服务检查。
+
 Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程树生命周期统一由 `LocalProcessOwner` 管理。正常退出、超时、取消和输出超限都清理所属后代；清理未知不能返回 allow。Hook 命令使用既有受管进程的环境清理规则；这不增加沙盒能力。
 
 参考 [DSH 的执行层日志职责](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/core/tools/src/batch.ts)与 [Pi 的核心循环／请求转换边界](https://github.com/earendil-works/pi/blob/a92283056d915c758799fcd904948ff0cb42628c/packages/agent/src/agent-loop.ts)：Executor 记录工具生命周期，Runner 在发布事件前记录终态与异常，CLI／渠道只消费事件，不重复写 Journal。Conversation 的手动记录接口保留兼容。沿用本项目已有权限、预算、持久化和取消边界，不据代码删减宣称模型性能提升。
