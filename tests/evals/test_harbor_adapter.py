@@ -66,7 +66,9 @@ def test_harbor_allows_service_delivery_but_requires_verification() -> None:
     assert BENCHMARK_TASK_POLICY.require_changes is False
     assert BENCHMARK_TASK_POLICY.require_verification is True
     assert BENCHMARK_TASK_POLICY.require_task_verification is True
-    assert BENCHMARK_TASK_POLICY.require_acceptance_reconciliation is True
+    assert BENCHMARK_TASK_POLICY.require_positive_verification is True
+    assert BENCHMARK_TASK_POLICY.require_verification_coverage is True
+    assert BENCHMARK_TASK_POLICY.require_acceptance_reconciliation is False
     assert BENCHMARK_TASK_POLICY.max_delivery_repairs == 2
 
 
