@@ -17,6 +17,13 @@ from scripts.check_architecture import violations
     ('application/evaluation_client.py', 'from forge.application.evaluations import EvaluationService', False),
     ('application/sessions.py', 'from forge.engine.event_stream import accepted_view', True),
     ('engine/event_stream.py', 'from forge.application.sessions import accepted_view', False),
+    ('runtime/state.py', 'from forge.runtime.delivery import completion_report', True),
+    ('runtime/state.py', 'from forge.runtime.completion import CompletionGate', True),
+    ('runtime/delivery.py', 'from forge.runtime.completion import unresolved_verification_failures', True),
+    ('runtime/check_contracts.py', 'from forge.runtime.completion import checker_revision_covers', True),
+    ('runtime/delivery.py', 'from forge.runtime.state import CompletionReport\n'
+     'from forge.runtime.check_contracts import unresolved_verification_failures', False),
+    ('runtime/completion.py', 'from forge.runtime.delivery import requirement_observation', False),
     ('messages.py', 'from forge.runtime.state import ToolCall', True),
     ('sandbox/backend.py', 'from forge.runtime.agent_loop import Conversation', True),
 ])

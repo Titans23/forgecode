@@ -13,7 +13,6 @@ from typing import Any
 from forge.context.compactor import (
     CheapCompactionResult,
     CompactionConfig,
-    TaskSummary,
     cheap_compact,
     is_durable_anchor,
     persist_large_tool_results,
@@ -195,8 +194,14 @@ class ContextManager:
         self.last_compaction: CheapCompactionResult | None = None
         self.summary_failures = 0
         self.last_report: CompactionReport | None = None
-        self.durable_summary: TaskSummary | None = None
         self.repository = RepositoryContext(self.root)
+
+    def reset_history(self) -> None:
+        '''Discard transient observations when committed history is replaced.'''
+        self.summary_failures = 0
+        self.last_compaction = None
+        self.last_report = None
+        self.repository.reset_scopes()
 
     @property
     def stats(self) -> ContextStats:
@@ -236,26 +241,7 @@ class ContextManager:
             self.config,
             scope_hints=scope_hints,
         )
-        prepared = self.last_compaction.messages
-        if self.durable_summary is not None and not any(
-            isinstance(message.get('content'), str)
-            and message['content'].startswith('[ForgeCode structured task summary]')
-            for message in prepared
-        ):
-            summary_text = json.dumps(
-                self.durable_summary.as_dict(),
-                ensure_ascii=False,
-                indent=2,
-            )
-            prepared.insert(
-                0,
-                {
-                    'role': 'user',
-                    'content': '[ForgeCode structured task summary]\n'
-                    + summary_text,
-                },
-            )
-        return prepared
+        return self.last_compaction.messages
 
     def persist_tool_result_message(
         self,
@@ -414,7 +400,6 @@ class ContextManager:
                 units.pop(index)
             compacted = [message for unit in units for message in unit]
         messages[:] = compacted
-        self.durable_summary = result.summary
         self.summary_failures = 0
         after = context_stats(messages)
         self.last_report = CompactionReport(

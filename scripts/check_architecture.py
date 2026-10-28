@@ -38,7 +38,11 @@ def violations(root=ROOT):
                     relative.as_posix() == 'application/evaluations.py'
                     and module == 'forge.application.evaluation_client' or
                     relative.as_posix() == 'application/sessions.py'
-                    and module == 'forge.engine.event_stream')
+                    and module == 'forge.engine.event_stream' or
+                    relative.as_posix() == 'runtime/state.py'
+                    and module in {'forge.runtime.delivery', 'forge.runtime.completion'} or
+                    relative.as_posix() in {'runtime/check_contracts.py', 'runtime/delivery.py'}
+                    and module == 'forge.runtime.completion')
                 if forbidden:
                     failures.append(f'{relative}:{node.lineno}: forbidden dependency {module}')
     return failures

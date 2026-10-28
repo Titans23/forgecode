@@ -678,8 +678,7 @@ class TurnRunner:
         c = self.conversation
         if not result.success or not result.metadata.get('review_delivery'):
             return result
-        from forge.runtime.delivery import completion_report
-        from forge.runtime.acceptance import requirement_observation
+        from forge.runtime.delivery import completion_report, requirement_observation
         import json
         reasons = await self._completion_reasons()
         report = completion_report(

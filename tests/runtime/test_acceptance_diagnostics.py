@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from forge.runtime.acceptance import requirement_observation, requirement_reason
+from forge.runtime.delivery import requirement_observation, requirement_reason
 from forge.runtime.check_contracts import assertion_contract, inherit_check_arguments
 from forge.runtime.completion import CompletionGate, TaskPolicy, checker_revision_covers
 from forge.runtime.state import VerificationEvidence

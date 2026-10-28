@@ -875,6 +875,7 @@ class Conversation:
         if restored_messages is not None:
             self.verification_history.clear()
             self.messages[:] = restored_messages
+            self._reset_history_context()
             self.task_manager.restore(restored_task)
             self.session_journal.append(
                 'conversation_rewound',
@@ -947,6 +948,12 @@ class Conversation:
             raise ValueError(f'Session {state.info.session_id} has no resumable conversation history.')
         return state, journal
 
+    def _reset_history_context(self) -> None:
+        self.context.reset_history()
+        self._last_repository_context = ''
+        self.working_state = WorkingState()
+        self._pending_hook_context.clear()
+
     def _bind_session(self, journal: SessionJournal) -> None:
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
@@ -966,6 +973,7 @@ class Conversation:
         if self.session_journal is not None:
             self.session_journal.record_stopped()
         self.messages[:] = list(state.messages)
+        self._reset_history_context()
         self.inbox.restore(state.pending_inputs)
         self.verification_history[:] = state.verification_history
         self.task_manager.restore(state.active_task)
@@ -1012,6 +1020,7 @@ class Conversation:
         self.verification_history.clear()
         if self.session_store is None or self.session_journal is None:
             self.messages.clear()
+            self._reset_history_context()
             self.task_manager.restore(None)
             return 'Cleared conversation history.'
         previous_id = self.session_journal.session_id
@@ -1023,6 +1032,7 @@ class Conversation:
         )
         self._bind_session(journal)
         self.messages.clear()
+        self._reset_history_context()
         self.task_manager.restore(None)
         return (
             f'Cleared conversation. Previous session: {previous_id}; '

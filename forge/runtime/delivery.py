@@ -1,30 +1,8 @@
-'''Delivery and observations are independent of an agent's success claim.'''
+'''Delivery and acceptance diagnostics are independent of an agent's success claim.'''
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from forge.runtime.state import VerificationEvidence
-
-
-@dataclass(frozen=True, slots=True)
-class CompletionReport:
-    run_status: str
-    agent_assessment: str
-    acceptance_status: str
-    verification_status: str
-    passed_checks: tuple[str, ...] = ()
-    failed_checks: tuple[str, ...] = ()
-    historical_checks: tuple[str, ...] = ()
-    unmet_requirements: tuple[str, ...] = ()
-    usage_complete: bool = True
-
-    def summary(self) -> str:
-        return (f'Verification: {self.verification_status}; '
-                f'{len(self.passed_checks)} passed, {len(self.failed_checks)} failed, '
-                f'{len(self.historical_checks)} historical/expired. '
-                f'Caller acceptance: {self.acceptance_status}.'
-                + ('' if self.usage_complete else ' Token usage is incomplete.'))
+from forge.runtime.check_contracts import unresolved_verification_failures
+from forge.runtime.state import CompletionReport as CompletionReport, VerificationEvidence
+from forge.runtime.verification import verification_quality
 
 
 def completion_report(*, status: str, evidence: tuple['VerificationEvidence', ...],
@@ -33,7 +11,6 @@ def completion_report(*, status: str, evidence: tuple['VerificationEvidence', ..
                       agent_assessment: str | None = None, usage_complete: bool = True) -> CompletionReport:
     # Repeated runs of the same check remain in the durable ledger; presentation
     # uses the latest observation, without erasing distinct failed checks.
-    from forge.runtime.completion import unresolved_verification_failures
     current_evidence = tuple(item for item in evidence if item.freshness == 'current'
         and item.workspace_revision == workspace_revision and item.environment_epoch == environment_epoch)
     current_ids = {id(item) for item in current_evidence}
@@ -64,3 +41,59 @@ def completion_report(*, status: str, evidence: tuple['VerificationEvidence', ..
         unmet_requirements=reasons,
         usage_complete=usage_complete,
     )
+
+
+def requirement_observation(criterion, evidence, revision, epoch):
+    identifier = criterion.get('id', '')
+    linked = [item for item in evidence if identifier and (
+        identifier in item.requirement_ids or identifier in item.asserted_requirement_ids)]
+    current = [item for item in linked if item.freshness == 'current'
+               and item.workspace_revision == revision and item.environment_epoch == epoch]
+    asserted = [item for item in current if identifier in item.asserted_requirement_ids
+                and item.check_signature]
+    if any(item.success and verification_quality(item.command) == 'behavior' for item in asserted):
+        state = 'recorded_assertion_passed'
+        action = 'Check that the assertion measures the requested behavior against an independent source; execution success is not semantic proof.'
+    elif any(item.success for item in asserted):
+        state = 'execution_contract_unestablished'
+        action = ('Assertions exist, but command exit semantics or check kind do not establish positive behavior. '
+                  'Run the substantive checker directly (for example python - with stdin), preserving its assertions.')
+    elif asserted:
+        state = 'check_failed'
+        action = ('Inspect the recorded failure and distinguish a broken checker or environment from a wrong deliverable. '
+                  'Repair the cause and rerun check_id. For a checker correction, use inherit_checks_from and revision_reason without rewriting old assertions.')
+    elif linked and not current:
+        state = 'stale_evidence'
+        action = 'Rerun the stored check_id on the current workspace; old results are not current proof.'
+    elif current:
+        state = 'assertion_binding_missing'
+        action = 'A check exists, but no executed output assertion is bound to this requirement with expected_source. Preserve actual measurements and bind the correct requirement ID.'
+    else:
+        state = 'unverified'
+        action = 'Run an independent check of the quoted requirement; use actual values, exact source identity or a behavioral comparison rather than output shape alone.'
+    return {
+        'requirement_id': identifier, 'source_quote': criterion.get('source_quote', ''),
+        'condition': criterion.get('condition', ''), 'intended_check': criterion.get('check', ''),
+        'state': state, 'next_action': action,
+        'checks': [{
+            'verification_id': item.verification_id, 'check_id': item.check_id,
+            'command_excerpt': item.command[:800], 'cwd': item.cwd,
+            'current': item in current, 'success': item.success,
+            'quality': verification_quality(item.command),
+            'assertions': [{key: value[:500] if isinstance(value, str) else value
+                            for key, value in check.items()}
+                           for check in item.output_checks if check.get('requirement_id') == identifier][:8],
+            'assertions_omitted': max(0, sum(check.get('requirement_id') == identifier for check in item.output_checks) - 8),
+            'limitations': [value[:500] for value in item.limitations[:5]],
+            'issues': [value[:500] for value in item.evidence_issues[:5]],
+            'diagnostic': item.diagnostic[-1000:],
+        } for item in linked[-3:]],
+    }
+
+
+def requirement_reason(observation):
+    if observation['state'] == 'recorded_assertion_passed':
+        return None
+    return (f"Acceptance requirement {observation['requirement_id'] or 'legacy/unidentified'}: "
+            f"{observation['state']}. {observation['source_quote']}. "
+            + observation['next_action'])

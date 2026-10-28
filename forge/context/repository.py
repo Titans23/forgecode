@@ -188,6 +188,10 @@ class RepositoryContext:
         self.memory = MemoryStore(self.root)
         self._scopes: set[Path] = set()
 
+    def reset_scopes(self) -> None:
+        '''Forget accessed rule scopes while preserving durable project memory.'''
+        self._scopes.clear()
+
     def observe_paths(self, paths) -> None:
         """Activate ancestor rules only for paths accessed by this session."""
         for raw in paths:

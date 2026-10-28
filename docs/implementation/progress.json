@@ -291,9 +291,9 @@
   "architecture_improvement": {
     "modularity_cleanup": {
       "status": "implemented_offline_verified",
-      "scope": ["direct_conversation_state_ownership", "single_application_session_module", "owned_observation_output_query", "development_rpc_demo_outside_runtime_package", "remove_empty_and_unused_backend_modules", "shared_hook_process_ownership"],
+      "scope": ["single_committed_compaction_summary", "history_scoped_transient_context_reset", "single_verification_contract_rules", "pure_delivery_diagnostics_without_gate_dependency", "report_value_owned_by_runtime_state", "retain_distinct_task_plan_and_journal_roles"],
       "preserved": ["Python Harness and CLI", "released helper imports", "permission budget persistence cancellation and data isolation"],
-      "verification": "652 related regression tests passed; contracts, all seven quality checks and wheel contents passed. Nine removed runtime files are absent from the wheel. Real Windows Hook subprocess tests cover cancellation, normal exit, timeout, combined output quota, stdin backpressure and unknown cleanup. Reports: .local/implementation/modules*. Linux CI, native sandbox acceptance and live model performance remain separately scoped."
+      "verification": "660 related regression tests passed in 475 seconds, covering runtime/context/tasks, session history isolation, shared budgets, hooks, API/CLI, recovery, cancellation and report contracts. Contracts and all seven quality checks passed. Reports: .local/implementation/core-simplify*. CI, native sandbox acceptance and live model performance remain separately scoped."
     },
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",

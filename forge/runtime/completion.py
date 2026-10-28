@@ -6,12 +6,17 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
 from hashlib import sha256
-import os
 import re
 
 from forge.runtime.state import VerificationEvidence
-from forge.runtime.check_contracts import assertion_contract
-from forge.runtime.acceptance import requirement_observation, requirement_reason
+from forge.runtime.check_contracts import (
+    assertion_contract,
+    verification_command_key as verification_command_key,
+    verification_obligation_key as verification_obligation_key,
+    unresolved_verification_failures as unresolved_verification_failures,
+    checker_revision_covers as checker_revision_covers,
+)
+from forge.runtime.delivery import requirement_observation, requirement_reason
 from forge.runtime.verification import (
     completion_summary_has_unresolved_claims,
     is_positive_verification_command,
@@ -428,58 +433,3 @@ class CompletionGate:
 def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
     candidate = path.replace('\\', '/')
     return any(fnmatchcase(candidate, pattern) for pattern in patterns)
-
-
-def verification_command_key(command: str, cwd: str) -> str:
-    '''Return a stable identity for retries of one verification obligation.'''
-    # Command values are case/whitespace sensitive; do not merge distinct checks.
-    normalized = command.strip()
-    normalized_cwd = os.path.normcase(cwd.strip()).replace('\\', '/') or '.'
-    return f'{normalized_cwd}\0{normalized}'
-
-
-def verification_obligation_key(evidence: VerificationEvidence) -> str:
-    '''Coverage labels do not make different checks interchangeable.'''
-    return '\0'.join((verification_command_key(evidence.command, evidence.cwd),
-                      evidence.stdin_sha256, evidence.check_signature))
-
-
-def unresolved_verification_failures(
-    evidence: tuple[VerificationEvidence, ...],
-) -> tuple[VerificationEvidence, ...]:
-    '''Keep failures until the same command succeeds on the same revision.'''
-    unresolved: dict[str, VerificationEvidence] = {}
-    # 成功只能消除同一检查或显式保留契约的修订，不能覆盖无关的历史失败。
-    for item in evidence:
-        key = verification_obligation_key(item)
-        if item.success:
-            unresolved.pop(key, None)
-            for old_key, old in tuple(unresolved.items()):
-                if checker_revision_covers(old, item):
-                    unresolved.pop(old_key)
-        else:
-            unresolved[key] = item
-    return tuple(unresolved.values())
-
-
-def checker_revision_covers(old: VerificationEvidence, new: VerificationEvidence) -> bool:
-    '''Allow explicit checker repair, never implicit replacement by a weaker check.
-
-    Execution semantics remain a declared limitation: this verifies preservation
-    of observable assertion contracts, not equivalence of arbitrary programs.
-    '''
-    if not (new.success and old.verification_id and old.verification_id in new.supersedes
-            and new.revision_reason.strip() and old.cwd == new.cwd):
-        return False
-    if not old.output_checks:
-        # Without serialized assertions we cannot establish equivalence of a
-        # rewritten program. Only retrying the original invocation is supported.
-        return (verification_command_key(old.command, old.cwd)
-                == verification_command_key(new.command, new.cwd)
-                and old.stdin_sha256 == new.stdin_sha256
-                and set(old.requirement_ids).issubset(new.requirement_ids))
-    if not set(old.requirement_ids).issubset(new.asserted_requirement_ids):
-        return False
-    def contracts(checks):
-        return {assertion_contract(c) for c in checks}
-    return contracts(old.output_checks).issubset(contracts(new.output_checks))

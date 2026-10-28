@@ -8,7 +8,6 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from forge.tool_types import ToolResult
-from forge.runtime.delivery import CompletionReport
 
 
 class ModelResponseError(RuntimeError):
@@ -97,6 +96,26 @@ class VerificationEvidence:
     @property
     def success(self) -> bool:
         return not self.timed_out and self.exit_code == 0 and self.evidence_valid
+
+
+@dataclass(frozen=True, slots=True)
+class CompletionReport:
+    run_status: str
+    agent_assessment: str
+    acceptance_status: str
+    verification_status: str
+    passed_checks: tuple[str, ...] = ()
+    failed_checks: tuple[str, ...] = ()
+    historical_checks: tuple[str, ...] = ()
+    unmet_requirements: tuple[str, ...] = ()
+    usage_complete: bool = True
+
+    def summary(self) -> str:
+        return (f'Verification: {self.verification_status}; '
+                f'{len(self.passed_checks)} passed, {len(self.failed_checks)} failed, '
+                f'{len(self.historical_checks)} historical/expired. '
+                f'Caller acceptance: {self.acceptance_status}.'
+                + ('' if self.usage_complete else ' Token usage is incomplete.'))
 
 
 TaskStatus = Literal['completed', 'partial', 'blocked', 'stuck', 'failed']
