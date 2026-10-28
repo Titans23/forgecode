@@ -23,6 +23,10 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 `create_runtime` 是唯一运行时装配函数，新建与恢复使用同一构造路径；项目模型配置读取传入的 root，不隐式读取其他工作目录。可选渠道/MCP 组合位于 `forge/integrations.py`。旧 `forge.application.models` 保留协议导入兼容。
 
+通用 `ModelClient` 协议与模型请求／流协议错误归属 `runtime.state`；健康状态、路由和 Runner 直接使用这些契约，不依赖 Anthropic 实现来获取类型。`model_client` 保留同对象导出兼容，负责实际 Anthropic 传输；健康状态不再反向导入它。
+
+观测投影复用观测层 ID 生成函数，不反向导入持久化模块；工具发现直接使用公共错误契约，不依赖沙盒启动器。持久化仍在同一事务内调用投影，启动器仍负责执行前的完整准入检查。
+
 禁用可信扩展时，工厂不导入 MCP SDK 或读取 MCP 配置；启用路径仍使用原有权限与关闭流程。工具只通过已选择的 backend 或 registry 执行，不保留无调用方的 operation 注入路径。
 
 Registry 的无副作用预校验委托给具体工具：内置工具使用 Pydantic，MCP 使用远端 JSON Schema；执行入口仍再次校验。MCP 不再由占位输入模型决定合法参数，授权和审计继续使用实际调用参数。

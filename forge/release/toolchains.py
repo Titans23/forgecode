@@ -5,14 +5,15 @@ import shutil
 import subprocess
 import sys
 from forge.release.processes import external_argv, external_options
+from forge.protocol import ContractError
 
 def core_tool(name):
     if name not in ('git', 'rg'):
         raise ValueError('Unknown core tool')
-    from forge.sandbox.launcher import unavailable
     executable = shutil.which(name)
     if not executable:
-        unavailable(f'{name} is required on PATH; install it before starting ForgeCode')
+        raise ContractError(f'{name} is required on PATH; install it before starting ForgeCode',
+                            kind='SANDBOX_UNAVAILABLE', code=-32010)
     return Path(executable).resolve(strict=True)
 
 def discover_toolchains():

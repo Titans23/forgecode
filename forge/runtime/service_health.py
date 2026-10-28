@@ -5,7 +5,7 @@ from hashlib import sha256
 from time import monotonic
 from weakref import WeakValueDictionary
 
-from forge.runtime.model_client import ModelCallError
+from forge.runtime.state import ModelCallError
 
 
 @dataclass

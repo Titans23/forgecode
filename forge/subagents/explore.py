@@ -18,7 +18,7 @@ from forge.tools.git import GitLogTool
 from forge.tools.search import FindFilesTool, GrepTool
 
 if TYPE_CHECKING:
-    from forge.runtime.model_client import ModelClient
+    from forge.runtime.state import ModelClient
 
 
 MAX_REPORT_CHARACTERS = 20_000

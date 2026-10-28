@@ -53,6 +53,22 @@ def test_code_inventory_checks_all_bytes_without_host_tool_admission(monkeypatch
     assert manifest_hash
 
 
+def test_tool_discovery_preserves_failure_without_loading_launcher(monkeypatch):
+    import builtins
+    import shutil
+    from forge.release.toolchains import core_tool
+    original = builtins.__import__
+    def guarded(name, *args, **kwargs):
+        assert name != 'forge.sandbox.launcher'
+        return original(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, '__import__', guarded)
+    monkeypatch.setattr(shutil, 'which', lambda name: None)
+    with pytest.raises(ContractError, match='git is required on PATH') as rejected:
+        core_tool('git')
+    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
+    assert rejected.value.code == -32010
+
+
 def test_runtime_still_refuses_missing_host_tool_after_code_verification(monkeypatch):
     import forge.release.toolchains as tools
     root = Path(__file__).resolve().parents[3]

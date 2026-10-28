@@ -13,10 +13,9 @@ import httpx
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutError
 
 from forge.config import ForgeConfig
-from forge.runtime.model_client import (
-    AnthropicModelClient, ModelCallError, ModelProtocolError, ModelOutputTruncatedError,
-)
+from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.state import (
+    ModelCallError, ModelProtocolError, ModelOutputTruncatedError,
     ModelTextDelta, ModelToolCallStarted, ModelToolCallArgumentsDelta,
     ModelToolCallCompleted, ModelUsageUpdate, ModelResponseCompleted,
     ModelRetryScheduled, ModelProviderState, TokenUsage, ToolCall,

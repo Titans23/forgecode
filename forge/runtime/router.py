@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal, Protocol
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from forge.runtime.model_client import ModelClient
+from forge.runtime.state import ModelClient
 from forge.runtime.state import ModelTextDelta, ModelUsageUpdate, TokenUsage
 
 if TYPE_CHECKING:

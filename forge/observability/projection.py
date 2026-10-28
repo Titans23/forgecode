@@ -1,7 +1,7 @@
 """Derived query tables, updated only when a new trusted event is committed."""
 import json
 from forge.protocol import canonical_hash
-from forge.observability.events import span_attributes
+from forge.observability.events import span_attributes, identifier
 
 
 def project(store, body):
@@ -60,9 +60,8 @@ def project(store, body):
         if row:
             connection.execute('UPDATE context_snapshots SET metadata_json=?,snapshot_ref=? WHERE id=?',(json.dumps(attributes),json.dumps(snapshot),row[0]))
         else:
-            from forge.engine.persistence import new_id
             connection.execute('INSERT INTO context_snapshots VALUES(?,?,?,?,?,?,?,?)',
-                (new_id('snap'),body['turn_id'],attributes['context_version'],None,None,attributes['reason'],json.dumps(attributes),json.dumps(snapshot)))
+                (identifier('snap'),body['turn_id'],attributes['context_version'],None,None,attributes['reason'],json.dumps(attributes),json.dumps(snapshot)))
     if event_type=='verification.finished' and body['turn_id']:
         a=attributes
         facts=a.get('evidence_metadata',{})

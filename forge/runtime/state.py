@@ -4,10 +4,69 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, replace
 import json
-from typing import Any, Literal
+from typing import Any, Literal, Protocol, runtime_checkable
+from collections.abc import AsyncIterator
 from uuid import uuid4
 
 from forge.tool_types import ToolResult
+
+
+class ModelProtocolError(RuntimeError):
+    '''Raised when a provider emits an invalid model stream.'''
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str = 'invalid_model_protocol',
+        tool_name: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.tool_name = tool_name
+
+
+class ModelOutputTruncatedError(ModelProtocolError):
+    '''Raised when the provider stops because max_tokens was reached.'''
+
+    def __init__(self, tool_names: tuple[str, ...] = ()) -> None:
+        self.tool_names = tool_names
+        detail = (
+            f' while generating tool arguments for {", ".join(tool_names)}'
+            if tool_names
+            else ''
+        )
+        super().__init__(
+            'Model output was truncated at the max_tokens limit'
+            f'{detail}.',
+            reason='output_truncated',
+            tool_name=tool_names[0] if len(tool_names) == 1 else None,
+        )
+
+
+class ModelCallError(RuntimeError):
+    '''Provider-neutral model request failure exposed to the runtime.'''
+
+    def __init__(self, reason: str, message: str, *, retryable: bool) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.retryable = retryable
+
+
+@runtime_checkable
+class ModelClient(Protocol):
+    '''Minimal async interface used by the ForgeCode runtime.'''
+
+    provider: str
+
+    def stream(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        system: str | None = None,
+    ) -> AsyncIterator[ModelStreamEvent]:
+        '''Stream text and exact provider usage updates.'''
+        ...
 
 
 class ModelResponseError(RuntimeError):

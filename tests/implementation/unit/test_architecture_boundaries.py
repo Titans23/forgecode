@@ -19,6 +19,12 @@ from scripts.check_architecture import violations
     ('engine/event_stream.py', 'from forge.application.sessions import accepted_view', False),
     ('runtime/state.py', 'from forge.runtime.delivery import completion_report', True),
     ('runtime/state.py', 'from forge.runtime.completion import CompletionGate', True),
+    ('runtime/state.py', 'from forge.runtime.model_client import ModelCallError', True),
+    ('runtime/service_health.py', 'from forge.runtime.model_client import ModelCallError', True),
+    ('runtime/router.py', 'from forge.runtime.model_client import ModelClient', True),
+    ('runtime/service_health.py', 'from forge.runtime.state import ModelCallError', False),
+    ('observability/projection.py', 'from forge.engine.persistence import new_id', True),
+    ('release/toolchains.py', 'from forge.sandbox.launcher import unavailable', True),
     ('runtime/delivery.py', 'from forge.runtime.completion import unresolved_verification_failures', True),
     ('runtime/check_contracts.py', 'from forge.runtime.completion import checker_revision_covers', True),
     ('runtime/delivery.py', 'from forge.runtime.state import CompletionReport\n'

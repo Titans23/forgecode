@@ -12,7 +12,7 @@ from forge.context.working import WorkingState
 from forge.hooks import HookEvent
 from forge.runtime.model_budget import BudgetedModelClient
 from forge.runtime.completion import TaskPolicy
-from forge.runtime.model_client import ModelCallError, ModelOutputTruncatedError, ModelProtocolError
+from forge.runtime.state import ModelCallError, ModelOutputTruncatedError, ModelProtocolError
 from forge.runtime.state import (
     ModelResponseError, build_assistant_message, build_tool_result_message,
     ModelCallCompleted, ModelCallFailed, ModelCallStarted,

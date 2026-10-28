@@ -23,13 +23,13 @@ from forge.permissions.policy import PermissionManager
 from forge.runtime.router import IntentRouter
 from forge.runtime.model_client import (
     AnthropicModelClient,
-    ModelClient,
 )
 from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
 )
 from forge.runtime.state import (
+    ModelClient,
     ModelResponseError as ModelResponseError,
     build_assistant_message as build_assistant_message,
     build_tool_result_message as build_tool_result_message,

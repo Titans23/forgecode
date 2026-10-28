@@ -291,9 +291,9 @@
   "architecture_improvement": {
     "modularity_cleanup": {
       "status": "implemented_offline_verified",
-      "scope": ["recorder_retains_current_evidence_only", "release_committed_request_compaction_verification_temporaries", "remove_unused_branch_version_map", "tool_owned_preflight_validation_for_builtin_and_mcp", "retain_event_projection_recovery_permission_and_extension_boundaries"],
+      "scope": ["provider_neutral_model_contracts_in_state", "remove_health_to_provider_reverse_import", "remove_projection_to_persistence_helper_dependency", "remove_tool_discovery_to_launcher_helper_dependency", "global_import_and_ownership_review"],
       "preserved": ["Python Harness and CLI", "released helper imports", "permission budget persistence cancellation and data isolation"],
-      "verification": "262 related regression tests passed in 287 seconds: MCP, tools, hooks, channels, skills, permissions, shared budgets, observations, recovery and cancellation. Tests cover remote-schema preflight without remote effects, retry/summary trace linkage, durable evidence retention on failed invalidation and no duplicate invalidation. Contracts, all seven quality checks and repository audit passed. Reports: .local/implementation/remaining-*. Prior tools and sessions/application commits passed CI runs 40646299771 and 40647385357. Current CI, native sandbox acceptance and live model performance remain separately scoped."
+      "verification": "536 shared-core regression tests passed in 378 seconds, plus 55 helper/projection checks (overlapping coverage, not an additive unique count). Static scan of 196 tracked Python modules found no explicit eager import cycle or remaining direct reciprocal imports including deferred imports; 17 core/entry modules imported in both orders in fresh processes. Model contracts retain identical ASTs and legacy export identity. Contracts, all seven quality checks and repository audit passed. Reports: .local/implementation/global-*. Previous head f305937 passed CI run 40649459356. New-head CI, native sandbox acceptance and live model performance remain separately scoped."
     },
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",

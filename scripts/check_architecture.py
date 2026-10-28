@@ -40,7 +40,14 @@ def violations(root=ROOT):
                     relative.as_posix() == 'application/sessions.py'
                     and module == 'forge.engine.event_stream' or
                     relative.as_posix() == 'runtime/state.py'
-                    and module in {'forge.runtime.delivery', 'forge.runtime.completion'} or
+                    and module in {'forge.runtime.delivery', 'forge.runtime.completion',
+                                   'forge.runtime.model_client', 'forge.runtime.providers'} or
+                    relative.as_posix() in {'runtime/service_health.py', 'runtime/router.py'}
+                    and module == 'forge.runtime.model_client' or
+                    relative.as_posix() == 'observability/projection.py'
+                    and module == 'forge.engine.persistence' or
+                    relative.as_posix() == 'release/toolchains.py'
+                    and module == 'forge.sandbox.launcher' or
                     relative.as_posix() in {'runtime/check_contracts.py', 'runtime/delivery.py'}
                     and module == 'forge.runtime.completion')
                 if forbidden:
