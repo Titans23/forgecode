@@ -9,10 +9,13 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 import pytest
 
 from forge.application.models import validate,ContractError
-from forge.engine.methods import EngineMethods
+from forge.application.artifacts import ArtifactService
+from forge.application.evaluations import EvaluationService
+from forge.engine.event_stream import EventStream
 from forge.engine.persistence import new_id
 from forge.engine.journal_projection import JournalProjector
 from forge.observability.export_queue import ObservationOptions
+from forge.observability.query_views import ObservationViews
 from forge.observability.usage_ledger import PriceBook,confirm_usage
 from forge.runtime.state import ModelTextDelta,ModelUsageUpdate,ModelToolCallCompleted,TokenUsage,ToolCall
 from tests.implementation.integration.test_application import setup,ScriptedClient
@@ -21,7 +24,23 @@ from tests.implementation.unit.test_observability import book
 
 
 def views(service):
-    return EngineMethods(service,profile='test').observations
+    artifacts=ArtifactService(service,EvaluationService(service))
+    return ObservationViews(service,EventStream(service),artifacts)
+
+
+def test_observation_queries_keep_host_credentials_and_do_not_dispatch_work(tmp_path):
+    service,store,vault,clients,_,params=setup(tmp_path)
+    try:
+        turn=service.start_turn(params)
+        query=views(service)
+        scope={'kind':'turn','id':turn['turn_id']}
+        assert [span['name'] for span in query.spans({'scope':scope})['items']]==['turn.accepted']
+        assert query.usage({'scope':scope})['request_count']==0
+        assert service.credentials is vault
+        assert not clients
+        assert store.connection.execute('SELECT state FROM turns WHERE id=?',(turn['turn_id'],)).fetchone()[0]=='queued'
+    finally:
+        store.close()
 
 
 def test_real_request_ledger_frozen_prices_and_replay_recompute_once(tmp_path):

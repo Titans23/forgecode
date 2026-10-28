@@ -75,6 +75,18 @@ config_app = typer.Typer(help='Check or configure the model connection.', invoke
 app.add_typer(config_app, name='config')
 
 
+_NOTICE_COMMANDS = {
+    '/task': ('Task', 'task_show'),
+    '/task history': ('Task', 'task_history'),
+    '/status': ('Session', 'session_status'),
+    '/history': ('History', 'session_history'),
+    '/skills': ('Skills', 'skill_list'),
+    '/mcp': ('MCP Servers', 'mcp_status'),
+    '/permission': ('Permissions', 'permission_status'),
+    '/checkpoints': ('Checkpoints', 'checkpoint_history'),
+}
+
+
 def version_callback(value: bool) -> None:
     '''Print the installed ForgeCode version and exit.'''
     if value:
@@ -377,33 +389,14 @@ async def _run_interactive_chat(
                     resolved_terminal.show_compaction(await compact())
                 continue
 
-            if prompt.strip() == '/task':
-                resolved_terminal.show_notice('Task', resolved_session.task_show())
-                continue
-
-            if prompt.strip() == '/task history':
-                resolved_terminal.show_notice(
-                    'Task',
-                    resolved_session.task_history(),
-                )
-                continue
-
-            if prompt.strip() == '/status':
-                resolved_terminal.show_notice(
-                    'Session',
-                    resolved_session.session_status(),
-                )
+            notice_command = _NOTICE_COMMANDS.get(prompt.strip())
+            if notice_command is not None:
+                title, method = notice_command
+                resolved_terminal.show_notice(title, getattr(resolved_session, method)())
                 continue
 
             if prompt.strip() == '/history all':
                 show_session_history(resolved_session, resolved_terminal, limit=None)
-                continue
-
-            if prompt.strip() == '/history':
-                resolved_terminal.show_notice(
-                    'History',
-                    resolved_session.session_history(),
-                )
                 continue
 
             if prompt.startswith('/rename '):
@@ -488,13 +481,6 @@ async def _run_interactive_chat(
                     resolved_terminal.show_error(error)
                 continue
 
-            if prompt.strip() == '/skills':
-                resolved_terminal.show_notice(
-                    'Skills',
-                    resolved_session.skill_list(),
-                )
-                continue
-
             if prompt.strip() == '/skill':
                 resolved_terminal.show_error(
                     ValueError('Usage: /skill skill-name')
@@ -517,20 +503,6 @@ async def _run_interactive_chat(
                         resolved_terminal.show_error(error)
                 continue
 
-            if prompt.strip() == '/mcp':
-                resolved_terminal.show_notice(
-                    'MCP Servers',
-                    resolved_session.mcp_status(),
-                )
-                continue
-
-            if prompt.strip() == '/permission':
-                resolved_terminal.show_notice(
-                    'Permissions',
-                    resolved_session.permission_status(),
-                )
-                continue
-
             if prompt.startswith('/permission '):
                 try:
                     notice = resolved_session.permission_set_mode(
@@ -547,13 +519,6 @@ async def _run_interactive_chat(
                     resolved_terminal.show_notice('Checkpoint', notice)
                 except (OSError, ValueError, SessionError, CheckpointError) as error:
                     resolved_terminal.show_error(error)
-                continue
-
-            if prompt.strip() == '/checkpoints':
-                resolved_terminal.show_notice(
-                    'Checkpoints',
-                    resolved_session.checkpoint_history(),
-                )
                 continue
 
             if prompt.strip() == '/rewind' or prompt.startswith('/rewind '):

@@ -14,6 +14,7 @@ from forge.runtime.model_budget import BudgetedModelClient
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.model_client import ModelCallError, ModelOutputTruncatedError, ModelProtocolError
 from forge.runtime.state import (
+    ModelResponseError, build_assistant_message, build_tool_result_message,
     ModelCallCompleted, ModelCallFailed, ModelCallStarted,
     ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, ToolCall, ModelProviderState, ModelResponseCompleted,
     ModelToolCallStarted, ModelToolCallArgumentsDelta,
@@ -21,6 +22,7 @@ from forge.runtime.state import (
     VerificationCompleted, WorkspaceChanged,
 )
 from forge.runtime.turn_state import BudgetExhausted, TurnState, add_usage, parent_budget
+from forge.runtime.verification import verification_from_result
 from forge.tools.base import ToolResult
 
 if TYPE_CHECKING:
@@ -316,7 +318,6 @@ class TurnRunner:
         self._commit_messages()
 
     async def _loop(self):
-        from forge.runtime.agent_loop import ModelResponseError, build_assistant_message
         c = self.conversation
         while True:
             self._check_budget()
@@ -483,7 +484,6 @@ class TurnRunner:
             self._commit_messages()
 
     async def _batch(self, calls: list[ToolCall]):
-        from forge.runtime.agent_loop import verification_from_result
         c = self.conversation
         executor = c.tool_executor
         assert executor is not None
@@ -831,7 +831,6 @@ class TurnRunner:
         self._commit_messages()
 
     def _append_results(self, results) -> None:
-        from forge.runtime.agent_loop import build_tool_result_message
         message = build_tool_result_message(results)
         self.conversation.context.persist_tool_result_message(message)
         self.messages.append(message)

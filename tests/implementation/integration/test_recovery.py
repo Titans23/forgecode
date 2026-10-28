@@ -14,11 +14,29 @@ from forge.application.services import ApplicationServices
 from forge.engine.methods import EngineMethods
 from forge.engine.persistence import Store, new_id, encoded
 from forge.engine.journal_projection import JournalProjector
+from forge.engine.recovery import RecoveryService
 from forge.sessions.store import SessionStore
 from test_application import setup
 from test_rpc import seed
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_recovery_can_inspect_queued_work_without_rpc_or_dispatch(tmp_path):
+    service,store,vault,clients,_,params=setup(tmp_path)
+    try:
+        accepted=service.start_turn(params)
+        recovery=RecoveryService(service)
+        recovery.reconcile_startup()
+        report=recovery.inspect({'turn_id':accepted['turn_id']})
+        validate('recovery.inspect.result',report)
+        assert report['state']=='queued'
+        assert report['journal']['state']=='not_started'
+        assert report['process_ownership']=='not_started'
+        assert service.credentials is vault and not clients
+        assert store.connection.execute('SELECT COUNT(*) FROM recovery_observations').fetchone()[0]==0
+    finally:
+        store.close()
 
 
 def interrupted(tmp_path, *, complete=False, peer_pid=None):

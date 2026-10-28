@@ -21,8 +21,8 @@ def deadline_status(value):
 
 
 class RecoveryService:
-    def __init__(self, methods):
-        self.methods, self.store, self.service = methods, methods.store, methods.service
+    def __init__(self, service):
+        self.store, self.service = service.store, service
 
     def target(self, params):
         if 'turn_id' in params:

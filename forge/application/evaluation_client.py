@@ -26,19 +26,6 @@ def secret_values(values,secrets=()):
     return redact(view,secrets)!=view
 
 
-def configuration_issues(store, profile, spec):
-    issues=[]
-    for group,key,_ in REFERENCES.values():
-        rows=store.connection.execute('SELECT profile_id,origin FROM evaluation_snapshot_origins WHERE snapshot_id=?',
-            (spec[group][key]['snapshot_id'],)).fetchall()
-        owned=[r for r in rows if r['profile_id']==profile]
-        if rows and not owned:
-            raise ContractError('Configuration belongs to another profile',kind='NOT_FOUND',code=-32010)
-        if owned and owned[0]['origin']=='imported_unverified' and not issues:
-            issues.append({'task_id':None,'kind':'unverified_configuration','message':'Imported configuration requires trusted source/environment reconciliation before execution.'})
-    return issues
-
-
 class EvaluationClient:
     def __init__(self,methods):
         self.methods,self.evaluations,self.store=methods,methods.evaluations,methods.store
@@ -50,7 +37,7 @@ class EvaluationClient:
         if imported:return json.loads(imported[0]),'imported_unverified'
         run=self.evaluations.run(run_id)
         spec=json.loads(run['spec_json'])
-        return spec,'imported_unverified' if configuration_issues(self.store,self.profile,spec) else 'trusted_configuration'
+        return spec,'imported_unverified' if self.evaluations.configuration_issues(spec) else 'trusted_configuration'
 
     def _template(self,identity):
         if identity.startswith('run-'):

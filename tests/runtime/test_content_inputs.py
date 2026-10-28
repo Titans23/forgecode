@@ -4,9 +4,9 @@ import base64
 import pytest
 
 from forge.messages import image_block, normalize_input, MAX_TEXT_BYTES
-from forge.runtime.agent_loop import Conversation, build_tool_result_message
+from forge.runtime.agent_loop import Conversation
 from forge.runtime.providers import responses_input, chat_messages
-from forge.runtime.state import ModelTextDelta, ModelResponseCompleted, ToolCall
+from forge.runtime.state import ModelTextDelta, ModelResponseCompleted, ToolCall, build_tool_result_message
 from forge.tools.base import ToolResult
 
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=')
@@ -38,6 +38,20 @@ def test_any_tool_can_return_visual_blocks_without_name_special_cases():
     body = message['content'][0]['content']
     assert body[1]['type'] == 'image'
     assert 'base64' not in body[0]['text']
+
+
+def test_legacy_message_builders_preserve_order_and_failure_payload():
+    import json
+    from forge.runtime.agent_loop import build_assistant_message, build_tool_result_message as legacy_results
+
+    first, second = ToolCall(0, 'first', 'read_file', {'path': 'a.py'}), ToolCall(1, 'second', 'write_file', {})
+    assistant = build_assistant_message('Inspect first', [second, first])
+    assert [block['id'] for block in assistant['content'][1:]] == ['first', 'second']
+    result = ToolResult.fail('permission_denied', 'Write requires approval')
+    message = legacy_results([(second, result)])
+    assert message == build_tool_result_message([(second, result)])
+    assert message['content'][0]['is_error'] is True
+    assert json.loads(message['content'][0]['content'])['error']['code'] == 'permission_denied'
 
 
 def test_conversation_accepts_image_only_and_rejects_text_only_adapter(tmp_path):

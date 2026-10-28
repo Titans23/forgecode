@@ -7,11 +7,11 @@ from forge.observability.usage_ledger import decimal_text,SAFE_INTEGER
 
 
 class ObservationViews:
-    def __init__(self,methods):
-        self.methods=methods
-        self.service=methods.service
-        self.store=methods.store
-        self.events=methods.events
+    def __init__(self,service,events,artifacts):
+        self.service=service
+        self.store=service.store
+        self.events=events
+        self.artifacts=artifacts
 
     def check_scope(self,scope):
         self.events.check_scope(scope)

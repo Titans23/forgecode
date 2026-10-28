@@ -1,7 +1,7 @@
 {
   "schema_version": "forge.implementation.progress.v1",
   "active_scope": "terminal-harness",
-  "development_checkout": "D:/learn_project/forgecode",
+  "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
   "current_task": "T01",
   "delivery_focus": {
@@ -289,6 +289,12 @@
     "remaining": ["native_read_write_network_and_resource_capability_audit_and_implementation", "file_command_verify_session_integration", "domain_allowlist_proxy_and_bypass_tests", "native_temporary_directory_fix", "windows_and_ubuntu_native_acceptance", "node_minimum_alignment_lightweight_installation_diagnostics_demo_and_final_completion_audit"]
   },
   "architecture_improvement": {
+    "modularity_cleanup": {
+      "status": "implemented_offline_verified",
+      "scope": ["runtime_message_and_verification_dependency_direction", "shared_session_binding", "evaluation_configuration_ownership", "explicit_query_and_recovery_dependencies", "static_cli_notice_dispatch"],
+      "preserved": ["Python Harness and CLI", "released helper imports", "permission budget persistence cancellation and data isolation"],
+      "verification": "Regression: 1046 passed and one cached-output dependency failure, repaired and covered by 39 passing related tests. Contracts and all seven quality checks passed. Reports: .local/implementation/slimming/. Native acceptance and live model performance remain separately unverified."
+    },
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",
     "P3": "scoped_auto_loading_restored_verified_live_comparison_complete_no_stable_performance_gain",

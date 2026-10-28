@@ -25,12 +25,12 @@ class EngineMethods:
         self.store = service.store
         self.profile = profile
         self.events = EventStream(service)
-        from forge.observability.query_views import ObservationViews
-        self.observations=ObservationViews(self)
         from forge.application.evaluations import EvaluationService
         self.evaluations = EvaluationService(service, executor=getattr(service, 'evaluation_executor', None))
         from forge.application.artifacts import ArtifactService
         self.artifacts=ArtifactService(service,self.evaluations)
+        from forge.observability.query_views import ObservationViews
+        self.observations=ObservationViews(service,self.events,self.artifacts)
         self.workspaces = service.workspaces
         self.workspaces.cursors = self.events
         self.approvals = ApprovalService(service)
@@ -42,7 +42,7 @@ class EngineMethods:
         self.annotations=AnnotationService(self)
         self.artifacts.annotations=self.annotations
         from forge.engine.recovery import RecoveryService
-        self.recovery=RecoveryService(self)
+        self.recovery=RecoveryService(service)
         self.recovery.reconcile_startup()
         if profile == 'desktop' or interactive_approvals:
             service.approvals = self.approvals

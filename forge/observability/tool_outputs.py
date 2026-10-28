@@ -44,7 +44,7 @@ def output(views,params):
     cache=store.connection.execute('SELECT artifact_id FROM tool_output_views WHERE execution_id=? AND source_sha256=?',
         (params['execution_id'],capture['sha256'])).fetchone()
     if cache:
-        artifact=views.methods.artifacts.describe({'artifact_id':cache[0]})
+        artifact=views.artifacts.describe({'artifact_id':cache[0]})
         if not artifact['available']: return {**result,'state':'missing','reason':'stream_artifact_missing_or_changed'}
         identity=artifact['artifact_id']; digest=artifact['sha256']; size=artifact['size_bytes']
     else:

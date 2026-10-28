@@ -23,6 +23,10 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 `create_runtime` 是唯一运行时装配函数，新建与恢复使用同一构造路径；项目模型配置读取传入的 root，不隐式读取其他工作目录。可选渠道/MCP 组合位于 `forge/integrations.py`。旧 `forge.application.models` 保留协议导入兼容。
 
+模块边界以高内聚、低耦合为目标：`runner` 从 `state` 读取消息契约、从 `verification` 读取验证结果转换，不在运行时反向导入 `Conversation`；旧 helper 导入名保留兼容。会话恢复、分支和清空共用一处 Journal／权限／MCP／Checkpoint 绑定。评测配置归属校验由 `EvaluationService` 负责；查询显式接收 service/events/artifacts，恢复只接收 service；CLI 的无参通知命令使用固定映射。
+
+参考 [mini-SWE-agent 的直接执行链](https://mini-swe-agent.com/latest/)与 [Pi 的核心事件循环](https://github.com/earendil-works/pi/blob/main/packages/agent/README.md)，保留本项目已有的权限、预算、持久化和取消边界，不据代码删减宣称性能提升。
+
 `evals.runner` 同样使用 `HarnessSession`，通过共享配置解析与模型工厂选适配器，复用预算、权限、TaskPolicy、Journal 和关闭路径，不再直接创建 Conversation/Anthropic 客户端。默认采用原生 workspace-write；不可用即失败，full-access 必须显式选择。初始化中途失败时，API 也关闭已经创建的模型客户端和后端。
 
 夹具的 setup、public/hidden verifier 和 diff check 是评测器独立触发的命令，走同一已选择执行边界，不消耗 Agent 的模型/工具预算，受各自命令时限约束。隐藏测试在 Agent 回合结束后恢复，拒绝链接目标；不能把这描述成 partial OS 边界下的绝对保密保证。`EvalOutcome.passed` 才是最终验收结果，Agent 声称完成不等于成功。每次尝试保留 run_id 报告和 Journal/trajectory；latest 只是同一尝试的便捷视图，不应重复计数。取消也保存失败记录；缺少终态聚合用量时留 null。清理未知时拒绝成功并保留工作区，避免在活跃进程可能存在时删除它。
@@ -88,7 +92,7 @@ API 接受字符串或类型明确的 text/image blocks，CLI 的 @path 支持�
 
 Journal 是执行事实源；ATIF 和 SFT 都是离线投影。版本比较核对冻结配置与主机采集的 Docker 镜像/资源证据，缺失证据保留未知。公开测试任务隔离于训练数据；SFT 复用 Qwen 转换与 loss mask，独立检查来源、许可、划分、重叠、成功验收和本地 tokenizer。当前训练导出只完成接口，尚无真实训练数据集。
 
-日常工作区为 D:\learn_project\forgecode 的 main，只维护当前说明和任务。历史通过和旧授权不能证明当前能力。虚拟环境、npm依赖、沙盒构建和.local报告均可重建且不提交。
+日常工作区为 D:\projects\forgecode 的 main，只维护当前说明和任务。历史通过和旧授权不能证明当前能力。虚拟环境、npm依赖、沙盒构建和.local报告均可重建且不提交。
 
 开发时只跑新增行为、失败用例与相关模块，稳定后运行一次相关回归以及 contracts/quality，再推送并检查 CI。
 仅公共核心变化或未覆盖风险触发全量回归，不在 Windows、WSL 和 CI 默认重复全量；原生验收按阶段需求执行。

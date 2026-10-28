@@ -4,7 +4,7 @@ import json
 
 from benchmark.core.metrics import compare_specs, compute_metrics
 from benchmark.core.scheduler import EvaluationScheduler, emit
-from benchmark.core.spec import freeze_spec, INFRASTRUCTURE_ERRORS
+from benchmark.core.spec import freeze_spec, INFRASTRUCTURE_ERRORS, REFERENCES
 from forge.protocol import ContractError, METHODS, canonical_hash, validate
 from forge.engine.persistence import encoded, new_id, utc_now
 
@@ -30,9 +30,20 @@ class EvaluationService:
         row = self.store.connection.execute('SELECT s.id,s.hash FROM run_details d JOIN configuration_snapshots s ON s.id=d.configuration_id WHERE d.run_id=?', (run_id,)).fetchone()
         return {'snapshot_id': row['id'], 'sha256': row['hash']}
 
+    def configuration_issues(self, spec):
+        issues=[]
+        for group,key,_ in REFERENCES.values():
+            rows=self.store.connection.execute('SELECT profile_id,origin FROM evaluation_snapshot_origins WHERE snapshot_id=?',
+                (spec[group][key]['snapshot_id'],)).fetchall()
+            owned=[r for r in rows if r['profile_id']==self.service.profile_id]
+            if rows and not owned:
+                raise ContractError('Configuration belongs to another profile',kind='NOT_FOUND',code=-32010)
+            if owned and owned[0]['origin']=='imported_unverified' and not issues:
+                issues.append({'task_id':None,'kind':'unverified_configuration','message':'Imported configuration requires trusted source/environment reconciliation before execution.'})
+        return issues
+
     def compatibility(self, spec, values):
-        from forge.application.evaluation_client import configuration_issues
-        issues=configuration_issues(self.store,self.service.profile_id,spec)
+        issues=self.configuration_issues(spec)
         return issues+(self.executor.validate(spec,values) if self.executor else [
             {'task_id':None,'kind':'runner_unavailable','message':'Plan may be saved/exported; no compatible official executor is installed.'}])
 
@@ -66,8 +77,7 @@ class EvaluationService:
     def create_run(self, params):
         def create():
             spec, _, digest = freeze_spec(self.store, params['spec'])
-            from forge.application.evaluation_client import configuration_issues,REFERENCES
-            configuration_issues(self.store,self.service.profile_id,spec)
+            self.configuration_issues(spec)
             ticket = self.store.connection.execute('SELECT * FROM validation_tickets WHERE id=? AND profile_id=?',
                 (params['validation_ticket'], self.service.profile_id)).fetchone()
             if digest != params['spec_hash'] or not ticket or ticket['spec_hash'] != digest or ticket['expires_at'] <= utc_now() or ticket['consumed_run_id']:

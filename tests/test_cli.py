@@ -428,6 +428,44 @@ def test_context_command_does_not_call_model(
     assert conversation.prompts == []
 
 
+@pytest.mark.parametrize(('command', 'expected'), [
+    ('/task', 'task-current'),
+    ('/task history', 'task-saved [blocked]'),
+    ('/status', 'session-test'),
+    ('/history', 'session_started'),
+    ('/skills', 'release-check [project:.agents]'),
+    ('/mcp', 'example: ready'),
+    ('/permission', 'Mode: auto'),
+    ('/checkpoints', 'checkpoint-test'),
+])
+@pytest.mark.parametrize('padding', ['', '  '])
+def test_local_notice_commands_do_not_call_model(monkeypatch, command, expected, padding):
+    conversation = FakeConversation()
+    monkeypatch.setattr(cli_module, 'Conversation', lambda **_kwargs: conversation)
+
+    result = runner.invoke(app, input=f'{padding}{command}{padding}\n')
+
+    assert result.exit_code == 0, result.output
+    assert expected in result.output
+    assert conversation.prompts == []
+
+
+@pytest.mark.parametrize(('command', 'expected'), [
+    ('/task resume task-saved', 'Resumed task-saved'),
+    ('/skill release-check', 'Run the checklist.'),
+    ('/permission supervised', 'Permission mode set to supervised.'),
+])
+def test_notice_dispatch_preserves_commands_with_arguments(monkeypatch, command, expected):
+    conversation = FakeConversation()
+    monkeypatch.setattr(cli_module, 'Conversation', lambda **_kwargs: conversation)
+
+    result = runner.invoke(app, input=command + '\n')
+
+    assert result.exit_code == 0, result.output
+    assert expected in result.output
+    assert conversation.prompts == []
+
+
 def test_memory_commands_do_not_call_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

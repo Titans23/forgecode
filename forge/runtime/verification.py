@@ -1,10 +1,66 @@
-'''Shared classification for verification commands and their evidence quality.'''
+'''Verification evidence construction and shared command-quality classification.'''
 
 from __future__ import annotations
 
 import re
 import shlex
 from typing import Literal
+
+from forge.runtime.state import VerificationEvidence
+from forge.tool_types import ToolResult
+
+
+def verification_from_result(
+    result: ToolResult,
+    *,
+    workspace_revision: int | None = None,
+    environment_epoch: int | None = None,
+) -> VerificationEvidence | None:
+    '''Build evidence bound to the workspace state after verification ends.'''
+    metadata = result.metadata
+    if metadata.get('verification') is not True:
+        return None
+    try:
+        return VerificationEvidence(
+            command=str(metadata['command']),
+            cwd=str(metadata['cwd']),
+            exit_code=int(metadata['exit_code']),
+            duration_seconds=float(metadata['duration_seconds']),
+            timed_out=bool(metadata['timed_out']),
+            workspace_revision=(
+                workspace_revision
+                if workspace_revision is not None
+                else int(metadata['workspace_revision'])
+            ),
+            diagnostic=str(result.content)[-8_000:],
+            environment_epoch=(
+                environment_epoch
+                if environment_epoch is not None
+                else int(metadata.get('environment_epoch', 0))
+            ),
+            coverage=tuple(
+                str(item) for item in metadata.get('covers', ())
+                if str(item).strip()
+            ),
+            limitations=tuple(
+                str(item) for item in metadata.get('limitations', ())
+                if str(item).strip()
+            ),
+            stdin_sha256=str(metadata.get('stdin_sha256', '')),
+            evidence_valid=bool(metadata.get('evidence_valid', True)),
+            evidence_issues=tuple(str(item) for item in metadata.get('evidence_issues', ())),
+            check_signature=str(metadata.get('check_signature', '')),
+            requirement_ids=tuple(str(item) for item in metadata.get('requirement_ids', ())),
+            asserted_requirement_ids=tuple(str(item) for item in metadata.get('asserted_requirement_ids', ())),
+            verification_id=str(metadata.get('verification_id', '')),
+            output_checks=tuple(metadata.get('output_checks', ())),
+            supersedes=tuple(str(item) for item in metadata.get('supersedes', ())),
+            revision_reason=str(metadata.get('revision_reason', '')),
+            check_id=str(metadata.get('check_id', '')),
+            check_spec=dict(metadata.get('check_spec', {})),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 _NON_TASK_VERIFICATION = re.compile(

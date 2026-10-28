@@ -1,6 +1,6 @@
 # ForgeCode repository instructions
 
-Develop in D:/learn_project/forgecode on main. Preserve unrelated changes, credentials
+Develop in D:/projects/forgecode on main. Preserve unrelated changes, credentials
 and session data. Do not create another routine checkout.
 
 Use FastCtx read, grep and glob with absolute paths when available; otherwise

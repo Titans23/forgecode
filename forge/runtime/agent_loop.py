@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import aclosing, nullcontext
 from functools import cache
-import json
 import os
 import re
 from pathlib import Path
@@ -31,13 +30,18 @@ from forge.runtime.completion import (
     TaskPolicy,
 )
 from forge.runtime.state import (
+    ModelResponseError as ModelResponseError,
+    build_assistant_message as build_assistant_message,
+    build_tool_result_message as build_tool_result_message,
+    serialize_tool_result as serialize_tool_result,
     ConversationEvent,
     ToolExecutionCompleted,
     ToolExecutionStarted,
     TurnCompleted,
     ToolCall,
-    VerificationEvidence,
+    VerificationEvidence as VerificationEvidence,
 )
+from forge.runtime.verification import verification_from_result as verification_from_result
 from forge.runtime.turn_state import (
     TurnState,
     execution_status_for_result,
@@ -55,10 +59,6 @@ if TYPE_CHECKING:
     from forge.mcp.manager import MCPClientManager
     from forge.sessions.store import SessionJournal, SessionStore
     from forge.tasks.state import ActiveTask
-
-
-class ModelResponseError(RuntimeError):
-    '''Raised when a model response cannot continue the Agent Loop.'''
 
 
 @cache
@@ -952,6 +952,17 @@ class Conversation:
     def _resume_target(self, identifier: str):
         return self.session.resume_target(identifier, getattr(self.client, 'provider', ''))
 
+    def _bind_session(self, journal: SessionJournal) -> None:
+        self.session_journal = journal
+        self.permission_manager.bind_session(journal)
+        if self.mcp_manager is not None:
+            self.mcp_manager.bind(self.permission_manager, journal)
+        self.checkpoint_store = CheckpointStore.for_session(
+            self.task_manager.root,
+            journal.path,
+            journal.session_id,
+        )
+
     def session_resume(self, identifier: str) -> str:
         self._require_idle()
         state, journal = self._resume_target(identifier)
@@ -969,15 +980,7 @@ class Conversation:
             router_client = getattr(self.intent_router, 'client', None)
             if router_client is not None and hasattr(router_client, 'model'):
                 router_client.model = state.info.model
-        self.session_journal = journal
-        self.permission_manager.bind_session(journal)
-        if self.mcp_manager is not None:
-            self.mcp_manager.bind(self.permission_manager, journal)
-        self.checkpoint_store = CheckpointStore.for_session(
-            self.task_manager.root,
-            journal.path,
-            journal.session_id,
-        )
+        self._bind_session(journal)
         journal.record_resumed()
         warning = (
             f' Warning: {len(state.indeterminate_tools)} indeterminate '
@@ -1004,15 +1007,7 @@ class Conversation:
         )
         original_id = self.session_journal.session_id
         self.inbox.restore(())
-        self.session_journal = journal
-        self.permission_manager.bind_session(journal)
-        if self.mcp_manager is not None:
-            self.mcp_manager.bind(self.permission_manager, journal)
-        self.checkpoint_store = CheckpointStore.for_session(
-            self.task_manager.root,
-            journal.path,
-            journal.session_id,
-        )
+        self._bind_session(journal)
         return (
             f'Branched session {original_id} -> {journal.session_id}.'
         )
@@ -1032,15 +1027,7 @@ class Conversation:
             model=model, provider=str(getattr(self.client, 'provider', '')),
             deferred=getattr(self, 'defer_new_sessions', False),
         )
-        self.session_journal = journal
-        self.permission_manager.bind_session(journal)
-        if self.mcp_manager is not None:
-            self.mcp_manager.bind(self.permission_manager, journal)
-        self.checkpoint_store = CheckpointStore.for_session(
-            self.task_manager.root,
-            journal.path,
-            journal.session_id,
-        )
+        self._bind_session(journal)
         self.messages.clear()
         self.task_manager.restore(None)
         self._last_task_context = ''
@@ -1048,131 +1035,6 @@ class Conversation:
             f'Cleared conversation. Previous session: {previous_id}; '
             f'new session: {journal.session_id}.'
         )
-
-
-def build_assistant_message(
-    text: str,
-    tool_calls: list[ToolCall],
-) -> dict[str, Any]:
-    '''Build model-visible assistant history from a completed response.'''
-    if not tool_calls:
-        return {'role': 'assistant', 'content': text}
-
-    content: list[dict[str, Any]] = []
-    if text:
-        content.append({'type': 'text', 'text': text})
-    content.extend(
-        {
-            'type': 'tool_use',
-            'id': call.id,
-            'name': call.name,
-            'input': call.arguments,
-        }
-        for call in sorted(tool_calls, key=lambda call: call.index)
-    )
-    return {'role': 'assistant', 'content': content}
-
-
-def build_tool_result_message(
-    tool_results: list[tuple[ToolCall, ToolResult]],
-) -> dict[str, Any]:
-    '''Build one user message containing ordered Anthropic tool results.'''
-    content: list[dict[str, Any]] = []
-    for tool_call, result in tool_results:
-        blocks = result.metadata.get('content_blocks') or ([result.metadata['image']] if 'image' in result.metadata else [])
-        if blocks:
-            from dataclasses import replace
-            from forge.messages import normalize_input
-            description = replace(result, metadata={k: v for k, v in result.metadata.items() if k not in {'image', 'content_blocks'}})
-            body = [{'type': 'text', 'text': serialize_tool_result(description)}, *normalize_input(blocks)]
-        else:
-            body = serialize_tool_result(result)
-        content.append(
-            {
-                'type': 'tool_result',
-                'tool_use_id': tool_call.id,
-                'content': body,
-                'is_error': not result.success,
-            }
-        )
-    return {'role': 'user', 'content': content}
-
-
-def serialize_tool_result(result: ToolResult) -> str:
-    '''Serialize the stable ToolResult contract for model consumption.'''
-    error = None
-    if result.error is not None:
-        error = {
-            'code': result.error.code,
-            'message': result.error.message,
-            'details': result.error.details,
-        }
-    return json.dumps(
-        {
-            'success': result.success,
-            'summary': result.summary,
-            'content': result.content,
-            'error': error,
-            'metadata': result.metadata,
-        },
-        ensure_ascii=False,
-        default=str,
-    )
-
-
-def verification_from_result(
-    result: ToolResult,
-    *,
-    workspace_revision: int | None = None,
-    environment_epoch: int | None = None,
-) -> VerificationEvidence | None:
-    '''Build evidence bound to the workspace state after verification ends.'''
-    metadata = result.metadata
-    if metadata.get('verification') is not True:
-        return None
-    try:
-        return VerificationEvidence(
-            command=str(metadata['command']),
-            cwd=str(metadata['cwd']),
-            exit_code=int(metadata['exit_code']),
-            duration_seconds=float(metadata['duration_seconds']),
-            timed_out=bool(metadata['timed_out']),
-            workspace_revision=(
-                workspace_revision
-                if workspace_revision is not None
-                else int(metadata['workspace_revision'])
-            ),
-            diagnostic=str(result.content)[-8_000:],
-            environment_epoch=(
-                environment_epoch
-                if environment_epoch is not None
-                else int(metadata.get('environment_epoch', 0))
-            ),
-            coverage=tuple(
-                str(item) for item in metadata.get('covers', ())
-                if str(item).strip()
-            ),
-            limitations=tuple(
-                str(item) for item in metadata.get('limitations', ())
-                if str(item).strip()
-            ),
-            stdin_sha256=str(metadata.get('stdin_sha256', '')),
-            evidence_valid=bool(metadata.get('evidence_valid', True)),
-            evidence_issues=tuple(str(item) for item in metadata.get('evidence_issues', ())),
-            check_signature=str(metadata.get('check_signature', '')),
-            requirement_ids=tuple(str(item) for item in metadata.get('requirement_ids', ())),
-            asserted_requirement_ids=tuple(str(item) for item in metadata.get('asserted_requirement_ids', ())),
-            verification_id=str(metadata.get('verification_id', '')),
-            output_checks=tuple(metadata.get('output_checks', ())),
-            supersedes=tuple(str(item) for item in metadata.get('supersedes', ())),
-            revision_reason=str(metadata.get('revision_reason', '')),
-            check_id=str(metadata.get('check_id', '')),
-            check_spec=dict(metadata.get('check_spec', {})),
-        )
-    except (KeyError, TypeError, ValueError):
-        return None
-
-
 
 
 def optional_int(value: object) -> int | None:

@@ -1,13 +1,18 @@
-'''Runtime value objects shared across the Agent Loop and terminal UI.'''
+'''Runtime events, results and model-visible message construction.'''
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
+import json
 from typing import Any, Literal
 from uuid import uuid4
 
 from forge.tool_types import ToolResult
 from forge.runtime.delivery import CompletionReport
+
+
+class ModelResponseError(RuntimeError):
+    '''Raised when a model response cannot continue the Agent Loop.'''
 
 
 @dataclass(frozen=True, slots=True)
@@ -302,3 +307,73 @@ type ConversationEvent = (
     | CompletionBlocked
     | TurnCompleted
 )
+
+
+def build_assistant_message(
+    text: str,
+    tool_calls: list[ToolCall],
+) -> dict[str, Any]:
+    '''Build model-visible assistant history from a completed response.'''
+    if not tool_calls:
+        return {'role': 'assistant', 'content': text}
+
+    content: list[dict[str, Any]] = []
+    if text:
+        content.append({'type': 'text', 'text': text})
+    content.extend(
+        {
+            'type': 'tool_use',
+            'id': call.id,
+            'name': call.name,
+            'input': call.arguments,
+        }
+        for call in sorted(tool_calls, key=lambda call: call.index)
+    )
+    return {'role': 'assistant', 'content': content}
+
+
+def build_tool_result_message(
+    tool_results: list[tuple[ToolCall, ToolResult]],
+) -> dict[str, Any]:
+    '''Build one user message containing ordered Anthropic tool results.'''
+    from forge.messages import normalize_input
+
+    content: list[dict[str, Any]] = []
+    for tool_call, result in tool_results:
+        blocks = result.metadata.get('content_blocks') or ([result.metadata['image']] if 'image' in result.metadata else [])
+        if blocks:
+            description = replace(result, metadata={k: v for k, v in result.metadata.items() if k not in {'image', 'content_blocks'}})
+            body = [{'type': 'text', 'text': serialize_tool_result(description)}, *normalize_input(blocks)]
+        else:
+            body = serialize_tool_result(result)
+        content.append(
+            {
+                'type': 'tool_result',
+                'tool_use_id': tool_call.id,
+                'content': body,
+                'is_error': not result.success,
+            }
+        )
+    return {'role': 'user', 'content': content}
+
+
+def serialize_tool_result(result: ToolResult) -> str:
+    '''Serialize the stable ToolResult contract for model consumption.'''
+    error = None
+    if result.error is not None:
+        error = {
+            'code': result.error.code,
+            'message': result.error.message,
+            'details': result.error.details,
+        }
+    return json.dumps(
+        {
+            'success': result.success,
+            'summary': result.summary,
+            'content': result.content,
+            'error': error,
+            'metadata': result.metadata,
+        },
+        ensure_ascii=False,
+        default=str,
+    )

@@ -7,11 +7,12 @@ from pathlib import Path
 import pytest
 
 from benchmark.adapters.harbor import HarborExecutor, export_runspec
-from benchmark.core.spec import freeze_spec
+from benchmark.core.spec import REFERENCES, freeze_spec
+from forge.application.evaluations import EvaluationService
 from forge.application.models import ContractError, canonical_hash, validate
 from forge.application.services import ApplicationServices
 from forge.engine.methods import EngineMethods
-from forge.engine.persistence import encoded, new_id
+from forge.engine.persistence import Store, encoded, new_id
 from forge.engine.test_profile import MemoryCredentials
 from forge.engine.rpc import RpcServer
 from test_evaluations import make_evaluation, create, start, claim_next, finish, grade_fixture
@@ -21,6 +22,30 @@ def draft(methods, run, **changes):
     template=methods.evaluation_client.template({'template_id':run['run_id']})
     choices={**template['defaults'],**changes}
     return methods.evaluation_client.draft({'client_action_id':new_id('act'),'template_id':run['run_id'],'choices':choices})
+
+
+def test_service_checks_all_snapshot_owners_without_client_composition(tmp_path):
+    with Store(tmp_path/'data') as store:
+        service=ApplicationServices(store,profile_id='owner',credentials=MemoryCredentials())
+        evaluations=EvaluationService(service)
+        spec={}
+        references=[]
+        with store.transaction():
+            for name,(group,key,_) in REFERENCES.items():
+                value={'fixture':name}
+                reference=store._configuration_snapshot(value,canonical_hash(value))
+                spec.setdefault(group,{})[key]=reference
+                references.append(reference['snapshot_id'])
+            store.connection.execute('INSERT INTO evaluation_snapshot_origins VALUES(?,?,?)',
+                (references[0],'owner','imported_unverified'))
+        assert [issue['kind'] for issue in evaluations.configuration_issues(spec)]==['unverified_configuration']
+        with store.transaction():
+            store.connection.execute('INSERT INTO evaluation_snapshot_origins VALUES(?,?,?)',
+                (references[-1],'another-profile','trusted_configuration'))
+        with pytest.raises(ContractError) as error:
+            evaluations.configuration_issues(spec)
+        assert error.value.kind=='NOT_FOUND'
+        assert store.connection.execute('SELECT COUNT(*) FROM runs').fetchone()[0]==0
 
 
 def test_wizard_configurations_freeze_new_runs_without_mutating_original_or_grading(tmp_path):

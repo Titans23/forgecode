@@ -190,6 +190,52 @@ def test_resume_rejects_session_without_conversation_history(
     assert conversation.messages == list(store.load(source_id).messages)
 
 
+@pytest.mark.parametrize('operation', ['resume', 'branch', 'clear'])
+def test_session_switch_keeps_grants_and_new_records_session_scoped(tmp_path, operation):
+    from forge.mcp.manager import MCPClientManager
+    from forge.permissions.policy import PermissionManager, PermissionRequest, PermissionRule
+    from forge.tools.base import ToolRegistry
+
+    root = tmp_path / 'project'
+    root.mkdir()
+    store, source_id = completed_session(root, tmp_path / 'data')
+    conversation = conversation_for(store, source_id)
+    source_journal = conversation.session_journal
+    source_checkpoints = conversation.checkpoint_store
+    checkpoint = source_checkpoints.begin()
+    permissions = PermissionManager(root, journal=source_journal, user_path=tmp_path / 'permissions.json')
+    conversation.permission_manager = permissions
+    conversation.mcp_manager = MCPClientManager(root, ToolRegistry(), {},
+        permission_manager=permissions, journal=source_journal)
+    request = PermissionRequest('delete_file', 'file.delete', 'high', targets=('owned.txt',))
+    permissions.session_rules.append(PermissionRule('allow', 'file.delete', 'owned.txt'))
+    assert asyncio.run(permissions.authorize(request)).action == 'allow'
+
+    if operation == 'resume':
+        target = store.create(model='test-model')
+        target.record_user_message({'role': 'user', 'content': 'Target session'}, None)
+        conversation.session_resume(target.session_id)
+    elif operation == 'branch':
+        conversation.session_branch('new branch')
+    else:
+        conversation.session_clear()
+
+    journal = conversation.session_journal
+    source_bytes = source_journal.path.read_bytes()
+    assert journal.session_id != source_id
+    assert asyncio.run(permissions.authorize(request)).action == 'deny'
+    assert permissions.journal is journal
+    assert conversation.mcp_manager.journal is journal
+    assert conversation.mcp_manager.permission_manager is permissions
+    queued = conversation.queue_input('Only the new session receives this', follow_up=True)
+    assert store.load(journal.session_id).pending_inputs[0]['id'] == queued
+    assert conversation.checkpoint_store.list() == ()
+    new_checkpoint = conversation.checkpoint_store.begin()
+    assert conversation.checkpoint_store.list() == (new_checkpoint,)
+    assert source_checkpoints.list() == (checkpoint,)
+    assert source_journal.path.read_bytes() == source_bytes
+
+
 def test_rewind_restores_conversation_and_code(tmp_path: Path) -> None:
     root = tmp_path / 'project'
     root.mkdir()

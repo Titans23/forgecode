@@ -69,6 +69,32 @@ def test_metadata_capture_never_returns_fake_tool_output(tmp_path):
     finally: methods.store.close()
 
 
+@pytest.mark.parametrize('change',['missing','changed','foreign_profile'])
+def test_cached_safe_output_preserves_artifact_integrity_and_profile_checks(tmp_path,change):
+    methods,turn,execution,_=observed(tmp_path)
+    try:
+        query={'turn_id':turn,'execution_id':execution}
+        result=methods.observations.output(query)
+        artifact_id=result['artifact_id']
+        if change=='foreign_profile':
+            with methods.store.transaction():
+                methods.store.connection.execute('UPDATE artifact_profiles SET profile_id=? WHERE artifact_id=?',
+                    ('another-profile',artifact_id))
+            with pytest.raises(ContractError) as error:
+                methods.observations.output(query)
+            assert error.value.kind=='NOT_FOUND'
+        else:
+            row=methods.store.connection.execute('SELECT relative_storage_key FROM artifacts WHERE id=?',(artifact_id,)).fetchone()
+            path=methods.store.data_dir/row[0]
+            if change=='missing': path.unlink()
+            else: path.write_bytes(b'{"stdout":"changed"}')
+            cached=methods.observations.output(query)
+            assert cached['state']=='missing' and cached['artifact_id'] is None
+            assert cached['reason']=='stream_artifact_missing_or_changed'
+        assert methods.store.connection.execute('SELECT COUNT(*) FROM tool_output_views').fetchone()[0]==1
+    finally: methods.store.close()
+
+
 @pytest.mark.parametrize('change',['missing','changed'])
 def test_actual_missing_or_changed_debug_capture_is_explicit_even_after_cached_view(tmp_path,change):
     methods,turn,execution,_=observed(tmp_path)
