@@ -21,14 +21,12 @@ class JournalRecorder:
         self.tools={}
         self.calls={}
         self.last_tools={}
-        self.versions={}
         self.environment_epochs={}
         self.verifications={}
         self.context_version=0
         self.contexts={}
         self.evidence_before={}
-        self.evidence_facts={}
-        self.invalidated=set()
+        self.current_evidence={}
         from forge.observability.export_queue import ObservationOptions
         self.options=getattr(journal,'observation_options',ObservationOptions())
         self.secrets=getattr(journal,'observation_secrets',())
@@ -57,10 +55,8 @@ class JournalRecorder:
             yield
 
     def context_attributes(self, *, reason, before=None, after=None, messages=(), estimator='not-estimated-v1'):
-        branch=active.get().branch
         self.context_version+=1
         version=self.context_version
-        self.versions[branch.span_id]=version
         from forge.observability.context_snapshots import describe_context
         context=describe_context(messages)
         return {'context_version':version,'reason':reason,'before_tokens':before,'after_tokens':after,
@@ -140,6 +136,8 @@ class JournalRecorder:
                     'retryable':attributes['outcome']=='retrying','usage':totals},scope=request['scope'])
             # Retain identities for tool linkage; release all chunk/input state.
             self.requests.pop(attributes['request_id'],None)
+            if attributes['outcome'] != 'retrying':
+                self.inputs.pop(invocation,None)
 
     def _flush_chunk(self, request):
         if request['bytes']:
@@ -243,6 +241,7 @@ class JournalRecorder:
         self.capture_debug('compaction-after-'+str(attributes['context_version']),messages)
         self.emit('compaction.finished' if success else 'compaction.failed',attributes if success else
             {**attributes,'error_kind':type(error).__name__ if error else 'summary_not_applied'},scope=scope)
+        self.contexts.pop(scope.span_id)
 
     async def before_verification(self):
         if self.evidence_probe:
@@ -270,9 +269,11 @@ class JournalRecorder:
                 'coverage':[str(v)[:256] for v in evidence.coverage[:32]],'workspace_observation':observation,
                 'metadata_truncated':len(evidence.requirement_ids)>32 or len(evidence.coverage)>32,
                 'stable_during_command':bool(before and observation and before['complete'] and observation['complete'] and before['sha256']==observation['sha256'])}
-            self.evidence_facts[attributes['evidence_id']]=(evidence,attributes)
             self.emit('verification.finished',{**attributes,'native_evidence_id':evidence.verification_id[:128],'pending_evidence_id':pending_id,'evidence_metadata':facts},
                 scope=self.verifications.get(scope.execution_id,scope.child()))
+            self.current_evidence[attributes['evidence_id']]=evidence
+            self.evidence_before.pop(scope.execution_id,None)
+            self.verifications.pop(scope.execution_id,None)
 
     def invalidate_verification(self, evidence,reason='previous_turn_is_not_current_proof'):
         try:
@@ -288,12 +289,10 @@ class JournalRecorder:
             'native_evidence_id':evidence.verification_id},scope=scope)
 
     def evidence_state(self,revision,epoch):
-        for evidence_id,(evidence,_) in self.evidence_facts.items():
-            if evidence_id in self.invalidated:
-                continue
+        for evidence_id,evidence in tuple(self.current_evidence.items()):
             if evidence.workspace_revision!=revision or evidence.environment_epoch!=epoch:
                 self.invalidate_verification(evidence,'environment_epoch_changed' if evidence.environment_epoch!=epoch else 'workspace_revision_changed')
-                self.invalidated.add(evidence_id)
+                del self.current_evidence[evidence_id]
 
     def completion(self, *, accepted, reason, revision, evidence_revision, repairs_remaining=0,report=None):
         if report is not None:
@@ -303,7 +302,7 @@ class JournalRecorder:
             report['metadata_truncated']=any(v>32 for v in counts.values())
         self.emit('completion.accepted' if accepted else 'completion.rejected',{'reason':reason[:1024] or 'caller_acceptance',
             'workspace_revision':revision,'evidence_revision':evidence_revision,'repairs_remaining':repairs_remaining,
-            'evidence_ids':[key for key in self.evidence_facts if key not in self.invalidated][-100:],
+            'evidence_ids':list(self.current_evidence)[-100:],
             'completion_report':report})
 
     def tool_requested(self, state):

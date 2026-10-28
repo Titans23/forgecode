@@ -109,6 +109,50 @@ def test_retry_attempts_share_invocation_keep_usage_quality_and_parent_context(t
     assert ends[0]['attributes']['usage']=={'input_tokens':3,'output_tokens':1}
     assert ends[1]['attributes']['usage'] is None
     assert [e['attributes']['size_bytes'] for e in events if e['event_type']=='model.request.chunk']==[7]
+    assert recorder.requests == {} and recorder.inputs == {}
+
+
+def test_retired_evidence_lives_in_journal_not_duplicate_recorder_state(tmp_path, monkeypatch):
+    from forge.runtime.state import VerificationEvidence
+    from uuid import uuid4
+
+    journal=SessionJournal(tmp_path/'evidence.jsonl',session_id='session-'+'e'*24,project_root=tmp_path)
+    journal.append('session_started',{})
+    recorder=JournalRecorder(journal)
+    original=journal.append
+    async def probe():
+        return {'complete':True, 'sha256':'a'*64}
+    recorder.evidence_probe=probe
+    def fail(kind,payload):
+        if kind=='observation' and payload['event']['event_type']=='verification.invalidated':
+            raise OSError('invalidation not committed')
+        return original(kind,payload)
+
+    async def run():
+        with recorder.turn():
+            call=ToolCall(0,'verify-1','verify',{'command':'python check.py'})
+            evidence=VerificationEvidence('python check.py','.',0,.1,False,0,verification_id=str(uuid4()))
+            with recorder.tool(call):
+                recorder.tool_started(call)
+                await recorder.before_verification()
+                await recorder.verification(evidence,call.id)
+            assert not recorder.verifications and not recorder.evidence_before
+            assert len(recorder.current_evidence)==1
+            monkeypatch.setattr(journal,'append',fail)
+            with pytest.raises(OSError,match='not committed'):
+                recorder.evidence_state(1,0)
+            assert len(recorder.current_evidence)==1
+            monkeypatch.setattr(journal,'append',original)
+            recorder.evidence_state(1,0)
+            recorder.evidence_state(1,0)
+            assert not recorder.current_evidence
+            recorder.completion(accepted=False,reason='stale evidence',revision=1,evidence_revision=0)
+    asyncio.run(run())
+    events=observations(journal)
+    assert [e['event_type'] for e in events].count('verification.finished')==1
+    assert [e['event_type'] for e in events].count('verification.invalidated')==1
+    assert events[-1]['attributes']['evidence_ids']==[]
+    assert next(e for e in events if e['event_type']=='verification.finished')['attributes']['evidence_metadata']['stable_during_command']
 
 
 def test_failed_observation_intent_prevents_real_backend_side_effect(tmp_path,monkeypatch):
@@ -220,6 +264,7 @@ def test_real_context_compaction_links_summary_request_and_terminal_observation(
     asyncio.run(run())
     events=observations(journal)
     start=next(e for e in events if e['event_type']=='compaction.started')
+    assert recorder.contexts == {} and recorder.inputs == {}
     end=next(e for e in events if e['event_type']==('compaction.finished' if valid else 'compaction.failed'))
     assert start['span_id']==end['span_id']
     request=next(e for e in events if e['event_type']=='model.request.started')

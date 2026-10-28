@@ -25,6 +25,8 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 禁用可信扩展时，工厂不导入 MCP SDK 或读取 MCP 配置；启用路径仍使用原有权限与关闭流程。工具只通过已选择的 backend 或 registry 执行，不保留无调用方的 operation 注入路径。
 
+Registry 的无副作用预校验委托给具体工具：内置工具使用 Pydantic，MCP 使用远端 JSON Schema；执行入口仍再次校验。MCP 不再由占位输入模型决定合法参数，授权和审计继续使用实际调用参数。
+
 模块边界以高内聚、低耦合为目标：`runner` 从 `state` 读取消息契约、从 `verification` 读取验证结果转换，不在运行时反向导入 `Conversation`；旧 helper 导入名保留兼容。会话恢复、分支和清空共用一处 Journal／权限／MCP／Checkpoint 绑定。评测配置归属校验由 `EvaluationService` 负责；查询显式接收 service/events/artifacts，恢复只接收 service；CLI 的无参通知命令使用固定映射。
 
 `application/sessions.py` 统一会话操作、消息和快照视图，事件传输层复用其返回结构；安全工具输出属于 `ObservationViews` 的查询方法。独立模块用于真实边界：SessionInbox 负责输入状态，Journal 负责持久化，Engine 负责 RPC 受理与恢复，不能以目录大小代替职责判断。仅依赖开发夹具的 RPC 演示位于 `scripts/harness_rpc_demo.py`，不再作为 `forge` 运行包的一部分。
@@ -50,6 +52,8 @@ Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程
 | 模型客户端和扩展连接 | Conversation 的幂等 runtime_close |
 | 文件/进程后端 | 创建它的会话或 ApplicationServices；Explore 明确借用，不关闭父后端 |
 | 执行事实 | fsync Journal；SQLite 是受理/调度状态及可重建的事实投影 |
+
+观测记录器维护运行时关联和当前证据。请求终结后释放输入关联（重试保留），压缩与验证终态写入成功后释放临时数据；证据失效事件提交成功后移除当前证据，不再同时维护历史证据副本与失效集合。历史和恢复依据仍来自 Journal；Trace／工具关联继续供其消费者读取。
 
 `WorkingState` 只维护模型提示需要的路径、行覆盖范围和近期失败，不存工具原文、结果缓存或未使用的重放／去重决策。读取缓存仅由 `ToolExecutor` 按文件指纹管理；历史消息中的旧缓存元数据仍可读取。任务上下文在请求时由 TaskManager 直接生成，不保存只写不读的副本。
 

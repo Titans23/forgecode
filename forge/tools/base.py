@@ -220,6 +220,14 @@ class Tool(ABC, Generic[InputT]):
         '''Return arguments safe to persist in execution audit events.'''
         return dict(arguments)
 
+    def validate(self, arguments: Mapping[str, Any]) -> ToolResult | None:
+        '''Validate without effects using this tool's actual input contract.'''
+        try:
+            self.input_model.model_validate(dict(arguments))
+        except ValidationError as error:
+            return _invalid_arguments_result(self.name, self.input_model, arguments, error)
+        return None
+
     async def run(self, arguments: Mapping[str, Any]) -> ToolResult:
         '''Validate arguments and execute without leaking exceptions.'''
         try:
@@ -356,16 +364,7 @@ class ToolRegistry:
                 f'Unknown tool: {name}',
                 details={'available_tools': list(self._tools)},
             )
-        try:
-            tool.input_model.model_validate(dict(arguments))
-        except ValidationError as error:
-            return _invalid_arguments_result(
-                name,
-                tool.input_model,
-                arguments,
-                error,
-            )
-        return None
+        return tool.validate(arguments)
 
 
 ToolEffect = Literal['read_only', 'workspace_write', 'process']

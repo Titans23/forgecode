@@ -291,9 +291,9 @@
   "architecture_improvement": {
     "modularity_cleanup": {
       "status": "implemented_offline_verified",
-      "scope": ["durable_display_message_sequence_and_quota", "transactional_message_event_append", "explicit_evaluation_client_and_annotation_dependencies", "retain_journal_inbox_workspace_lock_and_permission_roles"],
+      "scope": ["recorder_retains_current_evidence_only", "release_committed_request_compaction_verification_temporaries", "remove_unused_branch_version_map", "tool_owned_preflight_validation_for_builtin_and_mcp", "retain_event_projection_recovery_permission_and_extension_boundaries"],
       "preserved": ["Python Harness and CLI", "released helper imports", "permission budget persistence cancellation and data isolation"],
-      "verification": "171 related regression tests passed in 142 seconds: sessions, application, workspace views, recovery, bound approvals, service lifecycle, evaluation client, failure annotations and bundles. New behavior tests cover multiple message writers, event rollback and persisted count/Unicode/NUL quotas. Contracts, all seven quality checks and repository audit passed. Reports: .local/implementation/session-application-*. CI, native sandbox acceptance and live model performance remain separately scoped."
+      "verification": "262 related regression tests passed in 287 seconds: MCP, tools, hooks, channels, skills, permissions, shared budgets, observations, recovery and cancellation. Tests cover remote-schema preflight without remote effects, retry/summary trace linkage, durable evidence retention on failed invalidation and no duplicate invalidation. Contracts, all seven quality checks and repository audit passed. Reports: .local/implementation/remaining-*. Prior tools and sessions/application commits passed CI runs 40646299771 and 40647385357. Current CI, native sandbox acceptance and live model performance remain separately scoped."
     },
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",

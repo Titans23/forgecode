@@ -23,10 +23,6 @@ MAX_MCP_RESULT_CHARACTERS = 1_000_000
 _NAME_CHARACTER = re.compile(r'[^A-Za-z0-9_-]+')
 
 
-class _UnusedInput(ToolInput):
-    pass
-
-
 def mcp_tool_name(server_name: str, remote_name: str) -> str:
     '''Build a provider-safe, collision-resistant MCP tool name.'''
     server = _NAME_CHARACTER.sub('_', server_name).strip('_') or 'server'
@@ -34,10 +30,10 @@ def mcp_tool_name(server_name: str, remote_name: str) -> str:
     return f'mcp__{server[:20]}__{tool[:36]}'
 
 
-class MCPToolAdapter(Tool[_UnusedInput]):
+class MCPToolAdapter(Tool[ToolInput]):
     '''Expose one remote MCP tool through the ordinary ToolRegistry.'''
 
-    input_model = _UnusedInput
+    input_model = ToolInput
     effect = 'process'
 
     def __init__(
@@ -136,7 +132,7 @@ class MCPToolAdapter(Tool[_UnusedInput]):
             'argument_names': sorted(str(key) for key in arguments),
         }
 
-    async def run(self, arguments: Mapping[str, Any]) -> ToolResult:
+    def validate(self, arguments: Mapping[str, Any]) -> ToolResult | None:
         try:
             self._validator.validate(dict(arguments))
         except ValidationError as error:
@@ -148,6 +144,12 @@ class MCPToolAdapter(Tool[_UnusedInput]):
                     'schema_path': list(error.absolute_schema_path),
                 },
             )
+        return None
+
+    async def run(self, arguments: Mapping[str, Any]) -> ToolResult:
+        error = self.validate(arguments)
+        if error is not None:
+            return error
         return await self.manager.call_tool(
             self.server_name,
             self.remote_name,
@@ -155,7 +157,7 @@ class MCPToolAdapter(Tool[_UnusedInput]):
             exposed_name=self.name,
         )
 
-    async def execute(self, arguments: _UnusedInput) -> ToolResult:
+    async def execute(self, arguments: ToolInput) -> ToolResult:
         raise AssertionError('MCPToolAdapter.run performs dynamic validation.')
 
 

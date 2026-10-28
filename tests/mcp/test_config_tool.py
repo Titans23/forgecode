@@ -22,6 +22,30 @@ class FakeManager:
         return ToolResult.ok('called')
 
 
+def test_registry_preflight_uses_remote_schema_without_calling_mcp(tmp_path):
+    from forge.tools.base import ToolRegistry
+    calls=[]
+    class Manager(FakeManager):
+        async def call_tool(self, *args, **kwargs):
+            calls.append(args)
+            return await super().call_tool(*args, **kwargs)
+    tool=MCPToolAdapter(tmp_path,manager=Manager(),server_name='test',
+        remote_tool=types.Tool(name='lookup',inputSchema={'type':'object',
+            'properties':{'count':{'type':'integer','minimum':1}},'required':['count'],
+            'additionalProperties':False}),policy='read')
+    registry=ToolRegistry([tool])
+    assert registry.validate(tool.name,{'count':2}) is None
+    assert calls==[]
+    for arguments in ({}, {'count':0}, {'count':'two'}, {'count':2,'extra':True}):
+        preflight=registry.validate(tool.name,arguments)
+        executed=asyncio.run(registry.execute(tool.name,arguments))
+        assert preflight.error.code=='invalid_arguments'
+        assert executed==preflight
+    assert calls==[]
+    assert asyncio.run(registry.execute(tool.name,{'count':2})).success
+    assert len(calls)==1 and calls[0][2]=={'count':2}
+
+
 def test_mcp_configuration_merges_project_over_user(
     tmp_path: Path,
     monkeypatch,
