@@ -25,6 +25,12 @@ Aider feedback plugin for SWE-bench or Terminal-Bench.
 
 ## Frozen public benchmark runs
 
+Use the [direct official-image workflow](../README.md#terminal-bench-20直接使用官方镜像)
+for Terminal-Bench runs. Do not pass `--prepare-only`, `--prepared-images` or
+`--force-build` unless the user explicitly requests that mode. The default
+installs ForgeCode inside each official task container without creating warmup
+images. The Aider-specific build examples below are not this workflow.
+
 Terminal-Bench 2.0 and SWE-bench Verified use Harbor **0.18.0** on Linux/WSL
 with Docker. Choose exactly one scope: repeated `--task` IDs, `--n-tasks N`,
 or `--all`. There is no implicit model or task subset. Defaults are concurrency

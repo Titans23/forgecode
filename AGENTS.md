@@ -19,6 +19,10 @@ goal automatically restart unbounded sandbox work unless the user reprioritizes.
 Keep Docker out of ordinary installation/execution. Preserve current permission,
 budget and cleanup boundaries; never relabel partial isolation as strict.
 
+For public benchmark evaluations, follow benchmark/README.md: use official task
+images directly. Do not use --prepare-only, --prepared-images or --force-build,
+or build ForgeCode warmup images, unless the user explicitly requests that mode.
+
 Prepare development dependencies with uv sync --locked --all-extras --group dev,
 npm ci --ignore-scripts, and uv run --no-sync python scripts/build_bridge.py.
 Run checks appropriate to the change. Add behavior tests for code changes;
