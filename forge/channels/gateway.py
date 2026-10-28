@@ -210,7 +210,7 @@ ProgressReporter = Callable[[str], None]
 
 
 class ChannelGateway:
-    '''Route allowed channel messages into isolated Conversation runtimes.'''
+    '''Route allowed messages; each runtime owns its Journal persistence.'''
 
     def __init__(
         self,
@@ -315,9 +315,6 @@ class ChannelGateway:
             result_text = ''
             try:
                 async for event in runtime.stream(message.text):
-                    record = getattr(runtime, 'record_session_event', None)
-                    if record is not None:
-                        record(event)
                     if isinstance(event, ModelTextDelta):
                         response_parts.append(event.text)
                     elif isinstance(event, ModelCallStarted):
@@ -364,9 +361,6 @@ class ChannelGateway:
                             f'changed_paths={_log_preview(event.result.changed_paths)}'
                         )
             except Exception as error:
-                recorder = getattr(runtime, 'record_session_error', None)
-                if recorder is not None:
-                    recorder(error)
                 result_text = (
                     'ForgeCode failed to process this request: '
                     f'{type(error).__name__}'

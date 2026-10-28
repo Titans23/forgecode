@@ -201,7 +201,6 @@ class TurnRunner:
                 self.tracker.carry_existing_changes(previous.workspace_paths)
         c.working_state = WorkingState()
         c._last_repository_context = c._repository_context(prompt)
-        c._last_task_context = c.task_manager.system_suffix()
         self._commit_messages()
 
     def _check_budget(self) -> None:
@@ -480,7 +479,6 @@ class TurnRunner:
                                 'user instructions; unchanged requirements still apply):\n' + directive)
             if c.task_manager.active is not None:
                 c.task_manager.continue_active(directive)
-            c._last_task_context = c.task_manager.system_suffix()
             self._commit_messages()
 
     async def _batch(self, calls: list[ToolCall]):
@@ -584,7 +582,7 @@ class TurnRunner:
                     ))
                     c._queue_hook_context(hook)
                 # WorkingState is evidence for context only, never a preflight gate.
-                c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision, call.id)
+                c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision)
                 yield ToolExecutionCompleted(effective, outcome.result)
                 if (outcome.record.status == 'cancelled' and outcome.result.error
                         and outcome.result.error.code == 'execution_cancelled'):

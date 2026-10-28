@@ -30,7 +30,6 @@ ScopeChecker = Callable[[ToolCall], ToolResult | None]
 PathResolver = Callable[[ToolCall], tuple[str, ...]]
 HookContextSink = Callable[[HookOutcome], None]
 ResultTransformer = Callable[[ToolResult], Awaitable[ToolResult]]
-Operation = Callable[[ToolCall], Awaitable[ToolResult]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +75,6 @@ class ToolExecutor:
         *,
         checkpoint_id: str | None = None,
         scope_checker: ScopeChecker | None = None,
-        operation: Operation | None = None,
         result_transformer: ResultTransformer | None = None,
     ) -> ExecutionOutcome:
         from forge.observability.events import current
@@ -84,7 +82,7 @@ class ToolExecutor:
         recorder=current()
         with recorder.tool(call) if recorder else nullcontext():
             return await self._execute(call,checkpoint_id=checkpoint_id,scope_checker=scope_checker,
-                                       operation=operation,result_transformer=result_transformer)
+                                       result_transformer=result_transformer)
 
     async def _execute(
         self,
@@ -92,7 +90,6 @@ class ToolExecutor:
         *,
         checkpoint_id: str | None = None,
         scope_checker: ScopeChecker | None = None,
-        operation: Callable[[ToolCall], Awaitable[ToolResult]] | None = None,
         result_transformer: ResultTransformer | None = None,
     ) -> ExecutionOutcome:
         '''Validate, authorize, checkpoint, execute, observe, and persist.'''
@@ -234,16 +231,12 @@ class ToolExecutor:
                     checkpoint_paths = tuple(observed['files'])
                 else:
                     self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
-            if operation is not None and self.backend is not None and self.backend.mode == 'strict':
-                raise CheckpointError('Strict execution cannot use an unrestricted internal operation.')
             await self._journal_started(effective_call)
             execution_started = True
             result = (
-                await operation(effective_call)
-                if operation is not None
-                else (await self.backend.execute(effective_call, self.registry)
-                      if self.backend is not None
-                      else await self.registry.execute(call.name, arguments))
+                await self.backend.execute(effective_call, self.registry)
+                if self.backend is not None
+                else await self.registry.execute(call.name, arguments)
             )
             if checkpoint_id is not None and checkpoint_paths:
                 if self.backend is not None and hasattr(self.backend, 'snapshot'):

@@ -291,9 +291,9 @@
   "architecture_improvement": {
     "modularity_cleanup": {
       "status": "implemented_offline_verified",
-      "scope": ["runtime_message_and_verification_dependency_direction", "shared_session_binding", "evaluation_configuration_ownership", "explicit_query_and_recovery_dependencies", "static_cli_notice_dispatch"],
+      "scope": ["metadata_only_working_evidence", "runtime_owned_journal_persistence", "lazy_optional_mcp_import", "remove_unused_task_context_and_operation_injection"],
       "preserved": ["Python Harness and CLI", "released helper imports", "permission budget persistence cancellation and data isolation"],
-      "verification": "Regression: 1046 passed and one cached-output dependency failure, repaired and covered by 39 passing related tests. Contracts and all seven quality checks passed. Reports: .local/implementation/slimming/. Native acceptance and live model performance remain separately unverified."
+      "verification": "649 related regression tests and 72 CLI/channel tests passed; contracts and all seven quality checks passed. The offline 120-read allocation comparison preserved identical evidence prompts while retaining 1097154 -> 44104 Python bytes in WorkingState alone, not whole-process or model performance. Reports: .local/implementation/lightweight*. Native acceptance and live model performance remain separately unverified."
     },
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",

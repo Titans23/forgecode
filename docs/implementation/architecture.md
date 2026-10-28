@@ -23,9 +23,11 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 `create_runtime` 是唯一运行时装配函数，新建与恢复使用同一构造路径；项目模型配置读取传入的 root，不隐式读取其他工作目录。可选渠道/MCP 组合位于 `forge/integrations.py`。旧 `forge.application.models` 保留协议导入兼容。
 
+禁用可信扩展时，工厂不导入 MCP SDK 或读取 MCP 配置；启用路径仍使用原有权限与关闭流程。工具只通过已选择的 backend 或 registry 执行，不保留无调用方的 operation 注入路径。
+
 模块边界以高内聚、低耦合为目标：`runner` 从 `state` 读取消息契约、从 `verification` 读取验证结果转换，不在运行时反向导入 `Conversation`；旧 helper 导入名保留兼容。会话恢复、分支和清空共用一处 Journal／权限／MCP／Checkpoint 绑定。评测配置归属校验由 `EvaluationService` 负责；查询显式接收 service/events/artifacts，恢复只接收 service；CLI 的无参通知命令使用固定映射。
 
-参考 [mini-SWE-agent 的直接执行链](https://mini-swe-agent.com/latest/)与 [Pi 的核心事件循环](https://github.com/earendil-works/pi/blob/main/packages/agent/README.md)，保留本项目已有的权限、预算、持久化和取消边界，不据代码删减宣称性能提升。
+参考 [DSH 的执行层日志职责](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/core/tools/src/batch.ts)与 [Pi 的核心循环／请求转换边界](https://github.com/earendil-works/pi/blob/a92283056d915c758799fcd904948ff0cb42628c/packages/agent/src/agent-loop.ts)：Executor 记录工具生命周期，Runner 在发布事件前记录终态与异常，CLI／渠道只消费事件，不重复写 Journal。Conversation 的手动记录接口保留兼容。沿用本项目已有权限、预算、持久化和取消边界，不据代码删减宣称模型性能提升。
 
 `evals.runner` 同样使用 `HarnessSession`，通过共享配置解析与模型工厂选适配器，复用预算、权限、TaskPolicy、Journal 和关闭路径，不再直接创建 Conversation/Anthropic 客户端。默认采用原生 workspace-write；不可用即失败，full-access 必须显式选择。初始化中途失败时，API 也关闭已经创建的模型客户端和后端。
 
@@ -42,6 +44,8 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 | 模型客户端和扩展连接 | Conversation 的幂等 runtime_close |
 | 文件/进程后端 | 创建它的会话或 ApplicationServices；Explore 明确借用，不关闭父后端 |
 | 执行事实 | fsync Journal；SQLite 是受理/调度状态及可重建的事实投影 |
+
+`WorkingState` 只维护模型提示需要的路径、行覆盖范围和近期失败，不存工具原文、结果缓存或未使用的重放／去重决策。读取缓存仅由 `ToolExecutor` 按文件指纹管理；历史消息中的旧缓存元数据仍可读取。任务上下文在请求时由 TaskManager 直接生成，不保存只写不读的副本。
 
 `scripts/check_architecture.py` 防止公共契约反向依赖产品模块、核心依赖 CLI/旧应用协议模块，以及沙盒导入 Conversation 实现。工具路径解析独立于循环。兼容参数 repeated_tool_limit/stagnation 等已无运行时效果，自定义值会发出弃用警告；使用真实回合预算。
 

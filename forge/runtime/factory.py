@@ -13,7 +13,6 @@ from typing import Any, Callable
 
 from forge.config import ForgeConfig, model_environment
 from forge.hooks import HookManager
-from forge.mcp import MCPClientManager
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.dependencies import RuntimeBindings
@@ -85,7 +84,10 @@ def create_runtime(
         model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
         **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {}))
     hooks = HookManager.from_root(root) if extensions else None
-    mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root)) if extensions else None
+    mcp = None
+    if extensions:
+        from forge.mcp import MCPClientManager
+        mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root))
     conversation_type = conversation_factory or Conversation
     conversation = conversation_type(
         client=model, intent_router=(ModelIntentRouter(client_factory(config, max_tokens=600))

@@ -257,6 +257,13 @@ def test_existing_cli_signatures_and_original_tool_schemas_match_f25_golden(tmp_
     baseline=json.loads((ROOT/'tests/implementation/fixtures/compatibility-f25.json').read_text())
     registry=create_default_registry(tmp_path)
     original = [definition for definition in registry.definitions if definition['name'] in baseline['tools']]
+    # The only approved description change removes the obsolete range-replay
+    # promise. Restore it for the historical hash; all other text and schemas
+    # must still match F25 on both platforms.
+    for definition in original:
+        if definition['name']=='read_file':
+            definition['description'] += (' The runtime replays covered ranges from its cache, so re-read only after '
+                'the file changes or when an uncovered range is needed.')
     encoded=json.dumps(original,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
     assert sha256(encoded).hexdigest()==baseline['tool_schemas_sha256_by_os'][os.name]
     assert [value['name'] for value in original]==baseline['tools']

@@ -290,9 +290,7 @@ class ReadFileTool(Tool[ReadFileInput]):
         'Read at most 400 numbered lines from one UTF-8 filesystem file. path accepts absolute and working-directory-relative paths. '
         'Requests covering more than 400 lines return the first 400 lines and '
         'continuation metadata instead of failing. Prefer a focused inclusive '
-        'start_line/end_line range for large files. The '
-        'runtime replays covered ranges from its cache, so re-read only after '
-        'the file changes or when an uncovered range is needed.'
+        'start_line/end_line range for large files.'
     )
     input_model = ReadFileInput
 

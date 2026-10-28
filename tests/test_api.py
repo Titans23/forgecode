@@ -2,6 +2,9 @@
 import asyncio
 import json
 from pathlib import Path
+import subprocess
+import sys
+import textwrap
 
 import pytest
 
@@ -215,3 +218,93 @@ def test_api_uses_requested_workspace_config_and_can_disable_routing(tmp_path, m
     import os
     assert 'FORGE_API_KEY' not in os.environ
     assert 'FORGE_MODEL' not in os.environ
+
+
+def test_factory_disabled_extensions_and_strict_rejection_do_not_import_mcp(tmp_path):
+    script = textwrap.dedent('''
+        import asyncio
+        import builtins
+        from pathlib import Path
+        import sys
+        from types import SimpleNamespace
+
+        original_import = builtins.__import__
+        def guarded_import(name, *args, **kwargs):
+            if name == 'mcp' or name.startswith('mcp.') or name == 'forge.mcp' or name.startswith('forge.mcp.'):
+                raise AssertionError('Disabled extension imported MCP: ' + name)
+            return original_import(name, *args, **kwargs)
+        builtins.__import__ = guarded_import
+
+        from forge.api import RunProfile
+        from forge.config import ForgeConfig
+        from forge.protocol import ContractError
+        from forge.runtime.dependencies import RuntimeBindings
+        from forge.runtime.factory import create_runtime
+
+        class Model:
+            model = 'offline-fixture'
+            provider = 'anthropic'
+            closed = False
+            async def aclose(self):
+                self.closed = True
+
+        directory = Path(sys.argv[1])
+        root = directory / 'project'
+        root.mkdir()
+        (root / '.mcp.json').write_text('not valid JSON', encoding='utf-8')
+        model = Model()
+        config = ForgeConfig(api_key='test-only', model_id=model.model)
+        conversation, _, _ = create_runtime(root, bindings=RuntimeBindings(
+            config=config, data_root=directory / 'data', trusted_extensions=False,
+            model_client_factory=lambda *args, **kwargs: model, intent_routing=False))
+        assert conversation.mcp_manager is None and conversation.hook_manager is None
+        asyncio.run(conversation.runtime_close())
+        assert model.closed
+
+        def unexpected_client(*args, **kwargs):
+            raise AssertionError('Rejected strict extensions constructed a client')
+        try:
+            create_runtime(root, bindings=RuntimeBindings(
+                config=config, data_root=directory / 'strict-data', trusted_extensions=True,
+                backend=SimpleNamespace(mode='strict'), model_client_factory=unexpected_client))
+        except ContractError as error:
+            assert error.kind == 'POLICY_DENIED'
+        else:
+            raise AssertionError('Strict execution admitted host extensions')
+        assert not any(name == 'mcp' or name.startswith('mcp.') for name in sys.modules)
+    ''')
+    completed = subprocess.run([sys.executable, '-c', script, str(tmp_path)],
+        cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, timeout=30)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+def test_factory_enabled_extensions_load_project_mcp_and_execute_tools(tmp_path):
+    from forge.permissions.approval import StaticApprovalHandler
+    from forge.runtime.dependencies import RuntimeBindings
+    from forge.runtime.factory import create_runtime
+
+    root = tmp_path / 'project'
+    root.mkdir()
+    server = Path(__file__).resolve().parents[1] / 'examples' / 'mcp_server.py'
+    (root / '.mcp.json').write_text(json.dumps({'mcpServers': {'example': {
+        'command': sys.executable, 'args': [str(server)]}}}), encoding='utf-8')
+    permissions = PermissionManager(root, mode='supervised', load_stored_rules=False,
+        approval_handler=StaticApprovalHandler('allow_session'))
+    conversation, _, _ = create_runtime(root, bindings=RuntimeBindings(
+        config=ForgeConfig(api_key='test-only', model_id='offline-fixture'), data_root=tmp_path / 'data',
+        permission_manager=permissions, model_client_factory=lambda *args, **kwargs: Model(),
+        intent_routing=False, trusted_extensions=True))
+
+    async def run():
+        manager = conversation.mcp_manager
+        try:
+            assert manager is not None and 'example' in manager.connections
+            await manager.ensure_connected()
+            assert 'mcp__example__echo' in conversation.registry.names
+            result = await conversation.registry.execute('mcp__example__echo', {'message': 'factory wiring'})
+            assert result.success and 'factory wiring' in result.content
+        finally:
+            if manager is not None:
+                await manager.close()
+            await conversation.runtime_close()
+    asyncio.run(run())

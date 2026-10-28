@@ -4,26 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
-from typing import Any
 
 from forge.runtime.state import ToolCall
 from forge.tools.base import ToolResult
-
-
-@dataclass(slots=True)
-class FileSegment:
-    start_line: int
-    end_line: int
-    content: str
-
-    def covers(self, start_line: int, end_line: int) -> bool:
-        return self.start_line <= start_line and self.end_line >= end_line
-
-    def slice(self, start_line: int, end_line: int) -> str:
-        lines = self.content.splitlines()
-        start = max(0, start_line - self.start_line)
-        stop = start + max(0, end_line - start_line + 1)
-        return '\n'.join(lines[start:stop])
 
 
 @dataclass(slots=True)
@@ -32,7 +15,6 @@ class FileEvidence:
     revision: int
     total_lines: int
     covered_ranges: list[tuple[int, int]] = field(default_factory=list)
-    segments: list[FileSegment] = field(default_factory=list)
 
     def covers(self, start_line: int, end_line: int) -> bool:
         return any(
@@ -40,9 +22,9 @@ class FileEvidence:
             for start, end in self.covered_ranges
         )
 
-    def add(self, start_line: int, end_line: int) -> bool:
+    def add(self, start_line: int, end_line: int) -> None:
         if end_line < start_line or self.covers(start_line, end_line):
-            return False
+            return
         ranges = sorted([*self.covered_ranges, (start_line, end_line)])
         merged: list[tuple[int, int]] = []
         for start, end in ranges:
@@ -52,63 +34,15 @@ class FileEvidence:
             previous_start, previous_end = merged[-1]
             merged[-1] = (previous_start, max(previous_end, end))
         self.covered_ranges = merged
-        return True
-
-    def remember(
-        self,
-        start_line: int,
-        end_line: int,
-        content: str,
-    ) -> None:
-        if any(
-            segment.start_line == start_line
-            and segment.end_line == end_line
-            for segment in self.segments
-        ):
-            return
-        self.segments.append(FileSegment(start_line, end_line, content))
-
-    def replay(self, start_line: int, end_line: int) -> str | None:
-        segment = next(
-            (
-                item
-                for item in reversed(self.segments)
-                if item.covers(start_line, end_line)
-            ),
-            None,
-        )
-        if segment is not None:
-            return segment.slice(start_line, end_line)
-        if not self.covers(start_line, end_line):
-            return None
-
-        lines_by_number: dict[int, str] = {}
-        for item in self.segments:
-            for offset, line in enumerate(item.content.splitlines()):
-                line_number = item.start_line + offset
-                if line_number > item.end_line:
-                    break
-                lines_by_number[line_number] = line
-        if any(
-            line_number not in lines_by_number
-            for line_number in range(start_line, end_line + 1)
-        ):
-            return None
-        return '\n'.join(
-            lines_by_number[line_number]
-            for line_number in range(start_line, end_line + 1)
-        )
 
 
 class WorkingState:
-    '''Track novel evidence and suppress semantically redundant exploration.'''
+    '''Index observed paths, covered ranges and failures for model context.'''
 
     MAX_VISIBLE_FILES = 50
     MAX_VISIBLE_DIRECTORIES = 20
     MAX_VISIBLE_SEARCH_HITS = 50
     MAX_VISIBLE_DISCOVERED_FILES = 50
-    MAX_REPLAY_LINES = 120
-    MAX_REPLAY_CHARACTERS = 12_000
     EXTERNAL_BLOCKER_CODES = frozenset(
         {
             'approval_required',
@@ -124,123 +58,33 @@ class WorkingState:
         self.directories: set[tuple[int, str]] = set()
         self.search_hits: set[tuple[int, str, int]] = set()
         self.discovered_files: set[tuple[int, str]] = set()
-        self.successful_signatures: set[str] = set()
-        self.cached_results: dict[str, ToolResult] = {}
         self.failures: list[str] = []
-        self.failure_codes: set[str] = set()
         self.latest_failure_code: str | None = None
-
-    def preflight(
-        self,
-        tool_call: ToolCall,
-        revision: int,
-        signature: str | None = None,
-    ) -> ToolResult | None:
-        if tool_call.name == 'read_file':
-            replay = self._replay_read(tool_call, revision)
-            if replay is not None:
-                return replay
-        if signature is not None and signature in self.cached_results:
-            cached = self.cached_results[signature]
-            return ToolResult.ok(
-                f'Cache hit: {cached.summary}',
-                # A cache hit is still an execution result from the model's
-                # point of view.  Returning an empty placeholder made recovery
-                # believe it had inspected a failure while providing no facts.
-                # Safe read caches must replay the actual bounded content.
-                content=cached.content,
-                metadata={
-                    **cached.metadata,
-                    'cache_hit': True,
-                    'cache_content_omitted': False,
-                },
-            )
-        return None
 
     def observe(
         self,
         tool_call: ToolCall,
         result: ToolResult,
         revision: int,
-        signature: str,
-    ) -> bool:
+    ) -> None:
         if not result.success:
             if result.error is not None:
                 self.latest_failure_code = result.error.code
-                self.failure_codes.add(result.error.code)
-                self.failures.append(
-                    f'{tool_call.name}: {result.error.code}'
-                )
+                self.failures.append(f'{tool_call.name}: {result.error.code}')
                 self.failures = self.failures[-5:]
-            return False
+            return
         self.latest_failure_code = None
-        if (
-            tool_call.name in {
-                'read_file',
-                'list_directory',
-                'grep',
-                'find_files',
-                'git_status',
-                'git_diff',
-                'task_get',
-            }
-            and not result.metadata.get('cache_hit')
-        ):
-            self.cached_results[signature] = result
         if tool_call.name == 'read_file':
             required = {'path', 'start_line', 'end_line', 'total_lines'}
             if required.issubset(result.metadata):
-                return self._observe_read(result, revision)
-            return self._observe_signature(signature)
-        if tool_call.name == 'list_directory':
-            path = normalize_path(
-                str(result.metadata.get('path', '.'))
-            )
-            key = (revision, path)
-            if key in self.directories:
-                return False
-            self.directories.add(key)
-            return True
-        if tool_call.name == 'grep':
-            return self._observe_grep(result, revision)
-        if tool_call.name == 'find_files':
-            return self._observe_find_files(result, revision)
-        if tool_call.name in {'git_status', 'git_diff'}:
-            if not result.content.strip():
-                return False
-            return self._observe_signature(signature)
-        if tool_call.name == 'task_get':
-            return self._observe_signature(signature)
-        if tool_call.name in {'run_command', 'verify'}:
-            # Terminal work can be entirely process-oriented: installing a
-            # dependency, compiling a project, querying a service, or running
-            # a task-specific check may not change the repository. Treat a
-            # successful, non-empty process result as real progress while
-            # keeping repeated identical calls idempotent via the signature.
-            if result.content.strip() or result.summary.strip():
-                return self._observe_signature(signature)
-        return False
-
-    def covers_read(self, tool_call: ToolCall, revision: int) -> bool:
-        '''Return whether the requested read range is already cached.'''
-        if tool_call.name != 'read_file':
-            return False
-        arguments = tool_call.arguments
-        path = normalize_path(str(arguments.get('path', '')))
-        evidence = self.files.get((revision, path))
-        if evidence is None:
-            return False
-        try:
-            start_line = int(arguments.get('start_line', 1))
-            raw_end = arguments.get('end_line')
-            end_line = (
-                evidence.total_lines
-                if raw_end is None
-                else min(int(raw_end), evidence.total_lines)
-            )
-        except (TypeError, ValueError):
-            return False
-        return evidence.covers(start_line, end_line)
+                self._observe_read(result, revision)
+        elif tool_call.name == 'list_directory':
+            path = normalize_path(str(result.metadata.get('path', '.')))
+            self.directories.add((revision, path))
+        elif tool_call.name == 'grep':
+            self._observe_grep(result, revision)
+        elif tool_call.name == 'find_files':
+            self._observe_find_files(result, revision)
 
     def advance_revision(
         self,
@@ -280,17 +124,13 @@ class WorkingState:
             for _, path in self.discovered_files
             if path not in changed
         }
-        # Signatures include the workspace revision. Dropping this small cache
-        # is safer than replaying stale content after any repository change.
-        self.cached_results.clear()
         self.latest_failure_code = None
 
     def invalidate_process_caches(self) -> None:
-        '''Drop broad search caches while retaining verified file contents.'''
+        '''Forget broad search indexes while retaining covered file ranges.'''
         self.directories.clear()
         self.search_hits.clear()
         self.discovered_files.clear()
-        self.cached_results.clear()
 
     def system_suffix(self) -> str:
         if (
@@ -372,19 +212,11 @@ class WorkingState:
     def has_external_blocker(self) -> bool:
         return self.latest_failure_code in self.EXTERNAL_BLOCKER_CODES
 
-    def answer_mentions_evidence(self, text: str) -> bool:
-        normalized = text.casefold()
-        return any(
-            candidate and candidate in normalized
-            for path in self.evidence_paths
-            for candidate in evidence_names(path)
-        )
-
     def _observe_read(
         self,
         result: ToolResult,
         revision: int,
-    ) -> bool:
+    ) -> None:
         metadata = result.metadata
         path = normalize_path(str(metadata['path']))
         total_lines = int(metadata['total_lines'])
@@ -399,75 +231,9 @@ class WorkingState:
                 total_lines=total_lines,
             )
             self.files[key] = evidence
-        progressed = evidence.add(start_line, end_line)
-        evidence.remember(start_line, end_line, result.content)
-        return progressed
+        evidence.add(start_line, end_line)
 
-    def _replay_read(
-        self,
-        tool_call: ToolCall,
-        revision: int,
-    ) -> ToolResult | None:
-        arguments = tool_call.arguments
-        path = normalize_path(str(arguments.get('path', '')))
-        evidence = self.files.get((revision, path))
-        if evidence is None:
-            return None
-        try:
-            start_line = int(arguments.get('start_line', 1))
-            requested_end = arguments.get('end_line')
-            end_line = (
-                evidence.total_lines
-                if requested_end is None
-                else min(int(requested_end), evidence.total_lines)
-            )
-        except (TypeError, ValueError):
-            return None
-        if start_line < 1 or end_line < start_line:
-            return None
-        cached_content = evidence.replay(start_line, end_line)
-        if cached_content is None:
-            return None
-        metadata = {
-            'path': path,
-            'start_line': start_line,
-            'end_line': end_line,
-            'total_lines': evidence.total_lines,
-            'cache_hit': True,
-            'evidence_replayed': True,
-        }
-        line_count = end_line - start_line + 1
-        if (
-            line_count > self.MAX_REPLAY_LINES
-            or len(cached_content) > self.MAX_REPLAY_CHARACTERS
-        ):
-            metadata['cache_content_omitted'] = True
-            return ToolResult.ok(
-                f'Skipped covered read for {path} lines '
-                f'{start_line}-{end_line}.',
-                content=(
-                    '[Cached source omitted to avoid reinjecting a large '
-                    'covered range. Request at most 120 exact lines around '
-                    'the required symbol; use grep first if its location is '
-                    'unknown.]'
-                ),
-                metadata=metadata,
-            )
-        return ToolResult.ok(
-            f'Replayed cached read for {path} lines '
-            f'{start_line}-{end_line}.',
-            content=cached_content,
-            metadata=metadata,
-        )
-
-    def _observe_signature(self, signature: str) -> bool:
-        if signature in self.successful_signatures:
-            return False
-        self.successful_signatures.add(signature)
-        return True
-
-    def _observe_grep(self, result: ToolResult, revision: int) -> bool:
-        progressed = False
+    def _observe_grep(self, result: ToolResult, revision: int) -> None:
         for line in result.content.splitlines():
             parts = line.split(':', 2)
             if len(parts) < 3:
@@ -483,14 +249,9 @@ class WorkingState:
                 line_number,
             ):
                 continue
-            hit = (revision, path, line_number)
-            if hit not in self.search_hits:
-                self.search_hits.add(hit)
-                progressed = True
-        return progressed
+            self.search_hits.add((revision, path, line_number))
 
-    def _observe_find_files(self, result: ToolResult, revision: int) -> bool:
-        progressed = False
+    def _observe_find_files(self, result: ToolResult, revision: int) -> None:
         for line in result.content.splitlines():
             path = normalize_path(line.strip())
             if not path or path == '.':
@@ -498,22 +259,8 @@ class WorkingState:
             discovery = (revision, path)
             if discovery in self.files:
                 continue
-            if discovery not in self.discovered_files:
-                self.discovered_files.add(discovery)
-                progressed = True
-        return progressed
+            self.discovered_files.add(discovery)
 
 
 def normalize_path(path: str) -> str:
     return PurePosixPath(path.replace('\\', '/')).as_posix()
-
-
-def evidence_names(path: str) -> tuple[str, ...]:
-    item = PurePosixPath(path)
-    return tuple(
-        dict.fromkeys(
-            value.casefold()
-            for value in (path, item.name, item.stem)
-            if value and value != '.'
-        )
-    )

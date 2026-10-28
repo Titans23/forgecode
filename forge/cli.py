@@ -726,18 +726,11 @@ async def render_streamed_turn(
     recorder: TrajectoryRecorder | None = None,
     *, input_id=None,
 ) -> None:
-    '''Forward conversation stream events to the live terminal view.'''
+    '''Render events; the runtime owns Journal persistence.'''
     if recorder is not None:
         recorder.record_user_message(prompt)
     try:
         async for event in session.stream(prompt, **({'input_id': input_id} if input_id else {})):
-            record_session_event = getattr(
-                session,
-                'record_session_event',
-                None,
-            )
-            if record_session_event is not None:
-                record_session_event(event)
             if recorder is not None:
                 recorder.record_event(event)
             if isinstance(event, ModelTextDelta):
@@ -757,13 +750,6 @@ async def render_streamed_turn(
             elif isinstance(event, TurnCompleted):
                 response_view.complete(event.result)
     except Exception as error:
-        record_session_error = getattr(
-            session,
-            'record_session_error',
-            None,
-        )
-        if record_session_error is not None:
-            record_session_error(error)
         if recorder is not None:
             recorder.record_error(error)
         raise

@@ -292,7 +292,6 @@ class Conversation:
             raise ValueError('max_turn_seconds must be positive')
         self.max_turn_seconds = max_turn_seconds
         self._last_repository_context = self._repository_context('')
-        self._last_task_context = ''
 
     # Compatibility properties retain the released Conversation API while the
     # controller owns session state and the runner owns only current-turn state.
@@ -448,7 +447,6 @@ class Conversation:
         include_tool_availability: bool = True,
     ) -> str:
         task_context = self.task_manager.system_suffix()
-        self._last_task_context = task_context
         parts = [self.system_prompt]
         git_available = (
             self.workspace_tracker is None
@@ -792,7 +790,6 @@ class Conversation:
 
     def task_resume(self, task_id: str) -> str:
         task = self.task_manager.resume(task_id)
-        self._last_task_context = self.task_manager.system_suffix()
         return f'Resumed {task.id}: {task.goal}'
 
     def permission_status(self) -> str:
@@ -903,7 +900,6 @@ class Conversation:
             self.verification_history.clear()
             self.messages[:] = restored_messages
             self.task_manager.restore(restored_task)
-            self._last_task_context = self.task_manager.system_suffix()
             self.session_journal.append(
                 'conversation_rewound',
                 {
@@ -974,7 +970,6 @@ class Conversation:
         self.inbox.restore(state.pending_inputs)
         self.verification_history[:] = state.verification_history
         self.task_manager.restore(state.active_task)
-        self._last_task_context = self.task_manager.system_suffix()
         if state.info.model and hasattr(self.client, 'model'):
             self.client.model = state.info.model
             router_client = getattr(self.intent_router, 'client', None)
@@ -1030,7 +1025,6 @@ class Conversation:
         self._bind_session(journal)
         self.messages.clear()
         self.task_manager.restore(None)
-        self._last_task_context = ''
         return (
             f'Cleared conversation. Previous session: {previous_id}; '
             f'new session: {journal.session_id}.'

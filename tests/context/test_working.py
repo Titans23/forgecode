@@ -1,358 +1,169 @@
-'''Tests for task-local structured repository evidence.'''
+'''Tests for the working evidence actually included in model context.'''
+
+import pytest
 
 from forge.context.working import FileEvidence, WorkingState
 from forge.runtime.state import ToolCall
 from forge.tools.base import ToolResult
 
 
-def read_call(
-    call_id: str,
-    *,
-    start_line: int = 1,
-    end_line: int | None = None,
-) -> ToolCall:
-    arguments = {'path': 'play/js/player.js', 'start_line': start_line}
-    if end_line is not None:
-        arguments['end_line'] = end_line
-    return ToolCall(
-        index=0,
-        id=call_id,
-        name='read_file',
-        arguments=arguments,
-    )
+def observe_read(state, path, *, revision=0, start=1, end=20, total=251):
+    call = ToolCall(0, path, 'read_file', {'path': path})
+    state.observe(call, ToolResult.ok('Read file.', content='source text belongs in tool history',
+        metadata={'path': path, 'start_line': start, 'end_line': end, 'total_lines': total}), revision)
 
 
-def test_large_cached_reads_are_omitted_but_focused_ranges_replay() -> None:
+@pytest.mark.parametrize('second_start', [40, 41])
+def test_adjacent_and_overlapping_reads_merge_visible_ranges(second_start):
     state = WorkingState()
-    initial = read_call('first', end_line=260)
-    result = ToolResult.ok(
-        'Read file.',
-        content='\n'.join(
-            f'{line:>6} | line {line}' for line in range(1, 252)
-        ),
-        metadata={
-            'path': 'play/js/player.js',
-            'start_line': 1,
-            'end_line': 251,
-            'total_lines': 251,
-        },
-    )
+    observe_read(state, 'play/js/player.js', end=40, total=316)
+    observe_read(state, 'play/js/player.js', start=second_start, end=316, total=316)
+    observe_read(state, 'play/js/player.js', start=21, end=120, total=316)
 
-    assert state.observe(initial, result, 0, 'first') is True
-
-    replay = state.preflight(initial, 0, 'first')
-
-    assert replay is not None and replay.success is True
-    assert replay.summary.startswith('Skipped covered read')
-    assert 'Cached source omitted' in replay.content
-    assert replay.metadata['cache_hit'] is True
-    assert replay.metadata['cache_content_omitted'] is True
-    subset = state.preflight(read_call('subset', end_line=120), 0, 'subset')
-    extended = state.preflight(
-        read_call('extended', end_line=320),
-        0,
-        'extended',
-    )
-    assert subset is not None and subset.metadata['evidence_replayed'] is True
-    assert subset.summary.endswith('lines 1-120.')
-    assert subset.content.startswith('     1 | line 1\n')
-    assert subset.content.endswith('   120 | line 120')
-    assert extended is not None
-    assert extended.metadata['end_line'] == 251
-    assert extended.metadata['cache_content_omitted'] is True
-    assert state.preflight(read_call('new-revision', end_line=260), 1, 'new') is None
+    suffix = state.system_suffix()
+    assert suffix.count('play/js/player.js') == 1
+    assert 'lines 1-316; total 316' in suffix
+    assert 'source text belongs in tool history' not in suffix
+    assert state.evidence_paths == ('play/js/player.js',)
 
 
-def test_adjacent_and_overlapping_segments_replay_one_cached_range() -> None:
-    for second_start in (40, 41):
-        state = WorkingState()
-        for call_id, start_line, end_line in (
-            ('first', 1, 40),
-            ('second', second_start, 316),
-        ):
-            call = read_call(
-                call_id,
-                start_line=start_line,
-                end_line=end_line,
-            )
-            result = ToolResult.ok(
-                'Read file.',
-                content='\n'.join(
-                    f'{line:>6} | line {line}'
-                    for line in range(start_line, end_line + 1)
-                ),
-                metadata={
-                    'path': 'play/js/player.js',
-                    'start_line': start_line,
-                    'end_line': end_line,
-                    'total_lines': 316,
-                },
-            )
-            assert state.observe(call, result, 0, call_id) is True
-
-        replay = state.preflight(
-            read_call('combined', end_line=140),
-            0,
-            'combined',
-        )
-
-        assert replay is not None
-        assert replay.metadata['evidence_replayed'] is True
-        assert replay.metadata['cache_content_omitted'] is True
-        focused = state.preflight(
-            read_call('focused', start_line=21, end_line=120),
-            0,
-            'focused',
-        )
-        assert focused is not None
-        assert focused.metadata.get('cache_content_omitted') is None
-        assert focused.content.startswith('    21 | line 21\n')
-        assert focused.content.endswith('   120 | line 120')
-
-
-def test_working_evidence_is_small_and_answer_check_uses_paths() -> None:
-    state = WorkingState()
-    call = read_call('first', end_line=20)
-    state.observe(
-        call,
-        ToolResult.ok(
-            'Read file.',
-            metadata={
-                'path': 'play/js/player.js',
-                'start_line': 1,
-                'end_line': 20,
-                'total_lines': 251,
-            },
-        ),
-        0,
-        'first',
-    )
-
-    assert 'play/js/player.js' in state.system_suffix()
-    assert state.answer_mentions_evidence(
-        'player.js handles movement and collision.'
-    )
-    assert not state.answer_mentions_evidence('I am ForgeCode.')
-
-
-def test_working_evidence_suffix_is_bounded() -> None:
+def test_working_evidence_suffix_is_bounded():
     state = WorkingState()
     for index in range(75):
         state.files[(0, f'src/file_{index}.py')] = FileEvidence(
-            path=f'src/file_{index}.py',
-            revision=0,
-            total_lines=1,
-            covered_ranges=[(1, 1)],
-        )
+            path=f'src/file_{index}.py', revision=0, total_lines=1, covered_ranges=[(1, 1)])
     for index in range(30):
         state.directories.add((0, f'src/dir_{index}'))
 
     suffix = state.system_suffix()
-
     assert '25 older file entries omitted' in suffix
     assert '10 older directory entries omitted' in suffix
     assert suffix.count('@ revision') == 70
 
 
-def test_grep_of_fully_read_file_remains_available() -> None:
+def test_observation_releases_result_and_source_text_but_keeps_range_evidence():
+    import gc
+    import weakref
+
+    class ObservedResult(ToolResult):
+        pass
+
+    class SourceText(str):
+        pass
+
     state = WorkingState()
-    state.observe(
-        read_call('read', end_line=251),
-        ToolResult.ok(
-            'Read file.',
-            metadata={
-                'path': 'play/js/player.js',
-                'start_line': 1,
-                'end_line': 251,
-                'total_lines': 251,
-            },
-        ),
-        0,
-        'read',
-    )
-    grep_call = ToolCall(
-        index=0,
-        id='grep',
-        name='grep',
-        arguments={'path': 'play/js/player.js', 'pattern': 'class'},
-    )
+    source = SourceText('large source content\n' * 10_000)
+    result = ObservedResult.ok('Read file.', content=source,
+        metadata={'path': 'src/app.py', 'start_line': 1, 'end_line': 10_000, 'total_lines': 10_000})
+    result_ref, source_ref = weakref.ref(result), weakref.ref(source)
+    state.observe(ToolCall(0, 'read', 'read_file', {'path': 'src/app.py'}), result, 0)
 
-    result = state.preflight(grep_call, 0)
+    del result, source
+    gc.collect()
 
-    assert result is None
+    assert result_ref() is None
+    assert source_ref() is None
+    assert state.evidence_paths == ('src/app.py',)
+    assert 'src/app.py @ revision 0: lines 1-10000; total 10000' in state.system_suffix()
 
 
-def test_grep_progress_requires_new_unread_match() -> None:
+def test_grep_records_only_unique_unread_hits():
     state = WorkingState()
-    call = ToolCall(
-        index=0,
-        id='grep',
-        name='grep',
-        arguments={'path': 'src', 'pattern': 'main'},
-    )
-    result = ToolResult.ok(
-        'Found matches.',
-        content='src/app.py:10:def main():\nsrc/lib.py:20:main()',
-    )
+    observe_read(state, 'src/app.py')
+    call = ToolCall(0, 'grep', 'grep', {'path': 'src', 'pattern': 'main'})
+    result = ToolResult.ok('Found matches.',
+        content='src/app.py:10:def main():\nsrc/app.py:25:main()\nsrc/lib.py:20:main()\nmalformed')
+    state.observe(call, result, 0)
+    before = state.system_suffix()
+    state.observe(call, result, 0)
+    state.observe(call, ToolResult.ok('No matches.'), 0)
 
-    assert state.observe(call, result, 0, 'first') is True
+    assert state.system_suffix() == before
     assert state.evidence_paths == ('src/app.py', 'src/lib.py')
-    assert 'search hit src/app.py:10' in state.system_suffix()
-    assert state.observe(call, result, 0, 'second') is False
-    assert state.observe(
-        call,
-        ToolResult.ok('No matches.'),
-        0,
-        'empty',
-    ) is False
+    assert 'search hit src/app.py:10' not in before
+    assert 'search hit src/app.py:25' in before
+    assert 'search hit src/lib.py:20' in before
 
 
-def test_find_files_does_not_rediscover_an_already_read_path() -> None:
+def test_find_files_does_not_rediscover_an_already_read_path():
     state = WorkingState()
-    state.observe(
-        read_call('read', end_line=20),
-        ToolResult.ok(
-            'Read file.',
-            metadata={
-                'path': 'play/js/player.js',
-                'start_line': 1,
-                'end_line': 20,
-                'total_lines': 20,
-            },
-        ),
-        0,
-        'read',
-    )
-    find_call = ToolCall(
-        index=0,
-        id='find',
-        name='find_files',
-        arguments={'path': 'play/js', 'pattern': '*.js'},
-    )
+    observe_read(state, 'play/js/player.js')
+    call = ToolCall(0, 'find', 'find_files', {'path': 'play/js', 'pattern': '*.js'})
+    result = ToolResult.ok('Found files.', content='play/js/player.js\nplay/js/world.js\nplay/js/world.js\n.')
+    state.observe(call, result, 0)
+    state.observe(call, result, 0)
 
-    assert state.observe(
-        find_call,
-        ToolResult.ok(
-            'Found one file.',
-            content='play/js/player.js',
-        ),
-        0,
-        'find-known',
-    ) is False
-    assert state.observe(
-        find_call,
-        ToolResult.ok(
-            'Found one file.',
-            content='play/js/world.js',
-        ),
-        0,
-        'find-new',
-    ) is True
-    assert 'play/js/world.js' in state.evidence_paths
-    assert 'discovered play/js/world.js' in state.system_suffix()
+    assert state.evidence_paths == ('play/js/player.js', 'play/js/world.js')
+    assert 'discovered play/js/player.js' not in state.system_suffix()
+    assert state.system_suffix().count('discovered play/js/world.js') == 1
 
 
-def test_empty_git_results_do_not_count_as_evidence_progress() -> None:
+def test_process_success_clears_external_blocker_without_inventing_file_evidence():
     state = WorkingState()
+    call = ToolCall(0, 'process', 'run_command', {'command': 'printf ready'})
+    state.observe(call, ToolResult.fail('dependency_unavailable', 'Missing tool'), 0)
+    assert state.has_external_blocker
+    state.observe(call, ToolResult.ok('Command completed.', content='ready'), 0)
 
-    for tool_name in ('git_diff', 'git_status'):
-        call = ToolCall(
-            index=0,
-            id=tool_name,
-            name=tool_name,
-            arguments={},
-        )
-        assert state.observe(
-            call,
-            ToolResult.ok('No Git evidence.', content=''),
-            0,
-            tool_name,
-        ) is False
+    assert not state.has_external_blocker
+    assert state.evidence_paths == ()
+    assert 'Recent tool failures:' in state.system_suffix()
+    assert 'dependency_unavailable' in state.system_suffix()
 
 
-def test_successful_process_results_count_as_progress() -> None:
-    state = WorkingState()
-    call = ToolCall(
-        index=0,
-        id='process',
-        name='run_command',
-        arguments={'command': 'printf ready'},
-    )
-    result = ToolResult.ok('Command completed.', content='ready')
-
-    assert state.observe(call, result, 0, 'process') is True
-    assert state.observe(call, result, 0, 'process') is False
-
-
-def test_only_explicit_external_error_codes_create_a_blocker() -> None:
+@pytest.mark.parametrize(('code', 'blocked'), [
+    ('invalid_arguments', False), ('approval_required', True),
+    ('authentication_required', True), ('permission_denied', True),
+    ('network_unavailable', True), ('dependency_unavailable', True),
+])
+def test_only_explicit_external_error_codes_create_a_blocker(code, blocked):
     state = WorkingState()
     call = ToolCall(0, 'failure', 'read_file', {'path': 'sample.txt'})
-
-    state.observe(
-        call,
-        ToolResult.fail('invalid_arguments', 'Bad schema.'),
-        0,
-        'bad-schema',
-    )
-    assert state.has_external_blocker is False
-
-    state.observe(
-        call,
-        ToolResult.fail('permission_denied', 'Approval is required.'),
-        0,
-        'permission',
-    )
-    assert state.has_external_blocker is True
-
-    state.observe(
-        call,
-        ToolResult.ok('Recovered with an available repository path.'),
-        0,
-        'recovered',
-    )
-    assert state.has_external_blocker is False
+    state.observe(call, ToolResult.fail(code, 'Failure'), 0)
+    assert state.has_external_blocker is blocked
+    state.observe(call, ToolResult.ok('Recovered with an available repository path.'), 0)
+    assert not state.has_external_blocker
 
 
-def test_revision_change_invalidates_only_changed_file() -> None:
+def test_failure_context_retains_only_five_recent_diagnostics():
     state = WorkingState()
-    for path in ('src/changed.py', 'src/unchanged.py'):
-        call = ToolCall(
-            index=0,
-            id=path,
-            name='read_file',
-            arguments={'path': path},
-        )
-        state.observe(
-            call,
-            ToolResult.ok(
-                'Read file.',
-                metadata={
-                    'path': path,
-                    'start_line': 1,
-                    'end_line': 20,
-                    'total_lines': 20,
-                },
-            ),
-            0,
-            path,
-        )
+    call = ToolCall(0, 'failure', 'read_file', {'path': 'sample.txt'})
+    for index in range(8):
+        state.observe(call, ToolResult.fail(f'failure_{index}', 'Failure'), 0)
+    assert state.failures == [f'read_file: failure_{index}' for index in range(3, 8)]
+
+
+def test_revision_change_invalidates_only_changed_paths():
+    state = WorkingState()
+    for path in ('src/changed.py', 'lib/unchanged.py'):
+        observe_read(state, path)
+    state.directories.update({(0, 'src'), (0, 'lib')})
+    state.search_hits.update({(0, 'src/changed.py', 25), (0, 'lib/unchanged.py', 25)})
+    state.discovered_files.update({(0, 'src/changed.py'), (0, 'lib/unchanged.py')})
 
     state.advance_revision(1, ('src/changed.py',))
 
-    changed = ToolCall(
-        0,
-        'changed',
-        'read_file',
-        {'path': 'src/changed.py'},
-    )
-    unchanged = ToolCall(
-        0,
-        'unchanged',
-        'read_file',
-        {'path': 'src/unchanged.py'},
-    )
-    assert state.preflight(changed, 1) is None
-    replayed = state.preflight(unchanged, 1)
-    assert replayed is not None
-    assert replayed.metadata['evidence_replayed'] is True
-    assert '@ revision 0' not in state.system_suffix()
+    suffix = state.system_suffix()
+    assert 'src/changed.py' not in suffix
+    assert 'listed src' not in suffix
+    assert 'lib/unchanged.py @ revision 1: lines 1-20' in suffix
+    assert 'listed lib @ revision 1' in suffix
+    assert 'search hit lib/unchanged.py:25 @ revision 1' in suffix
+    assert 'discovered lib/unchanged.py @ revision 1' in suffix
+    assert '@ revision 0' not in suffix
+
+
+def test_process_invalidation_keeps_file_ranges_and_forgets_search_indexes():
+    state = WorkingState()
+    observe_read(state, 'src/app.py')
+    state.directories.add((0, 'src'))
+    state.search_hits.add((0, 'src/app.py', 25))
+    state.discovered_files.add((0, 'src/lib.py'))
+
+    state.invalidate_process_caches()
+
+    assert state.evidence_paths == ('src/app.py',)
+    assert 'lines 1-20' in state.system_suffix()
+    assert 'listed ' not in state.system_suffix()
+    assert 'search hit ' not in state.system_suffix()
+    assert 'discovered ' not in state.system_suffix()
