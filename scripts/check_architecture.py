@@ -36,7 +36,9 @@ def violations(root=ROOT):
                     relative.as_posix() == 'runtime/runner.py' and node in executable
                     and module == 'forge.runtime.agent_loop' or
                     relative.as_posix() == 'application/evaluations.py'
-                    and module == 'forge.application.evaluation_client')
+                    and module == 'forge.application.evaluation_client' or
+                    relative.as_posix() == 'application/sessions.py'
+                    and module == 'forge.engine.event_stream')
                 if forbidden:
                     failures.append(f'{relative}:{node.lineno}: forbidden dependency {module}')
     return failures

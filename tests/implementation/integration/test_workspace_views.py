@@ -11,7 +11,7 @@ import threading
 import pytest
 
 from forge.application.models import ContractError, validate
-from forge.application.session_views import TurnMessages, create_default_session, submit, snapshot
+from forge.application.sessions import TurnMessages, create_default_session, submit, snapshot
 from forge.engine.methods import EngineMethods
 from forge.engine.persistence import new_id
 from forge.sessions.workspace_lock import workspace_execution
@@ -192,6 +192,10 @@ def test_default_session_real_harness_submit_retry_snapshot_and_message_dedup(tm
         asyncio.run(run())
         first = snapshot(service, {'session_id': session['session_id']})
         validate('session.snapshot.result', first)
+        subscription = service.workspaces.cursors.subscribe({'scope': {'kind': 'session', 'id': session['session_id']}})
+        assert subscription['snapshot']['sessions'] == [first['session']]
+        assert subscription['snapshot']['turns'] == first['turns']
+        assert subscription['high_watermark'] == first['snapshot_cursor']
         assert first['turns'][0]['outcome'] == 'completed'
         assert first['messages'][0]['kind'] == 'user'
         assert any(row['kind'] == 'tool' and row['status'] == 'completed' for row in first['messages'])

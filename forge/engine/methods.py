@@ -7,10 +7,9 @@ import sys
 from forge.protocol import ContractError, METHODS, canonical_hash, validate
 from forge.application.approvals import ApprovalService, ConfirmationNonces
 from forge.application.connections import ConnectionService
-from forge.application.session_views import create_default_session, submit, snapshot
 from forge.engine.persistence import utc_now
-from forge.application.sessions import session_view
-from forge.engine.event_stream import EventStream, accepted_view, workspace_view
+from forge.application.sessions import session_view, accepted_view, create_default_session, submit, snapshot
+from forge.engine.event_stream import EventStream, workspace_view
 from forge.sandbox.capabilities import windows_supported
 
 

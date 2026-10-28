@@ -190,6 +190,39 @@ def test_resume_rejects_session_without_conversation_history(
     assert conversation.messages == list(store.load(source_id).messages)
 
 
+def test_turn_commit_updates_shared_message_and_evidence_lists(tmp_path):
+    class InspectingClient(DummyClient):
+        async def stream(self, messages, **kwargs):
+            assert messages[0] == {'role': 'user', 'content': 'Assigned history'}
+            async for event in super().stream(messages, **kwargs):
+                yield event
+
+    conversation = Conversation(client=InspectingClient(), context_root=tmp_path)
+    messages = conversation.messages
+    evidence = conversation.verification_history
+    task = conversation.task_manager.start('Inspect current evidence')
+    check = VerificationEvidence('pytest', '.', 0, 0.1, False, 0, task_id=task.id)
+    conversation.messages = [{'role': 'user', 'content': 'Assigned history'}]
+    conversation.verification_history = (check,)
+
+    assert messages == conversation.messages
+    assert evidence == [check]
+    assert conversation.context.stats.message_count == 1
+    assert conversation.task_manager.evidence_provider() == (check,)
+
+    async def run():
+        return [event async for event in conversation.stream('Continue inspecting')]
+
+    events = asyncio.run(run())
+    assert events[-1].result.status == 'completed'
+    assert conversation.messages is messages
+    assert conversation.verification_history is evidence
+    assert conversation.context.stats.message_count == len(messages) == 3
+    assert messages[-1]['content'] == events[-1].result.text
+    assert evidence[0].freshness == 'unknown'
+    assert conversation.task_manager.evidence_provider() == tuple(evidence)
+
+
 @pytest.mark.parametrize('operation', ['resume', 'branch', 'clear'])
 def test_session_switch_keeps_grants_and_new_records_session_scoped(tmp_path, operation):
     from forge.mcp.manager import MCPClientManager
@@ -200,6 +233,12 @@ def test_session_switch_keeps_grants_and_new_records_session_scoped(tmp_path, op
     root.mkdir()
     store, source_id = completed_session(root, tmp_path / 'data')
     conversation = conversation_for(store, source_id)
+    messages = conversation.messages
+    evidence = conversation.verification_history
+    inbox = conversation.inbox
+    check = VerificationEvidence('pytest', '.', 0, 0.1, False, 0,
+        task_id=conversation.task_manager.active.id)
+    conversation.verification_history = (check,)
     source_journal = conversation.session_journal
     source_checkpoints = conversation.checkpoint_store
     checkpoint = source_checkpoints.begin()
@@ -223,6 +262,16 @@ def test_session_switch_keeps_grants_and_new_records_session_scoped(tmp_path, op
     journal = conversation.session_journal
     source_bytes = source_journal.path.read_bytes()
     assert journal.session_id != source_id
+    assert conversation.messages is messages
+    assert conversation.verification_history is evidence
+    assert conversation.inbox is inbox
+    assert conversation.context.stats.message_count == len(messages)
+    assert evidence == ([check] if operation == 'branch' else [])
+    assert conversation.task_manager.evidence_provider() == tuple(evidence)
+    if operation == 'clear':
+        assert messages == []
+    else:
+        assert messages == list(store.load(journal.session_id).messages)
     assert asyncio.run(permissions.authorize(request)).action == 'deny'
     assert permissions.journal is journal
     assert conversation.mcp_manager.journal is journal

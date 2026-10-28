@@ -7,18 +7,13 @@ import secrets
 from time import time
 
 from forge.protocol import ContractError, validate
-from forge.application.sessions import session_view
+from forge.application.sessions import session_view, accepted_view
 from forge.engine.persistence import encoded, new_id
 
 
 def workspace_view(row):
     return {'workspace_id': row['id'], 'path': row['canonical_path'], 'canonical_path': row['canonical_path'],
             'revision': row['revision'], 'trust': row['trust'], 'diagnostics': []}
-
-
-def accepted_view(row):
-    return {'turn_id': row['id'], 'state': row['state'], 'outcome': row['outcome'],
-            'accepted': True, 'reused_existing_action': False}
 
 
 class EventStream:

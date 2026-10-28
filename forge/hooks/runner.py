@@ -10,6 +10,7 @@ import time
 from typing import Any
 
 from forge.hooks.models import HookEvent, HookSpec
+from forge.sandbox.process_owner import LocalProcessOwner
 from forge.tools.shell import sanitized_process_environment
 
 
@@ -39,7 +40,7 @@ async def run_hook_command(
     event: HookEvent,
 ) -> CommandResult:
     '''Run one hook with a JSON stdin payload and bounded output.'''
-    command = tuple(_expand(part, event) for part in spec.command)
+    command = [_expand(part, event) for part in spec.command]
     payload = json.dumps(
         {
             'event': event.name,
@@ -69,48 +70,42 @@ async def run_hook_command(
         }
     )
     started = time.monotonic()
-    process = await asyncio.create_subprocess_exec(
-        *command,
-        cwd=root,
-        env=environment,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    communication = asyncio.create_task(
-        _communicate_bounded(process, payload)
-    )
-    done, _pending = await asyncio.wait(
-        {communication},
-        timeout=spec.timeout_seconds,
-    )
-    if not done:
-        await _stop_process(process, communication)
-        return CommandResult(
-            decision='error',
-            updated_arguments=None,
-            additional_context='',
-            reason=f'Hook timed out after {spec.timeout_seconds:g} seconds.',
-            duration_seconds=time.monotonic() - started,
-            exit_code=None,
-            timed_out=True,
-            output_preview='',
-        )
+    owner = await LocalProcessOwner.start(command, cwd=root, environment=environment,
+        output=True, capture_stderr=True)
+    process = owner.process
+    failure = ''
+    timed_out = False
+    stdout = stderr = b''
     try:
-        stdout, stderr = communication.result()
+        async with asyncio.timeout(spec.timeout_seconds):
+            stdout, stderr = await _communicate_bounded(process, payload)
+    except TimeoutError:
+        failure = f'Hook timed out after {spec.timeout_seconds:g} seconds.'
+        timed_out = True
     except HookOutputLimitError:
-        await _stop_process(process, communication)
+        failure = f'Hook output exceeded {MAX_HOOK_OUTPUT_BYTES} bytes.'
+    finally:
+        # A cancelled stdin drain or bounded reader can leave output pipes paused.
+        # Close our pipes before the owner waits for the process tree to exit.
+        for descriptor in (1, 2):
+            pipe = process._transport.get_pipe_transport(descriptor)
+            if pipe is not None:
+                pipe.close()
+        cleanup = await owner.close()
+    if cleanup.get('state') != 'clean':
+        failure = 'Hook process cleanup could not be confirmed.'
+    duration = time.monotonic() - started
+    if failure:
         return CommandResult(
             decision='error',
             updated_arguments=None,
             additional_context='',
-            reason='Hook output exceeded 1000000 bytes.',
-            duration_seconds=time.monotonic() - started,
-            exit_code=process.returncode,
-            timed_out=False,
+            reason=failure,
+            duration_seconds=duration,
+            exit_code=None if timed_out else process.returncode,
+            timed_out=timed_out,
             output_preview='',
         )
-    duration = time.monotonic() - started
     decoded_stdout = stdout.decode('utf-8', errors='replace').strip()
     decoded_stderr = stderr.decode('utf-8', errors='replace').strip()
     if process.returncode == 2:
@@ -254,18 +249,6 @@ async def _read_bounded(
         if total[0] > MAX_HOOK_OUTPUT_BYTES:
             raise HookOutputLimitError
         chunks.append(chunk)
-
-
-async def _stop_process(
-    process: asyncio.subprocess.Process,
-    communication: asyncio.Task[tuple[bytes, bytes]],
-) -> None:
-    if process.returncode is None:
-        process.kill()
-        await process.wait()
-    if not communication.done():
-        communication.cancel()
-    await asyncio.gather(communication, return_exceptions=True)
 
 
 def _preview(stdout: bytes, stderr: bytes) -> str:

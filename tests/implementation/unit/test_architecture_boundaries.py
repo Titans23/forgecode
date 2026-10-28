@@ -15,6 +15,8 @@ from scripts.check_architecture import violations
      'from forge.runtime.verification import verification_from_result', False),
     ('application/evaluations.py', 'from forge.application.evaluation_client import configuration_issues', True),
     ('application/evaluation_client.py', 'from forge.application.evaluations import EvaluationService', False),
+    ('application/sessions.py', 'from forge.engine.event_stream import accepted_view', True),
+    ('engine/event_stream.py', 'from forge.application.sessions import accepted_view', False),
     ('messages.py', 'from forge.runtime.state import ToolCall', True),
     ('sandbox/backend.py', 'from forge.runtime.agent_loop import Conversation', True),
 ])

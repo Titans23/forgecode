@@ -20,8 +20,8 @@ def test_documented_source_entry_points_are_real(arguments):
 
 def test_documented_demo_executes_actual_tools_and_durable_evidence(tmp_path):
     target=tmp_path/'new-demo'
-    result=subprocess.run([sys.executable,'-m','forge.testing.demo','--output-dir',str(target)],
-        capture_output=True,text=True,encoding='utf-8',timeout=60)
+    result=subprocess.run([sys.executable,'scripts/harness_rpc_demo.py','--output-dir',str(target)],
+        capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=60)
     assert result.returncode==0,result.stderr
     report=json.loads((target/'demo-report.json').read_text(encoding='utf-8'))
     assert json.loads(result.stdout)==report
@@ -31,8 +31,8 @@ def test_documented_demo_executes_actual_tools_and_durable_evidence(tmp_path):
     assert report['durable_event_count']>0 and len(report['artifacts'])>=4
     # A repeat must refuse the existing directory rather than erase its previous evidence.
     before=(target/'demo-report.json').read_bytes()
-    again=subprocess.run([sys.executable,'-m','forge.testing.demo','--output-dir',str(target)],
-        capture_output=True,text=True,encoding='utf-8',timeout=40)
+    again=subprocess.run([sys.executable,'scripts/harness_rpc_demo.py','--output-dir',str(target)],
+        capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=40)
     assert again.returncode!=0 and (target/'demo-report.json').read_bytes()==before
 
 def test_task_materialization_refuses_existing_or_external_storage_before_download(tmp_path):

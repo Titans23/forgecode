@@ -49,6 +49,7 @@ def test_actual_tool_message_correlates_execution_and_lazy_safe_output(tmp_path)
         result=methods.observations.output(query)
         validate('observability.output.result',result)
         assert result['state']=='available' and result['artifact_id']
+        assert methods.handlers['observability.output'](query)==result
         chunk=methods.artifacts.read_chunk({'artifact_id':result['artifact_id'],'offset':0,'length':262144})
         value=json.loads(base64.b64decode(chunk['data_base64']))
         assert set(value)=={'stdout','stderr'} and value['stdout'].strip()=='42'

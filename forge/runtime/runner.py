@@ -849,7 +849,7 @@ class TurnRunner:
         self._append_results(results)
 
     def _commit_messages(self) -> None:
-        self.conversation.session.commit_messages(self.messages)
+        self.conversation.messages = self.messages
 
     async def _finish(self, status: str, reason: str, text: str, reasons: tuple[str, ...]):
         from dataclasses import fields

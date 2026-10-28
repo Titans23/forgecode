@@ -12,9 +12,8 @@ from urllib.parse import urlsplit
 
 from forge.application.harness_adapter import HarnessAdapter
 from forge.protocol import ContractError, canonical_hash, validate
-from forge.application.sessions import outcome_for, session_view, turn_view
+from forge.application.sessions import outcome_for, session_view, turn_view, TurnMessages
 from forge.application.workspaces import WorkspaceService
-from forge.application.session_views import TurnMessages
 from forge.config import ForgeConfig
 from forge.engine.journal_projection import JournalProjector
 from forge.engine.lifecycle import Deadline

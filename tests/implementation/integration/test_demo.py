@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from forge.testing.demo import FIXTURES, fixture_manifests, run_demo
+from scripts.harness_rpc_demo import FIXTURES, fixture_manifests, run_demo
 from test_rpc import initialize, launch, stop
 
 

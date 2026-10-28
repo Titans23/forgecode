@@ -171,9 +171,13 @@ class Conversation:
             if system_prompt is not None
             else load_system_prompt()
         )
-        from forge.sessions.controller import SessionController
-        self.session = SessionController(messages=initial_messages or (), journal=session_journal,
-            store=session_store, checkpoints=checkpoint_store)
+        from forge.sessions.inbox import SessionInbox
+        self._messages = [dict(message) for message in (initial_messages or ())]
+        self._verification_history: list[VerificationEvidence] = []
+        self.session_journal = session_journal
+        self.session_store = session_store
+        self.checkpoint_store = checkpoint_store
+        self.inbox = SessionInbox(lambda: self.session_journal)
         self._running = False
         self.hook_manager = hook_manager
         self._hooks_started = False
@@ -293,51 +297,23 @@ class Conversation:
         self.max_turn_seconds = max_turn_seconds
         self._last_repository_context = self._repository_context('')
 
-    # Compatibility properties retain the released Conversation API while the
-    # controller owns session state and the runner owns only current-turn state.
+    # Context and evidence consumers retain these lists across turn commits
+    # and session switches, including assignments through the public API.
     @property
     def messages(self):
-        return self.session.messages
+        return self._messages
 
     @messages.setter
     def messages(self, value):
-        self.session.commit_messages(value)
-
-    @property
-    def session_journal(self):
-        return self.session.journal
-
-    @session_journal.setter
-    def session_journal(self, value):
-        self.session.journal = value
-
-    @property
-    def session_store(self):
-        return self.session.store
-
-    @session_store.setter
-    def session_store(self, value):
-        self.session.store = value
-
-    @property
-    def checkpoint_store(self):
-        return self.session.checkpoints
-
-    @checkpoint_store.setter
-    def checkpoint_store(self, value):
-        self.session.checkpoints = value
+        self._messages[:] = value
 
     @property
     def verification_history(self):
-        return self.session.verification
+        return self._verification_history
 
     @verification_history.setter
     def verification_history(self, value):
-        self.session.verification[:] = value
-
-    @property
-    def inbox(self):
-        return self.session.inbox
+        self._verification_history[:] = value
 
     def _require_idle(self):
         if self._running:
@@ -937,16 +913,39 @@ class Conversation:
         )
 
     def session_history(self) -> str:
-        return self.session.history()
+        if self.session_store is None or self.session_journal is None:
+            return 'Session persistence is unavailable.'
+        if self.session_journal.deferred:
+            return 'No conversation history yet.'
+        return '\n'.join('- {}: {}{}'.format(item['sequence'], item['type'],
+            ' — ' + item['summary'] if item['summary'] else '')
+            for item in self.session_store.history(self.session_journal.session_id))
 
     def session_candidates(self) -> str:
-        return self.session.candidates()
+        if self.session_store is None:
+            return 'Session persistence is unavailable.'
+        sessions = self.session_store.list()
+        if not sessions:
+            return 'No saved ForgeCode sessions for this project.'
+        return '\n'.join('- {}{} [{}]'.format(item.session_id,
+            ' (' + item.name + ')' if item.name else '', item.status) for item in sessions)
 
     def session_rename(self, name: str) -> str:
-        return self.session.rename(name)
+        if self.session_journal is None:
+            raise ValueError('Session persistence is unavailable.')
+        return f'Renamed session to {self.session_journal.rename(name)}.'
 
     def _resume_target(self, identifier: str):
-        return self.session.resume_target(identifier, getattr(self.client, 'provider', ''))
+        if self.session_store is None:
+            raise ValueError('Session persistence is unavailable.')
+        state, journal = self.session_store.open(identifier)
+        if journal.read_only:
+            raise ValueError('Legacy sessions are read-only; fork one before continuing.')
+        if state.info.provider and state.info.provider != getattr(self.client, 'provider', ''):
+            raise ValueError('This session uses a different provider; open it with its profile or fork it.')
+        if not state.messages and state.active_task is None and not state.pending_inputs:
+            raise ValueError(f'Session {state.info.session_id} has no resumable conversation history.')
+        return state, journal
 
     def _bind_session(self, journal: SessionJournal) -> None:
         self.session_journal = journal

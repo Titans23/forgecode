@@ -27,6 +27,10 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 模块边界以高内聚、低耦合为目标：`runner` 从 `state` 读取消息契约、从 `verification` 读取验证结果转换，不在运行时反向导入 `Conversation`；旧 helper 导入名保留兼容。会话恢复、分支和清空共用一处 Journal／权限／MCP／Checkpoint 绑定。评测配置归属校验由 `EvaluationService` 负责；查询显式接收 service/events/artifacts，恢复只接收 service；CLI 的无参通知命令使用固定映射。
 
+`application/sessions.py` 统一会话操作、消息和快照视图，事件传输层复用其返回结构；安全工具输出属于 `ObservationViews` 的查询方法。独立模块用于真实边界：SessionInbox 负责输入状态，Journal 负责持久化，Engine 负责 RPC 受理与恢复，不能以目录大小代替职责判断。仅依赖开发夹具的 RPC 演示位于 `scripts/harness_rpc_demo.py`，不再作为 `forge` 运行包的一部分。
+
+Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程树生命周期统一由 `LocalProcessOwner` 管理。正常退出、超时、取消和输出超限都清理所属后代；清理未知不能返回 allow。Hook 命令使用既有受管进程的环境清理规则；这不增加沙盒能力。
+
 参考 [DSH 的执行层日志职责](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/core/tools/src/batch.ts)与 [Pi 的核心循环／请求转换边界](https://github.com/earendil-works/pi/blob/a92283056d915c758799fcd904948ff0cb42628c/packages/agent/src/agent-loop.ts)：Executor 记录工具生命周期，Runner 在发布事件前记录终态与异常，CLI／渠道只消费事件，不重复写 Journal。Conversation 的手动记录接口保留兼容。沿用本项目已有权限、预算、持久化和取消边界，不据代码删减宣称模型性能提升。
 
 `evals.runner` 同样使用 `HarnessSession`，通过共享配置解析与模型工厂选适配器，复用预算、权限、TaskPolicy、Journal 和关闭路径，不再直接创建 Conversation/Anthropic 客户端。默认采用原生 workspace-write；不可用即失败，full-access 必须显式选择。初始化中途失败时，API 也关闭已经创建的模型客户端和后端。
@@ -39,7 +43,7 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 | 状态/资源 | 唯一责任方 |
 |---|---|
-| 已提交消息、持久化句柄、验证历史、待处理输入 | SessionController；Conversation 保留兼容属性与会话操作接口 |
+| 已提交消息、持久化句柄、验证历史、待处理输入 | Conversation 直接拥有；消息与验证列表保持原地更新，SessionInbox 随当前 Journal 绑定 |
 | 当前回合预算、待执行调用、临时模型响应 | TurnRunner / TurnState |
 | 模型客户端和扩展连接 | Conversation 的幂等 runtime_close |
 | 文件/进程后端 | 创建它的会话或 ApplicationServices；Explore 明确借用，不关闭父后端 |
@@ -47,7 +51,7 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 `WorkingState` 只维护模型提示需要的路径、行覆盖范围和近期失败，不存工具原文、结果缓存或未使用的重放／去重决策。读取缓存仅由 `ToolExecutor` 按文件指纹管理；历史消息中的旧缓存元数据仍可读取。任务上下文在请求时由 TaskManager 直接生成，不保存只写不读的副本。
 
-`scripts/check_architecture.py` 防止公共契约反向依赖产品模块、核心依赖 CLI/旧应用协议模块，以及沙盒导入 Conversation 实现。工具路径解析独立于循环。兼容参数 repeated_tool_limit/stagnation 等已无运行时效果，自定义值会发出弃用警告；使用真实回合预算。
+`scripts/check_architecture.py` 防止公共契约反向依赖产品模块、核心依赖 CLI/旧应用协议模块、沙盒导入 Conversation 实现，以及会话视图反向依赖事件传输层。工具路径解析独立于循环。兼容参数 repeated_tool_limit/stagnation 等已无运行时效果，自定义值会发出弃用警告；使用真实回合预算。
 
 ## 2. 保留接口与能力边界
 
@@ -112,9 +116,9 @@ EvalCase 可显式设置已有 max_delivery_repairs（默认 0，最多 2），N
 
 | 调用链 | 机制与取舍 | 代码和现有验证入口 |
 |---|---|---|
-| Agent Loop → 工具/Explore → 压缩 | TurnRunner 按索引顺序执行工具，失败后记录未执行尾部。ContextVar 传入父 TurnState；支持请求观察协议的提供方按实际尝试扣预算，旧嵌入客户端按 stream 调用计数。子代理用量向父级累计，路由和摘要也计入。Explore 借用同一后端但不关闭它。压缩计算完整请求及输出预留，保存原始约束并成对保留 tool_use/result；这是预算与协议正确性，不是稳定提速结论。 | [TurnRunner._batch](../../forge/runtime/runner.py#L485)、[BudgetedModelClient.stream](../../forge/runtime/model_budget.py#L101)、[TurnState](../../forge/runtime/turn_state.py#L138)、[Explore](../../forge/subagents/explore.py#L198)、[压缩阈值](../../forge/context/manager.py#L473)；[共享预算](../../tests/runtime/test_shared_budget.py#L10)、[实际读取/压缩夹具](../../tests/implementation/integration/test_harness_regressions.py#L94) |
-| verify → check ledger → CompletionGate → 同回合反馈 | 文件 revision 与环境 epoch 同时匹配才是当前证据；普通进程执行保守地推进 epoch。检查按 ID 保存定义，修检查器必须继承原断言、需求和 cwd，不能改阈值冲掉失败。完成被拒后最多反馈两个不同缺口，仍扣原预算；行为检查和独立 grader 是不同层。 | [环境失效](../../forge/runtime/executor.py#L301)、[检查继承](../../forge/runtime/check_contracts.py#L62)、[完成门禁](../../forge/runtime/completion.py#L142)、[有界反馈](../../forge/runtime/runner.py#L770)；[不可削弱断言](../../tests/runtime/test_check_contracts.py#L57)、[公开原生演示](../../examples/harness_demo.py#L61) |
-| 规则激活 → 授权 → Journal intent → 执行/取消 → 状态重建 | 访问路径激活祖先规则；新规则尚未进入模型请求时，写入/进程先被拒绝，同批先读后写也不能绕过。统一执行器先授权；需要文件 checkpoint 时捕获 before image，intent fsync 后才执行。取消后的写入/进程结果可为 indeterminate。重建列出未匹配 intent，不自动重放；关闭只释放自己拥有的客户端和后端。 | [祖先规则](../../forge/context/repository.py#L191)、[请求边界](../../forge/runtime/runner.py#L624)、[授权/intent](../../forge/runtime/executor.py#L185)、[Journal fsync](../../forge/sessions/store.py#L381)、[重建未知工具](../../forge/sessions/store.py#L985)、[幂等关闭](../../forge/runtime/agent_loop.py#L822)；[未知副作用恢复](../../tests/implementation/integration/test_recovery.py#L55)、[Explore 后父后端仍可用](../../tests/implementation/integration/test_file_worker.py#L69) |
+| Agent Loop → 工具/Explore → 压缩 | TurnRunner 按索引顺序执行工具，失败后记录未执行尾部。ContextVar 传入父 TurnState；支持请求观察协议的提供方按实际尝试扣预算，旧嵌入客户端按 stream 调用计数。子代理用量向父级累计，路由和摘要也计入。Explore 借用同一后端但不关闭它。压缩计算完整请求及输出预留，保存原始约束并成对保留 tool_use/result；这是预算与协议正确性，不是稳定提速结论。 | [TurnRunner._batch](../../forge/runtime/runner.py#L484)、[BudgetedModelClient.stream](../../forge/runtime/model_budget.py#L101)、[TurnState](../../forge/runtime/turn_state.py#L138)、[Explore](../../forge/subagents/explore.py#L198)、[压缩阈值](../../forge/context/manager.py#L473)；[共享预算](../../tests/runtime/test_shared_budget.py#L10)、[实际读取/压缩夹具](../../tests/implementation/integration/test_harness_regressions.py#L94) |
+| verify → check ledger → CompletionGate → 同回合反馈 | 文件 revision 与环境 epoch 同时匹配才是当前证据；普通进程执行保守地推进 epoch。检查按 ID 保存定义，修检查器必须继承原断言、需求和 cwd，不能改阈值冲掉失败。完成被拒后最多反馈两个不同缺口，仍扣原预算；行为检查和独立 grader 是不同层。 | [环境失效](../../forge/runtime/executor.py#L300)、[检查继承](../../forge/runtime/check_contracts.py#L62)、[完成门禁](../../forge/runtime/completion.py#L142)、[有界反馈](../../forge/runtime/runner.py#L768)；[不可削弱断言](../../tests/runtime/test_check_contracts.py#L57)、[公开原生演示](../../examples/harness_demo.py#L61) |
+| 规则激活 → 授权 → Journal intent → 执行/取消 → 状态重建 | 访问路径激活祖先规则；新规则尚未进入模型请求时，写入/进程先被拒绝，同批先读后写也不能绕过。统一执行器先授权；需要文件 checkpoint 时捕获 before image，intent fsync 后才执行。取消后的写入/进程结果可为 indeterminate。重建列出未匹配 intent，不自动重放；关闭只释放自己拥有的客户端和后端。 | [祖先规则](../../forge/context/repository.py#L191)、[请求边界](../../forge/runtime/runner.py#L622)、[授权/intent](../../forge/runtime/executor.py#L192)、[Journal fsync](../../forge/sessions/store.py#L381)、[重建未知工具](../../forge/sessions/store.py#L985)、[幂等关闭](../../forge/runtime/agent_loop.py#L795)；[未知副作用恢复](../../tests/implementation/integration/test_recovery.py#L55)、[Explore 后父后端仍可用](../../tests/implementation/integration/test_file_worker.py#L69) |
 
 上述 TurnRunner、验证契约、Journal 与评测接入是仓库代码；Anthropic/OpenAI SDK 提供传输，Pydantic 提供输入校验，DSH/bubblewrap 提供已声明的 OS 写边界。已有 Python Agent 循环、SDK 和 OS 后端的复用与项目层修改分开说明，不把模型、完整 OS 沙盒或训练框架归为本轮自研。
 

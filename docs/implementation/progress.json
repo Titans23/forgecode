@@ -291,9 +291,9 @@
   "architecture_improvement": {
     "modularity_cleanup": {
       "status": "implemented_offline_verified",
-      "scope": ["metadata_only_working_evidence", "runtime_owned_journal_persistence", "lazy_optional_mcp_import", "remove_unused_task_context_and_operation_injection"],
+      "scope": ["direct_conversation_state_ownership", "single_application_session_module", "owned_observation_output_query", "development_rpc_demo_outside_runtime_package", "remove_empty_and_unused_backend_modules", "shared_hook_process_ownership"],
       "preserved": ["Python Harness and CLI", "released helper imports", "permission budget persistence cancellation and data isolation"],
-      "verification": "649 related regression tests and 72 CLI/channel tests passed; contracts and all seven quality checks passed. The offline 120-read allocation comparison preserved identical evidence prompts while retaining 1097154 -> 44104 Python bytes in WorkingState alone, not whole-process or model performance. Reports: .local/implementation/lightweight*. Native acceptance and live model performance remain separately unverified."
+      "verification": "652 related regression tests passed; contracts, all seven quality checks and wheel contents passed. Nine removed runtime files are absent from the wheel. Real Windows Hook subprocess tests cover cancellation, normal exit, timeout, combined output quota, stdin backpressure and unknown cleanup. Reports: .local/implementation/modules*. Linux CI, native sandbox acceptance and live model performance remain separately scoped."
     },
     "P1": "implemented_offline_verified",
     "P2": "deduplicated_contracts_and_runtime_retained_no_speed_claim",
