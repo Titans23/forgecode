@@ -7,6 +7,45 @@ from forge.tools import create_default_registry
 from forge.tools.base import ToolResult, _compact_schema
 
 
+def test_path_guard_compatibility_and_concurrent_isolation(tmp_path):
+    from forge.tools import base, paths
+    from forge.tools.filesystem import ReadFileTool
+
+    assert base.file_access_guard is paths.file_access_guard
+    assert base.resolve_repository_path is paths.resolve_repository_path
+    target = tmp_path / 'source.txt'
+    target.write_text('visible source', encoding='utf-8')
+    tool = ReadFileTool(tmp_path)
+
+    async def request(denied):
+        class Guard:
+            def __call__(self, raw):
+                if denied:
+                    raise base.ToolExecutionError('permission_denied', 'Denied by active file boundary')
+                return tmp_path / raw
+
+            def read_text(self, raw):
+                return self(raw).read_text(encoding='utf-8')
+
+        token = base.file_access_guard.set(Guard())
+        try:
+            await asyncio.sleep(0)
+            return await tool.run({'path': 'source.txt'})
+        finally:
+            base.file_access_guard.reset(token)
+
+    async def run_requests():
+        allowed, denied = await asyncio.gather(request(False), request(True))
+        assert allowed.success and 'visible source' in allowed.content
+        assert not denied.success and denied.error.code == 'permission_denied'
+        assert paths.file_access_guard.get() is None
+        assert (await tool.run({'path': 'source.txt'})).success
+        protected = await tool.run({'path': '.env'})
+        assert not protected.success and protected.error.code == 'protected_path'
+
+    asyncio.run(run_requests())
+
+
 def test_compact_schema_preserves_title_properties_and_instance_data() -> None:
     schema = {
         'title': 'Input', 'type': 'object', 'required': ['title'],

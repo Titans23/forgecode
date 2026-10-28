@@ -15,16 +15,8 @@ from collections.abc import Iterator
 
 from pydantic import Field, field_validator
 
-from forge.tools.base import (
-    Tool,
-    ToolExecutionError,
-    ToolInput,
-    ToolResult,
-    display_path,
-    file_access_guard,
-    is_repository_path_protected,
-    resolve_repository_path,
-)
+from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.paths import display_path, file_access_guard, is_repository_path_protected, resolve_repository_path
 
 
 @dataclass

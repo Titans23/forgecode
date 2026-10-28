@@ -1,6 +1,8 @@
-"""Tool target extraction shared by authorization, checkpoints and dispatch."""
+"""Path resolution, access guards and target extraction for tools and dispatch."""
 from __future__ import annotations
+from contextvars import ContextVar
 from pathlib import Path
+from forge.tool_types import ToolExecutionError
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -71,4 +73,73 @@ def checkpoint_mutation_paths(
         key=lambda path: (path.count('/'), path),
     )
     return tuple(dict.fromkeys((raw_path, *descendants)))
+
+
+
+file_access_guard = ContextVar('forge_file_access_guard', default=None)
+
+
+def resolve_repository_path(
+    root: Path,
+    raw_path: str,
+    *,
+    must_exist: bool = True,
+) -> Path:
+    '''Resolve a path from the working directory or the wider filesystem.'''
+    guard = file_access_guard.get()
+    if guard is not None:
+        resolved = guard(raw_path)
+        if must_exist and not resolved.exists():
+            raise ToolExecutionError('path_not_found', f'Path does not exist: {raw_path}')
+        return resolved
+    candidate = Path(raw_path)
+    resolved = (
+        candidate.resolve(strict=False)
+        if candidate.is_absolute()
+        else (root / candidate).resolve(strict=False)
+    )
+    if is_repository_path_protected(resolved):
+        raise ToolExecutionError(
+            'protected_path',
+            f'Path is protected from repository tools: {raw_path}',
+            details={'path': raw_path},
+        )
+    if must_exist and not resolved.exists():
+        raise ToolExecutionError(
+            'path_not_found',
+            f'Path does not exist: {raw_path}',
+        )
+    return resolved
+
+
+def display_path(root: Path, path: Path) -> str:
+    '''Return a relative path in the workspace and an absolute path outside it.'''
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return path.as_posix()
+    return relative.as_posix() or '.'
+
+
+CONTROL_PLANE_DIRECTORIES = frozenset({'.forge'})
+PUBLIC_ENV_FILES = frozenset({'.env.example'})
+
+
+def is_repository_path_protected(path: Path) -> bool:
+    '''Return whether a repository-relative path is control or secret state.'''
+    guard = file_access_guard.get()
+    if guard is not None:
+        try:
+            guard(path)
+        except Exception:
+            return True
+    for part in path.parts:
+        name = part.casefold()
+        if name in CONTROL_PLANE_DIRECTORIES:
+            return True
+        if name == '.env':
+            return True
+        if name.startswith('.env.') and name not in PUBLIC_ENV_FILES:
+            return True
+    return False
 

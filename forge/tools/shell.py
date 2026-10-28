@@ -15,15 +15,8 @@ from time import perf_counter
 
 from pydantic import Field
 
-from forge.tools.base import (
-    Tool,
-    ToolExecutionError,
-    ToolInput,
-    ToolResult,
-    file_access_guard,
-    display_path,
-    resolve_repository_path,
-)
+from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.paths import file_access_guard, display_path, resolve_repository_path
 from forge.runtime.profile import ExecutionProfile
 
 

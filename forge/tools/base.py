@@ -1,17 +1,23 @@
-'''Shared tool contracts, validation, registry, and repository boundaries.'''
+'''Shared tool contracts, validation and registry; path exports retained for compatibility.'''
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
-from contextvars import ContextVar
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from forge.permissions.policy import PermissionRequest
+from forge.tools.paths import (
+    file_access_guard as file_access_guard,
+    resolve_repository_path as resolve_repository_path,
+    display_path as display_path,
+    is_repository_path_protected as is_repository_path_protected,
+    CONTROL_PLANE_DIRECTORIES as CONTROL_PLANE_DIRECTORIES,
+    PUBLIC_ENV_FILES as PUBLIC_ENV_FILES,
+)
 
 
 class ToolInput(BaseModel):
@@ -363,69 +369,3 @@ class ToolRegistry:
 
 
 ToolEffect = Literal['read_only', 'workspace_write', 'process']
-file_access_guard = ContextVar('forge_file_access_guard', default=None)
-
-
-def resolve_repository_path(
-    root: Path,
-    raw_path: str,
-    *,
-    must_exist: bool = True,
-) -> Path:
-    '''Resolve a path from the working directory or the wider filesystem.'''
-    guard = file_access_guard.get()
-    if guard is not None:
-        resolved = guard(raw_path)
-        if must_exist and not resolved.exists():
-            raise ToolExecutionError('path_not_found', f'Path does not exist: {raw_path}')
-        return resolved
-    candidate = Path(raw_path)
-    resolved = (
-        candidate.resolve(strict=False)
-        if candidate.is_absolute()
-        else (root / candidate).resolve(strict=False)
-    )
-    if is_repository_path_protected(resolved):
-        raise ToolExecutionError(
-            'protected_path',
-            f'Path is protected from repository tools: {raw_path}',
-            details={'path': raw_path},
-        )
-    if must_exist and not resolved.exists():
-        raise ToolExecutionError(
-            'path_not_found',
-            f'Path does not exist: {raw_path}',
-        )
-    return resolved
-
-
-def display_path(root: Path, path: Path) -> str:
-    '''Return a relative path in the workspace and an absolute path outside it.'''
-    try:
-        relative = path.relative_to(root)
-    except ValueError:
-        return path.as_posix()
-    return relative.as_posix() or '.'
-
-
-CONTROL_PLANE_DIRECTORIES = frozenset({'.forge'})
-PUBLIC_ENV_FILES = frozenset({'.env.example'})
-
-
-def is_repository_path_protected(path: Path) -> bool:
-    '''Return whether a repository-relative path is control or secret state.'''
-    guard = file_access_guard.get()
-    if guard is not None:
-        try:
-            guard(path)
-        except Exception:
-            return True
-    for part in path.parts:
-        name = part.casefold()
-        if name in CONTROL_PLANE_DIRECTORIES:
-            return True
-        if name == '.env':
-            return True
-        if name.startswith('.env.') and name not in PUBLIC_ENV_FILES:
-            return True
-    return False

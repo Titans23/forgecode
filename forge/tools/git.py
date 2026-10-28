@@ -9,13 +9,8 @@ from typing import Any
 
 from pydantic import Field
 
-from forge.tools.base import (
-    Tool,
-    ToolInput,
-    ToolResult,
-    display_path,
-    resolve_repository_path,
-)
+from forge.tools.base import Tool, ToolInput, ToolResult
+from forge.tools.paths import display_path, resolve_repository_path
 from forge.tools.shell import (
     process_metadata,
     render_process_output,

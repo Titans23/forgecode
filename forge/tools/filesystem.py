@@ -17,16 +17,8 @@ import tempfile
 from pydantic import Field, model_validator
 
 from forge.permissions.policy import PermissionRequest
-from forge.tools.base import (
-    Tool,
-    ToolExecutionError,
-    ToolInput,
-    ToolResult,
-    display_path,
-    file_access_guard,
-    is_repository_path_protected,
-    resolve_repository_path,
-)
+from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.paths import display_path, file_access_guard, is_repository_path_protected, resolve_repository_path
 
 
 MAX_EDIT_CHARACTERS = 30_000

@@ -13,7 +13,8 @@ from pydantic import Field, model_validator
 
 from forge.runtime.workspace import WorkspaceTracker
 from forge.runtime.verification import verification_quality
-from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult, display_path, resolve_repository_path
+from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.paths import display_path, resolve_repository_path
 from forge.tools.shell import has_unquoted_heredoc, process_metadata, render_process_output, run_process
 from forge.tools.verification_checks import OutputCheck, dormant_python_tests, evaluate_output_checks
 

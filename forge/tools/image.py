@@ -4,7 +4,8 @@ import base64
 from hashlib import sha256
 
 from pydantic import Field
-from forge.tools.base import Tool, ToolInput, ToolResult, ToolExecutionError, file_access_guard, resolve_repository_path
+from forge.tools.base import Tool, ToolInput, ToolResult, ToolExecutionError
+from forge.tools.paths import file_access_guard, resolve_repository_path
 
 MAX_IMAGE_BYTES = 512 * 1024  # Base64 plus the helper envelope stays below 1 MiB.
 
