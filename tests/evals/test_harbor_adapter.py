@@ -53,6 +53,8 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
     assert 'timeout --kill-after=10s 1815 ' in command
     assert 'FORGECODE_API_KEY' in command
     assert 'ANTHROPIC_API_KEY=' in command
+    assert '${FORGECODE_MODEL_MAX_TOKENS:-65536}' in command
+    assert '${FORGECODE_CONTEXT_WINDOW:-262144}' in command
     assert 'FORGECODE_BENCHMARK_RESULT' not in command
     assert '/logs/agent/forgecode-repair.txt' in command
     assert '/logs/agent/forgecode-status.json' in command
@@ -478,6 +480,8 @@ def test_aider_runner_passes_mount_as_one_json_argument(tmp_path: Path) -> None:
     assert command[command.index('-r') + 1] == '1'
     assert command[-2:] == ['-i', 'polyglot_python_proverb']
     assert 'FORGECODE_API_KEY=${ANTHROPIC_API_KEY}' in command
+    assert 'FORGECODE_MODEL_MAX_TOKENS=65536' in command
+    assert 'FORGECODE_CONTEXT_WINDOW=262144' in command
 
 
 def test_aider_runner_can_force_environment_rebuild(tmp_path: Path) -> None:

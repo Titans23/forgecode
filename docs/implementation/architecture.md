@@ -65,6 +65,10 @@ Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程
 
 压缩摘要只存在于已提交消息，由 Journal 保存并由轻量裁剪保留，不另设可重新注入的摘要副本。清空、切换会话或回退对话历史时，同步清除压缩失败计数、访问规则范围、工作观察和待注入 Hook 提示；项目长期记忆保留。保留原历史的分支、仅代码回退和当前会话 resume 不清除这些上下文。
 
+上下文默认 262,144 tokens，单请求输出上限 65,536 tokens。压缩采用 [DSH compaction-basic 的预算规则](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/compaction/compaction-basic/src/config.ts)：触发阈值为 `min(窗口 × 0.8, 窗口 − 输出预留 − 65,536)`，当前为 131,072 tokens；先无模型裁剪工具结果，再测量完整请求（含系统指令及工具定义）。仍超阈值时只摘要旧前缀，按 `(窗口 − 输出预留) × 0.16` 保留近期原文，当前为 31,457 tokens；边界向前扩展以保留完整工具调用／结果。16% 是近期原文的最低预算，不是整个摘要结果的大小目标。摘要后复测，至多两次尝试，继续超限则明确失败；请求都计入原共享预算，溢出恢复仍仅一次。固定指令过大或无安全摘要范围时不浪费模型请求。显式小窗口必须给输出和压缩预留留足空间。
+
+大工具结果采用 [DSH pruner 的字符规则](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/compaction/compaction-tool-result-pruner/src/config.ts)：每个结果的文本超过 8,192 个 Unicode 码点时保留头 4,096、尾 1,024 和中部裁剪标记，跨文本块累计，图片块保持原位；不再按结果年龄二次缩短，也不按所有工具结果的字符总量裁剪。沿用 ForgeCode 的结果归档和受限读取句柄，因此可见结果额外包含少量归档元数据。用户原话、摘要和工具配对继续受保护，完整原文保存在现有 artifact／Journal／压缩前 transcript；不移植 DSH 的插件体系。手动压缩和溢出恢复保留最新完整消息单元，不采用自动压缩的 16% 尾部预算。
+
 `scripts/check_architecture.py` 防止公共契约反向依赖产品模块、核心依赖 CLI/旧应用协议模块、沙盒导入 Conversation 实现、会话视图反向依赖事件传输层，以及验证值／报告／规则反向依赖完成门禁。工具路径解析独立于循环。兼容参数 repeated_tool_limit/stagnation 等已无运行时效果，自定义值会发出弃用警告；使用真实回合预算。
 
 ## 2. 保留接口与能力边界
@@ -91,7 +95,7 @@ Windows 原生会话的内部控制与执行临时目录放在 OS 解析的 Loca
 
 验证器修正可使用 `verify(check_id=原检查ID, command=修正命令, revision_reason=原因)`；检查 ID 和执行记录 ID 均可引用，原断言、需求和工作目录自动继承。仍拒绝降低阈值、替换来源或改变工作目录；没有结构化断言的旧检查不能通过改写内联命令自动消除失败记录。绝对路径解释器的 compileall/py_compile 也只算结构检查；评测提示允许在禁止修改测试时读取、运行已有公开测试。EvalCase 可显式启用已有 require_task_verification/require_positive_verification 门禁，实际策略记录在运行配置；默认不升级日常任务，功能验收仍依赖行为检查及独立判分。
 
-`view_image` 通过现有文件授权边界读取 PNG/JPEG/GIF/WebP（最多 512 KiB），向 Anthropic/Responses 传递原生图像内容；DeepSeek 文本适配器不提供该工具。Journal 保存原始图像消息，近期图片不作为长文本截断；历史压缩移除活跃上下文中的旧图片并保留重新读取提示。图片上下文预算使用估算，实际 token 以服务端用量为准。
+`view_image` 通过现有文件授权边界读取 PNG/JPEG/GIF/WebP（最多 512 KiB），向 Anthropic/Responses 传递原生图像内容；DeepSeek 文本适配器不提供该工具。Journal 保存原始图像消息，工具文本裁剪不删除图片；被摘要前缀中的旧图片转成文字占位，保留尾部中的图片继续发送。图片上下文预算使用估算，实际 token 以服务端用量为准。
 
 API 接受字符串或类型明确的 text/image blocks，CLI 的 @path 支持文字和图像；输入限制为文字 256 KiB、最多 8 张图、单图 512 KiB、总附件 4 MiB。MCP 图片进入相同内容链路，音频仍不支持原生输入。适配器传输能力与具体模型能力分开，未知模型模态保持未知。
 

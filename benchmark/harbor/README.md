@@ -37,8 +37,8 @@ or `--all`. There is no implicit model or task subset. Defaults are concurrency
 1, one attempt, zero task retries, 120 model requests, 240 tool calls and 1800
 agent seconds per task; the official task deadline remains an upper bound.
 Model settings use `ForgeConfig`: explicit options > process > project `.env`
-> user `~/.forge/.env`. The evaluation context defaults to 128000 only when
-unset; `--context-window` overrides it. `--dry-run` shows effective settings
+> user `~/.forge/.env`. Unset context/output limits use the shared defaults
+of 262144/65536 tokens; `--context-window` and `--max-output-tokens` override them. `--dry-run` shows effective settings
 and prerequisites without downloading tasks or calling a model.
 
 Runs and cache default to `~/.local/share/forgecode/evaluation/` (or XDG data

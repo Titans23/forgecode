@@ -98,7 +98,7 @@ class HarborAdapter:
             issue('protocol_incompatible','Current provider API does not apply frozen temperature/top_p; unsupported values are refused')
         if not harness['compaction_enabled'] or not harness['explore_enabled'] or harness['trusted_extensions_enabled'] or harness['max_delivery_repairs']>2:
             issue('protocol_incompatible','Supported Harness: compaction/explore enabled, trusted extensions off, at most two internal repairs')
-        if not 1024<=parameters['max_output_tokens']<=32768 or not 4096<=harness['max_context_tokens']<=2000000 or harness['max_context_tokens']<=parameters['max_output_tokens']:
+        if not 1024<=parameters['max_output_tokens']<=65536 or not 4096<=harness['max_context_tokens']<=2000000 or harness['max_context_tokens']<=parameters['max_output_tokens']:
             issue('protocol_incompatible','Frozen model/context limits are outside the actual ForgeConfig bounds')
         network=values['network_cache']
         if network['cache_mode']!='cold':

@@ -35,44 +35,40 @@ def tool_pair(call_id: str, result: str) -> list[dict[str, object]]:
 def test_large_tool_result_is_persisted_without_mutating_source(
     tmp_path: Path,
 ) -> None:
-    messages = tool_pair('toolu_big', 'x' * 40)
-    config = CompactionConfig(tool_result_inline_limit=20)
+    messages = tool_pair('toolu_big', 'x' * 9_000)
+    config = CompactionConfig()
 
     result = cheap_compact(messages, tmp_path / 'artifacts', config)
 
     compacted = result.messages[1]['content'][0]['content']
     assert compacted.startswith('[ForgeCode stored a large tool result]')
     assert result.artifacts
-    assert Path(result.artifacts[0]).read_text(encoding='utf-8') == 'x' * 40
-    assert messages[1]['content'][0]['content'] == 'x' * 40
+    assert Path(result.artifacts[0]).read_text(encoding='utf-8') == 'x' * 9_000
+    assert messages[1]['content'][0]['content'] == 'x' * 9_000
 
 
 def test_large_tool_result_preview_keeps_head_and_tail_without_read_path(
     tmp_path: Path,
 ) -> None:
-    content = 'HEAD' + 'x' * 6_000 + 'TAIL_ERROR'
+    content = 'HEAD' + 'x' * 9_000 + 'TAIL_ERROR'
     messages = tool_pair('toolu_big', content)
-    config = CompactionConfig(tool_result_inline_limit=20)
+    config = CompactionConfig()
 
     result = cheap_compact(messages, tmp_path / 'artifacts', config)
 
     compacted = result.messages[1]['content'][0]['content']
     assert 'HEAD' in compacted
     assert 'TAIL_ERROR' in compacted
-    assert 'characters omitted' in compacted
+    assert '[... tool result middle pruned ...]' in compacted
     assert 'path:' not in compacted
-    assert 'Do not attempt to read ForgeCode control-plane files' in compacted
+    assert 'read_context_artifact' in compacted
 
 
-def test_old_tool_results_are_shortened_but_recent_results_stay() -> None:
+def test_small_tool_results_stay_verbatim_regardless_of_age() -> None:
     messages: list[dict[str, object]] = []
     for index in range(5):
         messages.extend(tool_pair(f'toolu_{index}', str(index) * 30))
-    config = CompactionConfig(
-        tool_result_inline_limit=1_000,
-        old_tool_result_limit=10,
-        keep_recent_tool_results=2,
-    )
+    config = CompactionConfig()
 
     result = cheap_compact(messages, Path('.unused'), config)
     outputs = [
@@ -81,15 +77,11 @@ def test_old_tool_results_are_shortened_but_recent_results_stay() -> None:
         if message['role'] == 'user'
     ]
 
-    assert result.shortened_tool_results == 3
-    assert outputs[0].startswith(
-        '[Old tool result preview; complete content may be in the session artifact]'
-    )
-    assert '0' * 10 in outputs[0]
-    assert outputs[-2:] == ['3' * 30, '4' * 30]
+    assert result.shortened_tool_results == 0
+    assert outputs == [str(index) * 30 for index in range(5)]
 
 
-def test_old_read_file_result_keeps_a_bounded_preview() -> None:
+def test_small_read_file_result_keeps_complete_source() -> None:
     read_result = json.dumps(
         {
             'success': True,
@@ -106,19 +98,12 @@ def test_old_read_file_result_keeps_a_bounded_preview() -> None:
         *tool_pair('read', read_result),
         *tool_pair('newer', 'new result ' * 20),
     ]
-    config = CompactionConfig(
-        tool_result_inline_limit=10_000,
-        old_tool_result_limit=20,
-        keep_recent_tool_results=1,
-    )
+    config = CompactionConfig()
 
     result = cheap_compact(messages, Path('.unused'), config)
 
     compacted = result.messages[1]['content'][0]['content']
-    assert compacted.startswith(
-        '[Old tool result preview; complete content may be in the session artifact]'
-    )
-    assert 'source code' in compacted
+    assert compacted == read_result
 
 
 def test_middle_snip_never_splits_tool_use_and_result_pair(
@@ -169,8 +154,6 @@ def test_twenty_tool_rounds_remain_protocol_valid_and_bounded(
         message_limit=16,
         keep_first_messages=3,
         keep_recent_messages=10,
-        old_tool_result_limit=80,
-        keep_recent_tool_results=3,
     )
 
     result = cheap_compact(messages, tmp_path, config)
@@ -188,7 +171,7 @@ def test_twenty_tool_rounds_remain_protocol_valid_and_bounded(
 
     assert call_ids == result_ids
     assert len(result.messages) < len(messages)
-    assert result.shortened_tool_results > 0
+    assert result.shortened_tool_results == 0
 
 
 def test_default_compaction_does_not_drop_earliest_chat_message(

@@ -19,7 +19,7 @@ from anthropic import (
 )
 import httpx
 
-from forge.config import DEFAULT_MODEL_MAX_TOKENS, ForgeConfig
+from forge.config import DEFAULT_MODEL_CONTEXT_WINDOW, DEFAULT_MODEL_MAX_TOKENS, ForgeConfig
 from forge.runtime.state import (
     ModelClient as ModelClient,
     ModelCallError as ModelCallError,
@@ -94,7 +94,7 @@ class AnthropicModelClient:
         model: str,
         max_tokens: int = DEFAULT_MODEL_MAX_TOKENS,
         max_retries: int = 2,
-        context_window: int | None = None,
+        context_window: int | None = DEFAULT_MODEL_CONTEXT_WINDOW,
         request_timeout_seconds: float = 120.0,
         config: ForgeConfig | None = None,
         client: AsyncAnthropic | None = None,

@@ -12,7 +12,7 @@ def test_large_tool_result_is_bounded_before_history_storage(
     manager = ContextManager(
         [],
         tmp_path,
-        CompactionConfig(tool_result_inline_limit=20),
+        CompactionConfig(),
     )
     message = {
         'role': 'user',
@@ -20,7 +20,7 @@ def test_large_tool_result_is_bounded_before_history_storage(
             {
                 'type': 'tool_result',
                 'tool_use_id': 'large-result',
-                'content': 'x' * 100,
+                'content': 'x' * 9_000,
             }
         ],
     }
@@ -30,7 +30,7 @@ def test_large_tool_result_is_bounded_before_history_storage(
     assert artifacts
     stored = message['content'][0]['content']
     assert stored.startswith('[ForgeCode stored a large tool result]')
-    assert Path(artifacts[0]).read_text(encoding='utf-8') == 'x' * 100
+    assert Path(artifacts[0]).read_text(encoding='utf-8') == 'x' * 9_000
 
 
 def test_context_stats_count_messages_and_tool_results() -> None:
@@ -126,11 +126,13 @@ def test_request_stats_use_cheap_compaction_and_keep_stored_totals() -> None:
 
 def test_compaction_accounts_for_request_envelope_and_output_reservation(tmp_path):
     messages = [{'role': 'user', 'content': 'short request'}]
-    context = ContextManager(messages, tmp_path)
+    context = ContextManager(messages, tmp_path, CompactionConfig(headroom_tokens=512))
     assert not context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=1024)
-    assert context.compaction_required(messages, system_prompt='s' * 10_000,
+    assert context.compaction_required(messages, system_prompt='s' * 11_000,
         context_window_tokens=4096, reserved_output_tokens=1024)
-    assert context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=4095)
+    import pytest
+    with pytest.raises(ValueError, match='headroom'):
+        context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=4095)
     assert messages == [{'role': 'user', 'content': 'short request'}]
 
 

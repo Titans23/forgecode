@@ -121,7 +121,7 @@ def test_image_worker_provider_context_and_journal_preserve_visual_input(tmp_pat
     from forge.runtime.state import ToolCall
     from forge.runtime.providers import responses_input, chat_messages
     from forge.runtime.model_client import ModelProtocolError
-    from forge.context.compactor import persist_large_tool_results, CompactionConfig, shorten_old_tool_results
+    from forge.context.compactor import persist_large_tool_results, CompactionConfig, cheap_compact
     from forge.context.manager import measure_messages
     from forge.sessions.store import SessionStore
     root, control, workspace, policy = fixture(tmp_path)
@@ -148,8 +148,8 @@ def test_image_worker_provider_context_and_journal_preserve_visual_input(tmp_pat
     assert measure_messages([message])[0] > 8192
     messages = [{'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'image-call', 'name': 'view_image'}]},
                 message, {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'image-call', 'content': 'recent'}]}]
-    shorten_old_tool_results(messages, CompactionConfig(keep_recent_tool_results=1))
-    assert encoded not in str(message) and 'view_image' in str(message)
+    prepared = cheap_compact(messages, control / 'artifacts').messages
+    assert prepared[1]['content'][0]['content'][1]['source']['data'] == encoded
     assert encoded in str(store.load(journal.session_id).messages)
     denied = invoke(control, workspace, policy, name='view_image', arguments={'path': '../synthetic-private/secret.txt'})
     assert denied['status'] == 'error' and denied['error']['code'] == 'POLICY_DENIED'

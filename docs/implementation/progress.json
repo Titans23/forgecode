@@ -21,6 +21,18 @@
   "harness_benchmark_remediation": {
     "status": "implemented_offline_verified",
     "reference": "deepseek-ai/deepseek-harness@f3803c96974ad4a94195fb97e5c637e9c2a3afe3: request-pressure pruning and remeasurement; no plugin architecture port",
+    "context_policy": {
+      "context_window_tokens": 262144,
+      "max_output_tokens": 65536,
+      "headroom_tokens": 65536,
+      "pressure_threshold_tokens": 131072,
+      "recent_tail_minimum_tokens": 31457,
+      "summary_attempts": 2,
+      "tool_text_characters": {"threshold": 8192, "head": 4096, "tail": 1024},
+      "boundaries": "Shared request budget, original user instructions, atomic tool pairs, recoverable artifacts and Journal retained; no age-based result shortening or final 60% history target. Harbor uses the shared model defaults.",
+      "test_refs": ["tests/context/test_dsh_policy.py", "tests/runtime/test_continuity_contract.py", "tests/benchmark/test_harbor_dataset_runner.py", "tests/implementation/integration/test_benchmark_adapters.py"],
+      "verification": {"windows_regression": "696 passed", "policy_failure_boundaries": "11 passed", "posix_policy_config": "54 passed", "harbor_entrypoints": "41 passed", "frozen_configuration": "36 passed", "quality_and_contracts": "passed", "live_model_requests": 0}
+    },
     "changes": ["execution-profile-specific command capabilities", "visible-request compaction with preserved user constraints and bounded nonshrinking summaries", "shorter shared and benchmark prompts without duplicate task text", "official benchmark grading without mandatory model-authored requirement IDs", "one actionability feedback within the existing delivery-repair and parent budgets"],
     "validation": {
       "core_regression": "677 passed; one old prompt-text assertion failed, updated to equivalent requirements and passed in the 18-test focused follow-up",

@@ -111,7 +111,7 @@ eval_args=(
   --n-tasks 10 --concurrency 4 --max-retries 0
   --model gpt-6-luna --provider anthropic --base-url "$FORGE_BASE_URL"
   --max-model-calls 120 --max-tool-calls 240 --max-turn-seconds 1800
-  --max-output-tokens 8192 --context-window 32768
+  --max-output-tokens 65536 --context-window 262144
   --output-dir "$run_dir"
 )
 uv run --no-sync python -m benchmark run terminal-bench-2 "${eval_args[@]}" --dry-run

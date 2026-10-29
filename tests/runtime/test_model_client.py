@@ -178,7 +178,8 @@ def test_client_can_use_model_id_from_config() -> None:
     )
 
     assert client.model == 'configured-model'
-    assert client.max_tokens == 8_192
+    assert client.max_tokens == 65_536
+    assert client.context_window == 262_144
     assert client.request_timeout_seconds == 120.0
 
 

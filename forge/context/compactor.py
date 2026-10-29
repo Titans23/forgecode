@@ -19,34 +19,13 @@ from forge.runtime.state import (
 )
 
 
-COMPACTABLE_TOOL_NAMES = frozenset(
-    {
-        'read_file',
-        'view_image',
-        'list_directory',
-        'grep',
-        'find_files',
-        'run_command',
-        'verify',
-        'git_status',
-        'git_diff',
-        'write_file',
-        'write_file_chunk',
-        'replace_text',
-        'apply_patch',
-        'create_directory',
-    }
-)
-
-
 @dataclass(frozen=True, slots=True)
 class CompactionConfig:
     '''Limits for cheap and full-history context compaction.'''
 
-    tool_result_total_budget: int = 200_000
-    tool_result_inline_limit: int = 30_000
-    keep_recent_tool_results: int = 3
-    old_tool_result_limit: int = 120
+    tool_result_inline_limit: int = 8_192
+    tool_result_head_characters: int = 4_096
+    tool_result_tail_characters: int = 1_024
     # Message count is not a context budget.  A fixed 24-message cutoff used
     # to discard the only diagnostic explaining a failed attempt.  Automatic
     # compaction is now driven by model-window accounting in ContextManager;
@@ -58,11 +37,19 @@ class CompactionConfig:
     file_evidence_character_budget: int = 100_000
     auto_compact_characters: int = 120_000
     auto_compact_ratio: float = 0.8
-    target_compact_ratio: float = 0.6
-    summary_keep_recent_messages: int = 6
-    post_compact_max_files: int = 5
-    post_compact_file_budget: int = 100_000
+    headroom_tokens: int = 65_536
+    retain_ratio: float = 0.16
+    compaction_retries: int = 1
     max_summary_failures: int = 3
+
+    def pressure_threshold(self, context_window: int, output_tokens: int) -> int:
+        '''DSH pressure budget: output reservation and compaction headroom are separate.'''
+        available = context_window - output_tokens
+        threshold = int(min(context_window * self.auto_compact_ratio, available - self.headroom_tokens))
+        if threshold <= 0 or int(available * self.retain_ratio) >= threshold:
+            raise ValueError('Context window must leave room for output, compaction headroom '
+                             'and the retained tail; increase the window or reduce these budgets.')
+        return threshold
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,12 +121,9 @@ async def summarize_history(
     client: Any,
     messages: list[dict[str, Any]],
     *,
-    keep_recent_messages: int = 6,
+    retained_messages: list[dict[str, Any]],
     scope_hints: tuple[str, ...] = (),
     task_goal: str = '',
-    restore_max_files: int = 5,
-    restore_character_budget: int = 100_000,
-    restoration_messages: list[dict[str, Any]] | None = None,
 ) -> FullCompactionResult:
     '''Ask the configured model only for a structured continuity summary.'''
     transcript = json.dumps(describe_images(messages), ensure_ascii=False, default=str)
@@ -190,16 +174,6 @@ async def summarize_history(
             open_questions=summary.open_questions,
             next_action=summary.next_action,
         )
-    units = atomic_message_units(restoration_messages or messages)
-    recent_units = take_units_from_end(units, keep_recent_messages)
-    recent_ids = {id(unit) for unit in recent_units}
-    restored_units = select_file_evidence_units(
-        units,
-        excluded_ids=recent_ids,
-        maximum=restore_max_files,
-        character_budget=restore_character_budget,
-        scope_hints=scope_hints,
-    )
     summary_text = json.dumps(
         summary.as_dict(),
         ensure_ascii=False,
@@ -216,21 +190,7 @@ async def summarize_history(
             'role': 'assistant',
             'content': 'I will continue from the structured task summary.',
         },
-        *(
-            [
-                {
-                    'role': 'user',
-                    'content': (
-                        '[ForgeCode post-compact file restoration: recent '
-                        'task-scoped file evidence follows.]'
-                    ),
-                }
-            ]
-            if restored_units
-            else []
-        ),
-        *(message for unit in restored_units for message in unit),
-        *(message for unit in recent_units for message in unit),
+        *retained_messages,
     ]
     return FullCompactionResult(compacted, summary, usage)
 
@@ -259,11 +219,6 @@ def cheap_compact(
         artifact_dir,
         resolved,
     )
-    protected_file_results = file_evidence_result_ids(
-        compacted,
-        resolved,
-        scope_hints=scope_hints,
-    )
     before = len(compacted)
     compacted = snip_middle_messages(
         compacted,
@@ -271,17 +226,11 @@ def cheap_compact(
         scope_hints=scope_hints,
     )
     removed = before - len(compacted)
-    shortened = shorten_old_tool_results(
-        compacted,
-        resolved,
-        protected_result_ids=protected_file_results,
-        artifact_dir=artifact_dir,
-    )
     return CheapCompactionResult(
         messages=compacted,
         artifacts=tuple(artifacts),
         removed_messages=max(0, removed),
-        shortened_tool_results=shortened,
+        shortened_tool_results=len(artifacts),
     )
 
 
@@ -290,97 +239,75 @@ def persist_large_tool_results(
     artifact_dir: Path,
     config: CompactionConfig,
 ) -> list[str]:
-    '''Persist oversized outputs and replace them with bounded references.'''
-    # Image blocks must reach the provider as images, never as base64 previews.
-    blocks = [b for b in iter_tool_result_blocks(messages) if isinstance(b.get('content'), str)]
-    total = sum(len(str(block.get('content', ''))) for block in blocks)
-    candidates = [
-        block
-        for block in blocks
-        if len(str(block.get('content', '')))
-        > config.tool_result_inline_limit
-    ]
-    if total > config.tool_result_total_budget:
-        candidates = sorted(
-            blocks,
-            key=lambda block: len(str(block.get('content', ''))),
-            reverse=True,
-        )
-
+    '''Archive full results and prune text middles without removing rich blocks.'''
     written: list[str] = []
-    for block in candidates:
-        content = str(block.get('content', ''))
-        if (
-            len(content) <= config.tool_result_inline_limit
-            and total <= config.tool_result_total_budget
-        ):
+    for block in iter_tool_result_blocks(messages):
+        content = block.get('content')
+        if isinstance(content, str):
+            texts = [{'type': 'text', 'text': content}]
+        elif isinstance(content, list):
+            texts = content
+        else:
             continue
-        digest = hashlib.sha256(content.encode('utf-8')).hexdigest()
+        total = sum(len(item.get('text', '')) for item in texts
+                    if isinstance(item, dict) and item.get('type') == 'text')
+        if total <= config.tool_result_inline_limit:
+            continue
+        preview = prune_tool_content(texts, config)
+        # A custom threshold smaller than the preview budget must never expand a result.
+        if preview == texts:
+            continue
+        original = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
+        digest = hashlib.sha256(original.encode('utf-8')).hexdigest()
         artifact_dir.mkdir(parents=True, exist_ok=True)
         path = artifact_dir / f'{digest}.txt'
         if not path.exists():
-            path.write_text(content, encoding='utf-8')
-        preview = tool_result_preview(content)
-        block['content'] = (
+            path.write_text(original, encoding='utf-8')
+        # Keep the existing constrained recovery handle outside the text slice.
+        reference = (
             '[ForgeCode stored a large tool result]\n'
-            'The complete result was archived internally. Do not attempt to '
-            'read ForgeCode control-plane files directly.\n'
-            f'sha256: {digest}\n'
-            f'characters: {len(content)}\npreview:\n{preview}'
+            f'sha256: {digest}\ncharacters: {total}\n'
+            'Read complete content with read_context_artifact using this sha256.\n'
         )
+        if isinstance(content, str):
+            block['content'] = reference + ''.join(item['text'] for item in preview)
+        else:
+            block['content'] = [{'type': 'text', 'text': reference}, *preview]
         written.append(path.as_posix())
-        total -= max(0, len(content) - len(str(block['content'])))
     return written
 
 
-def tool_result_preview(
-    content: str,
-    *,
-    head_characters: int = 1_000,
-    tail_characters: int = 4_000,
-) -> str:
-    '''Keep error context from both ends of an oversized tool result.'''
-    maximum = head_characters + tail_characters
-    if len(content) <= maximum:
-        return content
-    omitted = len(content) - maximum
-    return (
-        content[:head_characters]
-        + f'\n\n[... {omitted} characters omitted ...]\n\n'
-        + content[-tail_characters:]
-    )
-
-
-def file_evidence_result_ids(
-    messages: list[dict[str, Any]],
+def prune_tool_content(
+    blocks: list[dict[str, Any]],
     config: CompactionConfig,
-    *,
-    scope_hints: tuple[str, ...] = (),
-) -> set[str]:
-    '''Return tool-result IDs whose source ranges must survive shortening.'''
-    units = atomic_message_units(messages)
-    first = take_units_from_start(units, config.keep_first_messages)
-    recent = take_units_from_end(units, config.keep_recent_messages)
-    excluded_ids = {id(unit) for unit in (*first, *recent)}
-    evidence = select_file_evidence_units(
-        units,
-        excluded_ids=excluded_ids,
-        maximum=config.keep_file_evidence_units,
-        character_budget=config.file_evidence_character_budget,
-        scope_hints=scope_hints,
-    )
-    result_ids: set[str] = set()
-    for unit in evidence:
-        for message in unit:
-            content = message.get('content')
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if isinstance(block, dict) and block.get('type') == 'tool_result':
-                    call_id = str(block.get('tool_use_id', ''))
-                    if call_id:
-                        result_ids.add(call_id)
-    return result_ids
+) -> list[dict[str, Any]]:
+    '''Use DSH's Unicode-code-point head/middle/tail policy across text blocks.'''
+    total = sum(len(block.get('text', '')) for block in blocks if block.get('type') == 'text')
+    head = config.tool_result_head_characters
+    tail = config.tool_result_tail_characters
+    marker = '\n\n[... tool result middle pruned ...]\n\n'
+    if total <= config.tool_result_inline_limit or total <= head + tail + len(marker):
+        return blocks
+    removed_end = total - tail
+    consumed = 0
+    inserted = False
+    result = []
+    for block in blocks:
+        if block.get('type') != 'text':
+            result.append(block)
+            continue
+        text = block['text']
+        end = consumed + len(text)
+        head_end = min(len(text), max(0, head - consumed))
+        tail_start = min(len(text), max(0, removed_end - consumed))
+        middle = ''
+        if consumed < removed_end and end > head and not inserted:
+            middle, inserted = marker, True
+        kept = text[:head_end] + middle + text[tail_start:]
+        if kept:
+            result.append({**block, 'text': kept})
+        consumed = end
+    return result
 
 
 def snip_middle_messages(
@@ -621,76 +548,6 @@ def add_file_read_spans(
         covered[path] = merged
 
 
-def shorten_old_tool_results(
-    messages: list[dict[str, Any]],
-    config: CompactionConfig,
-    *,
-    protected_result_ids: set[str] | None = None,
-    artifact_dir: Path | None = None,
-) -> int:
-    '''Clear old replayable tool results while preserving durable task outputs.'''
-    tool_names: dict[str, str] = {}
-    result_blocks: list[dict[str, Any]] = []
-    for message in messages:
-        content = message.get('content')
-        if not isinstance(content, list):
-            continue
-        for block in content:
-            if not isinstance(block, dict):
-                continue
-            if block.get('type') == 'tool_use':
-                tool_names[str(block.get('id', ''))] = str(
-                    block.get('name', '')
-                )
-            elif block.get('type') == 'tool_result':
-                call_id = str(block.get('tool_use_id', ''))
-                if tool_names.get(call_id) in COMPACTABLE_TOOL_NAMES:
-                    result_blocks.append(block)
-    keep_recent = max(1, config.keep_recent_tool_results)
-    old_blocks = result_blocks[:-keep_recent]
-    protected = protected_result_ids or set()
-    shortened = 0
-    for block in old_blocks:
-        if str(block.get('tool_use_id', '')) in protected:
-            continue
-        if isinstance(block.get('content'), list):
-            block['content'] = json.dumps(describe_images(block['content']), ensure_ascii=False)
-            shortened += 1
-            continue
-        content = str(block.get('content', ''))
-        if len(content) <= config.old_tool_result_limit:
-            continue
-        if content.startswith('[ForgeCode stored a large tool result]'):
-            continue
-        if len(content) > 5500:
-            if artifact_dir is None:
-                continue  # Never discard content without a recoverable reference.
-            digest = hashlib.sha256(content.encode('utf-8')).hexdigest()
-            artifact_dir.mkdir(parents=True, exist_ok=True)
-            (artifact_dir / f'{digest}.txt').write_text(content, encoding='utf-8')
-            block['content'] = (
-                '[ForgeCode stored a large tool result]\n'
-                f'sha256: {digest}\ncharacters: {len(content)}\n'
-                'Read complete content with read_context_artifact using this sha256.\n'
-                + tool_result_preview(content)
-            )
-            shortened += 1
-            continue
-        # Keep a bounded head and tail rather than erasing diagnostics.  Large
-        # results already have an artifact reference from
-        # persist_large_tool_results; smaller failures still retain the error
-        # context needed for the next model request.
-        block['content'] = (
-            '[Old tool result preview; complete content may be in the '
-            'session artifact]\n'
-            + tool_result_preview(
-                content,
-                head_characters=1_500,
-                tail_characters=4_000,
-            )
-        )
-        shortened += 1
-    return shortened
 
 
 def describe_images(value, *, budget=False):

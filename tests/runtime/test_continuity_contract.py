@@ -47,7 +47,7 @@ def pair(identifier: str, output: str, *, failed: bool = False):
     ]
 
 
-def test_medium_failure_reaches_summarizer_before_shortening(tmp_path: Path):
+def test_large_failure_summary_uses_pruned_projection_with_full_artifact(tmp_path: Path):
     diagnostic = 'a' * 6000 + 'ROOT_CAUSE_IN_MIDDLE' + 'z' * 6000
     messages = [{'role': 'user', 'content': 'Produce result; keep original input unchanged.'}]
     messages += pair('failed', diagnostic, failed=True)
@@ -56,13 +56,18 @@ def test_medium_failure_reaches_summarizer_before_shortening(tmp_path: Path):
 
     class Summarizer:
         async def stream(self, messages, **kwargs):
-            assert 'ROOT_CAUSE_IN_MIDDLE' in json.dumps(messages)
+            assert 'ROOT_CAUSE_IN_MIDDLE' not in json.dumps(messages)
+            assert 'tool result middle pruned' in json.dumps(messages)
+            assert 'a' * 4096 in json.dumps(messages)
+            assert 'z' * 1024 in json.dumps(messages)
             yield ModelTextDelta(json.dumps({'goal': 'result', 'failed_attempts': ['root cause']}))
             yield ModelUsageUpdate(TokenUsage(1, 1))
 
     manager = ContextManager(messages, tmp_path)
     report = asyncio.run(manager.compact_history(messages, Summarizer(), force=True))
     assert report.success, report.reason
+    artifact = hashlib.sha256(diagnostic.encode()).hexdigest()
+    assert manager.read_artifact(artifact, offset=0, max_characters=20000) == diagnostic
 
 
 def test_shortened_medium_output_has_recoverable_artifact(tmp_path: Path):

@@ -164,9 +164,6 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'MODEL_CONTEXT_WINDOW': args.context_window}.items() if value is not None}
     config = None if args.agent == 'oracle' or args.prepare_only else ForgeConfig.from_env(model_environment(args.env_file, overrides))
     model = {key: value for key, value in asdict(config).items() if key != 'api_key'} if config else None
-    if model:
-        # Keep the existing evaluation context limit explicit when the user has not set one.
-        model['context_window'] = config.context_window or 128000
     budget = {'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
               'wall_seconds': args.max_turn_seconds}
     return config, {'schema_version': 'forge.evaluation.v1', 'dataset': args.dataset,

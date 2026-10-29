@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
@@ -14,14 +13,13 @@ from forge.context.compactor import (
     CheapCompactionResult,
     CompactionConfig,
     cheap_compact,
-    is_durable_anchor,
     persist_large_tool_results,
-    shorten_old_tool_results,
     summarize_history,
     atomic_message_units,
 )
 from forge.context.repository import MemoryRecord, RepositoryContext
 from forge.runtime.state import TokenUsage
+from forge.runtime.turn_state import BudgetExhausted, add_usage
 
 
 @dataclass(frozen=True, slots=True)
@@ -330,7 +328,7 @@ class ContextManager:
             context_window_tokens=context_window_tokens,
             reserved_output_tokens=reserved_output_tokens,
         )
-        threshold_reached = self._threshold_reached(
+        threshold_reached = not force and self._threshold_reached(
             before_stats,
             context_window_tokens=context_window_tokens,
             reserved_output_tokens=reserved_output_tokens,
@@ -350,7 +348,7 @@ class ContextManager:
         if not force and context_window_tokens is not None:
             envelope = (before_stats.system_tokens + before_stats.repository_tokens
                         + before_stats.tool_schema_tokens)
-            if envelope >= max(1, context_window_tokens - reserved_output_tokens) * self.config.auto_compact_ratio:
+            if envelope >= self.config.pressure_threshold(context_window_tokens, reserved_output_tokens):
                 return CompactionReport(
                     success=False, automatic=True,
                     before_characters=before_stats.estimated_characters,
@@ -359,85 +357,77 @@ class ContextManager:
                     reason='Fixed request instructions and tools exceed the compaction threshold; history summarization cannot reduce them.',
                 )
         transcript_path = self.persist_transcript(messages)
-        restoration_messages = deepcopy(messages)
-        persist_large_tool_results(
-            restoration_messages,
-            self.root / '.forge' / 'context' / 'tool-results',
-            self.config,
-        )
-        # Summarize the diagnostics before shortening old results. The original
-        # user wording is a separate durable anchor, not a model reconstruction.
-        summary_messages = deepcopy(restoration_messages)
         instructions = original_user_instructions(messages)
-        try:
-            result = await summarize_history(
-                client,
-                summary_messages,
-                keep_recent_messages=self.config.summary_keep_recent_messages,
-                scope_hints=scope_hints,
-                task_goal=task_goal,
-                restore_max_files=self.config.post_compact_max_files,
-                restore_character_budget=(
-                    self.config.post_compact_file_budget
-                ),
-                restoration_messages=restoration_messages,
+        # Prune first, then summarize only the prefix outside the priced recent tail.
+        # Full originals remain in the transcript/tool artifacts and Journal.
+        working = prepared
+        available = (context_window_tokens - reserved_output_tokens
+                     if context_window_tokens is not None else self.config.auto_compact_characters // 4)
+        retain_tokens = 0 if force else int(available * self.config.retain_ratio)
+        usage: TokenUsage | None = None
+        reason = ''
+        after = before_stats
+        for _ in range(1 if force else self.config.compaction_retries + 1):
+            units = atomic_message_units(working)
+            cutoff = len(units)
+            retained_tokens = 0
+            for unit in reversed(units):
+                cutoff -= 1
+                retained_tokens += estimate_tokens(measure_messages(unit)[0])
+                if retained_tokens >= retain_tokens:
+                    break
+            prefix = [message for unit in units[:cutoff] for message in unit]
+            tail = [message for unit in units[cutoff:] for message in unit]
+            if not prefix and not force:
+                reason = 'No safe compaction range outside the retained tail; original history retained.'
+                break
+            try:
+                result = await summarize_history(
+                    client, prefix or working, retained_messages=tail,
+                    scope_hints=scope_hints, task_goal=task_goal,
+                )
+            except BudgetExhausted:
+                raise
+            except Exception as error:
+                reason = str(error)
+                break
+            usage = result.usage if usage is None else add_usage(usage, result.usage)
+            compacted = result.messages
+            if instructions:
+                compacted.insert(1, {
+                    'role': 'user',
+                    'content': '[ForgeCode original user instructions]\n'
+                    + json.dumps(instructions, ensure_ascii=False),
+                })
+            after = context_stats(
+                self.prepare(compacted, scope_hints=scope_hints),
+                system_prompt=system_prompt, repository_context=repository_context, tools=tools,
             )
-        except Exception as error:
-            self.summary_failures += 1
-            return CompactionReport(
-                success=False,
-                automatic=not force,
-                before_characters=before_stats.estimated_characters,
-                after_characters=before_stats.estimated_characters,
-                transcript_path=transcript_path,
-                reason=str(error),
-            )
-        compacted = result.messages
-        if instructions:
-            compacted.insert(1, {
-                'role': 'user',
-                'content': '[ForgeCode original user instructions]\n'
-                + json.dumps(instructions, ensure_ascii=False),
-            })
-        if context_window_tokens is not None:
-            envelope = (before_stats.system_characters + before_stats.repository_characters
-                        + before_stats.tool_schema_characters)
-            target = max(0, int((context_window_tokens - reserved_output_tokens)
-                                * self.config.target_compact_ratio * 4) - envelope)
-            # Archive recent large outputs first, then drop only whole summarized
-            # tool/result units. Never trim the original instructions or summary.
-            persist_large_tool_results(
-                compacted, self.root / '.forge' / 'context' / 'tool-results',
-                replace(self.config, tool_result_inline_limit=min(5500, self.config.tool_result_inline_limit)),
-            )
-            units = atomic_message_units(compacted)
-            while measure_messages([m for u in units for m in u])[0] > target:
-                index = next((i for i, unit in enumerate(units) if not is_durable_anchor(unit)), None)
-                if index is None:
-                    break  # Explicit constraints alone may exceed the soft target.
-                units.pop(index)
-            compacted = [message for unit in units for message in unit]
-        after = context_stats(self.prepare(compacted, scope_hints=scope_hints))
-        if not force and after.estimated_characters >= before_stats.estimated_characters:
-            self.summary_failures += 1
-            return CompactionReport(
-                success=False, automatic=True,
-                before_characters=before_stats.estimated_characters,
-                after_characters=after.estimated_characters,
-                transcript_path=transcript_path, usage=result.usage,
-                reason='Summary did not reduce the model-visible history; original history retained.',
-            )
-        messages[:] = compacted
-        self.summary_failures = 0
-        self.last_report = CompactionReport(
-            success=True,
-            automatic=not force,
+            if not force and after.estimated_characters >= context_stats(working).estimated_characters:
+                reason = 'Summary did not reduce the model-visible history; original history retained.'
+                break
+            if force or not self._threshold_reached(
+                after, context_window_tokens=context_window_tokens,
+                reserved_output_tokens=reserved_output_tokens,
+            ):
+                messages[:] = compacted
+                self.summary_failures = 0
+                self.last_report = CompactionReport(
+                    success=True, automatic=not force,
+                    before_characters=before_stats.estimated_characters,
+                    after_characters=after.estimated_characters,
+                    transcript_path=transcript_path, usage=usage,
+                )
+                return self.last_report
+            working = compacted
+            reason = 'Compaction still above threshold after bounded summary attempts; original history retained.'
+        self.summary_failures += 1
+        return CompactionReport(
+            success=False, automatic=not force,
             before_characters=before_stats.estimated_characters,
             after_characters=after.estimated_characters,
-            transcript_path=transcript_path,
-            usage=result.usage,
+            transcript_path=transcript_path, usage=usage, reason=reason,
         )
-        return self.last_report
 
     def read_artifact(
         self,
@@ -519,16 +509,9 @@ class ContextManager:
     ) -> bool:
         if context_window_tokens is None:
             return stats.estimated_characters > self.config.auto_compact_characters
-        # The output reservation is not available to the input.  Account for
-        # the complete request envelope (system, repository, and schemas) and
-        # trigger at 80% of the remaining input window.
-        input_budget = max(1, context_window_tokens - reserved_output_tokens)
-        # ContextStats.estimated_tokens already includes the full visible
-        # request envelope.  Adding the envelope a second time made normal
-        # turns compact prematurely and inflated model cost.
-        # Cheap pruning already defines what will be sent. Archived history
-        # remains available for recovery, but is not pressure on this request.
-        return stats.estimated_tokens >= input_budget * self.config.auto_compact_ratio
+        return stats.estimated_tokens >= self.config.pressure_threshold(
+            context_window_tokens, reserved_output_tokens,
+        )
 
     def persist_transcript(
         self,

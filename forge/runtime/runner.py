@@ -270,15 +270,18 @@ class TurnRunner:
                 'Use verify.check_id to rerun a definition; task_get contains full history.\n'
                 + json.dumps(rows, ensure_ascii=False))
 
-    async def _compact(self, system: str, tools, *, force: bool = False) -> None:
+    async def _compact(self, system: str, tools, *, force: bool = False) -> str | None:
         c = self.conversation
         kwargs = dict(
             system_prompt=system, tools=tools,
             context_window_tokens=getattr(c.client, 'context_window', None),
             reserved_output_tokens=getattr(c.client, 'max_tokens', 0),
         )
-        if not force and not c.context.compaction_required(self.messages, **kwargs):
-            return
+        try:
+            if not force and not c.context.compaction_required(self.messages, **kwargs):
+                return None
+        except ValueError as error:
+            return str(error)
         self._check_budget()
         outcome = await c._emit_hook(HookEvent(
             name='BeforeCompact', session_id=c._session_id(),
@@ -308,6 +311,7 @@ class TurnRunner:
         if report is not None and report.success and self.journal is not None:
             self.journal.record_context_compacted(self.messages)
         self._commit_messages()
+        return report.reason if report is not None and not report.success else None
 
     async def _loop(self):
         c = self.conversation
@@ -317,7 +321,10 @@ class TurnRunner:
             tools = self._tools()
             self.request_repository_context = c._last_repository_context
             system = self._system()
-            await self._compact(system, tools)
+            compaction_error = await self._compact(system, tools)
+            if compaction_error:
+                yield await self._finish('failed', 'context_compaction_failed', compaction_error, (compaction_error,))
+                return
             self._check_budget()
             hook = await c._emit_hook(HookEvent(
                 name='BeforeModelCall', session_id=c._session_id(),
@@ -409,7 +416,10 @@ class TurnRunner:
                     continue
                 if isinstance(error, ModelCallError) and error.reason in {'context_length_exceeded', 'context_overflow'} and safe_to_correct and not self.reactive_compaction_used:
                     self.reactive_compaction_used = True
-                    await self._compact(system, tools, force=True)
+                    compaction_error = await self._compact(system, tools, force=True)
+                    if compaction_error:
+                        yield await self._finish('failed', 'context_compaction_failed', compaction_error, (compaction_error,))
+                        return
                     continue
                 yield await self._finish('failed', getattr(error, 'reason', 'model_protocol_error'), str(error), (str(error),))
                 return

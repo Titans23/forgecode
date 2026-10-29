@@ -103,7 +103,7 @@ def test_compaction_uses_authoritative_task_goal_and_scope(
 
 
 def test_auto_compaction_only_runs_above_threshold(tmp_path: Path) -> None:
-    messages = [{'role': 'user', 'content': 'x' * 100}]
+    messages = [{'role': 'assistant', 'content': 'x' * 100}, {'role': 'user', 'content': 'continue'}]
     manager = ContextManager(
         messages,
         tmp_path,
@@ -131,6 +131,7 @@ def test_auto_compaction_uses_visible_history_after_cheap_crop(
             message_limit=2,
             keep_recent_messages=2,
             auto_compact_characters=1_000,
+            headroom_tokens=100,
         ),
     )
     client = SummaryClient(valid_summary())
@@ -148,7 +149,7 @@ def test_configured_window_replaces_character_fallback(tmp_path: Path) -> None:
     manager = ContextManager(
         messages,
         tmp_path,
-        CompactionConfig(auto_compact_characters=10),
+        CompactionConfig(auto_compact_characters=10, headroom_tokens=100),
     )
     client = SummaryClient(valid_summary())
 
@@ -165,11 +166,11 @@ def test_configured_window_replaces_character_fallback(tmp_path: Path) -> None:
     assert client.calls == []
 
 
-def test_auto_compaction_counts_full_request_at_eighty_percent(
+def test_auto_compaction_counts_full_request_with_output_and_headroom(
     tmp_path: Path,
 ) -> None:
-    messages = [{'role': 'user', 'content': 'h' * 800}]
-    manager = ContextManager(messages, tmp_path)
+    messages = [{'role': 'assistant', 'content': 'h' * 800}, {'role': 'user', 'content': 'continue'}]
+    manager = ContextManager(messages, tmp_path, CompactionConfig(headroom_tokens=100, retain_ratio=0.01))
     client = SummaryClient(valid_summary())
 
     report = asyncio.run(
@@ -210,7 +211,7 @@ def test_summary_failures_open_fuse_after_three_attempts(
 
 def test_static_request_pressure_does_not_spend_summary_budget(tmp_path):
     messages = [{'role': 'user', 'content': 'Keep the supplied input unchanged.'}]
-    manager = ContextManager(messages, tmp_path)
+    manager = ContextManager(messages, tmp_path, CompactionConfig(headroom_tokens=100))
     client = SummaryClient(valid_summary())
     report = asyncio.run(manager.compact_history(messages, client,
         system_prompt='s' * 4_000, context_window_tokens=1_000, reserved_output_tokens=100))
@@ -220,7 +221,8 @@ def test_static_request_pressure_does_not_spend_summary_budget(tmp_path):
 
 
 def test_nonshrinking_summary_preserves_history_and_has_bounded_cost(tmp_path):
-    messages = [{'role': 'user', 'content': 'Preserve the input; fix the code.'}]
+    messages = [{'role': 'user', 'content': 'Preserve the input; fix the code.'},
+                {'role': 'assistant', 'content': 'Starting.'}]
     original = list(messages)
     manager = ContextManager(messages, tmp_path, CompactionConfig(auto_compact_characters=10))
     client = SummaryClient(valid_summary())

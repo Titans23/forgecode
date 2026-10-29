@@ -15,6 +15,7 @@ from uuid import uuid4
 from harbor.agents.installed.base import BaseInstalledAgent, with_prompt_template
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
+from forge.config import DEFAULT_MODEL_CONTEXT_WINDOW, DEFAULT_MODEL_MAX_TOKENS
 
 
 _AGENT_ROOT: Final = '/opt/forgecode-agent'
@@ -326,8 +327,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             'export FORGE_MODEL="${FORGECODE_MODEL}"; '
             'export ANTHROPIC_BASE_URL="${FORGECODE_BASE_URL}"; '
             'export FORGE_BASE_URL="${FORGECODE_BASE_URL}"; '
-            'export MODEL_MAX_TOKENS="${FORGECODE_MODEL_MAX_TOKENS:-16384}"; '
-            'export MODEL_CONTEXT_WINDOW="${FORGECODE_CONTEXT_WINDOW:-128000}"; '
+            f'export MODEL_MAX_TOKENS="${{FORGECODE_MODEL_MAX_TOKENS:-{DEFAULT_MODEL_MAX_TOKENS}}}"; '
+            f'export MODEL_CONTEXT_WINDOW="${{FORGECODE_CONTEXT_WINDOW:-{DEFAULT_MODEL_CONTEXT_WINDOW}}}"; '
             f'timeout --kill-after=10s {shlex.quote(watchdog_timeout)} '
             f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.process_supervisor --preserve-on-success -- '
             f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.run_forge '

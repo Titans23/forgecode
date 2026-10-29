@@ -26,7 +26,8 @@ def test_config_uses_official_base_url_by_default() -> None:
     assert config.model_id == 'claude-test'
     assert config.base_url == DEFAULT_ANTHROPIC_BASE_URL
     assert config.max_tokens == DEFAULT_MODEL_MAX_TOKENS
-    assert config.context_window is None
+    assert config.context_window == 262_144
+    assert config.max_tokens == 65_536
     assert (
         config.request_timeout_seconds
         == DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
@@ -252,7 +253,7 @@ def test_config_rejects_invalid_model_request_timeout(value: str) -> None:
         )
 
 
-@pytest.mark.parametrize('value', ['invalid', '1000', '40000'])
+@pytest.mark.parametrize('value', ['invalid', '1000', '65537'])
 def test_config_rejects_invalid_model_max_tokens(value: str) -> None:
     with pytest.raises(ConfigurationError, match='MODEL_MAX_TOKENS'):
         ForgeConfig.from_env(

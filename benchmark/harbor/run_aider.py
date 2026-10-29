@@ -12,6 +12,7 @@ import sys
 from urllib.parse import urlsplit, urlunsplit
 
 from dotenv import dotenv_values
+from forge.config import DEFAULT_MODEL_CONTEXT_WINDOW, DEFAULT_MODEL_MAX_TOKENS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -135,9 +136,9 @@ def build_command(
         '--ae',
         f'FORGECODE_BASE_URL={base_url}',
         '--ae',
-        'FORGECODE_MODEL_MAX_TOKENS=16384',
+        f'FORGECODE_MODEL_MAX_TOKENS={DEFAULT_MODEL_MAX_TOKENS}',
         '--ae',
-        'FORGECODE_CONTEXT_WINDOW=128000',
+        f'FORGECODE_CONTEXT_WINDOW={DEFAULT_MODEL_CONTEXT_WINDOW}',
         '--mounts',
         mounts,
         '-o',

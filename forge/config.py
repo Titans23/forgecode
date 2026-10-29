@@ -13,7 +13,8 @@ from dotenv import dotenv_values, load_dotenv, set_key
 
 
 DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
-DEFAULT_MODEL_MAX_TOKENS = 8_192
+DEFAULT_MODEL_MAX_TOKENS = 65_536
+DEFAULT_MODEL_CONTEXT_WINDOW = 262_144
 DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS = 120.0
 FORGECODE_ENV_PATH = Path.home() / '.forge' / '.env'
 USER_CONFIG_TEMPLATE = (
@@ -108,7 +109,7 @@ class ForgeConfig:
     model_id: str
     base_url: str | None = None
     max_tokens: int = DEFAULT_MODEL_MAX_TOKENS
-    context_window: int | None = None
+    context_window: int | None = DEFAULT_MODEL_CONTEXT_WINDOW
     request_timeout_seconds: float = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
     provider: str = 'anthropic'
     reasoning_effort: str | None = None
@@ -129,9 +130,9 @@ class ForgeConfig:
             raise ConfigurationError(f'{key_name} is not set.')
         if not model_id:
             raise ConfigurationError('MODEL_ID is not set.')
-        if not 1_024 <= self.max_tokens <= 32_768:
+        if not 1_024 <= self.max_tokens <= 65_536:
             raise ConfigurationError(
-                'MODEL_MAX_TOKENS must be between 1024 and 32768.'
+                'MODEL_MAX_TOKENS must be between 1024 and 65536.'
             )
         if self.context_window is not None:
             if not 4_096 <= self.context_window <= 2_000_000:
@@ -186,7 +187,7 @@ class ForgeConfig:
         raw_context_window = source.get('MODEL_CONTEXT_WINDOW', '').strip()
         try:
             context_window = (
-                int(raw_context_window) if raw_context_window else None
+                int(raw_context_window) if raw_context_window else DEFAULT_MODEL_CONTEXT_WINDOW
             )
         except ValueError as error:
             raise ConfigurationError(

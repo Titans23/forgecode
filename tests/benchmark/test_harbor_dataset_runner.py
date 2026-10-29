@@ -170,7 +170,8 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     raw = job.model_dump_json(context={'redact_sensitive_env': False})
     restored = JobConfig.model_validate_json(raw)
     assert 'offline-fixture-secret' not in raw and config.api_key == 'offline-fixture-secret'
-    assert restored.agents[0].env['FORGECODE_MODEL_MAX_TOKENS'] == '8192'
+    assert restored.agents[0].env['FORGECODE_MODEL_MAX_TOKENS'] == '65536'
+    assert restored.agents[0].env['FORGECODE_CONTEXT_WINDOW'] == '262144'
     assert restored.agents[0].env['FORGECODE_REASONING_EFFORT'] == 'high'
     assert Path(restored.agents[0].kwargs['source_dir']) == tmp_path / 'source'
     assert restored.agents[0].max_timeout_sec == 1800 and restored.retry.max_retries == 0

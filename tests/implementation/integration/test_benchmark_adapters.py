@@ -130,6 +130,23 @@ def test_official_executor_records_blocked_without_mock_model_or_grade(tmp_path)
     finally:methods.store.close()
 
 
+@pytest.mark.parametrize('output_tokens, invalid', [(65536, False), (65537, True)])
+def test_frozen_harbor_configuration_accepts_64k_output_limit(tmp_path, output_tokens, invalid):
+    from benchmark.core.spec import freeze_spec
+    methods, spec = make_evaluation(tmp_path)
+    try:
+        spec, values, _ = freeze_spec(methods.store, spec)
+        values['model_parameters']['max_output_tokens'] = output_tokens
+        values['harness']['max_context_tokens'] = 262144
+        spec['model']['parameters']['sha256'] = canonical_hash(values['model_parameters'])
+        spec['harness']['configuration']['sha256'] = canonical_hash(values['harness'])
+        issues = HarborAdapter('aider-polyglot').configuration_issues(spec, values)
+        assert any('ForgeConfig bounds' in issue['message'] for issue in issues) is invalid
+        assert methods.store.connection.execute('SELECT COUNT(*) FROM model_requests').fetchone()[0] == 0
+    finally:
+        methods.store.close()
+
+
 def test_export_uses_actual_snapshot_hashes_and_cli_does_not_overwrite_or_run(tmp_path):
     from benchmark.core.spec import freeze_spec
     methods,spec=make_evaluation(tmp_path)
