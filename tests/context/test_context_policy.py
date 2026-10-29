@@ -16,13 +16,17 @@ from forge.runtime.turn_state import BudgetExhausted, TurnState
 
 def test_pi_threshold_does_not_subtract_the_output_ceiling_twice(tmp_path):
     config = CompactionConfig()
-    assert config.pressure_threshold(262_144) == 245_760
+    assert config.reserve_tokens == 49_152
+    assert config.pressure_threshold(262_144) == 212_992
     assert config.keep_recent_tokens == 20_000
     empty_size = len(json.dumps({'role': 'assistant', 'content': ''}))
-    messages = [{'role': 'assistant', 'content': 'x' * (245_760 * 4 - empty_size)}]
+    messages = [{'role': 'assistant', 'content': 'x' * (212_992 * 4 - empty_size)}]
     manager = ContextManager(messages, tmp_path)
     kwargs = dict(context_window_tokens=262_144, reserved_output_tokens=65_536)
     assert not manager.compaction_required(messages, **kwargs)
+    stats = manager.stats_for_request(system_prompt='', repository_context='', tools=None, **kwargs)
+    assert stats.reserved_output_tokens == 46_530
+    assert stats.projected_tokens <= int(262_144 * 0.99)
     # The fixed system envelope counts toward the same threshold, exactly once.
     assert manager.compaction_required(messages, system_prompt='xxxx', **kwargs)
     assert not manager.compaction_required(messages, context_window_tokens=262_144, reserved_output_tokens=16_384)

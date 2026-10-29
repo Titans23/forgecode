@@ -65,7 +65,7 @@ Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程
 
 压缩摘要只存在于已提交消息，由 Journal 保存并由轻量裁剪保留，不另设可重新注入的摘要副本。清空、切换会话或回退对话历史时，同步清除压缩失败计数、访问规则范围、工作观察和待注入 Hook 提示；项目长期记忆保留。保留原历史的分支、仅代码回退和当前会话 resume 不清除这些上下文。
 
-上下文默认 262,144 tokens，单请求输出上限 65,536 tokens。压缩预算参考 [Pi 的默认参数](https://github.com/earendil-works/pi/blob/e65b3b88c08412bb8ffbd21fb5dc5756064a6e5a/packages/coding-agent/src/core/compaction/compaction.ts)：`reserve_tokens=16,384`、`keep_recent_tokens=20,000`，完整可见请求超过 `窗口 − reserve_tokens` 时触发，当前为 245,760 tokens（93.75%）。先裁剪大工具结果再测量；只摘要旧前缀，近期原文按 20,000 tokens 保留，边界向前扩展以保持工具调用／结果配对。摘要后复测，至多两次尝试，仍超限则明确失败；每次请求计入原共享预算，溢出恢复仍仅一次。固定指令过大或无安全摘要范围时不发摘要请求。小窗口需显式降低预留和近期保留预算。
+上下文默认 262,144 tokens，单请求输出上限 65,536 tokens。压缩采用 [Pi 的预算方式](https://github.com/earendil-works/pi/blob/e65b3b88c08412bb8ffbd21fb5dc5756064a6e5a/packages/coding-agent/src/core/compaction/compaction.ts)：ForgeCode 将总预留提高为 `reserve_tokens=49,152`、`keep_recent_tokens=20,000`，完整可见请求超过 `窗口 − reserve_tokens` 时触发，当前为 212,992 tokens（81.25%）。先裁剪大工具结果再测量；只摘要旧前缀，近期原文按 20,000 tokens 保留，边界向前扩展以保持工具调用／结果配对。摘要后复测，至多两次尝试，仍超限则明确失败；每次请求计入原共享预算，溢出恢复仍仅一次。固定指令过大或无安全摘要范围时不发摘要请求。小窗口需显式降低预留和近期保留预算。
 
 为同时保留 64K 输出上限，ForgeCode 在发送普通请求和摘要请求时按 `min(配置输出上限, floor(窗口 × 0.99) − 估算输入)` 计算实际输出额度，1% 用于协议开销及估算余量；没有输出空间时直接报告上下文超限。三个提供方适配器及上下文统计共用此计算，不修改客户端配置、权限或回合预算。此动态额度是 ForgeCode 的容量适配，不是 Pi 的默认参数；本地估算不能代替提供方的精确 token 计数。
 

@@ -36,7 +36,7 @@ class CompactionConfig:
     keep_file_evidence_units: int = 4
     file_evidence_character_budget: int = 100_000
     auto_compact_characters: int = 120_000
-    reserve_tokens: int = 16_384
+    reserve_tokens: int = 49_152
     keep_recent_tokens: int = 20_000
     compaction_retries: int = 1
     max_summary_failures: int = 3

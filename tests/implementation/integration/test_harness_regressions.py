@@ -114,7 +114,10 @@ def test_real_long_read_full_compaction_keeps_pairs_and_original_constraints(tmp
                     yield ModelToolCallCompleted(ToolCall(0,'finish','finish_task',{'task_kind':'answer','status':'completed','summary':'Read actual file.'}))
     async def run():
         client=Client();conversation=Conversation(client=client,context_root=tmp_path,registry=create_default_registry(tmp_path),max_iterations=5,
-            context_config=CompactionConfig(auto_compact_characters=1500,tool_result_inline_limit=1024,post_compact_file_budget=5000))
+            context_config=CompactionConfig(auto_compact_characters=9000,keep_recent_tokens=1000))
+        # The old investigation becomes the compactable prefix after the real
+        # read. The newest read/result pair must fit intact beside the summary.
+        conversation.messages.append({'role':'assistant','content':'Earlier investigation: '+'x'*6000})
         async for event in conversation.stream(constraint):
             if isinstance(event,TurnCompleted):result=event.result
         assert result.status=='completed' and client.main_calls==2 and client.summary_calls==1

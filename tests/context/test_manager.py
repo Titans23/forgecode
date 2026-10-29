@@ -146,3 +146,14 @@ def test_cheap_crop_preserves_user_constraints_without_a_model_summary(tmp_path)
     assert original_user_instructions(prepared) == constraints
     assert len(prepared) < len(messages)
     assert messages[:2] == [{'role': 'user', 'content': text} for text in constraints]
+
+
+def test_tool_results_and_legacy_empty_anchors_are_not_user_instructions():
+    from forge.context.manager import original_user_instructions
+    messages = [
+        {'role': 'user', 'content': 'Keep input unchanged.'},
+        {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'read', 'content': 'data'}]},
+        {'role': 'user', 'content': '[ForgeCode original user instructions]\n["", "Keep input unchanged."]'},
+        {'role': 'user', 'content': 'Latest request.'},
+    ]
+    assert original_user_instructions(messages) == ['Keep input unchanged.', 'Latest request.']

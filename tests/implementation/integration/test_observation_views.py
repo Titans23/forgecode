@@ -334,6 +334,7 @@ def test_optional_debug_disk_failure_does_not_block_agent(tmp_path,monkeypatch):
 
 
 def test_actual_compaction_bills_summary_once_and_records_exact_tool_pair_retention(tmp_path):
+    from forge.context.manager import original_user_instructions
     from forge.config import ForgeConfig
     from forge.runtime.dependencies import RuntimeBindings
     from forge.runtime.factory import create_runtime
@@ -376,7 +377,12 @@ def test_actual_compaction_bills_summary_once_and_records_exact_tool_pair_retent
         assert finished['attributes']['summary_request_ids'] and metadata['before']['pairing_complete']
         assert metadata['after']['pairing_complete'] and metadata['retention_check_complete']
         assert metadata['check_kind']=='exact_original_message_presence'
-        assert metadata['retained_constraint_message_ids']==metadata['before']['constraint_message_ids']
+        # The newest request remains an exact message; the older requirement
+        # survives verbatim in the durable instructions anchor, not as its old
+        # message object. Exact-message telemetry must not conflate these.
+        assert metadata['retained_constraint_message_ids']==metadata['before']['constraint_message_ids'][1:]
+        assert original_user_instructions(runner.messages)==[
+            'Preserve this exact requirement.', 'Latest request.']
         assert metadata['after']['estimated_tokens']<metadata['before']['estimated_tokens']
         assert JournalProjector(store).project(journal.path,params['session_id'],trusted=True)==0
         assert query.usage({'scope':{'kind':'all'}})['cost_decimal']=='0.0006'

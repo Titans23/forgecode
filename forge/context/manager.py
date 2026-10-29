@@ -546,10 +546,10 @@ def original_user_instructions(messages: list[dict[str, Any]]) -> list[str]:
             try:
                 prior = json.loads(content[len(prefix):])
                 if isinstance(prior, list):
-                    collected.extend(item for item in prior if isinstance(item, str))
+                    collected.extend(item for item in prior if isinstance(item, str) and item)
             except json.JSONDecodeError:
                 collected.append(content)
-        elif not content.startswith(('[ForgeCode ', '[Runtime feedback]')):
+        elif content and not content.startswith(('[ForgeCode ', '[Runtime feedback]')):
             collected.append(content)
     return list(dict.fromkeys(collected))
 
