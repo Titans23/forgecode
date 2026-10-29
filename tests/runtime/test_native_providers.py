@@ -25,6 +25,21 @@ def test_direct_config_uses_provider_default_url(provider, url):
     assert ForgeConfig(api_key='offline', model_id='test', provider=provider).base_url == url
 
 
+@pytest.mark.parametrize('provider, field', [('deepseek', 'max_tokens'), ('openai_responses', 'max_output_tokens')])
+def test_native_output_ceiling_fits_full_request_and_preserves_configuration(provider, field):
+    client = NativeModelClient(
+        ForgeConfig(api_key='offline', model_id='test', provider=provider), client=object())
+    messages = [{'role': 'user', 'content': 'x' * 920_000}]
+    tools = [{'name': 'read', 'description': 'd' * 4_000, 'input_schema': {'type': 'object'}}]
+    arguments = client.request_arguments(messages, tools, 's' * 20_000)
+    assert 22_000 < arguments[field] < 26_000
+    assert client.max_tokens == 65_536
+    assert client.request_arguments([{'role': 'user', 'content': 'short'}], None, None)[field] == 65_536
+    with pytest.raises(ModelCallError, match='No room') as caught:
+        client.request_arguments([{'role': 'user', 'content': 'x' * 1_100_000}], None, None)
+    assert caught.value.reason == 'context_length_exceeded'
+
+
 def chat_chunk(delta=None, finish=None, usage=None):
     return dict(id='response-1', object='chat.completion.chunk', created=1, model='test',
         choices=[] if usage else [dict(index=0, delta=delta or {}, finish_reason=finish)], usage=usage)

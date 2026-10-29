@@ -141,18 +141,25 @@ class NativeModelClient:
             http_client=httpx.AsyncClient(follow_redirects=False, event_hooks={'request': [observe_wire_request]}))
 
     def request_arguments(self, messages, tools, system):
+        from forge.context.manager import context_stats, request_output_tokens
+        output_tokens = request_output_tokens(context_stats(
+            messages, system_prompt=system or '', tools=tools,
+            context_window_tokens=self.context_window, reserved_output_tokens=self.max_tokens,
+        ))
+        if output_tokens <= 0:
+            raise ModelCallError('context_length_exceeded', 'No room for model output after input accounting.', retryable=False)
         definitions = [{'name': item['name'], 'description': item.get('description', ''),
                         'parameters': item['input_schema']} for item in tools or ()]
         if self.provider == 'deepseek':
             args = dict(model=self.model, messages=chat_messages(messages, system), stream=True,
-                        max_tokens=self.max_tokens, stream_options={'include_usage': True})
+                        max_tokens=output_tokens, stream_options={'include_usage': True})
             if definitions:
                 args['tools'] = [{'type': 'function', 'function': item} for item in definitions]
             if self.reasoning_effort:
                 args['extra_body'] = {'reasoning_effort': self.reasoning_effort}
         else:
             args = dict(model=self.model, input=responses_input(messages), stream=True, store=False,
-                        max_output_tokens=self.max_tokens, include=['reasoning.encrypted_content'])
+                        max_output_tokens=output_tokens, include=['reasoning.encrypted_content'])
             if system:
                 args['instructions'] = system
             if definitions:

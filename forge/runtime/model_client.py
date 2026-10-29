@@ -20,6 +20,7 @@ from anthropic import (
 import httpx
 
 from forge.config import DEFAULT_MODEL_CONTEXT_WINDOW, DEFAULT_MODEL_MAX_TOKENS, ForgeConfig
+from forge.context.manager import context_stats, request_output_tokens
 from forge.runtime.state import (
     ModelClient as ModelClient,
     ModelCallError as ModelCallError,
@@ -142,9 +143,15 @@ class AnthropicModelClient:
         tools: list[dict[str, Any]] | None = None,
         system: str | None = None,
     ) -> AsyncIterator[ModelStreamEvent]:
+        output_tokens = request_output_tokens(context_stats(
+            messages, system_prompt=system or '', tools=tools,
+            context_window_tokens=self.context_window, reserved_output_tokens=self.max_tokens,
+        ))
+        if output_tokens <= 0:
+            raise ModelCallError('context_length_exceeded', 'No room for model output after input accounting.', retryable=False)
         sdk_arguments: dict[str, Any] = {
             'model': self.model,
-            'max_tokens': self.max_tokens,
+            'max_tokens': output_tokens,
             'messages': [{key: value for key, value in message.items() if key != 'provider_state'}
                          for message in messages],
         }

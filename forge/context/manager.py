@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
@@ -177,6 +177,14 @@ def estimate_tokens(characters: int) -> int:
     return max(1, (characters + 3) // 4)
 
 
+def request_output_tokens(stats: ContextStats) -> int:
+    '''Fit the configured output ceiling to the estimated input, leaving 1% framing margin.'''
+    if stats.context_window_tokens is None:
+        return stats.reserved_output_tokens
+    available = int(stats.context_window_tokens * 0.99) - stats.estimated_tokens
+    return min(stats.reserved_output_tokens, max(0, available))
+
+
 class ContextManager:
     '''Own context inspection while compaction policies evolve independently.'''
 
@@ -215,7 +223,7 @@ class ContextManager:
         reserved_output_tokens: int,
     ) -> ContextStats:
         prepared = self.prepare(self._messages)
-        return context_stats(
+        stats = context_stats(
             prepared,
             stored_messages=self._messages,
             system_prompt=system_prompt,
@@ -224,6 +232,7 @@ class ContextManager:
             context_window_tokens=context_window_tokens,
             reserved_output_tokens=reserved_output_tokens,
         )
+        return replace(stats, reserved_output_tokens=request_output_tokens(stats))
 
     def prepare(
         self,
@@ -331,7 +340,6 @@ class ContextManager:
         threshold_reached = not force and self._threshold_reached(
             before_stats,
             context_window_tokens=context_window_tokens,
-            reserved_output_tokens=reserved_output_tokens,
         )
         should_compact = force or threshold_reached
         if not should_compact:
@@ -348,7 +356,7 @@ class ContextManager:
         if not force and context_window_tokens is not None:
             envelope = (before_stats.system_tokens + before_stats.repository_tokens
                         + before_stats.tool_schema_tokens)
-            if envelope >= self.config.pressure_threshold(context_window_tokens, reserved_output_tokens):
+            if envelope > self.config.pressure_threshold(context_window_tokens):
                 return CompactionReport(
                     success=False, automatic=True,
                     before_characters=before_stats.estimated_characters,
@@ -361,9 +369,7 @@ class ContextManager:
         # Prune first, then summarize only the prefix outside the priced recent tail.
         # Full originals remain in the transcript/tool artifacts and Journal.
         working = prepared
-        available = (context_window_tokens - reserved_output_tokens
-                     if context_window_tokens is not None else self.config.auto_compact_characters // 4)
-        retain_tokens = 0 if force else int(available * self.config.retain_ratio)
+        retain_tokens = 0 if force else self.config.keep_recent_tokens
         usage: TokenUsage | None = None
         reason = ''
         after = before_stats
@@ -408,7 +414,6 @@ class ContextManager:
                 break
             if force or not self._threshold_reached(
                 after, context_window_tokens=context_window_tokens,
-                reserved_output_tokens=reserved_output_tokens,
             ):
                 messages[:] = compacted
                 self.summary_failures = 0
@@ -497,7 +502,6 @@ class ContextManager:
         return self._threshold_reached(
             stats,
             context_window_tokens=context_window_tokens,
-            reserved_output_tokens=reserved_output_tokens,
         )
 
     def _threshold_reached(
@@ -505,13 +509,10 @@ class ContextManager:
         stats: ContextStats,
         *,
         context_window_tokens: int | None,
-        reserved_output_tokens: int,
     ) -> bool:
         if context_window_tokens is None:
             return stats.estimated_characters > self.config.auto_compact_characters
-        return stats.estimated_tokens >= self.config.pressure_threshold(
-            context_window_tokens, reserved_output_tokens,
-        )
+        return stats.estimated_tokens > self.config.pressure_threshold(context_window_tokens)
 
     def persist_transcript(
         self,

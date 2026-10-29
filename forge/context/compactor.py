@@ -36,19 +36,17 @@ class CompactionConfig:
     keep_file_evidence_units: int = 4
     file_evidence_character_budget: int = 100_000
     auto_compact_characters: int = 120_000
-    auto_compact_ratio: float = 0.8
-    headroom_tokens: int = 65_536
-    retain_ratio: float = 0.16
+    reserve_tokens: int = 16_384
+    keep_recent_tokens: int = 20_000
     compaction_retries: int = 1
     max_summary_failures: int = 3
 
-    def pressure_threshold(self, context_window: int, output_tokens: int) -> int:
-        '''DSH pressure budget: output reservation and compaction headroom are separate.'''
-        available = context_window - output_tokens
-        threshold = int(min(context_window * self.auto_compact_ratio, available - self.headroom_tokens))
-        if threshold <= 0 or int(available * self.retain_ratio) >= threshold:
-            raise ValueError('Context window must leave room for output, compaction headroom '
-                             'and the retained tail; increase the window or reduce these budgets.')
+    def pressure_threshold(self, context_window: int) -> int:
+        '''Pi reserves response space once, independently of the output ceiling.'''
+        threshold = context_window - self.reserve_tokens
+        if threshold <= 0 or self.keep_recent_tokens >= threshold:
+            raise ValueError('Context window must leave room for the response reserve '
+                             'and retained tail; increase the window or reduce these budgets.')
         return threshold
 
 

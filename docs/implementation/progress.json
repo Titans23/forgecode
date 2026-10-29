@@ -24,14 +24,16 @@
     "context_policy": {
       "context_window_tokens": 262144,
       "max_output_tokens": 65536,
-      "headroom_tokens": 65536,
-      "pressure_threshold_tokens": 131072,
-      "recent_tail_minimum_tokens": 31457,
+      "compaction_reference": "earendil-works/pi@e65b3b88c08412bb8ffbd21fb5dc5756064a6e5a",
+      "reserve_tokens": 16384,
+      "pressure_threshold_tokens": 245760,
+      "recent_tail_minimum_tokens": 20000,
+      "request_output_policy": "Configured 65536 ceiling fitted to remaining estimated window with 1% margin; shared by Anthropic, Responses, DeepSeek and request statistics.",
       "summary_attempts": 2,
       "tool_text_characters": {"threshold": 8192, "head": 4096, "tail": 1024},
       "boundaries": "Shared request budget, original user instructions, atomic tool pairs, recoverable artifacts and Journal retained; no age-based result shortening or final 60% history target. Harbor uses the shared model defaults.",
-      "test_refs": ["tests/context/test_dsh_policy.py", "tests/runtime/test_continuity_contract.py", "tests/benchmark/test_harbor_dataset_runner.py", "tests/implementation/integration/test_benchmark_adapters.py"],
-      "verification": {"windows_regression": "696 passed", "policy_failure_boundaries": "11 passed", "posix_policy_config": "54 passed", "harbor_entrypoints": "41 passed", "frozen_configuration": "36 passed", "quality_and_contracts": "passed", "live_model_requests": 0}
+      "test_refs": ["tests/context/test_context_policy.py", "tests/runtime/test_model_client.py", "tests/runtime/test_native_providers.py", "tests/runtime/test_continuity_contract.py"],
+      "verification": {"policy_and_provider_boundaries": "110 passed", "windows_regression": "571 passed; one old fixed-output statistics assertion updated for the effective budget and passed in focused follow-up", "prior_ci_regressions": "All three prior CI failures passed after aligning skill fixture capacity and isolating CLI default configuration; remaining 62 skill/CLI tests passed", "quality_and_contracts": "passed", "live_model_requests": 0}
     },
     "changes": ["execution-profile-specific command capabilities", "visible-request compaction with preserved user constraints and bounded nonshrinking summaries", "shorter shared and benchmark prompts without duplicate task text", "official benchmark grading without mandatory model-authored requirement IDs", "one actionability feedback within the existing delivery-repair and parent budgets"],
     "validation": {

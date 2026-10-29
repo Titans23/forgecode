@@ -1877,7 +1877,11 @@ def test_conversation_context_stats_include_request_layers() -> None:
     )
     assert stats.tool_schema_characters > 0
     assert stats.context_window_tokens == 1_000
-    assert stats.reserved_output_tokens == 100
+    # The full injected envelope exceeds this deliberately tiny fixture window.
+    # Statistics expose the effective request budget, without rewriting the ceiling.
+    assert stats.estimated_tokens >= 1_000
+    assert stats.reserved_output_tokens == 0
+    assert client.max_tokens == 100
     assert stats.remaining_tokens is not None
 
 

@@ -221,6 +221,35 @@ def collect_stream(
     return asyncio.run(collect())
 
 
+def test_output_ceiling_fits_large_request_without_mutating_client(tmp_path):
+    from forge.context.manager import ContextManager
+    sdk = FakeAnthropic()
+    client = AnthropicModelClient(model='test', client=sdk)
+    messages = [{'role': 'user', 'content': 'x' * 920_000}]
+    tools = [{'name': 'read', 'description': 'd' * 4_000, 'input_schema': {'type': 'object'}}]
+    system = 's' * 20_000
+    collect_stream(client, messages=messages, tools=tools, system=system)
+    limit = sdk.messages.calls[-1]['max_tokens']
+    assert 22_000 < limit < 26_000
+    stats = ContextManager(messages, tmp_path).stats_for_request(
+        system_prompt=system, repository_context='', tools=tools,
+        context_window_tokens=262_144, reserved_output_tokens=65_536)
+    assert stats.reserved_output_tokens == limit
+    assert stats.projected_tokens <= int(262_144 * 0.99)
+    assert client.max_tokens == 65_536
+    collect_stream(client, messages=[{'role': 'user', 'content': 'short'}])
+    assert sdk.messages.calls[-1]['max_tokens'] == 65_536
+
+
+def test_input_with_no_output_room_is_rejected_before_sdk_call():
+    sdk = FakeAnthropic()
+    client = AnthropicModelClient(model='test', client=sdk)
+    with pytest.raises(model_client_module.ModelCallError, match='No room') as caught:
+        collect_stream(client, messages=[{'role': 'user', 'content': 'x' * 1_100_000}])
+    assert caught.value.reason == 'context_length_exceeded'
+    assert sdk.messages.calls == []
+
+
 def test_stream_delegates_events_and_merges_usage() -> None:
     sdk = FakeAnthropic()
     sdk.messages.events = [

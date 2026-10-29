@@ -807,7 +807,10 @@ def test_sessions_command_lists_project_sessions() -> None:
     assert 'listed-session' in result.output
 
 
-def test_config_command_reports_ready_without_exposing_api_key() -> None:
+def test_config_command_reports_ready_without_exposing_api_key(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config_module, 'FORGECODE_ENV_PATH', tmp_path / 'user.env')
+    monkeypatch.delenv('MODEL_MAX_TOKENS', raising=False)
     result = runner.invoke(
         app,
         ['config'],
@@ -824,8 +827,8 @@ def test_config_command_reports_ready_without_exposing_api_key() -> None:
     assert 'Model ID: claude-test' in result.stdout
     assert 'https://gateway.example.com/anthropic' in result.stdout
     assert 'API key: configured' in result.stdout
-    assert 'Max output tokens: 8,192' in result.stdout
-    assert 'Context window: not configured' in result.stdout
+    assert 'Max output tokens: 65,536' in result.stdout
+    assert 'Context window: 262,144' in result.stdout
     assert 'secret-test-key' not in result.stdout
 
 

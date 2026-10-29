@@ -59,7 +59,7 @@ forge config
 
 用户配置按原样读取，兼容 `ANTHROPIC_API_KEY`、`MODEL_ID` 等原有字段；也支持 `openai_responses` 和 `deepseek` 协议。优先级为进程环境变量 > 项目 `.env` > 用户配置；项目内检查的有效配置可能覆盖刚修改的用户配置。`forge config` 只检查配置，不验证网络连接、不调用模型、不显示密钥。
 
-默认上下文为 256K（262,144 tokens），单请求输出上限为 64K（65,536 tokens），分别由 `MODEL_CONTEXT_WINDOW`、`MODEL_MAX_TOKENS` 覆盖；已有显式配置仍优先。这里配置的是 Harness 预算，所用服务需支持相应容量。默认输入达到约 128K 时触发压缩，保留约 31,457 tokens 的近期原文；大工具输出超过 8,192 字符时保留头 4,096、尾 1,024 字符，完整原文仍可通过受限 artifact 接口读取。压缩规则见 [架构说明](../implementation/architecture.md)。
+默认上下文为 256K（262,144 tokens），单请求输出上限为 64K（65,536 tokens），分别由 `MODEL_CONTEXT_WINDOW`、`MODEL_MAX_TOKENS` 覆盖；已有显式配置仍优先。这里配置的是 Harness 预算，所用服务需支持相应容量。参考 Pi，输入超过 245,760 tokens 时触发压缩，保留约 20,000 tokens 的近期原文。64K 是输出上限，实际请求额度随剩余窗口缩小，并留出窗口 1% 的估算余量；大工具输出超过 8,192 字符时保留头 4,096、尾 1,024 字符，完整原文仍可通过受限 artifact 接口读取。压缩规则见 [架构说明](../implementation/architecture.md)。
 
 ## 持续对话
 

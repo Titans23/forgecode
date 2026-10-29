@@ -65,9 +65,11 @@ Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程
 
 压缩摘要只存在于已提交消息，由 Journal 保存并由轻量裁剪保留，不另设可重新注入的摘要副本。清空、切换会话或回退对话历史时，同步清除压缩失败计数、访问规则范围、工作观察和待注入 Hook 提示；项目长期记忆保留。保留原历史的分支、仅代码回退和当前会话 resume 不清除这些上下文。
 
-上下文默认 262,144 tokens，单请求输出上限 65,536 tokens。压缩采用 [DSH compaction-basic 的预算规则](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/compaction/compaction-basic/src/config.ts)：触发阈值为 `min(窗口 × 0.8, 窗口 − 输出预留 − 65,536)`，当前为 131,072 tokens；先无模型裁剪工具结果，再测量完整请求（含系统指令及工具定义）。仍超阈值时只摘要旧前缀，按 `(窗口 − 输出预留) × 0.16` 保留近期原文，当前为 31,457 tokens；边界向前扩展以保留完整工具调用／结果。16% 是近期原文的最低预算，不是整个摘要结果的大小目标。摘要后复测，至多两次尝试，继续超限则明确失败；请求都计入原共享预算，溢出恢复仍仅一次。固定指令过大或无安全摘要范围时不浪费模型请求。显式小窗口必须给输出和压缩预留留足空间。
+上下文默认 262,144 tokens，单请求输出上限 65,536 tokens。压缩预算参考 [Pi 的默认参数](https://github.com/earendil-works/pi/blob/e65b3b88c08412bb8ffbd21fb5dc5756064a6e5a/packages/coding-agent/src/core/compaction/compaction.ts)：`reserve_tokens=16,384`、`keep_recent_tokens=20,000`，完整可见请求超过 `窗口 − reserve_tokens` 时触发，当前为 245,760 tokens（93.75%）。先裁剪大工具结果再测量；只摘要旧前缀，近期原文按 20,000 tokens 保留，边界向前扩展以保持工具调用／结果配对。摘要后复测，至多两次尝试，仍超限则明确失败；每次请求计入原共享预算，溢出恢复仍仅一次。固定指令过大或无安全摘要范围时不发摘要请求。小窗口需显式降低预留和近期保留预算。
 
-大工具结果采用 [DSH pruner 的字符规则](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/compaction/compaction-tool-result-pruner/src/config.ts)：每个结果的文本超过 8,192 个 Unicode 码点时保留头 4,096、尾 1,024 和中部裁剪标记，跨文本块累计，图片块保持原位；不再按结果年龄二次缩短，也不按所有工具结果的字符总量裁剪。沿用 ForgeCode 的结果归档和受限读取句柄，因此可见结果额外包含少量归档元数据。用户原话、摘要和工具配对继续受保护，完整原文保存在现有 artifact／Journal／压缩前 transcript；不移植 DSH 的插件体系。手动压缩和溢出恢复保留最新完整消息单元，不采用自动压缩的 16% 尾部预算。
+为同时保留 64K 输出上限，ForgeCode 在发送普通请求和摘要请求时按 `min(配置输出上限, floor(窗口 × 0.99) − 估算输入)` 计算实际输出额度，1% 用于协议开销及估算余量；没有输出空间时直接报告上下文超限。三个提供方适配器及上下文统计共用此计算，不修改客户端配置、权限或回合预算。此动态额度是 ForgeCode 的容量适配，不是 Pi 的默认参数；本地估算不能代替提供方的精确 token 计数。
+
+大工具结果采用 [DSH pruner 的字符规则](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/compaction/compaction-tool-result-pruner/src/config.ts)：每个结果的文本超过 8,192 个 Unicode 码点时保留头 4,096、尾 1,024 和中部裁剪标记，跨文本块累计，图片块保持原位；不再按结果年龄二次缩短，也不按所有工具结果的字符总量裁剪。沿用 ForgeCode 的结果归档和受限读取句柄，因此可见结果额外包含少量归档元数据。用户原话、摘要和工具配对继续受保护，完整原文保存在现有 artifact／Journal／压缩前 transcript；不移植 DSH 的插件体系。手动压缩和溢出恢复保留最新完整消息单元，不采用自动压缩的 20,000 tokens 尾部预算。
 
 `scripts/check_architecture.py` 防止公共契约反向依赖产品模块、核心依赖 CLI/旧应用协议模块、沙盒导入 Conversation 实现、会话视图反向依赖事件传输层，以及验证值／报告／规则反向依赖完成门禁。工具路径解析独立于循环。兼容参数 repeated_tool_limit/stagnation 等已无运行时效果，自定义值会发出弃用警告；使用真实回合预算。
 

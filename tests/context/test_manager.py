@@ -124,15 +124,15 @@ def test_request_stats_use_cheap_compaction_and_keep_stored_totals() -> None:
     )
 
 
-def test_compaction_accounts_for_request_envelope_and_output_reservation(tmp_path):
+def test_compaction_accounts_for_request_envelope_and_single_response_reserve(tmp_path):
     messages = [{'role': 'user', 'content': 'short request'}]
-    context = ContextManager(messages, tmp_path, CompactionConfig(headroom_tokens=512))
+    context = ContextManager(messages, tmp_path, CompactionConfig(reserve_tokens=512, keep_recent_tokens=200))
     assert not context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=1024)
-    assert context.compaction_required(messages, system_prompt='s' * 11_000,
+    assert context.compaction_required(messages, system_prompt='s' * 15_000,
         context_window_tokens=4096, reserved_output_tokens=1024)
     import pytest
-    with pytest.raises(ValueError, match='headroom'):
-        context.compaction_required(messages, context_window_tokens=4096, reserved_output_tokens=4095)
+    with pytest.raises(ValueError, match='reserve'):
+        context.compaction_required(messages, context_window_tokens=512, reserved_output_tokens=100)
     assert messages == [{'role': 'user', 'content': 'short request'}]
 
 

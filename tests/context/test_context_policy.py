@@ -1,4 +1,4 @@
-'''DSH policy boundaries, lossless artifacts and shared compaction budgets.'''
+'''Pi context budgets, DSH tool pruning and lossless recovery boundaries.'''
 
 import asyncio
 from copy import deepcopy
@@ -14,19 +14,20 @@ from forge.runtime.state import ModelTextDelta, ModelUsageUpdate, TokenUsage
 from forge.runtime.turn_state import BudgetExhausted, TurnState
 
 
-def test_256k_pressure_reserves_output_and_separate_headroom(tmp_path):
+def test_pi_threshold_does_not_subtract_the_output_ceiling_twice(tmp_path):
     config = CompactionConfig()
-    assert config.pressure_threshold(262_144, 65_536) == 131_072
-    assert int((262_144 - 65_536) * config.retain_ratio) == 31_457
+    assert config.pressure_threshold(262_144) == 245_760
+    assert config.keep_recent_tokens == 20_000
     empty_size = len(json.dumps({'role': 'assistant', 'content': ''}))
-    messages = [{'role': 'assistant', 'content': 'x' * (131_071 * 4 - empty_size)}]
+    messages = [{'role': 'assistant', 'content': 'x' * (245_760 * 4 - empty_size)}]
     manager = ContextManager(messages, tmp_path)
     kwargs = dict(context_window_tokens=262_144, reserved_output_tokens=65_536)
     assert not manager.compaction_required(messages, **kwargs)
     # The fixed system envelope counts toward the same threshold, exactly once.
     assert manager.compaction_required(messages, system_prompt='xxxx', **kwargs)
-    with pytest.raises(ValueError, match='headroom'):
-        config.pressure_threshold(131_072, 65_536)
+    assert not manager.compaction_required(messages, context_window_tokens=262_144, reserved_output_tokens=16_384)
+    with pytest.raises(ValueError, match='reserve'):
+        config.pressure_threshold(32_768)
 
 
 def test_pruner_preserves_unicode_rich_blocks_and_original_artifact(tmp_path):
@@ -77,7 +78,7 @@ class Summarizer:
 def test_summary_selects_token_tail_not_six_messages_and_keeps_pairs(tmp_path):
     messages = [{'role': 'user', 'content': 'Never modify input.dat.'}]
     messages += [{'role': 'assistant', 'content': f'old-{index} ' + 'x' * 60_000}
-                 for index in range(10)]
+                 for index in range(18)]
     pair = [
         {'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'last', 'name': 'verify',
                                          'input': {'command': 'check'}}]},
@@ -91,10 +92,10 @@ def test_summary_selects_token_tail_not_six_messages_and_keeps_pairs(tmp_path):
     report = asyncio.run(manager.compact_history(
         messages, client, context_window_tokens=262_144, reserved_output_tokens=65_536))
     assert report.success, report.reason
-    # Three 15K-token messages plus the final atomic pair satisfy the 31,457-token tail.
-    assert messages[-5:] == original[-5:]
+    # Two 15K-token messages plus the final atomic pair satisfy the 20,000-token tail.
+    assert messages[-4:] == original[-4:]
     prompt = client.inputs[0][0]['content']
-    assert 'old-6 ' in prompt and 'old-7 ' not in prompt
+    assert 'old-15 ' in prompt and 'old-16 ' not in prompt
     assert 'Never modify input.dat.' in json.dumps(messages)
     saved = [json.loads(line) for line in Path(report.transcript_path).read_text().splitlines()]
     assert saved == original
@@ -103,9 +104,9 @@ def test_summary_selects_token_tail_not_six_messages_and_keeps_pairs(tmp_path):
 @pytest.mark.parametrize('budget', [1, 2])
 def test_pressure_retry_is_bounded_and_charges_shared_budget(tmp_path, budget):
     messages = [{'role': 'assistant', 'content': str(index) + 'x' * 40_000}
-                for index in range(20)]
+                for index in range(30)]
     original = deepcopy(messages)
-    client = Summarizer([{'goal': 'repair', 'findings': ['y' * 400_000]}, {'goal': 'repair'}])
+    client = Summarizer([{'goal': 'repair', 'findings': ['y' * 960_000]}, {'goal': 'repair'}])
     state = TurnState(max_model_calls=budget)
     manager = ContextManager(messages, tmp_path)
     request = manager.compact_history(messages, BudgetedModelClient(client, state, 'compaction'),
@@ -126,21 +127,21 @@ def test_pressure_retry_is_bounded_and_charges_shared_budget(tmp_path, budget):
 
 def test_pruning_can_remove_pressure_without_a_summary_request(tmp_path):
     messages = [{'role': 'user', 'content': [
-        {'type': 'tool_result', 'tool_use_id': 'huge', 'content': 'x' * 600_000}]}]
+        {'type': 'tool_result', 'tool_use_id': 'huge', 'content': 'x' * 1_200_000}]}]
     client = Summarizer([])
     manager = ContextManager(messages, tmp_path)
     report = asyncio.run(manager.compact_history(
         messages, client, context_window_tokens=262_144, reserved_output_tokens=65_536))
     assert report is None and client.inputs == []
-    assert len(messages[0]['content'][0]['content']) == 600_000
+    assert len(messages[0]['content'][0]['content']) == 1_200_000
 
 
 def test_two_summaries_still_above_threshold_preserve_original_history(tmp_path):
     messages = [{'role': 'assistant', 'content': str(index) + 'x' * 40_000}
-                for index in range(20)]
+                for index in range(30)]
     original = deepcopy(messages)
     client = Summarizer([{'goal': 'repair', 'findings': ['y' * size]}
-                         for size in (600_000, 500_000)])
+                         for size in (1_020_000, 960_000)])
     report = asyncio.run(ContextManager(messages, tmp_path).compact_history(
         messages, client, context_window_tokens=262_144, reserved_output_tokens=65_536))
     assert not report.success and 'still above threshold' in report.reason
@@ -153,15 +154,15 @@ def test_runtime_stops_before_normal_generation_when_compaction_cannot_fit(tmp_p
     from forge.runtime.agent_loop import Conversation
     from forge.runtime.state import TurnCompleted
     client = Summarizer([{}])  # Invalid summary; no normal-generation response is available.
-    client.context_window = 131_072 if failure == 'invalid_capacity' else 262_144
+    client.context_window = 32_768 if failure == 'invalid_capacity' else 262_144
     client.max_tokens = 65_536
     conversation = Conversation(
         client=client, context_root=tmp_path, task_relation='new',
-        system_prompt='x' * 530_000 if failure == 'fixed_envelope' else 'Repair the code.',
+        system_prompt='x' * 1_000_000 if failure == 'fixed_envelope' else 'Repair the code.',
     )
     if failure == 'summary_error':
         conversation.messages.extend(
-            {'role': 'assistant', 'content': 'x' * 40_000} for _ in range(20))
+            {'role': 'assistant', 'content': 'x' * 40_000} for _ in range(30))
     original = deepcopy(conversation.messages)
 
     async def collect():

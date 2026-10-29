@@ -212,7 +212,9 @@ def test_skill_tools_return_structured_results(tmp_path: Path) -> None:
 class CapturingClient:
     model = 'test-model'
     max_tokens = 100
-    context_window = 10_000
+    # Skill injection uses the real default capacity; small-window compaction
+    # is covered separately with an explicitly scaled reserve and retained tail.
+    context_window = 262_144
 
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
@@ -259,8 +261,7 @@ def test_conversation_injects_catalog_and_explicit_body(tmp_path: Path) -> None:
 
     collect(conversation, 'Use $explain-system now')
 
-    # A small model window may require a summarization request first. Assert
-    # the actual tool-enabled request, rather than its position in the stream.
+    # Assert the actual tool-enabled request and its complete skill context.
     request = next(call for call in client.calls if call['tools'] is not None)
     system = str(request['system'])
     raw_tools = request['tools']
@@ -273,10 +274,6 @@ def test_conversation_injects_catalog_and_explicit_body(tmp_path: Path) -> None:
 
 
 class SkillLoadingClient(CapturingClient):
-    # This scenario exercises skill loading, not summarization. Leave room for
-    # the complete tool schemas; compaction has its own small-window tests.
-    context_window = 32_000
-
     def __init__(self) -> None:
         super().__init__()
         self.request_index = 0
