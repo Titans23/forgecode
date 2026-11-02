@@ -480,11 +480,14 @@ def _install_command(
 
 
 def _prerequisite_install_command() -> str:
+    from benchmark.harbor.prepare import bullseye_security_archive
+
     # Official public task images include minimal Debian/Ubuntu environments.
     # curl bootstraps pinned uv; git captures the baseline and final patch.
     return ('if ! command -v curl >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then '
-        'apt-get update; '
-        'DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl git; '
+        + bullseye_security_archive() +
+        'apt-get -o Acquire::Retries=2 -o APT::Update::Error-Mode=any update; '
+        'DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends ca-certificates curl git; '
         'fi; ')
 
 

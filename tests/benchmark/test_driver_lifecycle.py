@@ -35,7 +35,23 @@ def test_minimal_task_tools_are_installed_only_when_missing(tmp_path, present):
     subprocess.run([str(_bash()), '--noprofile', '--norc', '-e', '-c', command],
         env={**os.environ, 'FIXTURE_PATH': commands.as_posix(), 'CALL_LOG': log.as_posix()}, check=True)
     assert (log.read_text().splitlines() if log.exists() else []) == ([] if len(present) == 2 else [
-        'update', 'install -y --no-install-recommends ca-certificates curl git'])
+        '-o Acquire::Retries=2 -o APT::Update::Error-Mode=any update',
+        '-o Acquire::Retries=2 install -y --no-install-recommends ca-certificates curl git'])
+
+
+def test_bullseye_security_archive_preserves_transport_and_other_sources(tmp_path):
+    import subprocess
+    from benchmark.harbor.prepare import bullseye_security_archive
+
+    (tmp_path / 'release').write_text('ID=debian\nVERSION_CODENAME=bullseye\n', newline='\n')
+    sources = tmp_path / 'debian.list'
+    sources.write_text('deb http://deb.debian.org/debian bullseye main\n'
+                       'deb https://security.debian.org/debian-security bullseye-security main\n'
+                       'deb http://deb.debian.org/debian-security bullseye-security main\n', newline='\n')
+    subprocess.run([str(_bash()), '-ec', bullseye_security_archive('./release', '.')], cwd=tmp_path, check=True)
+    assert sources.read_text().splitlines() == ['deb http://deb.debian.org/debian bullseye main',
+        'deb https://archive.debian.org/debian-security bullseye-security main',
+        'deb http://archive.debian.org/debian-security bullseye-security main']
 
 
 def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, monkeypatch):
