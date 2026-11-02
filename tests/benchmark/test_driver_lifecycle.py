@@ -83,6 +83,17 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     assert (workspace / 'new.py').read_text() == 'print("fixture")\n'
     assert (workspace / '.git/index.lock').read_text() == 'checkpoint interrupted'
 
+    # Large deliverables remain in the verifier workspace even when patch archival is skipped.
+    async def create_large_deliverable(*args, **kwargs):
+        (workspace / 'weights.bin').write_bytes(bytes(range(256)) * 16)
+    monkeypatch.setattr('benchmark.harbor.forgecode_agent._MAX_PATCH_BYTES', 32)
+    monkeypatch.setattr(agent, 'exec_as_agent', create_large_deliverable)
+    asyncio.run(agent.run('large output', SimpleNamespace(upload_file=upload, exec=exec_fixture), AgentContext()))
+    capture = json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())
+    assert capture['status'] == 'omitted_size_limit' and capture['patch_bytes'] > 32
+    assert not (tmp_path / 'forgecode-pregrade.patch').exists()
+    assert (workspace / 'weights.bin').read_bytes() == bytes(range(256)) * 16
+
     # Harbor represents successful commands with no output as stdout=None.
     # An unchanged workspace still needs an empty patch and official grading.
     async def empty_diff(*args, **kwargs):

@@ -22,6 +22,7 @@ _AGENT_ROOT: Final = '/opt/forgecode-agent'
 _REMOTE_SOURCE_DIR: Final = '/installed-agent/forgecode-src'
 _CACHE_DIR: Final = '/opt/forgecode-cache'
 _INSTRUCTION_PATH: Final = '/tmp/forgecode-benchmark-instruction.txt'
+_MAX_PATCH_BYTES = 100 * 1024 * 1024
 
 
 _BENCHMARK_EXECUTION_GUIDANCE: Final = '''
@@ -198,13 +199,20 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             # Include new deliverable files without committing or changing their bytes.
             result=await environment.exec(command=_patch_capture_command(baseline))
             patch = (result.stdout or '').encode()
+            omitted = re.fullmatch(rb'FORGECODE_PATCH_BYTES ([0-9]+)\s*', patch) if result.return_code == 0 else None
             diagnostic = {'baseline': baseline, 'return_code': result.return_code,
-                          'patch_bytes': len(patch), 'stderr': (getattr(result, 'stderr', '') or '')[-4096:],
+                          'patch_bytes': int(omitted[1]) if omitted else len(patch),
+                          'status': 'failed' if result.return_code else 'omitted_size_limit' if omitted else 'captured',
+                          'stderr': (getattr(result, 'stderr', '') or '')[-4096:],
                           'error_output': (result.stdout or '')[-4096:] if result.return_code else ''}
             (self.logs_dir / 'forgecode-patch-capture.json').write_text(json.dumps(diagnostic), encoding='utf-8')
-            if result.return_code!=0 or len(patch)>100*1024*1024:
+            if result.return_code!=0:
                 raise RuntimeError('Pre-grader tracked patch capture unavailable: ' + json.dumps(diagnostic))
-            (self.logs_dir/'forgecode-pregrade.patch').write_bytes(patch)
+            patch_path = self.logs_dir / 'forgecode-pregrade.patch'
+            if omitted:
+                patch_path.unlink(missing_ok=True)
+            else:
+                patch_path.write_bytes(patch)
 
     async def _prepare_install_spec(self, environment: BaseEnvironment) -> str:
         if self._package is not None:
@@ -388,13 +396,17 @@ def _patch_capture_command(baseline: str) -> str:
     # Runtime checkpoints may leave the working index locked on interruption.
     # Collection owns a separate index and never stages into the Agent's index.
     return (
-        'set -e; capture_dir=$(mktemp -d); '
-        'trap \'rm -f "$capture_dir/index" "$capture_dir/index.lock" "$capture_dir/stderr"; rmdir "$capture_dir"\' EXIT; '
+        'set -eo pipefail; capture_dir=$(mktemp -d); '
+        'trap \'rm -f "$capture_dir/index" "$capture_dir/index.lock" "$capture_dir/stderr" "$capture_dir/patch"; rmdir "$capture_dir"\' EXIT; '
         'export GIT_INDEX_FILE="$capture_dir/index"; '
         'capture_status=0; { git -c core.hooksPath=/dev/null read-tree ' + shlex.quote(baseline) + ' && '
         'git -c core.hooksPath=/dev/null -c core.fsmonitor=false add --intent-to-add -- . && '
         'git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null '
-        'diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline) + '; '
+        'diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline) + ' | ('
+        # Drain the stream so Git errors remain visible, but never send an oversized diff to Harbor.
+        f'head -c {_MAX_PATCH_BYTES} >"$capture_dir/patch" || exit 1; extra=$(wc -c) || exit 1; '
+        f'if [ "$extra" -gt 0 ]; then echo "FORGECODE_PATCH_BYTES $(({_MAX_PATCH_BYTES} + extra))"; '
+        'else cat "$capture_dir/patch"; fi); '
         '} 2>"$capture_dir/stderr" || capture_status=$?; '
         'if [ "$capture_status" -ne 0 ]; then cat "$capture_dir/stderr"; exit "$capture_status"; fi'
     )

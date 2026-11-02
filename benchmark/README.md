@@ -105,6 +105,10 @@ export FORGE_BASE_URL='http://host.docker.internal:60578'
 也占用上述修复次数与原预算，不是另一次任务尝试。最终由官方 verifier 判分；
 内部要求执行行为检查及说明覆盖范围，不强制额外填写需求 ID 或 JSON 断言协议。
 
+判分前的 Git 补丁归档上限为 100 MiB。超过上限时，适配器在
+`forgecode-patch-capture.json` 记录字节数和 `omitted_size_limit`，并继续在原容器中运行官方
+verifier。该次运行的工作区无法依靠补丁重建。Git 采集命令失败仍单独报错。
+
 ```bash
 run_dir="$HOME/.local/share/forgecode/evaluation/terminal10-gpt6luna-$(date -u +%Y%m%dT%H%M%SZ)-c4"
 eval_args=(
