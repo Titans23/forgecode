@@ -26,6 +26,24 @@ uv run python -m benchmark run swe-bench-verified --n-tasks 1 --dry-run
 uv run python -m benchmark run terminal-bench-2 --n-tasks 1 --dry-run
 ```
 
+## Terminal-Bench 2.0 评测结果（2026-11-02）
+
+**64/89 题通过（71.9%），25 题未通过，0 题未判分。** 按每道唯一题目最近一次正式判分汇总，包含原答案补判和重新作答。以下时间均为北京时间（UTC+8）。
+
+| 评测时间（2026 年） | 范围 | ForgeCode 版本 | 官方判分结果 |
+| --- | --- | --- | --- |
+| 10-29 15:16 至 10-30 12:22 | 三批覆盖 89 题，并发依次为 4、6、4，含中断后的重跑及安装失败题补跑 | [`7fcf3c6`](https://github.com/Titans23/forgecode/commit/7fcf3c62e2fcae3ced4a096cf47fd26a96c865c4) | 去重后 59 通过、23 未通过、7 未判分 |
+| 11-02 14:40 至 14:54 | 恢复 `torch-pipeline-parallelism` 原答案，单独运行 verifier，模型调用 0 次 | 原答案由 `7fcf3c6` 生成 | 1 通过 |
+| 11-02 14:54 至 15:28 | 其余 6 道未判分题重新作答，并发 4 | [`4fd07b7`](https://github.com/Titans23/forgecode/commit/4fd07b77f54a3f681fab04230ecef465068e02d6)（含大补丁归档与 Debian 安装修复） | 4 通过、2 未通过 |
+
+重新作答后通过的 4 题为 `hf-model-inference`、`qemu-startup`、`rstan-to-pystan` 和 `train-fasttext`。`pytorch-model-recovery` 和 `qemu-alpine-ssh` 均出现模型请求异常，官方 verifier 对两份产物均判为 0 分。
+
+从 10-29 这轮重新开始评测起，按每题**首次启动**计（含中断和未判分），通过 51/89（57.3%）。全程任务日志记录了 1,699 次已结束的模型请求，其中 17 次 `http_200` 异常、2 次取消。已记录输入 23,539,351 tokens、输出 429,032 tokens，缓存读取字段为 5,469,312 tokens。19 次请求缺少最终用量，统计不含启动前的服务探测。
+
+评测使用 `gpt-6.1-sol`（本地 Anthropic 兼容端点）、256K 上下文、64K 输出上限、Harbor `0.18.0` 和各题官方镜像。冻结数据集为 `terminal-bench/terminal-bench-2`，版本为 `sha256:c6fc2e2382c1dbae99b2d5ecd2f4f4a60c3c01e0d84642d69b4afd92e99d078b`。每次尝试最多 120 次模型调用、240 次工具调用、1800 秒，受官方时限约束。任务级自动重试为 0，同一预算内最多 2 次交付修复。
+
+评测清单中的源码快照 SHA-256 分别为 `65c73de9cad98316f95978ed64b7485033b68174f9d05ffb15c7fc41df0709d6`（10 月三批）和 `513effda64f1189f1cde76a36569a35ced4363dd58faf12e67ccb3d79681749b`（11 月重新作答）。
+
 ## 运行前准备
 
 以下公开基准命令在 WSL/Linux 终端执行，使用独立环境，不复用 Windows `.venv`：
