@@ -1,0 +1,1 @@
+{"name":"expenses","base":"core","plugins":[{"source":".","trusted":false,"config":{"per_item_limit":"100"}}]}

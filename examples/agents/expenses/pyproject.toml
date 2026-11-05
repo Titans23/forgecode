@@ -1,0 +1,6 @@
+[project]
+name = "forge-example-expenses"
+version = "0.1.0"
+dependencies = []
+[project.optional-dependencies]
+xlsx = ["openpyxl>=3.1,<4"]

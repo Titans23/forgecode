@@ -289,6 +289,7 @@ class Conversation:
             if tracker is not None
             else None
         )
+        self.completion_checks = {}
         self.max_protocol_recoveries = max_protocol_recoveries
         self.max_tool_protocol_recoveries = max_tool_protocol_recoveries
         self.max_output_continuations = max_output_continuations
@@ -371,6 +372,9 @@ class Conversation:
             child = await HarnessSession.open(options, approval_handler=self.permission_manager.approval_handler,
                                              model_client_factory=self.model_factory)
             try:
+                child_permissions = child.conversation.permission_manager
+                for scope in ('user_rules', 'project_rules', 'session_rules'):
+                    setattr(child_permissions, scope, list(getattr(self.permission_manager, scope)))
                 self.session_journal.append('child_session_started', {'session_id': child.session_id, 'role': role})
                 result = await child.run(prompt)
             finally:

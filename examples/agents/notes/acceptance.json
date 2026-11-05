@@ -1,0 +1,1 @@
+{"cases":[{"id":"save","tool":"save_note","arguments":{"text":"Buy tea"},"expect":{"content":"saved"}},{"id":"read","tool":"list_notes","arguments":{},"expect":{"content":"Buy tea\n"}}]}

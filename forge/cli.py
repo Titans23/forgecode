@@ -75,6 +75,8 @@ config_app = typer.Typer(help='Check or configure the model connection.', invoke
 app.add_typer(config_app, name='config')
 from forge.plugin_cli import app as plugin_app
 app.add_typer(plugin_app, name='plugin')
+from forge.agent_cli import app as agent_app
+app.add_typer(agent_app, name='agent')
 
 
 _NOTICE_COMMANDS = {

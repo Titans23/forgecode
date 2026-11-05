@@ -1,0 +1,1 @@
+{"name":"local-coordinator","base":"core","plugins":[{"source":".","trusted":false}],"role_models":{"worker":"local-worker"}}

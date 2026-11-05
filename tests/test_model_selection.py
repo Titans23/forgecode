@@ -277,3 +277,42 @@ def activate(ctx, config):
         assert state == {'closed': True, 'client_closed': True}
         assert session.cleanup['state'] == 'clean'
     asyncio.run(run())
+
+
+def test_managed_child_inherits_parent_session_denials(tmp_path):
+    from forge.permissions.policy import PermissionRule
+    path = tmp_path / 'child-plugin'
+    path.mkdir()
+    (path / 'forge-plugin.json').write_text(json.dumps({'id': 'child', 'api_version': 1}))
+    (path / 'plugin.py').write_text('''from pathlib import Path
+from forge.agents import AgentDefinition, PluginSpec
+def activate(ctx, config):
+ async def delegate(args):
+  child = AgentDefinition(name='child', base='core', plugins=(PluginSpec(str(Path(__file__).parent), trusted=True),), tools=('mutate',))
+  result = await ctx.run_child('child', child)
+  return result.status
+ ctx.register_tool('delegate', 'delegate', {'type':'object'}, delegate)
+ ctx.register_tool('mutate', 'mutate', {'type':'object'}, lambda a: (ctx.data_dir / 'must-not-exist').write_text('mutated'), effect='workspace_write')
+''')
+    class Client(Model):
+        calls = 0
+        async def stream(self, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                name = 'delegate' if self.model == 'main' else 'mutate'
+                yield ModelToolCallCompleted(ToolCall(0, name, name, {}))
+                yield ModelResponseCompleted('tool_use')
+            else:
+                yield ModelTextDelta('done')
+                yield ModelResponseCompleted('end_turn')
+    async def run():
+        definition = AgentDefinition(name='parent', base='core', plugins=(PluginSpec(str(path), trusted=True),), role_models={'worker': 'child'})
+        opts = SessionOptions(agent=definition, data_root=tmp_path / 'data', approval='auto',
+            config=ForgeConfig(api_key='unused', model_id='main'), models={'child': {'provider':'anthropic','model':'child'}})
+        async with await HarnessSession.open(opts, model_client_factory=lambda c, **k: Client(c)) as session:
+            session.conversation.permission_manager.session_rules.append(PermissionRule('deny', 'plugin.child.write'))
+            await session.run('delegate')
+        assert not list((tmp_path / 'data').rglob('must-not-exist'))
+        journals = '\n'.join(p.read_text(encoding='utf-8') for p in (tmp_path / 'data').rglob('*.jsonl'))
+        assert 'A matching deny rule applies' in journals
+    asyncio.run(run())

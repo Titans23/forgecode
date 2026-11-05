@@ -329,6 +329,14 @@ class HarnessSession:
             raise RuntimeError('Model changes require an idle open session')
         return await self.conversation.select_model(alias)
 
+    def add_completion_check(self, name, callback):
+        """Add a deterministic check returning unmet reasons; never grants authority."""
+        if self._closed or self.running:
+            raise RuntimeError('Checks must be registered at an idle session boundary')
+        if not name or name in self.conversation.completion_checks or not callable(callback):
+            raise ValueError('Completion check needs a unique name and callable')
+        self.conversation.completion_checks[name] = callback
+
     async def close(self):
         if self._closed:
             return self.cleanup

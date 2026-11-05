@@ -8,8 +8,6 @@ import re
 from time import time
 from urllib.parse import urlsplit
 
-import httpx
-
 from forge.observability.usage_ledger import PriceBook
 
 
@@ -94,9 +92,14 @@ class ExportQueue:
 
     def start(self):
         if self.options.endpoint and (self.task is None or self.task.done()):
+            try:
+                import httpx
+            except ImportError as error:
+                raise ValueError('Metadata export requires forge-code[observability]') from error
             self.task=asyncio.create_task(self.run())
 
     async def run(self):
+        import httpx
         # No environment proxy, redirects, response command interpretation or task-state writes.
         async with httpx.AsyncClient(timeout=self.options.request_timeout,follow_redirects=False,trust_env=False) as client:
             while True:

@@ -1,0 +1,1 @@
+{"cases":[{"id":"empty-batch","tool":"coordinate","arguments":{"events":[]},"expect":{"json":{"summaries":[]}}}]}

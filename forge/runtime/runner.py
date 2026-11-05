@@ -132,7 +132,7 @@ class TurnRunner:
         if c.tool_executor is not None:
             c.tool_executor.session_journal = self.journal
             c.tool_executor.checkpoint_store = c.checkpoint_store
-        c.permission_manager.bind_session(self.journal)
+        c.permission_manager.bind_session(self.journal, reset_rules=False)
         await c.session_start(source='stream')
         c._persisted_event_keys.clear()
         decision = None
@@ -654,6 +654,21 @@ class TurnRunner:
         return None
 
     async def _completion_reasons(self) -> tuple[str, ...]:
+        import inspect
+        reasons = list(await self._workspace_completion_reasons())
+        for name, callback in self.conversation.completion_checks.items():
+            try:
+                result = callback()
+                if inspect.isawaitable(result):
+                    result = await asyncio.wait_for(result, 120)
+                if not isinstance(result, (list, tuple)) or not all(isinstance(x, str) for x in result):
+                    raise ValueError('Completion check must return a sequence of reasons')
+                reasons.extend(f'{name}: {item}' for item in result)
+            except Exception as error:
+                reasons.append(f'{name}: check failed ({type(error).__name__})')
+        return tuple(reasons)
+
+    async def _workspace_completion_reasons(self) -> tuple[str, ...]:
         c = self.conversation
         if self.tracker is None or c.completion_gate is None or c.permission_manager.mode == 'plan':
             if self.mutation_attempted and self.mutation_failed:

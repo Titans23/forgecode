@@ -184,6 +184,18 @@ class PluginContext:
             raise PluginError('Runtime is not bound yet')
         return await self._host.conversation.run_child(prompt, definition, role=role)
 
+    def register_completion_check(self, name, callback):
+        self._require_active()
+        key = self.plugin_id + '.' + name
+        if self._host.conversation is not None or key in self._host.checks or not callable(callback):
+            raise PluginError('Completion checks require unique names during activation')
+        self._host.checks[key] = callback
+        def remove():
+            self._host.checks.pop(key, None)
+            if self._host.conversation:
+                self._host.conversation.completion_checks.pop(key, None)
+        self.effect(remove)
+
 
 class PluginHost:
     def __init__(self, *, workspace=None, data_root):
@@ -191,6 +203,7 @@ class PluginHost:
         self.data_root = Path(data_root)
         self.tools, self.services, self.providers = {}, {}, {}
         self.handlers, self.cleanups = [], []
+        self.checks = {}
         self.registry = self.conversation = self.previous_hooks = None
         self._closing = None
         self.loaded = []
@@ -259,6 +272,7 @@ class PluginHost:
         self.previous_hooks = conversation.hook_manager
         conversation.hook_manager = self
         conversation.plugin_host = self
+        conversation.completion_checks.update(self.checks)
 
     async def emit(self, event):
         outcome = await self.previous_hooks.emit(event) if self.previous_hooks else HookOutcome()

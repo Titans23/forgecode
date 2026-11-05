@@ -1,0 +1,1 @@
+{"id":"internal-http","api_version":1,"entry_point":"plugin.py:activate","files":["plugin.py","pyproject.toml"]}

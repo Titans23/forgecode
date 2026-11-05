@@ -8,6 +8,10 @@
 
 ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子保存可移植消息投影与不含密钥的模型选择，恢复使用最后选择；旧 Journal 保持可读。新模型调用前仍由共享预算装饰器计量，普通切换本身没有请求。摘要与受管子任务按角色配置模型；子任务沿用父权限和预算，关闭模型传输后再释放插件提供方资源。当前 Chat Completions/Gemini 接入由离线协议测试验证，未进行付费云端验收。
 
+`forge.validation` 持有独立验收预期，只向受管子进程传入工具输入与显式 fixture。候选源码按 manifest.files 复制到私有目录，自测和业务探针分开执行；检查前后比较源码与副本，防止测试修改副本后沿用原代码结论。默认环境不传入业务凭据。`HarnessSession.add_completion_check` 与插件 completion check 追加完成条件，不能撤销既有门禁；自然语言开发复用原严格 coding 回合及其修复上限。
+
+接口结果绑定插件代码、SDK 源码和已安装依赖；业务结果另绑定配置与验收。确定性检查不验证角色模型，模型变化不废弃这些检查，也不会产生新模型已实测的结论。ZIP 交付包使用显式源码、标准 SDK wheel、依赖 pins、AgentDefinition 与验收；导入不安装、不执行、不启用。原环境结果仅作来源证据，新环境须重新 check。可信 Python 的宿主能力不因独立进程或这些检查变成恶意插件隔离。
+
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。

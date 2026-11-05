@@ -1,0 +1,1 @@
+{"name":"local-notes","base":"core","plugins":[{"source":".","trusted":false}],"system_prompt":"Maintain local notes using the available tools."}

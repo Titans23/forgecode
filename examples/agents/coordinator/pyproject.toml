@@ -1,0 +1,4 @@
+[project]
+name = "forge-example-coordinator"
+version = "0.1.0"
+dependencies = []

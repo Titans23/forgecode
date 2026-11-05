@@ -2,6 +2,32 @@
 
 ## Agent 组合与可信 Python 插件
 
+定制、验收和复用入口（`check` 不调用模型）：
+
+```sh
+forge plugin init ./my-plugin --name my-plugin
+forge plugin check ./my-plugin --cases ./acceptance.json --trust --output ./validation.json
+forge plugin develop "实现需求" --directory ./my-plugin --cases ./acceptance.json
+# 检查计划后，显式 --execute 才使用模型；失败在原回合预算内修复，最多两次。
+forge plugin develop "实现需求" --directory ./my-plugin --cases ./acceptance.json --execute --max-model-calls 40
+forge agent check ./agent.json --cases ./acceptance.json --trust --output ./validation.json
+uv build --wheel --out-dir .local/wheels
+forge agent export ./agent.json ./delivery.zip --cases ./acceptance.json --receipt ./validation.json --sdk-wheel .local/wheels/forge_code-0.1.2-py3-none-any.whl
+forge agent import ./delivery.zip ./new-agent
+```
+
+`acceptance.json` 示例：`{"cases":[{"id":"greet","tool":"greet","arguments":{"name":"Ada"},"expect":{"content":"Hello, Ada!"}}]}`。
+预期支持 `content`、解析后的 `json`、错误码 `error` 和取消 `cancelled`；取消用例另设 `cancel_after_ms`。
+`files` 可提供显式文本 fixture，参数中的 `${WORKSPACE}` 指向临时测试目录。
+插件 manifest 的 `files` 列出交付源码、测试和元数据；自测使用标准 unittest，未提供或未发现测试时如实标记 unverified。
+接口、业务与模型结论分层保存，不是插件安全认证。需要安装 `[validation]`；`[terminal]` 已包含。
+
+在导入目录用 `uv pip install -r requirements.lock` 安装标准依赖（相对 wheel 路径以该目录为准），
+配置 `models.json` 引用的环境变量，再运行同一 `agent check`。导入本身不会启用插件或沿用原环境的通过结论。
+SDK wheel 必须匹配实际检查的源码；跨平台依赖可能需要重新解析并重新验收，不能把缺失依赖算作通过。
+示例位于 `examples/agents/{notes,expenses,coordinator}`：无仓库笔记、CSV 费用规则（XLSX 按需安装 openpyxl）、受管事件子任务。
+确定性 check 使用脚本化模型；coordinator 的真实角色模型另行通过 eval 验证。
+
 用户 settings.json 的 `models` 保存模型别名，密钥只写环境变量引用：
 
 ```json

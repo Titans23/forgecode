@@ -1,0 +1,1 @@
+{"cases":[{"id":"rules","tool":"summarize_expenses","arguments":{"csv":"category,amount\ntravel,50.25\nmeal,25.75\ntravel,100.01\nalcohol,10\nmeal,-1\n"},"expect":{"json":{"total":"76.00","rejected":3}}}]}
