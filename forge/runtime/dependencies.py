@@ -1,5 +1,5 @@
 """Optional entry-point bindings; the legacy CLI defaults remain in the factory."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Protocol
 
@@ -40,6 +40,8 @@ class RuntimeBindings:
     intent_routing: bool = True
     turn_baseline_handler: Callable[[], Awaitable[None] | None] | None = None
     plugin_host: Any | None = None
+    model_aliases: dict = field(default_factory=dict)
+    model_environment: dict = field(default_factory=dict)
 
     def conversation_options(self):
         options = {'tool_backend': self.backend, 'event_recorder': self.recorder,

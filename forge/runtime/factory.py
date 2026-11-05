@@ -25,8 +25,9 @@ from forge.tools import create_default_registry
 
 
 def create_model_client(*args, **kwargs):
-    from forge.runtime.providers import create_model_client as create
-    return create(*args, **kwargs)
+    from forge.runtime.model_registry import ProviderRegistry
+    config = args[0] if args else kwargs.pop('config', None)
+    return ProviderRegistry().create(config or ForgeConfig.from_env(), **kwargs)
 
 
 def create_runtime(
@@ -53,6 +54,7 @@ def create_runtime(
     if task_policy is None and agent.completion == 'strict':
         task_policy = TaskPolicy(require_verification=True, require_positive_verification=True, max_delivery_repairs=2)
     config = bindings.config if bindings and bindings.config else ForgeConfig.from_env(model_environment(root / '.env'))
+    default_config = config
     client_factory = bindings.model_client_factory if bindings and bindings.model_client_factory else create_model_client
     store = SessionStore(root, data_root=bindings.data_root) if bindings else SessionStore(root)
     options = bindings.conversation_options() if bindings else {}
@@ -68,6 +70,10 @@ def create_runtime(
     if continue_session or resume_identifier is not None:
         from forge.sessions.store import SessionError
         state, journal = store.open(resume_identifier)
+        if state.model_selection and not fork_session:
+            from forge.runtime.model_registry import ModelSelection
+            config = ModelSelection(**state.model_selection['selection']).resolve(
+                bindings.model_environment if bindings else model_environment(root / '.env'), config)
         if defer_new_session and not state.messages and state.active_task is None and not state.pending_inputs:
             raise SessionError('Session has no resumable conversation history.')
         if journal.read_only and not fork_session:
@@ -78,8 +84,12 @@ def create_runtime(
         if fork_session:
             override = override or os.environ.get('FORGE_MODEL', '') or (
                 config.model_id if state.info.provider and state.info.provider != config.provider else '')
-            journal = store.fork(state, messages=list(state.messages), task=state.active_task,
-                model=override or state.info.model, provider=config.provider)
+            from forge.runtime.model_registry import portable_history
+            history = list(state.messages)
+            if state.info.provider != config.provider or override and override != state.info.model:
+                history = portable_history(history)
+            journal = store.fork(state, messages=history, task=state.active_task,
+                model=override or state.info.model, provider=config.provider, preserve_model_selection=False)
             state = store.load(journal.session_id)
         if override or state.info.model:
             config = replace(config, model_id=override or state.info.model)
@@ -102,6 +112,7 @@ def create_runtime(
         from forge.mcp import MCPClientManager
         mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root))
     conversation_type = conversation_factory or Conversation
+    from forge.context.compactor import CompactionConfig
     conversation = conversation_type(
         client=model, intent_router=(ModelIntentRouter(client_factory(config, max_tokens=600))
             if coding and task_relation is None and (bindings is None or bindings.intent_routing and bindings.task_relation is None) else None),
@@ -109,8 +120,18 @@ def create_runtime(
         active_task=state.active_task if state else None, session_journal=journal,
         checkpoint_store=checkpoint, session_store=store, hook_manager=hooks, mcp_manager=mcp,
         task_policy=task_policy, context_root=root, include_task_tools=coding,
-        system_prompt=agent.system_prompt, **options)
+        system_prompt=agent.system_prompt,
+        context_config=CompactionConfig(**agent.context_options) if agent.context_options else None, **options)
     conversation.agent_definition = agent
+    conversation.model_config = config
+    conversation.default_model_config = default_config
+    conversation.model_aliases = dict(bindings.model_aliases) if bindings else {}
+    conversation.model_environment = dict(bindings.model_environment) if bindings else model_environment(root / '.env', normalize_aliases=False)
+    conversation.model_factory = client_factory
+    conversation.model_alias = state.model_selection['alias'] if state and state.model_selection else agent.role_models.get('main', 'default')
+    explore = registry.implementation('explore_repository')
+    if explore is not None:
+        explore.client_factory = lambda: conversation.create_role_client('explore')
     if bindings and bindings.plugin_host:
         bindings.plugin_host.bind(conversation)
     if agent.tools is not None:

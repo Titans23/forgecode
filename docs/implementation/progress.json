@@ -4,7 +4,7 @@
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
   "current_task": "T03",
-  "platform_delivery": {"status": "in_progress", "checkpoint": "plugin_lifecycle_verified_pending_ci", "validation": [".local/implementation/t03-sdk-final.xml", ".local/implementation/t03-plugin-final.xml"], "core_ci": {"commit": "12a65b04c74dcfc164980a4519e1863588d03735", "run_id": 42001547166, "status": "success"}, "minimal_install": "Isolated installation: 13 packages; SDK imports without anthropic/openai/mcp/typer", "model_api_calls": 0, "native_isolation": "existing_partial_boundary_unchanged"},
+  "platform_delivery": {"status": "in_progress", "checkpoint": "model_selection_verified_pending_ci", "validation": [".local/implementation/t03-model-regression.xml", ".local/implementation/t03-roles.xml"], "core_ci": {"commit": "12a65b04c74dcfc164980a4519e1863588d03735", "run_id": 42001547166, "status": "success"}, "plugins_ci": {"commit": "579a0b2969f10008892d66be507f00cdf2b91551", "run_id": 42005103903, "status": "success"}, "minimal_install": "Isolated installation: 13 packages; SDK imports without anthropic/openai/mcp/typer", "model_api_calls": 0, "native_isolation": "existing_partial_boundary_unchanged"},
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
     "current_checkpoint": "harness_delivery_frozen_for_internship_presentation",

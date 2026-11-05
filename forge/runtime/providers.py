@@ -13,7 +13,6 @@ import httpx
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutError
 
 from forge.config import ForgeConfig
-from forge.runtime.model_client import AnthropicModelClient
 from forge.runtime.state import (
     ModelCallError, ModelProtocolError, ModelOutputTruncatedError,
     ModelTextDelta, ModelToolCallStarted, ModelToolCallArgumentsDelta,
@@ -23,12 +22,8 @@ from forge.runtime.state import (
 
 
 def create_model_client(config=None, *, max_tokens=None, max_retries=2):
-    config = config or ForgeConfig.from_env()
-    if type(max_retries) is not int or max_retries < 0:
-        raise ValueError('max_retries must be a nonnegative integer')
-    if config.provider == 'anthropic':
-        return AnthropicModelClient.from_config(config, max_tokens=max_tokens, max_retries=max_retries)
-    return NativeModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)
+    from forge.runtime.model_registry import ProviderRegistry
+    return ProviderRegistry().create(config or ForgeConfig.from_env(), max_tokens=max_tokens, max_retries=max_retries)
 
 
 def _parts(message):
@@ -40,34 +35,49 @@ def _text(value):
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
-def chat_messages(messages, system=None):
+def chat_messages(messages, system=None, *, deepseek=True):
     output = [{'role': 'system', 'content': system}] if system else []
     for message in messages:
-        content, calls, results = [], [], []
+        content, calls, results, images = [], [], [], []
         for part in _parts(message):
             kind = part.get('type')
             if kind == 'text':
                 content.append(part.get('text', ''))
+            elif kind == 'image' and not deepseek:
+                source = part['source']
+                images.append({'type': 'image_url', 'image_url': {'url':
+                    'data:' + source['media_type'] + ';base64,' + source['data']}})
             elif kind == 'tool_use':
                 calls.append({'id': part['id'], 'type': 'function', 'function': {
                     'name': part['name'], 'arguments': json.dumps(part['input'], ensure_ascii=False)}})
             elif kind == 'tool_result':
                 if isinstance(part.get('content'), list) and any(p.get('type') == 'image' for p in part['content']):
-                    raise ModelProtocolError('This DeepSeek adapter does not support image input.')
+                    if deepseek:
+                        raise ModelProtocolError('This DeepSeek adapter does not support image input.')
+                    for block in part['content']:
+                        if block['type'] == 'image':
+                            source = block['source']
+                            images.append({'type': 'image_url', 'image_url': {'url':
+                                'data:' + source['media_type'] + ';base64,' + source['data']}})
+                    part = {**part, 'content': [b for b in part['content'] if b['type'] != 'image']}
                 results.append({'role': 'tool', 'tool_call_id': part['tool_use_id'],
                                 'content': _text(part.get('content', ''))})
             else:
                 raise ModelProtocolError(f'Unsupported message part for DeepSeek: {kind}')
-        if content or calls:
+        if content or calls or images and not results:
             item = {'role': message['role'], 'content': '\n'.join(content)}
+            if images and not results:
+                item['content'] = [{'type': 'text', 'text': '\n'.join(content)}, *images]
             if calls:
                 item['tool_calls'] = calls
-            if message['role'] == 'assistant':
+            if message['role'] == 'assistant' and deepseek:
                 state = message.get('provider_state', {})
                 item['reasoning_content'] = (state.get('data', {}).get('reasoning_content', '')
                                              if state.get('provider') == 'deepseek' else '')
             output.append(item)
         output.extend(results)
+        if images and results:
+            output.append({'role': 'user', 'content': images})
     return output
 
 
@@ -118,11 +128,12 @@ class NativeModelClient:
     @property
     def capabilities(self):
         from forge.runtime.capabilities import ModelCapabilities
-        return ModelCapabilities(image_transport=self.provider == 'openai_responses',
+        return ModelCapabilities(image_transport=self.provider in {'openai_responses', 'openai_chat'},
+            model_input_modalities=self.input_modalities,
             context_window=self.context_window, max_output_tokens=self.max_tokens)
 
     def __init__(self, config: ForgeConfig, *, max_tokens=None, client=None, max_attempts=3):
-        if config.provider not in {'deepseek', 'openai_responses'}:
+        if config.provider not in {'deepseek', 'openai_responses', 'openai_chat'}:
             raise ValueError('NativeModelClient requires a native OpenAI/DeepSeek profile')
         if max_attempts < 1:
             raise ValueError('max_attempts must be positive')
@@ -130,6 +141,8 @@ class NativeModelClient:
         self.context_window = config.context_window
         self.max_tokens = max_tokens or config.max_tokens
         self.reasoning_effort = config.reasoning_effort
+        self.chat_token_field = config.chat_token_field
+        self.input_modalities = config.input_modalities
         self.max_attempts = max_attempts
         from forge.runtime.service_health import profile_health
         self.health = profile_health(config)
@@ -150,9 +163,10 @@ class NativeModelClient:
             raise ModelCallError('context_length_exceeded', 'No room for model output after input accounting.', retryable=False)
         definitions = [{'name': item['name'], 'description': item.get('description', ''),
                         'parameters': item['input_schema']} for item in tools or ()]
-        if self.provider == 'deepseek':
-            args = dict(model=self.model, messages=chat_messages(messages, system), stream=True,
-                        max_tokens=output_tokens, stream_options={'include_usage': True})
+        if self.provider in {'deepseek', 'openai_chat'}:
+            args = dict(model=self.model, messages=chat_messages(messages, system, deepseek=self.provider == 'deepseek'),
+                        stream=True, stream_options={'include_usage': True})
+            args['max_tokens' if self.provider == 'deepseek' else self.chat_token_field] = output_tokens
             if definitions:
                 args['tools'] = [{'type': 'function', 'function': item} for item in definitions]
             if self.reasoning_effort:
@@ -183,7 +197,7 @@ class NativeModelClient:
             try:
                 if observer:
                     observer()
-                generator = self._chat(arguments) if self.provider == 'deepseek' else self._responses(arguments)
+                generator = self._chat(arguments) if self.provider in {'deepseek', 'openai_chat'} else self._responses(arguments)
                 try:
                     async for event in generator:
                         semantic_output = semantic_output or isinstance(event, (ModelTextDelta, ModelToolCallStarted))

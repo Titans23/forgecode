@@ -299,7 +299,7 @@ class TurnRunner:
         try:
             with bind(recorder,scope,branch=active.get().branch,role=active.get().role) if recorder else nullcontext():
                 report = await c.context.compact_history(
-                    self.messages, BudgetedModelClient(c.client, self.state, 'compaction'),
+                    self.messages, BudgetedModelClient(c.summary_model_client(), self.state, 'compaction'),
                     force=force, task_goal=self.state.goal, **kwargs,
                 )
         except BaseException as error:

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import aclosing
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
 from uuid import uuid4
 
@@ -18,6 +18,7 @@ from forge.permissions.policy import PermissionManager
 from forge.runtime.dependencies import RuntimeBindings
 from forge.runtime.factory import create_runtime
 from forge.runtime.state import TurnCompleted, TurnResult
+from forge.runtime.model_registry import ProviderRegistry, ModelSelection, model_catalog
 from forge.sessions.trajectory import TrajectoryRecorder, sanitize
 
 
@@ -51,6 +52,7 @@ class SessionOptions:
     config: ForgeConfig | None = None
     profile: RunProfile = RunProfile()
     agent: AgentDefinition = AgentDefinition()
+    models: dict[str, dict] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.sandbox not in ('read-only', 'workspace-write', 'full-access'):
@@ -87,8 +89,19 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
         data = Path(options.data_root or os.environ.get('FORGE_DATA_DIR') or Path.home() / '.forge').resolve()
         host = await PluginHost(workspace=options.root, data_root=data).load(options.agent.plugins)
     try:
-        return await _open_runtime(options, approval_handler=approval_handler,
-            model_client_factory=model_client_factory, runtime_factory=runtime_factory, plugin_host=host, **resume)
+        from forge.runtime.model_registry import initial_config
+        from dataclasses import replace
+        providers = ProviderRegistry()
+        if host:
+            for name, factory in host.providers.items():
+                providers.register(name, factory)
+        options = replace(options, config=initial_config(options))
+        from forge.runtime.factory import create_model_client
+        result = await _open_runtime(options, approval_handler=approval_handler,
+            model_client_factory=model_client_factory or (providers.create if host and host.providers else create_model_client),
+            runtime_factory=runtime_factory, plugin_host=host, **resume)
+        result[0].session_options = options
+        return result
     except BaseException as error:
         if host:
             error.plugin_cleanup = await host.close()
@@ -154,7 +167,9 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
         permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
         max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
         intent_routing=options.profile.intent_routing,
-        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host)
+        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host,
+        model_aliases=model_catalog(options),
+        model_environment=model_environment(root / '.env', normalize_aliases=False))
     try:
         from forge.runtime.profile import ExecutionProfile
         conversation, journal, state = runtime_factory(root, bindings=bindings,
@@ -197,16 +212,20 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
     scope.mkdir(parents=True, exist_ok=True)
     config = options.config or ForgeConfig.from_env(model_environment())
     clients = []
+    constructing = True
     def create(*args, **kwargs):
         client = (client_factory or create_model_client)(*args, **kwargs)
-        clients.append(client)
+        if constructing:
+            clients.append(client)
         return client
     permissions = PermissionManager(scope, mode=options.approval, approval_handler=approval_handler,
                                     load_stored_rules=False, execution_mode=options.sandbox)
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=create,
         permission_manager=permissions, trusted_extensions=False, intent_routing=False,
         max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
-        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host)
+        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host,
+        model_aliases=model_catalog(options),
+        model_environment=model_environment(normalize_aliases=False))
     try:
         conversation, journal, state = runtime_factory(scope, bindings=bindings, agent=options.agent, **resume)
         permissions.bind_session(journal)
@@ -218,6 +237,9 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
             if close:
                 await close()
         raise
+    finally:
+        constructing = False
+        clients.clear()
 
 
 class HarnessSession:
@@ -301,6 +323,11 @@ class HarnessSession:
             return False
         self._task.cancel()
         return True
+
+    async def set_model(self, alias):
+        if self._closed or self.running:
+            raise RuntimeError('Model changes require an idle open session')
+        return await self.conversation.select_model(alias)
 
     async def close(self):
         if self._closed:

@@ -2,6 +2,26 @@
 
 ## Agent 组合与可信 Python 插件
 
+用户 settings.json 的 `models` 保存模型别名，密钥只写环境变量引用：
+
+```json
+{"models": {"fast": {"provider": "openai_chat", "model": "your-model-id", "api_key_env": "COMPANY_MODEL_KEY", "base_url": "https://gateway.example/v1", "input_modalities": ["text"]}}, "agents": {"assistant": {"base": "core", "role_models": {"main": "fast", "summary": "fast", "worker": "fast"}}}}
+```
+
+协议支持 `anthropic`、`openai_responses`、`openai_chat`、`deepseek`、`gemini`；按需安装对应
+`[anthropic]`、`[openai]`、`[gemini]`。`default` 保留给既有配置。`forge config models` 或 `/models`
+列出别名；空闲回合使用 `/model fast`，SDK 使用 `await session.set_model('fast')`。
+切换不调用模型；原始 Journal 保留，历史工具交互转换为可见文本并保留图片，私有续传状态不跨模型复用。
+含图片的历史要求目标别名显式声明 `input_modalities: ["text", "image"]`；窗口或压缩预留不足时拒绝切换。
+小窗口可在 Agent 的 `context_options` 显式配置 `reserve_tokens` 和 `keep_recent_tokens`。
+Chat Completions 网关可设置 `chat_token_field: "max_tokens"`，默认使用 `max_completion_tokens`。
+未声明凭据引用时，同提供方别名继承当前默认连接；跨提供方使用各自环境变量。端点禁止嵌入凭据和查询参数。
+
+插件可通过 `ctx.register_provider(name, factory)` 注册提供方；factory 接收 ForgeConfig 和
+`max_tokens`/`max_retries`，返回现有 ModelClient。使用 `ctx.run_child(prompt, definition, role='worker')`
+创建前台受管子任务；权限不能扩大，模型/工具/时间仍受父预算约束。插件自行绕过核心发出的请求不在此保证中。
+协议夹具通过不等于真实云模型实测；上述接入不需要执行付费测试才能检查安装和配置。
+
 `forge plugin init <新目录> --name hello` 创建本地插件；`forge plugin enable <目录> --trust`
 显式信任宿主 Python 代码。`list` 查看、`disable <id>` 停用，新配置只影响新会话。
 安装型插件使用 Python entry point 组 `forge.plugins.v1`，源写为 `entrypoint:<name>`；依赖由 pip/uv 管理。

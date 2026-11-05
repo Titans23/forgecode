@@ -37,19 +37,21 @@ class ConfigurationError(ValueError):
 
 
 def model_environment(project_env: Path | None = None,
-                      overrides: Mapping[str, str] | None = None) -> dict[str, str]:
+                      overrides: Mapping[str, str] | None = None, *, normalize_aliases=True) -> dict[str, str]:
     """Merge the shared user/project/process/explicit model configuration."""
     project_env = project_env or Path.cwd() / '.env'
     layers = [read_user_config(),
               dotenv_values(project_env) if project_env.is_file() else {},
               dict(os.environ), dict(overrides or {})]
     source = {key: value for layer in layers for key, value in layer.items() if value is not None}
+    if not normalize_aliases:
+        return source
     provider = source.get('FORGE_PROVIDER', 'anthropic')
     aliases = [('FORGE_API_KEY', {'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
-                                 'deepseek': 'DEEPSEEK_API_KEY'}.get(provider)),
+                                 'deepseek': 'DEEPSEEK_API_KEY', 'openai_chat': 'OPENAI_API_KEY', 'gemini': 'GEMINI_API_KEY'}.get(provider)),
                ('FORGE_MODEL', 'MODEL_ID'),
                ('FORGE_BASE_URL', {'anthropic': 'ANTHROPIC_BASE_URL', 'openai_responses': 'OPENAI_BASE_URL',
-                                  'deepseek': 'DEEPSEEK_BASE_URL'}.get(provider))]
+                                  'deepseek': 'DEEPSEEK_BASE_URL', 'openai_chat': 'OPENAI_BASE_URL', 'gemini': 'GEMINI_BASE_URL'}.get(provider))]
     for canonical, specific in aliases:
         for layer in reversed(layers):
             if any(name in layer and layer[name] is not None for name in (canonical, specific)):
@@ -113,20 +115,29 @@ class ForgeConfig:
     request_timeout_seconds: float = DEFAULT_MODEL_REQUEST_TIMEOUT_SECONDS
     provider: str = 'anthropic'
     reasoning_effort: str | None = None
+    chat_token_field: str = 'max_completion_tokens'
+    input_modalities: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
-        if self.provider not in {'anthropic', 'openai_responses', 'deepseek'}:
-            raise ConfigurationError('provider must be anthropic, openai_responses, or deepseek')
+        if self.provider not in {'anthropic', 'openai_responses', 'openai_chat', 'deepseek', 'gemini'} and not self.base_url:
+            raise ConfigurationError('Unknown providers require an explicit endpoint and a registered plugin')
+        if self.chat_token_field not in {'max_tokens', 'max_completion_tokens'}:
+            raise ConfigurationError('Invalid Chat Completions token field')
+        if self.input_modalities is not None and (not isinstance(self.input_modalities, (list, tuple)) or
+                not self.input_modalities or set(self.input_modalities) - {'text', 'image'}):
+            raise ConfigurationError('Supported input modalities are text and image')
         api_key = self.api_key.strip()
         model_id = self.model_id.strip()
         default_url = {'anthropic': DEFAULT_ANTHROPIC_BASE_URL,
                        'openai_responses': 'https://api.openai.com/v1',
-                       'deepseek': 'https://api.deepseek.com'}[self.provider]
+                       'deepseek': 'https://api.deepseek.com', 'openai_chat': 'https://api.openai.com/v1',
+                       'gemini': 'https://generativelanguage.googleapis.com/v1beta'}.get(self.provider)
         base_url = (default_url if self.base_url is None else self.base_url).strip().rstrip('/')
 
         if not api_key:
             key_name = {'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
-                        'deepseek': 'DEEPSEEK_API_KEY'}[self.provider]
+                        'deepseek': 'DEEPSEEK_API_KEY', 'openai_chat': 'OPENAI_API_KEY',
+                        'gemini': 'GEMINI_API_KEY'}.get(self.provider, 'FORGE_API_KEY')
             raise ConfigurationError(f'{key_name} is not set.')
         if not model_id:
             raise ConfigurationError('MODEL_ID is not set.')
@@ -208,13 +219,14 @@ class ForgeConfig:
             provider=(provider := source.get('FORGE_PROVIDER', 'anthropic')),
             api_key=source.get('FORGE_API_KEY') or source.get({
                 'anthropic': 'ANTHROPIC_API_KEY', 'openai_responses': 'OPENAI_API_KEY',
-                'deepseek': 'DEEPSEEK_API_KEY'}.get(provider, ''), ''),
+                'deepseek': 'DEEPSEEK_API_KEY', 'openai_chat': 'OPENAI_API_KEY', 'gemini': 'GEMINI_API_KEY'}.get(provider, ''), ''),
             model_id=source.get('FORGE_MODEL') or source.get('MODEL_ID', ''),
             base_url=source.get('FORGE_BASE_URL') or source.get({
                 'anthropic': 'ANTHROPIC_BASE_URL', 'openai_responses': 'OPENAI_BASE_URL',
-                'deepseek': 'DEEPSEEK_BASE_URL'}.get(provider, ''), {
+                'deepseek': 'DEEPSEEK_BASE_URL', 'openai_chat': 'OPENAI_BASE_URL', 'gemini': 'GEMINI_BASE_URL'}.get(provider, ''), {
                 'anthropic': DEFAULT_ANTHROPIC_BASE_URL, 'openai_responses': 'https://api.openai.com/v1',
-                'deepseek': 'https://api.deepseek.com'}.get(provider, '')),
+                'deepseek': 'https://api.deepseek.com', 'openai_chat': 'https://api.openai.com/v1',
+                'gemini': 'https://generativelanguage.googleapis.com/v1beta'}.get(provider, '')),
             reasoning_effort=source.get('FORGE_REASONING_EFFORT') or None,
             max_tokens=max_tokens,
             context_window=context_window,

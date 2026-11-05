@@ -132,7 +132,7 @@ def main(
             help='Fork the resumed session under a new session ID.',
         ),
     ] = False,
-    provider: Annotated[str | None, typer.Option('--provider', help='anthropic, openai_responses, or deepseek')] = None,
+    provider: Annotated[str | None, typer.Option('--provider', help='anthropic, openai_responses, openai_chat, deepseek, or gemini')] = None,
     model: Annotated[str | None, typer.Option('--model', help='Model identifier for the configured provider')] = None,
     base_url: Annotated[str | None, typer.Option('--base-url', help='Native provider or explicit gateway URL')] = None,
     sandbox: Annotated[str, typer.Option('--sandbox', help='read-only, workspace-write or explicit full-access')] = 'workspace-write',
@@ -152,7 +152,7 @@ def main(
                     os.environ[key] = value
         ctx.call_on_close(restore_overrides)
         if provider is not None:
-            if provider not in {'anthropic', 'openai_responses', 'deepseek'}:
+            if provider not in {'anthropic', 'openai_responses', 'openai_chat', 'deepseek', 'gemini'}:
                 raise typer.BadParameter('Unsupported provider')
             os.environ['FORGE_PROVIDER'] = provider
         if model is not None:
@@ -416,6 +416,19 @@ async def _run_interactive_chat(
                     notice = resolved_session.session_rename(name)
                     resolved_terminal.show_notice('Session', notice)
                 except ValueError as error:
+                    resolved_terminal.show_error(error)
+                continue
+
+            if prompt.strip() == '/models':
+                names = ['default', *getattr(resolved_session, 'model_aliases', {})]
+                resolved_terminal.show_notice('Models', '\n'.join(names))
+                continue
+
+            if prompt.startswith('/model '):
+                try:
+                    selected = await resolved_session.select_model(prompt[7:].strip())
+                    resolved_terminal.show_notice('Model', f"{selected['provider']}/{selected['model']}")
+                except (ValueError, RuntimeError) as error:
                     resolved_terminal.show_error(error)
                 continue
 
@@ -991,6 +1004,14 @@ def initialize_model_config() -> None:
 def model_config_path() -> None:
     '''Show the user configuration file location.'''
     typer.echo(str(model_config.FORGECODE_ENV_PATH))
+
+
+@config_app.command('models')
+def configured_models():
+    from forge.compositions import read_settings
+    typer.echo('default: existing model configuration')
+    for alias, value in read_settings().get('models', {}).items():
+        typer.echo(f"{alias}: {value.get('provider', '?')}/{value.get('model', '?')}")
 
 
 @config_app.command('setup')

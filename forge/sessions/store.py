@@ -60,6 +60,7 @@ class SessionState:
     indeterminate_tools: tuple[dict[str, Any], ...]
     verification_history: tuple[VerificationEvidence, ...] = ()
     pending_inputs: tuple[dict[str, Any], ...] = ()
+    model_selection: dict[str, Any] | None = None
 
 
 class SessionJournal:
@@ -547,6 +548,7 @@ class SessionStore:
         model: str,
         name: str | None = None,
         provider: str | None = None,
+        preserve_model_selection: bool = True,
     ) -> SessionJournal:
         journal = self.create(model=model, name=name, provider=provider or source.info.provider)
         journal.append(
@@ -554,6 +556,8 @@ class SessionStore:
             {'source_session_id': source.info.session_id, 'source_sequence': source.info.sequence},
         )
         journal.append('message_checkpoint', {'messages': messages})
+        if preserve_model_selection and source.model_selection and model == source.info.model and (provider is None or provider == source.info.provider):
+            journal.append('model_selected', {**source.model_selection, 'messages': messages})
         journal.record_task_state(task)
         for evidence in source.verification_history:
             journal.append('verification_recorded', {
@@ -844,6 +848,7 @@ class SessionStore:
         replay_turn = ''
         verification_history: dict[str, VerificationEvidence] = {}
         pending_inputs = {}
+        model_selection = None
 
         for record in records[1:]:
             payload = self._payload(record, path)
@@ -900,7 +905,9 @@ class SessionStore:
                 ):
                     messages.extend((pending_assistant, message))
                 pending_assistant = None
-            elif event_type in {'context_compacted', 'message_checkpoint'}:
+            elif event_type in {'context_compacted', 'message_checkpoint', 'model_selected'}:
+                if event_type == 'model_selected':
+                    model_selection = {'alias': payload['alias'], 'selection': payload['selection']}
                 candidate = payload.get('messages')
                 if isinstance(candidate, list) and all(
                     isinstance(item, dict) for item in candidate
@@ -974,13 +981,13 @@ class SessionStore:
             path=path,
             created_at=str(first['timestamp']),
             updated_at=str(records[-1]['timestamp']),
-            model=str(first_payload.get('model', '')),
+            model=str(model_selection['selection']['model'] if model_selection else first_payload.get('model', '')),
             name=name,
             title=name or first_prompt or str(first['session_id']),
             status=status,
             sequence=int(records[-1]['sequence']),
             message_count=len(messages),
-            provider=str(first_payload.get('provider', '')),
+            provider=str(model_selection['selection']['provider'] if model_selection else first_payload.get('provider', '')),
         )
         indeterminate_tools: list[dict[str, Any]] = []
         for tool_id, payload in started_tools.items():
@@ -1011,6 +1018,7 @@ class SessionStore:
             indeterminate_tools=tuple(indeterminate_tools),
             verification_history=tuple(verification_history.values()),
             pending_inputs=tuple(pending_inputs.values()),
+            model_selection=model_selection,
         )
 
     @staticmethod

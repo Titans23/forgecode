@@ -178,6 +178,12 @@ class PluginContext:
         self._host.handlers.append(item)
         self.effect(lambda: self._host.handlers.remove(item))
 
+    async def run_child(self, prompt, definition, *, role='worker'):
+        self._require_active()
+        if self._host.conversation is None:
+            raise PluginError('Runtime is not bound yet')
+        return await self._host.conversation.run_child(prompt, definition, role=role)
+
 
 class PluginHost:
     def __init__(self, *, workspace=None, data_root):

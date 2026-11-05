@@ -21,6 +21,7 @@ forge = 'forge.launch:main'
 [project.optional-dependencies]
 anthropic = ['anthropic>=0.116,<0.117']
 openai = ['openai>=2.53,<3']
+gemini = ['httpx>=0.28,<1']
 cli = ['prompt-toolkit>=3.0,<4', 'rich>=13,<15', 'typer>=0.9,<1.0']
 mcp = ['mcp>=1.28,<2']
 coding = ["pywin32==312; sys_platform == 'win32'"]

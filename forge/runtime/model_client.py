@@ -61,7 +61,7 @@ class AnthropicModelClient:
     @property
     def capabilities(self):
         from forge.runtime.capabilities import ModelCapabilities
-        return ModelCapabilities(image_transport=True, context_window=self.context_window,
+        return ModelCapabilities(image_transport=True, model_input_modalities=self.input_modalities, context_window=self.context_window,
                                  max_output_tokens=self.max_tokens)
 
     @classmethod
@@ -112,6 +112,7 @@ class AnthropicModelClient:
         self.model = model
         self.max_tokens = max_tokens
         self.context_window = context_window
+        self.input_modalities = config.input_modalities if config else None
         self.max_retries = max_retries
         self.request_timeout_seconds = request_timeout_seconds
         from forge.runtime.service_health import profile_health

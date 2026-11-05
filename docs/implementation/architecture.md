@@ -6,6 +6,8 @@
 
 `PluginHost` 在显式信任后按依赖顺序加载，`PluginContext` 的注册和资源由该会话持有；错误撤销、逆序关闭与既有 runtime_close 共用关闭路径。工具仍通过 ToolExecutor 的参数检查、权限和 Journal 执行。可信插件工具在宿主运行并明确标注不受原生边界覆盖；原生文件工具的标签与限制不变。组合通过 `--agent` 选择，原启动 `--profile` 含义不变。
 
+ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子保存可移植消息投影与不含密钥的模型选择，恢复使用最后选择；旧 Journal 保持可读。新模型调用前仍由共享预算装饰器计量，普通切换本身没有请求。摘要与受管子任务按角色配置模型；子任务沿用父权限和预算，关闭模型传输后再释放插件提供方资源。当前 Chat Completions/Gemini 接入由离线协议测试验证，未进行付费云端验收。
+
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。

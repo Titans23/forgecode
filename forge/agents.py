@@ -27,6 +27,7 @@ class AgentDefinition:
     plugins: tuple[PluginSpec, ...] = ()
     role_models: dict[str, str] = field(default_factory=dict)
     completion: Literal['normal', 'strict'] = 'normal'
+    context_options: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):
@@ -37,6 +38,10 @@ class AgentDefinition:
             raise ValueError('Completion policy must be normal or strict')
         if self.base == 'core' and self.completion == 'strict':
             raise ValueError('Code verification requires a coding composition')
+        if not isinstance(self.role_models, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in self.role_models.items()):
+            raise ValueError('Role models must map role names to aliases')
+        if not isinstance(self.context_options, dict):
+            raise ValueError('Context options must be an object')
 
     @classmethod
     def core(cls, name='core', *, system_prompt='You are a helpful assistant.'):

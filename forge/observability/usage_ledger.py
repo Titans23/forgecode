@@ -40,7 +40,7 @@ def normalize_usage(provider,raw):
         cache_write=_count(raw.get('cache_creation_input_tokens',0))
         cache_read=_count(raw.get('cache_read_input_tokens',0))
         total=_count(ordinary+cache_write+cache_read)
-    elif provider in ('openai_responses','openai','deepseek'):
+    elif provider in ('openai_responses','openai','openai_chat','deepseek'):
         chat='prompt_tokens' in raw
         total=_count(raw['prompt_tokens' if chat else 'input_tokens'])
         output=_count(raw['completion_tokens' if chat else 'output_tokens'])
@@ -50,6 +50,11 @@ def normalize_usage(provider,raw):
         ordinary=_count(total-cache_read-cache_write)
         if 'prompt_cache_miss_tokens' in raw and _count(raw['prompt_cache_miss_tokens'])!=ordinary+cache_write:
             raise ValueError('Cache hit/miss counts disagree with input total')
+    elif provider == 'gemini':
+        total = _count(raw['promptTokenCount'])
+        output = _count(raw['candidatesTokenCount']) + _count(raw.get('thoughtsTokenCount', 0))
+        cache_read = _count(raw.get('cachedContentTokenCount', 0))
+        ordinary = _count(total - cache_read)
     else:
         raise ValueError('Provider usage semantics are unknown')
     components={'input_tokens':ordinary,'output_tokens':output,'cache_read_tokens':cache_read,'cache_write_tokens':cache_write}

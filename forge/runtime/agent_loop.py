@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import aclosing, nullcontext
 from functools import cache
+import asyncio
 import os
 import re
 from pathlib import Path
@@ -168,9 +169,11 @@ class Conversation:
         if max_turn_input_tokens is not None and max_turn_input_tokens < 1:
             raise ValueError('max_turn_input_tokens must be positive')
         if client is None:
-            from forge.runtime.providers import create_model_client
+            from forge.runtime.factory import create_model_client
             client = create_model_client()
         self.client = client
+        self.retired_model_clients = []
+        self.role_model_clients = {}
         self.system_prompt = (
             system_prompt
             if system_prompt is not None
@@ -323,6 +326,65 @@ class Conversation:
     def _require_idle(self):
         if self._running:
             raise RuntimeError('Cancel the active turn before changing session history')
+
+    async def select_model(self, alias):
+        from forge.runtime.model_registry import select_model
+        return await select_model(self, alias)
+
+    def create_role_client(self, role):
+        from forge.runtime.model_registry import config_for_alias
+        alias = self.agent_definition.role_models.get(role)
+        config = config_for_alias(self, alias)[0] if alias else self.model_config
+        return self.model_factory(config)
+
+    def summary_model_client(self):
+        if not getattr(getattr(self, 'agent_definition', None), 'role_models', {}).get('summary'):
+            return self.client
+        if 'summary' not in self.role_model_clients:
+            self.role_model_clients['summary'] = self.create_role_client('summary')
+        return self.role_model_clients['summary']
+
+    async def run_child(self, prompt, definition, *, role='worker'):
+        """A foreground child shares the active turn budget and cannot add capabilities."""
+        from dataclasses import replace
+        from forge.api import HarnessSession
+        from forge.runtime.turn_state import parent_budget
+        from forge.runtime.model_registry import config_for_alias
+        if not self._running or self.turn_state is None:
+            raise RuntimeError('Managed children require an active parent turn')
+        if self.agent_definition.base == 'core' and definition.base != 'core':
+            raise ValueError('A core parent cannot grant coding capabilities')
+        parent_plugins = {p.source: p for p in self.agent_definition.plugins}
+        if any(parent_plugins.get(p.source) != p for p in definition.plugins):
+            raise ValueError('Child plugins must be inherited from the parent')
+        if self.agent_definition.tools is not None and (definition.tools is None or
+                not set(definition.tools).issubset(self.agent_definition.tools)):
+            raise ValueError('Child tools must be a subset of the parent tools')
+        alias = self.agent_definition.role_models.get(role)
+        config = config_for_alias(self, alias)[0] if alias else self.model_config
+        options = replace(self.session_options, agent=replace(definition, role_models={}), config=config,
+                          approval=self.permission_manager.mode)
+        if definition.base == 'core':
+            options = replace(options, root=None, read_roots=(), write_roots=None)
+        token = parent_budget.set(self.turn_state)
+        try:
+            child = await HarnessSession.open(options, approval_handler=self.permission_manager.approval_handler,
+                                             model_client_factory=self.model_factory)
+            try:
+                self.session_journal.append('child_session_started', {'session_id': child.session_id, 'role': role})
+                result = await child.run(prompt)
+            finally:
+                cleanup = await child.close()
+                if definition.base == 'coding' and self.workspace_tracker is not None:
+                    self.workspace_tracker.mark_environment_change()
+                    await self.workspace_tracker.refresh()
+            if cleanup and cleanup.get('state') != 'clean':
+                self.session_journal.append('child_cleanup_unknown', {'session_id': child.session_id, 'cleanup': cleanup})
+                raise RuntimeError('Child cleanup is unconfirmed')
+            self.session_journal.append('child_session_finished', {'session_id': child.session_id, 'status': result.status})
+            return result
+        finally:
+            parent_budget.reset(token)
 
     def _repository_context(self, query: str) -> str:
         if getattr(getattr(self, 'agent_definition', None), 'base', 'coding') == 'core':
@@ -809,29 +871,39 @@ class Conversation:
     async def _close_runtime(self, *, reason: str) -> dict | None:
         cleanup = None
         plugin_cleanup = None
+        failures = []
         try:
             await self.session_end(reason=reason)
+        except (Exception, asyncio.CancelledError) as error:
+            failures.append(type(error).__name__)
+        try:
             if self.mcp_manager is not None:
                 await self.mcp_manager.close()
+        except (Exception, asyncio.CancelledError) as error:
+            failures.append(type(error).__name__)
         finally:
             try:
-                host = getattr(self, 'plugin_host', None)
-                if host is not None:
-                    plugin_cleanup = await host.close()
                 seen = set()
-                for client in (self.client, getattr(self.intent_router, 'client', None)):
+                for client in (self.client, getattr(self.intent_router, 'client', None),
+                               *self.retired_model_clients, *self.role_model_clients.values()):
                     if client is not None and id(client) not in seen:
                         seen.add(id(client))
                         close = getattr(client, 'aclose', None)
                         if close is not None:
-                            await close()
+                            try:
+                                await close()
+                            except (Exception, asyncio.CancelledError) as error:
+                                failures.append(type(error).__name__)
+                host = getattr(self, 'plugin_host', None)
+                if host is not None:
+                    plugin_cleanup = await host.close()
             finally:
                 if self.owns_tool_backend and self.tool_executor is not None and self.tool_executor.backend is not None:
                     close_backend = getattr(self.tool_executor.backend, 'close', None)
                     if close_backend is not None:
                         cleanup = await close_backend()
-        if plugin_cleanup and plugin_cleanup['state'] != 'clean':
-            return {'state': 'unknown', 'plugins': plugin_cleanup, 'backend': cleanup}
+        if failures or plugin_cleanup and plugin_cleanup['state'] != 'clean':
+            return {'state': 'unknown', 'plugins': plugin_cleanup, 'backend': cleanup, 'client_errors': failures}
         return cleanup or plugin_cleanup
 
     def checkpoint_undo(self) -> str:
@@ -955,7 +1027,8 @@ class Conversation:
         state, journal = self.session_store.open(identifier)
         if journal.read_only:
             raise ValueError('Legacy sessions are read-only; fork one before continuing.')
-        if state.info.provider and state.info.provider != getattr(self.client, 'provider', ''):
+        if state.info.provider and state.info.provider != getattr(self.client, 'provider', '') and not (
+                state.model_selection and hasattr(self, 'model_factory')):
             raise ValueError('This session uses a different provider; open it with its profile or fork it.')
         if not state.messages and state.active_task is None and not state.pending_inputs:
             raise ValueError(f'Session {state.info.session_id} has no resumable conversation history.')
@@ -983,8 +1056,25 @@ class Conversation:
         state, journal = self._resume_target(identifier)
         if self.session_journal is not None and state.info.session_id == self.session_journal.session_id:
             return f'Session {state.info.session_id} is already active.'
+        selected = client = None
+        if state.model_selection and hasattr(self, 'model_factory'):
+            from forge.runtime.model_registry import ModelSelection
+            selected = ModelSelection(**state.model_selection['selection']).resolve(self.model_environment, self.default_model_config)
+            client = self.model_factory(selected)
         if self.session_journal is not None:
-            self.session_journal.record_stopped()
+            try:
+                self.session_journal.record_stopped()
+            except BaseException:
+                if client is not None:
+                    self.retired_model_clients.append(client)
+                raise
+        if client is not None:
+            self.retired_model_clients.append(self.client)
+            self.client, self.model_config = client, selected
+            self.model_alias = state.model_selection['alias']
+            if self.intent_router is not None:
+                self.retired_model_clients.append(self.intent_router.client)
+                self.intent_router.client = client
         self.messages[:] = list(state.messages)
         self._reset_history_context()
         self.inbox.restore(state.pending_inputs)
@@ -992,6 +1082,9 @@ class Conversation:
         self.task_manager.restore(state.active_task)
         if state.info.model and hasattr(self.client, 'model'):
             self.client.model = state.info.model
+            if hasattr(self, 'model_config'):
+                from dataclasses import replace
+                self.model_config = replace(self.model_config, model_id=state.info.model)
             router_client = getattr(self.intent_router, 'client', None)
             if router_client is not None and hasattr(router_client, 'model'):
                 router_client.model = state.info.model
