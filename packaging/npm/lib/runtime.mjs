@@ -120,7 +120,7 @@ export async function prepareRuntime(root = packageRoot) {
   const venv = join(cache, 'python');
   if (!resolve(venv).startsWith(resolve(cache) + sep)) throw new Error('Python environment exceeds its private cache.');
   run(tools.uv, ['venv', '--clear', '--managed-python', '--python', manifest.python_version, venv], { env: environment });
-  run(tools.uv, ['pip', 'install', '--python', python, '--constraints', constraints, wheel], { env: environment });
+  run(tools.uv, ['pip', 'install', '--python', python, '--constraints', constraints, `${wheel}[terminal]`], { env: environment });
   run(python, ['-I', '-c', 'from forge.sandbox.launcher import verify_code_inventory; verify_code_inventory()'], { env: environment });
   if (process.platform === 'linux' && !existsSync('/usr/bin/bwrap'))
     console.error('Ubuntu native sandbox prerequisite missing: bubblewrap. Install it with your system package manager before running tasks.');

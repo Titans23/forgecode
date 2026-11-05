@@ -5,7 +5,12 @@ from forge.mcp.config import (
     MCPServerConfig,
     load_mcp_servers,
 )
-from forge.mcp.manager import MCPClientManager
+
+def __getattr__(name):
+    if name == 'MCPClientManager':
+        from forge.mcp.manager import MCPClientManager
+        return MCPClientManager
+    raise AttributeError(name)
 
 __all__ = [
     'MCPClientManager',

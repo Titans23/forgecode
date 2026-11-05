@@ -9,23 +9,22 @@ description = 'A terminal-based Agent Harness for reliable software engineering 
 readme = 'README.md'
 requires-python = '>=3.12'
 dependencies = [
-    'anthropic>=0.116,<0.117',
-    'openai>=2.53,<3',
     'pydantic>=2.12,<3',
-    'prompt-toolkit>=3.0,<4',
     'python-dotenv>=1,<2',
-    "rich>=13,<15",
-    'typer>=0.9,<1.0',
-    'mcp>=1.28,<2',
     'pyyaml>=6,<7',
     'jsonschema==4.26.0',
-    "pywin32==312; sys_platform == 'win32'",
 ]
 
 [project.scripts]
 forge = 'forge.launch:main'
 
 [project.optional-dependencies]
+anthropic = ['anthropic>=0.116,<0.117']
+openai = ['openai>=2.53,<3']
+cli = ['prompt-toolkit>=3.0,<4', 'rich>=13,<15', 'typer>=0.9,<1.0']
+mcp = ['mcp>=1.28,<2']
+coding = ["pywin32==312; sys_platform == 'win32'"]
+terminal = ['forge-code[anthropic,openai,cli,mcp,coding]']
 channels = ['lark-channel-sdk>=1.2,<2']
 evaluation = ['harbor==0.18.0']
 
@@ -55,6 +54,7 @@ cache_dir = '.local/cache/mypy'
 
 [dependency-groups]
 dev = [
+    'forge-code[terminal]',
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "ruff>=0.17.1",

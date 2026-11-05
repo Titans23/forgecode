@@ -12,6 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from forge.config import ForgeConfig, model_environment
+from forge.agents import AgentDefinition
 from forge.messages import UserInput
 from forge.permissions.policy import PermissionManager
 from forge.runtime.dependencies import RuntimeBindings
@@ -41,7 +42,7 @@ class RunProfile:
 
 @dataclass(frozen=True, slots=True)
 class SessionOptions:
-    root: Path
+    root: Path | None = None
     sandbox: str = 'workspace-write'
     approval: str = 'supervised'
     read_roots: tuple[Path, ...] = ()
@@ -49,6 +50,7 @@ class SessionOptions:
     data_root: Path | None = None
     config: ForgeConfig | None = None
     profile: RunProfile = RunProfile()
+    agent: AgentDefinition = AgentDefinition()
 
     def __post_init__(self):
         if self.sandbox not in ('read-only', 'workspace-write', 'full-access'):
@@ -57,6 +59,10 @@ class SessionOptions:
             raise ValueError('Approval must be plan, supervised or auto')
         if self.sandbox == 'read-only' and self.write_roots:
             raise ValueError('Read-only cannot grant write roots')
+        if self.agent.base == 'coding' and self.root is None:
+            raise ValueError('The coding agent requires a workspace')
+        if self.agent.base == 'core' and (self.read_roots or self.write_roots):
+            raise ValueError('Core agents do not grant filesystem roots; select coding for file tools')
 
 
 def event_dict(event):
@@ -74,6 +80,8 @@ def event_dict(event):
 async def open_runtime(options, *, approval_handler=None, model_client_factory=None,
                        runtime_factory=create_runtime, **resume):
     """Initialize the actual boundary before constructing clients or opening a Journal."""
+    if options.agent.base == 'core':
+        return await _open_core_runtime(options, approval_handler, model_client_factory, runtime_factory, resume)
     from forge.sandbox.application_backend import NativeBackendFactory
     from forge.sandbox.file_client import FileWorkerClient
     from forge.sandbox.policy import compile_policy
@@ -132,7 +140,8 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
     try:
         from forge.runtime.profile import ExecutionProfile
         conversation, journal, state = runtime_factory(root, bindings=bindings,
-            execution_profile=ExecutionProfile.sandbox() if writes else ExecutionProfile.host(), **resume)
+            execution_profile=ExecutionProfile.sandbox() if writes else ExecutionProfile.host(),
+            **({'agent': options.agent} if options.agent != AgentDefinition() else {}), **resume)
         permissions.bind_session(journal)
         journal.append('execution_profile', {'profile': asdict(options.profile), 'sandbox': options.sandbox,
             'approval': options.approval, 'policy': policy})
@@ -159,6 +168,38 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
     finally:
         constructing = False
         startup_clients.clear()
+
+
+async def _open_core_runtime(options, approval_handler, client_factory, runtime_factory, resume):
+    """Use the same loop and Journal, with a private logical scope and no OS worker."""
+    from forge.runtime.factory import create_model_client
+    import os
+    data = Path(options.data_root or os.environ.get('FORGE_DATA_DIR') or Path.home() / '.forge').resolve()
+    scope = data / 'agents' / options.agent.name
+    scope.mkdir(parents=True, exist_ok=True)
+    config = options.config or ForgeConfig.from_env(model_environment())
+    clients = []
+    def create(*args, **kwargs):
+        client = (client_factory or create_model_client)(*args, **kwargs)
+        clients.append(client)
+        return client
+    permissions = PermissionManager(scope, mode=options.approval, approval_handler=approval_handler,
+                                    load_stored_rules=False, execution_mode=options.sandbox)
+    bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=create,
+        permission_manager=permissions, trusted_extensions=False, intent_routing=False,
+        max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
+        wall_seconds=options.profile.wall_seconds)
+    try:
+        conversation, journal, state = runtime_factory(scope, bindings=bindings, agent=options.agent, **resume)
+        permissions.bind_session(journal)
+        journal.append('agent_configuration', {'name': options.agent.name, 'base': 'core', 'workspace': None})
+        return conversation, journal, state, None
+    except BaseException:
+        for client in {id(c): c for c in clients}.values():
+            close = getattr(client, 'aclose', None)
+            if close:
+                await close()
+        raise
 
 
 class HarnessSession:

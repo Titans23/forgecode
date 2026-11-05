@@ -10,10 +10,9 @@ Read docs/implementation/architecture.md and progress.json, then the relevant
 task card and backlog dependencies. Audit real interfaces before changing them.
 Keep the existing Python Harness and CLI; do not resume retired desktop plans.
 
-Current priority is an evidence-backed Agent/Harness internship portfolio.
-Follow the T01 priority queue: audit existing Harness behavior, freeze a small
-code-task evaluation, demonstrate one real failure/recovery loop, then prepare
-the CLI/API demo and contribution boundaries. Full native OS isolation is an
+Current priority is T03: a lightweight extensible Python Harness with verified
+plugin development, reusable Agent configurations and reproducible evaluations.
+Preserve T01's historical evidence and contribution boundaries. Full native OS isolation is an
 unfinished extension outside this critical path; do not let an older persistent
 goal automatically restart unbounded sandbox work unless the user reprioritizes.
 Keep Docker out of ordinary installation/execution. Preserve current permission,

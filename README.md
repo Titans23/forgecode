@@ -1,6 +1,8 @@
 # ForgeCode
 
-ForgeCode 是一个终端 Agent Harness：复用既有 Python 代理循环，负责模型与工具调用、权限、上下文、预算、验证、会话恢复和进程清理。
+ForgeCode 是一个 Python Agent Harness：复用同一代理循环，负责模型与工具调用、权限、上下文、预算、验证、会话恢复和进程清理。T03 正在实现可扩展底座；当前状态见 progress.json，未完成能力不作为现成产品承诺。
+
+纯 SDK 使用 `SessionOptions(agent=AgentDefinition.core(), data_root=...)`，可在没有工作区和 Node 的环境运行。按需安装 `forge-code[anthropic]` 或 `forge-code[openai]`；完整终端环境为 `forge-code[terminal]`。源码开发继续使用锁文件及全部 extras。
 
 当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 

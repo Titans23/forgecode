@@ -13,7 +13,10 @@ from forge.hooks.models import (
     HookSettings,
     HookSpec,
 )
-from forge.hooks.runner import run_hook_command
+
+async def run_hook_command(*args, **kwargs):
+    from forge.hooks.runner import run_hook_command as run
+    return await run(*args, **kwargs)
 
 
 BLOCKING_EVENTS = frozenset(

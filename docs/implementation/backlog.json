@@ -1,6 +1,7 @@
 {
   "schema_version": "forge.backlog.v1",
   "tasks": [
+    {"id": "T03", "title": "可扩展Agent底座与可验证定制", "depends_on": ["F00", "T01"], "chapters": [0, 1, 2, 3], "implementation_status": "in_progress"},
     {
       "id": "F00",
       "title": "真实仓库审计",

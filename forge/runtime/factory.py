@@ -12,16 +12,21 @@ from pathlib import Path
 from typing import Any, Callable
 
 from forge.config import ForgeConfig, model_environment
+from forge.agents import AgentDefinition
 from forge.hooks import HookManager
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.dependencies import RuntimeBindings
-from forge.runtime.providers import create_model_client
 from forge.runtime.profile import ExecutionProfile
 from forge.runtime.router import ModelIntentRouter
 from forge.sessions.checkpoint import CheckpointStore
 from forge.sessions.store import SessionJournal, SessionState, SessionStore
 from forge.tools import create_default_registry
+
+
+def create_model_client(*args, **kwargs):
+    from forge.runtime.providers import create_model_client as create
+    return create(*args, **kwargs)
 
 
 def create_runtime(
@@ -38,17 +43,20 @@ def create_runtime(
     task_relation: str | None = None,
     bindings: RuntimeBindings | None = None,
     defer_new_session: bool = False,
+    agent: AgentDefinition | None = None,
 ) -> tuple[Conversation, SessionJournal, SessionState | None]:
     '''Assemble new and resumed sessions through the same construction path.'''
     if model_override is not None and not fork_session:
         raise ValueError('model_override requires fork_session=True.')
+    agent = agent or AgentDefinition()
+    coding = agent.base == 'coding'
     config = bindings.config if bindings and bindings.config else ForgeConfig.from_env(model_environment(root / '.env'))
     client_factory = bindings.model_client_factory if bindings and bindings.model_client_factory else create_model_client
     store = SessionStore(root, data_root=bindings.data_root) if bindings else SessionStore(root)
     options = bindings.conversation_options() if bindings else {}
     if task_relation is not None:
         options['task_relation'] = task_relation
-    extensions = bindings is None or bindings.trusted_extensions
+    extensions = coding and (bindings is None or bindings.trusted_extensions)
     if extensions and bindings and bindings.backend and bindings.backend.mode == 'strict':
         from forge.protocol import ContractError
         raise ContractError('Strict execution disables host Hooks and MCP extensions', kind='POLICY_DENIED', code=-32010)
@@ -78,11 +86,12 @@ def create_runtime(
     if state is None:
         journal = store.create(model=str(getattr(model, 'model', '')), provider=config.provider,
                                deferred=defer_new_session)
-    checkpoint = CheckpointStore.for_session(root, journal.path, journal.session_id)
+    checkpoint = CheckpointStore.for_session(root, journal.path, journal.session_id) if coding else None
+    from forge.tools.base import ToolRegistry
     registry = create_default_registry(root, execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
         model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
-        **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {}))
+        **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {})) if coding else ToolRegistry()
     hooks = HookManager.from_root(root) if extensions else None
     mcp = None
     if extensions:
@@ -91,11 +100,22 @@ def create_runtime(
     conversation_type = conversation_factory or Conversation
     conversation = conversation_type(
         client=model, intent_router=(ModelIntentRouter(client_factory(config, max_tokens=600))
-            if task_relation is None and (bindings is None or bindings.intent_routing and bindings.task_relation is None) else None),
+            if coding and task_relation is None and (bindings is None or bindings.intent_routing and bindings.task_relation is None) else None),
         registry=registry, initial_messages=list(state.messages) if state else None,
         active_task=state.active_task if state else None, session_journal=journal,
         checkpoint_store=checkpoint, session_store=store, hook_manager=hooks, mcp_manager=mcp,
-        task_policy=task_policy, **options)
+        task_policy=task_policy, context_root=root, include_task_tools=coding,
+        system_prompt=agent.system_prompt, **options)
+    conversation.agent_definition = agent
+    if agent.tools is not None:
+        unknown = set(agent.tools) - set(registry.names)
+        if unknown:
+            raise ValueError(f'Unknown tools: {sorted(unknown)}')
+        for name in registry.names:
+            if name not in agent.tools:
+                registry.unregister(name)
+        conversation.tools = registry.definitions
+        conversation.finish_protocol = 'finish_task' in registry.names
     if state is not None:
         conversation.verification_history = list(state.verification_history)
         if hasattr(conversation, 'inbox'):

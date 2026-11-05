@@ -1,9 +1,10 @@
 {
   "schema_version": "forge.implementation.progress.v1",
-  "active_scope": "terminal-harness",
+  "active_scope": "extensible-harness",
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
-  "current_task": "T01",
+  "current_task": "T03",
+  "platform_delivery": {"status": "in_progress", "checkpoint": "core_decoupling_verified_pending_ci", "validation": [".local/implementation/t03-sdk.xml", ".local/implementation/t03-core.xml", ".local/implementation/t03-related.xml"], "model_api_calls": 0, "native_isolation": "existing_partial_boundary_unchanged"},
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
     "current_checkpoint": "harness_delivery_frozen_for_internship_presentation",
@@ -525,6 +526,7 @@
     "E05": "verified_code_native_and_live"
   },
   "tasks": {
+    "T03": {"implementation_status": "in_progress", "verification": {}, "evidence_ids": [], "blocked_reasons": []},
     "F00": {
       "implementation_status": "implemented",
       "verification": {},

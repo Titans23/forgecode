@@ -21,9 +21,6 @@ from forge.messages import UserInput
 from forge.hooks import HookEvent, HookManager, HookOutcome
 from forge.permissions.policy import PermissionManager
 from forge.runtime.router import IntentRouter
-from forge.runtime.model_client import (
-    AnthropicModelClient,
-)
 from forge.runtime.completion import (
     CompletionGate,
     TaskPolicy,
@@ -59,6 +56,14 @@ if TYPE_CHECKING:
     from forge.mcp.manager import MCPClientManager
     from forge.sessions.store import SessionJournal, SessionStore
     from forge.tasks.state import ActiveTask
+
+
+def __getattr__(name):
+    # Preserve the historical import without loading a provider on SDK import.
+    if name == 'AnthropicModelClient':
+        from forge.runtime.model_client import AnthropicModelClient
+        return AnthropicModelClient
+    raise AttributeError(name)
 
 
 @cache
@@ -320,6 +325,8 @@ class Conversation:
             raise RuntimeError('Cancel the active turn before changing session history')
 
     def _repository_context(self, query: str) -> str:
+        if getattr(getattr(self, 'agent_definition', None), 'base', 'coding') == 'core':
+            return ''
         parts = [self.context.repository.system_suffix(query)]
         if self.skill_manager is not None:
             self.skill_manager.refresh()
