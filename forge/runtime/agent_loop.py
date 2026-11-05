@@ -872,6 +872,7 @@ class Conversation:
         cleanup = None
         plugin_cleanup = None
         failures = []
+        model_cleanup_error = None
         try:
             await self.session_end(reason=reason)
         except (Exception, asyncio.CancelledError) as error:
@@ -894,6 +895,7 @@ class Conversation:
                                 await close()
                             except (Exception, asyncio.CancelledError) as error:
                                 failures.append(type(error).__name__)
+                                model_cleanup_error = model_cleanup_error or type(error).__name__
                 host = getattr(self, 'plugin_host', None)
                 if host is not None:
                     plugin_cleanup = await host.close()
@@ -903,7 +905,8 @@ class Conversation:
                     if close_backend is not None:
                         cleanup = await close_backend()
         if failures or plugin_cleanup and plugin_cleanup['state'] != 'clean':
-            return {'state': 'unknown', 'plugins': plugin_cleanup, 'backend': cleanup, 'client_errors': failures}
+            return {'state': 'unknown', 'plugins': plugin_cleanup, 'backend': cleanup,
+                    'client_errors': failures, 'model_cleanup_error': model_cleanup_error}
         return cleanup or plugin_cleanup
 
     def checkpoint_undo(self) -> str:

@@ -227,7 +227,8 @@ def test_close_drains_all_clients_even_when_one_close_fails(tmp_path, monkeypatc
     async def run():
         session = await HarnessSession.open(options(tmp_path), model_client_factory=create)
         await session.set_model('second')
-        assert (await session.close())['state'] == 'unknown'
+        cleanup = await session.close()
+        assert cleanup['state'] == 'unknown' and cleanup['model_cleanup_error'] == 'OSError'
         assert all(c.closed for c in made)
     asyncio.run(run())
 

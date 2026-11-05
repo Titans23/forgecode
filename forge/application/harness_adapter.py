@@ -61,4 +61,4 @@ class HarnessAdapter:
                     raise asyncio.CancelledError
 
     async def close(self):
-        await self.conversation.runtime_close()
+        return await self.conversation.runtime_close()

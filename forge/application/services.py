@@ -399,9 +399,12 @@ class ApplicationServices:
             with self.store.transaction():
                 self.store.connection.execute("UPDATE turn_lifecycle SET cleanup_state='running' WHERE turn_id=? AND owner_epoch=?",
                     (turn_id, self.store.epoch))
+            adapter_cleanup = None
             if adapter is not None:
                 try:
-                    await asyncio.wait_for(adapter.close(), 2)
+                    adapter_cleanup = await asyncio.wait_for(adapter.close(), 2)
+                    if adapter_cleanup and adapter_cleanup.get('state') != 'clean':
+                        model_cleanup_error = adapter_cleanup.get('model_cleanup_error')
                 except (Exception, asyncio.CancelledError) as error:
                     model_cleanup_error = type(error).__name__
             if turn_backend is not None and hasattr(turn_backend, 'close'):
@@ -415,6 +418,8 @@ class ApplicationServices:
                 cleanup = {'state': 'unknown', 'reason': 'native_cleanup_observation_unavailable'}
             if model_cleanup_error:
                 cleanup = {'state': 'unknown', 'model_cleanup_error': model_cleanup_error, 'backend': cleanup}
+            elif adapter_cleanup and adapter_cleanup.get('state') != 'clean':
+                cleanup = {'state': 'unknown', 'runtime': adapter_cleanup, 'backend': cleanup}
             if adapter is not None:
                 try:
                     JournalProjector(self.store).project(adapter.journal.path,turn['session_id'],trusted=True)
