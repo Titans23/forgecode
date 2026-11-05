@@ -159,6 +159,8 @@ def test_frozen_and_staged_official_package_imports_its_own_adapter(tmp_path):
             frozen_configuration=configuration, package='unbound-package')
     staged = ForgeCodeHarborAgent(logs_dir=tmp_path / 'logs', source_dir=source,
         frozen_configuration=configuration)._stage_local_source()
+    for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses/pi.txt', 'licenses/deepseek-harness.txt'):
+        assert (staged / name).read_bytes() == (source / name).read_bytes()
     for package in (source, staged):
         program = """import pathlib, sys
 root = pathlib.Path(sys.argv[1]).resolve()

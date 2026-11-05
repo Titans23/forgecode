@@ -282,6 +282,11 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         staged.mkdir(parents=True)
         shutil.copy2(source / 'pyproject.toml', staged / 'pyproject.toml')
         shutil.copy2(source / 'README.md', staged / 'README.md')
+        for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md'):
+            if (source / name).is_file():
+                shutil.copy2(source / name, staged / name)
+        if (source / 'licenses').is_dir():
+            shutil.copytree(source / 'licenses', staged / 'licenses')
         shutil.copytree(
             source / 'forge',
             staged / 'forge',
