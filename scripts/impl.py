@@ -53,6 +53,7 @@ SUITES = {
     'contracts': [], 'quality': [], 'security': [],
 }
 TASK_SUITES = {'F00': ['audit'], 'T01': ['audit', 'contracts', 'quality', 'unit', 'portable'],
+               'T03': ['audit', 'contracts', 'quality', 'unit', 'portable'],
                'T02': ['audit', 'contracts', 'quality', 'regression']}
 CASE_TESTS = {
     'T-API': ['tests/test_api.py'], 'T-CLI': ['tests/test_cli.py'],

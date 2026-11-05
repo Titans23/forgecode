@@ -39,6 +39,7 @@ class RuntimeBindings:
     wall_seconds: int | None = None
     intent_routing: bool = True
     turn_baseline_handler: Callable[[], Awaitable[None] | None] | None = None
+    plugin_host: Any | None = None
 
     def conversation_options(self):
         options = {'tool_backend': self.backend, 'event_recorder': self.recorder,

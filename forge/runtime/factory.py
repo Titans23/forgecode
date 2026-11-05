@@ -50,6 +50,8 @@ def create_runtime(
         raise ValueError('model_override requires fork_session=True.')
     agent = agent or AgentDefinition()
     coding = agent.base == 'coding'
+    if task_policy is None and agent.completion == 'strict':
+        task_policy = TaskPolicy(require_verification=True, require_positive_verification=True, max_delivery_repairs=2)
     config = bindings.config if bindings and bindings.config else ForgeConfig.from_env(model_environment(root / '.env'))
     client_factory = bindings.model_client_factory if bindings and bindings.model_client_factory else create_model_client
     store = SessionStore(root, data_root=bindings.data_root) if bindings else SessionStore(root)
@@ -92,6 +94,8 @@ def create_runtime(
         allow_container_writes=allow_container_writes,
         model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
         **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {})) if coding else ToolRegistry()
+    if bindings and bindings.plugin_host:
+        bindings.plugin_host.bind_registry(registry)
     hooks = HookManager.from_root(root) if extensions else None
     mcp = None
     if extensions:
@@ -107,6 +111,8 @@ def create_runtime(
         task_policy=task_policy, context_root=root, include_task_tools=coding,
         system_prompt=agent.system_prompt, **options)
     conversation.agent_definition = agent
+    if bindings and bindings.plugin_host:
+        bindings.plugin_host.bind(conversation)
     if agent.tools is not None:
         unknown = set(agent.tools) - set(registry.names)
         if unknown:

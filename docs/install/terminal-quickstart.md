@@ -1,5 +1,32 @@
 # ForgeCode 终端版本
 
+## Agent 组合与可信 Python 插件
+
+`forge plugin init <新目录> --name hello` 创建本地插件；`forge plugin enable <目录> --trust`
+显式信任宿主 Python 代码。`list` 查看、`disable <id>` 停用，新配置只影响新会话。
+安装型插件使用 Python entry point 组 `forge.plugins.v1`，源写为 `entrypoint:<name>`；依赖由 pip/uv 管理。
+
+在用户 `.forge/settings.json`（或 `FORGE_DATA_DIR/settings.json`）中加入组合，例如：
+
+```json
+{"agents": {"notes": {"base": "core", "system_prompt": "Help manage notes.", "plugins": ["hello"]}}}
+```
+
+保留原有其他配置字段；使用 `forge --agent notes` 启动，默认 `forge` 仍使用 coding。
+SDK 使用 `AgentDefinition` 和 `PluginSpec(source=..., trusted=True)` 显式选择插件。
+core 无需代码工作区；coding 使用原来的文件工具及权限。
+
+插件目录中的 `forge-plugin.json` 声明 `id`、`api_version: 1`、`entry_point: "plugin.py:activate"`
+及 `requires` 插件 ID。`activate(ctx, config)` 可同步或异步，返回资源释放函数或 None。
+`ctx.register_tool(name, description, object_json_schema, callback, effect="read_only")` 注册工具；
+callback 接收参数 dict，返回字符串、JSON 值或 `ToolResult`。非只读操作必须声明 effect。
+`register_service`/`service` 共享显式服务；`effect(dispose)` 登记清理；`on(event, handler)`
+监听现有 HookEvent，返回 `HookOutcome` 或 None。可变会话状态放在 activate 的闭包中，不放在模块全局。
+
+加载前检查依赖，加载失败撤销注册，关闭时逆序释放。插件代码是可信宿主代码；即使文件工具使用
+workspace-write，也不能把插件本身描述为受 OS 沙盒隔离。模型可见的插件执行结果标记
+`trusted-plugin-host` 和 `sandbox_covered: false`。这些能力不改变现有原生隔离范围。
+
 当前 main 提供持续对话的 Python Harness 和真实轻量沙盒。终端、评测入口通过 Profile 选择；Python SDK 直接调用同一核心。源码安装会自动构建并准备运行时，安装程序不会请求管理员权限或自动修改系统策略。
 
 ## 拉取源码并自动安装

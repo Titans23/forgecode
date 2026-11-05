@@ -808,12 +808,16 @@ class Conversation:
 
     async def _close_runtime(self, *, reason: str) -> dict | None:
         cleanup = None
+        plugin_cleanup = None
         try:
             await self.session_end(reason=reason)
             if self.mcp_manager is not None:
                 await self.mcp_manager.close()
         finally:
             try:
+                host = getattr(self, 'plugin_host', None)
+                if host is not None:
+                    plugin_cleanup = await host.close()
                 seen = set()
                 for client in (self.client, getattr(self.intent_router, 'client', None)):
                     if client is not None and id(client) not in seen:
@@ -826,7 +830,9 @@ class Conversation:
                     close_backend = getattr(self.tool_executor.backend, 'close', None)
                     if close_backend is not None:
                         cleanup = await close_backend()
-        return cleanup
+        if plugin_cleanup and plugin_cleanup['state'] != 'clean':
+            return {'state': 'unknown', 'plugins': plugin_cleanup, 'backend': cleanup}
+        return cleanup or plugin_cleanup
 
     def checkpoint_undo(self) -> str:
         if self.checkpoint_store is None:

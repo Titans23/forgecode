@@ -267,7 +267,7 @@ def test_existing_cli_signatures_and_reviewed_tool_definitions_match_golden(tmp_
         actual = list(inspect.signature(function).parameters)
         previous = baseline['parameters'][function.__name__]
         assert actual[:len(previous)] == previous
-        additions = ['sandbox', 'approval', 'read_root', 'write_root'] if function is main else (
+        additions = ['sandbox', 'approval', 'read_root', 'write_root', 'agent'] if function is main else (
             ['defer_new_session', 'agent'] if function is create_runtime else [])
         assert actual[len(previous):] == additions
         if function is create_runtime:

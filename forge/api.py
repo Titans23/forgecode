@@ -79,9 +79,27 @@ def event_dict(event):
 
 async def open_runtime(options, *, approval_handler=None, model_client_factory=None,
                        runtime_factory=create_runtime, **resume):
+    """Load only explicitly trusted plugins, then assemble the existing runtime."""
+    host = None
+    if options.agent.plugins:
+        from forge.plugins import PluginHost
+        import os
+        data = Path(options.data_root or os.environ.get('FORGE_DATA_DIR') or Path.home() / '.forge').resolve()
+        host = await PluginHost(workspace=options.root, data_root=data).load(options.agent.plugins)
+    try:
+        return await _open_runtime(options, approval_handler=approval_handler,
+            model_client_factory=model_client_factory, runtime_factory=runtime_factory, plugin_host=host, **resume)
+    except BaseException as error:
+        if host:
+            error.plugin_cleanup = await host.close()
+        raise
+
+
+async def _open_runtime(options, *, approval_handler=None, model_client_factory=None,
+                        runtime_factory=create_runtime, plugin_host=None, **resume):
     """Initialize the actual boundary before constructing clients or opening a Journal."""
     if options.agent.base == 'core':
-        return await _open_core_runtime(options, approval_handler, model_client_factory, runtime_factory, resume)
+        return await _open_core_runtime(options, approval_handler, model_client_factory, runtime_factory, resume, plugin_host)
     from forge.sandbox.application_backend import NativeBackendFactory
     from forge.sandbox.file_client import FileWorkerClient
     from forge.sandbox.policy import compile_policy
@@ -136,7 +154,7 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
         permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
         max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
         intent_routing=options.profile.intent_routing,
-        wall_seconds=options.profile.wall_seconds)
+        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host)
     try:
         from forge.runtime.profile import ExecutionProfile
         conversation, journal, state = runtime_factory(root, bindings=bindings,
@@ -170,7 +188,7 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
         startup_clients.clear()
 
 
-async def _open_core_runtime(options, approval_handler, client_factory, runtime_factory, resume):
+async def _open_core_runtime(options, approval_handler, client_factory, runtime_factory, resume, plugin_host=None):
     """Use the same loop and Journal, with a private logical scope and no OS worker."""
     from forge.runtime.factory import create_model_client
     import os
@@ -188,7 +206,7 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=create,
         permission_manager=permissions, trusted_extensions=False, intent_routing=False,
         max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
-        wall_seconds=options.profile.wall_seconds)
+        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host)
     try:
         conversation, journal, state = runtime_factory(scope, bindings=bindings, agent=options.agent, **resume)
         permissions.bind_session(journal)

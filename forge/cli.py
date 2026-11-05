@@ -73,6 +73,8 @@ app.add_typer(feishu_app, name='feishu')
 config_app = typer.Typer(help='Check or configure the model connection.', invoke_without_command=True,
                          no_args_is_help=False, add_completion=False)
 app.add_typer(config_app, name='config')
+from forge.plugin_cli import app as plugin_app
+app.add_typer(plugin_app, name='plugin')
 
 
 _NOTICE_COMMANDS = {
@@ -137,6 +139,7 @@ def main(
     approval: Annotated[str, typer.Option('--approval', help='plan, supervised or auto; independent of sandbox')] = 'supervised',
     read_root: Annotated[list[Path] | None, typer.Option('--read-root', help='Additional file-tool read scope')] = None,
     write_root: Annotated[list[Path] | None, typer.Option('--write-root', help='Writable subdirectory; repeat for multiple scopes')] = None,
+    agent: Annotated[str, typer.Option('--agent', help='Agent composition from user settings')] = 'coding',
 ) -> None:
     '''Start the ForgeCode command-line interface.'''
     if ctx.invoked_subcommand is None:
@@ -171,6 +174,7 @@ def main(
                 fork_session=fork_session,
                 sandbox=sandbox, approval=approval, read_roots=tuple(read_root or ()),
                 write_roots=tuple(write_root) if write_root is not None else None,
+                **({'agent': agent} if agent != 'coding' else {}),
             )
         except (
             ConfigurationError,
@@ -234,6 +238,7 @@ def run_interactive_chat(
     approval: str = 'supervised',
     read_roots: tuple[Path, ...] = (),
     write_roots: tuple[Path, ...] | None = None,
+    agent: str = 'coding',
 ) -> None:
     '''Run one interactive process inside one long-lived event loop.'''
     asyncio.run(
@@ -246,6 +251,7 @@ def run_interactive_chat(
             resume_identifier=resume_identifier,
             fork_session=fork_session,
             sandbox=sandbox, approval=approval, read_roots=read_roots, write_roots=write_roots,
+            agent=agent,
         )
     )
 
@@ -263,14 +269,19 @@ async def _run_interactive_chat(
     approval: str = 'supervised',
     read_roots: tuple[Path, ...] = (),
     write_roots: tuple[Path, ...] | None = None,
+    agent: str = 'coding',
 ) -> None:
     '''Run a local chat session until the user interrupts it.'''
     resumed_state: SessionState | None = None
     if session is None:
         from forge.api import SessionOptions, open_runtime
+        from forge.compositions import resolve_agent
+        from forge.agents import AgentDefinition
+        definition = resolve_agent(agent)
         resolved_session, resolved_journal, resumed_state, _ = await open_runtime(
-            SessionOptions(Path.cwd(), sandbox=sandbox, approval=approval,
-                read_roots=read_roots, write_roots=write_roots), runtime_factory=create_session_runtime,
+            SessionOptions(Path.cwd() if definition.base == 'coding' else None, sandbox=sandbox, approval=approval,
+                read_roots=read_roots, write_roots=write_roots, agent=definition),
+            runtime_factory=create_session_runtime if definition == AgentDefinition() else create_runtime,
             continue_session=continue_session, resume_identifier=resume_identifier, fork_session=fork_session)
     else:
         resolved_session = session

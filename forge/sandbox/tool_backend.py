@@ -74,6 +74,11 @@ class FileToolBackend:
                 return await registry.execute(call.name, call.arguments)
         if call.name in safe_control and registry.provenance(call.name).get('source') == 'builtin':
             return await registry.execute(call.name, call.arguments)
+        if registry.provenance(call.name).get('source') == 'trusted_plugin':
+            from forge.plugins import PluginTool
+            if type(registry.implementation(call.name)) is PluginTool and self.mode != 'strict':
+                # Explicitly trusted host code is not covered by the native worker.
+                return await registry.execute(call.name, call.arguments)
         if self.mode == 'local-trusted':
             result = await registry.execute(call.name, call.arguments)
             return replace(result, metadata={**result.metadata, 'execution_boundary': 'local-trusted-host',

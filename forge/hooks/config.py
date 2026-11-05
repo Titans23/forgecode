@@ -72,5 +72,5 @@ def _read_settings(path: Path) -> dict[str, Any]:
         raise HookConfigurationError(
             f'{path}: top-level settings must be a JSON object.'
         )
-    warn_unknown_config_fields(path, data, {'hooks'})
+    warn_unknown_config_fields(path, data, {'hooks', 'agents', 'plugins', 'models'})
     return data

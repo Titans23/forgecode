@@ -4,7 +4,7 @@
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
   "current_task": "T03",
-  "platform_delivery": {"status": "in_progress", "checkpoint": "core_decoupling_verified_pending_ci", "validation": [".local/implementation/t03-sdk-final.xml", ".local/implementation/t03-related.xml"], "ci_followup": "42000097343: unit/quality/contracts passed; portable rejected the intentional additive create_runtime agent keyword. Compatibility check now asserts that keyword and its None default; original parameter prefix and tool schemas remain unchanged.", "minimal_install": "Isolated installation: 13 packages; SDK imports without anthropic/openai/mcp/typer", "model_api_calls": 0, "native_isolation": "existing_partial_boundary_unchanged"},
+  "platform_delivery": {"status": "in_progress", "checkpoint": "plugin_lifecycle_verified_pending_ci", "validation": [".local/implementation/t03-sdk-final.xml", ".local/implementation/t03-plugin-final.xml"], "core_ci": {"commit": "12a65b04c74dcfc164980a4519e1863588d03735", "run_id": 42001547166, "status": "success"}, "minimal_install": "Isolated installation: 13 packages; SDK imports without anthropic/openai/mcp/typer", "model_api_calls": 0, "native_isolation": "existing_partial_boundary_unchanged"},
   "delivery_focus": {
     "objective": "Evidence-backed Agent/Harness internship portfolio",
     "current_checkpoint": "harness_delivery_frozen_for_internship_presentation",

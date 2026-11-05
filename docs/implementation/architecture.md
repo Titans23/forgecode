@@ -4,6 +4,8 @@
 
 当前实施 T03：通用 Python SDK、可组合 coding 能力、可信插件、多模型与可复验交付。旧 T01 结果保留为历史证据。`AgentDefinition.core()` 通过同一 Conversation/TurnRunner/Journal 运行，无需工作区；内部私有存储作用域不是文件工具授权，不启动原生执行器。模型、CLI、MCP 和原生依赖为选装项，完整旧终端安装使用 `[terminal]`。
 
+`PluginHost` 在显式信任后按依赖顺序加载，`PluginContext` 的注册和资源由该会话持有；错误撤销、逆序关闭与既有 runtime_close 共用关闭路径。工具仍通过 ToolExecutor 的参数检查、权限和 Journal 执行。可信插件工具在宿主运行并明确标注不受原生边界覆盖；原生文件工具的标签与限制不变。组合通过 `--agent` 选择，原启动 `--profile` 含义不变。
+
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。
