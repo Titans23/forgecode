@@ -104,4 +104,5 @@ jobs:
             .local/ci/sdk-install/*.json
             .local/ci/sdk-install/*.log
             .local/ci/pi-comparison/*.json
+            .local/implementation/*/*.json
           if-no-files-found: error

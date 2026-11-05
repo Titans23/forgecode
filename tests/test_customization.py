@@ -38,6 +38,8 @@ def test_independent_business_check_and_layered_expiration(tmp_path, monkeypatch
         correct = await check_agent(agent, cases, work_dir=tmp_path / 'checks')
         assert correct['status'] == 'passed', correct
         assert receipt_status(correct, replace(agent, role_models={'main': 'different-model'}), cases) == {'interface': 'passed', 'business': 'passed'}
+        other_environment = {**correct, 'environment': {'python': 'different-version', 'platform': 'different-platform'}}
+        assert receipt_status(other_environment, agent, cases) == {'interface': 'stale', 'business': 'stale'}
         changed = replace(agent, system_prompt='new business instructions')
         assert receipt_status(correct, changed, cases) == {'interface': 'passed', 'business': 'stale'}
         changed = replace(agent, plugins=(replace(agent.plugins[0], config={'limit': 100}),))

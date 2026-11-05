@@ -261,6 +261,8 @@ async def check_agent(definition, acceptance, *, work_dir=None, timeout=60):
 
 
 def receipt_status(receipt, definition, acceptance):
+    if receipt.get('environment') != {'python': platform.python_version(), 'platform': sys.platform}:
+        return {'interface': 'stale', 'business': 'stale'}
     current = bindings(definition, validate_acceptance(acceptance))
     return {layer: receipt.get(layer, {}).get('status', 'unverified') if receipt.get('bindings', {}).get(layer) == current[layer]
             else 'stale' for layer in ('interface', 'business')}
