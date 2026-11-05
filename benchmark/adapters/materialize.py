@@ -46,10 +46,10 @@ async def materialize_dataset(dataset, *, ref, task_names, n_tasks, destination)
     from harbor.registry.client.package import PackageDatasetClient
     from harbor.tasks.client import TaskClient
     from harbor.models.task.task import Task
-    entry = next((get_benchmark(key) for key in ('terminal-bench-2', 'swe-bench-verified')
-                  if get_benchmark(key).dataset == dataset), None)
+    from benchmark.catalog import ready_benchmarks
+    entry = next((entry for entry in ready_benchmarks() if entry.dataset == dataset), None)
     if entry is None:
-        raise ValueError('The frozen runner supports Terminal-Bench 2.0 and SWE-bench Verified.')
+        raise ValueError('No registered ready adapter for this dataset')
     client = PackageDatasetClient()
     async with asyncio.timeout(300):
         metadata = await client.get_dataset_metadata(f'{dataset}@{ref}')

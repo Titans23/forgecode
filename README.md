@@ -1,8 +1,14 @@
 # ForgeCode
 
-ForgeCode 是一个 Python Agent Harness：复用同一代理循环，负责模型与工具调用、权限、上下文、预算、验证、会话恢复和进程清理。T03 正在实现可扩展底座；当前状态见 progress.json，未完成能力不作为现成产品承诺。
+ForgeCode 是一个 Python Agent Harness：复用同一代理循环，负责模型与工具调用、权限、上下文、预算、验证、会话恢复和进程清理。首版扩展流程连接自然语言插件开发、独立验收、模型/配置对照和可复验交付；当前验证状态见 [progress.json](docs/implementation/progress.json)。
 
 纯 SDK 使用 `SessionOptions(agent=AgentDefinition.core(), data_root=...)`，可在没有工作区和 Node 的环境运行。按需安装 `forge-code[anthropic]` 或 `forge-code[openai]`；完整终端环境为 `forge-code[terminal]`。源码开发继续使用锁文件及全部 extras。
+
+`forge plugin init/develop/check`、`forge agent check/export/import` 的用法见 [定制指南](docs/install/terminal-quickstart.md)；
+`forge eval plan/run/compare` 与 pi 确定性对照见 [评测说明](benchmark/README.md)。插件必须显式信任/启用；检查不默认调用付费模型，
+也不认证恶意 Python 插件安全。pi 已有扩展与模型能力，此处差异是默认集成的交付流程，尚无真实模型或人工效率优势结论。
+
+ForgeCode 自有代码采用 [MIT](LICENSE)；[第三方声明](THIRD_PARTY_NOTICES.md) 保留依赖、参考项目和基准的原有权利。
 
 当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 

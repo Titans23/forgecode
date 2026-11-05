@@ -51,7 +51,7 @@ def freeze_source(source: Path, destination: Path) -> Path:
             if path.is_file() and path.suffix not in {'.pyc', '.pyo'}:
                 paths.append(path)
     # Optional for legacy minimal source fixtures; required by the V4 official adapter.
-    for relative in ('uv.lock','benchmark/adapters','benchmark/catalog.py'):
+    for relative in ('uv.lock','benchmark/adapters','benchmark/catalog.py','LICENSE','THIRD_PARTY_NOTICES.md','licenses'):
         target=source/relative
         if target.exists():
             if target.is_symlink() or getattr(target.lstat(),'st_file_attributes',0)&0x400:

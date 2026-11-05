@@ -337,6 +337,13 @@ class HarnessSession:
             raise ValueError('Completion check needs a unique name and callable')
         self.conversation.completion_checks[name] = callback
 
+    def service(self, name):
+        """Access an explicitly loaded plugin service, including a channel adapter."""
+        host = getattr(self.conversation, 'plugin_host', None)
+        if self._closed or host is None or name not in host.services:
+            raise ValueError('Service is not available in this open session')
+        return host.services[name]
+
     async def close(self):
         if self._closed:
             return self.cleanup

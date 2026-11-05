@@ -10,7 +10,8 @@ from scripts.package_cli import check_archive
 def archive(tmp_path, additional=()):
     output = tmp_path / 'package.tgz'
     names = ['package/bin/forge.mjs', 'package/lib/install.mjs', 'package/assets/runtime.json',
-             'package/assets/constraints.txt', 'package/assets/runtime.whl', *additional]
+             'package/assets/constraints.txt', 'package/assets/runtime.whl', 'package/LICENSE',
+             'package/THIRD_PARTY_NOTICES.md', 'package/licenses/pi.txt', 'package/licenses/deepseek-harness.txt', *additional]
     with tarfile.open(output, 'w:gz') as package:
         for name in names:
             value = b'archive-layout fixture'
@@ -29,6 +30,6 @@ def test_private_files_refuse_distribution(tmp_path, name):
 
 def test_runtime_payload_is_required(tmp_path):
     output = archive(tmp_path)
-    assert check_archive(output, 'runtime.whl') == 5
+    assert check_archive(output, 'runtime.whl') == 9
     with pytest.raises(ValueError, match='incomplete'):
         check_archive(output, 'missing.whl')

@@ -1,5 +1,5 @@
 [build-system]
-requires = ['setuptools>=68']
+requires = ['setuptools>=77']
 build-backend = 'setuptools.build_meta'
 
 [project]
@@ -7,6 +7,8 @@ name = 'forge-code'
 version = '0.1.2'
 description = 'A terminal-based Agent Harness for reliable software engineering tasks.'
 readme = 'README.md'
+license = 'MIT'
+license-files = ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses/*.txt']
 requires-python = '>=3.12'
 dependencies = [
     'pydantic>=2.12,<3',
@@ -33,7 +35,7 @@ evaluation = ['harbor==0.18.0']
 
 [tool.setuptools.packages.find]
 include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
-exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*']
+exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*', 'benchmark.comparison.node_modules*']
 
 [tool.setuptools.package-data]
 forge = ['prompts/*.md', 'application/_generated_contracts.json', 'engine/migrations/*.sql', '_sandbox/**/*', '_sandbox/**/.*']

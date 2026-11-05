@@ -144,6 +144,17 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
                 retry_delay_seconds=self._install_retry_delay_seconds,
             ),
         )
+        composition = (self._frozen_configuration or {}).get('composition')
+        if composition:
+            # Standard installer and exact pins, with the SDK supplied by its frozen source above.
+            requirements = '\n'.join(line for line in composition['dependencies'].splitlines()
+                                     if not line.startswith('forge-code==')) + '\n'
+            path = self.logs_dir / 'plugin-requirements.lock'
+            path.write_text(requirements, encoding='utf-8')
+            remote = _AGENT_ROOT + '/plugin-requirements.lock'
+            await environment.upload_file(path, remote)
+            await self.exec_as_agent(environment, command=f'{shlex.quote(_AGENT_ROOT + "/bin/uv")} pip install '
+                f'--python {shlex.quote(_venv_python())} --cache-dir {shlex.quote(_CACHE_DIR)} -r {shlex.quote(remote)}')
 
     @with_prompt_template
     @override
@@ -500,7 +511,7 @@ def _locked_install_command(source: str) -> str:
         f'UV_UNMANAGED_INSTALL={shlex.quote(_AGENT_ROOT+"/bin")} sh; '
         '"$UV_BIN" --version | grep -Eq "^uv 0[.]12[.]5( |$)"; '
         '"$UV_BIN" python install 3.12.13; '
-        f'"$UV_BIN" sync --frozen --no-dev --no-editable --python 3.12.13 --project {shlex.quote(source)} '
+        f'"$UV_BIN" sync --frozen --no-dev --no-editable --extra anthropic --extra openai --extra gemini --extra validation --python 3.12.13 --project {shlex.quote(source)} '
         f'--cache-dir {shlex.quote(_CACHE_DIR)}')
 
 

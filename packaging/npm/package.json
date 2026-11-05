@@ -2,13 +2,13 @@
   "name": "@titans23/forgecode",
   "version": "0.1.2",
   "description": "ForgeCode terminal Harness for Windows and Ubuntu",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "bin": { "forge": "bin/forge.mjs" },
   "engines": { "node": ">=22.13.0" },
   "os": ["win32", "linux"],
   "cpu": ["x64"],
-  "files": ["bin", "lib", "assets", "README.md"],
+  "files": ["bin", "lib", "assets", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "licenses"],
   "scripts": { "postinstall": "node lib/install.mjs" },
   "repository": { "type": "git", "url": "https://github.com/Titans23/forgecode.git" }
 }

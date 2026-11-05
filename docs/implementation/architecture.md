@@ -12,6 +12,10 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 接口结果绑定插件代码、SDK 源码和已安装依赖；业务结果另绑定配置与验收。确定性检查不验证角色模型，模型变化不废弃这些检查，也不会产生新模型已实测的结论。ZIP 交付包使用显式源码、标准 SDK wheel、依赖 pins、AgentDefinition 与验收；导入不安装、不执行、不启用。原环境结果仅作来源证据，新环境须重新 check。可信 Python 的宿主能力不因独立进程或这些检查变成恶意插件隔离。
 
+渠道可注册为受管服务，通过 `HarnessSession.service(name)` 使用同一会话的 run/stream/cancel；上下文扩展使用 HookOutcome，验收扩展追加 completion check。插件不能通过这些公开接口移除已有权限和预算。会话权限规则跨回合保留，受管子会话复制父规则；切换会话仍重置会话规则。
+
+统一 CLI 评测计划位于 `benchmark/harbor/platform.py`，复用既有源码/任务冻结、Harbor runner 与独立 grader；三类对照分开比较 model/plugin/harness 条件。可选价格表复用现有用量标准化和 PriceBook，未知请求保持未知。`benchmark/comparison` 通过 pi 的公开 SDK 执行相同确定性业务探针；不是模型能力或人工效率排名。新 CI 安装用例在无 Node 路径的进程运行通用 SDK，并在第二个 Python 环境导入复验。
+
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。

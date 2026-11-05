@@ -17,6 +17,7 @@ forge agent import ./delivery.zip ./new-agent
 ```
 
 `acceptance.json` 示例：`{"cases":[{"id":"greet","tool":"greet","arguments":{"name":"Ada"},"expect":{"content":"Hello, Ada!"}}]}`。
+首版自然语言开发需要调用方提供这份固定验收输入；实现与 `agent.json` 配置可由 Harness 生成/修复，候选代码不能更改控制器中的预期值。
 预期支持 `content`、解析后的 `json`、错误码 `error` 和取消 `cancelled`；取消用例另设 `cancel_after_ms`。
 `files` 可提供显式文本 fixture，参数中的 `${WORKSPACE}` 指向临时测试目录。
 插件 manifest 的 `files` 列出交付源码、测试和元数据；自测使用标准 unittest，未提供或未发现测试时如实标记 unverified。

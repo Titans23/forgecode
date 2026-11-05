@@ -124,7 +124,9 @@ async def run_turn(
         policy=replace(policy,max_delivery_repairs=harness['max_delivery_repairs'])
         if runtime_bindings is None:
             config=replace(ForgeConfig.from_env(environ=os.environ),max_tokens=parameters['max_output_tokens'],
-                context_window=harness['max_context_tokens'],reasoning_effort=parameters['reasoning_effort'])
+                context_window=harness['max_context_tokens'],reasoning_effort=parameters['reasoning_effort'],
+                **({key: frozen_configuration['model'][key] for key in ('chat_token_field', 'input_modalities')
+                    if key in frozen_configuration.get('model', {})} if frozen_configuration.get('composition') else {}))
             runtime_bindings=RuntimeBindings(config=config,data_root=Path(os.environ['FORGE_DATA_DIR']),trusted_extensions=False,
                 permission_manager=PermissionManager(project,load_stored_rules=False))
         if frozen_configuration.get('model'):
@@ -139,14 +141,32 @@ async def run_turn(
             if (config.max_tokens,config.context_window,config.reasoning_effort)!=(
                     parameters['max_output_tokens'],harness['max_context_tokens'],parameters['reasoning_effort']):
                 raise ValueError('Actual model parameters differ from frozen RunSpec')
-    conversation, journal, _ = create_runtime(
-        project,
-        continue_session=resume,
-        task_policy=policy,
-        execution_profile=ExecutionProfile.sandbox(),
-        task_relation='active' if resume else 'new',
-        **({'bindings':runtime_bindings} if runtime_bindings else {}),
-    )
+    composition = (frozen_configuration or {}).get('composition')
+    definition = None
+    if composition:
+        from benchmark.harbor.platform import prepare_runtime
+        definition, runtime_bindings = await prepare_runtime(composition, runtime_bindings, project)
+    try:
+        conversation, journal, _ = create_runtime(
+            project, continue_session=resume, task_policy=policy,
+            execution_profile=ExecutionProfile.sandbox(), task_relation='active' if resume else 'new',
+            **({'bindings':runtime_bindings} if runtime_bindings else {}),
+            **({'agent': definition} if definition else {}))
+    except BaseException as error:
+        if composition:
+            error.plugin_cleanup = await runtime_bindings.plugin_host.close()
+        raise
+    if composition:
+        runtime_bindings.plugin_host.model_startup['active'] = False
+        runtime_bindings.plugin_host.model_startup['clients'].clear()
+        from forge.api import SessionOptions, RunProfile
+        from math import ceil
+        conversation.session_options = SessionOptions(project, sandbox='full-access', data_root=runtime_bindings.data_root,
+            config=runtime_bindings.config, agent=definition, models=composition['models'],
+            profile=RunProfile(max_model_calls=max_model_calls, max_tool_calls=max_tool_calls,
+                               wall_seconds=ceil(max_turn_seconds), intent_routing=False))
+        journal.append('evaluation_composition', {'plan_hash': composition['plan_hash'],
+            'definition': composition['definition'], 'files': composition['files']})
     if frozen_configuration:
         from forge.observability.events import Scope
         scope=frozen_configuration['scope']
@@ -207,25 +227,20 @@ async def run_turn(
     finally:
         try:
             close=getattr(conversation,'runtime_close',None)
+            cleanup = None
             if close is not None:
-                await close()
+                cleanup = await close()
         finally:
             journal.record_stopped()
 
     if final is None:
         raise RuntimeError('ForgeCode ended without a TurnCompleted event.')
+    payload = {**result_payload(final, resumed=resume, recovery=None), 'cleanup': cleanup}
     if result_path:
-        result_path.write_text(json.dumps(result_payload(final,resumed=resume,recovery=None),ensure_ascii=False)+'\n',encoding='utf-8')
+        result_path.write_text(json.dumps(payload,ensure_ascii=False)+'\n',encoding='utf-8')
     print(
         '\nFORGECODE_BENCHMARK_RESULT='
-        + json.dumps(
-            result_payload(
-                final,
-                resumed=resume,
-                recovery=None,
-            ),
-            ensure_ascii=False,
-        ),
+        + json.dumps(payload, ensure_ascii=False),
         flush=True,
     )
     print(

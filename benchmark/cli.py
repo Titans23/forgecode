@@ -26,8 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
         'run', help='run one ready benchmark through its adapter'
     )
     run_parser.add_argument(
-        'benchmark', choices=[spec.key for spec in ready_benchmarks()]
+        'benchmark', nargs='?', choices=[spec.key for spec in ready_benchmarks()]
     )
+    run_parser.add_argument('--plan', type=Path)
+    run_parser.add_argument('--execute', action='store_true')
+    run_parser.add_argument('--trust-plugins', action='store_true')
+    run_parser.add_argument('--output', type=Path)
     run_parser.add_argument(
         'runner_args', nargs=argparse.REMAINDER,
         help='arguments forwarded to the selected benchmark runner',
@@ -43,12 +47,19 @@ def build_parser() -> argparse.ArgumentParser:
     compare = subparsers.add_parser('compare', help='compare frozen runs and list uncontrolled differences')
     compare.add_argument('baseline', type=Path)
     compare.add_argument('candidate', type=Path)
-    compare.add_argument('--change', choices=['harness', 'model'], required=True)
+    compare.add_argument('--change', choices=['harness', 'model', 'plugin'], required=True)
+    plan = subparsers.add_parser('plan', help='freeze exact tasks, source, composition, models and budget without model calls')
+    plan.add_argument('configuration', type=Path)
+    plan.add_argument('--output', type=Path, required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == 'plan':
+        from benchmark.harbor.platform import make_plan
+        print(json.dumps(make_plan(args.configuration, args.output), ensure_ascii=True, indent=2))
+        return 0
     if args.command == 'compare':
         from benchmark.harbor.summarize import compare_runs
         print(json.dumps(compare_runs(args.baseline, args.candidate, change=args.change), ensure_ascii=True, indent=2))
@@ -86,6 +97,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         return 0
     if args.command == 'run':
+        if args.plan:
+            if args.benchmark or args.runner_args:
+                raise SystemExit('A frozen plan cannot be combined with arbitrary runner overrides')
+            from benchmark.harbor.platform import run_plan
+            result = run_plan(args.plan, output=args.output, execute=args.execute, trust_plugins=args.trust_plugins)
+            print(json.dumps(result, ensure_ascii=True, indent=2))
+            return result.get('exit_code', 0)
+        if not args.benchmark:
+            raise SystemExit('Choose a benchmark or --plan')
         spec = get_benchmark(args.benchmark)
         if spec.runner is None:
             raise SystemExit(f'Benchmark {spec.key!r} has no runner.')

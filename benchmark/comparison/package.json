@@ -1,0 +1,11 @@
+{
+  "name": "forgecode-pi-workflow-comparison",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "@earendil-works/pi-ai": "1.5.0",
+    "@earendil-works/pi-coding-agent": "1.5.0",
+    "typebox": "1.3.27"
+  }
+}

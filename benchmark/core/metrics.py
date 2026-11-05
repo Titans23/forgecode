@@ -97,8 +97,8 @@ def compare_specs(specs):
 
 def compare_conditions(baseline, candidate, *, change):
     """Compare explicit frozen conditions; no hypothesis test or score filtering."""
-    if change not in {'model', 'harness'}:
-        raise ValueError('Declare --change harness or model.')
+    if change not in {'model', 'harness', 'plugin'}:
+        raise ValueError('Declare --change harness, model or plugin.')
     differences, blockers = [], []
     def visit(left, right, path):
         if isinstance(left, dict) and isinstance(right, dict):

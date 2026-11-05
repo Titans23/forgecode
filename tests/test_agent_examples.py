@@ -58,6 +58,36 @@ def test_coordinator_uses_worker_role_and_shared_budget(tmp_path):
     asyncio.run(run())
 
 
+def test_channel_plugin_uses_public_session_and_owned_service(tmp_path):
+    plugin = tmp_path / 'channel'
+    plugin.mkdir()
+    (plugin / 'forge-plugin.json').write_text(json.dumps({'id': 'channel', 'api_version': 1}))
+    (plugin / 'plugin.py').write_text('''def activate(ctx, config):
+ class Channel:
+  closed = False
+  async def receive(self, session, text):
+   return (await session.run(text)).text
+  def close(self): self.closed = True
+ channel = Channel()
+ ctx.register_service('channel', channel, close=channel.close)
+''')
+    class Model:
+        model = 'channel-fixture'
+        async def stream(self, **kwargs):
+            yield ModelTextDelta('local response')
+            yield ModelResponseCompleted('end_turn')
+    async def run():
+        options = SessionOptions(agent=replace(AgentDefinition.core(), plugins=(PluginSpec(str(plugin), trusted=True),)),
+            data_root=tmp_path / 'data', config=ForgeConfig(api_key='unused', model_id='channel-fixture'))
+        async with await HarnessSession.open(options, model_client_factory=lambda *a, **k: Model()) as session:
+            channel = session.service('channel')
+            assert await channel.receive(session, 'local input') == 'local response'
+        assert channel.closed
+        with pytest.raises(ValueError):
+            session.service('channel')
+    asyncio.run(run())
+
+
 def test_internal_http_auth_errors_timeout_with_controlled_service(tmp_path, monkeypatch):
     seen = []
     class Handler(BaseHTTPRequestHandler):

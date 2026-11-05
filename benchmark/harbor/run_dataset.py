@@ -23,7 +23,8 @@ from forge.config import ForgeConfig, model_environment
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AGENT = 'benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent'
-DATASETS = ('terminal-bench/terminal-bench-2', 'swe-bench/swe-bench-verified')
+from benchmark.catalog import ready_benchmarks
+DATASETS = tuple(spec.dataset for spec in ready_benchmarks() if spec.dataset)
 
 
 def evaluation_directory() -> Path:
@@ -101,7 +102,9 @@ def build_parser(
     parser.add_argument('--max-retries', type=int, default=0)
     parser.add_argument('--model')
     parser.add_argument('--reasoning-effort')
-    parser.add_argument('--provider', choices=['anthropic', 'openai_responses', 'deepseek'])
+    parser.add_argument('--provider', choices=['anthropic', 'openai_responses', 'openai_chat', 'deepseek', 'gemini'])
+    parser.add_argument('--launch-plan', type=Path, help='Frozen CLI launch plan; the V4 scheduler is unchanged.')
+    parser.add_argument('--trust-plugins', action='store_true')
     parser.add_argument('--base-url')
     parser.add_argument('--max-output-tokens', type=int)
     parser.add_argument('--context-window', type=int)
@@ -162,11 +165,28 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'FORGE_PROVIDER': args.provider, 'FORGE_MODEL': args.model, 'FORGE_BASE_URL': args.base_url,
         'FORGE_REASONING_EFFORT': args.reasoning_effort, 'MODEL_MAX_TOKENS': args.max_output_tokens,
         'MODEL_CONTEXT_WINDOW': args.context_window}.items() if value is not None}
-    config = None if args.agent == 'oracle' or args.prepare_only else ForgeConfig.from_env(model_environment(args.env_file, overrides))
+    launch_plan = None
+    if args.launch_plan:
+        from benchmark.harbor.platform import load_plan
+        from forge.runtime.model_registry import ModelSelection
+        plan_path, launch_plan = load_plan(args.launch_plan)
+        if launch_plan['composition']['definition']['plugins'] and not args.trust_plugins:
+            raise ValueError('Frozen plugin composition requires --trust-plugins')
+        if args.prepare_only or args.prepared_images or args.force_build or args.agent == 'oracle':
+            raise ValueError('Frozen plans use official task images directly')
+        if (args.source_dir.resolve() != (plan_path.parent / launch_plan['source']).resolve()
+                or args.taskset_dir is None or args.taskset_dir.resolve() != plan_path.parent / 'tasks'
+                or args.dataset_ref != launch_plan['taskset']['version']
+                or any(value is not None for value in (args.model, args.provider, args.base_url, args.max_output_tokens,
+                                                       args.context_window, args.reasoning_effort))):
+            raise ValueError('Frozen plan source, tasks and model settings cannot be overridden')
+        config = ModelSelection(**launch_plan['model']).resolve(model_environment(args.env_file, normalize_aliases=False))
+    else:
+        config = None if args.agent == 'oracle' or args.prepare_only else ForgeConfig.from_env(model_environment(args.env_file, overrides))
     model = {key: value for key, value in asdict(config).items() if key != 'api_key'} if config else None
     budget = {'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
               'wall_seconds': args.max_turn_seconds}
-    return config, {'schema_version': 'forge.evaluation.v1', 'dataset': args.dataset,
+    manifest = {'schema_version': 'forge.evaluation.v1', 'dataset': args.dataset,
         'dataset_ref': args.dataset_ref, 'selection': {'tasks': args.task, 'n_tasks': args.n_tasks, 'all': args.all},
         'harbor_version': '0.18.0', 'usage': 'evaluation-only', 'model': model,
         'agent': args.agent, 'concurrency': args.concurrency, 'attempts': 1, 'task_retries': args.max_retries,
@@ -180,6 +200,15 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'harness': {'max_context_tokens': model['context_window'], 'compaction_enabled': True,
                     'max_delivery_repairs': 2, 'parent_budget': budget, 'explore_enabled': True,
                     'trusted_extensions_enabled': False} if config else None}
+    if launch_plan:
+        from benchmark.harbor.platform import runtime_bundle
+        if budget != launch_plan['budget'] or args.dataset != launch_plan['dataset'] or set(args.task) != set(launch_plan['taskset']['tasks']):
+            raise ValueError('Launch arguments differ from frozen task/budget conditions')
+        if args.max_retries != 0 or args.concurrency != 1 or args.timeout_multiplier not in (None, 1) or args.agent_setup_timeout_multiplier != 12:
+            raise ValueError('Launch protocol differs from frozen plan')
+        manifest['harness'].update(launch_plan['harness'])
+        manifest['composition'] = runtime_bundle(args.launch_plan)
+    return config, manifest
 
 
 def frozen_job(args, manifest, taskset, source, output):
@@ -189,6 +218,11 @@ def frozen_job(args, manifest, taskset, source, output):
     from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig, VerifierConfig
     from benchmark.adapters.materialize import resolve_task
     frozen = {key: manifest[key] for key in ('run_id', 'parameters', 'harness', 'source_manifest', 'model')}
+    if manifest.get('composition'):
+        frozen['composition'] = json.loads(json.dumps(manifest['composition']))
+        for selection in frozen['composition']['models'].values():
+            if selection.get('base_url'):
+                selection['base_url'] = container_base_url(selection['base_url'])
     if manifest.get('prepared_images'):
         frozen['prepared_images'] = True
     if frozen['model']:
@@ -205,6 +239,8 @@ def frozen_job(args, manifest, taskset, source, output):
         kwargs={'source_dir': str(source), 'frozen_configuration': json.dumps(frozen),
                 'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
                 'max_turn_seconds': args.max_turn_seconds})
+    if frozen.get('composition'):
+        agent.env.update({name: '${' + name + '}' for name in frozen['composition']['credential_references']})
     return JobConfig(job_name='job', jobs_dir=output, n_attempts=1, n_concurrent_trials=args.concurrency,
         metrics=[MetricConfig()],
         verifier=VerifierConfig(env=manifest['grader']['env']),
@@ -290,6 +326,11 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
     env = {**os.environ, 'PYTHONPATH': str(driver), 'PYTHONUTF8': '1', 'PYTHONIOENCODING': 'utf-8'}
     if config:
         env['FORGECODE_API_KEY'] = config.api_key
+    if manifest.get('composition'):
+        values = model_environment(args.env_file, normalize_aliases=False)
+        for name in manifest['composition']['credential_references']:
+            if name in values:
+                env[name] = values[name]
     print(f'Frozen evaluation: {output}', flush=True)
     return run_controller(command, cwd=output, env=env, output_dir=output,
                           metadata={'run_id': manifest['run_id'], 'experiment': 'experiment.json'})

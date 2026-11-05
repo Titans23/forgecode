@@ -1,5 +1,60 @@
 # ForgeCode Benchmark Matrix
 
+## 冻结 Agent / 插件 / 模型的统一入口
+
+`forge eval plan config.json --output <新目录>` 冻结源码、依赖、精确任务、Agent 组合、插件产物、模型与预算。
+规划不调用模型；未给 `taskset_directory` 时会下载官方任务元数据和输入，需要 `[evaluation]`。
+配置示例（路径相对 config.json，任务 ID 使用官方精确值）：
+
+```json
+{
+  "benchmark": "terminal-bench-2",
+  "tasks": ["<exact-official-task-id>"],
+  "dataset_ref": "latest",
+  "source_directory": ".",
+  "model": {"provider": "openai_chat", "model": "your-model", "api_key_env": "EVAL_MODEL_KEY"},
+  "budget": {"max_model_calls": 120, "max_tool_calls": 240, "wall_seconds": 1800},
+  "harness": {"max_delivery_repairs": 2}
+}
+```
+
+可选 `agent` 指向 AgentDefinition JSON，`models` 提供角色模型别名；插件使用标准交付产物和固定依赖。
+`pricing` 可提供现有 PriceBook 的 `revision/currency/source/rates` 快照，不提供时费用保持 unknown。
+冻结后的运行不接受随意覆盖预算、任务、源码或采样参数。
+
+```sh
+forge eval run --plan <计划目录>
+# 明确执行才会使用模型额度；包含 Python 插件时另加 --trust-plugins。
+forge eval run --plan <计划目录> --execute --output <新结果目录>
+forge eval compare <基线结果目录> <候选结果目录> --change model
+forge eval compare <基线结果目录> <候选结果目录> --change plugin
+forge eval compare <基线结果目录> <候选结果目录> --change harness
+```
+
+新计划支持三项已注册基准，使用同一官方任务 runner、独立 grader、单次尝试、零任务级自动重试、无外部反馈协议。
+旧 Aider 入口及其 verifier-feedback repair 行为保持兼容，不能把两种协议混报。
+新计划只直接使用任务声明的官方预构建镜像；缺少镜像时明确拒绝执行，不自动构建或启用预热模式。
+现有 V4 scheduler 的授权/能力准入仍保持原限制；CLI 冻结计划没有解除它。
+
+比较保留所有尝试与基础设施失败，并列出非预期配置差异。缺少终态或用量时，全量 tokens/费用为 unknown，
+已知小计单独保留；调用方价格表只能形成 estimated 费用。分数描述冻结条件下模型与 Harness 的联合表现。
+协议测试不等于云端模型/网关实测；本轮实现没有运行新的付费公开基准。
+
+## 相对 pi 的确定性工作流对照
+
+```sh
+cd benchmark/comparison
+npm ci --ignore-scripts
+cd ../..
+uv run --no-sync python -m benchmark.comparison.workflow --output .local/comparison/<新目录>
+```
+
+锁定 npm pi SDK 1.5.0（完整锁文件），用公开 SDK/扩展接口并保留其内置工具。
+两边使用相同报销规则、输入与控制器持有的预期结果，检查正常、错误植入、修复、模型配置变化、目录迁移五个阶段。
+轨迹记录失败、源码身份、请求次数、时间和清理状态。人工操作成本、真实模型成功率和 token 费用均标为未测。
+迁移阶段使用同机已安装的 SDK 与新工作目录；另由 SDK 安装测试验证 ForgeCode 的第二个干净 Python 环境。
+双方均能通过该流程，因此它只建立可运行对照与目标差异化，不构成 ForgeCode 优于 pi 的结论。
+
 ForgeCode 的外部评测统一通过 Harbor 的隔离任务环境和独立 verifier
 执行。当前可直接运行的基准如下：
 

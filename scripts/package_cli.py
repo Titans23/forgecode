@@ -38,7 +38,9 @@ def check_archive(archive, wheel_name):
             if any(part == '.env' or part.startswith('.env.') or part in private_names for part in parts) or '.venv' in parts or 'tests' in parts:
                 raise ValueError('Private or development files leaked into the npm archive.')
         required = {'package/bin/forge.mjs', 'package/lib/install.mjs', 'package/assets/runtime.json',
-                    'package/assets/constraints.txt', 'package/assets/' + wheel_name}
+                    'package/assets/constraints.txt', 'package/assets/' + wheel_name,
+                    'package/LICENSE', 'package/THIRD_PARTY_NOTICES.md',
+                    'package/licenses/pi.txt', 'package/licenses/deepseek-harness.txt'}
         if not required.issubset(names):
             raise ValueError('npm archive is incomplete.')
     return len(names)
@@ -73,6 +75,9 @@ def build(output):
         wheel_report = check_wheel(wheel)
         package = stage / 'package'
         shutil.copytree(ROOT / 'packaging/npm', package)
+        for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md'):
+            shutil.copyfile(ROOT / name, package / name)
+        shutil.copytree(ROOT / 'licenses', package / 'licenses')
         metadata = json.loads((package / 'package.json').read_text(encoding='utf-8'))
         if metadata['version'] != version:
             raise ValueError('npm and Python package versions differ.')

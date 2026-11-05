@@ -493,6 +493,7 @@ def evaluation_report(run_dir: Path) -> dict:
     tasks = experiment['taskset']['tasks']
     trials = {}
     model_calls = tool_calls = input_tokens = output_tokens = 0
+    missing_attempt_telemetry = 0
     for directory in sorted(job_dir.iterdir()) if job_dir.is_dir() else []:
         if not directory.is_dir() or not (directory / 'config.json').is_file():
             continue
@@ -504,6 +505,8 @@ def evaluation_report(run_dir: Path) -> dict:
         if len(matches) != 1:
             raise ValueError(f'Trial identity is outside the frozen task set: {name}')
         payloads = _trial_payloads(directory)
+        if not payloads:
+            missing_attempt_telemetry += 1
         terminal = payloads[-1] if payloads else {}
         if _missing_result_type(directory) == 'AgentTimeout':
             terminal = {**terminal, 'status': 'timed_out'}
@@ -535,14 +538,79 @@ def evaluation_report(run_dir: Path) -> dict:
         trace = evaluation_trace_index(run_dir)
     except (OSError, ValueError) as error:
         trace = {'available': False, 'reason': str(error)}
+    accounting = request_accounting(run_dir, (experiment.get('composition') or {}).get('pricing'),
+                                   expected_model_calls=model_calls, missing_attempts=missing_attempt_telemetry)
     return {'schema_version': 'forge.evaluation.report.v1', 'run_id': experiment['run_id'],
             'dataset': experiment['dataset'], 'usage': experiment['usage'], 'controller': controller,
             'cleanup_state': resource_state, 'official_job_result': official, 'tasks': outcomes, 'trajectory': trace,
             'classification_counts': {key: counts[key] for key in CATEGORIES},
             'task_count': len(tasks), 'valid_grading_rate': graded / len(tasks) if tasks else 0,
             'elapsed_seconds': elapsed, 'model_calls': model_calls, 'tool_calls': tool_calls,
-            'input_tokens': input_tokens, 'output_tokens': output_tokens,
+            'input_tokens': accounting['input_tokens'], 'output_tokens': accounting['output_tokens'],
+            'observed_terminal_token_subtotals': {'input_tokens': input_tokens, 'output_tokens': output_tokens},
+            'request_accounting': accounting,
             'score_policy': 'Official raw results are preserved; failures remain in the frozen task denominator.'}
+
+
+def request_accounting(run_dir, pricing=None, *, expected_model_calls=None, missing_attempts=0):
+    """Reuse the provider ledger's disjoint usage rules; never turn missing usage into zero."""
+    from decimal import Decimal
+    from forge.observability.usage_ledger import PriceBook, normalize_usage, calculate_cost
+    book = PriceBook(pricing) if pricing else None
+    requests, missing_journals = {}, 0
+    for path in (Path(run_dir) / 'job').rglob('session-*.jsonl'):
+        if '.trajectory.' in path.name:
+            continue
+        for line in path.read_text(encoding='utf-8').splitlines():
+            try:
+                row = json.loads(line)
+            except ValueError:
+                missing_journals += 1
+                continue
+            event = row.get('payload', {}).get('event', {}) if row.get('type') == 'observation' else {}
+            kind, item = event.get('event_type'), event.get('attributes', {})
+            if kind not in ('model.request.started', 'model.request.finished', 'model.request.failed'):
+                continue
+            identity = item['model_request_id']
+            if kind == 'model.request.started':
+                requests.setdefault(identity, None)
+            else:
+                if requests.get(identity) is not None and requests[identity] != item:
+                    raise ValueError('Conflicting request facts in evaluation journals')
+                requests[identity] = item
+    unknown = unknown_cost = 0
+    known_input = known_output = 0
+    subtotal = Decimal(0)
+    for item in requests.values():
+        usage = None
+        if item and item.get('usage_quality') == 'actual' and item.get('usage_is_final') is not False:
+            try:
+                usage = normalize_usage(item.get('provider'), item.get('raw_usage'))
+            except (ValueError, KeyError, TypeError):
+                pass
+        if usage:
+            known_input += usage['input_tokens']
+            known_output += usage['output_tokens']
+        else:
+            unknown += 1
+        rates = book.lookup(item.get('provider'), item.get('returned_model') or item.get('requested_model')) if book and item else None
+        cost = calculate_cost(usage, rates)
+        if cost is None:
+            unknown_cost += 1
+        else:
+            subtotal += Decimal(cost)
+    coverage = not missing_attempts and (expected_model_calls is None or expected_model_calls == len(requests))
+    complete = bool(requests) and unknown == 0 and missing_journals == 0 and coverage
+    return {'request_count': len(requests), 'unknown_usage_requests': unknown if requests else None,
+            'damaged_journal_records': missing_journals, 'usage_complete': complete,
+            'missing_attempt_telemetry': missing_attempts, 'request_count_matches_terminal': coverage,
+            'input_tokens': known_input if complete else None, 'output_tokens': known_output if complete else None,
+            'known_input_subtotal': known_input, 'known_output_subtotal': known_output,
+            'cost': {'quality': 'estimated' if requests and not unknown_cost and not missing_journals and coverage else 'unknown',
+                'value': str(subtotal) if requests and not unknown_cost and not missing_journals and coverage else None,
+                'known_subtotal': str(subtotal) if book else None, 'currency': 'USD' if book else None,
+                'unknown_requests': unknown_cost if requests else None, 'pricebook_sha256': book.sha256 if book else None,
+                'basis': 'Frozen caller rates and recorded usage; not an invoice'}}
 
 
 def evaluation_trace_index(run_dir: Path) -> dict:
@@ -613,14 +681,22 @@ def comparison_conditions(run_dir: Path) -> dict:
             if row.get('phase') == 'environment':
                 environment.setdefault(row['task'], []).append(row['identity'])
     environment = {key: sorted(values, key=lambda value: json.dumps(value, sort_keys=True)) for key, values in environment.items()}
+    composition = experiment.get('composition') or {}
+    definition = composition.get('definition') or {}
     return {'dataset': {'name': experiment.get('dataset'), 'version': experiment.get('taskset', {}).get('version'), 'tasks': task_identities},
         'budget': experiment.get('budget'), 'protocol': {key: experiment.get(key) for key in
             ('harbor_version', 'attempts', 'task_retries', 'concurrency', 'timeout_multiplier', 'agent_setup_timeout_multiplier')},
         'grader': experiment.get('grader'), 'dependencies_and_runner': fixed_files or None,
         'driver': driver_files or None,
         'environment': environment or None,
-        'model': {'configuration': experiment.get('model'), 'parameters': experiment.get('parameters')},
-        'harness': {'agent': experiment.get('agent'), 'configuration': experiment.get('harness'), 'files': harness_files}}
+        'model': {'configuration': experiment.get('model'), 'parameters': experiment.get('parameters'),
+                  'aliases': composition.get('models', {}), 'roles': definition.get('role_models', {})},
+        'plugin': {'enabled': definition.get('plugins', []),
+                   'files': {k: v for k, v in composition.get('files', {}).items() if k.startswith('plugins/')},
+                   'dependencies': composition.get('dependencies', '')},
+        'pricing': {'snapshot': composition.get('pricing')},
+        'harness': {'agent': experiment.get('agent'), 'configuration': experiment.get('harness'), 'files': harness_files,
+                    'composition': {k: v for k, v in definition.items() if k not in ('plugins', 'role_models')}}}
 
 
 def compare_runs(baseline: Path, candidate: Path, *, change: str) -> dict:
@@ -655,6 +731,8 @@ def compare_runs(baseline: Path, candidate: Path, *, change: str) -> dict:
                 compared['missing_evidence'].append(f'{side}.{task}.single_completed_grade')
     if compared['missing_evidence']: compared['controlled_conditions'] = False
     return {'schema_version': 'forge.evaluation.comparison.v1', **compared, 'tasks': changes,
+        'resources': [{key: report[key] for key in ('elapsed_seconds', 'model_calls', 'tool_calls', 'input_tokens', 'output_tokens', 'request_accounting')}
+                      for report in reports],
         'official_results': [report['official_job_result'] for report in reports],
         'interpretation': 'Descriptive per-task changes only; no statistical significance or causal improvement claim.'}
 

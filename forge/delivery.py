@@ -58,7 +58,7 @@ def export_agent(definition, acceptance, destination, *, receipt=None, models=No
             files[f'{root}/{name}'] = raw
         specs.append(replace(spec, source=root, trusted=False))
     agent = replace(definition, plugins=tuple(specs))
-    delivery_dependencies = dependency_versions(definition, sdk_extras=('cli', 'validation'))
+    delivery_dependencies = dependency_versions(definition, sdk_extras=('cli', 'validation') if sdk_wheel else ())
     requirements = ''.join(f'{name}=={version}\n' for name, version in delivery_dependencies.items())
     if sdk_wheel:
         sdk_wheel = Path(sdk_wheel)
