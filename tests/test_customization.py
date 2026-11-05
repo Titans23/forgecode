@@ -93,13 +93,15 @@ def test_timeout_and_unload_failure_do_not_pass(tmp_path):
     asyncio.run(run())
 
 
-def test_cli_requires_explicit_trust(tmp_path):
+@pytest.mark.parametrize('color', [False, True])
+def test_cli_requires_explicit_trust(tmp_path, color):
+    from click import unstyle
     from forge.cli import app
     root, agent, cases = fixture(tmp_path)
     path = tmp_path / 'cases.json'
     path.write_text(json.dumps(cases))
-    result = CliRunner().invoke(app, ['plugin', 'check', str(root), '--cases', str(path)])
-    assert result.exit_code != 0 and '--trust' in result.output
+    result = CliRunner().invoke(app, ['plugin', 'check', str(root), '--cases', str(path)], color=color)
+    assert result.exit_code != 0 and '--trust' in unstyle(result.output)
     untrusted = replace(agent, plugins=(replace(agent.plugins[0], trusted=False),))
     with pytest.raises(ValueError, match='explicit trust'):
         asyncio.run(check_agent(untrusted, cases, work_dir=tmp_path / 'must-not-create'))
