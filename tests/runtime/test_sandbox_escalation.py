@@ -2,7 +2,9 @@
 import asyncio
 from copy import deepcopy
 import json
+from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory, gettempdir
 
 import pytest
 from pydantic import ValidationError
@@ -151,8 +153,8 @@ def test_cancelling_pending_approval_never_starts_command(tmp_path):
 
 
 @pytest.mark.parametrize('tool', ['run_command', 'verify'])
-def test_real_host_command_after_native_failure_without_changing_session(tmp_path, tool):
-    async def run():
+def test_real_host_command_after_native_failure_without_changing_session(tool):
+    async def run(tmp_path):
         root, data = tmp_path / 'project', tmp_path / 'data'
         root.mkdir()
         setup = await open_native_execution(ExecutionRequest(root, data, 'workspace-write', (), None, 30))
@@ -187,7 +189,12 @@ def test_real_host_command_after_native_failure_without_changing_session(tmp_pat
             assert setup.policy == frozen and setup.backend.mode == 'workspace-write'
         finally:
             assert (await setup.backend.close())['state'] == 'clean'
-    asyncio.run(run())
+    # CI puts pytest's basetemp under the source installation, which the native
+    # provider deliberately protects. Real command fixtures must live outside it.
+    with TemporaryDirectory(prefix='forge-host-command-') as directory:
+        root = Path(directory).resolve()
+        assert root.parent == Path(gettempdir()).resolve()
+        asyncio.run(run(root))
 
 
 def test_cancellation_closes_the_temporary_command_backend(tmp_path):
