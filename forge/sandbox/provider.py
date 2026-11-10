@@ -22,7 +22,7 @@ def _policy(request, factory=None):
     workspace = {'id': 'ws-' + str(uuid4()), 'canonical_path': str(root),
         'file_identity': f'{info.st_dev}:{info.st_ino}'}
     temp_roots = platform_temp_roots()
-    writes = (() if request.mode == 'read-only' else (root, *temp_roots)) if request.write_roots is None else request.write_roots
+    writes = () if request.mode == 'read-only' else ((root, *temp_roots) if request.write_roots is None else request.write_roots)
     policy = {'schema_version': 'forge.sandbox.policy.v1', 'policy_id': 'policy-' + str(uuid4()),
         'execution_mode': request.mode,
         'workspace_id': workspace['id'], 'filesystem': {'read_mode': 'host_default',

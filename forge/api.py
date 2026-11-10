@@ -62,8 +62,6 @@ class SessionOptions:
             raise ValueError('Sandbox must be read-only, workspace-write or full-access')
         if self.approval not in ('ask', 'never', 'plan', 'supervised', 'auto'):
             raise ValueError('Approval must be ask or never (legacy: plan, supervised, auto)')
-        if self.sandbox == 'read-only' and self.write_roots:
-            raise ValueError('Read-only cannot grant write roots')
         if self.agent.base == 'coding' and self.root is None:
             raise ValueError('The coding agent requires a workspace')
         if self.agent.base == 'coding' and self.sandbox != 'full-access' and self.agent.sandbox_provider is None:
@@ -105,7 +103,8 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
         result = await _open_runtime(options, approval_handler=approval_handler,
             model_client_factory=model_client_factory or (providers.create if host and host.providers else create_model_client),
             runtime_factory=runtime_factory, plugin_host=host, **resume)
-        result[0].session_options = options
+        if not hasattr(result[0], 'session_options'):
+            result[0].session_options = options
         return result
     except BaseException as error:
         if host:
@@ -157,10 +156,24 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
         conversation, journal, state = runtime_factory(root, bindings=bindings,
             execution_profile=ExecutionProfile.sandbox() if writes or options.sandbox == 'full-access' else ExecutionProfile.host(),
             **({'agent': options.agent} if options.agent != AgentDefinition() else {}), **resume)
+        conversation.session_options = options
+        conversation.execution_policy = policy
+        conversation.default_sandbox_mode = options.sandbox
+        conversation.default_approval_policy = options.approval
         permissions.bind_session(journal)
-        journal.append('execution_profile', {'profile': asdict(options.profile), 'sandbox': options.sandbox,
-            'sandbox_provider': options.agent.sandbox_provider if options.sandbox != 'full-access' else None,
-            'approval': options.approval, 'policy': policy})
+        if state is not None and state.sandbox_mode is not None:
+            await conversation.select_sandbox(state.sandbox_mode, persist=False)
+            backend = conversation.tool_executor.backend
+            policy = conversation.execution_policy
+        if state is not None and state.approval_policy is not None:
+            permissions.mode = state.approval_policy
+        if state is None or state.sandbox_mode is None:
+            journal.append('sandbox_mode_changed', {'mode': permissions.execution_mode})
+        if state is None or state.approval_policy is None:
+            journal.append('permission_mode_changed', {'mode': permissions.mode})
+        journal.append('execution_profile', {'profile': asdict(options.profile), 'sandbox': permissions.execution_mode,
+            'sandbox_provider': options.agent.sandbox_provider if permissions.execution_mode != 'full-access' else None,
+            'approval': permissions.mode, 'policy': policy})
         return conversation, journal, state, backend
     except BaseException as error:
         failures, seen = [], set()
@@ -212,6 +225,11 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
     try:
         conversation, journal, state = runtime_factory(scope, bindings=bindings, agent=options.agent, **resume)
         permissions.bind_session(journal)
+        conversation.default_approval_policy = options.approval
+        if state is not None and state.approval_policy is not None:
+            permissions.mode = state.approval_policy
+        else:
+            journal.append('permission_mode_changed', {'mode': permissions.mode})
         journal.append('agent_configuration', {'name': options.agent.name, 'base': 'core', 'workspace': None})
         return conversation, journal, state, None
     except BaseException:
@@ -228,11 +246,20 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
 class HarnessSession:
     """One session, sequential turns, consumer-owned streaming and explicit cancellation."""
     def __init__(self, conversation, journal, backend, recorder):
-        self.conversation, self.journal = conversation, journal
-        self.backend, self.recorder = backend, recorder
+        self.conversation, self._journal = conversation, journal
+        self._backend, self.recorder = backend, recorder
         self._task = None
         self._closed = False
         self.cleanup = None
+
+    @property
+    def backend(self):
+        executor = self.conversation.tool_executor
+        return executor.backend if executor is not None else self._backend
+
+    @property
+    def journal(self):
+        return self.conversation.session_journal or self._journal
 
     @classmethod
     async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None, **resume):
@@ -311,6 +338,11 @@ class HarnessSession:
         if self._closed or self.running:
             raise RuntimeError('Model changes require an idle open session')
         return await self.conversation.select_model(alias)
+
+    async def set_sandbox(self, mode):
+        if self._closed or self.running:
+            raise RuntimeError('Sandbox changes require an idle open session')
+        return await self.conversation.select_sandbox(mode)
 
     def add_completion_check(self, name, callback):
         """Add a deterministic check returning unmet reasons; never grants authority."""

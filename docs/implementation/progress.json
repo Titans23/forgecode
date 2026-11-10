@@ -7,10 +7,10 @@
   "dsh_alignment": {
     "reference": "deepseek-ai/deepseek-harness@ddefc45fbc7f8e46dd73185e68295696d1297887",
     "file_access": "Implemented: shared one-call grants for file mutations and commands; ordinary explicit-mode access follows sandbox scope, without implicit name/command denials. Explicit caller rules and legacy no-mode interfaces remain compatible.",
-    "session_mode": "pending",
+    "session_mode": "Implemented: idle CLI/SDK switches are journaled and restored; branches inherit, clear resets startup defaults, managed children use the current mode. Provider cleanup, observers and cancellation remain bound to the session.",
     "native_lifecycle": "pending",
-    "validation": "File/permission regression initially 176 passed; four expectations changed by the requested semantics were updated, then 96 focused cases passed including the repaired cases. Seven quality commands passed. No existing project ACL modified and no paid model calls.",
-    "evidence_refs": [".local/implementation/dsh-alignment/files-regression.xml", ".local/implementation/dsh-alignment/files-final.xml", ".local/implementation/dsh-alignment/files-quality.json"]
+    "validation": "File/permission regression initially 176 passed; four changed expectations repaired and 96 focused cases passed. Session/API/CLI regression initially 159 passed; fixture and superseded access expectations repaired, then 10 focused cases passed. Plugin/MCP compatibility failure reproduced and repaired; 57 related cases passed. Seven quality commands passed for each checkpoint. No existing project ACL modified and no paid model calls.",
+    "evidence_refs": [".local/implementation/dsh-alignment/files-regression.xml", ".local/implementation/dsh-alignment/files-final.xml", ".local/implementation/dsh-alignment/files-quality.json", ".local/implementation/dsh-alignment/modes-regression.xml", ".local/implementation/dsh-alignment/modes-final.xml", ".local/implementation/dsh-alignment/modes-quality.json", ".local/implementation/dsh-alignment/plugin-fix.xml"]
   },
   "terminal_streaming": {
     "status": "implemented_locally_verified",

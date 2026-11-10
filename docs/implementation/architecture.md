@@ -24,6 +24,8 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 文件修改和命令工具的 `SandboxInput` 共享 DSH 的 `sandbox_permissions` / `justification`。ToolExecutor 在最终参数与任务范围检查后要求单独的 allow_once，已有 allow 规则不能绕过。显式模式下普通内置工具遵循沙盒策略，不使用旧命令/敏感名称启发式作为拒绝依据；工具提供的显式限制和用户 deny 规则继续有效。文件修改通过临时后端完成快照、执行与结果观察，控制字段不进入命令或存储的 verify 定义；原生执行依旧按需准备。清理失败保留 indeterminate；单次授权不会替换默认策略或泄漏给下一次调用。旧的无 execution_mode 接口保留历史兼容语义。
 
+`select_session_mode` 是会话沙盒切换入口：只在空闲时准备新提供方，确认旧资源清理后追加 `sandbox_mode_changed`，同步切换 Executor、observer、Explore 后端和子任务默认值。模式与审批策略由 SessionState 重放；恢复沿用已记录选择，分支复制，清空回到启动默认值。Journal 失败或取消不发布新权限。核心 Agent 不加载沙盒；插件/MCP 的独立 JSON Schema 工具不被误当作内置 Pydantic 授权输入。
+
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。
 
 ## 1. 目录与调用链

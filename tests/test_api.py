@@ -55,7 +55,6 @@ def linked_workspace(tmp_path):
 @pytest.mark.parametrize('sandbox', ['full-access', 'danger-full-access'])
 def test_host_linked_workspace_reads_and_writes_physical_targets(linked_workspace, sandbox):
     from dataclasses import replace
-    from forge.protocol import ContractError
     settings, link, outside = linked_workspace
     clients, approvals = [], []
 
@@ -84,19 +83,19 @@ def test_host_linked_workspace_reads_and_writes_physical_targets(linked_workspac
             linked_write = await worker.request('tool', name='write_file',
                 arguments={'path': '.build/node_modules/host.txt', 'content': 'host write'})
             assert linked_write['result']['success'] and (outside / 'host.txt').read_text() == 'host write'
+            (settings.data_root / 'private.txt').write_text('owned fixture', encoding='utf-8')
             for name, arguments in (
                 ('read_file', {'path': str(settings.data_root / 'private.txt')}),
-                ('write_file', {'path': str(settings.data_root / 'private.txt'), 'content': 'must not write'}),
+                ('write_file', {'path': str(settings.data_root / 'private.txt'), 'content': 'host write'}),
             ):
-                with pytest.raises(ContractError) as error:
-                    await worker.request('tool', name=name, arguments=arguments)
-                assert error.value.kind == 'POLICY_DENIED'
+                reply = await worker.request('tool', name=name, arguments=arguments)
+                assert reply['result']['success']
             scan = await worker.scan()
             assert scan['complete'] and scan['files']['.build/node_modules']['is_link']
             assert not any(path.startswith('.build/node_modules/') for path in scan['files'])
             decision = await session.conversation.permission_manager.authorize(
                 PermissionRequest('run_command', 'process.exec', 'low', ('command',)))
-            assert decision.action == 'deny' and len(approvals) == 1
+            assert decision.action == 'allow' and approvals == []
             assert (await session.run('hello')).text == 'hello'
         assert session.cleanup['state'] == 'clean'
         assert (outside / 'value.txt').read_text(encoding='utf-8') == 'shared file'
@@ -158,7 +157,7 @@ def test_host_linked_edit_keeps_approval_checkpoint_and_completion(linked_worksp
             assert result.status == 'completed', result
             assert model.count == 5
             assert (outside / 'value.txt').read_text() == 'updated'
-            assert 'file.write' in approvals and 'process.exec' in approvals
+            assert approvals == []
             checkpoints = session.conversation.checkpoint_store
             checkpoint = checkpoints.latest_restorable()
             assert checkpoint is not None

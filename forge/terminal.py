@@ -63,9 +63,11 @@ SLASH_COMMANDS = (
     SlashCommandSpec('/mcp', '/mcp', '查看 MCP Server 连接和工具状态'),
     SlashCommandSpec(
         '/permission ',
-        '/permission [plan|supervised|auto]',
+        '/permission [workspace-write|danger-full-access|read-only]',
         '查看或切换权限模式',
     ),
+    SlashCommandSpec('/sandbox ', '/sandbox [read-only|workspace-write|danger-full-access]', '切换本会话沙盒模式'),
+    SlashCommandSpec('/approval ', '/approval [ask|never]', '切换本会话审批策略'),
     SlashCommandSpec('/undo', '/undo', '撤销最近一次 Agent 代码修改'),
     SlashCommandSpec('/checkpoints', '/checkpoints', '列出文件 Checkpoint'),
     SlashCommandSpec(

@@ -192,7 +192,8 @@ class ToolExecutor:
         wider_mode = None
         from forge.tools.base import SandboxInput
         implementation = self.registry.implementation(call.name)
-        if implementation is not None and issubclass(implementation.input_model, SandboxInput):
+        input_model = getattr(implementation, 'input_model', None)
+        if isinstance(input_model, type) and issubclass(input_model, SandboxInput):
             target = arguments.get('sandbox_permissions')
             target = 'full-access' if target == 'danger-full-access' else target
             current_mode = self.permission_manager.execution_mode

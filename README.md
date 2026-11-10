@@ -87,6 +87,8 @@ forge
 
 Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时拒绝该进程调用，保留会话和文件策略。命令、verify 和文件修改工具可通过 `sandbox_permissions` 和 `justification` 请求单次更宽权限。`--approval ask` 是默认审批策略，仅扩大范围或显式策略要求时询问；`never` 拒绝需要审批的请求。批准的 `danger-full-access` 操作使用宿主权限，下一次操作仍使用默认沙盒。没有自动切换或重试，也不会自动修复项目 ACL。
 
+会话空闲时可用 `/sandbox read-only|workspace-write|danger-full-access` 切换沙盒，`/approval ask|never` 切换审批；`/permission workspace-write` 和 `/permission danger-full-access` 分别选择 workspace-write＋ask、full-access＋never。选择保存在当前会话中，恢复时重放；分支继承，`/clear` 回到启动默认值，不改全局配置。SDK 对应 `await session.set_sandbox(mode)`。
+
 恢复已有会话：
 
 ```powershell

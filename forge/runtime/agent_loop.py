@@ -332,6 +332,10 @@ class Conversation:
         from forge.runtime.model_registry import select_model
         return await select_model(self, alias)
 
+    async def select_sandbox(self, mode, *, persist=True):
+        from forge.execution import select_session_mode
+        return await select_session_mode(self, mode, persist=persist)
+
     def create_role_client(self, role):
         from forge.runtime.model_registry import config_for_alias
         alias = self.agent_definition.role_models.get(role)
@@ -366,7 +370,7 @@ class Conversation:
         alias = self.agent_definition.role_models.get(role)
         config = config_for_alias(self, alias)[0] if alias else self.model_config
         options = replace(self.session_options, agent=replace(definition, role_models={}), config=config,
-                          approval=self.permission_manager.mode)
+                          approval=self.permission_manager.mode, sandbox=self.permission_manager.execution_mode)
         if definition.base == 'core':
             options = replace(options, root=None, read_roots=(), write_roots=None)
         token = parent_budget.set(self.turn_state)
@@ -579,8 +583,13 @@ class Conversation:
             )
         return (
             '[ForgeCode Permission Mode]\n'
-            f'Current mode: {mode}. Tool calls remain subject to the active '
-            'permission rules and approval policy.'
+            f'Approval policy: {mode}. Sandbox mode: {self.permission_manager.execution_mode or "unconfigured"}. '
+            'Ordinary file and command access follows the sandbox policy. '
+            + ('Approval prompts are disabled; do not request sandbox_permissions. '
+               if mode == 'never' else
+               'After a real sandbox denial, request the narrowest wider mode with sandbox_permissions and justification; '
+               'approval applies to that operation only. Missing or rejected approval is final. ')
+            + 'Explicit caller rules and task constraints still apply.'
         )
 
     async def compact(self) -> CompactionReport:
@@ -668,9 +677,19 @@ class Conversation:
 
     async def session_resume_with_hooks(self, identifier: str) -> str:
         self._require_idle()
-        self._resume_target(identifier)
+        state, _ = self._resume_target(identifier)
+        previous_mode = self.permission_manager.execution_mode
+        previous_journal = self.session_journal
+        target_mode = state.sandbox_mode or getattr(self, 'default_sandbox_mode', previous_mode)
         await self.session_end(reason='resume')
-        notice = self.session_resume(identifier)
+        try:
+            if target_mode != previous_mode and hasattr(self, 'session_options'):
+                await self.select_sandbox(target_mode, persist=False)
+            notice = self.session_resume(identifier)
+        except BaseException:
+            if self.session_journal is previous_journal and self.permission_manager.execution_mode != previous_mode:
+                await self.select_sandbox(previous_mode, persist=False)
+            raise
         if self.mcp_manager is not None:
             await self.mcp_manager.reset_session()
         await self.session_start(source='resume')
@@ -690,8 +709,17 @@ class Conversation:
 
     async def session_clear_with_hooks(self) -> str:
         self._require_idle()
+        previous_mode, previous_journal = self.permission_manager.execution_mode, self.session_journal
+        default_mode = getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
         await self.session_end(reason='clear')
-        notice = self.session_clear()
+        try:
+            if default_mode != self.permission_manager.execution_mode and hasattr(self, 'session_options'):
+                await self.select_sandbox(default_mode, persist=False)
+            notice = self.session_clear()
+        except BaseException:
+            if self.session_journal is previous_journal and self.permission_manager.execution_mode != previous_mode:
+                await self.select_sandbox(previous_mode, persist=False)
+            raise
         if self.mcp_manager is not None:
             await self.mcp_manager.reset_session()
         await self.session_start(source='clear')
@@ -844,7 +872,7 @@ class Conversation:
         return f'Resumed {task.id}: {task.goal}'
 
     def permission_status(self) -> str:
-        return self.permission_manager.describe()
+        return f'Sandbox: {self.permission_manager.execution_mode or "unconfigured"}\n' + self.permission_manager.describe()
 
     def permission_set_mode(self, mode: str) -> str:
         resolved = self.permission_manager.set_mode(mode)
@@ -1065,6 +1093,9 @@ class Conversation:
     def session_resume(self, identifier: str) -> str:
         self._require_idle()
         state, journal = self._resume_target(identifier)
+        target_mode = state.sandbox_mode or getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
+        if target_mode != self.permission_manager.execution_mode and hasattr(self, 'session_options'):
+            raise ValueError('Use await session_resume_with_hooks() to restore a different sandbox mode')
         if self.session_journal is not None and state.info.session_id == self.session_journal.session_id:
             return f'Session {state.info.session_id} is already active.'
         selected = client = None
@@ -1100,6 +1131,7 @@ class Conversation:
             if router_client is not None and hasattr(router_client, 'model'):
                 router_client.model = state.info.model
         self._bind_session(journal)
+        self.permission_manager.mode = state.approval_policy or getattr(self, 'default_approval_policy', self.permission_manager.mode)
         journal.record_resumed()
         warning = (
             f' Warning: {len(state.indeterminate_tools)} indeterminate '
@@ -1133,6 +1165,9 @@ class Conversation:
 
     def session_clear(self) -> str:
         self._require_idle()
+        default_mode = getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
+        if default_mode != self.permission_manager.execution_mode and hasattr(self, 'session_options'):
+            raise ValueError('Use await session_clear_with_hooks() to restore the default sandbox mode')
         self.inbox.restore(())
         self.verification_history.clear()
         if self.session_store is None or self.session_journal is None:
@@ -1148,6 +1183,10 @@ class Conversation:
             deferred=getattr(self, 'defer_new_sessions', False),
         )
         self._bind_session(journal)
+        self.permission_manager.mode = getattr(self, 'default_approval_policy', self.permission_manager.mode)
+        if default_mode is not None:
+            journal.append('sandbox_mode_changed', {'mode': default_mode})
+            journal.append('permission_mode_changed', {'mode': self.permission_manager.mode})
         self.messages.clear()
         self._reset_history_context()
         self.task_manager.restore(None)

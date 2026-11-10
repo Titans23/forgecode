@@ -87,6 +87,8 @@ _NOTICE_COMMANDS = {
     '/skills': ('Skills', 'skill_list'),
     '/mcp': ('MCP Servers', 'mcp_status'),
     '/permission': ('Permissions', 'permission_status'),
+    '/sandbox': ('Sandbox', 'permission_status'),
+    '/approval': ('Approval', 'permission_status'),
     '/checkpoints': ('Checkpoints', 'checkpoint_history'),
 }
 
@@ -529,13 +531,25 @@ async def _run_interactive_chat(
                         resolved_terminal.show_error(error)
                 continue
 
-            if prompt.startswith('/permission '):
+            if prompt.startswith('/sandbox '):
                 try:
-                    notice = resolved_session.permission_set_mode(
-                        prompt[len('/permission '):].strip()
-                    )
+                    mode = await resolved_session.select_sandbox(prompt[len('/sandbox '):].strip())
+                    resolved_terminal.show_notice('Sandbox', f'Session sandbox mode set to {mode}.')
+                except (ValueError, RuntimeError, OSError) as error:
+                    resolved_terminal.show_error(error)
+                continue
+
+            if prompt.startswith(('/permission ', '/approval ')):
+                try:
+                    choice = prompt.split(' ', 1)[1].strip()
+                    if prompt.startswith('/permission ') and choice in ('read-only', 'workspace-write', 'full-access', 'danger-full-access'):
+                        mode = await resolved_session.select_sandbox(choice)
+                        resolved_session.permission_set_mode('never' if mode == 'full-access' else 'ask')
+                        notice = resolved_session.permission_status()
+                    else:
+                        notice = resolved_session.permission_set_mode(choice)
                     resolved_terminal.show_notice('Permissions', notice)
-                except ValueError as error:
+                except (ValueError, RuntimeError, OSError) as error:
                     resolved_terminal.show_error(error)
                 continue
 

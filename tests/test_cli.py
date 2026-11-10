@@ -466,6 +466,25 @@ def test_notice_dispatch_preserves_commands_with_arguments(monkeypatch, command,
     assert conversation.prompts == []
 
 
+@pytest.mark.parametrize('command,expected', [
+    ('/sandbox read-only', [('sandbox', 'read-only')]),
+    ('/permission workspace-write', [('sandbox', 'workspace-write'), ('mode', 'ask')]),
+    ('/permission danger-full-access', [('sandbox', 'full-access'), ('mode', 'never')]),
+    ('/approval never', [('mode', 'never')]),
+])
+def test_sandbox_and_permission_presets_are_local_commands(monkeypatch, command, expected):
+    conversation = FakeConversation()
+    async def select(mode):
+        mode = 'full-access' if mode == 'danger-full-access' else mode
+        conversation.session_actions.append(('sandbox', mode))
+        return mode
+    conversation.select_sandbox = select
+    monkeypatch.setattr(cli_module, 'Conversation', lambda **kwargs: conversation)
+    result = runner.invoke(app, input=command + '\n')
+    assert result.exit_code == 0, result.output
+    assert conversation.session_actions == expected and not conversation.prompts
+
+
 def test_memory_commands_do_not_call_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

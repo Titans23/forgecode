@@ -181,6 +181,8 @@ forge --sandbox workspace-write --approval plan
 
 命令、verify 和文件修改工具共享 DSH 式单次授权：在真实沙盒拒绝或初始化失败后，模型可为同一操作设置 `sandbox_permissions: "danger-full-access"` 和非空 `justification`。审批展示完整参数与理由，明确本次不受工作区沙盒限制；只有“仅允许这一次”或拒绝，不保存为会话/项目规则。文件修改的快照与执行使用同一个临时后端；授权不会进入下一次调用或已保存的 verify 定义。`read-only` 也可请求单次 `workspace-write`。显式禁止规则、任务约束和外部工具自带策略继续生效；普通内置工具不再按凭据文件名或命令关键字自动拒绝。无审批通道或选择 `never` 时拒绝扩大权限。结果记录实际 `execution_mode`、`sandbox_override: "allow_once"` 及清理状态；宿主执行不标为 OS 隔离。
 
+会话模式可在空闲时切换，不调用模型：`/sandbox read-only`、`/sandbox workspace-write`、`/sandbox danger-full-access` 只改变沙盒；`/approval ask`、`/approval never` 只改变审批。组合命令 `/permission workspace-write` 选择 workspace-write＋ask，`/permission danger-full-access` 选择 full-access＋never，`/permission read-only` 选择 read-only＋ask。SDK 使用 `await session.set_sandbox(mode)`。模式写入会话 Journal，恢复时优先于启动默认值；分支继承当前选择，清空后恢复启动默认值。不会写全局设置，也不会把一次性授权保存成模式。配置过的 `--write-root` 在只读期间不授予写入，切回 workspace-write 后仍保留原范围。切换会先检查旧后端清理结果，再记录并发布新模式；进行中的回合需先结束或取消。
+
 交互终端在生成过程中实时显示回复预览，可继续输入调整或 `/cancel`；完成后只保留一份 Markdown 回复及用量。重定向输出和 `TERM=dumb` 直接逐段输出 Markdown 原文，不重绘历史。默认回合先做意图判断再生成回复，因此简单对话也可能显示两次模型调用；等待阶段不会循环打印提示。
 
 默认提供方不因无关子目录含符号链接、Junction 或硬链接而拒绝整个工作区。文件操作先解析实际目标：读取继承宿主可读范围，`workspace-write` 只允许实际目标位于已授权写入范围，`read-only` 拒绝修改。链接指向外部共享依赖时，可以读取，越界修改需要单次授权。`--read-root` 保留兼容，不作为默认读取白名单；内置提供方不再叠加按文件名或安装路径生成的文件工具黑名单。调用方明确配置的禁止规则仍然有效。
