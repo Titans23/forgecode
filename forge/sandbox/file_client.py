@@ -18,7 +18,7 @@ def worker_argv():
 class FileWorkerClient:
     def __init__(self, workspace, policy, *, native=None, local_control=None):
         if (native is None) == (local_control is None):
-            raise ValueError('Choose a prepared native backend or explicit local-trusted helper')
+            raise ValueError('Choose a prepared native backend or trusted file helper')
         self.workspace = json.loads(json.dumps(workspace))
         self.policy = json.loads(json.dumps(policy))
         self.policy_hash = canonical_hash(self.policy)
@@ -48,8 +48,8 @@ class FileWorkerClient:
             if self.native is not None:
                 output = await self._native_request(request_id, raw)
             else:
-                # Explicit portable/local-trusted mode. It is never selected as
-                # fallback after a native failure and makes no OS sandbox claim.
+                # Trusted file-policy operations or explicit full-access mode.
+                # Never a native-failure fallback; makes no OS sandbox claim.
                 from forge.sandbox.process_owner import LocalProcessOwner
                 import os
                 import shutil
@@ -71,9 +71,13 @@ class FileWorkerClient:
                         child.stdin.write(raw)
                         await child.stdin.drain()
                         child.stdin.close()
-                        output = await child.stdout.read(MAX_FRAME_BYTES + 1)
-                        if len(output) > MAX_FRAME_BYTES:
-                            raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
+                        chunks, size = [], 0
+                        while chunk := await child.stdout.read(65536):
+                            size += len(chunk)
+                            if size > MAX_FRAME_BYTES:
+                                raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
+                            chunks.append(chunk)
+                        output = b''.join(chunks)
                         await child.wait()
                 finally:
                     self._cleanup_reports.append(await owner.close())

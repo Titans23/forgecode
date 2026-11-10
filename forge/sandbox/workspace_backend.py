@@ -144,7 +144,7 @@ class WorkspaceWriteBackend:
             detail = execution['captured']['stderr'].decode('utf-8', errors='replace').strip()
             detail = detail or execution.get('error') or str(error)
             detail = ''.join(char if char.isprintable() else ' ' for char in detail)[:1024]
-            message = f'Native {self.mode} probe failed; no task admitted.\nBackend: {detail}'
+            message = f'Native {self.mode} probe failed; command not started.\nBackend: {detail}'
             if 'SetNamedSecurityInfoW failed (Win32 5)' in detail and 'grantWrite(' in detail:
                 message += ('\nWindows denied sandbox ACL/low-integrity label setup. DSH requires directory '
                             'ownership and WRITE_OWNER; permission to edit files alone is insufficient. '

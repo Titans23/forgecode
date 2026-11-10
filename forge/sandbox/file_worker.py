@@ -1,7 +1,8 @@
-"""One request, one restricted file helper. No credentials, server, hooks or models.
+"""One request, one fixed helper. No credentials, server, hooks or models.
 
-The launcher supplies the frozen policy over task stdin after OS restriction.
-Path checks complement that restriction; portable invocation alone is not SRT.
+Trusted file operations enforce the frozen path policy supplied on stdin.
+Command tools run this helper inside the separately prepared native boundary;
+path policy alone is not OS isolation.
 """
 import asyncio
 import base64

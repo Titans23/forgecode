@@ -124,10 +124,10 @@ class SessionJournal:
 
     def _hydrate_tool_event_ids(self) -> None:
         '''Load prior tool ids so resumed compatibility events stay idempotent.'''
-        if not self.path.is_file():
+        if not private_storage_path(self.path).is_file():
             return
         try:
-            lines = self.path.read_text(encoding='utf-8').splitlines()
+            lines = private_storage_path(self.path).read_text(encoding='utf-8').splitlines()
         except OSError:
             return
         for line in lines:
@@ -381,7 +381,7 @@ class SessionJournal:
 
     def _append_locked(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         payload = {**payload, **({'turn_id': self.turn_id} if self.turn_id else {})}
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        private_storage_path(self.path.parent).mkdir(parents=True, exist_ok=True)
         self._assert_append_head()
         event_uuid = str(uuid4())
         self.sequence += 1
@@ -416,7 +416,7 @@ class SessionJournal:
             default=str,
             separators=(',', ':'),
         )
-        with self.path.open('a', encoding='utf-8', newline='\n') as file:
+        with private_storage_path(self.path).open('a', encoding='utf-8', newline='\n') as file:
             file.write(serialized)
             file.write('\n')
             file.flush()
@@ -428,13 +428,13 @@ class SessionJournal:
 
     def _assert_append_head(self) -> None:
         '''Refuse to fork a journal changed by another live writer.'''
-        if not self.path.exists():
+        if not private_storage_path(self.path).exists():
             if self.sequence or self.parent_uuid is not None:
                 raise SessionError('Session journal disappeared before append.')
             return
         try:
             # Validate under the append lock without rereading the whole ledger.
-            with self.path.open('rb') as file:
+            with private_storage_path(self.path).open('rb') as file:
                 file.seek(0, os.SEEK_END)
                 position = file.tell()
                 if position:
@@ -474,7 +474,7 @@ class SessionJournal:
         event_uuid: str,
         content: bytes,
     ) -> dict[str, str]:
-        self.artifact_directory.mkdir(parents=True, exist_ok=True)
+        private_storage_path(self.artifact_directory).mkdir(parents=True, exist_ok=True)
         path = self.artifact_directory / f'{event_uuid}.json'
         temporary = path.with_suffix('.json.tmp')
         private_storage_path(temporary).write_bytes(content)
@@ -517,8 +517,8 @@ class SessionStore:
         provider: str = '',
         deferred: bool = False,
     ) -> SessionJournal:
-        if not deferred and self.index_path.exists():
-            self.index_path.unlink()
+        if not deferred and private_storage_path(self.index_path).exists():
+            private_storage_path(self.index_path).unlink()
         session_id = f'session-{uuid4().hex[:24]}'
         path = self.directory / f'{session_id}.jsonl'
         journal = SessionJournal(
@@ -706,7 +706,7 @@ class SessionStore:
         if not clean_identifier:
             raise SessionNotFoundError('Session identifier must not be empty.')
         direct_path = self.directory / f'{clean_identifier}.jsonl'
-        if direct_path.is_file() and SESSION_ID_PATTERN.fullmatch(
+        if private_storage_path(direct_path).is_file() and SESSION_ID_PATTERN.fullmatch(
             clean_identifier
         ):
             return self._build_state(direct_path)
@@ -727,13 +727,14 @@ class SessionStore:
         return self._build_state(matches[0].path)
 
     def list(self) -> tuple[SessionInfo, ...]:
-        if not self.directory.exists():
+        if not private_storage_path(self.directory).exists():
             return ()
         cached = self._read_index()
         if cached is not None:
             return cached
         sessions: list[SessionInfo] = []
-        for path in self.directory.glob('session-*.jsonl'):
+        for storage_path in private_storage_path(self.directory).glob('session-*.jsonl'):
+            path = self.directory / storage_path.name
             try:
                 sessions.append(self._build_state(path).info)
             except SessionError:
@@ -744,14 +745,14 @@ class SessionStore:
         return result
 
     def _read_index(self) -> tuple[SessionInfo, ...] | None:
-        if not self.index_path.is_file():
+        if not private_storage_path(self.index_path).is_file():
             return None
         try:
-            payload = json.loads(self.index_path.read_text(encoding='utf-8'))
+            payload = json.loads(private_storage_path(self.index_path).read_text(encoding='utf-8'))
             entries = payload['sessions']
             if not isinstance(entries, list):
                 return None
-            if {path.stem for path in self.directory.glob('session-*.jsonl')} != {
+            if {path.stem for path in private_storage_path(self.directory).glob('session-*.jsonl')} != {
                     entry.get('session_id') for entry in entries if isinstance(entry, dict)}:
                 return None
             sessions: list[SessionInfo] = []
@@ -763,9 +764,9 @@ class SessionStore:
                     / (str(entry['session_id']) + '.jsonl')
                 )
                 if (
-                    not path.is_file()
-                    or path.stat().st_mtime_ns != entry.get('mtime_ns')
-                    or path.stat().st_size != entry.get('size_bytes')
+                    not private_storage_path(path).is_file()
+                    or private_storage_path(path).stat().st_mtime_ns != entry.get('mtime_ns')
+                    or private_storage_path(path).stat().st_size != entry.get('size_bytes')
                 ):
                     return None
                 sessions.append(
@@ -791,7 +792,7 @@ class SessionStore:
             return None
 
     def _write_index(self, sessions: tuple[SessionInfo, ...]) -> None:
-        self.index_path.parent.mkdir(parents=True, exist_ok=True)
+        private_storage_path(self.index_path.parent).mkdir(parents=True, exist_ok=True)
         payload = {
             'schema_version': SCHEMA_VERSION,
             'project_root': str(self.project_root),
@@ -806,18 +807,18 @@ class SessionStore:
                     'status': info.status,
                     'sequence': info.sequence,
                     'message_count': info.message_count,
-                    'mtime_ns': info.path.stat().st_mtime_ns,
-                    'size_bytes': info.path.stat().st_size,
+                    'mtime_ns': private_storage_path(info.path).stat().st_mtime_ns,
+                    'size_bytes': private_storage_path(info.path).stat().st_size,
                 }
                 for info in sessions
             ],
         }
         temporary = self.index_path.with_suffix('.json.tmp')
-        temporary.write_text(
+        private_storage_path(temporary).write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + '\n',
             encoding='utf-8',
         )
-        temporary.replace(self.index_path)
+        private_storage_path(temporary).replace(private_storage_path(self.index_path))
 
     def _build_state(self, path: Path) -> SessionState:
         records = self._read_records(path)
@@ -1024,7 +1025,7 @@ class SessionStore:
     @staticmethod
     def _read_records(path: Path) -> list[dict[str, Any]]:
         try:
-            lines = path.read_text(encoding='utf-8').splitlines()
+            lines = private_storage_path(path).read_text(encoding='utf-8').splitlines()
         except OSError as error:
             raise SessionError(f'Cannot read session {path}: {error}') from error
         records: list[dict[str, Any]] = []

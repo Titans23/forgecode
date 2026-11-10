@@ -1,5 +1,6 @@
 """Built-in execution providers over the existing file and native backends."""
 from pathlib import Path
+import sys
 from uuid import uuid4
 
 from forge.execution import ExecutionRequest, ExecutionSetup
@@ -40,9 +41,18 @@ async def open_host_execution(request: ExecutionRequest) -> ExecutionSetup:
 
 async def open_native_execution(request: ExecutionRequest) -> ExecutionSetup:
     from forge.sandbox.application_backend import NativeBackendFactory
+    from forge.sandbox.policy_backend import PolicyToolBackend
+    from forge.sandbox.launcher import ROOT
     factory = NativeBackendFactory(request.data_root, mode=request.mode)
-    workspace, policy, _, identity = _policy(request, factory)
+    workspace, policy, control, identity = _policy(request, factory)
+    # Trusted file helpers must not be able to rewrite their own installation.
+    policy['filesystem']['protected_paths'] = sorted(set([
+        *policy['filesystem']['protected_paths'], str(ROOT),
+        str(Path(__file__).resolve().parents[2]), str(Path(sys.prefix).resolve()),
+    ]))
     owner = {'engine_epoch': 'epoch-' + str(uuid4()), 'sandbox_session_id': 'sandbox-' + str(uuid4()),
         'execution_id': None}
-    backend = await factory.open(workspace, policy, owner, identity)
+    async def open_process():
+        return await factory.open(workspace, policy, owner, identity)
+    backend = PolicyToolBackend(FileWorkerClient(workspace, policy, local_control=control), open_process)
     return ExecutionSetup(backend, policy)

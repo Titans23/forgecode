@@ -81,11 +81,11 @@ forge
 
 将示例路径替换为实际项目目录。`forge config` 检查配置，不回显密钥；`forge` 启动持续对话。ForgeCode 安装目录与目标项目分开，避免安装目录保护导致沙盒初始化被拒绝。
 
-默认沙盒允许工作区包含符号链接和 Windows Junction；文件工具在操作时解析实际目标，工作区外的写入仍会被拒绝。不要把 ForgeCode 安装目录当作受限工作区：安装目录与工作区重叠仍会拒绝启动，删除依赖链接不能解除这项保护。
+默认 workspace-write 按 DSH 的方式区分文件策略和进程隔离：启动、读取及工作区内文件编辑不申请原生 ACL；文件工具解析实际目标，拒绝工作区外写入并保护安装与控制目录。符号链接和 Windows Junction 不会单独阻止启动。运行命令、验证或 Git 工具时才准备原生沙盒；安装目录与工作区重叠时仍拒绝原生命令。
 
-遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。npm 安装会自动提供其管理的工具；Ubuntu 需检查系统 bubblewrap 和 user namespace，源码安装需检查构建文件。只读诊断的整体 `status` 在尚未验证工作区时可为 `blocked`，实际工作区边界在启动会话时验证。
+遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。npm 安装会自动提供其管理的工具；Ubuntu 需检查系统 bubblewrap 和 user namespace，源码安装需检查构建文件。只读诊断在原生进程尚未准备时可为 `blocked`；成功打开 CLI 不代表 OS 隔离已经验证。
 
-Windows 目标项目还需要当前用户能修改目录权限和所有者（“完全控制”包含这些权限）。只有“修改”权限的目录可能在原生边界检查时被拒绝；安装环境完成不代表任意目标目录都已授权。
+Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时只拒绝该进程调用，保留会话和文件策略，不自动切换为 full-access。
 
 恢复已有会话：
 
@@ -94,7 +94,7 @@ forge --continue
 forge --resume SESSION_ID
 ```
 
-`--continue` 恢复当前项目的上次会话，`--resume` 指定会话 ID；清除会话数据后需要重新开始。默认使用 workspace-write 沙盒；初始化失败拒绝任务。其他模型连接、明确的权限范围、完整访问、审批、wheel 安装及使用限制见 [终端使用指南](docs/install/terminal-quickstart.md)。
+`--continue` 恢复当前项目的上次会话，`--resume` 指定会话 ID；清除会话数据后需要重新开始。默认使用 workspace-write 文件策略与按需原生进程沙盒。其他模型连接、明确的权限范围、完整访问、审批、wheel 安装及使用限制见 [终端使用指南](docs/install/terminal-quickstart.md)。
 
 ## 入口组合
 

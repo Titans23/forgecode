@@ -3,13 +3,14 @@
 from contextlib import contextmanager
 from pathlib import Path
 import os
+from forge.storage_paths import private_storage_path
 
 
 @contextmanager
 def exclusive_append(path: Path):
     '''Serialize head validation and append across threads and processes.'''
     # 锁覆盖“检查日志尾部 + 追加”整个操作，由操作系统在进程退出时释放。
-    lock_path = path.with_suffix(path.suffix + '.lock')
+    lock_path = private_storage_path(path.with_suffix(path.suffix + '.lock'))
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open('a+b') as handle:
         if os.name == 'nt':

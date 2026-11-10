@@ -35,7 +35,7 @@ def test_native_long_temp_path_keeps_write_boundary_and_cleans_up(tmp_path, mode
 
     async def exercise():
         async with await HarnessSession.open(options) as session:
-            native = session.backend.observer.native
+            native = (await session.backend.prepare_process()).observer.native
             boundary = json.loads((native.control_root / 'boundary.json').read_text())
             assert boundary['cleanup']['state'] == 'clean'
             read = await session.backend.execute(ToolCall(0, 'read', 'read_file',
@@ -74,6 +74,8 @@ def test_native_long_temp_path_keeps_write_boundary_and_cleans_up(tmp_path, mode
         assert (native.diagnostic_root / 'boundary.json').exists()
         assert not list(native.control_root.glob('temp-*'))
         assert (root / 'existing.txt').read_text() == 'preserve'
+        restored = session.conversation.session_store.load(session.session_id)
+        assert restored.info.session_id == session.session_id
 
     asyncio.run(exercise())
     working.cleanup()  # Failed/uncertain native attempts retain their owned workspace.
@@ -92,7 +94,8 @@ def test_native_short_runtime_sessions_cancel_independently(tmp_path):
     async def exercise():
         async with await HarnessSession.open(options) as first:
             async with await HarnessSession.open(options) as second:
-                one, two = first.backend.observer.native, second.backend.observer.native
+                one = (await first.backend.prepare_process()).observer.native
+                two = (await second.backend.prepare_process()).observer.native
                 assert one.control_root != two.control_root
                 identity = 'exec-' + str(uuid4())
                 await one.execute(identity, {'mode': 'argv',

@@ -66,6 +66,25 @@ def test_worker_real_write_read_search_and_owned_metadata(tmp_path):
     assert write['observations']['a.txt']['sha256'] == read['result']['metadata']['sha256']
 
 
+def test_trusted_helper_drains_large_checkpoint_without_truncating_or_blocking(tmp_path):
+    import asyncio
+    import base64
+    from forge.sandbox.file_client import FileWorkerClient
+    root, control, workspace, policy = fixture(tmp_path)
+    content = b'large checkpoint line\n' * 16000
+    (root / 'large.txt').write_bytes(content)
+    async def run():
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        try:
+            result = await asyncio.wait_for(client.snapshot(('large.txt',)), 15)
+            value = result['files']['large.txt']
+            assert result['complete'] and base64.b64decode(value['content_base64']) == content
+            assert value['sha256'] == sha256(content).hexdigest()
+        finally:
+            assert (await client.close())['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_parent_file_worker_remains_usable_after_explore(tmp_path):
     import asyncio
     from forge.sandbox.file_client import FileWorkerClient

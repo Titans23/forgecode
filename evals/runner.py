@@ -391,6 +391,11 @@ async def run_case(
                 outcome.journal = str(session.journal.path)
                 outcome.trajectory = str(session.recorder.path)
                 async with session:
+                    # Evaluations require command execution; prove it before
+                    # spending model requests, unlike an interactive session.
+                    prepare_process = getattr(session.backend, 'prepare_process', None)
+                    if prepare_process is not None:
+                        await prepare_process()
                     if case.setup_command is not None:
                         outcome.setup = await execute_command(case.setup_command, case.timeout_seconds, session=session)
                         if not outcome.setup.success:

@@ -41,6 +41,10 @@ def settings(tmp_path, mode, **kwargs):
         config=ForgeConfig(api_key='offline-only', model_id='no-model-called'), **kwargs)
 
 
+async def prepared_native(session):
+    return (await session.backend.prepare_process()).observer.native
+
+
 @pytest.mark.parametrize('mode', ['read-only', 'workspace-write'])
 def test_native_file_write_scope_read_and_cleanup(tmp_path, mode):
     async def run():
@@ -56,7 +60,7 @@ def test_native_file_write_scope_read_and_cleanup(tmp_path, mode):
             outside = await tool('write_file', {'path': '../escape.txt', 'content': 'escape'})
             assert not outside.success
             assert not (options.root.parent / 'escape.txt').exists()
-            native = session.backend.observer.native
+            native = await prepared_native(session)
             proof = json.loads((native.control_root / 'boundary.json').read_text())
             assert proof['mode'] == mode
             assert proof['cleanup']['state'] == 'clean'
@@ -66,7 +70,7 @@ def test_native_file_write_scope_read_and_cleanup(tmp_path, mode):
 
 
 @pytest.mark.skipif(sys.platform != 'win32', reason='Windows ACL prerequisite')
-def test_cli_reports_missing_write_owner_and_preserves_failed_probe(tmp_path):
+def test_cli_and_file_policy_work_without_write_owner_but_native_command_fails(tmp_path):
     """An owned, disposable directory reproduces the real grantWrite denial."""
     import os
     import subprocess
@@ -95,10 +99,29 @@ def test_cli_reports_missing_write_owner_and_preserves_failed_probe(tmp_path):
             'FORGE_DATA_DIR': str(options.data_root), 'FEISHU_ENABLED': '0'}
         result = subprocess.run([sys.executable, '-X', 'utf8', '-m', 'forge'], cwd=root,
             env=environment, input='', capture_output=True, encoding='utf-8', timeout=90)
-        assert result.returncode == 1, result.stdout + result.stderr
-        assert 'SANDBOX_UNAVAILABLE' in result.stderr
-        assert 'SetNamedSecurityInfoW failed (Win32 5)' in result.stderr
-        assert 'WRITE_OWNER' in result.stderr and 'Diagnostics:' in result.stderr
+        assert result.returncode == 0 and 'Session ended.' in result.stdout, result.stdout + result.stderr
+        assert not list(options.data_root.glob('native/*/boundary-failure.json'))
+        async def file_and_process():
+            async with await HarnessSession.open(options) as session:
+                registry = session.conversation.registry
+                read = await session.backend.execute(ToolCall(0, 'read', 'read_file', {'path': 'existing.txt'}), registry)
+                assert read.success and 'preserve' in read.content
+                written = await session.backend.execute(ToolCall(0, 'write', 'write_file',
+                    {'path': 'policy.txt', 'content': 'allowed by workspace policy'}), registry)
+                assert written.success and written.metadata['execution_boundary'] == 'workspace-write-file-policy'
+                denied = await session.backend.execute(ToolCall(0, 'outside', 'write_file',
+                    {'path': '../outside.txt', 'content': 'denied'}), registry)
+                assert not denied.success and not (tmp_path / 'outside.txt').exists()
+                command = await session.backend.execute(ToolCall(0, 'run', 'run_command',
+                    {'command': 'python -', 'stdin': "from pathlib import Path\nPath('must-not-run').touch()"}), registry)
+                assert not command.success and command.error.code == 'SANDBOX_UNAVAILABLE'
+                assert 'SetNamedSecurityInfoW failed (Win32 5)' in command.error.message
+                assert not (options.root / 'must-not-run').exists()
+                still_readable = await session.backend.execute(ToolCall(0, 'read-after', 'read_file',
+                    {'path': 'policy.txt'}), registry)
+                assert still_readable.success
+            assert session.cleanup['state'] == 'clean'
+        asyncio.run(file_and_process())
         receipts = list(options.data_root.glob('native/*/boundary-failure.json'))
         assert len(receipts) == 1
         failure = json.loads(receipts[0].read_bytes())
@@ -106,7 +129,6 @@ def test_cli_reports_missing_write_owner_and_preserves_failed_probe(tmp_path):
         locator = json.loads(receipts[0].with_name('control-location.json').read_bytes())
         assert locator['state'] == 'clean' and not Path(locator['control_root']).exists()
         assert (options.root / 'existing.txt').read_text() == 'preserve'
-        assert not list(options.data_root.rglob('session-*.jsonl'))
     finally:
         inheritance = (win32security.PROTECTED_DACL_SECURITY_INFORMATION
             if original.GetSecurityDescriptorControl()[0] & win32security.SE_DACL_PROTECTED
@@ -159,6 +181,10 @@ def activate(ctx, config):
             denied = await session.backend.execute(ToolCall(0, 'outside', 'write_file',
                 {'path': '../outside.txt', 'content': 'denied'}), session.conversation.registry)
             assert not denied.success and not (tmp_path / 'outside.txt').exists()
+            command = await session.backend.execute(ToolCall(0, 'process', 'run_command',
+                {'command': 'python -', 'stdin': "from pathlib import Path\nassert Path('new.txt').read_text() == 'native plugin write'"}),
+                session.conversation.registry)
+            assert command.success, command
         assert session.cleanup['state'] == 'clean'
         assert (options.data_root / 'plugins/execution/close-order').read_text() == 'backend,plugin'
     asyncio.run(run())
@@ -217,7 +243,7 @@ def test_native_linked_workspace_checks_actual_targets_without_tree_rejection(tm
                 assert result.status == 'completed', result
                 assert model.count == 3
                 assert (inside / 'from-agent.txt').read_text() == 'agent write'
-            native = session.backend.observer.native
+            native = await prepared_native(session)
             # Exercise the actual OS boundary without the file-tool guard.
             script = "const fs=require('fs');for(const p of process.argv.slice(1)){try{fs.writeFileSync(p,'native');console.log('write')}catch{console.log('denied')}}"
             command = {'mode': 'argv', 'argv': [str(verify_runtime().node), '-e', script,
@@ -270,7 +296,7 @@ def test_native_scoped_write_does_not_write_sibling(tmp_path):
         allowed.mkdir()
         from dataclasses import replace
         async with await HarnessSession.open(options) as broad:
-            assert broad.backend.observer.native.policy_hash
+            assert (await prepared_native(broad)).policy_hash
         assert broad.cleanup['state'] == 'clean'
         async with await HarnessSession.open(replace(options, write_roots=(allowed,))) as session:
             registry = session.conversation.registry
@@ -278,7 +304,7 @@ def test_native_scoped_write_does_not_write_sibling(tmp_path):
                 result = await session.backend.execute(ToolCall(0, 'fixture', 'write_file',
                     {'path': path, 'content': 'scoped'}), registry)
                 assert result.success == permitted, result
-            native = session.backend.observer.native
+            native = await prepared_native(session)
             runtime = verify_runtime()
             # Bypass Python's file guard: OS boundary must also refuse the sibling.
             script = "const fs=require('fs');try{fs.writeFileSync(process.argv[1],'escape');process.exit(3)}catch{console.log('denied')}"
@@ -323,7 +349,7 @@ def test_native_helper_command_git_and_additional_read_scope(tmp_path):
 def test_native_cancellation_reconciles_process_tree(tmp_path):
     async def run():
         async with await HarnessSession.open(settings(tmp_path, 'workspace-write')) as session:
-            native = session.backend.observer.native
+            native = await prepared_native(session)
             command = {'mode': 'argv', 'argv': [str(verify_runtime().node), '-e', 'setInterval(()=>{},1000)'],
                 'cwd': native.workspace['canonical_path'], 'environment': {}, 'output_limit_bytes': 1024,
                 'deadline_utc': (datetime.now(timezone.utc) + timedelta(seconds=20)).isoformat().replace('+00:00', 'Z')}
@@ -368,7 +394,7 @@ def test_native_large_checkpoint_preserves_edit_and_existing_user_changes(tmp_pa
             denied = await session.backend.execute(ToolCall(0, 'deny', 'write_file',
                 {'path': 'outside.txt', 'content': 'escape'}), session.conversation.registry)
             assert not denied.success and not (options.root / 'outside.txt').exists()
-            assert all(entry['discarded_bytes'] == 0 for entry in session.backend.observer.native._executions.values())
+            assert session.backend.observer.native is None  # No native process is needed for file policy.
         assert session.cleanup['state'] == 'clean'
     asyncio.run(run())
 
@@ -485,7 +511,7 @@ print('private temporary directory passed')
                 result = await session.backend.execute(ToolCall(0, 'temp', 'run_command',
                     {'command': command, 'timeout_seconds': 15}), session.conversation.registry)
                 assert result.success and 'private temporary directory passed' in result.content, result
-            native = session.backend.observer.native
+            native = await prepared_native(session)
         assert session.cleanup['state'] == 'clean'
         assert not list(native.control_root.glob('temp-*'))
         assert not (native.control_root / 'python-runtime').exists()

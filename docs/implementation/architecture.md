@@ -20,7 +20,7 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
-`forge.execution` 定义不含模型凭据的执行请求及已准备后端契约；coding 的内置 `native` 提供方按选择延迟加载，core 不依赖它。可信插件通过 `register_sandbox_provider` 注册，AgentDefinition 显式选择；配置为 None 的 coding 组合默认走宿主执行，原 coding 默认仍为 workspace-write。提供方失败不回退，子任务不能更换父提供方；会话先关闭模型与执行后端，再释放插件资源。原生提供方沿用现有平台实现与证据限制。
+`forge.execution` 定义不含模型凭据的执行请求及后端契约；coding 的内置 `native` 提供方按选择延迟加载，core 不依赖它。内置提供方先绑定可信文件路径策略，PolicyToolBackend 在命令、verify 或 Git 调用前才准备原生进程后端；文件操作不等待 OS 探针。可信插件通过 `register_sandbox_provider` 注册，AgentDefinition 显式选择；配置为 None 的 coding 组合默认走宿主执行，原 coding 默认仍为 workspace-write。提供方失败不回退，子任务不能更换父提供方；会话先关闭模型与执行后端，再释放插件资源。原生提供方沿用现有平台实现与证据限制。
 
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。
 
@@ -95,7 +95,7 @@ Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程
 
 python -m forge.engine的stdio RPC及原main/renderer角色保留兼容；当前不交付Electron或Web客户端。未来客户端接入API/RPC。test_refs必须指向实际测试，生成文件从contracts/v1产生。
 
-workspace-write提供已验证的写限制；OS读取和网络继承宿主。初始化失败拒绝任务，不回退宿主。full-access须显式选择。离线、原生、wheel、模型和训练分别验收。
+workspace-write 的文件工具提供可信代码内的路径写范围检查；进程工具另由原生后端限制写入，OS 读取和网络继承宿主。参照 DSH fs-sandbox 与 sandbox-local.confine 的分工，CLI 启动不创建 ACL/原生探针，首次进程调用才准入；失败拒绝该调用并保留会话，不回退宿主。文件结果标记 `*-file-policy`、sandbox_covered=false，不宣称 OS 隔离；原生探针通过后才产生能力证明。evals.runner 在模型请求前显式 prepare_process，保留评测先预检后消耗预算的边界。full-access 须显式选择。离线、原生、wheel、模型和训练分别验收。
 
 内置提供方按 [DSH 的文件效果策略](https://github.com/deepseek-ai/deepseek-harness/blob/fcc0ad462172522aaf5c93a7b2e01f6b9f0b0159/packages/fs/fs-sandbox/README.md)记录显式 execution_mode：读取继承宿主，写入按实际解析目标检查；workspace-write 只授予已选范围，read-only 拒绝修改，danger-full-access/原 full-access 取消工作区写入围栏。凭据与 Harness 控制目录保护独立保留。符号链接、Junction 和普通硬链接不再触发整个工作区的启动拒绝；规范化后的目标用于实际操作，身份重检保留。无 execution_mode 的旧策略仍执行原严格检查，原生后端拒绝模式不匹配且不回退宿主。
 

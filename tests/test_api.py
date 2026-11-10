@@ -289,19 +289,30 @@ def test_workspace_edits_reuse_scope_but_delete_needs_approval(tmp_path):
     asyncio.run(run())
 
 
-def test_failed_native_initialization_does_not_construct_model(tmp_path, monkeypatch):
+def test_native_process_failure_is_deferred_and_never_falls_back(tmp_path, monkeypatch):
     from forge.application.models import ContractError
     from forge.sandbox.application_backend import NativeBackendFactory
     called = []
     async def unavailable(*args, **kwargs):
-        raise ContractError('native unavailable', kind='SANDBOX_UNAVAILABLE')
+        called.append(True)
+        error = ContractError('native unavailable', kind='SANDBOX_UNAVAILABLE')
+        error.cleanup_report = {'state': 'clean'}
+        raise error
     monkeypatch.setattr(NativeBackendFactory, 'open', unavailable)
     settings = options(tmp_path)
     from dataclasses import replace
-    with pytest.raises(ContractError, match='native unavailable'):
-        asyncio.run(HarnessSession.open(replace(settings, sandbox='workspace-write'),
-            model_client_factory=lambda *a, **k: called.append(True)))
-    assert called == []
+    async def run():
+        from forge.runtime.state import ToolCall
+        async with await HarnessSession.open(replace(settings, sandbox='workspace-write'),
+                model_client_factory=lambda *a, **k: Model()) as session:
+            assert not called and session.backend.mode == 'workspace-write'
+            result = await session.backend.execute(ToolCall(0, 'run', 'run_command',
+                {'command': 'python -', 'stdin': "raise AssertionError('must not execute')"}),
+                session.conversation.registry)
+            assert not result.success and result.error.code == 'SANDBOX_UNAVAILABLE'
+            assert called == [True]
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
 
 
 def test_launch_profiles_load_only_selected_surface(capsys):

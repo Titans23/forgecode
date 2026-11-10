@@ -115,7 +115,7 @@ async def open_runtime(options, *, approval_handler=None, model_client_factory=N
 
 async def _open_runtime(options, *, approval_handler=None, model_client_factory=None,
                         runtime_factory=create_runtime, plugin_host=None, **resume):
-    """Initialize the actual boundary before constructing clients or opening a Journal."""
+    """Bind the execution policy; native commands prepare confinement on demand."""
     if options.agent.base == 'core':
         return await _open_core_runtime(options, approval_handler, model_client_factory, runtime_factory, resume, plugin_host)
     from forge.execution import ExecutionRequest, open_execution

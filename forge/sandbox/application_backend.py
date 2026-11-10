@@ -1,4 +1,4 @@
-"""Create an actual owned Bridge/file boundary per accepted turn, before any model request."""
+"""Prepare an owned native process boundary when a command or evaluator needs it."""
 import asyncio
 import sys
 from uuid import UUID

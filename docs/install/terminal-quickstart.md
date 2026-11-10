@@ -122,7 +122,7 @@ uv build --wheel
 uv tool install dist/forge_code-0.1.2-py3-none-any.whl
 ```
 
-wheel 仍使用本机 Node、Git、ripgrep 和平台沙盒前置条件。全局用户工具环境和沙盒项目分开；在项目内部的 `.venv` 安装 ForgeCode 时，安装目录保护可能拒绝该项目的沙盒启动。
+wheel 仍使用本机 Node、Git、ripgrep 和平台沙盒前置条件。全局用户工具环境和沙盒项目分开；在项目内部的 `.venv` 安装 ForgeCode 时，安装目录保护可能拒绝该项目的原生命令。
 
 ## 模型配置
 
@@ -177,6 +177,8 @@ forge --sandbox workspace-write --approval plan
 
 默认 `workspace-write` 允许所选项目写入；指定 `--write-root` 后只授予列出的既有子目录。普通文件编辑复用已选写入范围，删除、命令及其他风险仍经过权限决策。`read-only` 禁止修改项目，但允许每次执行的私有临时文件；执行结束后清理。`danger-full-access`（兼容原名 `full-access`）显式使用宿主执行，文件工具与命令均不受工作区写入围栏限制。`plan/supervised/auto` 是独立的审批策略，切换它不会改变沙盒范围。
 
+内置提供方采用 DSH 的文件/进程分离机制：启动和普通文件操作使用可信 helper 的路径策略，不申请工作区 ACL；运行命令、verify 或可能加载仓库辅助程序的 Git 工具时，才初始化原生进程沙盒。准备失败作为该工具调用的错误返回，会话和文件操作仍可继续，命令不会自动回退到宿主；修正原生环境后需重新打开会话。文件策略不是 OS 隔离，结果标记为 `*-file-policy`；需要执行测试的评测会在模型请求前显式预检进程沙盒。
+
 交互终端在生成过程中实时显示回复预览，可继续输入调整或 `/cancel`；完成后只保留一份 Markdown 回复及用量。重定向输出和 `TERM=dumb` 直接逐段输出 Markdown 原文，不重绘历史。默认回合先做意图判断再生成回复，因此简单对话也可能显示两次模型调用；等待阶段不会循环打印提示。
 
 默认提供方不因无关子目录含符号链接、Junction 或硬链接而拒绝整个工作区。文件操作先解析实际目标：读取继承宿主可读范围，`workspace-write` 只允许实际目标位于已授权写入范围，`read-only` 拒绝修改。链接指向外部共享依赖时，可以读取，但不能借它越界写入。`--read-root` 保留兼容，不作为默认读取白名单；凭据、会话数据及控制目录的文件工具保护独立保留。
@@ -189,11 +191,11 @@ Windows 沙盒命令中的 `python` 通过会话级小型虚拟环境复用本�
 
 Windows 原生 Python 命令的 pytest 缓存默认放入本次执行的私有临时目录，cacheprovider 保持启用；不修改全局配置，显式 `PYTEST_ADDOPTS` 和命令行选项按 pytest 的既有优先级覆盖。缓存随执行清理，不承诺跨命令的 `--lf` 或缓存持久化。
 
-文件工具按所选模式校验实际目标，并保留凭据和控制目录保护。当前 OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程、Linux 动态硬链接等限制仍存在，能力记录为 partial。初始化使用真实边界探针，失败直接拒绝任务。强隔离的正式评测要求不能由此替代。
+文件工具按所选模式校验实际目标，并保留凭据、安装和控制目录保护。当前 OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程、Linux 动态硬链接等限制仍存在，能力记录为 partial。首次进程准入使用真实边界探针，失败拒绝该命令；未运行探针不标记 OS 隔离已验证。强隔离的正式评测要求不能由此替代。
 
-`forge sandbox --json` 是只读环境诊断，未经项目初始化时会报告未验证/blocked；实际沙盒证明在启动项目会话时产生。
+`forge sandbox --json` 是只读环境诊断，原生进程尚未准备时会报告未验证/blocked；实际沙盒证明在首次进程准入时产生。
 
-若启动报 `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)`，是 Windows 拒绝 DSH 设置目录 ACL 与低完整性标签。目录可编辑不代表能设置沙盒：DSH 还要求目录归当前用户所有且授予 `WRITE_OWNER`；仅有 Modify 或所有者隐含的 `WRITE_DAC` 不足。错误会保留后端原因和诊断目录，详细记录为 `boundary-failure.json`。保留原生沙盒需要检查报错目录的权限；若暂不调整权限，可显式执行 `forge --sandbox full-access --approval supervised` 使用宿主权限。审批仍保留，但不再提供 OS 写隔离；启动失败不会自动切换模式。
+若运行命令时报 `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)`，是 Windows 拒绝 DSH 设置目录 ACL 与低完整性标签。目录可编辑不代表能设置进程沙盒：DSH 还要求目录归当前用户所有且授予 `WRITE_OWNER`；仅有 Modify 或所有者隐含的 `WRITE_DAC` 不足。错误会保留后端原因和诊断目录，详细记录为 `boundary-failure.json`。默认 CLI 的启动和文件操作无需这项授权；原生命令仍需满足权限条件。也可显式选择 `forge --sandbox full-access --approval supervised` 使用宿主执行，但不会自动切换模式。
 
 ## Profile、Bundle 与程序入口
 

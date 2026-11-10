@@ -393,14 +393,17 @@ def test_default_native_failure_never_falls_back_or_requests_model(tmp_path, mon
     from forge.config import ForgeConfig
     case = make_case(initialize_project(tmp_path))
     async def unavailable(*args, **kwargs):
-        raise ContractError('native unavailable', kind='SANDBOX_UNAVAILABLE')
+        error = ContractError('native unavailable', kind='SANDBOX_UNAVAILABLE')
+        error.cleanup_report = {'state': 'clean'}
+        raise error
     monkeypatch.setattr(NativeBackendFactory, 'open', unavailable)
-    called = []
+    client = FakeModelClient([ModelTextDelta('must not request')])
     result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
         config=ForgeConfig(api_key='offline', model_id='fixture'),
-        model_client_factory=lambda *a, **k: called.append(True)))
+        model_client_factory=lambda *a, **k: client))
     assert not result.passed and 'native unavailable' in result.error
-    assert not called and result.session_id is None
+    assert len(client.responses) == 1 and client.closed
+    assert result.cleanup['state'] == 'clean'
 
 
 def test_cancelled_model_closes_client_and_persists_failed_attempt(tmp_path):
