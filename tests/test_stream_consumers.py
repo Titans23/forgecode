@@ -162,3 +162,57 @@ def test_closing_consumer_after_tool_result_keeps_committed_facts(tmp_path):
         finally:
             await conversation.runtime_close()
     asyncio.run(run())
+
+
+def test_deepseek_text_reaches_terminal_before_stream_finishes(tmp_path):
+    """Gate an actual SDK SSE stream after its first delta, with no network calls."""
+    from io import StringIO
+    import httpx
+    from openai import AsyncOpenAI
+    from rich.console import Console
+    from forge.config import ForgeConfig
+    from forge.runtime.providers import NativeModelClient
+    from forge.terminal import TerminalUI
+    async def run():
+        first_consumed, release = asyncio.Event(), asyncio.Event()
+        class Stream(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                def chunk(delta=None, finish=None, usage=None):
+                    return ('data: ' + json.dumps({'id': 'offline', 'object': 'chat.completion.chunk',
+                        'created': 1, 'model': 'offline', 'choices': [] if usage else [
+                            {'index': 0, 'delta': delta or {}, 'finish_reason': finish}],
+                        **({'usage': usage} if usage else {})}) + '\n\n').encode()
+                yield chunk({'content': '第一段已到达'})
+                first_consumed.set()
+                await release.wait()
+                yield chunk({'content': '，第二段随后到达。'})
+                yield chunk(finish='stop')
+                yield chunk(usage={'prompt_tokens': 10, 'completion_tokens': 2, 'total_tokens': 12})
+                yield b'data: [DONE]\n\n'
+        async with AsyncOpenAI(api_key='offline', base_url='https://offline.invalid',
+                http_client=httpx.AsyncClient(transport=httpx.MockTransport(
+                    lambda request: httpx.Response(200, headers={'content-type': 'text/event-stream'}, stream=Stream())))) as sdk:
+            model = NativeModelClient(ForgeConfig(api_key='offline', model_id='offline', provider='deepseek'), client=sdk)
+            conversation = Conversation(client=model, registry=ToolRegistry([]), context_root=tmp_path,
+                                        include_task_tools=False)
+            output = StringIO()
+            terminal = TerminalUI(Console(file=output, force_terminal=False, width=100))
+            try:
+                with terminal.stream_response() as view:
+                    task = asyncio.create_task(render_streamed_turn(conversation, 'hello', view))
+                    try:
+                        await asyncio.wait_for(first_consumed.wait(), 3)
+                        assert not task.done()
+                        assert '第一段已到达' in output.getvalue()
+                        assert '第二段随后到达' not in output.getvalue()
+                        release.set()
+                        await asyncio.wait_for(task, 3)
+                        assert output.getvalue().count('第一段已到达') == 1
+                        assert output.getvalue().count('第二段随后到达') == 1
+                    finally:
+                        if not task.done():
+                            task.cancel()
+                            await asyncio.gather(task, return_exceptions=True)
+            finally:
+                await conversation.runtime_close()
+    asyncio.run(run())

@@ -18,11 +18,9 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.shortcuts import choice
 from prompt_toolkit.styles import Style
 from rich.console import Console, Group
-from rich.live import Live
 from rich.markdown import Markdown
 from rich.markup import escape
 from rich.panel import Panel
-from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
@@ -242,13 +240,15 @@ class TerminalUI:
     ) -> None:
         self.console = console if console is not None else Console()
         self.prompt_session = prompt_session
+        self._response_view: StreamingResponseView | None = None
         self.slash_completer = SlashCommandCompleter(Path.cwd())
-        if self.prompt_session is None and self.console.is_terminal:
+        if self.prompt_session is None and self.console.is_terminal and not self.console.is_dumb_terminal:
             self.prompt_session = PromptSession(
                 completer=self.slash_completer,
                 complete_while_typing=True,
                 reserve_space_for_menu=8,
             )
+            self.prompt_session.app.min_redraw_interval = 1 / 30
 
     def set_resume_options(
         self,
@@ -487,12 +487,20 @@ class TerminalUI:
         '''Read input without blocking MCP background notification tasks.'''
         prompt_async = getattr(self.prompt_session, 'prompt_async', None)
         if prompt_async is not None:
-            return await prompt_async([('ansibrightcyan bold', '\u276f ')])
+            return await prompt_async(self._prompt_message)
         return await asyncio.to_thread(self.read_prompt)
 
+    def _prompt_message(self):
+        fragments = []
+        if self._response_view is not None:
+            fragments = self._response_view.prompt_fragments()
+        return [*fragments, ('ansibrightcyan bold', '\u276f ')]
+
     def stream_response(self) -> StreamingResponseView:
-        '''Create a live view for one streaming model response.'''
-        return StreamingResponseView(self.console)
+        '''Share the input renderer for interactive previews.'''
+        prompt = self.prompt_session if isinstance(self.prompt_session, PromptSession) else None
+        self._response_view = StreamingResponseView(self.console, prompt=prompt)
+        return self._response_view
 
     def show_error(self, error: Exception) -> None:
         '''Render a recoverable request error without interpreting its markup.'''
@@ -593,26 +601,22 @@ class TerminalUI:
 
 
 class StreamingResponseView:
-    '''Update streamed Markdown and exact usage in place.'''
+    '''One prompt renderer owns previews; completed transcripts print once.'''
 
-    def __init__(self, console: Console) -> None:
+    def __init__(self, console: Console, *, prompt: PromptSession | None = None) -> None:
         self.console = console
+        self.prompt = prompt
         self.timeline: list[_TimelineBlock] = []
         self.usage: TokenUsage | None = None
         self.request_usage: TokenUsage | None = None
         self.model_calls = 0
         self.completed = False
         self.cancelled = False
+        self._interruption = 'interrupted'
         self.result: TurnResult | None = None
-        self._live_running = False
         self._prompt_paused = False
-        self.live = Live(
-            self._render(),
-            console=console,
-            refresh_per_second=16,
-            vertical_overflow='ellipsis',
-            transient=False,
-        )
+        self._published = False
+        self._line_open = False
 
     def __enter__(self) -> StreamingResponseView:
         self.console.print()
@@ -622,30 +626,72 @@ class StreamingResponseView:
                 ('ForgeCode', 'bold bright_white'),
             )
         )
-        self.live.start(refresh=True)
-        self._live_running = True
+        if self.prompt is None:
+            self.console.print(Text('Waiting for model...', style='dim'))
+        self._refresh()
         return self
 
     def __exit__(self, *_: object) -> None:
-        if self._live_running:
-            self.live.stop()
-        self._live_running = False
+        if not self.completed:
+            self.cancelled = True
+            self.completed = True
+        self._publish()
         self._prompt_paused = False
         self.console.print()
 
     def pause_for_prompt(self) -> None:
-        '''Stop live repainting before prompt_toolkit takes terminal control.'''
-        if self._live_running:
-            self.live.stop()
-            self._live_running = False
+        '''Hide the preview while an approval prompt owns the input.'''
         self._prompt_paused = True
+        self._refresh()
 
     def resume_after_prompt(self) -> None:
-        '''Resume the live response after an interactive prompt closes.'''
-        if self._prompt_paused and not self._live_running:
-            self.live.start(refresh=True)
-            self._live_running = True
+        '''Restore the preview without printing another transcript.'''
         self._prompt_paused = False
+        self._refresh()
+
+    def _refresh(self) -> None:
+        if self.prompt is not None:
+            self.prompt.app.invalidate()
+
+    def prompt_fragments(self):
+        if self.prompt is None or self.completed or self._prompt_paused or self.prompt.app.is_done:
+            return []
+        size = self.prompt.app.output.get_size()
+        width = max(1, min(size.columns, self.console.width))
+        height = max(1, min(size.rows, self.console.height) - 6)
+        # Measure wrapped terminal rows (including wide Chinese characters),
+        # not source newlines, so the draft never scrolls into saved output.
+        rows = self.console.render_lines(self._render(), self.console.options.update(width=width), pad=False)
+        lines = [''.join(segment.text for segment in row if not segment.control) for row in rows]
+        return [('', '\n'.join(lines[-height:]) + '\n')]
+
+    def _end_text(self) -> None:
+        if self._line_open:
+            self.console.print()
+            self._line_open = False
+
+    def _publish(self) -> None:
+        if self._published:
+            return
+        self._published = True
+        self._refresh()
+        if self.prompt is not None:
+            self.console.print(self._render())
+        else:
+            self._end_text()
+            if self.cancelled:
+                for block in self.timeline:
+                    if isinstance(block, _ToolTimelineBlock):
+                        pending = [activity for activity in block.activities if activity.result is None]
+                        if pending:
+                            self.console.print(self._render_tool_group(_ToolTimelineBlock(pending), limit=None))
+                self.console.print(Text(f'↳ {self._interruption} · token usage may be incomplete', style='dim'))
+            else:
+                if self.result is not None and (self.result.changed_paths or self.result.verification is not None
+                                                or self.result.status != 'completed'):
+                    self.console.print(completion_evidence_summary(self.result))
+                self.console.print(token_usage_summary(self.usage, streaming=False,
+                    request_usage=self.request_usage, model_calls=self.model_calls))
 
     def append_text(self, text: str) -> None:
         '''Append one provider text delta and refresh immediately.'''
@@ -656,7 +702,11 @@ class StreamingResponseView:
             self.timeline[-1].text += text
         else:
             self.timeline.append(_TextTimelineBlock(text=text))
-        self.live.update(self._render(), refresh=True)
+        if self.prompt is None:
+            self.console.print(Text(text), end='', soft_wrap=True)
+            if text:
+                self._line_open = not text.endswith('\n')
+        self._refresh()
 
     def update_usage(
         self,
@@ -669,7 +719,7 @@ class StreamingResponseView:
         self.usage = usage
         self.request_usage = request_usage
         self.model_calls = model_calls
-        self.live.update(self._render(), refresh=True)
+        self._refresh()
 
     def start_tool(self, tool_call: ToolCall) -> None:
         '''Show a model-requested tool while it is executing.'''
@@ -682,7 +732,10 @@ class StreamingResponseView:
             group = _ToolTimelineBlock()
             self.timeline.append(group)
         group.activities.append(_ToolActivity(tool_call=tool_call))
-        self.live.update(self._render(), refresh=True)
+        if self.prompt is None:
+            self._end_text()
+            self.console.print(Text(f'Running {tool_call.name}...', style='dim'))
+        self._refresh()
 
     def complete_tool(
         self,
@@ -696,9 +749,11 @@ class StreamingResponseView:
             for activity in reversed(block.activities):
                 if activity.tool_call.id == tool_call.id:
                     activity.result = result
-                    self.live.update(self._render(), refresh=True)
+                    if self.prompt is None:
+                        self.console.print(self._render_tool_group(_ToolTimelineBlock([activity]), limit=None))
+                    self._refresh()
                     return
-        self.live.update(self._render(), refresh=True)
+        self._refresh()
 
     def complete(self, result: TurnResult) -> None:
         '''Finalize the view with validated text and exact final usage.'''
@@ -717,33 +772,38 @@ class StreamingResponseView:
         )
         if result.text and not final_text_is_present:
             self.timeline.append(_TextTimelineBlock(text=result.text))
+            if self.prompt is None:
+                self._end_text()
+                self.console.print(Text(result.text))
         self.usage = result.usage
         self.request_usage = result.last_request_usage
         self.model_calls = result.model_calls
         self.result = result
         self.completed = True
-        self.live.update(self._render(), refresh=True)
+        if self.prompt is None:
+            self._publish()
+        else:
+            self._refresh()
 
     def cancel(self) -> None:
         """Stop progress indicators without inventing a model or tool outcome."""
         self.cancelled = True
+        self._interruption = 'cancelled'
         self.completed = True
-        self.live.update(self._render(), refresh=True)
+        if self.prompt is None:
+            self._publish()
+        else:
+            self._refresh()
 
     def block_completion(self, reasons: tuple[str, ...]) -> None:
         '''Show why a tentative final answer was rejected by the runtime.'''
         details = '\n'.join(f'- {reason}' for reason in reasons)
-        self.timeline.append(
-            _TextTimelineBlock(
-                text=f'Completion check: continuing work.\n\n{details}'
-            )
-        )
-        self.live.update(self._render(), refresh=True)
+        self.append_text(f'\nCompletion check: continuing work.\n\n{details}\n')
 
     def _render(self) -> Group:
         content = self._render_timeline()
         if self.cancelled:
-            return Group(content, Text('↳ cancelled · token usage may be incomplete', style='dim'))
+            return Group(content, Text(f'↳ {self._interruption} · token usage may be incomplete', style='dim'))
         renderables: list[object] = [content]
         if self.result is not None and (
             self.result.changed_paths
@@ -761,14 +821,11 @@ class StreamingResponseView:
         )
         return Group(*renderables)
 
-    def _render_timeline(self) -> Group | Spinner:
+    def _render_timeline(self) -> Group | Text:
         if not self.timeline:
             if self.cancelled:
-                return Group(Text('Turn cancelled.', style='yellow'))
-            return Spinner(
-                'dots',
-                Text('Waiting for model...', style='bright_cyan'),
-            )
+                return Group(Text(f'Turn {self._interruption}.', style='yellow'))
+            return Text('Waiting for model...', style='bright_cyan')
         if self.completed:
             renderables = [
                 self._render_timeline_block(block, line_budget=None)

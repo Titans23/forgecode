@@ -1,8 +1,10 @@
 '''Tests for the Rich terminal presentation.'''
 
 from io import StringIO
+import asyncio
 from pathlib import Path
 
+from prompt_toolkit import PromptSession
 from prompt_toolkit.application import create_app_session
 from prompt_toolkit.completion import CompleteEvent
 from prompt_toolkit.input import create_pipe_input
@@ -43,13 +45,13 @@ def test_cancelled_stream_preserves_partial_output_without_running_indicators():
     from forge.terminal import StreamingResponseView
     output = StringIO()
     console = Console(file=output, width=100, color_system=None)
-    view = StreamingResponseView(console)
-    view.append_text('Partial response')
-    view.start_tool(ToolCall(0, 'pending', 'run_command', {'command': 'long task'}))
-    view.cancel()
-    console.print(view._render())
+    with StreamingResponseView(console) as view:
+        view.append_text('Partial response')
+        view.start_tool(ToolCall(0, 'pending', 'run_command', {'command': 'long task'}))
+        view.cancel()
     rendered = output.getvalue()
     assert 'Partial response' in rendered and 'cancelled' in rendered
+    assert rendered.count('Partial response') == 1
     assert '正在运行' not in rendered and 'streaming' not in rendered
     assert '结果需核实' in rendered and 'may be incomplete' in rendered
 
@@ -395,7 +397,7 @@ def test_terminal_session_picker_ctrl_c_returns_to_prompt(
     assert terminal.read_prompt() == 'next prompt'
 
 
-def test_terminal_renders_session_header_and_markdown_response() -> None:
+def test_redirected_terminal_streams_markdown_source_once() -> None:
     terminal, output = terminal_with_output()
     usage = TokenUsage(input_tokens=1200, output_tokens=34)
 
@@ -405,6 +407,7 @@ def test_terminal_renders_session_header_and_markdown_response() -> None:
             TokenUsage(input_tokens=1200, output_tokens=0)
         )
         response.append_text('**Hello** ')
+        assert '**Hello** ' in output.getvalue()  # Before the rest of the response exists.
         response.append_text('from ForgeCode')
         response.update_usage(usage)
         response.complete(
@@ -419,8 +422,7 @@ def test_terminal_renders_session_header_and_markdown_response() -> None:
     assert 'ForgeCode v0.1.2' in rendered
     assert 'test-model' in rendered
     assert 'Ctrl+C to exit' in rendered
-    assert 'Hello from ForgeCode' in rendered
-    assert rendered.count('Hello from ForgeCode') == 1
+    assert rendered.count('**Hello** from ForgeCode') == 1
     assert 'input 1,200' in rendered
     assert 'output 34' in rendered
     assert 'total 1,234' in rendered
@@ -571,7 +573,7 @@ def test_terminal_places_tool_group_between_model_text_blocks() -> None:
 
     rendered = output.getvalue()
     before = rendered.index('我先检查项目。')
-    tool_group = rendered.index('已运行 2 个工具')
+    tool_group = rendered.index('已运行 read_file')
     after = rendered.index('检查完成，下面是结论。')
     assert before < tool_group < after
     assert rendered.index('read_file') < rendered.index('grep')
@@ -681,3 +683,68 @@ def test_terminal_renders_final_change_and_verification_evidence() -> None:
     assert 'forge/app.py' in rendered
     assert 'pytest -q' in rendered
     assert 'exit 0' in rendered
+
+
+def test_interactive_preview_uses_prompt_renderer_without_reprinting_or_losing_input():
+    async def run():
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, legacy_windows=False, width=40, height=16)
+        with create_pipe_input() as input_pipe:
+            prompt = PromptSession(input=input_pipe, output=DummyOutput())
+            prompt.app.min_redraw_interval = 1 / 30
+            terminal = TerminalUI(console=console, prompt_session=prompt)
+            rendered = asyncio.Event()
+            prompt.app.after_render += lambda app: rendered.set()
+            with terminal.stream_response() as view:
+                reader = asyncio.create_task(terminal.read_prompt_async())
+                async def wait_for(predicate):
+                    async with asyncio.timeout(3):
+                        while not predicate():
+                            rendered.clear()
+                            await rendered.wait()
+                try:
+                    await wait_for(lambda: prompt.app.is_running)
+                    def screen_text():
+                        screen = prompt.app.renderer._last_screen
+                        if screen is None:
+                            return ''
+                        return '\n'.join(''.join(cell.char for _, cell in sorted(row.items()))
+                            for _, row in sorted(screen.data_buffer.items()))
+                    first = '中文开头：' + '很长的文本' * 50
+                    view.append_text(first)
+                    await wait_for(lambda: '很长的文本' in screen_text())
+                    assert first not in output.getvalue()  # Draft stays in the prompt layout.
+                    assert len(view.prompt_fragments()[0][1].splitlines()) <= 10
+                    input_pipe.send_text('保留输入')
+                    await wait_for(lambda: prompt.default_buffer.text == '保留输入')
+                    for _ in range(5):
+                        view.update_usage(TokenUsage(10, 1))
+                        view.pause_for_prompt()
+                        view.resume_after_prompt()
+                    view.append_text('\n末尾已经到达')
+                    await wait_for(lambda: '末尾已经到达' in screen_text())
+                    assert prompt.default_buffer.text == '保留输入'
+                    assert '末尾已经到达' not in output.getvalue()
+                    view.complete(TurnResult(text=first + '\n末尾已经到达', usage=TokenUsage(10, 2)))
+                    assert view.prompt_fragments() == []
+                    input_pipe.send_text('\r')
+                    assert await asyncio.wait_for(reader, 3) == '保留输入'
+                finally:
+                    if not reader.done():
+                        reader.cancel()
+                        await asyncio.gather(reader, return_exceptions=True)
+            text = output.getvalue()
+            assert text.count('中文开头') == 1 and text.count('末尾已经到达') == 1
+    asyncio.run(run())
+
+
+def test_dumb_terminal_streams_without_cursor_renderer(monkeypatch):
+    monkeypatch.setenv('TERM', 'dumb')
+    output = StringIO()
+    terminal = TerminalUI(Console(file=output, force_terminal=True, width=80))
+    assert terminal.prompt_session is None
+    with terminal.stream_response() as view:
+        view.append_text('Already visible')
+        assert 'Already visible' in output.getvalue()
+        view.complete(TurnResult(text='Already visible', usage=TokenUsage(10, 2)))
+    assert output.getvalue().count('Already visible') == 1

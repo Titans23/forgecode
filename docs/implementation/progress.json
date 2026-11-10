@@ -4,6 +4,14 @@
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
   "current_task": "T03",
+  "terminal_streaming": {
+    "status": "implemented_locally_verified",
+    "scope": "One prompt_toolkit renderer owns interactive draft/input updates; Rich prints the final transcript after input stops. Redirected/dumb terminals flush text deltas without cursor redraw or final replay. Approval pauses, cancellation, pending input and usage remain separate from rendering.",
+    "diagnosis": "The reported session stored each answer once and received 349 answer deltas over 5.672 seconds; Rich Live repainting alongside prompt_toolkit produced duplicate display frames. A preceding routing request accounts for part of initial latency; provider streaming and sandbox implementation are unchanged.",
+    "validation": "114 related tests and quality passed. Real Windows ConPTY with a local gated SSE endpoint showed the first delta before response completion, preserved typing during generation, and retained each of 36 Chinese response lines once in screen/scrollback. No paid model calls or workspace ACL changes.",
+    "evidence_refs": [".local/implementation/terminal-stream-fix/final.xml", ".local/implementation/terminal-stream-fix/quality-final.json", ".local/implementation/terminal-stream-fix/tty-source.json"],
+    "limits": "Windows interactive acceptance used a local scripted provider. Live provider latency and other native terminal platforms were not remeasured. Native execution still directly reuses DSH Windows ACL and retains its documented permission requirements."
+  },
   "execution_providers": {
     "status": "implemented_locally_verified",
     "scope": "Agent-selected optional providers; default coding remains native workspace-write and core has none. Explicit modes use canonical operation targets and host-default reads; danger-full-access aliases full-access and removes the file/process workspace write fence. Provider failures do not fall back, children retain parent provider/budget, and backend cleanup precedes plugin disposal.",
