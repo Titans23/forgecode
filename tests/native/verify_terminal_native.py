@@ -65,6 +65,57 @@ def test_native_file_write_scope_read_and_cleanup(tmp_path, mode):
     asyncio.run(run())
 
 
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows ACL prerequisite')
+def test_cli_reports_missing_write_owner_and_preserves_failed_probe(tmp_path):
+    """An owned, disposable directory reproduces the real grantWrite denial."""
+    import os
+    import subprocess
+    import win32api
+    import win32con
+    import win32security
+    from ntsecuritycon import FILE_ALL_ACCESS, WRITE_OWNER
+    options = settings(tmp_path, 'workspace-write')
+    root = str(options.root)
+    original = win32security.GetNamedSecurityInfo(root, win32security.SE_FILE_OBJECT,
+                                                win32security.DACL_SECURITY_INFORMATION)
+    token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+    try:
+        sid = win32security.GetTokenInformation(token, win32security.TokenUser)[0]
+    finally:
+        token.Close()
+    acl = win32security.ACL()
+    acl.AddAccessAllowedAceEx(win32security.ACL_REVISION,
+        win32con.OBJECT_INHERIT_ACE | win32con.CONTAINER_INHERIT_ACE, FILE_ALL_ACCESS & ~WRITE_OWNER, sid)
+    try:
+        win32security.SetNamedSecurityInfo(root, win32security.SE_FILE_OBJECT,
+            win32security.DACL_SECURITY_INFORMATION | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+            None, None, acl, None)
+        environment = {**os.environ, 'FORGE_PROVIDER': 'anthropic', 'FORGE_API_KEY': 'offline-only',
+            'FORGE_MODEL': 'offline-only', 'FORGE_BASE_URL': 'http://127.0.0.1:9',
+            'FORGE_DATA_DIR': str(options.data_root), 'FEISHU_ENABLED': '0'}
+        result = subprocess.run([sys.executable, '-X', 'utf8', '-m', 'forge'], cwd=root,
+            env=environment, input='', capture_output=True, encoding='utf-8', timeout=90)
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert 'SANDBOX_UNAVAILABLE' in result.stderr
+        assert 'SetNamedSecurityInfoW failed (Win32 5)' in result.stderr
+        assert 'WRITE_OWNER' in result.stderr and 'Diagnostics:' in result.stderr
+        receipts = list(options.data_root.glob('native/*/boundary-failure.json'))
+        assert len(receipts) == 1
+        failure = json.loads(receipts[0].read_bytes())
+        assert failure['exit_code'] == 125 and failure['cleanup']['state'] == 'clean'
+        locator = json.loads(receipts[0].with_name('control-location.json').read_bytes())
+        assert locator['state'] == 'clean' and not Path(locator['control_root']).exists()
+        assert (options.root / 'existing.txt').read_text() == 'preserve'
+        assert not list(options.data_root.rglob('session-*.jsonl'))
+    finally:
+        inheritance = (win32security.PROTECTED_DACL_SECURITY_INFORMATION
+            if original.GetSecurityDescriptorControl()[0] & win32security.SE_DACL_PROTECTED
+            else win32security.UNPROTECTED_DACL_SECURITY_INFORMATION)
+        win32security.SetNamedSecurityInfo(root, win32security.SE_FILE_OBJECT,
+            win32security.DACL_SECURITY_INFORMATION | inheritance,
+            None, None, original.GetSecurityDescriptorDacl(), None)
+
+
 def test_plugin_selected_native_provider_owns_backend_until_cleanup(tmp_path):
     from dataclasses import replace
     from forge.agents import AgentDefinition, PluginSpec

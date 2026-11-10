@@ -58,6 +58,55 @@ def test_initialization_failure_cannot_admit_execution_or_fallback(tmp_path,monk
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('mode,stderr,execution_error,proof,hint', [
+    ('workspace-write', 'ForgeCode workspace sandbox unavailable: SetNamedSecurityInfoW failed '
+     '(Win32 5): grantWrite(D:\\project)\n', None, b'', True),
+    ('read-only', 'native executable unavailable\x1b\n', None, b'', False),
+    ('workspace-write', '', 'TimeoutError', b'', False),
+    ('workspace-write', '', None, b'{"outsideDenied": false}', False),
+])
+def test_probe_failure_exposes_cause_without_admitting_or_falling_back(
+        tmp_path, monkeypatch, capsys, mode, stderr, execution_error, proof, hint):
+    """Injected failures test diagnostics/lifecycle, not native capability."""
+    import forge.sandbox.workspace_backend as module
+    import forge.sandbox.windows_worker as worker
+    from forge.cli import print_configuration_error
+    policy, backend = fixture(tmp_path)
+    backend.mode = mode
+    if mode == 'read-only':
+        policy['filesystem']['write_roots'] = []
+    monkeypatch.setattr(module, 'sys', SimpleNamespace(platform='win32'))
+    monkeypatch.setattr(module, 'windows_supported', lambda: True)
+    monkeypatch.setattr(module, 'verify_runtime', lambda root: SimpleNamespace(
+        root=tmp_path / 'installation', node=tmp_path / 'node', entry=tmp_path / 'runner', tools={}))
+    monkeypatch.setattr(worker, 'grant_controller_access', lambda directory: None)
+    monkeypatch.setattr(worker, 'prepare_python_runtime', lambda directory: None)
+    async def failed_probe(entry):
+        entry.update(exit_code=125, error=execution_error, cleanup=backend._report('clean'))
+        entry['captured'] = {'stdout': proof, 'stderr': stderr.encode()}
+    monkeypatch.setattr(backend, '_run', failed_probe)
+    async def run():
+        with pytest.raises(ContractError) as caught:
+            await backend.prepare(policy)
+        error = caught.value
+        assert error.kind == 'SANDBOX_UNAVAILABLE' and backend._prepared is None
+        assert f'Native {mode} probe failed' in str(error)
+        assert ('WRITE_OWNER' in str(error)) == hint
+        assert str(backend.control_root) in str(error)
+        assert '\x1b' not in str(error)
+        print_configuration_error(error)
+        assert f'SANDBOX_UNAVAILABLE: {error}' in capsys.readouterr().err
+        failure = json.loads((backend.control_root / 'boundary-failure.json').read_bytes())
+        assert failure['stderr'] == stderr and failure['error'] == execution_error
+        if execution_error:
+            assert execution_error in str(error)
+        command = next(iter(backend._executions.values()))['command']
+        with pytest.raises(ContractError, match='No admitted native workspace session'):
+            await backend.execute(new_id('exec'), command)
+        assert (await backend.close())['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_close_keeps_unknown_cleanup_and_is_idempotent(tmp_path):
     _,backend=fixture(tmp_path)
     async def run():

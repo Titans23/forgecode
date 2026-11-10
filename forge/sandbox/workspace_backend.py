@@ -141,7 +141,18 @@ class WorkspaceWriteBackend:
                 'stdout': execution['captured']['stdout'].decode('utf-8', errors='replace'),
                 'stderr': execution['captured']['stderr'].decode('utf-8', errors='replace'),
                 'cleanup': execution['cleanup']}, indent=2), encoding='utf-8')
-            raise ContractError('Native workspace-write probe failed; no task admitted', kind='SANDBOX_UNAVAILABLE', code=-32010) from error
+            detail = execution['captured']['stderr'].decode('utf-8', errors='replace').strip()
+            detail = detail or execution.get('error') or str(error)
+            detail = ''.join(char if char.isprintable() else ' ' for char in detail)[:1024]
+            message = f'Native {self.mode} probe failed; no task admitted.\nBackend: {detail}'
+            if 'SetNamedSecurityInfoW failed (Win32 5)' in detail and 'grantWrite(' in detail:
+                message += ('\nWindows denied sandbox ACL/low-integrity label setup. DSH requires directory '
+                            'ownership and WRITE_OWNER; permission to edit files alone is insufficient. '
+                            'Check the reported directory permissions, or explicitly use '
+                            'forge --sandbox full-access --approval supervised for host execution '
+                            'without OS write confinement.')
+            message += f'\nDiagnostics: {self.diagnostic_root or self.control_root}'
+            raise ContractError(message, kind='SANDBOX_UNAVAILABLE', code=-32010) from error
         finally:
             if execution.get('cleanup',{}).get('state') == 'clean':
                 inside.unlink(missing_ok=True)

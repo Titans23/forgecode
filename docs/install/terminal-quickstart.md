@@ -191,6 +191,8 @@ Windows 原生 Python 命令的 pytest 缓存默认放入本次执行的私有�
 
 `forge sandbox --json` 是只读环境诊断，未经项目初始化时会报告未验证/blocked；实际沙盒证明在启动项目会话时产生。
 
+若启动报 `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)`，是 Windows 拒绝 DSH 设置目录 ACL 与低完整性标签。目录可编辑不代表能设置沙盒：DSH 还要求目录归当前用户所有且授予 `WRITE_OWNER`；仅有 Modify 或所有者隐含的 `WRITE_DAC` 不足。错误会保留后端原因和诊断目录，详细记录为 `boundary-failure.json`。保留原生沙盒需要检查报错目录的权限；若暂不调整权限，可显式执行 `forge --sandbox full-access --approval supervised` 使用宿主权限。审批仍保留，但不再提供 OS 写隔离；启动失败不会自动切换模式。
+
 ## Profile、Bundle 与程序入口
 
 ```text
