@@ -63,6 +63,15 @@ Chat Completions 网关可设置 `chat_token_field: "max_tokens"`，默认使用
 SDK 使用 `AgentDefinition` 和 `PluginSpec(source=..., trusted=True)` 显式选择插件。
 core 无需代码工作区；coding 使用原来的文件工具及权限。
 
+执行提供方按 Agent 选择：`sandbox_provider` 默认随 base 解析为 coding 的 `"native"` 或 core 的 `null`。
+配置 `{"base":"coding","sandbox_provider":null}` 可创建明确使用宿主执行的组合；未指定 `--sandbox` 时由该组合决定，默认 coding 仍为 `workspace-write`。
+显式 `read-only`/`workspace-write` 必须有提供方，初始化失败不回退宿主。审批和回合预算独立于提供方，受管 coding 子任务不能更换父提供方。
+
+可信插件可在 activate 中用 `ctx.register_sandbox_provider(name, factory)` 注册提供方，然后在 Agent 配置中填写该名称。
+`factory` 是异步函数，接收 `forge.execution.ExecutionRequest`（工作区、数据目录、模式、读写范围、时限，不含模型凭据），返回 `ExecutionSetup(backend, policy)`。
+backend 使用现有工具执行、检查与关闭接口；policy 使用现有 sandbox-policy 契约。可复用 `forge.sandbox.provider.open_native_execution(request)`。
+提供方负责创建失败时的部分资源清理；成功返回后由会话关闭 backend，再释放插件资源。此注册不证明第三方提供方具备 OS 隔离能力。
+
 插件目录中的 `forge-plugin.json` 声明 `id`、`api_version: 1`、`entry_point: "plugin.py:activate"`
 及 `requires` 插件 ID。`activate(ctx, config)` 可同步或异步，返回资源释放函数或 None。
 `ctx.register_tool(name, description, object_json_schema, callback, effect="read_only")` 注册工具；

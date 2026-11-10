@@ -28,12 +28,20 @@ class AgentDefinition:
     role_models: dict[str, str] = field(default_factory=dict)
     completion: Literal['normal', 'strict'] = 'normal'
     context_options: dict = field(default_factory=dict)
+    sandbox_provider: str | None = 'auto'
 
     def __post_init__(self):
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):
             raise ValueError('Agent name must be a simple identifier')
         if self.base not in {'coding', 'core'}:
             raise ValueError('Agent base must be coding or core')
+        if self.sandbox_provider == 'auto':
+            object.__setattr__(self, 'sandbox_provider', 'native' if self.base == 'coding' else None)
+        if self.sandbox_provider is not None and (not isinstance(self.sandbox_provider, str)
+                or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.sandbox_provider)):
+            raise ValueError('Sandbox provider must be a registered name or None')
+        if self.base == 'core' and self.sandbox_provider is not None:
+            raise ValueError('Core agents do not use a sandbox provider')
         if self.completion not in {'normal', 'strict'}:
             raise ValueError('Completion policy must be normal or strict')
         if self.base == 'core' and self.completion == 'strict':

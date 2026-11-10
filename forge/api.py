@@ -9,7 +9,6 @@ import asyncio
 from contextlib import aclosing
 from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
-from uuid import uuid4
 
 from forge.config import ForgeConfig, model_environment
 from forge.agents import AgentDefinition
@@ -44,7 +43,7 @@ class RunProfile:
 @dataclass(frozen=True, slots=True)
 class SessionOptions:
     root: Path | None = None
-    sandbox: str = 'workspace-write'
+    sandbox: str | None = None
     approval: str = 'supervised'
     read_roots: tuple[Path, ...] = ()
     write_roots: tuple[Path, ...] | None = None
@@ -55,6 +54,8 @@ class SessionOptions:
     models: dict[str, dict] = field(default_factory=dict)
 
     def __post_init__(self):
+        if self.sandbox is None:
+            object.__setattr__(self, 'sandbox', 'workspace-write' if self.agent.sandbox_provider else 'full-access')
         if self.sandbox not in ('read-only', 'workspace-write', 'full-access'):
             raise ValueError('Sandbox must be read-only, workspace-write or full-access')
         if self.approval not in ('plan', 'supervised', 'auto'):
@@ -63,6 +64,8 @@ class SessionOptions:
             raise ValueError('Read-only cannot grant write roots')
         if self.agent.base == 'coding' and self.root is None:
             raise ValueError('The coding agent requires a workspace')
+        if self.agent.base == 'coding' and self.sandbox != 'full-access' and self.agent.sandbox_provider is None:
+            raise ValueError('A confined mode requires a sandbox provider; select full-access for host execution')
         if self.agent.base == 'core' and (self.read_roots or self.write_roots):
             raise ValueError('Core agents do not grant filesystem roots; select coding for file tools')
 
@@ -113,10 +116,7 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
     """Initialize the actual boundary before constructing clients or opening a Journal."""
     if options.agent.base == 'core':
         return await _open_core_runtime(options, approval_handler, model_client_factory, runtime_factory, resume, plugin_host)
-    from forge.sandbox.application_backend import NativeBackendFactory
-    from forge.sandbox.file_client import FileWorkerClient
-    from forge.sandbox.policy import compile_policy
-    from forge.sandbox.tool_backend import FileToolBackend
+    from forge.execution import ExecutionRequest, open_execution
     from forge.sessions.store import SessionStore
 
     root = Path(options.root).resolve(strict=True)
@@ -127,32 +127,11 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
     if root == data or data.is_relative_to(root) or root.is_relative_to(data):
         raise ValueError('Session storage and workspace must be separate')
     data.mkdir(parents=True, exist_ok=True)
-    identity = 'turn-' + str(uuid4())
-    control = data / 'native' / identity
-    backend_factory = None if options.sandbox == 'full-access' else NativeBackendFactory(data, mode=options.sandbox)
-    info = root.stat()
-    workspace = {'id': 'ws-' + str(uuid4()), 'canonical_path': str(root),
-        'file_identity': f'{info.st_dev}:{info.st_ino}'}
-    writes = (() if options.sandbox == 'read-only' else (root,)) if options.write_roots is None else options.write_roots
-    policy = {'schema_version': 'forge.sandbox.policy.v1', 'policy_id': 'policy-' + str(uuid4()),
-        'workspace_id': workspace['id'], 'filesystem': {'read_mode': 'host_default',
-            'read_roots': [str(root), *(str(Path(p).resolve(strict=True)) for p in options.read_roots)],
-            'write_roots': [str(Path(p).resolve(strict=True)) for p in writes],
-            'protected_paths': [str(data)], 'deny_overrides_allow': True, 'reject_unsafe_links': True},
-        'network': {'mode': 'inherit', 'allowed_domains': [], 'dns_isolation_required': False},
-        'limits': {'memory_bytes': None, 'disk_bytes': None, 'pids': None,
-            'wall_time_seconds': options.profile.wall_seconds, 'command_output_bytes': 1048576,
-            'session_artifact_bytes': 16777216}, 'environment_keys': [], 'fallback': 'deny',
-        'session_mutation': 'replace_session'}
-    policy = compile_policy(policy, workspace, control_roots=(control,
-        *(backend_factory.protected_roots if backend_factory is not None else ())),
-        audit_workspace=options.sandbox != 'full-access').value
-    if options.sandbox == 'full-access':
-        backend = FileToolBackend(FileWorkerClient(workspace, policy, local_control=control))
-    else:
-        owner = {'engine_epoch': 'epoch-' + str(uuid4()), 'sandbox_session_id': 'sandbox-' + str(uuid4()),
-            'execution_id': None}
-        backend = await backend_factory.open(workspace, policy, owner, identity)
+    execution = await open_execution(ExecutionRequest(root, data, options.sandbox,
+        options.read_roots, options.write_roots, options.profile.wall_seconds),
+        options.agent.sandbox_provider, plugins=plugin_host)
+    backend, policy = execution.backend, execution.policy
+    writes = tuple(map(Path, policy['filesystem']['write_roots']))
     permissions = PermissionManager(root, mode=options.approval, approval_handler=approval_handler,
         execution_mode=options.sandbox, authorized_write_roots=tuple(map(Path, policy['filesystem']['write_roots'])))
     from forge.runtime.factory import create_model_client
@@ -178,6 +157,7 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
             **({'agent': options.agent} if options.agent != AgentDefinition() else {}), **resume)
         permissions.bind_session(journal)
         journal.append('execution_profile', {'profile': asdict(options.profile), 'sandbox': options.sandbox,
+            'sandbox_provider': options.agent.sandbox_provider if options.sandbox != 'full-access' else None,
             'approval': options.approval, 'policy': policy})
         return conversation, journal, state, backend
     except BaseException as error:

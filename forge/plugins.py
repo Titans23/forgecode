@@ -19,6 +19,7 @@ from uuid import uuid4
 from jsonschema import Draft202012Validator
 
 from forge.agents import PluginSpec
+from forge.execution import SandboxProvider
 from forge.hooks.models import HookOutcome
 from forge.permissions.policy import PermissionRequest
 from forge.tools.base import ToolResult
@@ -168,6 +169,18 @@ class PluginContext:
         self._host.providers[name] = factory
         self.effect(lambda: self._host.providers.pop(name, None))
 
+    def register_sandbox_provider(self, name: str, factory: SandboxProvider):
+        """Register a trusted execution factory selected explicitly by an Agent."""
+        self._require_active()
+        if not isinstance(name, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', name):
+            raise PluginError('Invalid sandbox provider name')
+        if name in {'native', 'auto'} or name in self._host.sandbox_providers:
+            raise PluginError(f'Duplicate or reserved sandbox provider: {name}')
+        if self._host.conversation is not None or not callable(factory):
+            raise PluginError('Sandbox providers require callable factories during activation')
+        self._host.sandbox_providers[name] = factory
+        self.effect(lambda: self._host.sandbox_providers.pop(name, None))
+
     def on(self, event, callback):
         self._require_active()
         from typing import get_args
@@ -202,6 +215,7 @@ class PluginHost:
         self.workspace = workspace
         self.data_root = Path(data_root)
         self.tools, self.services, self.providers = {}, {}, {}
+        self.sandbox_providers = {}
         self.handlers, self.cleanups = [], []
         self.checks = {}
         self.registry = self.conversation = self.previous_hooks = None

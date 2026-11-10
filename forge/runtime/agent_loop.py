@@ -355,6 +355,8 @@ class Conversation:
             raise RuntimeError('Managed children require an active parent turn')
         if self.agent_definition.base == 'core' and definition.base != 'core':
             raise ValueError('A core parent cannot grant coding capabilities')
+        if definition.base == 'coding' and definition.sandbox_provider != self.agent_definition.sandbox_provider:
+            raise ValueError('Child sandbox provider must be inherited from the parent')
         parent_plugins = {p.source: p for p in self.agent_definition.plugins}
         if any(parent_plugins.get(p.source) != p for p in definition.plugins):
             raise ValueError('Child plugins must be inherited from the parent')
@@ -900,14 +902,16 @@ class Conversation:
                             except (Exception, asyncio.CancelledError) as error:
                                 failures.append(type(error).__name__)
                                 model_cleanup_error = model_cleanup_error or type(error).__name__
-                host = getattr(self, 'plugin_host', None)
-                if host is not None:
-                    plugin_cleanup = await host.close()
             finally:
-                if self.owns_tool_backend and self.tool_executor is not None and self.tool_executor.backend is not None:
-                    close_backend = getattr(self.tool_executor.backend, 'close', None)
-                    if close_backend is not None:
-                        cleanup = await close_backend()
+                try:
+                    if self.owns_tool_backend and self.tool_executor is not None and self.tool_executor.backend is not None:
+                        close_backend = getattr(self.tool_executor.backend, 'close', None)
+                        if close_backend is not None:
+                            cleanup = await close_backend()
+                finally:
+                    host = getattr(self, 'plugin_host', None)
+                    if host is not None:
+                        plugin_cleanup = await host.close()
         if failures or plugin_cleanup and plugin_cleanup['state'] != 'clean':
             return {'state': 'unknown', 'plugins': plugin_cleanup, 'backend': cleanup,
                     'client_errors': failures, 'model_cleanup_error': model_cleanup_error}

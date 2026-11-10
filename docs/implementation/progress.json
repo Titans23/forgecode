@@ -4,6 +4,14 @@
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
   "current_task": "T03",
+  "execution_providers": {
+    "status": "provider_checkpoint_verified",
+    "scope": "Agent-selected optional sandbox providers; coding defaults to native workspace-write, core has none, explicit host compositions are supported. Failed preparation does not fall back; children retain parent provider and budget; backend closes before plugin resources.",
+    "validation": {"api_core_plugins": "30 passed", "cli_customization_plugins": "80 passed", "lifecycle_budget_recovery": "39 passed", "child_provider_guard": "1 passed", "final_import_checks": "3 passed", "windows_native_plugin": "1 passed", "quality": "pass", "contracts": "pass"},
+    "evidence_refs": [".local/implementation/sandbox-provider-initial.xml", ".local/implementation/sandbox-provider-regression.xml", ".local/implementation/sandbox-provider-lifecycle.xml", ".local/implementation/sandbox-provider-children.xml", ".local/implementation/sandbox-provider-import.xml", ".local/implementation/sandbox-provider-native.xml"],
+    "next": "Align link handling and full-access file/process semantics with the reviewed DSH policy; preserve native evidence and cleanup boundaries.",
+    "limits": "Windows native provider verified separately from portable protocol tests; no paid model calls, new strict-isolation claim or Linux native acceptance."
+  },
   "workspace_path_diagnostics": {
     "status": "implemented_offline_verified",
     "scope": "Report rejected paths; explicit CLI/API full-access skips only recursive native admission. Native modes, root validation, file-tool path checks and supervised approvals remain enforced.",

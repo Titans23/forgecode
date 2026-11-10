@@ -65,6 +65,54 @@ def test_native_file_write_scope_read_and_cleanup(tmp_path, mode):
     asyncio.run(run())
 
 
+def test_plugin_selected_native_provider_owns_backend_until_cleanup(tmp_path):
+    from dataclasses import replace
+    from forge.agents import AgentDefinition, PluginSpec
+    options = settings(tmp_path, 'workspace-write')
+    plugin = tmp_path / 'execution-plugin'
+    plugin.mkdir()
+    (plugin / 'forge-plugin.json').write_text(json.dumps({
+        'id': 'execution', 'api_version': 1, 'entry_point': 'plugin.py:activate'}))
+    (plugin / 'plugin.py').write_text('''
+from forge.execution import ExecutionSetup
+from forge.sandbox.provider import open_native_execution
+def activate(ctx, config):
+    log = ctx.data_dir / "close-order"
+    def dispose():
+        assert log.read_text() == "backend"
+        log.write_text("backend,plugin")
+    ctx.effect(dispose)
+    async def open_execution(request):
+        setup = await open_native_execution(request)
+        class ObservedBackend:
+            mode = setup.backend.mode
+            observer = setup.backend.observer
+            check_ready = setup.backend.check_ready
+            execute = setup.backend.execute
+            snapshot = setup.backend.snapshot
+            async def close(self):
+                report = await setup.backend.close()
+                assert report["state"] == "clean"
+                log.write_text("backend")
+                return report
+        return ExecutionSetup(ObservedBackend(), setup.policy)
+    ctx.register_sandbox_provider("custom-native", open_execution)
+''', encoding='utf-8')
+    async def run():
+        definition = AgentDefinition(sandbox_provider='custom-native',
+            plugins=(PluginSpec(str(plugin), trusted=True),))
+        async with await HarnessSession.open(replace(options, agent=definition)) as session:
+            result = await session.backend.execute(ToolCall(0, 'write', 'write_file',
+                {'path': 'new.txt', 'content': 'native plugin write'}), session.conversation.registry)
+            assert result.success, result
+            denied = await session.backend.execute(ToolCall(0, 'outside', 'write_file',
+                {'path': '../outside.txt', 'content': 'denied'}), session.conversation.registry)
+            assert not denied.success and not (tmp_path / 'outside.txt').exists()
+        assert session.cleanup['state'] == 'clean'
+        assert (options.data_root / 'plugins/execution/close-order').read_text() == 'backend,plugin'
+    asyncio.run(run())
+
+
 def test_native_scoped_write_does_not_write_sibling(tmp_path):
     async def run():
         options = settings(tmp_path, 'workspace-write')

@@ -183,3 +183,114 @@ def test_closed_scope_refuses_late_registration_and_native_label(tmp_path):
             PluginContext(host, 'hello').register_service('late', object())
         assert not host.services
     asyncio.run(run())
+
+
+def test_sandbox_provider_selection_is_explicit_and_serializable(tmp_path):
+    assert AgentDefinition().sandbox_provider == 'native'
+    assert AgentDefinition.core().sandbox_provider is None
+    host = AgentDefinition(name='host', sandbox_provider=None)
+    assert AgentDefinition.from_dict(host.as_dict()) == host
+    assert SessionOptions(tmp_path, agent=host).sandbox == 'full-access'
+    assert SessionOptions(tmp_path).sandbox == 'workspace-write'
+    with pytest.raises(ValueError, match='requires a sandbox provider'):
+        SessionOptions(tmp_path, agent=host, sandbox='read-only')
+
+
+@pytest.mark.parametrize('failure', ['raise', 'cancel', 'wrong-mode'])
+def test_provider_startup_failure_closes_plugin_scope_without_model_or_fallback(tmp_path, failure):
+    body = '''
+import asyncio
+from dataclasses import replace
+def activate(ctx, config):
+    ctx.effect(lambda: (ctx.data_dir / "closed").write_text("closed"))
+    async def open_execution(request):
+        assert not hasattr(request, "config")
+        (ctx.data_dir / "selected").write_text(request.mode)
+        if config["failure"] == "raise":
+            raise RuntimeError("provider failed")
+        if config["failure"] == "cancel":
+            raise asyncio.CancelledError()
+        from forge.sandbox.provider import open_host_execution
+        return await open_host_execution(replace(request, mode="full-access"))
+    ctx.register_sandbox_provider("custom", open_execution)
+'''
+    spec = replace(plugin(tmp_path, body=body), config={'failure': failure})
+    root = tmp_path / 'project'
+    root.mkdir()
+    definition = AgentDefinition(plugins=(spec,), sandbox_provider='custom')
+    def no_model(*args, **kwargs):
+        pytest.fail('Failed provider must not construct a model')
+    async def run():
+        from forge.protocol import ContractError
+        expected = {'raise': RuntimeError, 'cancel': asyncio.CancelledError, 'wrong-mode': ContractError}[failure]
+        with pytest.raises(expected) as result:
+            await HarnessSession.open(SessionOptions(root, agent=definition, data_root=tmp_path / 'data',
+                config=ForgeConfig(api_key='fixture', model_id='fixture')), model_client_factory=no_model)
+        assert result.value.plugin_cleanup['state'] == 'clean'
+        assert (tmp_path / 'data/plugins/hello/selected').read_text() == 'workspace-write'
+        assert (tmp_path / 'data/plugins/hello/closed').read_text() == 'closed'
+        if failure == 'wrong-mode':
+            assert result.value.cleanup_report['state'] == 'clean'
+    asyncio.run(run())
+
+
+def test_sandbox_registration_cannot_replace_defaults_or_outlive_scope(tmp_path):
+    from forge.plugins import PluginContext
+    async def factory(request):
+        raise AssertionError('Registration does not execute a provider')
+    async def run():
+        first, second = PluginHost(data_root=tmp_path), PluginHost(data_root=tmp_path)
+        ctx = PluginContext(first, 'fixture')
+        for name in ('native', 'auto'):
+            with pytest.raises(PluginError, match='reserved'):
+                ctx.register_sandbox_provider(name, factory)
+        ctx.register_sandbox_provider('custom', factory)
+        assert second.sandbox_providers == {}
+        with pytest.raises(PluginError, match='Duplicate'):
+            ctx.register_sandbox_provider('custom', factory)
+        await first.close()
+        assert first.sandbox_providers == {}
+        with pytest.raises(PluginError, match='closed'):
+            ctx.register_sandbox_provider('late', factory)
+    asyncio.run(run())
+
+
+def test_managed_coding_child_cannot_replace_parent_provider(tmp_path):
+    spec = plugin(tmp_path, body='''
+from forge.agents import AgentDefinition
+def activate(ctx, config):
+    async def delegate(args):
+        try:
+            await ctx.run_child("child", AgentDefinition(name="child", sandbox_provider=None))
+        except ValueError as error:
+            return str(error)
+        raise AssertionError("Child changed provider")
+    ctx.register_tool("delegate", "Delegate", {"type":"object"}, delegate)
+''')
+    class Model:
+        model = 'fixture'
+        calls = 0
+        async def stream(self, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                yield ModelToolCallCompleted(ToolCall(0, 'child', 'delegate', {}))
+                yield ModelResponseCompleted('tool_use')
+            else:
+                assert 'Child sandbox provider must be inherited' in str(kwargs['messages'][-1])
+                yield ModelTextDelta('blocked')
+                yield ModelResponseCompleted('end_turn')
+    async def run():
+        root = tmp_path / 'project'
+        root.mkdir()
+        made = []
+        def create(*args, **kwargs):
+            made.append(Model())
+            return made[-1]
+        opts = SessionOptions(root, agent=AgentDefinition(plugins=(spec,)), sandbox='full-access',
+            data_root=tmp_path / 'data', config=ForgeConfig(api_key='fixture', model_id='fixture'),
+            profile=RunProfile(intent_routing=False))
+        async with await HarnessSession.open(opts, model_client_factory=create) as session:
+            assert (await session.run('delegate')).text == 'blocked'
+            assert len(made) == 1
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())

@@ -20,6 +20,8 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
+`forge.execution` 定义不含模型凭据的执行请求及已准备后端契约；coding 的内置 `native` 提供方按选择延迟加载，core 不依赖它。可信插件通过 `register_sandbox_provider` 注册，AgentDefinition 显式选择；配置为 None 的 coding 组合默认走宿主执行，原 coding 默认仍为 workspace-write。提供方失败不回退，子任务不能更换父提供方；会话先关闭模型与执行后端，再释放插件资源。原生提供方沿用现有平台实现与证据限制。
+
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。
 
 ## 1. 目录与调用链
