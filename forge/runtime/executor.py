@@ -6,6 +6,7 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
+from hashlib import sha256
 from time import monotonic
 from typing import Any
 from uuid import uuid4
@@ -182,6 +183,30 @@ class ToolExecutor:
         request = self.registry.permission_request(call.name, arguments)
         if request is None:
             request = classify_tool_call(effective_call, effect)
+        execution_call = effective_call
+        wider_mode = None
+        if call.name in {'run_command', 'verify'}:
+            target = arguments.get('sandbox_permissions')
+            target = 'full-access' if target == 'danger-full-access' else target
+            current_mode = self.permission_manager.execution_mode
+            if target is not None and target != current_mode:
+                if (target not in {'read-only': ('workspace-write', 'full-access'),
+                                   'workspace-write': ('full-access',)}.get(current_mode, ())
+                        or not callable(getattr(self.backend, 'execute_approved', None))):
+                    return self._outcome(call, ToolResult.fail('permission_denied',
+                        'This execution provider cannot widen the current sandbox to the requested mode.'),
+                        'rejected', started, arguments, revision, epoch)
+                wider_mode = target
+                consequence = ('本次命令将使用宿主权限执行，不受工作区沙盒限制。' if target == 'full-access'
+                               else '本次命令将允许写入已授权的工作区范围。')
+                request = replace(request, sandbox_mode=target, risk=request.risk if request.hard_deny else 'high',
+                    reason=(request.reason if request.hard_deny else
+                            f'{consequence} 仅本次有效，会话默认模式不变。\n理由：{arguments["justification"]}'),
+                    preview=json.dumps(arguments, ensure_ascii=False, indent=2),
+                    arguments_hash=sha256(json.dumps(arguments, sort_keys=True).encode()).hexdigest())
+            # Approval fields are control input, not part of a stored check or subprocess input.
+            execution_call = replace(effective_call, arguments={key: value for key, value in arguments.items()
+                if key not in {'sandbox_permissions', 'justification'}})
         from forge.observability.events import active, current
         recorder=current()
         if recorder:
@@ -235,11 +260,12 @@ class ToolExecutor:
                     self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
             await self._journal_started(effective_call)
             execution_started = True
-            result = (
-                await self.backend.execute(effective_call, self.registry)
-                if self.backend is not None
-                else await self.registry.execute(call.name, arguments)
-            )
+            if wider_mode is not None:
+                result = await self.backend.execute_approved(execution_call, self.registry, wider_mode)
+            elif self.backend is not None:
+                result = await self.backend.execute(execution_call, self.registry)
+            else:
+                result = await self.registry.execute(call.name, execution_call.arguments)
             if checkpoint_id is not None and checkpoint_paths:
                 if self.backend is not None and hasattr(self.backend, 'snapshot'):
                     observed = await self.backend.snapshot(checkpoint_paths)

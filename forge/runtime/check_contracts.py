@@ -30,10 +30,10 @@ def resolve_stored_check(arguments, evidence):
                        *arguments.get('inherit_checks_from', []), source.verification_id]))}
         return inherit_check_arguments(revised, evidence)
     for key, value in arguments.items():
-        if key not in {'check_id', 'timeout_seconds'} and source.check_spec.get(key) != value:
+        if key not in {'check_id', 'timeout_seconds', 'sandbox_permissions', 'justification'} and source.check_spec.get(key) != value:
             raise ValueError('Stored check definitions are immutable; create a revised checker explicitly')
     return {**deepcopy(source.check_spec), 'check_id': source.check_id,
-            **({'timeout_seconds': arguments['timeout_seconds']} if 'timeout_seconds' in arguments else {})}
+            **{key: arguments[key] for key in ('timeout_seconds', 'sandbox_permissions', 'justification') if key in arguments}}
 
 def checker_repair_guidance(item) -> str:
     if item.output_checks and item.check_spec:

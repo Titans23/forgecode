@@ -179,6 +179,8 @@ forge --sandbox workspace-write --approval plan
 
 内置提供方采用 DSH 的文件/进程分离机制：启动和普通文件操作使用可信 helper 的路径策略，不申请工作区 ACL；运行命令、verify 或可能加载仓库辅助程序的 Git 工具时，才初始化原生进程沙盒。准备失败作为该工具调用的错误返回，会话和文件操作仍可继续，命令不会自动回退到宿主；修正原生环境后需重新打开会话。文件策略不是 OS 隔离，结果标记为 `*-file-policy`；需要执行测试的评测会在模型请求前显式预检进程沙盒。
 
+`run_command` 和 `verify` 支持 DSH 式单次授权：在真实沙盒拒绝或初始化失败后，模型可为同一命令设置 `sandbox_permissions: "danger-full-access"` 和非空 `justification`。审批展示完整命令、cwd、stdin 与扩大权限的原因，明确本次使用宿主权限、不受工作区沙盒限制；只有“仅允许这一次”或拒绝，不保存为会话/项目规则。批准后通过已有受管进程执行并清理，会话默认仍为 `workspace-write`，不会重放失败调用。`read-only` 也可请求单次 `workspace-write`；`plan`、显式禁止规则、任务范围和硬性禁止操作继续生效。无审批通道时拒绝扩大权限，评测不会静默绕过原生预检。已有命令允许规则不能代替这次审批。结果会记录实际 `execution_mode`、`sandbox_override: "allow_once"` 及清理状态；宿主执行不标为 OS 隔离。自定义提供方只有显式实现 `execute_approved(call, registry, mode)` 才能接收这种已授权调用，普通 `execute` 不会获得更宽权限。
+
 交互终端在生成过程中实时显示回复预览，可继续输入调整或 `/cancel`；完成后只保留一份 Markdown 回复及用量。重定向输出和 `TERM=dumb` 直接逐段输出 Markdown 原文，不重绘历史。默认回合先做意图判断再生成回复，因此简单对话也可能显示两次模型调用；等待阶段不会循环打印提示。
 
 默认提供方不因无关子目录含符号链接、Junction 或硬链接而拒绝整个工作区。文件操作先解析实际目标：读取继承宿主可读范围，`workspace-write` 只允许实际目标位于已授权写入范围，`read-only` 拒绝修改。链接指向外部共享依赖时，可以读取，但不能借它越界写入。`--read-root` 保留兼容，不作为默认读取白名单；凭据、会话数据及控制目录的文件工具保护独立保留。
@@ -195,7 +197,7 @@ Windows 原生 Python 命令的 pytest 缓存默认放入本次执行的私有�
 
 `forge sandbox --json` 是只读环境诊断，原生进程尚未准备时会报告未验证/blocked；实际沙盒证明在首次进程准入时产生。
 
-若运行命令时报 `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)`，是 Windows 拒绝 DSH 设置目录 ACL 与低完整性标签。目录可编辑不代表能设置进程沙盒：DSH 还要求目录归当前用户所有且授予 `WRITE_OWNER`；仅有 Modify 或所有者隐含的 `WRITE_DAC` 不足。错误会保留后端原因和诊断目录，详细记录为 `boundary-failure.json`。默认 CLI 的启动和文件操作无需这项授权；原生命令仍需满足权限条件。也可显式选择 `forge --sandbox full-access --approval supervised` 使用宿主执行，但不会自动切换模式。
+若运行命令时报 `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)`，是 Windows 拒绝 DSH 设置目录 ACL 与低完整性标签。目录可编辑不代表能设置进程沙盒：DSH 还要求目录归当前用户所有且授予 `WRITE_OWNER`；仅有 Modify 或所有者隐含的 `WRITE_DAC` 不足。错误会保留后端原因和诊断目录，详细记录为 `boundary-failure.json`。默认 CLI 的启动和文件操作无需这项授权；原生命令仍需满足权限条件。不修改目录权限时，可以批准上面的单次 `danger-full-access` 请求继续执行该命令；也可显式选择 `forge --sandbox full-access --approval supervised` 让整个会话使用宿主执行。两者都不代表修复了原生 ACL 隔离，也不会自动切换。
 
 ## Profile、Bundle 与程序入口
 

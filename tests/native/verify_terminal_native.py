@@ -117,6 +117,35 @@ def test_cli_and_file_policy_work_without_write_owner_but_native_command_fails(t
                 assert not command.success and command.error.code == 'SANDBOX_UNAVAILABLE'
                 assert 'SetNamedSecurityInfoW failed (Win32 5)' in command.error.message
                 assert not (options.root / 'must-not-run').exists()
+                from forge.permissions.policy import ApprovalResponse, PermissionManager
+                from forge.runtime.executor import ToolExecutor
+                flags = (win32security.OWNER_SECURITY_INFORMATION | win32security.DACL_SECURITY_INFORMATION
+                         | win32security.LABEL_SECURITY_INFORMATION)
+                def current_acl():
+                    descriptor = win32security.GetNamedSecurityInfo(root, win32security.SE_FILE_OBJECT, flags)
+                    return win32security.ConvertSecurityDescriptorToStringSecurityDescriptor(
+                        descriptor, win32security.SDDL_REVISION_1, flags)
+                before = current_acl()
+                approvals = []
+                async def approve(request):
+                    approvals.append(request)
+                    return ApprovalResponse('allow_once')
+                manager = PermissionManager(options.root, mode='supervised', execution_mode='workspace-write',
+                    approval_handler=approve, load_stored_rules=False)
+                executor = ToolExecutor(registry, manager, backend=session.backend)
+                for name in ('run_command', 'verify'):
+                    approved = await executor.execute(ToolCall(0, name, name, {
+                        'command': f'"{sys.executable}" -',
+                        'stdin': "from pathlib import Path\nPath('approved.txt').write_text('once')\nprint('executed')",
+                        'sandbox_permissions': 'danger-full-access', 'justification': 'Native ACL setup failed.'}))
+                    assert approved.result.success, approved.result
+                    assert approved.result.metadata['execution_mode'] == 'full-access'
+                    assert approved.result.metadata['sandbox_covered'] is False
+                assert len(approvals) == 2 and current_acl() == before
+                assert (options.root / 'approved.txt').read_text() == 'once'
+                assert manager.execution_mode == session.backend.mode == 'workspace-write'
+                assert not (await session.backend.execute(ToolCall(0, 'still-native', 'run_command',
+                    {'command': 'echo should-not-run'}), registry)).success
                 still_readable = await session.backend.execute(ToolCall(0, 'read-after', 'read_file',
                     {'path': 'policy.txt'}), registry)
                 assert still_readable.success
@@ -136,6 +165,31 @@ def test_cli_and_file_policy_work_without_write_owner_but_native_command_fails(t
         win32security.SetNamedSecurityInfo(root, win32security.SE_FILE_OBJECT,
             win32security.DACL_SECURITY_INFORMATION | inheritance,
             None, None, original.GetSecurityDescriptorDacl(), None)
+
+
+def test_read_only_command_can_receive_one_native_workspace_write_approval(tmp_path):
+    from forge.permissions.policy import ApprovalResponse, PermissionManager
+    from forge.runtime.executor import ToolExecutor
+    async def run():
+        options = settings(tmp_path, 'read-only')
+        async def approve(request):
+            assert request.sandbox_mode == 'workspace-write'
+            return ApprovalResponse('allow_once')
+        async with await HarnessSession.open(options) as session:
+            manager = PermissionManager(options.root, execution_mode='read-only',
+                approval_handler=approve, load_stored_rules=False)
+            executor = ToolExecutor(session.conversation.registry, manager, backend=session.backend)
+            result = await executor.execute(ToolCall(0, 'write-once', 'run_command', {
+                'command': 'python -', 'stdin': "from pathlib import Path\nPath('one.txt').write_text('native')",
+                'sandbox_permissions': 'workspace-write', 'justification': 'Generate one task file.'}))
+            assert result.result.success, result.result
+            assert result.result.metadata['execution_mode'] == 'workspace-write'
+            assert result.result.metadata['execution_boundary'] == 'workspace-write-file-worker'
+            assert (options.root / 'one.txt').read_text() == 'native'
+            assert manager.execution_mode == session.backend.mode == 'read-only'
+            assert not session.backend._temporary and session.backend._opening is None
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
 
 
 def test_plugin_selected_native_provider_owns_backend_until_cleanup(tmp_path):

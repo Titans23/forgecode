@@ -85,7 +85,7 @@ forge
 
 遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。npm 安装会自动提供其管理的工具；Ubuntu 需检查系统 bubblewrap 和 user namespace，源码安装需检查构建文件。只读诊断在原生进程尚未准备时可为 `blocked`；成功打开 CLI 不代表 OS 隔离已经验证。
 
-Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时只拒绝该进程调用，保留会话和文件策略，不自动切换为 full-access。
+Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时拒绝该进程调用，保留会话和文件策略。与 DSH 一样，`run_command` / `verify` 可通过 `sandbox_permissions` 和 `justification` 请求单次更宽权限：用户明确批准后，该次 `danger-full-access` 命令使用宿主权限，不申请工作区 ACL；下一条命令仍使用默认沙盒。不会自动切换或重试，无法审批或拒绝时不执行。
 
 恢复已有会话：
 

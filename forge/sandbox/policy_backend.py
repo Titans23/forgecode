@@ -13,10 +13,13 @@ NATIVE_TOOLS = PROCESS_TOOLS | {'git_status', 'git_diff', 'git_log'}
 
 
 class PolicyToolBackend(FileToolBackend):
-    def __init__(self, client, process_factory):
+    def __init__(self, client, process_factory, *, mode_factory=None):
         super().__init__(client)
         self.mode = client.policy['execution_mode']
         self._process_factory = process_factory
+        self._mode_factory = mode_factory
+        self._temporary = set()
+        self._temporary_reports = []
         self._opening = None
         self._closing = None
 
@@ -57,6 +60,9 @@ class PolicyToolBackend(FileToolBackend):
                 backend = await self.prepare_process()
             except Exception as error:
                 return ToolResult.fail(getattr(error, 'kind', 'SANDBOX_UNAVAILABLE'), str(error),
+                    details={'command_started': False,
+                        'next_step': 'For this exact command, request sandbox_permissions="danger-full-access" '
+                            'with justification if host execution is acceptable. Explicit one-call approval is required.'},
                     metadata={'execution_boundary': 'native-initialization-failed', 'sandbox_covered': False})
             return await backend.execute(call, registry)
         result = await super().execute(call, registry)
@@ -65,6 +71,37 @@ class PolicyToolBackend(FileToolBackend):
                 'execution_boundary': self.mode + '-file-policy', 'sandbox_covered': False})
         return result
 
+    async def execute_approved(self, call, registry, mode):
+        """Called only by ToolExecutor after an exact, one-call widening approval."""
+        if self._closing is not None:
+            return ToolResult.fail('SANDBOX_UNAVAILABLE', 'Execution session is closed')
+        if (call.name not in PROCESS_TOOLS or self._mode_factory is None
+                or mode not in {'read-only': ('workspace-write', 'full-access'),
+                               'workspace-write': ('full-access',)}.get(self.mode, ())):
+            return ToolResult.fail('CAPABILITY_UNSATISFIED', 'This backend cannot apply the approved command mode')
+        invalid = registry.validate(call.name, call.arguments)
+        if invalid is not None:
+            return invalid
+        # Constructing a temporary file-policy backend does not initialize native grants.
+        backend = self._mode_factory(mode)
+        self._temporary.add(backend)
+        try:
+            result = await backend.execute(call, registry)
+        finally:
+            try:
+                report = await backend.close()
+            except Exception as error:
+                report = {'state': 'unknown', 'reason': type(error).__name__}
+            self._temporary_reports.append(report)
+            self._temporary.discard(backend)
+        metadata = {**result.metadata, 'execution_mode': mode, 'sandbox_override': 'allow_once', 'cleanup': report}
+        if mode == 'full-access':
+            metadata['sandbox_covered'] = False
+        if report.get('state') != 'clean':
+            return ToolResult.fail('INDETERMINATE', 'Command cleanup was not proven clean; inspect before retrying.',
+                content=result.content, metadata=metadata)
+        return replace(result, metadata=metadata)
+
     async def close(self):
         if self._closing is None:
             self._closing = asyncio.create_task(self._close())
@@ -72,6 +109,9 @@ class PolicyToolBackend(FileToolBackend):
 
     async def _close(self):
         reports = [await self.observer.close()]
+        for backend in list(self._temporary):
+            reports.append(await backend.close())
+        reports.extend(self._temporary_reports)
         if self._opening is not None:
             try:
                 backend = await asyncio.wait_for(asyncio.shield(self._opening), 35)

@@ -13,13 +13,13 @@ from pydantic import Field, model_validator
 
 from forge.runtime.workspace import WorkspaceTracker
 from forge.runtime.verification import verification_quality
-from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.base import Tool, ToolExecutionError, ToolResult
 from forge.tools.paths import display_path, resolve_repository_path
-from forge.tools.shell import has_unquoted_heredoc, process_metadata, render_process_output, run_process
+from forge.tools.shell import CommandSandboxInput, has_unquoted_heredoc, process_metadata, render_process_output, run_process
 from forge.tools.verification_checks import OutputCheck, dormant_python_tests, evaluate_output_checks
 
 
-class VerifyInput(ToolInput):
+class VerifyInput(CommandSandboxInput):
     check_id: str | None = Field(default=None, description='Rerun a stored check definition by ID; command and assertions need not be repeated.')
     inherit_checks_from: list[str] = Field(default_factory=list, max_length=20,
         description='Reuse exact output assertions from these verification IDs when repairing a checker. Omit rewritten old output_checks; add only new checks. Without recorded output assertions, command, stdin and cwd must remain unchanged. Requires revision_reason and unchanged cwd. Automatically adds supersedes.')
@@ -127,7 +127,8 @@ class VerifyTool(Tool[VerifyInput]):
                 [check.model_dump() for check in arguments.output_checks], sort_keys=True,
             ).encode()).hexdigest() if arguments.output_checks else '',
         }
-        specification = arguments.model_dump(exclude={'check_id', 'inherit_checks_from', 'supersedes', 'revision_reason'})
+        specification = arguments.model_dump(exclude={'check_id', 'inherit_checks_from', 'supersedes', 'revision_reason',
+                                                     'sandbox_permissions', 'justification'})
         identity = {key: value for key, value in specification.items() if key != 'timeout_seconds'}
         metadata['check_id'] = 'check-' + sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()[:24]
         metadata['check_spec'] = specification

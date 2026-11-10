@@ -22,6 +22,8 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 `forge.execution` 定义不含模型凭据的执行请求及后端契约；coding 的内置 `native` 提供方按选择延迟加载，core 不依赖它。内置提供方先绑定可信文件路径策略，PolicyToolBackend 在命令、verify 或 Git 调用前才准备原生进程后端；文件操作不等待 OS 探针。可信插件通过 `register_sandbox_provider` 注册，AgentDefinition 显式选择；配置为 None 的 coding 组合默认走宿主执行，原 coding 默认仍为 workspace-write。提供方失败不回退，子任务不能更换父提供方；会话先关闭模型与执行后端，再释放插件资源。原生提供方沿用现有平台实现与证据限制。
 
+命令工具的 `sandbox_permissions` / `justification` 对齐 [DSH 的单次执行授权](https://github.com/deepseek-ai/deepseek-harness/blob/fcc0ad462172522aaf5c93a7b2e01f6b9f0b0159/packages/shell/tool-bash/src/index.ts)。ToolExecutor 在最终参数与任务范围检查后，通过 PermissionManager 要求单独的 allow_once；已有 allow 规则不能绕过，plan/deny/hard_deny 仍优先。批准后调用提供方可选的 `execute_approved`，控制字段不传给实际命令或存储的 verify 定义。内置提供方复制冻结策略和工作区身份，仅为本次建立临时后端；full-access 使用既有受管宿主 helper，workspace-write 仍须通过原生准备。清理失败保留 indeterminate，取消与会话关闭负责清理临时后端。默认策略、原生初始化状态和子任务权限不被替换；没有自动降级、重试或持久授权，宿主执行明确标为非 OS 隔离。
+
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。
 
 ## 1. 目录与调用链

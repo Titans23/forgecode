@@ -347,8 +347,12 @@ class TerminalUI:
         detail = request.preview.strip()
         if detail in {'', '{}'}:
             detail = request.reason or '该操作需要你的明确授权。'
+        if request.sandbox_mode:
+            detail = request.reason + '\n\n' + detail
         raw_values = [('allow_once', '是，仅允许这一次')]
-        if request.capability == 'file.delete':
+        if request.sandbox_mode:
+            pass  # Wider execution authority is never remembered.
+        elif request.capability == 'file.delete':
             if len(request.targets) == 1:
                 raw_values.append(
                     ('allow_session', '是，本会话不再询问此目标')

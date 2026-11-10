@@ -156,6 +156,23 @@ def test_pressing_enter_accepts_default_one_shot_delete() -> None:
     assert response.choice == 'allow_once'
 
 
+def test_sandbox_widening_shows_host_consequence_and_cannot_be_remembered(monkeypatch):
+    output = StringIO()
+    terminal = TerminalUI(console=Console(file=output, force_terminal=True, width=100),
+                          prompt_session=FakePromptSession(''))
+    captured = {}
+    def choose(**kwargs):
+        captured.update(kwargs)
+        return 'allow_once'
+    monkeypatch.setattr(terminal_module, 'choice', choose)
+    response = terminal.select_permission(PermissionRequest('run_command', 'process.exec', 'high',
+        reason='本次命令将使用宿主权限执行，不受工作区沙盒限制。仅本次有效。',
+        preview='echo exact', sandbox_mode='full-access'))
+    assert response.choice == 'allow_once'
+    assert '宿主权限' in output.getvalue() and 'echo exact' in output.getvalue()
+    assert [key for key, _ in captured['options']] == ['allow_once', 'deny']
+
+
 def permission_choice_for_keys(keys: str) -> str:
     output = StringIO()
     console = Console(file=output, force_terminal=True, width=100)

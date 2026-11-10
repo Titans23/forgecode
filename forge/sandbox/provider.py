@@ -1,5 +1,6 @@
 """Built-in execution providers over the existing file and native backends."""
 from pathlib import Path
+from copy import deepcopy
 import sys
 from uuid import uuid4
 
@@ -54,5 +55,29 @@ async def open_native_execution(request: ExecutionRequest) -> ExecutionSetup:
         'execution_id': None}
     async def open_process():
         return await factory.open(workspace, policy, owner, identity)
-    backend = PolicyToolBackend(FileWorkerClient(workspace, policy, local_control=control), open_process)
+
+    def open_for_mode(mode):
+        # Retain the frozen workspace identity and limits; never mutate the standing policy.
+        temporary = deepcopy(policy)
+        temporary['policy_id'] = 'policy-' + str(uuid4())
+        temporary['execution_mode'] = mode
+        if request.mode == 'read-only' and mode == 'workspace-write':
+            temporary['filesystem']['write_roots'] = [str(path) for path in
+                ((request.root,) if request.write_roots is None else request.write_roots)]
+        turn_id = 'turn-' + str(uuid4())
+        call_control = request.data_root / 'native' / turn_id
+        temporary = compile_policy(temporary, workspace, control_roots=(call_control, *factory.protected_roots),
+                                   audit_workspace=mode != 'full-access').value
+        client = FileWorkerClient(workspace, temporary, local_control=call_control)
+        if mode == 'full-access':
+            backend = FileToolBackend(client)
+            backend.check_ready(temporary, required_mode='local-trusted')
+            return backend
+        async def prepare():
+            return await NativeBackendFactory(request.data_root, mode=mode).open(workspace, temporary,
+                {**owner, 'sandbox_session_id': 'sandbox-' + str(uuid4())}, turn_id)
+        return PolicyToolBackend(client, prepare)
+
+    backend = PolicyToolBackend(FileWorkerClient(workspace, policy, local_control=control), open_process,
+                                mode_factory=open_for_mode)
     return ExecutionSetup(backend, policy)

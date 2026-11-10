@@ -106,6 +106,18 @@ def test_multiple_legacy_sources_are_preserved_as_conjunctive_checks():
     assert checker_revision_covers(other, repaired)
 
 
+def test_stored_check_accepts_one_call_mode_without_changing_definition():
+    from forge.runtime.check_contracts import resolve_stored_check
+    old = replace(record(), check_id='definition', check_spec={
+        'command': 'python old.py', 'cwd': '.', 'output_checks': list(record().output_checks)})
+    resolved = resolve_stored_check({'check_id': 'definition', 'sandbox_permissions': 'danger-full-access',
+        'justification': 'The native runner could not initialize.'}, [old])
+    assert resolved['command'] == old.command and resolved['output_checks'] == list(old.output_checks)
+    assert resolved['sandbox_permissions'] == 'danger-full-access'
+    assert 'sandbox_permissions' not in old.check_spec
+    assert 'sandbox_permissions' not in resolve_stored_check({'check_id': 'definition'}, [old])
+
+
 def test_delivery_retains_failure_without_completion_retry_loop():
     from forge.runtime.delivery import completion_report
     report = completion_report(status='partial', evidence=(record(),),

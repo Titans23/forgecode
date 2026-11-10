@@ -33,6 +33,7 @@ class PermissionRequest:
     preview: str = ''
     hard_deny: bool = False
     arguments_hash: str = ''
+    sandbox_mode: str = ''
 
     @property
     def signature(self) -> str:
@@ -147,7 +148,7 @@ class PermissionManager:
             return self._decision('deny', request, request.reason, 'hard_deny')
 
         read_only = request.capability in {'file.read', 'repository.read', 'mcp.read'}
-        if not read_only and (self.execution_mode == 'read-only' or self.mode == 'plan'):
+        if not read_only and (self.mode == 'plan' or (self.execution_mode == 'read-only' and not request.sandbox_mode)):
             return self._decision('deny', request, 'Read-only policy forbids this operation.', 'read_only')
 
         matching = [
@@ -164,6 +165,9 @@ class PermissionManager:
             return self._decision(
                 'deny', request, 'A matching deny rule applies.', 'rule'
             )
+        if request.sandbox_mode:
+            # A normal command allow rule is never consent to leave its sandbox.
+            return await self._request_approval(request, source='sandbox_escalation')
         if matching and request.capability != 'mcp.write':
             scope_rank = {'user': 0, 'project': 1, 'session': 2}
             rule = max(
@@ -232,6 +236,9 @@ class PermissionManager:
                 'approval_unavailable',
             )
         response = await self.approval_handler(request)
+        if request.sandbox_mode and response.choice != 'allow_once':
+            return self._decision('deny', request,
+                response.reason or 'Sandbox escalation requires an explicit allow_once decision.', 'user')
         # Remembered delete grants must never broaden into file.delete:*.
         # Every distinct destructive operation requires a fresh confirmation.
         if request.capability == 'mcp.write' and response.choice in {

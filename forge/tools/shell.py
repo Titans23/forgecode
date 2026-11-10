@@ -12,8 +12,9 @@ import tempfile
 import sys
 import json
 from time import perf_counter
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
 from forge.tools.paths import file_access_guard, display_path, resolve_repository_path
@@ -338,7 +339,26 @@ def render_process_output(result: ProcessResult) -> str:
     return '\n\n'.join(sections)
 
 
-class RunCommandInput(ToolInput):
+class CommandSandboxInput(ToolInput):
+    sandbox_permissions: Literal['workspace-write', 'danger-full-access'] | None = Field(
+        default=None, description='Request a wider mode for this call only, with justification. '
+        'After a real sandbox denial or initialization failure, request the narrowest mode needed '
+        'for the same command. danger-full-access runs with host permissions after explicit approval; '
+        'it does not change the session default. Never automatically retry an indeterminate command. '
+        'If approval is denied or unavailable, stop; do not resubmit or work around it.')
+    justification: str | None = Field(default=None, min_length=1, max_length=2000,
+        description='Required with sandbox_permissions: explain why this exact command needs wider access.')
+
+    @model_validator(mode='after')
+    def require_sandbox_justification(self):
+        if (self.sandbox_permissions is None) != (self.justification is None):
+            raise ValueError('sandbox_permissions and justification must be provided together')
+        if self.justification is not None and not self.justification.strip():
+            raise ValueError('justification must not be blank')
+        return self
+
+
+class RunCommandInput(CommandSandboxInput):
     command: str = Field(min_length=1)
     cwd: str = '.'
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
