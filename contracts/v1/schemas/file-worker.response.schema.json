@@ -23,6 +23,7 @@
   "$defs": {
     "observation": {"type": "object", "additionalProperties": false, "properties": {
       "exists": {"type": "boolean"}, "is_file": {"type": "boolean"},
+      "is_link": {"type": "boolean"},
       "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
       "file_identity": {"type": ["string", "null"], "pattern": "^[0-9]+:[0-9]+$"},
       "size_bytes": {"type": "integer", "minimum": 0},

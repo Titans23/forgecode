@@ -254,3 +254,58 @@ def test_actual_junction_or_symlink_cannot_bypass_path_policy(tmp_path, relative
         assert (outside / 'value.txt').read_text(encoding='utf-8') == 'outside unchanged'
     finally:
         link.rmdir() if sys.platform == 'win32' else link.unlink()
+
+
+@pytest.mark.parametrize('mode', ['read-only', 'workspace-write', 'full-access'])
+def test_explicit_modes_resolve_links_then_check_actual_write_scope(tmp_path, mode):
+    root, workspace, policy = policy_input(tmp_path)
+    policy['execution_mode'] = mode
+    policy['filesystem']['read_mode'] = 'host_default'
+    if mode == 'read-only':
+        policy['filesystem']['write_roots'] = []
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    (outside / 'value.txt').write_text('outside', encoding='utf-8')
+    link = root / 'alias'
+    def point_to(target):
+        if sys.platform == 'win32':
+            import subprocess
+            subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(target)],
+                           check=True, capture_output=True)
+        else:
+            link.symlink_to(target, target_is_directory=True)
+    def remove_link():
+        link.rmdir() if sys.platform == 'win32' else link.unlink()
+    point_to(root)
+    try:
+        paths = compile_policy(policy, workspace).paths
+        observed = paths.authorize(link / 'value.txt')
+        assert observed.path == root / 'value.txt'
+        if mode == 'read-only':
+            with pytest.raises(ContractError, match='Read-only'):
+                paths.authorize(link / 'value.txt', write=True)
+        else:
+            assert paths.authorize(link / 'value.txt', write=True).path == root / 'value.txt'
+        remove_link()
+        point_to(outside)
+        observed.assert_current()  # Operations keep the already checked physical target.
+        assert observed.path.read_text() == 'initial'
+        assert paths.authorize(link / 'value.txt').path == outside / 'value.txt'
+        if mode == 'full-access':
+            assert paths.authorize(link / 'new' / 'future.txt', write=True).path == outside / 'new/future.txt'
+        else:
+            with pytest.raises(ContractError):
+                paths.authorize(link / 'new' / 'future.txt', write=True)
+        for secret in (root / '.env', root / '.forge/data.json'):
+            with pytest.raises(ContractError):
+                paths.authorize(secret)
+        policy['filesystem']['write_roots'] = [str(outside)]
+        if mode == 'full-access':
+            assert compile_policy(policy, workspace).paths.authorize(root / 'new.txt', write=True).path == root / 'new.txt'
+        else:
+            with pytest.raises(ContractError):
+                compile_policy(policy, workspace)
+        os.link(root / 'value.txt', root / 'hardlink.txt')
+        assert paths.authorize(root / 'hardlink.txt').path == root / 'hardlink.txt'
+    finally:
+        remove_link()

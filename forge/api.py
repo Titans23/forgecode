@@ -56,6 +56,8 @@ class SessionOptions:
     def __post_init__(self):
         if self.sandbox is None:
             object.__setattr__(self, 'sandbox', 'workspace-write' if self.agent.sandbox_provider else 'full-access')
+        if self.sandbox == 'danger-full-access':
+            object.__setattr__(self, 'sandbox', 'full-access')
         if self.sandbox not in ('read-only', 'workspace-write', 'full-access'):
             raise ValueError('Sandbox must be read-only, workspace-write or full-access')
         if self.approval not in ('plan', 'supervised', 'auto'):
@@ -153,7 +155,7 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
     try:
         from forge.runtime.profile import ExecutionProfile
         conversation, journal, state = runtime_factory(root, bindings=bindings,
-            execution_profile=ExecutionProfile.sandbox() if writes else ExecutionProfile.host(),
+            execution_profile=ExecutionProfile.sandbox() if writes or options.sandbox == 'full-access' else ExecutionProfile.host(),
             **({'agent': options.agent} if options.agent != AgentDefinition() else {}), **resume)
         permissions.bind_session(journal)
         journal.append('execution_profile', {'profile': asdict(options.profile), 'sandbox': options.sandbox,

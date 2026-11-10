@@ -17,6 +17,10 @@
       "type": "string",
       "pattern": "^ws-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
+    "execution_mode": {
+      "description": "Explicit file-effect mode. Omitted legacy policies retain strict path admission.",
+      "enum": ["read-only", "workspace-write", "full-access"]
+    },
     "filesystem": {
       "type": "object",
       "additionalProperties": false,

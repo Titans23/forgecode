@@ -92,12 +92,12 @@ class CheckpointStore:
         self._write_manifest(checkpoint_id, manifest)
         return tuple(captured)
 
-    def capture_observations(self, checkpoint_id, observations):
+    def capture_observations(self, checkpoint_id, observations, *, host=False):
         '''Persist authorized helper bytes without reading task paths on the host.'''
         manifest = self._load_manifest(checkpoint_id)
         manifest['restricted_io'] = True
         for path, value in observations.items():
-            relative = self._observation_key(path)
+            relative = self._observation_key(path, host=host)
             if relative in manifest['files']:
                 continue
             if value['exists'] and value['is_file']:
@@ -109,19 +109,26 @@ class CheckpointStore:
                 atomic_write_bytes(self.blob_directory / digest, content)
             manifest['files'][relative] = {'before_exists': value['exists'], 'before_sha256': value['sha256'],
                 'before_directory': value['exists'] and not value['is_file']}
+            target = Path(os.path.abspath(self.root / path))
+            if not target.is_relative_to(self.root):
+                manifest['files'][relative]['target_path'] = str(target)
         self._write_manifest(checkpoint_id, manifest)
 
     def record_observations(self, checkpoint_id, observations):
         manifest = self._load_manifest(checkpoint_id)
         for path, value in observations.items():
-            entry = manifest['files'].get(self._observation_key(path))
+            # This only updates entries already authorized and captured; it
+            # cannot add an external target or authorize a host-side restore.
+            entry = manifest['files'].get(self._observation_key(path, host=True))
             if entry is not None:
                 entry.update(after_exists=value['exists'], after_sha256=value['sha256'])
         self._write_manifest(checkpoint_id, manifest)
 
-    def _observation_key(self, raw):
+    def _observation_key(self, raw, *, host=False):
         path = Path(os.path.abspath(self.root / raw))
         if not path.is_relative_to(self.root):
+            if host and Path(raw).is_absolute():
+                return self._external_key(path)
             raise CheckpointError('Restricted checkpoint target is outside the workspace')
         return path.relative_to(self.root).as_posix()
 

@@ -17,7 +17,7 @@ import sys
 from time import monotonic
 
 from forge.protocol import ContractError, MAX_FRAME_BYTES, canonical_hash, strict_loads, validate
-from forge.sandbox.path_policy import PathPolicy, SENSITIVE, inspect_path
+from forge.sandbox.path_policy import PathPolicy, inspect_path
 
 
 def fail(kind, message):
@@ -36,12 +36,12 @@ class FileAccess:
             fail('STALE_FILE', 'Workspace identity changed')
         fs = policy['filesystem']
         self.windows_acl = os.name == 'nt' and fs['read_mode'] == 'host_default'
-        # File tools have an explicit read scope, even when the OS backend has
-        # broader default reads. This does not promote its read capability.
-        self.policy = PathPolicy(root, 'strict_allowlist_required',
+        # Explicit modes share the provider's read/write semantics. Old strict
+        # policies retain their file-tool read allowlist and link rejection.
+        self.policy = PathPolicy(root, fs['read_mode'] if 'execution_mode' in policy else 'strict_allowlist_required',
             tuple(Path(os.path.abspath(p)) for p in fs['read_roots']),
             tuple(Path(os.path.abspath(p)) for p in fs['write_roots']),
-            tuple(Path(os.path.abspath(p)) for p in fs['protected_paths']))
+            tuple(Path(os.path.abspath(p)) for p in fs['protected_paths']), policy.get('execution_mode'))
         self.root = root.path
         self.limits = policy['limits']
         self.write = False
@@ -66,7 +66,8 @@ class FileAccess:
         flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0)
         with os.fdopen(os.open(path, flags), 'rb') as stream:
             opened = os.fstat(stream.fileno())
-            if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino) or opened.st_nlink != 1:
+            if ((opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino)
+                    or self.policy.execution_mode is None and opened.st_nlink != 1):
                 fail('STALE_FILE', 'File identity changed before read')
             authorized.assert_current()
             digest, chunks, length = sha256(), [], 0
@@ -97,7 +98,8 @@ class FileAccess:
             flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
             with os.fdopen(os.open(authorized.path, flags), 'rb') as stream:
                 opened = os.fstat(stream.fileno())
-                if not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                if (not stat.S_ISREG(opened.st_mode) or self.policy.execution_mode is None and opened.st_nlink != 1
+                        or (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino)):
                     fail('STALE_FILE', 'Opened file differs from its authorized identity')
                 authorized.assert_current()
                 data = stream.read(limit)
@@ -203,8 +205,10 @@ class FileAccess:
             if len(files) >= 2000 or monotonic() > deadline:
                 return {'files': files, 'complete': False, 'reason': 'scan_limit'}
             try:
+                if self.policy.execution_mode is not None and (self.root / path).resolve() != self.root / path:
+                    return None  # Inventory links without traversing targets in the filesystem scan.
                 files[path] = self.observation(path)
-            except (OSError, ValueError):
+            except (OSError, ValueError, RuntimeError):
                 # The bounded filesystem path retains the existing handling
                 # of protected paths, unsafe links and incomplete observations.
                 return None
@@ -216,25 +220,45 @@ class FileAccess:
         while pending:
             directory = pending.pop()
             try:
-                self.policy.authorize(directory).assert_current()
-                with os.scandir(directory) as entries:
+                authorized_directory = self.policy.authorize(directory)
+                if authorized_directory.path != directory:
+                    complete = False
+                    continue
+                authorized_directory.assert_current()
+                with os.scandir(authorized_directory.path) as entries:
                     for entry in entries:
                         visited += 1
                         if visited > 20000 or monotonic() > deadline:
                             return {'files': files, 'complete': False, 'reason': 'scan_limit'}
                         candidate = Path(entry.path)
+                        if self.policy.execution_mode is not None and (entry.is_symlink() or candidate.is_junction()):
+                            if not self.policy.is_protected(candidate):
+                                before = candidate.lstat()
+                                target = os.readlink(candidate)
+                                after = candidate.lstat()
+                                if (before.st_dev, before.st_ino, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_mtime_ns):
+                                    fail('STALE_FILE', 'Link changed during observation')
+                                files[candidate.relative_to(self.root).as_posix()] = {
+                                    'exists': True, 'is_file': False, 'is_link': True,
+                                    'sha256': sha256(os.fsencode(target)).hexdigest(),
+                                    'file_identity': f'{before.st_dev}:{before.st_ino}'}
+                                if len(files) >= 2000:
+                                    return {'files': files, 'complete': False, 'reason': 'transport_limit'}
+                            continue
                         try:
                             authorized = self.policy.authorize(candidate)
                         except ContractError as error:
                             # Protected scope is intentionally excluded. Unsafe
                             # links are excluded as well and cannot yield content.
                             if error.kind == 'POLICY_DENIED':
-                                if not (any(part.casefold() in SENSITIVE or part.casefold().startswith('.env.') for part in candidate.parts)
-                                    or any(candidate == path or candidate.is_relative_to(path) for path in self.policy.protected_paths)):
+                                if not self.policy.is_protected(candidate):
                                     complete = False
                                 continue
                             raise
                         authorized.assert_current()
+                        if authorized.path != candidate:
+                            complete = False
+                            continue
                         if entry.is_dir(follow_symlinks=False):
                             if len(candidate.relative_to(self.root).parts) <= 32:
                                 pending.append(candidate)
@@ -334,7 +358,8 @@ async def execute(request):
     if name in ('run_command', 'verify'):
         from forge.tools.shell import RunCommandTool
         if name == 'run_command':
-            tools[name] = RunCommandTool(access.root, allow_container_writes=bool(access.policy.write_roots))
+            tools[name] = RunCommandTool(access.root, allow_container_writes=
+                access.policy.execution_mode == 'full-access' or bool(access.policy.write_roots))
         else:
             from forge.tools.verify import VerifyTool
             from forge.runtime.workspace import WorkspaceTracker

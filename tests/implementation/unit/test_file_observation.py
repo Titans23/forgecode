@@ -96,3 +96,35 @@ def test_git_does_not_discover_parent_repository(access):
     child.mkdir()
     access.root = child
     assert asyncio.run(access._git_snapshot()) is None
+
+
+def test_link_inventory_records_retargeting_without_external_contents(access):
+    from dataclasses import replace
+    from forge.runtime.workspace import observation_fingerprint
+    access.policy = replace(access.policy, execution_mode='workspace-write', read_mode='host_default')
+    targets = [access.root.parent / (access.root.name + suffix) for suffix in ('-outside-one', '-outside-two')]
+    for target in targets:
+        target.mkdir()
+        (target / 'value.txt').write_text('external data', encoding='utf-8')
+    link = access.root / 'dependencies'
+    def point_to(target):
+        if os.name == 'nt':
+            subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(target)],
+                           check=True, capture_output=True)
+        else:
+            link.symlink_to(target, target_is_directory=True)
+    def remove():
+        link.rmdir() if os.name == 'nt' else link.unlink()
+    point_to(targets[0])
+    try:
+        before = asyncio.run(access.scan())
+        assert before['complete'] and before['files']['dependencies']['is_link']
+        assert not any(name.startswith('dependencies/') for name in before['files'])
+        remove()
+        point_to(targets[1])
+        after = asyncio.run(access.scan())
+        assert after['complete'] and after['files']['dependencies']['is_link']
+        assert observation_fingerprint(before['files']['dependencies']) != observation_fingerprint(after['files']['dependencies'])
+        assert not any(name.startswith('dependencies/') for name in after['files'])
+    finally:
+        remove()

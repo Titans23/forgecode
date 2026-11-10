@@ -41,8 +41,11 @@ async def open_execution(request: ExecutionRequest, provider: str | None, *, plu
     if not isinstance(setup, ExecutionSetup):
         raise TypeError('Sandbox provider must return ExecutionSetup')
     try:
-        from forge.protocol import validate
+        from forge.protocol import ContractError, validate
         validate('sandbox-policy', setup.policy)
+        if setup.policy.get('execution_mode', request.mode) != request.mode:
+            raise ContractError('Prepared execution mode differs from the requested mode',
+                                kind='CAPABILITY_UNSATISFIED', code=-32010)
         setup.backend.check_ready(setup.policy,
             required_mode='local-trusted' if request.mode == 'full-access' else request.mode)
     except BaseException as error:

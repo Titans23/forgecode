@@ -137,9 +137,9 @@ def main(
     provider: Annotated[str | None, typer.Option('--provider', help='anthropic, openai_responses, openai_chat, deepseek, or gemini')] = None,
     model: Annotated[str | None, typer.Option('--model', help='Model identifier for the configured provider')] = None,
     base_url: Annotated[str | None, typer.Option('--base-url', help='Native provider or explicit gateway URL')] = None,
-    sandbox: Annotated[str | None, typer.Option('--sandbox', help='read-only, workspace-write or explicit full-access; defaults to the Agent composition')] = None,
+    sandbox: Annotated[str | None, typer.Option('--sandbox', help='read-only, workspace-write or danger-full-access (alias: full-access); defaults to the Agent composition')] = None,
     approval: Annotated[str, typer.Option('--approval', help='plan, supervised or auto; independent of sandbox')] = 'supervised',
-    read_root: Annotated[list[Path] | None, typer.Option('--read-root', help='Additional file-tool read scope')] = None,
+    read_root: Annotated[list[Path] | None, typer.Option('--read-root', help='Additional reference directory; host-default reads are not an allowlist')] = None,
     write_root: Annotated[list[Path] | None, typer.Option('--write-root', help='Writable subdirectory; repeat for multiple scopes')] = None,
     agent: Annotated[str, typer.Option('--agent', help='Agent composition from user settings')] = 'coding',
 ) -> None:

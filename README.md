@@ -34,7 +34,7 @@ npm run setup
 
 `npm run setup` 自动准备 uv 和 Python，按锁文件安装构建依赖、编译沙盒、生成 Python wheel 和 npm 包，再安装全局 `forge`。运行时所需的 Git、ripgrep 和 Windows PowerShell 7 也会自动准备，下载校验 SHA-256；直接复用已有 Node。无需手动执行 `uv sync`、`npm ci` 或构建脚本，安装过程不调用模型。构建日志位于 `dist/package-build.log`。Windows x64/NTFS 启动不需要 WSL 或 Docker。
 
-Windows 和 Ubuntu x64 使用同一安装命令，在本机构建对应平台的包。安装与原生沙盒已在 Windows 10 和 WSL2 Ubuntu 26.04 上验证；Ubuntu 22.04 / 24.04 的原生验收仍待完成。Linux 还需要系统 Git、bubblewrap 和可用的 user namespace。
+Windows 和 Ubuntu x64 使用同一安装命令，在本机构建对应平台的包。安装与原生沙盒已在 Windows 10 和 WSL2 Ubuntu 26.04 上验证；Ubuntu 22.04 / 24.04 的原生验收仍待完成。Linux 选择原生沙盒提供方时还需要系统 Git、bubblewrap 和可用的 user namespace。
 
 以后更新时，在这个源码目录执行：
 
@@ -81,7 +81,7 @@ forge
 
 将示例路径替换为实际项目目录。`forge config` 检查配置，不回显密钥；`forge` 启动持续对话。ForgeCode 安装目录与目标项目分开，避免安装目录保护导致沙盒初始化被拒绝。
 
-如果在 `D:\learn_project\forgecode` 安装仓库内直接执行 `forge`，可能出现 `POLICY_DENIED: Symlink or reparse link paths are unsupported`。`npm ci` 为本仓库的 workspace 包创建了 `node_modules/@forgecode` 目录链接，当前沙盒拒绝符号链接和 Windows reparse point。请切换到另一个目标项目目录后启动；删除这些依赖链接也不能解决安装目录与工作区重叠的问题。
+默认沙盒允许工作区包含符号链接和 Windows Junction；文件工具在操作时解析实际目标，工作区外的写入仍会被拒绝。不要把 ForgeCode 安装目录当作受限工作区：安装目录与工作区重叠仍会拒绝启动，删除依赖链接不能解除这项保护。
 
 遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。npm 安装会自动提供其管理的工具；Ubuntu 需检查系统 bubblewrap 和 user namespace，源码安装需检查构建文件。只读诊断的整体 `status` 在尚未验证工作区时可为 `blocked`，实际工作区边界在启动会话时验证。
 
@@ -114,7 +114,7 @@ forge --sandbox full-access --approval supervised
 
 `forge.api.HarnessSession` 提供 `open/stream/run/cancel/close`，沿用原 `ConversationEvent` 和 `TurnResult`；`event_dict` 输出版本化 JSON。会话事实来自 Journal，活动执行事实来自 Conversation/TurnState。核心不依赖终端文本解析。
 
-默认依赖只加载终端 Harness 和沙盒。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。当前版本移除了 Electron、React、Vite 和运行中的 Web 客户端。
+npm 终端安装包含内置原生沙盒提供方，默认 coding Agent 使用它；通用 core Agent 不加载沙盒，其他组合可显式设置 `sandbox_provider: null` 使用宿主执行。可信插件可注册自己的提供方。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。当前版本移除了 Electron、React、Vite 和运行中的 Web 客户端。
 
 源码开发环境准备好后，可用公开示例演示真实原生工具、验证过期、同回合预算内修复和 Journal 只读重建，无需模型密钥：
 

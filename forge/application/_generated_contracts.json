@@ -8431,6 +8431,9 @@
             "is_file": {
               "type": "boolean"
             },
+            "is_link": {
+              "type": "boolean"
+            },
             "sha256": {
               "pattern": "^[0-9a-f]{64}$",
               "type": [
@@ -16218,6 +16221,14 @@
           },
           "maxItems": 128,
           "type": "array"
+        },
+        "execution_mode": {
+          "description": "Explicit file-effect mode. Omitted legacy policies retain strict path admission.",
+          "enum": [
+            "read-only",
+            "workspace-write",
+            "full-access"
+          ]
         },
         "fallback": {
           "const": "deny"

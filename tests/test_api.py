@@ -52,8 +52,8 @@ def linked_workspace(tmp_path):
         link.rmdir() if sys.platform == 'win32' else link.unlink()
 
 
-@pytest.mark.parametrize('sandbox', ['read-only', 'workspace-write', 'full-access'])
-def test_linked_workspace_admission_respects_explicit_mode(linked_workspace, sandbox):
+@pytest.mark.parametrize('sandbox', ['full-access', 'danger-full-access'])
+def test_host_linked_workspace_reads_and_writes_physical_targets(linked_workspace, sandbox):
     from dataclasses import replace
     from forge.protocol import ContractError
     settings, link, outside = linked_workspace
@@ -69,13 +69,7 @@ def test_linked_workspace_admission_respects_explicit_mode(linked_workspace, san
 
     async def run():
         selected = replace(settings, sandbox=sandbox)
-        if sandbox != 'full-access':
-            with pytest.raises(ContractError, match='Symlink or reparse') as error:
-                await HarnessSession.open(selected, model_client_factory=model_factory)
-            assert error.value.kind == 'POLICY_DENIED'
-            assert link.as_posix() in str(error.value)
-            assert clients == []
-            return
+        assert selected.sandbox == 'full-access'
         async with await HarnessSession.open(selected, model_client_factory=model_factory,
                 approval_handler=deny) as session:
             assert session.backend.mode == 'local-trusted'
@@ -85,17 +79,21 @@ def test_linked_workspace_admission_respects_explicit_mode(linked_workspace, san
             write = await worker.request('tool', name='write_file',
                 arguments={'path': 'new.txt', 'content': 'new workspace file'})
             assert write['result']['success'], write['result']
+            linked = await worker.request('tool', name='read_file', arguments={'path': '.build/node_modules/value.txt'})
+            assert linked['result']['success'] and 'shared file' in linked['result']['content']
+            linked_write = await worker.request('tool', name='write_file',
+                arguments={'path': '.build/node_modules/host.txt', 'content': 'host write'})
+            assert linked_write['result']['success'] and (outside / 'host.txt').read_text() == 'host write'
             for name, arguments in (
-                ('read_file', {'path': '.build/node_modules/value.txt'}),
-                ('write_file', {'path': '.build/node_modules/value.txt', 'content': 'must not write'}),
                 ('read_file', {'path': str(settings.data_root / 'private.txt')}),
-                ('write_file', {'path': str(outside / 'value.txt'), 'content': 'must not write'}),
+                ('write_file', {'path': str(settings.data_root / 'private.txt'), 'content': 'must not write'}),
             ):
                 with pytest.raises(ContractError) as error:
                     await worker.request('tool', name=name, arguments=arguments)
                 assert error.value.kind == 'POLICY_DENIED'
-            # Startup permission is not proof of complete observation through links.
-            assert not (await worker.scan())['complete']
+            scan = await worker.scan()
+            assert scan['complete'] and scan['files']['.build/node_modules']['is_link']
+            assert not any(path.startswith('.build/node_modules/') for path in scan['files'])
             decision = await session.conversation.permission_manager.authorize(
                 PermissionRequest('run_command', 'process.exec', 'low', ('command',)))
             assert decision.action == 'deny' and len(approvals) == 1
@@ -106,7 +104,7 @@ def test_linked_workspace_admission_respects_explicit_mode(linked_workspace, san
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('sandbox', [None, 'read-only', 'full-access'])
+@pytest.mark.parametrize('sandbox', [None, 'full-access', 'danger-full-access'])
 def test_real_cli_linked_workspace_startup_without_model_requests(linked_workspace, sandbox):
     import os
     settings, link, _ = linked_workspace
@@ -115,17 +113,61 @@ def test_real_cli_linked_workspace_startup_without_model_requests(linked_workspa
         'APPDATA', 'LOCALAPPDATA', 'PATHEXT'}}
     environment.update(FORGE_DATA_DIR=str(settings.data_root), FORGE_PROVIDER='anthropic',
         FORGE_API_KEY='test-only', FORGE_MODEL='offline-fixture', FORGE_BASE_URL='http://127.0.0.1:1')
-    arguments = ['--sandbox', sandbox, '--approval', 'supervised'] if sandbox else []
+    if sandbox is None:
+        settings.data_root.mkdir()
+        (settings.data_root / 'settings.json').write_text(json.dumps({'agents': {
+            'host': {'base': 'coding', 'sandbox_provider': None}}}))
+    arguments = ['--sandbox', sandbox, '--approval', 'supervised'] if sandbox else ['--agent', 'host']
     completed = subprocess.run([sys.executable, '-I', '-X', 'utf8', '-m', 'forge', *arguments],
         cwd=settings.root, env=environment, input='', capture_output=True, text=True,
         encoding='utf-8', timeout=30)
-    if sandbox == 'full-access':
-        assert completed.returncode == 0, completed.stdout + completed.stderr
-        assert 'Session ended.' in completed.stdout
-        assert 'POLICY_DENIED' not in completed.stderr
-    else:
-        assert completed.returncode == 1
-        assert 'POLICY_DENIED' in completed.stderr and link.as_posix() in completed.stderr
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert 'Session ended.' in completed.stdout
+    assert 'POLICY_DENIED' not in completed.stderr
+
+
+def test_host_linked_edit_keeps_approval_checkpoint_and_completion(linked_workspace):
+    from dataclasses import replace
+    from forge.runtime.state import ModelToolCallCompleted, ToolCall
+    from forge.sessions.checkpoint import CheckpointError
+    settings, _, outside = linked_workspace
+    settings = replace(settings, write_roots=())
+    calls = [
+        ('read_file', {'path': '.build/node_modules/value.txt'}),
+        ('replace_text', {'path': '.build/node_modules/value.txt', 'old_text': 'shared file', 'new_text': 'updated'}),
+        ('run_command', {'command': 'python -', 'stdin': "from pathlib import Path\nPath('command-created.txt').write_text('unconfined')\n"}),
+        ('verify', {'command': 'python -', 'stdin': "from pathlib import Path\nassert Path('.build/node_modules/value.txt').read_text() == 'updated'\nassert Path('command-created.txt').read_text() == 'unconfined'\n"}),
+        ('finish_task', {'task_kind': 'change', 'status': 'completed', 'summary': 'Updated and verified the selected file.'}),
+    ]
+    class Scripted(Model):
+        count = 0
+        async def stream(self, **kwargs):
+            name, arguments = calls[self.count]
+            self.count += 1
+            yield ModelToolCallCompleted(ToolCall(0, str(self.count), name, arguments))
+            yield ModelResponseCompleted('tool_use')
+    async def run():
+        approvals = []
+        async def approve(request):
+            approvals.append(request.capability)
+            return ApprovalResponse('allow_once')
+        model = Scripted()
+        async with await HarnessSession.open(settings, model_client_factory=lambda *a, **k: model,
+                approval_handler=approve) as session:
+            result = await session.run('Change the shared file to updated and verify it.')
+            assert result.status == 'completed', result
+            assert model.count == 5
+            assert (outside / 'value.txt').read_text() == 'updated'
+            assert 'file.write' in approvals and 'process.exec' in approvals
+            checkpoints = session.conversation.checkpoint_store
+            checkpoint = checkpoints.latest_restorable()
+            assert checkpoint is not None
+            manifest = json.loads((checkpoints.directory / (checkpoint + '.json')).read_text())
+            assert any(entry.get('target_path') == str(outside / 'value.txt') for entry in manifest['files'].values())
+            with pytest.raises(CheckpointError, match='authorized restore'):
+                checkpoints.restore(checkpoint)
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
 
 
 def test_public_multiturn_result_events_and_resume(tmp_path):

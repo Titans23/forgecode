@@ -43,10 +43,13 @@ class FileToolBackend:
                 from forge.tools.paths import mutation_target_paths
                 import os
                 from pathlib import Path
-                targets = {Path(os.path.abspath(Path(self.observer.workspace['canonical_path']) / path))
-                    for path in mutation_target_paths(call, maximum=None)}
+                def target_path(path):
+                    candidate = Path(self.observer.workspace['canonical_path']) / path
+                    return (candidate.resolve(strict=False) if self.observer.policy.get('execution_mode')
+                            else Path(os.path.abspath(candidate)))
+                targets = {target_path(path) for path in mutation_target_paths(call, maximum=None)}
                 expected = {path: digest for path, digest in self._observed.items()
-                    if Path(os.path.abspath(Path(self.observer.workspace['canonical_path']) / path)) in targets}
+                    if target_path(path) in targets}
                 reply = await self.observer.request('tool', name=call.name, arguments=call.arguments,
                     expected_hashes=expected)
                 raw = reply['result']

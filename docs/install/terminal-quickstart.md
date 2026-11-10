@@ -171,15 +171,15 @@ forge --continue --fork-session
 forge --sandbox read-only
 forge --sandbox workspace-write --write-root ./src --write-root ./tests
 forge --sandbox workspace-write --read-root ../reference
-forge --sandbox full-access --approval supervised
+forge --sandbox danger-full-access --approval supervised
 forge --sandbox workspace-write --approval plan
 ```
 
-默认 `workspace-write` 允许所选项目写入；指定 `--write-root` 后只授予列出的既有子目录。普通文件编辑复用已选写入范围，删除、命令及其他风险仍经过权限决策。`read-only` 禁止修改项目，但允许每次执行的私有临时文件；执行结束后清理。`full-access` 显式使用宿主执行。`plan/supervised/auto` 是独立的审批策略，切换它不会改变沙盒范围。
+默认 `workspace-write` 允许所选项目写入；指定 `--write-root` 后只授予列出的既有子目录。普通文件编辑复用已选写入范围，删除、命令及其他风险仍经过权限决策。`read-only` 禁止修改项目，但允许每次执行的私有临时文件；执行结束后清理。`danger-full-access`（兼容原名 `full-access`）显式使用宿主执行，文件工具与命令均不受工作区写入围栏限制。`plan/supervised/auto` 是独立的审批策略，切换它不会改变沙盒范围。
 
-原生模式启动时会检查整个工作区的嵌套条目，忽略文件也不例外。若出现 `POLICY_DENIED: Symlink or reparse link paths are unsupported`，错误会列出实际的符号链接或 Windows Junction 路径；根目录本身不一定是链接。可选择不包含该条目的工作区，或将该条目移到工作区外并调整依赖它的脚本。不要删除链接指向的共享目录；更改 `.gitignore` 或 `--approval` 不能解除此限制。
+默认提供方不因无关子目录含符号链接、Junction 或硬链接而拒绝整个工作区。文件操作先解析实际目标：读取继承宿主可读范围，`workspace-write` 只允许实际目标位于已授权写入范围，`read-only` 拒绝修改。链接指向外部共享依赖时，可以读取，但不能借它越界写入。`--read-root` 保留兼容，不作为默认读取白名单；凭据、会话数据及控制目录的文件工具保护独立保留。
 
-显式 `full-access` 不运行这项整工作区原生准入检查，因此可在含嵌套链接的目录中启动。文件工具仍逐路径拒绝链接、越界写入及受保护目录；宿主命令按当前用户权限运行，`supervised` 审批继续生效。链接造成的变更观察缺失仍标为不完整，不能据此通过代码任务的完成验收；能够启动不代表文件工具支持穿过链接操作。
+工作区观察记录链接本身及其目标标识，不递归扫描外部链接目录；工具明确访问的文件另按实际目标记录证据。因此普通链接不再阻断代码完成验收；超时、配额耗尽和实际观察失败仍保留为不完整。完全访问模式允许已审批的工作区外文件修改并记录检查点，不因此开放受限检查点的宿主直接恢复。旧的无显式 execution_mode 策略仍保留原有严格链接检查。
 
 在 `full-access` 下启用 Hooks 时，Hook 结束或取消会清理它启动的后台子进程。命令应使用明确的解释器和参数：PATH、普通环境变量及 `FORGE_HOOK_*` 保留，凭据与 `PYTHONPATH`、`NODE_OPTIONS` 等加载器变量会被清除。stdout 与 stderr 合计超过 1 MB 或无法确认清理完成时，Hook 报错；阻断类 Hook 会拒绝后续操作。
 
@@ -187,7 +187,7 @@ Windows 沙盒命令中的 `python` 通过会话级小型虚拟环境复用本�
 
 Windows 原生 Python 命令的 pytest 缓存默认放入本次执行的私有临时目录，cacheprovider 保持启用；不修改全局配置，显式 `PYTEST_ADDOPTS` 和命令行选项按 pytest 的既有优先级覆盖。缓存随执行清理，不承诺跨命令的 `--lf` 或缓存持久化。
 
-文件工具按读取/写入范围限制访问，并拒绝凭据、控制目录及不安全链接。当前 OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程、Linux 动态硬链接等限制仍存在，能力记录为 partial。初始化使用真实边界探针，失败直接拒绝任务。强隔离的正式评测要求不能由此替代。
+文件工具按所选模式校验实际目标，并保留凭据和控制目录保护。当前 OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程、Linux 动态硬链接等限制仍存在，能力记录为 partial。初始化使用真实边界探针，失败直接拒绝任务。强隔离的正式评测要求不能由此替代。
 
 `forge sandbox --json` 是只读环境诊断，未经项目初始化时会报告未验证/blocked；实际沙盒证明在启动项目会话时产生。
 

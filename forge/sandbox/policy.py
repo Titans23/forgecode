@@ -49,9 +49,10 @@ def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), a
     identity = root.anchors[-1][1]
     if identity is None or not root.path.is_dir() or f'{identity[0]}:{identity[1]}' != workspace['file_identity']:
         raise ContractError('Workspace identity changed', kind='STALE_REVISION', code=-32010)
-    # Native admission audits the whole tree; explicit host execution still
-    # validates roots here and rejects unsafe paths on every file-tool access.
-    if audit_workspace:
+    mode = value.get('execution_mode')
+    # Keep legacy strict policies intact. Explicit modes authorize each physical
+    # operation target; unrelated links do not prevent the workspace opening.
+    if mode is None and audit_workspace:
         audit_workspace_links(root.path)
     filesystem = value['filesystem']
     for name in ('read_roots', 'write_roots', 'protected_paths'):
@@ -62,8 +63,11 @@ def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), a
             denied('Read root must be an existing directory')
     for path in filesystem['write_roots']:
         candidate = Path(path)
-        if not any(candidate == allowed or candidate.is_relative_to(allowed) for allowed in (root.path, *trusted_temp)):
+        if mode != 'full-access' and not any(candidate == allowed or candidate.is_relative_to(allowed)
+                for allowed in (root.path, *trusted_temp)):
             denied('Write root is outside workspace or trusted temporary roots')
+    if mode == 'read-only' and filesystem['write_roots']:
+        denied('Read-only cannot grant write roots')
     protected = [*map(Path, filesystem['protected_paths']), root.path / '.forge', *git_metadata_paths(root.path)]
     for path in control_roots:
         candidate = inspect_path(path, absolute=True).path
@@ -75,5 +79,5 @@ def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), a
         denied('Unsafe control or credential environment key')
     value['environment_keys'] = sorted(set(value['environment_keys']))
     paths = PathPolicy(root, filesystem['read_mode'], tuple(map(Path, filesystem['read_roots'])),
-                       tuple(map(Path, filesystem['write_roots'])), tuple(map(Path, filesystem['protected_paths'])))
+                       tuple(map(Path, filesystem['write_roots'])), tuple(map(Path, filesystem['protected_paths'])), mode)
     return PolicySnapshot(json.dumps(value, ensure_ascii=False, sort_keys=True), canonical_hash(value), paths)

@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from forge.api import HarnessSession, SessionOptions
+from forge.api import HarnessSession, SessionOptions, RunProfile
 from forge.config import ForgeConfig
 from forge.runtime.state import ToolCall
 from forge.sandbox.launcher import verify_runtime
@@ -111,6 +111,105 @@ def activate(ctx, config):
         assert session.cleanup['state'] == 'clean'
         assert (options.data_root / 'plugins/execution/close-order').read_text() == 'backend,plugin'
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('mode', ['read-only', 'workspace-write'])
+def test_native_linked_workspace_checks_actual_targets_without_tree_rejection(tmp_path, mode):
+    import subprocess
+    from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted
+    options = settings(tmp_path, mode, profile=RunProfile(intent_routing=False))
+    inside, outside = options.root / 'inside', tmp_path / 'outside'
+    inside.mkdir()
+    outside.mkdir()
+    (outside / 'reference.txt').write_text('outside read', encoding='utf-8')
+    links = [(options.root / 'internal-link', inside), (options.root / 'external-link', outside)]
+    for link, target in links:
+        if sys.platform == 'win32':
+            subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(target)],
+                           check=True, capture_output=True)
+        else:
+            link.symlink_to(target, target_is_directory=True)
+    class Scripted:
+        model = 'offline-fixture'
+        count = 0
+        async def stream(self, **kwargs):
+            calls = [
+                ('write_file', {'path': 'internal-link/from-agent.txt', 'content': 'agent write'}),
+                ('verify', {'command': 'python -', 'stdin': "from pathlib import Path\nassert Path('internal-link/from-agent.txt').read_text() == 'agent write'\n"}),
+                ('finish_task', {'task_kind': 'change', 'status': 'completed', 'summary': 'Created and verified the file.'}),
+            ]
+            name, arguments = calls[self.count]
+            self.count += 1
+            yield ModelToolCallCompleted(ToolCall(0, str(self.count), name, arguments))
+            yield ModelResponseCompleted('tool_use')
+    async def run():
+        from forge.permissions.policy import ApprovalResponse
+        async def approve(request):
+            return ApprovalResponse('allow_once')
+        model = Scripted()
+        async with await HarnessSession.open(options, model_client_factory=lambda *a, **k: model,
+                approval_handler=approve) as session:
+            async def tool(name, arguments):
+                return await session.backend.execute(ToolCall(0, name, name, arguments), session.conversation.registry)
+            read = await tool('read_file', {'path': 'external-link/reference.txt'})
+            assert read.success and 'outside read' in read.content, read
+            write = await tool('write_file', {'path': 'internal-link/new.txt', 'content': 'inside'})
+            assert write.success == (mode == 'workspace-write'), write
+            denied = await tool('write_file', {'path': 'external-link/new.txt', 'content': 'escape'})
+            assert not denied.success and not (outside / 'new.txt').exists(), denied
+            scan = await session.backend.observer.scan()
+            assert scan['complete'], scan
+            assert scan['files']['external-link']['is_link']
+            assert not any(path.startswith('external-link/') for path in scan['files'])
+            if mode == 'workspace-write':
+                result = await session.run('Create internal-link/from-agent.txt containing agent write and verify it.')
+                assert result.status == 'completed', result
+                assert model.count == 3
+                assert (inside / 'from-agent.txt').read_text() == 'agent write'
+            native = session.backend.observer.native
+            # Exercise the actual OS boundary without the file-tool guard.
+            script = "const fs=require('fs');for(const p of process.argv.slice(1)){try{fs.writeFileSync(p,'native');console.log('write')}catch{console.log('denied')}}"
+            command = {'mode': 'argv', 'argv': [str(verify_runtime().node), '-e', script,
+                str(options.root / 'internal-link/os.txt'), str(options.root / 'external-link/os.txt')],
+                'cwd': str(options.root), 'environment': {}, 'output_limit_bytes': 1024,
+                'deadline_utc': (datetime.now(timezone.utc) + timedelta(seconds=15)).isoformat().replace('+00:00', 'Z')}
+            execution_id = 'exec-22222222-2222-4222-8222-222222222222'
+            await native.execute(execution_id, command)
+            while (await native.status(execution_id))['state'] == 'running':
+                await asyncio.sleep(.02)
+            assert (await native.status(execution_id))['exit_code'] == 0
+            assert (inside / 'os.txt').exists() == (mode == 'workspace-write')
+            assert not (outside / 'os.txt').exists()
+        assert session.cleanup['state'] == 'clean'
+    try:
+        asyncio.run(run())
+    finally:
+        for link, _ in links:
+            link.rmdir() if sys.platform == 'win32' else link.unlink()
+
+
+def test_native_cli_default_starts_in_workspace_with_junction(tmp_path):
+    import os
+    import subprocess
+    options = settings(tmp_path, 'workspace-write')
+    outside = tmp_path / 'reference'
+    outside.mkdir()
+    link = options.root / 'node_modules'
+    if sys.platform == 'win32':
+        subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(outside)], check=True, capture_output=True)
+    else:
+        link.symlink_to(outside, target_is_directory=True)
+    environment = {key: value for key, value in os.environ.items() if key.upper() in {
+        'PATH', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'HOME', 'USERPROFILE',
+        'APPDATA', 'LOCALAPPDATA', 'PATHEXT'}}
+    environment.update(FORGE_DATA_DIR=str(options.data_root), FORGE_PROVIDER='anthropic',
+        FORGE_API_KEY='test-only', FORGE_MODEL='offline-fixture', FORGE_BASE_URL='http://127.0.0.1:1')
+    try:
+        result = subprocess.run([sys.executable, '-I', '-X', 'utf8', '-m', 'forge'], cwd=options.root,
+            env=environment, input='', capture_output=True, text=True, encoding='utf-8', timeout=45)
+        assert result.returncode == 0 and 'Session ended.' in result.stdout, result.stdout + result.stderr
+    finally:
+        link.rmdir() if sys.platform == 'win32' else link.unlink()
 
 
 def test_native_scoped_write_does_not_write_sibling(tmp_path):

@@ -227,7 +227,9 @@ class ToolExecutor:
                     raise CheckpointError('Checkpoint store is unavailable.')
                 if self.backend is not None and hasattr(self.backend, 'snapshot'):
                     observed = await self.backend.snapshot(checkpoint_paths, recursive=call.name == 'remove_directory')
-                    self.checkpoint_store.capture_observations(checkpoint_id, observed['files'])
+                    self.checkpoint_store.capture_observations(checkpoint_id, observed['files'],
+                        host=self.permission_manager.execution_mode == 'full-access'
+                             and self.backend.mode == 'local-trusted')
                     checkpoint_paths = tuple(observed['files'])
                 else:
                     self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)

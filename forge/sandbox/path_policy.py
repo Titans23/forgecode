@@ -41,21 +41,21 @@ def validate_path_syntax(value, *, platform=None, absolute=False):
     return value
 
 
-def _stat_identity(value):
+def _stat_identity(value, *, allow_hardlinks=False):
     if stat.S_ISLNK(value.st_mode) or getattr(value, 'st_file_attributes', 0) & 0x400:
         denied('Symlink or reparse link paths are unsupported')
     if not stat.S_ISREG(value.st_mode) and not stat.S_ISDIR(value.st_mode):
         denied('Special filesystem objects are unsupported')
-    if stat.S_ISREG(value.st_mode) and value.st_nlink > 1:
+    if not allow_hardlinks and stat.S_ISREG(value.st_mode) and value.st_nlink > 1:
         denied('Existing multi-hardlink files are unsupported in strict paths')
     if not value.st_ino:
         denied('Filesystem does not expose a stable file identity')
     return (value.st_dev, value.st_ino, stat.S_IFMT(value.st_mode))
 
 
-def _identity(path):
+def _identity(path, *, allow_hardlinks=False):
     try:
-        return _stat_identity(path.lstat())
+        return _stat_identity(path.lstat(), allow_hardlinks=allow_hardlinks)
     except ContractError as error:
         raise ContractError(f'{error}: {path.as_posix()!r}', kind=error.kind, code=error.code) from error
     except (FileNotFoundError, NotADirectoryError):
@@ -68,18 +68,20 @@ def _identity(path):
 class AuthorizedPath:
     path: Path
     anchors: tuple
+    allow_hardlinks: bool = False
 
     def assert_current(self):
         for path, identity in self.anchors:
-            if _identity(path) != identity:
+            if _identity(path, allow_hardlinks=self.allow_hardlinks) != identity:
                 raise ContractError('Authorized path identity changed', kind='STALE_FILE', code=-32010)
 
 
-def inspect_path(value, *, absolute=False):
+def inspect_path(value, *, absolute=False, allow_hardlinks=False):
     raw = validate_path_syntax(value, absolute=absolute)
     path = Path(os.path.abspath(raw))
-    anchors = tuple((parent, _identity(parent)) for parent in reversed((path, *path.parents)))
-    return AuthorizedPath(path, anchors)
+    anchors = tuple((parent, _identity(parent, allow_hardlinks=allow_hardlinks))
+                    for parent in reversed((path, *path.parents)))
+    return AuthorizedPath(path, anchors, allow_hardlinks)
 
 
 @dataclass(frozen=True)
@@ -89,18 +91,33 @@ class PathPolicy:
     read_roots: tuple[Path, ...]
     write_roots: tuple[Path, ...]
     protected_paths: tuple[Path, ...]
+    execution_mode: str | None = None
+
+    def is_protected(self, path):
+        return (any(part.casefold() in SENSITIVE or part.casefold().startswith('.env.') for part in path.parts)
+                or any(path == protected or path.is_relative_to(protected) for protected in self.protected_paths))
 
     def authorize(self, raw, *, write=False):
-        candidate = Path(raw)
+        candidate = Path(validate_path_syntax(raw))
         candidate = candidate if candidate.is_absolute() else self.workspace.path / candidate
         self.workspace.assert_current()
-        observed = inspect_path(candidate)
-        target = observed.path
-        if any(part.casefold() in SENSITIVE or part.casefold().startswith('.env.') for part in target.parts):
+        if self.is_protected(candidate):
             denied('Protected control or sensitive path')
-        if any(target == protected or target.is_relative_to(protected) for protected in self.protected_paths):
+        if self.execution_mode is not None:
+            try:
+                # Use this exact physical target for the operation, not the alias
+                # that a concurrent rename could redirect after authorization.
+                candidate = candidate.resolve(strict=False)
+            except (OSError, RuntimeError) as error:
+                raise ContractError('Path cannot be resolved', kind='POLICY_DENIED', code=-32010) from error
+        observed = inspect_path(candidate, allow_hardlinks=self.execution_mode is not None)
+        target = observed.path
+        if self.is_protected(target):
             denied('Protected path deny overrides allow')
-        roots = self.write_roots if write else self.read_roots if self.read_mode == 'strict_allowlist_required' else None
+        if write and self.execution_mode == 'read-only':
+            denied('Read-only mode forbids file mutations')
+        roots = (None if self.execution_mode == 'full-access' else self.write_roots) if write else (
+            self.read_roots if self.read_mode == 'strict_allowlist_required' else None)
         if roots is not None and not any(target == root or target.is_relative_to(root) for root in roots):
             denied('Path is outside the authorized roots')
         return observed

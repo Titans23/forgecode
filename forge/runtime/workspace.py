@@ -311,6 +311,8 @@ class WorkspaceTracker:
 def observation_fingerprint(value):
     if not value['exists']:
         return 'missing'
+    if value.get('is_link'):
+        return 'link:' + value['sha256']
     return value['sha256'] if value['is_file'] else 'directory:' + str(value['file_identity'])
 
 

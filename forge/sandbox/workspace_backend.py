@@ -59,6 +59,9 @@ class WorkspaceWriteBackend:
         return await asyncio.shield(self._preparing)
 
     async def _prepare(self, policy):
+        if policy.get('execution_mode', self.mode) != self.mode:
+            raise ContractError('Native execution mode differs from the requested policy',
+                                kind='CAPABILITY_UNSATISFIED', code=-32010)
         if sys.platform not in ('win32', 'linux') or (sys.platform == 'win32' and not windows_supported()):
             raise ContractError('Workspace-write requires Windows or Linux', kind='SANDBOX_UNAVAILABLE', code=-32010)
         snapshot = compile_policy(policy, self.workspace, control_roots=(self.control_root,))

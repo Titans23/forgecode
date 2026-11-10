@@ -17,6 +17,7 @@ def _policy(request, factory=None):
         'file_identity': f'{info.st_dev}:{info.st_ino}'}
     writes = (() if request.mode == 'read-only' else (root,)) if request.write_roots is None else request.write_roots
     policy = {'schema_version': 'forge.sandbox.policy.v1', 'policy_id': 'policy-' + str(uuid4()),
+        'execution_mode': request.mode,
         'workspace_id': workspace['id'], 'filesystem': {'read_mode': 'host_default',
             'read_roots': [str(root), *(str(Path(p).resolve(strict=True)) for p in request.read_roots)],
             'write_roots': [str(Path(p).resolve(strict=True)) for p in writes],
