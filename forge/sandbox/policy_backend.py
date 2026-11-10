@@ -3,7 +3,7 @@ import asyncio
 from dataclasses import replace
 
 from forge.protocol import ContractError, canonical_hash
-from forge.sandbox.tool_backend import FileToolBackend, FILE_TOOLS, PROCESS_TOOLS
+from forge.sandbox.tool_backend import FileToolBackend, FILE_TOOLS, PROCESS_TOOLS, sandbox_unavailable_result
 from forge.sandbox.workspace_backend import require_workspace_policy
 from forge.tools.base import ToolResult
 
@@ -60,6 +60,8 @@ class PolicyToolBackend(FileToolBackend):
             try:
                 backend = await self.prepare_process()
             except Exception as error:
+                if getattr(error, 'kind', 'SANDBOX_UNAVAILABLE') == 'SANDBOX_UNAVAILABLE':
+                    return sandbox_unavailable_result(str(error), 'native-initialization-failed')
                 return ToolResult.fail(getattr(error, 'kind', 'SANDBOX_UNAVAILABLE'), str(error),
                     details={'command_started': False,
                         'next_step': 'For this exact command, request sandbox_permissions="danger-full-access" '

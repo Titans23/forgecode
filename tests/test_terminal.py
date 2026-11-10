@@ -102,7 +102,7 @@ def test_delete_permission_prompt_is_concise_and_one_shot(
         captured.update(kwargs)
         return 'allow_once'
 
-    monkeypatch.setattr(terminal_module, 'choice', fake_choice)
+    monkeypatch.setattr(terminal_module, 'permission_choice', fake_choice)
     response = terminal.select_permission(
         PermissionRequest(
             'apply_patch',
@@ -120,13 +120,11 @@ def test_delete_permission_prompt_is_concise_and_one_shot(
     assert '目标（2）' in rendered
     assert 'play/a.txt' in rendered
     assert '{}' not in rendered
-    assert '如何操作' in rendered
-    assert '直接按 Enter、Y 或 1：同意一次' in rendered
-    assert '按 N 或 Esc：拒绝' in rendered
+    assert '如何操作' not in rendered  # Options are displayed only in the selector.
     assert captured['default'] == 'allow_once'
     assert captured['options'] == [
-        ('allow_once', '1. 是，仅允许这一次'),
-        ('deny', '2. 否，停止本轮操作'),
+        ('allow_once', '是，仅允许这一次'),
+        ('deny', '否，停止本轮操作'),
     ]
 
 
@@ -164,7 +162,7 @@ def test_sandbox_widening_shows_host_consequence_and_cannot_be_remembered(monkey
     def choose(**kwargs):
         captured.update(kwargs)
         return 'allow_once'
-    monkeypatch.setattr(terminal_module, 'choice', choose)
+    monkeypatch.setattr(terminal_module, 'permission_choice', choose)
     response = terminal.select_permission(PermissionRequest('run_command', 'process.exec', 'high',
         reason='本次命令将使用宿主权限执行，不受工作区沙盒限制。仅本次有效。',
         preview='echo exact', sandbox_mode='full-access'))
@@ -201,6 +199,20 @@ def test_permission_keyboard_shortcuts_are_obvious_and_work() -> None:
     assert permission_choice_for_keys('1') == 'allow_once'
     assert permission_choice_for_keys('2') == 'allow_session'
     assert permission_choice_for_keys('n') == 'deny'
+    assert permission_choice_for_keys('\x03') == 'deny'
+    assert permission_choice_for_keys('\x1b[B\r') == 'allow_session'
+
+
+def test_welcome_card_fits_a_narrow_terminal(monkeypatch):
+    from rich.cells import cell_len
+    monkeypatch.setenv('TERM', 'xterm-256color')
+    output = StringIO()
+    terminal = TerminalUI(Console(file=output, force_terminal=False, width=48))
+    terminal.show_welcome('deepseek-v4-flash')
+    rendered = output.getvalue()
+    assert 'ForgeCode v0.1.2' in rendered and 'deepseek-v4-flash' in rendered
+    assert '工作区' in rendered and '/resume' in rendered
+    assert all(cell_len(line) <= 48 for line in rendered.splitlines())
 
 
 def test_single_target_delete_can_be_allowed_for_session(
@@ -218,7 +230,7 @@ def test_single_target_delete_can_be_allowed_for_session(
         captured.update(kwargs)
         return 'allow_session'
 
-    monkeypatch.setattr(terminal_module, 'choice', fake_choice)
+    monkeypatch.setattr(terminal_module, 'permission_choice', fake_choice)
     response = terminal.select_permission(
         PermissionRequest(
             'remove_directory',
@@ -231,9 +243,9 @@ def test_single_target_delete_can_be_allowed_for_session(
     assert response.choice == 'allow_session'
     assert captured['default'] == 'allow_once'
     assert captured['options'] == [
-        ('allow_once', '1. 是，仅允许这一次'),
-        ('allow_session', '2. 是，本会话不再询问此目标'),
-        ('deny', '3. 否，停止本轮操作'),
+        ('allow_once', '是，仅允许这一次'),
+        ('allow_session', '是，本会话不再询问此目标'),
+        ('deny', '否，停止本轮操作'),
     ]
 
 

@@ -175,6 +175,8 @@ def test_real_host_command_after_native_failure_without_changing_session(tool):
             first = await runtime.execute(ToolCall(0, 'native', tool, arguments))
             assert first.result.error.code == 'SANDBOX_UNAVAILABLE'
             assert first.result.error.details['command_started'] is False
+            assert first.record.status == 'rejected'
+            assert 'sandbox_permissions="danger-full-access"' in first.result.content
             second = await runtime.execute(ToolCall(1, 'approved', tool, {**arguments, **OVERRIDE}))
             assert second.result.success, second.result
             assert 'executed' in second.result.content and str(root) in second.result.content
@@ -196,6 +198,33 @@ def test_real_host_command_after_native_failure_without_changing_session(tool):
         root = Path(directory).resolve()
         assert root.parent == Path(gettempdir()).resolve()
         asyncio.run(run(root))
+
+
+def test_actual_runner_failure_supplies_recovery_without_invalidating_environment(tmp_path):
+    from types import SimpleNamespace
+    from forge.sandbox.tool_backend import FileToolBackend
+    class Client:
+        native = SimpleNamespace(mode='workspace-write')
+        workspace = {'canonical_path': str(tmp_path)}
+        policy = {'execution_mode': 'workspace-write'}
+        async def request(self, *args, **kwargs):
+            raise ContractError('DSH sandbox unavailable; command not started. grantWrite: WRITE_OWNER',
+                                kind='SANDBOX_UNAVAILABLE')
+    async def run():
+        runtime, prompts = executor(tmp_path)
+        tracker = WorkspaceTracker(tmp_path)
+        async def unexpected_refresh(*args):
+            pytest.fail('A command that never started must not trigger a workspace refresh')
+        tracker.refresh = unexpected_refresh
+        runtime.workspace_tracker = tracker
+        runtime.backend = FileToolBackend(Client())
+        result = await runtime.execute(ToolCall(0, 'blocked', 'run_command', {'command': 'node --version'}))
+        assert result.record.status == 'rejected' and tracker.environment_epoch == 0
+        assert not prompts
+        assert result.result.error.details['retry_with_unchanged_permissions'] is False
+        assert 'not a command syntax failure' in result.result.content
+        assert 'justification' in result.result.content and 'WRITE_OWNER' in result.result.error.message
+    asyncio.run(run())
 
 
 def test_cancellation_closes_the_temporary_command_backend(tmp_path):

@@ -343,8 +343,11 @@ class ToolExecutor:
                 result = ToolResult.fail('INDETERMINATE', 'Operation cleanup was not proven clean; inspect before retrying.',
                     content=result.content, metadata=result.metadata)
 
+        not_started = (effect == 'process' and result.error is not None
+            and result.error.code == 'SANDBOX_UNAVAILABLE'
+            and result.error.details.get('command_started') is False)
         if (
-            effect == 'process'
+            not not_started and effect == 'process'
             and call.name != 'verify'
             and self.workspace_tracker is not None
             and hasattr(self.workspace_tracker, 'mark_environment_change')
@@ -356,7 +359,7 @@ class ToolExecutor:
                 if effect == 'workspace_write' and hasattr(self.workspace_tracker, 'refresh_paths')
                 else await self.workspace_tracker.refresh()
             )
-            if self.workspace_tracker is not None and effect != 'read_only'
+            if self.workspace_tracker is not None and effect != 'read_only' and not not_started
             else None
         )
         if effect == 'process':
@@ -380,7 +383,8 @@ class ToolExecutor:
         return self._outcome(
             call,
             result,
-            ('indeterminate' if result.error and result.error.code == 'INDETERMINATE' else 'executed'),
+            ('indeterminate' if result.error and result.error.code == 'INDETERMINATE'
+             else 'rejected' if not_started else 'executed'),
             started,
             arguments,
             *self._state(),

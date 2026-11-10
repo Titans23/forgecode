@@ -359,7 +359,7 @@ def test_cli_starts_an_interactive_conversation(
     assert result.exit_code == 0
     assert 'ForgeCode v0.1.2' in result.output
     assert 'Ctrl+C 取消/退出' in result.output
-    assert 'Ask a question or describe a coding task.' in result.output
+    assert '输入问题或描述任务，Enter 开始。' in result.output
     assert 'Hello' in result.output
     assert 'I remember' in result.output
     assert 'input 10' in result.output
@@ -658,8 +658,19 @@ def test_resume_options_exclude_empty_sessions(tmp_path: Path) -> None:
     assert resumable.session_id in identifiers
     assert empty.session_id not in identifiers
     assert current.session_id in identifiers
-    assert options[0].identifier == current.session_id
-    assert options[0].description.startswith('当前会话')
+    assert options[0].identifier == resumable.session_id
+    assert next(o for o in options if o.identifier == current.session_id).description.startswith('当前会话')
+
+
+def test_resume_orders_by_update_time_without_pinning_an_older_current_session():
+    def info(identity, updated):
+        return SimpleNamespace(session_id=identity, updated_at=updated, title=identity, status='stopped', message_count=2)
+    owner = SimpleNamespace(session_journal=SimpleNamespace(session_id='current'), session_store=SimpleNamespace(list=lambda: (
+        info('old', '2026-11-10T08:00:00+08:00'), info('current', '2026-11-10T10:00:00+08:00'),
+        info('new', '2026-11-10T03:00:00+00:00'))))
+    options = cli_module.build_resume_options(owner)
+    assert [o.identifier for o in options] == ['new', 'current', 'old']
+    assert options[1].description.startswith('当前会话')
 
 
 def test_resume_shows_deferred_current_session_without_creating_history(tmp_path):

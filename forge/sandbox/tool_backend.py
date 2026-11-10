@@ -10,6 +10,21 @@ FILE_TOOLS = frozenset({'list_directory', 'find_files', 'read_file', 'view_image
 PROCESS_TOOLS = frozenset({'run_command', 'verify'})
 
 
+def sandbox_unavailable_result(message, boundary):
+    """A confirmed pre-execution failure needs a different authority, not a different command."""
+    next_step = ('The command did not start. This is a sandbox setup failure, not a command syntax failure. '
+        'Do not repeat native commands with unchanged permissions. If approvals are available, retry this exact '
+        'operation with sandbox_permissions="danger-full-access" and a non-empty justification; this requests '
+        'one-call host approval and does not change the session default. File tools remain available. '
+        'If approval is unavailable or denied, report the blocker instead of retrying. '
+        'The user can explicitly select /permission danger-full-access for the session.')
+    return ToolResult.fail('SANDBOX_UNAVAILABLE', message,
+        summary='原生沙盒未就绪，命令未启动；可申请单次 full-access 授权。',
+        content=message + '\n\n' + next_step,
+        details={'command_started': False, 'retry_with_unchanged_permissions': False, 'next_step': next_step},
+        metadata={'execution_boundary': boundary, 'sandbox_covered': False})
+
+
 class FileToolBackend:
     def __init__(self, client):
         self.observer = client
@@ -65,6 +80,8 @@ class FileToolBackend:
                 return replace(result, metadata={**result.metadata, 'execution_boundary':
                     'srt-file-worker' if self.mode == 'strict' else self.mode + '-file-worker'})
             except ContractError as error:
+                if error.kind == 'SANDBOX_UNAVAILABLE' and self.observer.native is not None:
+                    return sandbox_unavailable_result(str(error), self.mode + '-file-worker')
                 return ToolResult.fail(error.kind, str(error),
                     details={'command_started': False} if error.kind == 'SANDBOX_UNAVAILABLE' else None,
                     metadata={'execution_boundary': self.mode + '-file-worker'})

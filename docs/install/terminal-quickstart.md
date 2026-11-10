@@ -166,7 +166,8 @@ forge --continue --fork-session
 项目根目录的 `AGENTS.md`、`FORGE.md` 和 `.forge/rules/*.md` 会在每轮开始时加载。工具访问子目录时，会自动加载该目录及祖先目录的 `AGENTS.md`、`FORGE.md`，供下一次模型请求使用；新规则尚未送达模型时，相关写入或进程工具会先返回提示。也可用 `@src/AGENTS.md` 显式附加规则。
 
 新交互会话在首次提交对话时才保存；直接退出或仅查看历史不会生成空会话。
-`/resume` 将当前会话放在首位并标注“当前会话”；新建但尚未提交的会话显示为“新会话”，不会因此写入空历史。选择当前会话不会重新加载或重放工具。
+`/resume` 按更新时间倒序显示已保存会话，最近的在前；当前会话保留标记但不强行置顶。新建但尚未提交的会话显示为“新会话”，不会因此写入空历史。选择当前会话不会重新加载或重放工具。
+权限选择器不显示编号，方向键选择、Enter 确认，Y 同意一次，N/Esc/Ctrl+C 拒绝；完整操作参数仍在确认前展示。
 恢复会话默认显示最近 10 轮，`/history all` 显示完整可用对话；工具历史以摘要展示，
 不会重新执行。`/clear` 保留旧会话，新会话等待下一次对话再保存。
 
@@ -205,6 +206,7 @@ Windows workspace-write 的私有临时目录由 DSH 按会话持有；read-only
 `forge sandbox --json` 是只读环境诊断，可报告未验证/blocked；不会触发项目 ACL 探针或自动修复。
 
 若运行命令时报 `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)`，是 Windows 拒绝 DSH 设置目录 ACL 与低完整性标签。目录可编辑不代表能设置进程沙盒：DSH 还要求目录归当前用户所有且授予 `WRITE_OWNER`；仅有 Modify 或所有者隐含的 `WRITE_DAC` 不足。错误会保留后端原因和诊断目录，详细记录为 `boundary-failure.json`。默认 CLI 的启动和文件操作无需这项授权；原生命令仍需满足权限条件。不修改目录权限时，可以批准上面的单次 `danger-full-access` 请求继续执行该命令；也可显式选择 `forge --sandbox full-access --approval supervised` 让整个会话使用宿主执行。两者都不代表修复了原生 ACL 隔离，也不会自动切换。
+确认 `command_started=false` 的沙盒准备失败会标记为 rejected，不推进命令环境版本或重扫工作区。错误向模型明确提供单次授权的参数与拒绝后的停止要求；更换命令本身不能解决目录授权条件，不能把未启动记为已执行。
 
 ## Profile、Bundle 与程序入口
 

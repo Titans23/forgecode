@@ -239,6 +239,26 @@ class _InteractivePrompt(Protocol):
         ...
 
 
+def permission_choice(*, options, default, key_bindings):
+    """An unnumbered approval selector; the reviewed operation stays above it."""
+    from prompt_toolkit.application import Application
+    from prompt_toolkit.layout import HSplit, Layout, Window
+    from prompt_toolkit.layout.controls import FormattedTextControl
+    from prompt_toolkit.widgets import RadioList
+    selection = RadioList(options, default=default, show_numbers=False, select_on_focus=True,
+                          open_character='', select_character='›', close_character=' ', show_cursor=False)
+    @key_bindings.add('enter', eager=True)
+    def accept(event):
+        event.app.exit(result=selection.current_value)
+    app = Application(layout=Layout(HSplit([
+        Window(FormattedTextControl('是否允许本次操作？'), height=1), selection,
+        Window(FormattedTextControl('↑/↓ 选择 · Enter 确认 · Y 同意一次 · N/Esc 拒绝'), height=1),
+    ]), focused_element=selection), key_bindings=key_bindings, erase_when_done=True,
+        style=Style.from_dict({'radio-list': 'bg:default', 'radio': '',
+            'radio-selected': 'ansibrightcyan bold', 'radio-checked': 'ansibrightcyan bold'}))
+    return app.run()
+
+
 class TerminalUI:
     '''Render the interactive ForgeCode conversation.'''
 
@@ -393,24 +413,17 @@ class TerminalUI:
                 ]
             )
         raw_values.append(('deny', '否，停止本轮操作'))
-        values = [
-            (identifier, f'{index}. {label}')
-            for index, (identifier, label) in enumerate(raw_values, start=1)
-        ]
-        option_help = '\n'.join(f'  {label}' for _, label in values)
+        values = raw_values
         targets = '\n'.join(f'  • {value}' for value in target_lines)
         self.console.print(
             Panel.fit(
                 f'[bold]{escape(action_labels.get(request.capability, request.tool_name))}[/bold]'
                 f'  风险：{escape(risk_labels.get(request.risk, request.risk))}\n'
                 f'目标（{max(1, len(request.targets))}）：\n{escape(targets)}\n\n'
-                f'{escape(detail)}\n\n'
-                f'[bold]如何操作[/bold]\n{escape(option_help)}\n\n'
-                f'[bold green]直接按 Enter、Y 或 1：同意一次[/bold green]\n'
-                f'按 ↑/↓ 后 Enter，或按对应数字：选择其他项\n'
-                f'按 N 或 Esc：拒绝',
+                f'{escape(detail)}',
                 title='需要你的确认',
                 border_style='yellow',
+                style='default on default',
             )
         )
         bindings = KeyBindings()
@@ -429,15 +442,13 @@ class TerminalUI:
         bindings.add('y', eager=True)(exit_with('allow_once'))
         bindings.add('n', eager=True)(exit_with('deny'))
         bindings.add('escape', eager=True)(exit_with('deny'))
+        bindings.add('c-c', eager=True)(exit_with('deny'))
 
         try:
-            selected = choice(
-                message='是否允许？直接按 Enter 即同意一次',
+            selected = permission_choice(
                 options=values,
                 default='allow_once',
-                show_frame=False,
                 key_bindings=bindings,
-                bottom_toolbar='Enter/Y/1 同意一次  数字选择  N/Esc 拒绝',
             )
         except KeyboardInterrupt:
             selected = 'deny'
@@ -450,13 +461,17 @@ class TerminalUI:
             ('ForgeCode', 'bold white'),
             (f' v{__version__}', 'dim'),
         )
-        title.append(f'  ·  {model}', style='dim')
-        self.console.print(title)
-        self.console.print(Text(str(Path.cwd()), style='dim'))
-        self.console.print(Text('Ctrl+C 取消/退出 · Ctrl+D 退出 · Ctrl+O 查看思考与工具详情', style='dim'))
-        self.console.print(
-            '[dim]Ask a question or describe a coding task.[/]'
-        )
+        details = Table.grid(padding=(0, 2), expand=True)
+        details.add_column(style='dim', no_wrap=True)
+        details.add_column(ratio=1)
+        details.add_row('模型', Text(model, style='bold bright_white'))
+        details.add_row('工作区', Text(str(Path.cwd())))
+        self.console.print(Panel(Group(details, Text(''),
+            Text('输入问题或描述任务，Enter 开始。', style='bright_cyan')),
+            title=title, title_align='left', border_style='bright_cyan', padding=(1, 2),
+            width=min(92, self.console.width), subtitle=Text('Ctrl+O 思考与工具详情 · /resume 最近会话', style='dim'),
+            subtitle_align='left'))
+        self.console.print(Text('  Ctrl+C 取消/退出  ·  Ctrl+D 退出  ·  /details 完整详情', style='dim'))
         self.console.print()
 
     def show_history(self, session_id, messages, *, notices=(), limit=10):
@@ -940,7 +955,7 @@ class StreamingResponseView:
         if not self.completed:
             frames = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
             frame = frames[int(elapsed / .12) % len(frames)]
-            renderables.append(Text(f'{frame} {self.phase} · {elapsed:.1f}s  '
+            renderables.append(Text(f'{frame} {self.phase} · 本轮 {elapsed:.1f}s  '
                 + ('Ctrl+O 收起详情' if self.expanded else 'Ctrl+O 展开详情'), style='bright_cyan', no_wrap=True, overflow='ellipsis'))
         else:
             usage = self.usage

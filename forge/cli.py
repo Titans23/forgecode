@@ -931,7 +931,12 @@ def build_resume_options(
     journal = getattr(conversation, 'session_journal', None)
     current_id = getattr(journal, 'session_id', None)
     options: list[SessionOption] = []
-    for info in store.list():
+    def updated(info):
+        try:
+            return datetime.fromisoformat(info.updated_at).timestamp()
+        except (TypeError, ValueError, OverflowError):
+            return 0
+    for info in sorted(store.list(), key=updated, reverse=True):
         current = info.session_id == current_id
         if info.message_count == 0 and not current:
             continue
@@ -950,7 +955,6 @@ def build_resume_options(
         )
     if current_id and not any(option.identifier == current_id for option in options):
         options.insert(0, SessionOption(current_id, '新会话', '当前会话 · 尚未发送消息 · ' + current_id[-12:]))
-    options.sort(key=lambda option: option.identifier != current_id)
     return tuple(options)
 
 
