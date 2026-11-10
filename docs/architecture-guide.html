@@ -223,7 +223,7 @@
   <header class="topbar">
     <a class="brand" href="#overview"><span class="brand-mark" aria-hidden="true">F</span><span>ForgeCode</span></a>
     <span class="top-title">架构学习手册</span>
-    <div class="top-meta"><span class="pill">离线学习</span><a id="revision-link" target="_blank" rel="noopener noreferrer">代码版本 <span class="mono">d6bfaef</span></a></div>
+    <div class="top-meta"><span class="pill">离线学习</span><a id="revision-link" target="_blank" rel="noopener noreferrer">代码版本 <span class="mono">6affff5</span></a></div>
     <button class="button nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">目录</button>
   </header>
   <div class="shell">
@@ -243,7 +243,7 @@
   <noscript><p>这个学习手册使用浏览器 JavaScript 展示模块和流程。请启用 JavaScript 后重新打开。</p></noscript>
   <script id="guide-data" type="application/json">
 {
-  "revision": "d6bfaefbb8124d2a9cd8939cf68b418943425c55",
+  "revision": "6affff5715d606f0b0dbca1a98d58a640df7a9ac",
   "date": "2026-11-10",
   "modules": [
     {
@@ -302,16 +302,16 @@
         {
           "path": "forge/api.py",
           "symbol": "HarnessSession.open",
-          "line": 256,
-          "end": 260,
+          "line": 236,
+          "end": 240,
           "code": "    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None, **resume):\n        conversation, journal, _, backend = await open_runtime(options,\n            approval_handler=approval_handler, model_client_factory=model_client_factory, **resume)\n        recorder = TrajectoryRecorder(journal.path.with_suffix('.trajectory.jsonl'))\n        return cls(conversation, journal, backend, recorder)",
           "note": "跟踪 open_runtime 返回的四个对象。"
         },
         {
           "path": "forge/api.py",
           "symbol": "HarnessSession.run",
-          "line": 313,
-          "end": 320,
+          "line": 293,
+          "end": 300,
           "code": "    async def run(self, prompt: UserInput) -> TurnResult:\n        result = None\n        async for event in self.stream(prompt):\n            if isinstance(event, TurnCompleted):\n                result = event.result\n        if result is None:\n            raise RuntimeError('Harness ended without a terminal result')\n        return result",
           "note": "观察缺失终态时如何处理。"
         }
@@ -342,8 +342,9 @@
       "summary": "把能力选择装配成一个实际运行时。",
       "concept": "AgentDefinition 描述需要什么能力，SessionOptions 描述这次运行的环境。create_runtime 将这些声明变成可执行对象。",
       "implementation": [
-        "core 使用通用循环和插件工具，可以没有工作区。coding 创建文件、命令、Git、任务验证及 Explore 等工具，并绑定工作区和执行后端。",
-        "新建和恢复共用 create_runtime。它创建模型客户端、工具注册表和 Conversation，再绑定 Journal、完成策略、模型别名及插件作用域。strict 完成策略会要求验证并设置有界交付修复。"
+        "core 使用通用循环和插件工具，可以没有工作区。coding 创建文件、命令、Git、任务验证及 Explore 等工具，sandbox_provider 默认解析为 native。显式选择 null 的 coding 组合默认使用宿主执行。",
+        "新建和恢复共用 create_runtime。它创建模型客户端、工具注册表和 Conversation，再绑定 Journal、完成策略、模型别名及插件作用域。strict 完成策略会要求验证并设置有界交付修复。",
+        "SessionOptions 未指定 sandbox 时，根据组合是否有执行提供方选择 workspace-write 或 full-access。受限执行模式必须有提供方，审批与预算仍单独配置。"
       ],
       "steps": [
         [
@@ -379,20 +380,24 @@
         [
           "completion",
           "normal 或 strict 完成策略"
+        ],
+        [
+          "sandbox_provider",
+          "内置 native、插件注册名或明确的 null"
         ]
       ],
       "example": [
         "笔记助手 base=core；代码修复助手 base=coding",
         "前者使用笔记插件，后者取得工作区文件和命令能力。"
       ],
-      "boundary": "core 组合不授予文件工具的读写根目录。coding 组合必须有工作区。",
+      "boundary": "core 组合不使用执行提供方，也不授予文件工具的读写根目录。coding 组合必须有工作区。",
       "sources": [
         {
           "path": "forge/agents.py",
           "symbol": "AgentDefinition",
           "line": 22,
           "end": 41,
-          "code": "class AgentDefinition:\n    name: str = 'coding'\n    base: Literal['coding', 'core'] = 'coding'\n    system_prompt: str | None = None\n    tools: tuple[str, ...] | None = None\n    plugins: tuple[PluginSpec, ...] = ()\n    role_models: dict[str, str] = field(default_factory=dict)\n    completion: Literal['normal', 'strict'] = 'normal'\n    context_options: dict = field(default_factory=dict)\n\n    def __post_init__(self):\n        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):\n            raise ValueError('Agent name must be a simple identifier')\n        if self.base not in {'coding', 'core'}:\n            raise ValueError('Agent base must be coding or core')\n        if self.completion not in {'normal', 'strict'}:\n            raise ValueError('Completion policy must be normal or strict')\n        if self.base == 'core' and self.completion == 'strict':\n            raise ValueError('Code verification requires a coding composition')\n        if not isinstance(self.role_models, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in self.role_models.items()):",
+          "code": "class AgentDefinition:\n    name: str = 'coding'\n    base: Literal['coding', 'core'] = 'coding'\n    system_prompt: str | None = None\n    tools: tuple[str, ...] | None = None\n    plugins: tuple[PluginSpec, ...] = ()\n    role_models: dict[str, str] = field(default_factory=dict)\n    completion: Literal['normal', 'strict'] = 'normal'\n    context_options: dict = field(default_factory=dict)\n    sandbox_provider: str | None = 'auto'\n\n    def __post_init__(self):\n        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):\n            raise ValueError('Agent name must be a simple identifier')\n        if self.base not in {'coding', 'core'}:\n            raise ValueError('Agent base must be coding or core')\n        if self.sandbox_provider == 'auto':\n            object.__setattr__(self, 'sandbox_provider', 'native' if self.base == 'coding' else None)\n        if self.sandbox_provider is not None and (not isinstance(self.sandbox_provider, str)\n                or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.sandbox_provider)):",
           "note": "先看声明字段，再看 __post_init__ 的组合约束。"
         },
         {
@@ -402,6 +407,14 @@
           "end": 52,
           "code": "def create_runtime(\n    root: Path,\n    *,\n    continue_session: bool = False,\n    resume_identifier: str | None = None,\n    fork_session: bool = False,\n    model_override: str | None = None,\n    task_policy: TaskPolicy | None = None,\n    execution_profile: ExecutionProfile | None = None,\n    allow_container_writes: bool = False,\n    conversation_factory: Callable[..., Conversation] | None = None,\n    task_relation: str | None = None,\n    bindings: RuntimeBindings | None = None,\n    defer_new_session: bool = False,\n    agent: AgentDefinition | None = None,\n) -> tuple[Conversation, SessionJournal, SessionState | None]:\n    '''Assemble new and resumed sessions through the same construction path.'''\n    if model_override is not None and not fork_session:\n        raise ValueError('model_override requires fork_session=True.')\n    agent = agent or AgentDefinition()",
           "note": "沿 coding、task_policy 和 registry 三个变量往下读。"
+        },
+        {
+          "path": "forge/execution.py",
+          "symbol": "ExecutionRequest",
+          "line": 10,
+          "end": 16,
+          "code": "class ExecutionRequest:\n    root: Path\n    data_root: Path\n    mode: str\n    read_roots: tuple[Path, ...]\n    write_roots: tuple[Path, ...] | None\n    wall_seconds: int",
+          "note": "执行提供方接收工作区、模式和范围等运行参数。"
         }
       ],
       "tests": [
@@ -527,7 +540,7 @@
       "concept": "Conversation 是一次持续对话的容器。它保留历史、上下文和客户端，每次新输入交给一个新的 TurnRunner。",
       "implementation": [
         "Conversation.stream 建立回合执行器，给它当前消息、任务和资源。提交后的消息归会话持有，回合中的临时响应归 TurnRunner 持有。",
-        "runtime_close 用同一个关闭任务完成幂等释放。它关闭 MCP、模型客户端、插件资源，最后释放自己拥有的执行后端；借用的后端由其所有者释放。",
+        "runtime_close 用同一个关闭任务完成幂等释放。它结束 MCP 与模型传输，随后关闭自己拥有的执行后端，再逆序释放插件资源；借用的后端由其所有者释放。",
         "会话关联 TaskManager，后者维护计划、需求解释与任务状态。计划完成情况和实际验证证据分别进入完成判断。"
       ],
       "steps": [
@@ -548,7 +561,7 @@
         ],
         [
           "释放资源",
-          "等待所属客户端和后端关闭，返回清理状态。",
+          "关闭模型与所属后端，再释放插件服务。",
           "clean / unknown"
         ]
       ],
@@ -579,16 +592,16 @@
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.stream",
-          "line": 446,
-          "end": 465,
+          "line": 448,
+          "end": 467,
           "code": "    async def stream(self, prompt: UserInput, *, input_id=None) -> AsyncIterator[ConversationEvent]:\n        '''Compatibility entry point delegated to the turn runner.'''\n        from forge.messages import normalize_input\n        from forge.runtime.capabilities import capabilities_for\n        prompt = normalize_input(prompt)\n        if self._running or self._close_task is not None:\n            raise RuntimeError('Conversation is closed or already running a turn')\n        if input_id is not None and not any(item['id'] == input_id and item['content'] == prompt\n                                           for item in self.inbox.pending):\n            raise ValueError('Queued input is missing or differs from the submitted content')\n        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):\n            if not capabilities_for(self.client).accepts_images:\n                raise ValueError('Configured model adapter does not support image input')\n        from forge.runtime.runner import TurnRunner\n        from forge.sessions.workspace_lock import workspace_execution\n        runner = TurnRunner(self)\n        ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()\n        from forge.observability.events import current\n        from forge.observability.recorder import JournalRecorder\n        inherited=current()",
           "note": "观察何时创建 TurnRunner 和发布事件。"
         },
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.runtime_close",
-          "line": 868,
-          "end": 873,
+          "line": 870,
+          "end": 875,
           "code": "    async def runtime_close(self, *, reason: str = 'exit') -> dict | None:\n        \"\"\"Drain the owned resources once; children only close their own clients.\"\"\"\n        import asyncio\n        if self._close_task is None:\n            self._close_task = asyncio.create_task(self._close_runtime(reason=reason))\n        return await asyncio.shield(self._close_task)",
           "note": "看关闭任务如何被复用。"
         },
@@ -1154,72 +1167,72 @@
     {
       "id": "sandbox",
       "group": "工具与执行",
-      "title": "原生执行与路径边界",
-      "symbol": "NativeBackendFactory",
-      "summary": "在已验证的执行能力内读写文件和运行命令。",
-      "concept": "日常 coding 选择原生执行后端。Windows 使用 DSH ACL，Linux 使用 bubblewrap，策略会冻结工作区、保护路径和支持的能力。",
+      "title": "执行提供方与原生边界",
+      "symbol": "ExecutionRequest · ExecutionSetup",
+      "summary": "由 Agent 选择执行提供方，再检查实际后端能力。",
+      "concept": "执行提供方是一个异步工厂，接收工作区和执行约束，返回已准备的后端及策略。通用内核通过这份契约使用内置或插件提供的执行能力。",
       "implementation": [
-        "后端在任何模型请求前准备执行边界，并验证实际能力。路径策略检查链接、文件身份和授权根目录。当前版本会报告具体被拒绝的路径，便于定位工作区中的问题。",
-        "文件工具和命令经 FileToolBackend/FileWorkerClient 进入原生执行。Windows 用独立控制目录持有 Job、临时授权和 Python 运行环境，关闭时按所有权释放。",
-        "CLI/API 显式 full-access 使用宿主执行路径，跳过递归工作区准入检查；根目录、写入范围与保护路径仍被编译，文件工具继续逐路径拒绝链接。原生模式继续检查整个工作区。"
+        "open_execution 在模型构造前完成选择。full-access 进入内置宿主路径，native 进入原生路径，其他名称从已加载插件的 sandbox_providers 中取得。ExecutionRequest 包含工作区、数据目录、模式、读写根和时限。",
+        "提供方返回 ExecutionSetup(backend, policy) 后，框架校验 sandbox-policy 并调用 backend.check_ready。检查失败时关闭已返回的后端，启动失败保持失败结果。创建中途的部分资源由提供方负责清理。",
+        "内置原生后端继续使用 Windows DSH ACL 或 Linux bubblewrap。原生模式审计整个工作区；显式 full-access 跳过递归准入，仍编译根目录及保护范围，文件工具继续逐路径拒绝链接。"
       ],
       "steps": [
         [
-          "编译策略",
-          "确定读写根、保护路径和所需执行能力。",
-          "policy hash"
+          "选择提供方",
+          "根据 Agent 的 sandbox_provider 与本次执行模式选择工厂。",
+          "open_execution"
         ],
         [
-          "验证能力",
-          "检查平台与实际原生后端能否满足要求。",
-          "prepared boundary"
+          "准备并检查",
+          "工厂返回后端和策略，框架校验策略与后端能力。",
+          "ExecutionSetup"
         ],
         [
           "执行操作",
-          "在所属进程和路径边界内执行。",
-          "file / process result"
+          "ToolExecutor 通过既有工具后端接口执行。",
+          "ToolExecutionBackend"
         ],
         [
-          "收尾确认",
-          "确认进程、授权和私有目录的清理。",
-          "clean / unknown"
+          "按所有权关闭",
+          "会话先关闭模型和后端，再释放插件服务。",
+          "backend → plugin resources"
         ]
       ],
       "states": [
         [
-          "workspace identity",
-          "工作区路径及文件系统身份"
+          "ExecutionRequest",
+          "不含模型凭据的执行参数"
         ],
         [
-          "policy",
-          "冻结的执行约束"
+          "ExecutionSetup",
+          "准备好的 backend 与 policy"
         ],
         [
-          "control root",
-          "会话私有的原生控制目录"
+          "sandbox_provider",
+          "Agent 显式选择的执行工厂"
         ]
       ],
       "example": [
-        "工作区内有不受支持的链接条目",
-        "初始化拒绝该工作区并报告实际条目路径，模型请求尚未开始。"
+        "可信插件注册 company-sandbox，Agent 选择同名提供方",
+        "启动时调用该工厂，检查返回的后端与策略，再开始模型回合。"
       ],
-      "boundary": "当前原生隔离为 partial，OS 读取与网络继承宿主。strict 所需完整能力尚未具备时会拒绝准入。",
+      "boundary": "提供方注册本身不证明 OS 隔离能力。内置原生边界仍为 partial，OS 读取与网络继承宿主。受管 coding 子任务必须继承父提供方，失败会保持明确的失败或未知清理状态。",
       "sources": [
         {
-          "path": "forge/sandbox/application_backend.py",
-          "symbol": "NativeBackendFactory.open",
-          "line": 39,
-          "end": 58,
-          "code": "    async def open(self,workspace,policy,owner,turn_id):\n        self.check_request(policy,required_mode=self.mode)\n        from forge.sandbox.workspace_backend import WorkspaceWriteBackend\n        diagnostic_root = self.data_dir/'native'/turn_id\n        control_root = diagnostic_root\n        if sys.platform == 'win32':\n            from forge.sandbox.windows_worker import windows_native_runtime_root\n            control_root = windows_native_runtime_root() / UUID(owner['sandbox_session_id'].removeprefix('sandbox-')).hex\n        native=WorkspaceWriteBackend(workspace,owner,control_root,mode=self.mode,\n            diagnostic_root=diagnostic_root if control_root != diagnostic_root else None)\n        client=FileWorkerClient(workspace,policy,native=native)\n        try:\n            await native.prepare(policy)  # Real prerequisite/boundary proof, never invented verified capabilities.\n            if native.policy_hash!=canonical_hash(policy):\n                raise ContractError('Prepared policy differs from accepted snapshot',kind='STALE_REVISION',code=-32010)\n            backend=FileToolBackend(client)\n            backend.check_ready(policy,required_mode=self.mode)\n            return backend\n        except BaseException as error:\n            try:cleanup=await asyncio.wait_for(client.close(),8)",
-          "note": "观察 prepare 在模型运行前发生。"
+          "path": "forge/execution.py",
+          "symbol": "open_execution",
+          "line": 28,
+          "end": 47,
+          "code": "async def open_execution(request: ExecutionRequest, provider: str | None, *, plugins=None) -> ExecutionSetup:\n    \"\"\"Select once before model construction; a failed provider never falls back.\"\"\"\n    if request.mode == 'full-access':\n        from forge.sandbox.provider import open_host_execution\n        factory = open_host_execution\n    elif provider == 'native':\n        from forge.sandbox.provider import open_native_execution\n        factory = open_native_execution\n    elif plugins is not None and provider in plugins.sandbox_providers:\n        factory = plugins.sandbox_providers[provider]\n    else:\n        raise ValueError(f'Sandbox provider is not registered: {provider}')\n    setup = await factory(request)\n    if not isinstance(setup, ExecutionSetup):\n        raise TypeError('Sandbox provider must return ExecutionSetup')\n    try:\n        from forge.protocol import validate\n        validate('sandbox-policy', setup.policy)\n        setup.backend.check_ready(setup.policy,\n            required_mode='local-trusted' if request.mode == 'full-access' else request.mode)",
+          "note": "先看工厂选择，再看策略校验、check_ready 和失败清理。"
         },
         {
-          "path": "forge/sandbox/workspace_backend.py",
-          "symbol": "WorkspaceWriteBackend._prepare",
-          "line": 61,
-          "end": 80,
-          "code": "    async def _prepare(self, policy):\n        if sys.platform not in ('win32', 'linux') or (sys.platform == 'win32' and not windows_supported()):\n            raise ContractError('Workspace-write requires Windows or Linux', kind='SANDBOX_UNAVAILABLE', code=-32010)\n        snapshot = compile_policy(policy, self.workspace, control_roots=(self.control_root,))\n        self.runtime = verify_runtime(self.trusted_root)\n        self.backend_name = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap'\n        self.backend_version = '0.2.1-alpha.1'\n        if sys.platform == 'linux':\n            binary = self.runtime.tools['bubblewrap']\n            process = await asyncio.create_subprocess_exec(str(binary), '--version',\n                env=bridge_environment(self.control_root), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)\n            try:\n                async with asyncio.timeout(5):\n                    output, _ = await process.communicate()\n                if process.returncode != 0 or not output.startswith(b'bubblewrap '):\n                    raise ValueError('Could not determine bubblewrap version')\n                self.backend_version = output.decode('ascii').strip().removeprefix('bubblewrap ')\n            finally:\n                if process.returncode is None:\n                    process.kill()",
-          "note": "读取平台、运行时与工作区分离检查。"
+          "path": "forge/sandbox/provider.py",
+          "symbol": "open_native_execution",
+          "line": 40,
+          "end": 47,
+          "code": "async def open_native_execution(request: ExecutionRequest) -> ExecutionSetup:\n    from forge.sandbox.application_backend import NativeBackendFactory\n    factory = NativeBackendFactory(request.data_root, mode=request.mode)\n    workspace, policy, _, identity = _policy(request, factory)\n    owner = {'engine_epoch': 'epoch-' + str(uuid4()), 'sandbox_session_id': 'sandbox-' + str(uuid4()),\n        'execution_id': None}\n    backend = await factory.open(workspace, policy, owner, identity)\n    return ExecutionSetup(backend, policy)",
+          "note": "查看内置 native 如何复用已有原生后端。"
         },
         {
           "path": "forge/sandbox/policy.py",
@@ -1227,17 +1240,25 @@
           "line": 43,
           "end": 62,
           "code": "def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), audit_workspace=True):\n    validate('sandbox-policy', policy)\n    value = json.loads(json.dumps(policy))\n    if value['workspace_id'] != workspace['id']:\n        denied('Policy is bound to another workspace')\n    root = inspect_path(workspace['canonical_path'], absolute=True)\n    identity = root.anchors[-1][1]\n    if identity is None or not root.path.is_dir() or f'{identity[0]}:{identity[1]}' != workspace['file_identity']:\n        raise ContractError('Workspace identity changed', kind='STALE_REVISION', code=-32010)\n    # Native admission audits the whole tree; explicit host execution still\n    # validates roots here and rejects unsafe paths on every file-tool access.\n    if audit_workspace:\n        audit_workspace_links(root.path)\n    filesystem = value['filesystem']\n    for name in ('read_roots', 'write_roots', 'protected_paths'):\n        filesystem[name] = sorted(set(str(inspect_path(path, absolute=True).path) for path in filesystem[name]))\n    trusted_temp = [inspect_path(path, absolute=True).path for path in temporary_roots]\n    for path in filesystem['read_roots']:\n        if not Path(path).is_dir():\n            denied('Read root must be an existing directory')",
-          "note": "比较 audit_workspace 的准入选择和始终执行的根目录及保护路径校验。"
+          "note": "比较 audit_workspace 和始终执行的根目录及保护范围检查。"
         }
       ],
       "tests": [
+        {
+          "path": "tests/test_plugins.py",
+          "symbol": "test_provider_startup_failure_closes_plugin_scope_without_model_or_fallback",
+          "line": 200,
+          "end": 200,
+          "code": "",
+          "note": "提供方启动失败会关闭插件作用域，并阻止模型启动。"
+        },
         {
           "path": "tests/implementation/unit/test_policy.py",
           "symbol": "test_actual_junction_or_symlink_cannot_bypass_path_policy",
           "line": 220,
           "end": 220,
           "code": "",
-          "note": "真实链接条目触发路径身份检查。"
+          "note": "原生路径检查仍拒绝实际链接条目。"
         }
       ],
       "related": [
@@ -1245,8 +1266,8 @@
         "permissions",
         "sessions"
       ],
-      "question": "为什么原生初始化失败要在调用模型之前返回？",
-      "answer": "后续文件与命令执行依赖这条边界。提前拒绝可以避免在能力尚未准备好时开始任务和消耗模型额度。"
+      "question": "为什么提供方初始化失败时，模型回合还不能开始？",
+      "answer": "后续工具执行需要已准备且通过检查的后端。失败保持在装配阶段，已经创建的资源按所有权清理。"
     },
     {
       "id": "plugins",
@@ -1254,10 +1275,11 @@
       "title": "插件与服务生命周期",
       "symbol": "PluginHost · PluginContext",
       "summary": "让扩展能力带着明确的依赖和资源所有者进入会话。",
-      "concept": "插件通过 activate(ctx, config) 注册能力。PluginContext 是它访问工具、服务、事件、提供方和受管子任务的公共入口。",
+      "concept": "插件通过 activate(ctx, config) 注册能力。PluginContext 提供工具、模型提供方、执行提供方、服务、事件和受管子任务的公共入口。",
       "implementation": [
         "加载前检查显式信任、接口版本、依赖和名称。插件依赖排序后逐个激活，注册项归到各自作用域。",
-        "加载失败会撤销已注册内容并释放资源。会话关闭时先结束模型传输，再逆序释放插件服务。可变状态适合放在 activate 闭包里，随会话隔离。"
+        "加载失败会撤销已注册内容并释放资源。会话关闭时先结束模型传输和执行后端，再逆序释放插件服务。可变状态适合放在 activate 闭包里，随会话隔离。",
+        "register_sandbox_provider 在激活期间注册执行工厂，AgentDefinition 通过名称选择。native 和 auto 是保留名，重复注册或作用域关闭后的注册会被拒绝。"
       ],
       "steps": [
         [
@@ -1304,18 +1326,26 @@
         {
           "path": "forge/plugins.py",
           "symbol": "PluginContext.register_tool",
-          "line": 134,
-          "end": 148,
+          "line": 135,
+          "end": 149,
           "code": "    def register_tool(self, name, description, schema, callback, *, effect='read_only'):\n        self._require_active()\n        if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]{0,79}', name):\n            raise PluginError('Invalid tool name')\n        if name in self._host.tools:\n            raise PluginError(f'Duplicate plugin tool: {name}')\n        tool = PluginTool(self.plugin_id, name, description, schema, callback, effect)\n        self._host.tools[name] = tool\n        def remove():\n            self._host.tools.pop(name, None)\n            registry = self._host.registry\n            if registry is not None and registry.implementation(name) is tool:\n                registry.unregister(name)\n        self.effect(remove)\n        return tool",
           "note": "查看工具名、schema、回调和 effect 的注册。"
         },
         {
           "path": "forge/plugins.py",
           "symbol": "PluginHost.load",
-          "line": 211,
-          "end": 230,
+          "line": 225,
+          "end": 244,
           "code": "    async def load(self, specifications):\n        try:\n            entries = {}\n            for spec in specifications:\n                manifest, entry = describe_plugin(spec)\n                name = manifest['id']\n                if name in entries:\n                    raise PluginError(f'Duplicate plugin: {name}')\n                entries[name] = (spec, manifest, entry)\n            ordered, visiting = [], set()\n            def visit(name):\n                if name in visiting:\n                    raise PluginError(f'Plugin dependency cycle: {name}')\n                if name in ordered:\n                    return\n                if name not in entries:\n                    raise PluginError(f'Missing plugin dependency: {name}')\n                visiting.add(name)\n                for dep in entries[name][1].get('requires', ()):\n                    visit(dep)",
           "note": "跟踪加载顺序与失败回滚。"
+        },
+        {
+          "path": "forge/plugins.py",
+          "symbol": "PluginContext.register_sandbox_provider",
+          "line": 172,
+          "end": 182,
+          "code": "    def register_sandbox_provider(self, name: str, factory: SandboxProvider):\n        \"\"\"Register a trusted execution factory selected explicitly by an Agent.\"\"\"\n        self._require_active()\n        if not isinstance(name, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', name):\n            raise PluginError('Invalid sandbox provider name')\n        if name in {'native', 'auto'} or name in self._host.sandbox_providers:\n            raise PluginError(f'Duplicate or reserved sandbox provider: {name}')\n        if self._host.conversation is not None or not callable(factory):\n            raise PluginError('Sandbox providers require callable factories during activation')\n        self._host.sandbox_providers[name] = factory\n        self.effect(lambda: self._host.sandbox_providers.pop(name, None))",
+          "note": "查看保留名、激活阶段和资源撤销约束。"
         }
       ],
       "tests": [
@@ -1528,7 +1558,7 @@
       "summary": "把子任务的权限、预算和清理归入父回合。",
       "concept": "受管子任务适合把一个前台请求分成几个职责明确的小任务。Explore 则专门读取代码，返回受约束的探索结果。",
       "implementation": [
-        "run_child 要求父回合正在运行。子 Agent 的插件与工具范围必须继承或收窄，角色模型由父 Agent 的 role_models 选择。",
+        "run_child 要求父回合正在运行。子 Agent 的插件和工具范围必须继承或收窄，coding 子任务必须继承父执行提供方，角色模型由父 Agent 的 role_models 选择。",
         "通过 parent_budget 把子任务用量累计到父回合。权限规则传给子会话，结束后记录子会话结果并检查清理。Explore 使用固定只读注册表，借用父后端。"
       ],
       "steps": [
@@ -1578,7 +1608,7 @@
           "symbol": "Conversation.run_child",
           "line": 348,
           "end": 367,
-          "code": "    async def run_child(self, prompt, definition, *, role='worker'):\n        \"\"\"A foreground child shares the active turn budget and cannot add capabilities.\"\"\"\n        from dataclasses import replace\n        from forge.api import HarnessSession\n        from forge.runtime.turn_state import parent_budget\n        from forge.runtime.model_registry import config_for_alias\n        if not self._running or self.turn_state is None:\n            raise RuntimeError('Managed children require an active parent turn')\n        if self.agent_definition.base == 'core' and definition.base != 'core':\n            raise ValueError('A core parent cannot grant coding capabilities')\n        parent_plugins = {p.source: p for p in self.agent_definition.plugins}\n        if any(parent_plugins.get(p.source) != p for p in definition.plugins):\n            raise ValueError('Child plugins must be inherited from the parent')\n        if self.agent_definition.tools is not None and (definition.tools is None or\n                not set(definition.tools).issubset(self.agent_definition.tools)):\n            raise ValueError('Child tools must be a subset of the parent tools')\n        alias = self.agent_definition.role_models.get(role)\n        config = config_for_alias(self, alias)[0] if alias else self.model_config\n        options = replace(self.session_options, agent=replace(definition, role_models={}), config=config,\n                          approval=self.permission_manager.mode)",
+          "code": "    async def run_child(self, prompt, definition, *, role='worker'):\n        \"\"\"A foreground child shares the active turn budget and cannot add capabilities.\"\"\"\n        from dataclasses import replace\n        from forge.api import HarnessSession\n        from forge.runtime.turn_state import parent_budget\n        from forge.runtime.model_registry import config_for_alias\n        if not self._running or self.turn_state is None:\n            raise RuntimeError('Managed children require an active parent turn')\n        if self.agent_definition.base == 'core' and definition.base != 'core':\n            raise ValueError('A core parent cannot grant coding capabilities')\n        if definition.base == 'coding' and definition.sandbox_provider != self.agent_definition.sandbox_provider:\n            raise ValueError('Child sandbox provider must be inherited from the parent')\n        parent_plugins = {p.source: p for p in self.agent_definition.plugins}\n        if any(parent_plugins.get(p.source) != p for p in definition.plugins):\n            raise ValueError('Child plugins must be inherited from the parent')\n        if self.agent_definition.tools is not None and (definition.tools is None or\n                not set(definition.tools).issubset(self.agent_definition.tools)):\n            raise ValueError('Child tools must be a subset of the parent tools')\n        alias = self.agent_definition.role_models.get(role)\n        config = config_for_alias(self, alias)[0] if alias else self.model_config",
           "note": "先读能力继承检查，再追踪 parent_budget。"
         },
         {
@@ -1598,6 +1628,14 @@
           "end": 282,
           "code": "",
           "note": "父会话拒绝规则传入受管子会话。"
+        },
+        {
+          "path": "tests/test_plugins.py",
+          "symbol": "test_managed_coding_child_cannot_replace_parent_provider",
+          "line": 258,
+          "end": 258,
+          "code": "",
+          "note": "受管 coding 子任务不能替换父执行提供方。"
         }
       ],
       "related": [
@@ -2855,6 +2893,11 @@
       "Pydantic / JSON Schema",
       "分别用于定义和校验结构化 Python 输入，以及跨边界 JSON 的形状和约束。",
       "contracts"
+    ],
+    [
+      "执行提供方",
+      "由 Agent 选择的异步工厂。接收 ExecutionRequest，返回后端和策略组成的 ExecutionSetup。",
+      "sandbox"
     ]
   ],
   "paths": [
