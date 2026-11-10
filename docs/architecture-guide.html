@@ -1,0 +1,3319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="从全局架构、请求流程和真实源码，学习 ForgeCode 的 Python Agent Harness。">
+  <meta name="color-scheme" content="light">
+  <title>ForgeCode 架构学习手册</title>
+  <style>
+    :root {
+      --paper: #f3f6fa; --panel: #fff; --ink: #172b42; --muted: #566a80;
+      --nav: #14263b; --nav-text: #d1deed; --line: #dce5ee; --teal: #086b72;
+      --teal-soft: #e5f3f2; --blue: #335ed0; --blue-soft: #eef2fe;
+      --amber: #885210; --amber-soft: #fff3dc; --code: #142439; --radius: 16px;
+      --shadow: 0 12px 36px rgba(27, 51, 78, .06);
+      font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      color: var(--ink); background: var(--paper); line-height: 1.7;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    a { color: var(--teal); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; opacity: .45; }
+    :focus-visible { outline: 3px solid #dc8b26; outline-offset: 4px; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(1.8rem, 3.3vw, 2.65rem); line-height: 1.25; letter-spacing: -.04em; }
+    h2 { font-size: 1.38rem; line-height: 1.4; letter-spacing: -.02em; }
+    h3 { font-size: 1.04rem; line-height: 1.5; }
+    p + p { margin-top: 12px; }
+    code, pre, .mono { font-family: "Cascadia Code", Consolas, monospace; }
+    code { overflow-wrap: anywhere; }
+    .skip { position: absolute; left: 14px; top: -100px; z-index: 30; padding: 10px; background: #fff; }
+    .skip:focus { top: 8px; }
+    .topbar { height: 70px; display: flex; align-items: center; gap: 18px; padding: 0 28px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 15; }
+    .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); font-weight: 700; letter-spacing: -.03em; font-size: 1.1rem; }
+    .brand:hover { text-decoration: none; }
+    .brand-mark { width: 33px; height: 33px; display: grid; place-items: center; background: var(--teal); border-radius: 9px; color: white; font-family: Consolas, monospace; }
+    .top-title { color: var(--muted); font-size: .85rem; border-left: 1px solid var(--line); padding-left: 18px; }
+    .top-meta { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: .78rem; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 3px 10px; background: var(--teal-soft); color: var(--teal); font-size: .76rem; font-weight: 600; }
+    .topbar .nav-toggle { display: none; }
+    .shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: calc(100vh - 70px); max-width: 1600px; margin: auto; }
+    .sidebar { background: var(--nav); color: var(--nav-text); padding: 24px 17px; position: sticky; top: 70px; height: calc(100vh - 70px); overflow-y: auto; }
+    .sidebar a { color: var(--nav-text); }
+    .search-label { display: block; color: #b0c5db; font-size: .77rem; margin: 0 7px 6px; }
+    .search { width: 100%; min-height: 42px; border: 1px solid #49617a; color: #f3f8ff; background: #20374f; border-radius: 9px; padding: 9px 11px; }
+    .search::placeholder { color: #b0c5db; }
+    .search-count { font-size: .74rem; color: #b0c5db; min-height: 25px; margin: 4px 7px 13px; }
+    .nav-primary { display: grid; gap: 3px; padding-bottom: 16px; border-bottom: 1px solid #344a63; }
+    .nav-link { display: block; padding: 8px 10px; border-radius: 7px; font-size: .84rem; }
+    .nav-link:hover { background: #203a55; text-decoration: none; }
+    .nav-link[aria-current="page"] { background: #265268; color: #fff; }
+    .nav-heading { margin: 20px 10px 6px; font-size: .7rem; letter-spacing: .09em; color: #95aec7; }
+    .nav-module { font-size: .79rem; padding: 6px 10px; }
+    main { min-width: 0; padding: 32px 38px 72px; scroll-margin-top: 82px; }
+    .content { max-width: 1130px; margin: auto; }
+    .eyebrow { color: var(--teal); font-size: .72rem; letter-spacing: .15em; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; }
+    .lead { color: var(--muted); max-width: 760px; margin-top: 16px; font-size: .99rem; }
+    .hero { background: radial-gradient(ellipse at 90% 0%, #224d64, #14283e 65%); color: #f7fbff; border-radius: 22px; padding: 34px; overflow: hidden; position: relative; }
+    .hero .eyebrow { color: #a2ded5; }
+    .hero .lead { color: #c3d5e6; max-width: 680px; }
+    .hero-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 30px; }
+    .hero-line a { color: #d9f7f3; border: 1px solid #476d7f; padding: 8px 13px; border-radius: 9px; background: #1c3b51; font-size: .86rem; }
+    .hero-line a:hover { background: #28596a; text-decoration: none; }
+    .hero-line span { color: #8caebf; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 23px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 8px 14px; border-radius: 9px; font-size: .84rem; font-weight: 600; }
+    .button:hover { background: var(--blue-soft); text-decoration: none; }
+    .button.primary { color: white; background: var(--teal); border-color: var(--teal); }
+    .button.primary:hover { background: #09575d; }
+    .hero .button.primary { color: #12363c; background: #a6e7dc; border-color: #a6e7dc; }
+    .hero .button.secondary { background: transparent; color: #e1edf8; border-color: #627b92; }
+    .section { margin-top: 32px; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
+    .caption { color: var(--muted); font-size: .8rem; }
+    .three-grid, .module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow); }
+    .route-card { display: block; color: var(--ink); transition: transform .15s, border-color .15s; }
+    .route-card:hover { border-color: #65a5ad; transform: translateY(-2px); text-decoration: none; }
+    .route-card p { color: var(--muted); font-size: .83rem; margin-top: 9px; }
+    .route-number { color: var(--teal); background: var(--teal-soft); display: inline-grid; place-items: center; width: 29px; height: 29px; border-radius: 8px; font-size: .77rem; font-weight: 700; margin-bottom: 13px; }
+    .route-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+    .route-chips a { font-size: .72rem; padding: 3px 7px; background: var(--paper); border-radius: 5px; }
+    .blueprint { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 25px; box-shadow: var(--shadow); }
+    .map-layer { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 14px; align-items: start; padding: 16px 0; border-bottom: 1px dashed var(--line); }
+    .map-layer:last-child { border-bottom: 0; }
+    .layer-name { font-size: .76rem; color: var(--muted); padding-top: 10px; }
+    .map-nodes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+    .map-node { display: block; color: var(--ink); padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; background: #fafcfe; transition: border-color .15s, background .15s; min-width: 0; }
+    .map-node:hover { background: var(--teal-soft); border-color: #82b2b4; text-decoration: none; }
+    .map-node strong { display: block; font-size: .79rem; }
+    .map-node small { display: block; font-family: Consolas, monospace; font-size: .68rem; color: var(--muted); overflow-wrap: anywhere; margin-top: 4px; }
+    .map-node[data-core="true"] { background: #edf5fa; border-color: #b7cedf; }
+    .muted-box { padding: 14px 17px; border-radius: 10px; background: var(--blue-soft); color: #344d7b; font-size: .82rem; margin-top: 16px; }
+    .breadcrumbs { display: flex; gap: 9px; flex-wrap: wrap; color: var(--muted); font-size: .78rem; margin-bottom: 24px; }
+    .module-heading { display: flex; align-items: flex-start; gap: 18px; }
+    .chapter-index { display: grid; place-items: center; flex: 0 0 54px; height: 54px; background: var(--teal-soft); color: var(--teal); font-family: Consolas, monospace; font-weight: 700; font-size: 1.4rem; border-radius: 15px; }
+    .module-heading .eyebrow { margin: 0 0 7px; }
+    .module-heading h1 { font-size: clamp(1.6rem, 3vw, 2.25rem); }
+    .symbol { font-family: Consolas, monospace; color: var(--muted); font-size: .83rem; margin-top: 11px; overflow-wrap: anywhere; }
+    .explain-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 17px; }
+    .prose { color: #324a62; font-size: .9rem; }
+    .prose h2 { color: var(--ink); margin-bottom: 13px; }
+    .example { background: #eaf4f3; border-color: #c4dedb; }
+    .example-label { font-size: .7rem; font-weight: 700; color: #245d60; margin-bottom: 7px; letter-spacing: .07em; }
+    .example-value { font-size: .85rem; color: #244a52; overflow-wrap: anywhere; }
+    .example-arrow { padding: 10px 0; color: #488f91; font-size: 1.3rem; }
+    .step-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-bottom: 14px; }
+    .step-button { padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); text-align: left; min-width: 0; color: var(--ink); }
+    .step-button span { display: block; font-family: Consolas, monospace; font-size: .71rem; color: var(--muted); margin-bottom: 5px; }
+    .step-button strong { font-size: .81rem; }
+    .step-button[aria-pressed="true"] { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
+    .step-detail { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; min-height: 135px; background: var(--nav); color: #e5eef8; padding: 22px; border-radius: 13px; }
+    .step-detail p { font-size: .86rem; color: #c5d6e8; margin-top: 6px; }
+    .state-code { color: #b5e8dd; font-size: .81rem; font-family: Consolas, monospace; overflow-wrap: anywhere; align-self: center; padding-left: 20px; border-left: 1px solid #456075; }
+    .state-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .state-table th, .state-table td { text-align: left; vertical-align: top; padding: 11px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+    .state-table th { width: 34%; color: var(--teal); font-weight: 600; }
+    .boundary { background: var(--amber-soft); color: #744814; border: 1px solid #f0d9ae; padding: 16px 19px; border-radius: 12px; font-size: .85rem; margin-top: 16px; }
+    .boundary strong { display: block; font-size: .77rem; margin-bottom: 5px; }
+    .source { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
+    .source summary { cursor: pointer; padding: 15px 18px; font-size: .85rem; overflow-wrap: anywhere; }
+    .source summary small { display: inline; color: var(--muted); margin-left: 10px; }
+    .source-note { padding: 0 18px 13px; font-size: .83rem; color: var(--muted); }
+    .source pre { margin: 0; background: var(--code); color: #d7e7f5; padding: 17px 16px; overflow-x: auto; font-size: .76rem; line-height: 1.7; tab-size: 4; }
+    .code-line { display: grid; grid-template-columns: 38px max-content; }
+    .line-number { color: #8ea6bf; user-select: none; }
+    .code-text { white-space: pre; }
+    .source-footer { padding: 12px 18px; display: flex; gap: 14px; flex-wrap: wrap; font-size: .76rem; }
+    .test-list { display: grid; gap: 11px; }
+    .test-entry { padding: 16px 19px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid #5d9e98; border-radius: 10px; min-width: 0; }
+    .test-entry a { font-size: .81rem; overflow-wrap: anywhere; }
+    .test-entry p { font-size: .82rem; color: var(--muted); margin-top: 5px; }
+    .question { border: 1px solid #c5d6e8; border-radius: 12px; background: #eef4fa; padding: 16px 19px; }
+    .question summary { cursor: pointer; color: #244969; font-size: .88rem; }
+    .question p { color: #3e5971; font-size: .87rem; padding-top: 13px; }
+    .related { display: flex; flex-wrap: wrap; gap: 9px; }
+    .flow-menu { display: flex; flex-wrap: wrap; gap: 9px; margin: 22px 0; }
+    .flow-menu a[aria-current="page"] { background: var(--teal); color: white; border-color: var(--teal); }
+    .flow-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; }
+    .flow-timeline { display: grid; align-content: start; gap: 6px; }
+    .flow-stop { display: flex; gap: 10px; align-items: center; width: 100%; border: 0; border-radius: 8px; background: transparent; color: var(--muted); text-align: left; padding: 10px 9px; font-size: .8rem; }
+    .flow-stop .step-dot { display: grid; place-items: center; width: 25px; height: 25px; flex-shrink: 0; background: #dce6ef; color: #4a637d; border-radius: 50%; font-size: .69rem; }
+    .flow-stop[aria-current="step"] { background: var(--teal-soft); color: var(--teal); font-weight: 600; }
+    .flow-stop[aria-current="step"] .step-dot { background: var(--teal); color: white; }
+    .flow-scene { background: var(--nav); border-radius: 16px; padding: 24px; color: #edf6ff; min-height: 200px; display: flex; flex-direction: column; justify-content: space-between; }
+    .scene-title { font-size: 1.16rem; }
+    .flow-lanes { display: flex; gap: 8px; justify-content: space-between; margin-top: 21px; }
+    .flow-lane { padding: 10px 8px; border: 1px solid #52687e; border-radius: 8px; text-align: center; flex: 1; font-size: .74rem; color: #adc4d9; }
+    .flow-lane.active { border-color: #a6e5d9; background: #2b5a65; color: #e7fff9; box-shadow: 0 0 0 3px rgba(146, 224, 211, .08); }
+    .flow-scene .caption { color: #b3ccdf; margin-top: 15px; }
+    .io-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+    .io-label { color: var(--teal); font-size: .74rem; font-weight: 700; margin-bottom: 7px; }
+    .io-text { font-size: .85rem; color: #3f5870; overflow-wrap: anywhere; }
+    .metric-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+    .metric small { display: block; color: var(--muted); font-size: .69rem; }
+    .metric strong { display: block; font-size: .85rem; font-family: Consolas, monospace; margin-top: 6px; color: var(--teal); overflow-wrap: anywhere; }
+    .flow-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .flow-position { color: var(--muted); font-size: .78rem; margin-left: auto; }
+    .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 26px; }
+    .glossary dt { font-weight: 700; color: var(--teal); font-size: .92rem; }
+    .glossary dd { margin: 8px 0 12px; font-size: .86rem; color: var(--muted); }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: .76rem; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .empty { padding: 22px; background: var(--amber-soft); border-radius: 12px; color: var(--amber); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media (max-width: 1200px) {
+      .shell { grid-template-columns: 218px minmax(0, 1fr); }
+      main { padding: 27px 25px 60px; }
+      .three-grid { grid-template-columns: 1fr; }
+      .route-card { padding: 18px 21px; }
+      .route-number { float: left; margin: 1px 14px 8px 0; }
+      .route-chips { clear: both; }
+      .flow-layout { grid-template-columns: 210px minmax(0, 1fr); }
+    }
+    @media (max-width: 980px) {
+      .topbar { padding: 0 18px; }
+      .top-title, .top-meta .pill { display: none; }
+      .topbar .nav-toggle { display: inline-flex; margin-left: 8px; }
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { display: none; position: static; height: auto; max-height: 65vh; }
+      body.nav-open .sidebar { display: block; }
+      .explain-grid { grid-template-columns: 1fr; }
+      .flow-layout { grid-template-columns: 190px minmax(0, 1fr); }
+    }
+    @media (max-width: 650px) {
+      main { padding: 22px 15px 45px; }
+      .hero { padding: 24px 22px; }
+      .hero-line { gap: 7px; }
+      .hero-line a { padding: 6px 10px; }
+      .top-meta > a { display: none; }
+      .section-head { align-items: flex-start; flex-direction: column; gap: 5px; }
+      .blueprint { padding: 14px; }
+      .map-layer { grid-template-columns: 1fr; gap: 8px; padding: 13px 0; }
+      .layer-name { padding: 0; }
+      .map-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .module-grid { grid-template-columns: 1fr; }
+      .step-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .step-detail { grid-template-columns: 1fr; min-height: 180px; }
+      .state-code { padding: 10px 0 0; border-left: 0; border-top: 1px solid #456075; }
+      .flow-layout { grid-template-columns: 1fr; }
+      .flow-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+      .flow-stop { font-size: .73rem; }
+      .flow-scene { padding: 19px; }
+      .flow-lanes { gap: 5px; }
+      .flow-lane { padding: 9px 4px; }
+      .io-grid, .glossary { grid-template-columns: 1fr; }
+      .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card { padding: 18px; }
+      .module-heading { gap: 12px; }
+      .chapter-index { width: 44px; flex-basis: 44px; height: 44px; }
+      .state-table th { width: 40%; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+    @media print { .sidebar, .topbar, .nav-toggle, .flow-controls { display: none; } .shell { display: block; } main { padding: 0; } .card, .source { box-shadow: none; break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">跳转到正文</a>
+  <header class="topbar">
+    <a class="brand" href="#overview"><span class="brand-mark" aria-hidden="true">F</span><span>ForgeCode</span></a>
+    <span class="top-title">架构学习手册</span>
+    <div class="top-meta"><span class="pill">离线学习</span><a id="revision-link" target="_blank" rel="noopener noreferrer">代码版本 <span class="mono">d6bfaef</span></a></div>
+    <button class="button nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">目录</button>
+  </header>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <label class="search-label" for="module-search">查找模块或概念</label>
+      <input class="search" id="module-search" type="search" placeholder="预算 / MCP / Journal" autocomplete="off">
+      <div class="search-count" id="search-count" aria-live="polite"></div>
+      <nav class="nav-primary" aria-label="学习视图">
+        <a class="nav-link" href="#overview" data-route="overview">全局架构</a>
+        <a class="nav-link" href="#flow/coding" data-route="flow">请求流程推演</a>
+        <a class="nav-link" href="#glossary" data-route="glossary">术语与状态</a>
+      </nav>
+      <nav id="module-nav" aria-label="模块目录"></nav>
+    </aside>
+    <main id="main" tabindex="-1"><div class="content" id="content"></div></main>
+  </div>
+  <noscript><p>这个学习手册使用浏览器 JavaScript 展示模块和流程。请启用 JavaScript 后重新打开。</p></noscript>
+  <script id="guide-data" type="application/json">
+{
+  "revision": "d6bfaefbb8124d2a9cd8939cf68b418943425c55",
+  "date": "2026-11-10",
+  "modules": [
+    {
+      "id": "entry",
+      "group": "入口与装配",
+      "title": "CLI 与 Python SDK",
+      "symbol": "HarnessSession",
+      "summary": "把一句请求接入可取消、可观测的会话。",
+      "concept": "终端负责交互，SDK 提供可以嵌入其他程序的会话对象。两种入口都把配置交给同一装配路径，随后消费相同的事件。",
+      "implementation": [
+        "forge.launch 根据启动 profile 选择终端或评测命令。SDK 的 HarnessSession.open 调用 open_runtime，取得 Conversation、Journal 和执行后端。",
+        "run 逐个消费 stream 的事件，直到收到 TurnCompleted。stream 会记录输入与轨迹，并检查会话是否关闭或已有回合运行。cancel 取消当前任务，close 等待资源释放。"
+      ],
+      "steps": [
+        [
+          "打开会话",
+          "SessionOptions 带入能力、工作区、模型和预算。",
+          "session=open"
+        ],
+        [
+          "提交输入",
+          "字符串或文字/图像块被规范化，进入 Conversation.stream。",
+          "running=true"
+        ],
+        [
+          "消费事件",
+          "界面显示文本与工具事件，run 等待明确的终态。",
+          "TurnCompleted → TurnResult"
+        ],
+        [
+          "关闭资源",
+          "停止活动任务，关闭会话拥有的资源，并记录停止。",
+          "cleanup=clean 或 unknown"
+        ]
+      ],
+      "states": [
+        [
+          "SessionOptions",
+          "调用方提供的运行参数"
+        ],
+        [
+          "_task",
+          "当前正在消费流的协程"
+        ],
+        [
+          "TurnResult",
+          "本回合文本、状态、用量和验证结果"
+        ]
+      ],
+      "example": [
+        "SDK 收到「读取报销 CSV 并汇总」",
+        "模型文本和工具事件逐步到达；run 最后返回状态及结果。"
+      ],
+      "boundary": "正在运行的会话会拒绝第二个并发回合。回合结束后才能切换模型或增加完成检查。",
+      "sources": [
+        {
+          "path": "forge/api.py",
+          "symbol": "HarnessSession.open",
+          "line": 256,
+          "end": 260,
+          "code": "    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None, **resume):\n        conversation, journal, _, backend = await open_runtime(options,\n            approval_handler=approval_handler, model_client_factory=model_client_factory, **resume)\n        recorder = TrajectoryRecorder(journal.path.with_suffix('.trajectory.jsonl'))\n        return cls(conversation, journal, backend, recorder)",
+          "note": "跟踪 open_runtime 返回的四个对象。"
+        },
+        {
+          "path": "forge/api.py",
+          "symbol": "HarnessSession.run",
+          "line": 313,
+          "end": 320,
+          "code": "    async def run(self, prompt: UserInput) -> TurnResult:\n        result = None\n        async for event in self.stream(prompt):\n            if isinstance(event, TurnCompleted):\n                result = event.result\n        if result is None:\n            raise RuntimeError('Harness ended without a terminal result')\n        return result",
+          "note": "观察缺失终态时如何处理。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_core_sdk.py",
+          "symbol": "test_core_roundtrip_and_storage_scope",
+          "line": 28,
+          "end": 28,
+          "code": "",
+          "note": "无工作区会话可以完成回合并保存自己的会话事实。"
+        }
+      ],
+      "related": [
+        "composition",
+        "conversation",
+        "channels"
+      ],
+      "question": "为什么 run 不能直接拿最后一段文本当作成功结果？",
+      "answer": "文本片段只说明模型产生了内容。TurnCompleted 还带有停止原因、预算和验收结论，run 必须等到这类终态事件。"
+    },
+    {
+      "id": "composition",
+      "group": "入口与装配",
+      "title": "Agent 组合与装配",
+      "symbol": "AgentDefinition · create_runtime",
+      "summary": "把能力选择装配成一个实际运行时。",
+      "concept": "AgentDefinition 描述需要什么能力，SessionOptions 描述这次运行的环境。create_runtime 将这些声明变成可执行对象。",
+      "implementation": [
+        "core 使用通用循环和插件工具，可以没有工作区。coding 创建文件、命令、Git、任务验证及 Explore 等工具，并绑定工作区和执行后端。",
+        "新建和恢复共用 create_runtime。它创建模型客户端、工具注册表和 Conversation，再绑定 Journal、完成策略、模型别名及插件作用域。strict 完成策略会要求验证并设置有界交付修复。"
+      ],
+      "steps": [
+        [
+          "声明能力",
+          "选择 core/coding、工具、插件及角色模型。",
+          "AgentDefinition"
+        ],
+        [
+          "准备边界",
+          "open_runtime 检查工作区、权限和执行后端。",
+          "SessionOptions"
+        ],
+        [
+          "绑定依赖",
+          "模型、工具、Journal、检查点进入同一个会话。",
+          "RuntimeBindings"
+        ],
+        [
+          "创建或恢复",
+          "恢复历史、模型选择、验收历史和待处理输入。",
+          "Conversation"
+        ]
+      ],
+      "states": [
+        [
+          "base",
+          "决定 core 或 coding 组合"
+        ],
+        [
+          "role_models",
+          "角色名称到模型别名的映射"
+        ],
+        [
+          "completion",
+          "normal 或 strict 完成策略"
+        ]
+      ],
+      "example": [
+        "笔记助手 base=core；代码修复助手 base=coding",
+        "前者使用笔记插件，后者取得工作区文件和命令能力。"
+      ],
+      "boundary": "core 组合不授予文件工具的读写根目录。coding 组合必须有工作区。",
+      "sources": [
+        {
+          "path": "forge/agents.py",
+          "symbol": "AgentDefinition",
+          "line": 22,
+          "end": 41,
+          "code": "class AgentDefinition:\n    name: str = 'coding'\n    base: Literal['coding', 'core'] = 'coding'\n    system_prompt: str | None = None\n    tools: tuple[str, ...] | None = None\n    plugins: tuple[PluginSpec, ...] = ()\n    role_models: dict[str, str] = field(default_factory=dict)\n    completion: Literal['normal', 'strict'] = 'normal'\n    context_options: dict = field(default_factory=dict)\n\n    def __post_init__(self):\n        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):\n            raise ValueError('Agent name must be a simple identifier')\n        if self.base not in {'coding', 'core'}:\n            raise ValueError('Agent base must be coding or core')\n        if self.completion not in {'normal', 'strict'}:\n            raise ValueError('Completion policy must be normal or strict')\n        if self.base == 'core' and self.completion == 'strict':\n            raise ValueError('Code verification requires a coding composition')\n        if not isinstance(self.role_models, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in self.role_models.items()):",
+          "note": "先看声明字段，再看 __post_init__ 的组合约束。"
+        },
+        {
+          "path": "forge/runtime/factory.py",
+          "symbol": "create_runtime",
+          "line": 33,
+          "end": 52,
+          "code": "def create_runtime(\n    root: Path,\n    *,\n    continue_session: bool = False,\n    resume_identifier: str | None = None,\n    fork_session: bool = False,\n    model_override: str | None = None,\n    task_policy: TaskPolicy | None = None,\n    execution_profile: ExecutionProfile | None = None,\n    allow_container_writes: bool = False,\n    conversation_factory: Callable[..., Conversation] | None = None,\n    task_relation: str | None = None,\n    bindings: RuntimeBindings | None = None,\n    defer_new_session: bool = False,\n    agent: AgentDefinition | None = None,\n) -> tuple[Conversation, SessionJournal, SessionState | None]:\n    '''Assemble new and resumed sessions through the same construction path.'''\n    if model_override is not None and not fork_session:\n        raise ValueError('model_override requires fork_session=True.')\n    agent = agent or AgentDefinition()",
+          "note": "沿 coding、task_policy 和 registry 三个变量往下读。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_core_sdk.py",
+          "symbol": "test_tool_selection_applies_to_task_tools_too",
+          "line": 99,
+          "end": 99,
+          "code": "",
+          "note": "显式工具集合也约束任务类工具。"
+        }
+      ],
+      "related": [
+        "entry",
+        "plugins",
+        "models"
+      ],
+      "question": "只改系统提示，能否给 core Agent 增加文件写入权限？",
+      "answer": "不能。能力来自组合与工具注册，文件授权还由 SessionOptions 和执行后端检查。"
+    },
+    {
+      "id": "contracts",
+      "group": "入口与装配",
+      "title": "消息与公共契约",
+      "symbol": "ModelClient · ToolResult",
+      "summary": "让模型、工具和外部接口使用明确的数据形状。",
+      "concept": "模型产生的流、工具返回值、用户输入和 RPC 消息都需要共同的结构。公共契约让这些模块能独立演进。",
+      "implementation": [
+        "runtime.state 定义 ModelClient 协议以及文本、工具调用、用量、完成事件。适配器把各家 API 转成这些事件，Runner 消费统一类型。",
+        "messages.normalize_input 检查文字和图像输入。protocol 校验跨进程和 RPC 的版本化 JSON 契约；工具参数还会经过 Pydantic 或 JSON Schema 校验。"
+      ],
+      "steps": [
+        [
+          "输入标准化",
+          "统一字符串与 text/image blocks，检查形状和大小。",
+          "UserInput"
+        ],
+        [
+          "模型流转换",
+          "提供方事件变成公共文本、工具和用量事件。",
+          "ModelClient.stream"
+        ],
+        [
+          "工具结果封装",
+          "成功结果带内容，失败结果带结构化错误。",
+          "ToolResult"
+        ],
+        [
+          "边界校验",
+          "RPC 和原生桥消息按指定契约版本检查。",
+          "ContractError"
+        ]
+      ],
+      "states": [
+        [
+          "ToolCall",
+          "工具名、调用 ID 和完整参数"
+        ],
+        [
+          "TokenUsage",
+          "标准化后的用量分量"
+        ],
+        [
+          "ContractError",
+          "边界拒绝的结构化原因"
+        ]
+      ],
+      "example": [
+        "模型返回 reorder_quantity({stock:3, minimum:8})",
+        "适配器生成完整 ToolCall；工具返回包含 reorder=5 的 ToolResult。"
+      ],
+      "boundary": "截断的工具参数不能作为完整调用执行。缺失成功流终态会被适配器作为协议错误报告。",
+      "sources": [
+        {
+          "path": "forge/runtime/state.py",
+          "symbol": "ModelClient",
+          "line": 57,
+          "end": 69,
+          "code": "class ModelClient(Protocol):\n    '''Minimal async interface used by the ForgeCode runtime.'''\n\n    provider: str\n\n    def stream(\n        self,\n        messages: list[dict[str, Any]],\n        tools: list[dict[str, Any]] | None = None,\n        system: str | None = None,\n    ) -> AsyncIterator[ModelStreamEvent]:\n        '''Stream text and exact provider usage updates.'''\n        ...",
+          "note": "关注 stream 的输入和事件输出。"
+        },
+        {
+          "path": "forge/messages.py",
+          "symbol": "normalize_input",
+          "line": 47,
+          "end": 62,
+          "code": "def normalize_input(value: UserInput) -> UserInput:\n    \"\"\"Validate and detach inputs before persisting or starting a model request.\"\"\"\n    if isinstance(value, str):\n        if not value.strip():\n            raise ValueError('prompt must not be empty; provide text or an image')\n        if len(value.encode('utf-8')) > MAX_TEXT_BYTES:\n            raise ValueError('Text input exceeds 256 KiB')\n        return value\n    if not isinstance(value, list) or not value or len(value) > 64:\n        raise ValueError('Input must be text or 1–64 text/image blocks')\n    size = text_size = image_count = 0\n    meaningful = False\n    for block in value:\n        if not isinstance(block, dict) or 'type' not in block:\n            raise ValueError('Invalid input block')\n        if block['type'] == 'text' and set(block) == {'type', 'text'} and isinstance(block['text'], str):",
+          "note": "读取输入形状判断与大小约束。"
+        },
+        {
+          "path": "forge/protocol.py",
+          "symbol": "validate",
+          "line": 156,
+          "end": 158,
+          "code": "def validate(name: str, value):\n    _check_tree(value)\n    return _validate_contract(name, value)",
+          "note": "从契约名称追到实际 schema 校验。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/runtime/test_recovery_safety.py",
+          "symbol": "test_partial_arguments_are_never_automatically_replayed",
+          "line": 26,
+          "end": 26,
+          "code": "",
+          "note": "不完整工具参数不会被自动重放。"
+        }
+      ],
+      "related": [
+        "models",
+        "runner",
+        "tools"
+      ],
+      "question": "为什么工具返回 success=true 时仍可能不能完成任务？",
+      "answer": "工具成功说明单次调用完成。整个任务还需要通过预算终态和完成策略检查。"
+    },
+    {
+      "id": "conversation",
+      "group": "通用内核",
+      "title": "会话与资源所有权",
+      "symbol": "Conversation",
+      "summary": "保存跨回合状态，并负责自己创建的资源。",
+      "concept": "Conversation 是一次持续对话的容器。它保留历史、上下文和客户端，每次新输入交给一个新的 TurnRunner。",
+      "implementation": [
+        "Conversation.stream 建立回合执行器，给它当前消息、任务和资源。提交后的消息归会话持有，回合中的临时响应归 TurnRunner 持有。",
+        "runtime_close 用同一个关闭任务完成幂等释放。它关闭 MCP、模型客户端、插件资源，最后释放自己拥有的执行后端；借用的后端由其所有者释放。",
+        "会话关联 TaskManager，后者维护计划、需求解释与任务状态。计划完成情况和实际验证证据分别进入完成判断。"
+      ],
+      "steps": [
+        [
+          "恢复状态",
+          "从会话事实取得消息、活动任务及待办。",
+          "Conversation.messages"
+        ],
+        [
+          "开启回合",
+          "创建 TurnRunner，并把状态挂到当前会话。",
+          "TurnRunner"
+        ],
+        [
+          "提交历史",
+          "回合完成或取消时保存确定的消息和执行事实。",
+          "Journal append"
+        ],
+        [
+          "释放资源",
+          "等待所属客户端和后端关闭，返回清理状态。",
+          "clean / unknown"
+        ]
+      ],
+      "states": [
+        [
+          "messages",
+          "已提交的对话历史"
+        ],
+        [
+          "verification_history",
+          "已有验证证据"
+        ],
+        [
+          "_close_task",
+          "同一次资源关闭操作"
+        ],
+        [
+          "active task",
+          "计划、需求解释与当前任务状态"
+        ]
+      ],
+      "example": [
+        "先保存一条笔记，再询问刚才保存的内容",
+        "两个回合共享同一个 Conversation 的历史与插件服务。"
+      ],
+      "boundary": "取消和关闭需要等待资源清理。清理未知会保留明确的 unknown 结果。",
+      "sources": [
+        {
+          "path": "forge/runtime/agent_loop.py",
+          "symbol": "Conversation.stream",
+          "line": 446,
+          "end": 465,
+          "code": "    async def stream(self, prompt: UserInput, *, input_id=None) -> AsyncIterator[ConversationEvent]:\n        '''Compatibility entry point delegated to the turn runner.'''\n        from forge.messages import normalize_input\n        from forge.runtime.capabilities import capabilities_for\n        prompt = normalize_input(prompt)\n        if self._running or self._close_task is not None:\n            raise RuntimeError('Conversation is closed or already running a turn')\n        if input_id is not None and not any(item['id'] == input_id and item['content'] == prompt\n                                           for item in self.inbox.pending):\n            raise ValueError('Queued input is missing or differs from the submitted content')\n        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):\n            if not capabilities_for(self.client).accepts_images:\n                raise ValueError('Configured model adapter does not support image input')\n        from forge.runtime.runner import TurnRunner\n        from forge.sessions.workspace_lock import workspace_execution\n        runner = TurnRunner(self)\n        ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()\n        from forge.observability.events import current\n        from forge.observability.recorder import JournalRecorder\n        inherited=current()",
+          "note": "观察何时创建 TurnRunner 和发布事件。"
+        },
+        {
+          "path": "forge/runtime/agent_loop.py",
+          "symbol": "Conversation.runtime_close",
+          "line": 868,
+          "end": 873,
+          "code": "    async def runtime_close(self, *, reason: str = 'exit') -> dict | None:\n        \"\"\"Drain the owned resources once; children only close their own clients.\"\"\"\n        import asyncio\n        if self._close_task is None:\n            self._close_task = asyncio.create_task(self._close_runtime(reason=reason))\n        return await asyncio.shield(self._close_task)",
+          "note": "看关闭任务如何被复用。"
+        },
+        {
+          "path": "forge/tasks/manager.py",
+          "symbol": "TaskManager.register_acceptance",
+          "line": 146,
+          "end": 154,
+          "code": "    def register_acceptance(self, criteria: list[dict[str, str]]) -> ActiveTask:\n        '''Record source-anchored interpretations without requiring a plan.'''\n        retained = self._merge_acceptance(criteria)\n        self.active = replace(self._require_active(), acceptance_criteria=retained)\n        if self.active.planned:\n            self.store.save(self.active)\n        # Unplanned tasks are persisted by the session journal, like other\n        # task state; registering requirements must not manufacture a plan.\n        return self.active",
+          "note": "关注验收需求如何合并到当前任务，并由 Journal 保存未显式规划的任务状态。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_core_sdk.py",
+          "symbol": "test_core_cancellation_closes_client",
+          "line": 82,
+          "end": 82,
+          "code": "",
+          "note": "取消后模型客户端会被关闭。"
+        }
+      ],
+      "related": [
+        "runner",
+        "sessions",
+        "children"
+      ],
+      "question": "Explore 借用了父会话后端，子任务结束时由谁关闭后端？",
+      "answer": "父会话仍然是后端所有者。Explore 只关闭自己拥有的客户端，保留父后端供后续工具使用。"
+    },
+    {
+      "id": "runner",
+      "group": "通用内核",
+      "title": "模型与工具循环",
+      "symbol": "TurnRunner",
+      "summary": "决定下一步请求模型、执行工具还是结束回合。",
+      "concept": "一轮 Agent 工作是一个反馈循环。模型看到当前上下文，提出工具调用，工具结果进入下一次请求，直到完成或触及停止条件。",
+      "implementation": [
+        "run 建立回合时间边界并准备输入，_loop 构造请求、检查预算、消费模型流。完整工具调用交给 _batch 按索引顺序处理。",
+        "工具结果回填历史后继续循环。finish_task 经过完成检查再决定终态；预算耗尽、取消和协议错误各自进入相应的停止路径。"
+      ],
+      "steps": [
+        [
+          "准备请求",
+          "合并输入、规则、历史与可用工具。",
+          "messages + definitions"
+        ],
+        [
+          "调用模型",
+          "通过预算包装器消费流式事件。",
+          "model_calls += 1"
+        ],
+        [
+          "处理工具",
+          "完整调用按顺序进入 ToolExecutor。",
+          "tool results"
+        ],
+        [
+          "判断下一步",
+          "继续请求、修复缺口或提交最终状态。",
+          "TurnResult.status"
+        ]
+      ],
+      "states": [
+        [
+          "pending calls",
+          "本次模型输出的完整工具调用"
+        ],
+        [
+          "terminal",
+          "待发布的回合终态"
+        ],
+        [
+          "delivery_repair_reasons",
+          "本回合已经反馈的交付缺口"
+        ]
+      ],
+      "example": [
+        "模型请求读取文件 → 修改插件 → 执行测试 → finish_task",
+        "每次工具结果都会成为后续模型请求的输入。"
+      ],
+      "boundary": "同批工具出现失败或取消后，剩余调用被记录为未执行。部分产生副作用的调用需要保留不确定状态。",
+      "sources": [
+        {
+          "path": "forge/runtime/runner.py",
+          "symbol": "TurnRunner.run",
+          "line": 77,
+          "end": 96,
+          "code": "    async def run(self, prompt: str, *, input_id=None):\n        from forge.messages import input_text, normalize_input\n        content = normalize_input(prompt)\n        prompt = input_text(content)\n        c = self.conversation\n        c.turn_state = self.state\n        c._kernel_owns_events = True\n        self.state.goal = prompt\n        self.messages = [*c.messages]\n        try:\n            async with asyncio.timeout(self.state.max_seconds):\n                await self._prepare_turn(prompt, content=content, input_id=input_id)\n                async with aclosing(self._loop()) as stream:\n                    async for event in stream:\n                        yield event\n        except BudgetExhausted as error:\n            yield await self._finish('failed', error.reason, error.reason, (error.reason,))\n        except TimeoutError:\n            yield await self._finish(\n                'failed', 'time_budget_exhausted',",
+          "note": "对照预算超时与外部取消的两个异常分支。"
+        },
+        {
+          "path": "forge/runtime/runner.py",
+          "symbol": "TurnRunner._batch",
+          "line": 487,
+          "end": 504,
+          "code": "    async def _batch(self, calls: list[ToolCall]):\n        c = self.conversation\n        executor = c.tool_executor\n        assert executor is not None\n        results: list[tuple[ToolCall, ToolResult]] = []\n        ordered = sorted(calls, key=lambda call: call.index)\n        batch_reason = None\n        if not self.state.can_request_tool_batch(0):\n            batch_reason = 'tool_budget_exhausted'\n            self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))\n        mixed_finish = len(calls) > 1 and any(call.name == 'finish_task' for call in calls)\n        # 完成声明必须单独处理，防止同批后续工具改动产物后仍沿用旧验收结论。\n        if mixed_finish:\n            batch_reason = 'finish_must_be_alone'\n        interrupted = False\n        self.batch_active = True\n        try:\n            for call in ordered:",
+          "note": "沿 batch_reason 观察失败如何阻止后续工具。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/runtime/test_recovery_safety.py",
+          "symbol": "test_partial_text_protocol_error_is_not_replayed",
+          "line": 53,
+          "end": 53,
+          "code": "",
+          "note": "流中断后的语义输出不会被自动重放。"
+        }
+      ],
+      "related": [
+        "budget",
+        "tools",
+        "completion"
+      ],
+      "question": "模型在一次回复里给出三个工具，第二个失败，第三个会怎样？",
+      "answer": "第三个不会执行。执行器会保留它因前序失败而跳过的记录，下一次请求可根据结果重新规划。"
+    },
+    {
+      "id": "context",
+      "group": "通用内核",
+      "title": "上下文、规则与压缩",
+      "symbol": "ContextManager",
+      "summary": "把有限的上下文窗口用于当前任务所需的信息。",
+      "concept": "上下文既包括对话，也包括系统提示、工具定义、项目规则和工具输出。管理器要同时保留任务约束和完整的工具调用配对。",
+      "implementation": [
+        "请求前按实际可见内容估算窗口占用，并为输出预留空间。大工具结果按规则裁剪，原文进入归档。接近窗口阈值时摘要旧前缀，保留近期完整消息。",
+        "项目规则按访问路径激活。新发现的规则必须先进入模型请求，随后涉及该范围的写入或命令才能继续。摘要模型请求同样消耗共享预算。"
+      ],
+      "steps": [
+        [
+          "加载规则",
+          "根据项目和访问路径取得适用指令与记忆。",
+          "active instructions"
+        ],
+        [
+          "整理历史",
+          "规范消息，保留工具调用与结果配对。",
+          "paired history"
+        ],
+        [
+          "评估窗口",
+          "估算系统提示、工具和消息的总占用。",
+          "input + output reserve"
+        ],
+        [
+          "压缩与复测",
+          "摘要旧内容，再确认请求能放进窗口。",
+          "compacted history"
+        ]
+      ],
+      "states": [
+        [
+          "ContextStats",
+          "可见请求的窗口占用估计"
+        ],
+        [
+          "recent tail",
+          "保留的近期完整消息"
+        ],
+        [
+          "artifact handles",
+          "被裁剪工具原文的受限引用"
+        ]
+      ],
+      "example": [
+        "一次 grep 返回了很长的文本",
+        "模型上下文中保留裁剪内容，完整结果由归档保留，随后请求按裁剪后的大小计量。"
+      ],
+      "boundary": "固定提示过大、没有可摘要范围或压缩后仍超限时，运行时会明确报告容量问题。",
+      "sources": [
+        {
+          "path": "forge/context/manager.py",
+          "symbol": "ContextManager.compaction_required",
+          "line": 480,
+          "end": 496,
+          "code": "    def compaction_required(\n        self,\n        messages: list[dict[str, Any]],\n        *,\n        system_prompt: str = '',\n        repository_context: str = '',\n        tools: list[dict[str, Any]] | None = None,\n        context_window_tokens: int | None = None,\n        reserved_output_tokens: int = 0,\n        scope_hints: tuple[str, ...] = (),\n    ) -> bool:\n        '''Return whether automatic compaction would run for this request.'''\n        prepared = self.prepare(messages, scope_hints=scope_hints)\n        stats = context_stats(\n            prepared,\n            stored_messages=messages,\n            system_prompt=system_prompt,",
+          "note": "检查触发压缩的输入统计。"
+        },
+        {
+          "path": "forge/context/manager.py",
+          "symbol": "ContextManager.compact_history",
+          "line": 315,
+          "end": 334,
+          "code": "    async def compact_history(\n        self,\n        messages: list[dict[str, Any]],\n        client: Any,\n        *,\n        force: bool = False,\n        system_prompt: str = '',\n        repository_context: str = '',\n        tools: list[dict[str, Any]] | None = None,\n        context_window_tokens: int | None = None,\n        reserved_output_tokens: int = 0,\n        scope_hints: tuple[str, ...] = (),\n        task_goal: str = '',\n    ) -> CompactionReport | None:\n        '''Replace long history with a structured summary when required.'''\n        prepared = self.prepare(messages, scope_hints=scope_hints)\n        before_stats = context_stats(\n            prepared,\n            stored_messages=messages,\n            system_prompt=system_prompt,",
+          "note": "沿摘要范围与最近消息保留逻辑阅读。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_model_selection.py",
+          "symbol": "test_portable_history_keeps_images_and_tool_results",
+          "line": 93,
+          "end": 93,
+          "code": "",
+          "note": "可移植历史保留可见图像和工具结果。"
+        }
+      ],
+      "related": [
+        "hooks",
+        "models",
+        "budget"
+      ],
+      "question": "为什么真实 token 用量和上下文估算要同时保留？",
+      "answer": "估算用于请求发出前的窗口决策，提供方返回的实际用量用于记录和费用核算。它们发生在不同时间。"
+    },
+    {
+      "id": "models",
+      "group": "通用内核",
+      "title": "多模型与协议适配",
+      "symbol": "ProviderRegistry",
+      "summary": "将不同提供方映射到同一个 ModelClient 契约。",
+      "concept": "模型别名封装提供方、模型 ID、端点和凭据引用。运行时按选择加载适配器，主 Agent 和不同角色可以使用不同别名。",
+      "implementation": [
+        "ProviderRegistry 按 provider 创建 Anthropic、Responses、Chat Completions、DeepSeek 或 Gemini 客户端，插件也可注册新的工厂。适配器负责消息转换、流终态、工具参数和用量。",
+        "set_model 只在空闲会话边界执行。它检查目标能力与窗口，把可见历史转换成可移植形式，并把有效选择写入 Journal。旧会话恢复使用保存的选择。"
+      ],
+      "steps": [
+        [
+          "解析别名",
+          "合并模型参数并解析环境变量中的凭据。",
+          "ModelSelection"
+        ],
+        [
+          "创建适配器",
+          "仅加载所选提供方需要的依赖。",
+          "ModelClient"
+        ],
+        [
+          "转换与请求",
+          "编码可见消息和工具，消费结构化流。",
+          "standard events"
+        ],
+        [
+          "记录与恢复",
+          "保存有效模型选择和可移植历史。",
+          "model_selected"
+        ]
+      ],
+      "states": [
+        [
+          "model_alias",
+          "当前选择的别名"
+        ],
+        [
+          "role_models",
+          "main、worker、summary、explore 的选择"
+        ],
+        [
+          "provider state",
+          "来源相关的私有续传状态"
+        ]
+      ],
+      "example": [
+        "main 使用 deepseek-flash，worker 使用公司内部模型别名",
+        "受管子任务按 worker 选择创建客户端，仍共享父回合预算。"
+      ],
+      "boundary": "带图像的历史要求目标显式支持图像。目标窗口不足或消息块不兼容时，切换会被拒绝。",
+      "sources": [
+        {
+          "path": "forge/runtime/model_registry.py",
+          "symbol": "ProviderRegistry.create",
+          "line": 23,
+          "end": 41,
+          "code": "    def create(self, config, *, max_tokens=None, max_retries=2):\n        if type(max_retries) is not int or max_retries \u003c 0:\n            raise ValueError('max_retries must be a nonnegative integer')\n        try:\n            if config.provider in self._factories:\n                return self._factories[config.provider](config, max_tokens=max_tokens, max_retries=max_retries)\n            if config.provider == 'anthropic':\n                from forge.runtime.model_client import AnthropicModelClient\n                return AnthropicModelClient.from_config(config, max_tokens=max_tokens, max_retries=max_retries)\n            if config.provider in {'openai_responses', 'openai_chat', 'deepseek'}:\n                from forge.runtime.providers import NativeModelClient\n                return NativeModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)\n            if config.provider == 'gemini':\n                from forge.runtime.gemini import GeminiModelClient\n                return GeminiModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)\n        except ModuleNotFoundError as error:\n            extra = 'anthropic' if config.provider == 'anthropic' else 'gemini' if config.provider == 'gemini' else 'openai'\n            raise ConfigurationError(f'Missing provider dependency; install forge-code[{extra}]') from error\n        raise ConfigurationError(f'Provider is not registered: {config.provider}')",
+          "note": "查看依赖延迟导入和工厂分派。"
+        },
+        {
+          "path": "forge/runtime/model_registry.py",
+          "symbol": "select_model",
+          "line": 134,
+          "end": 153,
+          "code": "async def select_model(conversation, alias):\n    conversation._require_idle()\n    if conversation._close_task is not None:\n        raise RuntimeError('Session is closing')\n    config, selection = config_for_alias(conversation, alias)\n    if config == conversation.model_config and alias == conversation.model_alias:\n        return {'alias': alias, 'provider': config.provider, 'model': config.model_id, 'changed': False}\n    client = conversation.model_factory(config)\n    router_client = None\n    try:\n        if conversation.intent_router is not None:\n            router_client = conversation.model_factory(config, max_tokens=600)\n        from forge.runtime.capabilities import capabilities_for\n        from forge.context.manager import context_stats, request_output_tokens\n        history = portable_history(conversation.messages)\n        has_images = any(isinstance(m['content'], list) and any(p['type'] == 'image' for p in m['content']) for m in history)\n        if has_images and (not capabilities_for(client).accepts_images or not config.input_modalities or\n                           'image' not in config.input_modalities):\n            raise ValueError('Target must explicitly declare image input support for this history')\n        stats = context_stats(history, system_prompt=conversation.system_prompt,",
+          "note": "跟踪校验完成后才写入的 model_selected。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_model_selection.py",
+          "symbol": "test_rejected_switch_keeps_client_history_and_journal",
+          "line": 70,
+          "end": 70,
+          "code": "",
+          "note": "切换失败保留原选择、历史和 Journal。"
+        }
+      ],
+      "related": [
+        "contracts",
+        "budget",
+        "children"
+      ],
+      "question": "手动切换模型会立即产生一次模型请求吗？",
+      "answer": "切换负责选择、能力检查和状态记录。下一次运行回合时才发送模型请求。"
+    },
+    {
+      "id": "budget",
+      "group": "通用内核",
+      "title": "共享预算与停止原因",
+      "symbol": "TurnState · BudgetedModelClient",
+      "summary": "让主模型、摘要和子任务消耗同一份回合额度。",
+      "concept": "预算同时约束模型请求数、工具请求数和持续时间。每个请求在实际执行前检查额度，子任务向父状态累计使用量。",
+      "implementation": [
+        "TurnState.budget_reason 根据当前计数、截止时间及父状态判断停止原因。record_model_request 会增加自身与父级计数。",
+        "BudgetedModelClient 观察适配器发出的请求尝试，记录开始、结束和用量。提供方缺失最终用量时保留未知，避免将未知当成零。"
+      ],
+      "steps": [
+        [
+          "读额度",
+          "取得当前与父回合剩余额度。",
+          "max_model_calls"
+        ],
+        [
+          "检查准入",
+          "额度耗尽则返回明确原因。",
+          "budget_reason"
+        ],
+        [
+          "记录请求",
+          "请求尝试扣除调用次数。",
+          "model_calls += 1"
+        ],
+        [
+          "归集用量",
+          "主、子和摘要请求进入共享统计。",
+          "parent usage"
+        ]
+      ],
+      "states": [
+        [
+          "model_calls",
+          "实际模型请求尝试的累计数"
+        ],
+        [
+          "tool_calls",
+          "工具请求累计数"
+        ],
+        [
+          "max_seconds",
+          "当前回合时间额度"
+        ],
+        [
+          "parent",
+          "需要共同受限的父回合"
+        ]
+      ],
+      "example": [
+        "上限 12 次，模型已完成 12 次请求",
+        "下一次请求被拒绝，回合停止原因记录为 model_budget_exhausted。"
+      ],
+      "boundary": "墙钟时间还有剩余也可能先耗尽调用次数。子任务通过公共接口不能把自己的预算扩得比父级更宽。",
+      "sources": [
+        {
+          "path": "forge/runtime/turn_state.py",
+          "symbol": "TurnState.budget_reason",
+          "line": 138,
+          "end": 149,
+          "code": "    def budget_reason(self, *, include_model: bool = True) -> str | None:\n        if self.parent is not None:\n            inherited = self.parent.budget_reason(include_model=include_model)\n            if inherited:\n                return inherited\n        if self.max_seconds is not None and monotonic() - self.started_at >= self.max_seconds:\n            return 'time_budget_exhausted'\n        if self.max_input_tokens is not None and self.usage.total_input_tokens >= self.max_input_tokens:\n            return 'token_budget_exhausted'\n        if include_model and self.max_model_calls is not None and self.model_calls >= self.max_model_calls:\n            return 'model_budget_exhausted'\n        return None",
+          "note": "逐项读停止条件的优先顺序。"
+        },
+        {
+          "path": "forge/runtime/turn_state.py",
+          "symbol": "TurnState.record_model_request",
+          "line": 161,
+          "end": 167,
+          "code": "    def record_model_request(self, usage: TokenUsage | None = None, *, stage: str = 'model') -> None:\n        if self.parent is not None:\n            self.parent.record_model_request(stage='subagent/' + stage)\n        self.model_calls += 1\n        self.request_counts[stage] = self.request_counts.get(stage, 0) + 1\n        if usage is not None:\n            self.record_usage(usage)",
+          "note": "观察计数如何传播到 parent。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/runtime/test_shared_budget.py",
+          "symbol": "test_children_compete_for_one_root_request_budget",
+          "line": 10,
+          "end": 10,
+          "code": "",
+          "note": "多个子任务竞争同一份父模型请求预算。"
+        }
+      ],
+      "related": [
+        "runner",
+        "children",
+        "observability"
+      ],
+      "question": "主任务剩余 2 次调用，两个子任务各自声明还需要 2 次，合计能用 4 次吗？",
+      "answer": "不能。父回合仍只剩 2 次，子任务必须竞争同一份总额度。"
+    },
+    {
+      "id": "tools",
+      "group": "工具与执行",
+      "title": "工具注册与统一执行",
+      "symbol": "ToolRegistry · ToolExecutor",
+      "summary": "将模型给出的工具名和参数变成受控操作。",
+      "concept": "ToolRegistry 保存工具定义与实现。ToolExecutor 承担共同的执行步骤，使内置工具、插件工具和 MCP 调用具有一致的授权与记录入口。",
+      "implementation": [
+        "执行前校验参数、检查任务范围并请求授权。需要时捕获文件检查点，先持久化执行意图，再分派到后端或工具实现。",
+        "执行后更新工作区版本与环境状态，记录结构化结果和验证证据。参数错误会返回可供模型修正的反馈，调用失败仍保留执行记录。"
+      ],
+      "steps": [
+        [
+          "找到工具",
+          "按名称取得 schema、effect 和来源。",
+          "ToolRegistry"
+        ],
+        [
+          "校验与授权",
+          "检查参数、作用范围和 PermissionRequest。",
+          "validated arguments"
+        ],
+        [
+          "执行与观察",
+          "调用后端，观察文件或进程副作用。",
+          "workspace_revision"
+        ],
+        [
+          "回填结果",
+          "生成 ToolResult 并写入 Journal。",
+          "tool result message"
+        ]
+      ],
+      "states": [
+        [
+          "effect",
+          "read_only、workspace_write 或 process 等作用"
+        ],
+        [
+          "ExecutionRecord",
+          "状态、耗时及执行版本"
+        ],
+        [
+          "source",
+          "内置、可信插件或 MCP 来源"
+        ]
+      ],
+      "example": [
+        "write_file 请求写入已存在的文件",
+        "工具返回 file_already_exists，模型可以改用适合已有文件的编辑工具。"
+      ],
+      "boundary": "工具参数的预校验和实际执行入口校验都会保留。来源标签同时说明结果经过哪一种执行边界。",
+      "sources": [
+        {
+          "path": "forge/tools/base.py",
+          "symbol": "ToolRegistry.validate",
+          "line": 348,
+          "end": 362,
+          "code": "    def validate(\n        self,\n        name: str,\n        arguments: Mapping[str, Any],\n    ) -> ToolResult | None:\n        '''Validate a request without executing it.\n\n        The runtime uses this before hooks and authorization so a hook cannot\n        turn an invalid request into an opaque permission side effect.  The\n        concrete tool still validates again at its execution boundary.\n        '''\n        tool = self._tools.get(name)\n        if tool is None:\n            return ToolResult.fail(\n                'unknown_tool',",
+          "note": "查看注册表如何委托给实际工具校验。"
+        },
+        {
+          "path": "forge/runtime/executor.py",
+          "symbol": "ToolExecutor._execute",
+          "line": 87,
+          "end": 106,
+          "code": "    async def _execute(\n        self,\n        call: ToolCall,\n        *,\n        checkpoint_id: str | None = None,\n        scope_checker: ScopeChecker | None = None,\n        result_transformer: ResultTransformer | None = None,\n    ) -> ExecutionOutcome:\n        '''Validate, authorize, checkpoint, execute, observe, and persist.'''\n        started = monotonic()\n        arguments = dict(call.arguments)\n        effect = self.registry.effect(call.name)\n        revision, epoch = self._state()\n\n        validation = self.registry.validate(call.name, arguments)\n        if validation is not None:\n            return self._outcome(\n                call,\n                validation,\n                'rejected',",
+          "note": "沿 arguments、授权和后端分派读完整方法。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_plugins.py",
+          "symbol": "test_plugin_tools_use_existing_loop_and_are_session_local",
+          "line": 102,
+          "end": 102,
+          "code": "",
+          "note": "插件工具进入已有循环，并保持会话状态隔离。"
+        }
+      ],
+      "related": [
+        "permissions",
+        "sandbox",
+        "mcp"
+      ],
+      "question": "为什么注册插件工具以后，它仍要走 ToolExecutor？",
+      "answer": "这样模型驱动的调用仍能统一校验参数、请求授权、计预算并留下执行记录。"
+    },
+    {
+      "id": "permissions",
+      "group": "工具与执行",
+      "title": "权限与审批",
+      "symbol": "PermissionManager",
+      "summary": "根据实际调用判断是否允许执行。",
+      "concept": "权限层接收工具名、能力、风险和目标路径。它将硬性拒绝、已有规则和当前审批模式组合成执行决策。",
+      "implementation": [
+        "authorize 先处理 hard_deny 与只读约束，再匹配用户、项目和会话规则。匹配到拒绝规则时先拒绝。需要审批的调用交给 ApprovalHandler。",
+        "plan、supervised 和 auto 决定默认处理方式。auto 对低风险操作可直接放行，其他风险仍可能请求审批。审批选择的有效范围由具体操作约束。"
+      ],
+      "steps": [
+        [
+          "形成请求",
+          "从工具 effect 与参数构造能力、风险和目标。",
+          "PermissionRequest"
+        ],
+        [
+          "应用限制",
+          "检查硬拒绝、只读模式和拒绝规则。",
+          "allow / deny / ask"
+        ],
+        [
+          "收集审批",
+          "调用方返回一次、会话级许可或拒绝。",
+          "ApprovalResponse"
+        ],
+        [
+          "记录决策",
+          "将依据和范围记入会话审计。",
+          "permission_decided"
+        ]
+      ],
+      "states": [
+        [
+          "capability",
+          "例如 file.write、process.exec"
+        ],
+        [
+          "targets",
+          "本次请求涉及的实际目标"
+        ],
+        [
+          "session_rules",
+          "当前会话内被保存的规则"
+        ]
+      ],
+      "example": [
+        "笔记插件请求 plugin.notes.write，风险为 medium",
+        "auto 模式下可能需要审批处理器。受限的一次授权可以让这一笔写入继续。"
+      ],
+      "boundary": "权限批准与 OS 执行边界分别检查。插件代码本身以可信宿主权限运行。",
+      "sources": [
+        {
+          "path": "forge/permissions/policy.py",
+          "symbol": "PermissionManager.authorize",
+          "line": 145,
+          "end": 164,
+          "code": "    async def authorize(self, request: PermissionRequest) -> PermissionDecision:\n        if request.hard_deny:\n            return self._decision('deny', request, request.reason, 'hard_deny')\n\n        read_only = request.capability in {'file.read', 'repository.read', 'mcp.read'}\n        if not read_only and (self.execution_mode == 'read-only' or self.mode == 'plan'):\n            return self._decision('deny', request, 'Read-only policy forbids this operation.', 'read_only')\n\n        matching = [\n            rule\n            for rule in (\n                *self.user_rules,\n                *self.project_rules,\n                *self.session_rules,\n            )\n            if rule.matches(request)\n        ]\n        denied = [rule for rule in matching if rule.action == 'deny']\n        if denied:\n            return self._decision(",
+          "note": "按 hard_deny、模式、规则和默认动作依次阅读。"
+        },
+        {
+          "path": "forge/permissions/policy.py",
+          "symbol": "PermissionManager._mode_default",
+          "line": 203,
+          "end": 215,
+          "code": "    def _mode_default(self, request: PermissionRequest) -> PermissionAction:\n        read_only = request.capability in {\n            'file.read',\n            'repository.read',\n            'mcp.read',\n        }\n        if self.mode == 'plan':\n            return 'allow' if read_only else 'deny'\n        if self.mode == 'supervised':\n            return 'allow' if read_only else 'ask'\n        if request.risk == 'low':\n            return 'allow'\n        return 'ask'",
+          "note": "关注 auto 只直接放行哪些风险。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/mcp/test_permissions.py",
+          "symbol": "test_mcp_writes_always_require_exact_one_shot_approval",
+          "line": 92,
+          "end": 92,
+          "code": "",
+          "note": "MCP 写入使用针对本次调用的审批。"
+        }
+      ],
+      "related": [
+        "tools",
+        "sandbox",
+        "plugins"
+      ],
+      "question": "把 approval 设为 auto，会自动获得 full-access 吗？",
+      "answer": "不会。approval 控制审批流程，sandbox 单独决定执行边界，两份配置各自生效。"
+    },
+    {
+      "id": "sandbox",
+      "group": "工具与执行",
+      "title": "原生执行与路径边界",
+      "symbol": "NativeBackendFactory",
+      "summary": "在已验证的执行能力内读写文件和运行命令。",
+      "concept": "日常 coding 选择原生执行后端。Windows 使用 DSH ACL，Linux 使用 bubblewrap，策略会冻结工作区、保护路径和支持的能力。",
+      "implementation": [
+        "后端在任何模型请求前准备执行边界，并验证实际能力。路径策略检查链接、文件身份和授权根目录。当前版本会报告具体被拒绝的路径，便于定位工作区中的问题。",
+        "文件工具和命令经 FileToolBackend/FileWorkerClient 进入原生执行。Windows 用独立控制目录持有 Job、临时授权和 Python 运行环境，关闭时按所有权释放。",
+        "CLI/API 显式 full-access 使用宿主执行路径，跳过递归工作区准入检查；根目录、写入范围与保护路径仍被编译，文件工具继续逐路径拒绝链接。原生模式继续检查整个工作区。"
+      ],
+      "steps": [
+        [
+          "编译策略",
+          "确定读写根、保护路径和所需执行能力。",
+          "policy hash"
+        ],
+        [
+          "验证能力",
+          "检查平台与实际原生后端能否满足要求。",
+          "prepared boundary"
+        ],
+        [
+          "执行操作",
+          "在所属进程和路径边界内执行。",
+          "file / process result"
+        ],
+        [
+          "收尾确认",
+          "确认进程、授权和私有目录的清理。",
+          "clean / unknown"
+        ]
+      ],
+      "states": [
+        [
+          "workspace identity",
+          "工作区路径及文件系统身份"
+        ],
+        [
+          "policy",
+          "冻结的执行约束"
+        ],
+        [
+          "control root",
+          "会话私有的原生控制目录"
+        ]
+      ],
+      "example": [
+        "工作区内有不受支持的链接条目",
+        "初始化拒绝该工作区并报告实际条目路径，模型请求尚未开始。"
+      ],
+      "boundary": "当前原生隔离为 partial，OS 读取与网络继承宿主。strict 所需完整能力尚未具备时会拒绝准入。",
+      "sources": [
+        {
+          "path": "forge/sandbox/application_backend.py",
+          "symbol": "NativeBackendFactory.open",
+          "line": 39,
+          "end": 58,
+          "code": "    async def open(self,workspace,policy,owner,turn_id):\n        self.check_request(policy,required_mode=self.mode)\n        from forge.sandbox.workspace_backend import WorkspaceWriteBackend\n        diagnostic_root = self.data_dir/'native'/turn_id\n        control_root = diagnostic_root\n        if sys.platform == 'win32':\n            from forge.sandbox.windows_worker import windows_native_runtime_root\n            control_root = windows_native_runtime_root() / UUID(owner['sandbox_session_id'].removeprefix('sandbox-')).hex\n        native=WorkspaceWriteBackend(workspace,owner,control_root,mode=self.mode,\n            diagnostic_root=diagnostic_root if control_root != diagnostic_root else None)\n        client=FileWorkerClient(workspace,policy,native=native)\n        try:\n            await native.prepare(policy)  # Real prerequisite/boundary proof, never invented verified capabilities.\n            if native.policy_hash!=canonical_hash(policy):\n                raise ContractError('Prepared policy differs from accepted snapshot',kind='STALE_REVISION',code=-32010)\n            backend=FileToolBackend(client)\n            backend.check_ready(policy,required_mode=self.mode)\n            return backend\n        except BaseException as error:\n            try:cleanup=await asyncio.wait_for(client.close(),8)",
+          "note": "观察 prepare 在模型运行前发生。"
+        },
+        {
+          "path": "forge/sandbox/workspace_backend.py",
+          "symbol": "WorkspaceWriteBackend._prepare",
+          "line": 61,
+          "end": 80,
+          "code": "    async def _prepare(self, policy):\n        if sys.platform not in ('win32', 'linux') or (sys.platform == 'win32' and not windows_supported()):\n            raise ContractError('Workspace-write requires Windows or Linux', kind='SANDBOX_UNAVAILABLE', code=-32010)\n        snapshot = compile_policy(policy, self.workspace, control_roots=(self.control_root,))\n        self.runtime = verify_runtime(self.trusted_root)\n        self.backend_name = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap'\n        self.backend_version = '0.2.1-alpha.1'\n        if sys.platform == 'linux':\n            binary = self.runtime.tools['bubblewrap']\n            process = await asyncio.create_subprocess_exec(str(binary), '--version',\n                env=bridge_environment(self.control_root), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)\n            try:\n                async with asyncio.timeout(5):\n                    output, _ = await process.communicate()\n                if process.returncode != 0 or not output.startswith(b'bubblewrap '):\n                    raise ValueError('Could not determine bubblewrap version')\n                self.backend_version = output.decode('ascii').strip().removeprefix('bubblewrap ')\n            finally:\n                if process.returncode is None:\n                    process.kill()",
+          "note": "读取平台、运行时与工作区分离检查。"
+        },
+        {
+          "path": "forge/sandbox/policy.py",
+          "symbol": "compile_policy",
+          "line": 43,
+          "end": 62,
+          "code": "def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), audit_workspace=True):\n    validate('sandbox-policy', policy)\n    value = json.loads(json.dumps(policy))\n    if value['workspace_id'] != workspace['id']:\n        denied('Policy is bound to another workspace')\n    root = inspect_path(workspace['canonical_path'], absolute=True)\n    identity = root.anchors[-1][1]\n    if identity is None or not root.path.is_dir() or f'{identity[0]}:{identity[1]}' != workspace['file_identity']:\n        raise ContractError('Workspace identity changed', kind='STALE_REVISION', code=-32010)\n    # Native admission audits the whole tree; explicit host execution still\n    # validates roots here and rejects unsafe paths on every file-tool access.\n    if audit_workspace:\n        audit_workspace_links(root.path)\n    filesystem = value['filesystem']\n    for name in ('read_roots', 'write_roots', 'protected_paths'):\n        filesystem[name] = sorted(set(str(inspect_path(path, absolute=True).path) for path in filesystem[name]))\n    trusted_temp = [inspect_path(path, absolute=True).path for path in temporary_roots]\n    for path in filesystem['read_roots']:\n        if not Path(path).is_dir():\n            denied('Read root must be an existing directory')",
+          "note": "比较 audit_workspace 的准入选择和始终执行的根目录及保护路径校验。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/implementation/unit/test_policy.py",
+          "symbol": "test_actual_junction_or_symlink_cannot_bypass_path_policy",
+          "line": 220,
+          "end": 220,
+          "code": "",
+          "note": "真实链接条目触发路径身份检查。"
+        }
+      ],
+      "related": [
+        "tools",
+        "permissions",
+        "sessions"
+      ],
+      "question": "为什么原生初始化失败要在调用模型之前返回？",
+      "answer": "后续文件与命令执行依赖这条边界。提前拒绝可以避免在能力尚未准备好时开始任务和消耗模型额度。"
+    },
+    {
+      "id": "plugins",
+      "group": "扩展与连接",
+      "title": "插件与服务生命周期",
+      "symbol": "PluginHost · PluginContext",
+      "summary": "让扩展能力带着明确的依赖和资源所有者进入会话。",
+      "concept": "插件通过 activate(ctx, config) 注册能力。PluginContext 是它访问工具、服务、事件、提供方和受管子任务的公共入口。",
+      "implementation": [
+        "加载前检查显式信任、接口版本、依赖和名称。插件依赖排序后逐个激活，注册项归到各自作用域。",
+        "加载失败会撤销已注册内容并释放资源。会话关闭时先结束模型传输，再逆序释放插件服务。可变状态适合放在 activate 闭包里，随会话隔离。"
+      ],
+      "steps": [
+        [
+          "发现与信任",
+          "加载显式启用的本地目录或 Python entry point。",
+          "PluginSpec"
+        ],
+        [
+          "检查依赖",
+          "验证版本与名称，并计算加载顺序。",
+          "requires"
+        ],
+        [
+          "激活注册",
+          "工具、服务、事件与释放函数归属插件。",
+          "PluginContext"
+        ],
+        [
+          "关闭或回滚",
+          "按相反顺序释放资源并移除注册。",
+          "owned effects"
+        ]
+      ],
+      "states": [
+        [
+          "plugin scope",
+          "该插件拥有的注册项"
+        ],
+        [
+          "services",
+          "供同一会话访问的服务"
+        ],
+        [
+          "effects",
+          "需要执行的释放函数"
+        ]
+      ],
+      "example": [
+        "插件创建 HTTP 客户端并注册内部查询工具",
+        "通过 ctx.effect 或服务关闭函数登记释放，退出会话时统一关闭连接。"
+      ],
+      "boundary": "可信 Python 插件具有宿主执行能力。公共扩展接口保持权限和预算约束，插件信任仍由用户显式决定。",
+      "sources": [
+        {
+          "path": "forge/plugins.py",
+          "symbol": "PluginContext.register_tool",
+          "line": 134,
+          "end": 148,
+          "code": "    def register_tool(self, name, description, schema, callback, *, effect='read_only'):\n        self._require_active()\n        if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]{0,79}', name):\n            raise PluginError('Invalid tool name')\n        if name in self._host.tools:\n            raise PluginError(f'Duplicate plugin tool: {name}')\n        tool = PluginTool(self.plugin_id, name, description, schema, callback, effect)\n        self._host.tools[name] = tool\n        def remove():\n            self._host.tools.pop(name, None)\n            registry = self._host.registry\n            if registry is not None and registry.implementation(name) is tool:\n                registry.unregister(name)\n        self.effect(remove)\n        return tool",
+          "note": "查看工具名、schema、回调和 effect 的注册。"
+        },
+        {
+          "path": "forge/plugins.py",
+          "symbol": "PluginHost.load",
+          "line": 211,
+          "end": 230,
+          "code": "    async def load(self, specifications):\n        try:\n            entries = {}\n            for spec in specifications:\n                manifest, entry = describe_plugin(spec)\n                name = manifest['id']\n                if name in entries:\n                    raise PluginError(f'Duplicate plugin: {name}')\n                entries[name] = (spec, manifest, entry)\n            ordered, visiting = [], set()\n            def visit(name):\n                if name in visiting:\n                    raise PluginError(f'Plugin dependency cycle: {name}')\n                if name in ordered:\n                    return\n                if name not in entries:\n                    raise PluginError(f'Missing plugin dependency: {name}')\n                visiting.add(name)\n                for dep in entries[name][1].get('requires', ()):\n                    visit(dep)",
+          "note": "跟踪加载顺序与失败回滚。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_plugins.py",
+          "symbol": "test_failed_activation_releases_effects_and_registrations",
+          "line": 49,
+          "end": 49,
+          "code": "",
+          "note": "部分激活失败后资源和注册项被撤销。"
+        }
+      ],
+      "related": [
+        "composition",
+        "tools",
+        "hooks"
+      ],
+      "question": "为什么把笔记列表存在模块全局变量里会有问题？",
+      "answer": "模块可能被多个会话复用。把可变状态放入 activate 的闭包能让每个插件实例拥有独立状态。"
+    },
+    {
+      "id": "hooks",
+      "group": "扩展与连接",
+      "title": "Hooks 与 Skills",
+      "symbol": "HookManager · SkillManager",
+      "summary": "让规则、任务指引和事件处理进入合适的位置。",
+      "concept": "Skills 提供可加载的任务指导与资源，Hooks 处理工具和会话的事件。它们在模型输入和执行生命周期的特定位置生效。",
+      "implementation": [
+        "SkillManager 先发现元数据，再按显式激活或工具读取加载正文和资源。项目技能与用户技能按既定优先级合并，资源读取受路径规则约束。",
+        "HookManager 匹配事件并运行受管命令，解析返回的 HookOutcome。前置事件可以修改参数或拒绝执行，后置事件记录已经发生的操作。命令有输出和时间限制。"
+      ],
+      "steps": [
+        [
+          "发现指引",
+          "读取技能目录元数据与 Hook 配置。",
+          "catalog / settings"
+        ],
+        [
+          "按需激活",
+          "把当前任务需要的技能正文加入上下文。",
+          "active skill body"
+        ],
+        [
+          "处理事件",
+          "匹配 PreToolUse 等事件并执行处理器。",
+          "HookOutcome"
+        ],
+        [
+          "保留记录",
+          "把输出、拒绝或失败纳入会话轨迹。",
+          "hook execution"
+        ]
+      ],
+      "states": [
+        [
+          "SkillRecord",
+          "技能名称、描述和资源目录"
+        ],
+        [
+          "HookEvent",
+          "事件类型和本次工具参数"
+        ],
+        [
+          "HookOutcome",
+          "参数、上下文或执行决策"
+        ]
+      ],
+      "example": [
+        "工具执行前需要补充项目约束",
+        "前置 Hook 提供约束或拒绝，Runner 在后续请求中呈现相关上下文。"
+      ],
+      "boundary": "外部 Hook 进程必须有界运行并清理。失败或清理未知会保留具体结果。",
+      "sources": [
+        {
+          "path": "forge/skills/manager.py",
+          "symbol": "SkillManager.system_suffix",
+          "line": 237,
+          "end": 255,
+          "code": "    def system_suffix(self, prompt: str) -> str:\n        '''Render metadata plus only explicitly requested skill bodies.'''\n        if not self._skills and not self.explicit_names(prompt):\n            return ''\n        lines = [\n            '[ForgeCode Skills]',\n            'Skills are reusable instructions with progressive disclosure.',\n            'Metadata below is always visible. When a skill clearly matches the '\n            'request, call load_skill before acting; use read_skill_resource only '\n            'for a resource named by the loaded skill. A $skill-name mention '\n            'is explicit activation and its instructions are already included.',\n            '',\n            'Available skills:',\n        ]\n        total = sum(len(line) + 1 for line in lines)\n        for record in self.skills:\n            line = f'- {record.name}: {record.description} [{record.source}]'\n            if total + len(line) + 1 > MAX_METADATA_CHARACTERS:\n                lines.append('- ... additional skill metadata omitted ...')",
+          "note": "查看技能目录和正文如何进入提示。"
+        },
+        {
+          "path": "forge/hooks/manager.py",
+          "symbol": "HookManager.emit",
+          "line": 38,
+          "end": 57,
+          "code": "    async def emit(self, event: HookEvent) -> HookOutcome:\n        arguments = (\n            dict(event.arguments) if event.arguments is not None else None\n        )\n        contexts: list[str] = []\n        executions: list[HookExecution] = []\n        for spec in self.settings.hooks.get(event.name, ()):\n            current = HookEvent(\n                name=event.name,\n                session_id=event.session_id,\n                tool_name=event.tool_name,\n                tool_call_id=event.tool_call_id,\n                arguments=arguments,\n                paths=event.paths,\n                payload=event.payload,\n            )\n            if not spec.enabled or not _matches(spec, current):\n                continue\n            try:\n                result = await run_hook_command(self.root, spec, current)",
+          "note": "跟踪事件匹配与执行结果聚合。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/skills/test_skills.py",
+          "symbol": "test_metadata_is_eager_but_body_requires_activation",
+          "line": 55,
+          "end": 55,
+          "code": "",
+          "note": "元数据发现和正文激活分开。"
+        },
+        {
+          "path": "tests/hooks/test_hooks_manager.py",
+          "symbol": "test_blocking_hook_timeout_fails_closed",
+          "line": 201,
+          "end": 201,
+          "code": "",
+          "note": "阻塞型 Hook 超时后拒绝放行。"
+        }
+      ],
+      "related": [
+        "context",
+        "plugins",
+        "tools"
+      ],
+      "question": "Skill 文件里写了允许访问某目录，会自动改变文件权限吗？",
+      "answer": "Skill 提供模型指引。真实工具访问仍需要通过 PermissionManager 和执行后端。"
+    },
+    {
+      "id": "mcp",
+      "group": "工具与执行",
+      "title": "MCP 工具连接",
+      "symbol": "MCPClientManager",
+      "summary": "把外部工具服务接入同一工具调用链。",
+      "concept": "MCP 服务提供工具清单和参数 schema。ForgeCode 管理连接，并把这些工具注册成模型可以调用的工具。",
+      "implementation": [
+        "连接管理器在获准后建立服务连接，发现工具并更新注册表。MCP 工具使用远端 JSON Schema 校验参数，保留服务及工具来源。",
+        "调用仍进入统一工具执行与权限流程。连接、刷新、重置和关闭都有明确归属，远程错误转换为结构化工具结果。"
+      ],
+      "steps": [
+        [
+          "获准连接",
+          "检查配置和连接权限后启动连接。",
+          "MCPConnection"
+        ],
+        [
+          "发现工具",
+          "拉取 schema 并绑定服务来源。",
+          "remote definitions"
+        ],
+        [
+          "调用服务",
+          "验证参数，按本次授权发出请求。",
+          "call_tool"
+        ],
+        [
+          "关闭连接",
+          "随会话重置或结束释放连接。",
+          "close"
+        ]
+      ],
+      "states": [
+        [
+          "connections",
+          "已配置和已连接的服务"
+        ],
+        [
+          "remote schema",
+          "服务提供的参数定义"
+        ],
+        [
+          "provenance",
+          "服务名与远程工具名"
+        ]
+      ],
+      "example": [
+        "内部工单服务提供 search_ticket",
+        "模型看到注册后的工具，调用结果带着工单服务来源返回。"
+      ],
+      "boundary": "外部 MCP 服务的执行能力由服务侧提供。MCP 写入的审批按具体调用处理。",
+      "sources": [
+        {
+          "path": "forge/mcp/manager.py",
+          "symbol": "MCPClientManager.refresh_tools",
+          "line": 219,
+          "end": 237,
+          "code": "    async def refresh_tools(self, server_name: str) -> None:\n        '''Fetch every tools/list page and replace this server's adapters.'''\n        connection = self.connections[server_name]\n        session = connection.session\n        if session is None:\n            return\n        discovered: list[types.Tool] = []\n        cursor: str | None = None\n        try:\n            while True:\n                page = await session.list_tools(cursor)\n                discovered.extend(page.tools)\n                cursor = page.nextCursor\n                if not cursor:\n                    break\n            adapters = [\n                MCPToolAdapter(\n                    self.root,\n                    manager=self,",
+          "note": "看远程工具如何进入本地注册表。"
+        },
+        {
+          "path": "forge/mcp/manager.py",
+          "symbol": "MCPClientManager.call_tool",
+          "line": 282,
+          "end": 301,
+          "code": "    async def call_tool(\n        self,\n        server_name: str,\n        remote_name: str,\n        arguments: dict[str, Any],\n        *,\n        exposed_name: str,\n    ) -> ToolResult:\n        connection = self.connections.get(server_name)\n        if connection is None:\n            return ToolResult.fail(\n                'mcp_server_unknown',\n                f'Unknown MCP server: {server_name}',\n            )\n        if connection.session is None:\n            await self._connect(connection)\n        session = connection.session\n        if session is None:\n            return ToolResult.fail(\n                'mcp_unavailable',",
+          "note": "跟踪服务查找、请求和结果处理。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/mcp/test_permissions.py",
+          "symbol": "test_denied_connection_is_not_retried_automatically",
+          "line": 38,
+          "end": 38,
+          "code": "",
+          "note": "连接被拒绝后不会自动重试。"
+        }
+      ],
+      "related": [
+        "tools",
+        "permissions",
+        "plugins"
+      ],
+      "question": "MCP 服务新增一个工具，为什么需要刷新工具定义？",
+      "answer": "模型可见的工具清单和本地参数校验都依赖已注册的 schema，刷新后才能使用最新定义。"
+    },
+    {
+      "id": "children",
+      "group": "通用内核",
+      "title": "受管子 Agent 与 Explore",
+      "symbol": "Conversation.run_child",
+      "summary": "把子任务的权限、预算和清理归入父回合。",
+      "concept": "受管子任务适合把一个前台请求分成几个职责明确的小任务。Explore 则专门读取代码，返回受约束的探索结果。",
+      "implementation": [
+        "run_child 要求父回合正在运行。子 Agent 的插件与工具范围必须继承或收窄，角色模型由父 Agent 的 role_models 选择。",
+        "通过 parent_budget 把子任务用量累计到父回合。权限规则传给子会话，结束后记录子会话结果并检查清理。Explore 使用固定只读注册表，借用父后端。"
+      ],
+      "steps": [
+        [
+          "检查继承",
+          "限制子组合的能力、插件和工具范围。",
+          "subset of parent"
+        ],
+        [
+          "选择角色模型",
+          "解析 worker 或 explore 对应别名。",
+          "role model"
+        ],
+        [
+          "运行子会话",
+          "共享父预算并复制父权限规则。",
+          "child session"
+        ],
+        [
+          "汇集与关闭",
+          "返回结构化结果并确认清理。",
+          "child_session_finished"
+        ]
+      ],
+      "states": [
+        [
+          "parent_budget",
+          "当前父回合的预算上下文"
+        ],
+        [
+          "role",
+          "决定采用哪个角色模型"
+        ],
+        [
+          "owns_tool_backend",
+          "标识执行后端的所有者"
+        ]
+      ],
+      "example": [
+        "协调器对两条本地事件分别调用 worker",
+        "两个摘要结果交回父任务，所有模型请求都计入父任务额度。"
+      ],
+      "boundary": "公共子任务接口在活动父回合内运行，权限不能扩张。清理未知时父任务收到明确失败。",
+      "sources": [
+        {
+          "path": "forge/runtime/agent_loop.py",
+          "symbol": "Conversation.run_child",
+          "line": 348,
+          "end": 367,
+          "code": "    async def run_child(self, prompt, definition, *, role='worker'):\n        \"\"\"A foreground child shares the active turn budget and cannot add capabilities.\"\"\"\n        from dataclasses import replace\n        from forge.api import HarnessSession\n        from forge.runtime.turn_state import parent_budget\n        from forge.runtime.model_registry import config_for_alias\n        if not self._running or self.turn_state is None:\n            raise RuntimeError('Managed children require an active parent turn')\n        if self.agent_definition.base == 'core' and definition.base != 'core':\n            raise ValueError('A core parent cannot grant coding capabilities')\n        parent_plugins = {p.source: p for p in self.agent_definition.plugins}\n        if any(parent_plugins.get(p.source) != p for p in definition.plugins):\n            raise ValueError('Child plugins must be inherited from the parent')\n        if self.agent_definition.tools is not None and (definition.tools is None or\n                not set(definition.tools).issubset(self.agent_definition.tools)):\n            raise ValueError('Child tools must be a subset of the parent tools')\n        alias = self.agent_definition.role_models.get(role)\n        config = config_for_alias(self, alias)[0] if alias else self.model_config\n        options = replace(self.session_options, agent=replace(definition, role_models={}), config=config,\n                          approval=self.permission_manager.mode)",
+          "note": "先读能力继承检查，再追踪 parent_budget。"
+        },
+        {
+          "path": "forge/subagents/explore.py",
+          "symbol": "ExploreRepositoryTool",
+          "line": 144,
+          "end": 160,
+          "code": "class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):\n    name = 'explore_repository'\n    description = (\n        'Delegate a broad, read-only repository investigation to an isolated '\n        'Explore Agent. Use it for cross-file discovery, call-path tracing, '\n        'or evidence-based root-cause analysis. The subagent cannot edit files '\n        'or run arbitrary commands; this tool returns only a compact structured '\n        'report, keeping raw exploration out of the main context.'\n    )\n    input_model = ExploreRepositoryInput\n\n    def __init__(\n        self,\n        root: Path,\n        *,\n        config: ExploreAgentConfig | None = None,\n        client_factory: Callable[[], ModelClient] | None = None,",
+          "note": "查看固定只读探索工具的入口。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_model_selection.py",
+          "symbol": "test_managed_child_inherits_parent_session_denials",
+          "line": 282,
+          "end": 282,
+          "code": "",
+          "note": "父会话拒绝规则传入受管子会话。"
+        }
+      ],
+      "related": [
+        "budget",
+        "models",
+        "conversation"
+      ],
+      "question": "为什么 Explore 结束后父 Agent 仍能继续调用文件工具？",
+      "answer": "Explore 借用后端并标记自己不拥有它，父会话继续负责后端生命周期。"
+    },
+    {
+      "id": "sessions",
+      "group": "事实与应用",
+      "title": "Journal、恢复与检查点",
+      "symbol": "SessionJournal · SessionStore",
+      "summary": "保存发生过的操作，并为恢复和回退提供事实。",
+      "concept": "Journal 是追加式执行记录，保存消息、工具意图、结果与停止原因。文件检查点保存修改前的文件状态，两者服务于不同的恢复需求。",
+      "implementation": [
+        "执行意图在操作前落盘，结果在操作后追加。SessionStore 重建消息、任务和待处理输入，也能识别缺少确定结果的工具调用。",
+        "恢复会话读取最后有效模型选择与验证历史。CheckpointStore 支持受管文件修改的回退。CLI 恢复开启新的回合，回合预算由该次入口给定。"
+      ],
+      "steps": [
+        [
+          "写入意图",
+          "工具执行前持久化计划中的操作。",
+          "tool_started"
+        ],
+        [
+          "写入结果",
+          "保留成功、拒绝、取消或不确定状态。",
+          "tool_completed"
+        ],
+        [
+          "重建会话",
+          "读取 Journal 并恢复已提交消息和待办。",
+          "SessionState"
+        ],
+        [
+          "回退文件",
+          "按检查点处理对应的代码状态。",
+          "before image"
+        ]
+      ],
+      "states": [
+        [
+          "JSONL records",
+          "可顺序读取的执行事实"
+        ],
+        [
+          "SessionState",
+          "从记录重建的会话状态"
+        ],
+        [
+          "Checkpoint",
+          "文件修改前后对应的数据"
+        ]
+      ],
+      "example": [
+        "写文件时进程中断，只留下开始记录",
+        "恢复时可以识别缺失结果，要求检查实际文件状态。"
+      ],
+      "boundary": "多文件变更的回退与恢复需要保留部分应用信息。未知副作用不应被自动重放。",
+      "sources": [
+        {
+          "path": "forge/sessions/store.py",
+          "symbol": "SessionJournal.append",
+          "line": 369,
+          "end": 380,
+          "code": "    def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:\n        if self.read_only:\n            raise SessionError('Legacy sessions are read-only. Fork this session to continue in the new format.')\n        if self._pending is not None:\n            if event_type != 'session_stopped':\n                self._pending.append((event_type, payload))\n            return {}\n        try:\n            with exclusive_append(self.path):\n                return self._append_locked(event_type, payload)\n        except BlockingIOError as error:\n            raise SessionError('Session is being written by another process.') from error",
+          "note": "观察追加记录和锁的关系。"
+        },
+        {
+          "path": "forge/sessions/store.py",
+          "symbol": "SessionStore.open",
+          "line": 569,
+          "end": 586,
+          "code": "    def open(\n        self,\n        identifier: str | None = None,\n    ) -> tuple[SessionState, SessionJournal]:\n        state = (\n            self.latest()\n            if identifier is None\n            else self.load(identifier)\n        )\n        records = self._read_records(state.info.path)\n        last = records[-1]\n        journal = SessionJournal(\n            state.info.path,\n            session_id=state.info.session_id,\n            project_root=self.project_root,\n            sequence=int(last['sequence']),\n            parent_uuid=str(last['uuid']),\n        )",
+          "note": "跟踪读取状态和创建 Journal 的过程。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/runtime/test_recovery_safety.py",
+          "symbol": "test_partial_arguments_are_never_automatically_replayed",
+          "line": 26,
+          "end": 26,
+          "code": "",
+          "note": "恢复路径保留不完整工具调用的边界。"
+        }
+      ],
+      "related": [
+        "conversation",
+        "application",
+        "observability"
+      ],
+      "question": "恢复了历史会话，是否意味着继续使用上一进程剩余的模型额度？",
+      "answer": "历史和执行事实可以恢复。CLI 的恢复会开启新回合，新的回合预算由入口配置给出。"
+    },
+    {
+      "id": "application",
+      "group": "事实与应用",
+      "title": "Application、Engine 与 SQLite",
+      "symbol": "ApplicationServices · TurnScheduler",
+      "summary": "为 RPC 提供任务受理、调度、审批和查询。",
+      "concept": "应用层管理请求的生命周期。Engine 把外部动作转换成持久化工作项，再调度到已有 Harness 执行。",
+      "implementation": [
+        "ApplicationServices 检查工作区、模型连接、策略与预算配置，受理会话动作。执行时创建 HarnessAdapter，把结构化输入交给 create_runtime 构造的会话。",
+        "SQLite 保存应用层受理和调度状态。JournalProjector 把 Harness 的新增事实投影成查询视图，供 RPC 客户端读取状态、消息与证据。"
+      ],
+      "steps": [
+        [
+          "受理动作",
+          "检查配置、身份和动作幂等性。",
+          "work item"
+        ],
+        [
+          "准入与调度",
+          "领取可执行回合并准备后端。",
+          "TurnScheduler"
+        ],
+        [
+          "调用 Harness",
+          "HarnessAdapter 进入现有 Conversation。",
+          "runtime stream"
+        ],
+        [
+          "更新视图",
+          "投影执行事实并发布应用状态。",
+          "SQLite"
+        ]
+      ],
+      "states": [
+        [
+          "work_items",
+          "等待或正在执行的工作"
+        ],
+        [
+          "connection references",
+          "模型连接与凭据引用"
+        ],
+        [
+          "projection cursor",
+          "已经处理到的 Journal 位置"
+        ]
+      ],
+      "example": [
+        "RPC 客户端提交一个修复任务，然后轮询状态",
+        "客户端读取 SQLite 视图，实际模型与工具循环仍由 Harness 运行。"
+      ],
+      "boundary": "应用控制路径必须满足其配置要求。当前严格原生能力不足时会拒绝准入。",
+      "sources": [
+        {
+          "path": "forge/application/harness_adapter.py",
+          "symbol": "HarnessAdapter.__init__",
+          "line": 31,
+          "end": 45,
+          "code": "    def __init__(self, root: Path, *, config, data_root, backend, budget,\n                 model_client_factory=None, recorder=None, approval_handler=None, task_relation=None,\n                 resume_identifier=None, fork_session=False, turn_baseline_handler=None, task_policy=None):\n        permissions = PermissionManager(root, mode='supervised', approval_handler=approval_handler,\n                                        load_stored_rules=False)\n        bindings = RuntimeBindings(config=config, data_root=data_root, backend=backend, recorder=recorder,\n            owns_tool_backend=False,\n            model_client_factory=model_client_factory, permission_manager=permissions, trusted_extensions=False,\n            task_relation=task_relation, max_model_calls=budget['max_model_calls'],\n            max_tool_calls=budget['max_tool_calls'], wall_seconds=budget['wall_seconds'],\n            turn_baseline_handler=turn_baseline_handler)\n        self.conversation, self.journal, _ = create_runtime(root, bindings=bindings,\n            task_policy=task_policy,\n            resume_identifier=resume_identifier, fork_session=fork_session,\n            model_override=config.model_id if fork_session else None)",
+          "note": "查看结构化应用参数如何变成 RuntimeBindings。"
+        },
+        {
+          "path": "forge/engine/journal_projection.py",
+          "symbol": "JournalProjector.project_appends",
+          "line": 28,
+          "end": 41,
+          "code": "    def project_appends(self, journal, session_id, captured):\n        \"\"\"Project only records fsynced by the current owner; full recovery still validates disk.\"\"\"\n        if not captured:\n            return 0\n        records = list(captured)\n        self.current_event = None\n        try:\n            applied = self._project(journal.path, session_id, trusted=True, records=records)\n        except ContractError as error:\n            if error.kind == 'EVENT_CONFLICT' and self.current_event:\n                self.store.quarantine_event(*self.current_event)\n            raise\n        del captured[:len(records)]\n        return applied",
+          "note": "查看新增记录如何进入投影。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/implementation/unit/test_architecture_boundaries.py",
+          "symbol": "test_repository_dependencies_respect_boundaries",
+          "line": 47,
+          "end": 47,
+          "code": "",
+          "note": "公共内核的依赖方向由架构检查约束。"
+        }
+      ],
+      "related": [
+        "entry",
+        "sessions",
+        "observability"
+      ],
+      "question": "为什么 SDK 的一个简单会话可以直接创建，而 RPC 还有工作项和调度状态？",
+      "answer": "SDK 调用方自己持有运行协程。RPC 需要在外部请求返回后持续管理任务、审批和查询，因此引入应用层状态。"
+    },
+    {
+      "id": "channels",
+      "group": "扩展与连接",
+      "title": "消息渠道与办公连接",
+      "symbol": "ChannelGateway",
+      "summary": "把外部聊天消息和审批交给已有会话。",
+      "concept": "渠道适配器处理平台消息和回复，Gateway 将外部会话映射到 Harness 会话。当前仓库有飞书相关渠道与办公工具接入。",
+      "implementation": [
+        "Gateway 先验证接收范围、消息标识和重复投递。不同聊天及话题使用独立的会话索引，同一会话通过锁顺序处理消息。",
+        "消息转换成 runtime.stream 输入，文本和完成结果回传渠道。需要审批时，由 ApprovalBroker 关联当前外部消息和工具请求。插件也可通过受管服务提供渠道能力。"
+      ],
+      "steps": [
+        [
+          "接收与过滤",
+          "校验用户/群范围、提及条件和消息 ID。",
+          "InboundMessage"
+        ],
+        [
+          "定位会话",
+          "按聊天和话题查找已有会话。",
+          "session_key"
+        ],
+        [
+          "运行与审批",
+          "消费流事件，必要时等待外部审批。",
+          "runtime.stream"
+        ],
+        [
+          "回传结果",
+          "发送完成文本并保留会话索引。",
+          "response"
+        ]
+      ],
+      "states": [
+        [
+          "deduplicator",
+          "已接收消息的去重记录"
+        ],
+        [
+          "session index",
+          "平台话题到会话 ID 的映射"
+        ],
+        [
+          "approval broker",
+          "待解决的渠道审批"
+        ]
+      ],
+      "example": [
+        "两个群聊分别问同一个报销助手",
+        "每个话题映射到自己的会话，避免把一边的对话历史带到另一边。"
+      ],
+      "boundary": "渠道的接收授权和工具权限都要生效。业务服务凭据通过配置引用提供。",
+      "sources": [
+        {
+          "path": "forge/channels/gateway.py",
+          "symbol": "ChannelGateway.handle_message",
+          "line": 268,
+          "end": 287,
+          "code": "    async def handle_message(self, message: InboundMessage) -> None:\n        if not self.config.accepts(message):\n            self._report(\n                f'[Feishu] ignored unauthorized message={message.message_id or \"missing\"}'\n            )\n            return\n        if not message.message_id:\n            self._report('[Feishu] ignored message without message_id')\n            return\n        if not self.deduplicator.reserve(message):\n            self._report(f'[Feishu] ignored duplicate message={message.message_id}')\n            return\n        topic = message.thread_id or 'main'\n        self._report(\n            f'[Feishu] received message={message.message_id} '\n            f'chat={message.chat_id} topic={topic} sender={message.sender_id} '\n            f'text={_log_preview(message.text, limit=300)}'\n        )\n        key = message.session_key\n        lock = self._locks.setdefault(key, asyncio.Lock())",
+          "note": "从接收过滤读到会话锁和 runtime.stream。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/channels/test_config_gateway.py",
+          "symbol": "test_topics_are_isolated_in_private_and_group_chats",
+          "line": 114,
+          "end": 114,
+          "code": "",
+          "note": "私聊和群聊话题使用隔离的会话键。"
+        }
+      ],
+      "related": [
+        "conversation",
+        "permissions",
+        "plugins"
+      ],
+      "question": "为什么仅靠模型提示“别串群”不足以隔离两个群聊？",
+      "answer": "会话历史必须按实际聊天和话题键隔离，由 Gateway 的索引和会话管理实现。"
+    },
+    {
+      "id": "observability",
+      "group": "事实与应用",
+      "title": "轨迹、用量与诊断",
+      "symbol": "observability · usage_ledger",
+      "summary": "把模型请求、工具执行和失败保存成可解释的数据。",
+      "concept": "观测数据把一次任务串成请求、工具、验证和终态。诊断时可以沿同一组关联 ID 查到耗时、错误和用量。",
+      "implementation": [
+        "模型请求记录提供方、请求身份、实际返回模型和原始用量。normalizer 把不同 API 的输入、输出和缓存统计拆成一致的分量。",
+        "Journal 与事件投影生成轨迹和查询视图。可选 PriceBook 根据冻结价格估算费用；缺失用量保留未知。评测比较保留全部尝试和失败。"
+      ],
+      "steps": [
+        [
+          "关联请求",
+          "为模型和工具操作建立事件身份。",
+          "request / execution ID"
+        ],
+        [
+          "记录原始值",
+          "保存实际终态与原始 usage。",
+          "raw_usage"
+        ],
+        [
+          "统一语义",
+          "拆分普通输入、缓存输入与输出。",
+          "normalized usage"
+        ],
+        [
+          "查询与比较",
+          "查看轨迹、失败原因和条件差异。",
+          "observation views"
+        ]
+      ],
+      "states": [
+        [
+          "usage_is_final",
+          "提供方用量是否为最终值"
+        ],
+        [
+          "returned_model",
+          "服务端报告的实际模型标识"
+        ],
+        [
+          "unknown usage",
+          "尚不能准确汇总的请求"
+        ]
+      ],
+      "example": [
+        "某次请求断流，缺少最终 usage",
+        "报告保留未知项与已知小计，帮助判断费用统计的完整程度。"
+      ],
+      "boundary": "轨迹里的成功文本、任务终态和官方判分各自保留语义。费用估算还依赖具体价格快照。",
+      "sources": [
+        {
+          "path": "forge/observability/usage_ledger.py",
+          "symbol": "normalize_usage",
+          "line": 32,
+          "end": 51,
+          "code": "def normalize_usage(provider,raw):\n    if raw is None:\n        return None\n    component=raw.get('schema')=='forge.usage.components.v1'\n    cache_write=cache_read=0\n    if provider=='anthropic' or component:\n        ordinary=_count(raw['input_tokens'])\n        output=_count(raw['output_tokens'])\n        cache_write=_count(raw.get('cache_creation_input_tokens',0))\n        cache_read=_count(raw.get('cache_read_input_tokens',0))\n        total=_count(ordinary+cache_write+cache_read)\n    elif provider in ('openai_responses','openai','openai_chat','deepseek'):\n        chat='prompt_tokens' in raw\n        total=_count(raw['prompt_tokens' if chat else 'input_tokens'])\n        output=_count(raw['completion_tokens' if chat else 'output_tokens'])\n        details=raw.get('prompt_tokens_details' if chat else 'input_tokens_details') or {}\n        cache_read=_count(raw.get('prompt_cache_hit_tokens',details.get('cached_tokens',0)))\n        cache_write=_count(details.get('cache_write_tokens',0))\n        ordinary=_count(total-cache_read-cache_write)\n        if 'prompt_cache_miss_tokens' in raw and _count(raw['prompt_cache_miss_tokens'])!=ordinary+cache_write:",
+          "note": "关注 prompt_tokens 和缓存命中如何拆分。"
+        },
+        {
+          "path": "evals/runner.py",
+          "symbol": "observed_requests",
+          "line": 458,
+          "end": 477,
+          "code": "def observed_requests(journal):\n    \"\"\"Read existing all-role observations; old root-only logs remain explicit.\"\"\"\n    records = SessionStore._read_records(journal)\n    direct, observations, terminal_counts = [], [], []\n    tool_ids = set()\n    from forge.observability.usage_ledger import token_usage\n    for record in records:\n        kind = record.get('type')\n        if kind not in {'observation', 'model_request_started', 'model_request_finished', 'tool_started', 'turn_completed'}:\n            continue\n        payload = SessionStore._payload(record, journal)\n        if kind == 'turn_completed':\n            count = (payload.get('statistics') or {}).get('model_requests')\n            if count is not None:\n                terminal_counts.append(count)\n        elif kind != 'observation':\n            direct.append((kind, payload))\n        else:\n            event = payload['event']\n            attributes = event['attributes']",
+          "note": "查看请求覆盖和未知用量的汇总。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/benchmark/test_platform_plan.py",
+          "symbol": "test_unknown_request_usage_and_frozen_costs",
+          "line": 119,
+          "end": 119,
+          "code": "",
+          "note": "未知用量与冻结价格在比较中被保留。"
+        }
+      ],
+      "related": [
+        "sessions",
+        "budget",
+        "evaluation"
+      ],
+      "question": "提供方缺失一个请求的最终 usage 时，总 token 数能直接用零补齐吗？",
+      "answer": "不能。应保留已知小计和未知请求，完整总量保持未知。"
+    },
+    {
+      "id": "completion",
+      "group": "验收与交付",
+      "title": "验证证据与完成策略",
+      "symbol": "verify · CompletionGate",
+      "summary": "让完成请求对齐当前代码和环境的证据。",
+      "concept": "模型可以提出完成，系统按选定策略判断是否接受。verify 记录检查的结果以及运行时所处的代码和环境版本。",
+      "implementation": [
+        "VerifyTool 执行验证命令并产生 VerificationEvidence。WorkspaceTracker 提供代码修订，环境变化通过 environment_epoch 标识，旧证据据此失效。",
+        "finish_task 调用完成检查。CompletionGate 按 TaskPolicy 检查当前证据，追加 completion_checks 执行业务验收。缺口可以触发本回合内有界修复，仍计入原预算。"
+      ],
+      "steps": [
+        [
+          "执行验证",
+          "运行测试命令并记录输出和退出码。",
+          "VerificationEvidence"
+        ],
+        [
+          "绑定版本",
+          "将证据关联当前代码及环境。",
+          "revision + epoch"
+        ],
+        [
+          "提出完成",
+          "finish_task 进入完成条件判断。",
+          "CompletionGate"
+        ],
+        [
+          "接受或反馈",
+          "发布完成结果，或给出待修复缺口。",
+          "completed / partial / failed"
+        ]
+      ],
+      "states": [
+        [
+          "workspace_revision",
+          "代码状态的版本"
+        ],
+        [
+          "environment_epoch",
+          "命令或环境变化的版本"
+        ],
+        [
+          "TaskPolicy",
+          "本任务需要满足的验收要求"
+        ]
+      ],
+      "example": [
+        "测试通过后，又修改了 plugin.py",
+        "原检查不再证明新代码，严格完成策略会要求当前版本的有效证据。"
+      ],
+      "boundary": "普通任务和严格任务按各自策略完成。修改验证器时要保留已有断言、需求与工作目录约束。",
+      "sources": [
+        {
+          "path": "forge/runtime/runner.py",
+          "symbol": "TurnRunner._completion_reasons",
+          "line": 656,
+          "end": 669,
+          "code": "    async def _completion_reasons(self) -> tuple[str, ...]:\n        import inspect\n        reasons = list(await self._workspace_completion_reasons())\n        for name, callback in self.conversation.completion_checks.items():\n            try:\n                result = callback()\n                if inspect.isawaitable(result):\n                    result = await asyncio.wait_for(result, 120)\n                if not isinstance(result, (list, tuple)) or not all(isinstance(x, str) for x in result):\n                    raise ValueError('Completion check must return a sequence of reasons')\n                reasons.extend(f'{name}: {item}' for item in result)\n            except Exception as error:\n                reasons.append(f'{name}: check failed ({type(error).__name__})')\n        return tuple(reasons)",
+          "note": "看内建完成检查如何与附加回调组合。"
+        },
+        {
+          "path": "forge/runtime/completion.py",
+          "symbol": "CompletionGate.evaluate",
+          "line": 90,
+          "end": 109,
+          "code": "    async def evaluate(\n        self,\n        tracker: WorkspaceTracker,\n        verification: VerificationEvidence | None,\n        *,\n        verification_history: tuple[VerificationEvidence, ...] = (),\n        mutation_attempted: bool,\n        require_verification: bool = False,\n        acceptance_criteria: tuple[dict[str, str], ...] = (),\n    ) -> CompletionDecision:\n        changed_paths = tracker.changed_paths\n        verification_required = (\n            self.policy.require_verification\n            or self.policy.require_task_verification\n            or self.policy.require_verification_coverage\n            or bool(self.policy.required_verification_commands)\n            or bool(self.policy.required_coverage)\n            or require_verification\n            or self.policy.require_acceptance_reconciliation\n        )",
+          "note": "沿 policy 和 evidence 读取实际判定。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/runtime/test_workspace_completion.py",
+          "symbol": "test_completion_gate_requires_verification_only_when_policy_requests_it",
+          "line": 364,
+          "end": 364,
+          "code": "",
+          "note": "验证要求由任务策略决定。"
+        }
+      ],
+      "related": [
+        "customization",
+        "budget",
+        "sessions"
+      ],
+      "question": "为什么测试通过之后再改一行实现，也可能使 finish_task 被拒绝？",
+      "answer": "测试结果绑定旧代码修订。当前代码需要新的验证证据，才能满足严格完成要求。"
+    },
+    {
+      "id": "customization",
+      "group": "验收与交付",
+      "title": "自然语言开发与独立验收",
+      "symbol": "develop_plugin · check_agent",
+      "summary": "从固定验收开始开发插件，并由控制器独立判分。",
+      "concept": "调用方先提供期望行为和固定样例。开发 Agent 可以生成实现、测试和 Agent 配置，控制器持有最终用于判分的预期副本。",
+      "implementation": [
+        "develop_plugin 使用严格 coding 会话，并通过 add_completion_check 加入 independent-business 检查。失败反馈留在同一回合和原预算内。",
+        "check_agent 把声明的源码复制到私有目录，先执行插件自测，再启动独立探针进程。预期值留在父控制器，子进程只取得输入，结束后再比较输出并核对代码是否变化。"
+      ],
+      "steps": [
+        [
+          "固定契约",
+          "确认工具输入与预期结果。",
+          "acceptance cases"
+        ],
+        [
+          "开发与自测",
+          "生成插件及 unittest，调用 verify。",
+          "candidate source"
+        ],
+        [
+          "独立运行",
+          "测试进程通过公共接口加载并调用工具。",
+          "actual output"
+        ],
+        [
+          "控制器判分",
+          "比较实际值、检查清理并生成版本绑定结果。",
+          "validation receipt"
+        ]
+      ],
+      "states": [
+        [
+          "controller expectations",
+          "独立判分使用的预期"
+        ],
+        [
+          "self_tests",
+          "插件自测通过、失败或未验证"
+        ],
+        [
+          "business cases",
+          "业务用例逐项结果"
+        ]
+      ],
+      "example": [
+        "库存为 3，最低库存为 8，期望 reorder=5",
+        "即使插件自测写成永远通过，独立业务用例仍会检查真实工具返回值。"
+      ],
+      "boundary": "独立进程用于受管验证。可信 Python 的宿主能力仍属于插件信任边界。结果只覆盖实际运行的检查。",
+      "sources": [
+        {
+          "path": "forge/development.py",
+          "symbol": "develop_plugin",
+          "line": 12,
+          "end": 31,
+          "code": "async def develop_plugin(request, directory, acceptance, *, execute=False, max_model_calls=40,\n                         config=None, model_client_factory=None, sandbox='workspace-write', data_root=None):\n    directory = Path(directory).resolve()\n    acceptance = validate_acceptance(acceptance)  # Controller's private copy, outside candidate scope.\n    if not acceptance['cases']:\n        raise ValueError('Development requires frozen independent acceptance cases')\n    if not directory.exists():\n        from forge.plugin_cli import initialize\n        initialize(directory, name=directory.name)\n    candidate = AgentDefinition(name='candidate', base='core', plugins=(PluginSpec(str(directory), trusted=True),))\n    definition_path = directory / 'agent.json'\n    if not definition_path.exists():\n        definition_path.write_text(json.dumps({'name': directory.name, 'base': 'core',\n            'plugins': [{'source': '.', 'trusted': False}]}, indent=2), encoding='utf-8')\n    if not execute:\n        return {'status': 'planned', 'directory': str(directory), 'model_api_calls': 0,\n                'case_ids': [c['id'] for c in acceptance['cases']], 'next': 'Repeat with --execute to use the configured model budget'}\n    latest = None\n    async def independent_check():\n        nonlocal latest, candidate",
+          "note": "追踪固定 acceptance、独立回调和严格会话。"
+        },
+        {
+          "path": "forge/validation.py",
+          "symbol": "check_agent",
+          "line": 190,
+          "end": 209,
+          "code": "async def check_agent(definition, acceptance, *, work_dir=None, timeout=60):\n    if any(not spec.trusted for spec in definition.plugins):\n        raise ValueError('Validation executes plugin code and self-tests; explicit trust is required')\n    acceptance = validate_acceptance(acceptance)\n    before = bindings(definition, acceptance)\n    parent = Path(work_dir).resolve() if work_dir else None\n    if parent:\n        parent.mkdir(parents=True, exist_ok=True)\n    scratch = Path(tempfile.mkdtemp(prefix='forge-check-', dir=parent)).resolve()\n    retained = True\n    environment = {k: v for k, v in os.environ.items() if k.upper() in {\n        'PATH', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATHEXT', 'SYSTEMDRIVE', 'LANG'}}\n    environment.update(TEMP=str(scratch), TMP=str(scratch), HOME=str(scratch), USERPROFILE=str(scratch),\n                       FORGE_DATA_DIR=str(scratch / 'settings'), PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1')\n    specs, self_tests, copied = [], [], {}\n    try:\n        for i, spec in enumerate(definition.plugins):\n            if spec.source.startswith('entrypoint:'):\n                specs.append(spec)\n                self_tests.append({'plugin': spec.source, 'status': 'unverified', 'reason': 'installed package has no source test directory'})",
+          "note": "从复制源码读到自测和探针进程。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_customization.py",
+          "symbol": "test_independent_business_check_and_layered_expiration",
+          "line": 25,
+          "end": 25,
+          "code": "",
+          "note": "自测通过但业务失败会被发现，结果按绑定范围过期。"
+        }
+      ],
+      "related": [
+        "plugins",
+        "completion",
+        "delivery"
+      ],
+      "question": "候选插件把自己的测试改成 assert True，能否因此改变独立业务判分？",
+      "answer": "父控制器仍使用原来固定的预期结果比较真实输出。自测和业务验收分别记录。"
+    },
+    {
+      "id": "delivery",
+      "group": "验收与交付",
+      "title": "版本绑定与交付包",
+      "symbol": "bindings · export_agent",
+      "summary": "把定制成果和能复验它的条件一起交付。",
+      "concept": "交付包含代码，也包含如何安装、如何组合和如何重新验证。回执通过内容绑定说明已经验证过的具体范围。",
+      "implementation": [
+        "接口绑定覆盖插件代码、SDK 和依赖。业务绑定继续加入组合配置和验收样例。确定性检查不验证模型选择，角色模型变化由真实模型评测单独覆盖。",
+        "导出 ZIP 清单关联显式源码、SDK wheel、依赖锁、Agent 配置、验收和回执。凭据保留环境引用。导入校验文件后保留未启用状态，目标环境重新安装并 check。"
+      ],
+      "steps": [
+        [
+          "计算绑定",
+          "为接口和业务范围建立内容身份。",
+          "interface / business digest"
+        ],
+        [
+          "关联产物",
+          "把代码、依赖、配置与验收写入清单。",
+          "manifest"
+        ],
+        [
+          "导入检查",
+          "检查文件摘要和路径，再释放到新目录。",
+          "imported"
+        ],
+        [
+          "重新验证",
+          "目标环境配置凭据并运行相同样例。",
+          "fresh receipt"
+        ]
+      ],
+      "states": [
+        [
+          "interface binding",
+          "与插件和 SDK 接口相关的证据"
+        ],
+        [
+          "business binding",
+          "与组合及验收相关的证据"
+        ],
+        [
+          "environment",
+          "验证时的 Python 与平台"
+        ]
+      ],
+      "example": [
+        "仅将报销限额从 100 改成 150",
+        "业务验收绑定过期，插件接口证据按其自身绑定判断是否仍适用。"
+      ],
+      "boundary": "新环境需要新的检查。包中的旧回执保留原环境结果的来源信息。",
+      "sources": [
+        {
+          "path": "forge/validation.py",
+          "symbol": "bindings",
+          "line": 98,
+          "end": 117,
+          "code": "def bindings(definition, acceptance):\n    plugins = []\n    for spec in definition.plugins:\n        if spec.source.startswith('entrypoint:'):\n            entry = next(iter(metadata.entry_points(group='forge.plugins.v1', name=spec.source.split(':', 1)[1])), None)\n            if entry is None or entry.dist is None:\n                raise ValueError('Installed plugin is unavailable')\n            files = {str(f): sha256(entry.dist.locate_file(f).read_bytes()).hexdigest()\n                     for f in entry.dist.files or () if str(f).endswith(('.py', '.json', '.toml'))}\n        else:\n            files = {name: sha256(raw).hexdigest() for name, raw in plugin_files(spec.source).items()}\n        plugins.append({'code': files, 'config': spec.config, 'requires': spec.requires})\n    sdk = Path(__file__).parent\n    sdk_hash = digest({p.relative_to(sdk).as_posix(): sha256(p.read_bytes()).hexdigest()\n                       for p in sorted(sdk.rglob('*')) if p.is_file() and p.suffix in {'.py', '.md', '.json', '.sql'}\n                       and '_sandbox' not in p.parts and '__pycache__' not in p.parts})\n    versions = dependency_versions(definition)\n    interface = digest({'plugins': [{k: v for k, v in p.items() if k != 'config'} for p in plugins],\n                        'sdk': sdk_hash, 'dependencies': versions})\n    composition = definition.as_dict()",
+          "note": "观察 role_models 从确定性业务绑定中被剥离。"
+        },
+        {
+          "path": "forge/delivery.py",
+          "symbol": "export_agent",
+          "line": 42,
+          "end": 61,
+          "code": "def export_agent(definition, acceptance, destination, *, receipt=None, models=None, sdk_wheel=None):\n    acceptance = validate_acceptance(acceptance)\n    portable(definition.as_dict())\n    portable(models or {})\n    portable(acceptance)\n    current = bindings(definition, acceptance)\n    files, specs = {}, []\n    for index, spec in enumerate(definition.plugins):\n        if spec.source.startswith('entrypoint:'):\n            specs.append(replace(spec, trusted=False))\n            continue\n        root = f'plugins/{index}'\n        for name, raw in plugin_files(spec.source).items():\n            # Selected source is public delivery material; common embedded key forms are rejected.\n            if re.search(rb'(?:api[_-]?key|password|secret|access[_-]?token)\\s*[=:]\\s*[\\x22\\x27][^\\x22\\x27\\r\\n]{4,}', raw, re.I):\n                raise ValueError(f'Possible embedded credential in {name}; use environment references')\n            files[f'{root}/{name}'] = raw\n        specs.append(replace(spec, source=root, trusted=False))\n    agent = replace(definition, plugins=tuple(specs))\n    delivery_dependencies = dependency_versions(definition, sdk_extras=('cli', 'validation') if sdk_wheel else ())",
+          "note": "跟踪源码、wheel、依赖和清单的组织。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_customization.py",
+          "symbol": "test_delivery_does_not_enable_or_trust_old_environment",
+          "line": 53,
+          "end": 53,
+          "code": "",
+          "note": "导入后插件保持未启用，旧环境通过结论不直接沿用。"
+        }
+      ],
+      "related": [
+        "customization",
+        "composition",
+        "evaluation"
+      ],
+      "question": "换了模型，为什么某些插件验收无需重跑，而模型成功率需要重新测？",
+      "answer": "确定性工具验收只验证固定输入下的行为。真实模型能否正确使用工具属于另一层实验条件。"
+    },
+    {
+      "id": "evaluation",
+      "group": "验收与交付",
+      "title": "本地评测与公共 Benchmark",
+      "symbol": "eval plan / run / compare",
+      "summary": "固定条件后执行任务，再用独立判分比较结果。",
+      "concept": "评测需要同时约束任务、模型、Harness、依赖和预算。统一入口把这些条件冻结，再委托已有执行设施和 grader。",
+      "implementation": [
+        "本地 evals.runner 通过 HarnessSession 执行任务与独立验证。公共评测复用 Harbor 和官方任务镜像，容器内仍使用 create_runtime 构造同一 Python 内核。",
+        "plan 固定源码、任务版本、模型与组合；run 使用冻结条件；compare 分别比较模型、插件或 Harness 改动。所有尝试、基础设施失败和未知用量都会保留。",
+        "后训练导出接口位于 extensions，可把 Journal 投影为训练记录，并检查轨迹闭合、成功验收和来源条件。数据集与训练效果需要各自的验收证据。"
+      ],
+      "steps": [
+        [
+          "冻结计划",
+          "固定任务、源码、配置与预算。",
+          "plan"
+        ],
+        [
+          "执行 Agent",
+          "在任务环境中调用同一模型与工具循环。",
+          "trajectory"
+        ],
+        [
+          "独立判分",
+          "官方 grader 或控制器评估任务产物。",
+          "grade"
+        ],
+        [
+          "条件对照",
+          "核对预期变化和额外配置差异。",
+          "comparison"
+        ]
+      ],
+      "states": [
+        [
+          "task version",
+          "任务输入和镜像身份"
+        ],
+        [
+          "attempt",
+          "一次完整尝试及其失败记录"
+        ],
+        [
+          "grade",
+          "独立评估得到的成绩"
+        ]
+      ],
+      "example": [
+        "固定模型和任务，只比较是否启用插件",
+        "两份运行各自保留轨迹与成绩，compare 检查是否还混入其他条件变化。"
+      ],
+      "boundary": "分数对应冻结条件下模型与 Harness 的联合表现。公开评测使用官方任务镜像，资源缺失时明确报告。",
+      "sources": [
+        {
+          "path": "benchmark/harbor/platform.py",
+          "symbol": "make_plan",
+          "line": 46,
+          "end": 65,
+          "code": "def make_plan(config_path, destination):\n    config_path, destination = Path(config_path).resolve(), Path(destination).resolve()\n    config = json.loads(config_path.read_text(encoding='utf-8'))\n    allowed = {'benchmark', 'model', 'models', 'agent', 'budget', 'tasks', 'dataset_ref', 'taskset_directory',\n               'source_directory', 'harness', 'pricing'}\n    if set(config) - allowed:\n        raise ValueError('Unknown plan configuration fields: ' + ', '.join(sorted(set(config) - allowed)))\n    portable(config)\n    spec = get_benchmark(config['benchmark'])\n    if spec.status != 'ready' or not spec.dataset:\n        raise ValueError('Choose a registered ready official benchmark')\n    definition = load_definition(config_path.parent / config['agent']) if config.get('agent') else AgentDefinition()\n    if definition.base != 'coding':\n        raise ValueError('These official code-task benchmarks require a coding composition')\n    from forge.context.compactor import CompactionConfig\n    CompactionConfig(**definition.context_options)\n    models = config.get('models', {})\n    if 'default' in models:\n        raise ValueError('default is reserved for the primary model')\n    for selection in models.values():",
+          "note": "观察被冻结的条件和凭据引用。"
+        },
+        {
+          "path": "benchmark/harbor/run_forge.py",
+          "symbol": "run_turn",
+          "line": 86,
+          "end": 103,
+          "code": "async def run_turn(\n    project: Path,\n    message: str,\n    *,\n    resume: bool,\n    max_model_calls: int | None,\n    max_tool_calls: int | None,\n    max_turn_seconds: float = 1800,\n    frozen_configuration: dict | None = None,\n    runtime_bindings=None,\n    result_path: Path | None = None,\n) -> TurnResult:\n    policy=BENCHMARK_TASK_POLICY\n    bound_plan=None\n    if frozen_configuration:\n        from forge.application.models import validate\n        from forge.config import ForgeConfig\n        from forge.permissions.policy import PermissionManager",
+          "note": "找到容器内 create_runtime 的装配调用。"
+        },
+        {
+          "path": "extensions/qwen_tool_distillation.py",
+          "symbol": "journal_training_records",
+          "line": 1312,
+          "end": 1329,
+          "code": "def journal_training_records(path: Path, *, source: dict, outcome: dict) -> list[dict]:\n    '''Project existing Journal facts in memory into the Qwen exporter contract.'''\n    from forge.sessions.trajectory import journal_events, journal_completeness\n    events = journal_events(path)\n    completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\\n'))\n    if not completeness['record_closed'] or not completeness['responses_complete']:\n        raise TraceRejected(['Journal is incomplete: ' + ', '.join(completeness['problems'])])\n    records, snapshots, texts, calls = [], {}, {}, {}\n    def append(kind, payload):\n        records.append({'sequence': len(records), 'episode_id': events[0]['session_id'],\n                        'record_type': kind, 'payload': payload})\n    append('episode_started', source)\n    for event in events:\n        kind, payload = event['type'], event['payload']\n        if kind == 'model_input_snapshot': snapshots[payload['sha256']] = payload['request']\n        elif kind == 'model_request_started':\n            request = snapshots[payload['input_sha256']]\n            append('model_request', {**request, 'request_id': payload['request_id'],",
+          "note": "先看轨迹完整性检查，再追踪模型、工具和结果的投影。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/benchmark/test_platform_plan.py",
+          "symbol": "test_plan_cannot_silently_override_model_or_source",
+          "line": 79,
+          "end": 79,
+          "code": "",
+          "note": "冻结后的模型和源码条件不能被静默覆盖。"
+        }
+      ],
+      "related": [
+        "composition",
+        "observability",
+        "completion"
+      ],
+      "question": "两次任务分数不同，能否立即归因于模型更强？",
+      "answer": "要先核对任务、Harness、插件、预算、依赖和环境条件。实验分数反映它们在冻结条件下的联合表现。"
+    },
+    {
+      "id": "release",
+      "group": "入口与装配",
+      "title": "安装、构建与工程检查",
+      "symbol": "pyproject · bridge · CI",
+      "summary": "把最小 SDK、可选能力和跨平台验证组织起来。",
+      "concept": "项目把 Python 核心和可选能力分层。依赖、原生桥、公共契约与 CI 各自有明确的构建和验证入口。",
+      "implementation": [
+        "pyproject 的基础依赖支持通用 SDK，模型、CLI、MCP、coding、validation 和 evaluation 通过 extras 选择。Node 与原生桥用于相应的执行路径。",
+        "build_bridge 构建和打包可信运行时清单。contracts/v1 维护跨边界协议，检查脚本核对生成内容与依赖方向。CI 分别运行便携回归、SDK 定制安装和依赖安全检查。"
+      ],
+      "steps": [
+        [
+          "选择安装范围",
+          "按实际需要选择 SDK 与可选 extras。",
+          "dependency set"
+        ],
+        [
+          "准备原生能力",
+          "为 coding 构建并核对原生桥运行文件。",
+          "runtime inventory"
+        ],
+        [
+          "检查契约",
+          "验证公共协议、类型和模块依赖方向。",
+          "contracts / quality"
+        ],
+        [
+          "平台验证",
+          "在 Windows 和 Linux 运行对应安装与回归。",
+          "CI results"
+        ]
+      ],
+      "states": [
+        [
+          "uv.lock / package-lock",
+          "固定开发依赖解析"
+        ],
+        [
+          "runtime inventory",
+          "受信任的运行时文件清单"
+        ],
+        [
+          "source revision",
+          "文档与验证对应的代码版本"
+        ]
+      ],
+      "example": [
+        "只嵌入一个无工作区的个人助手",
+        "使用通用 SDK 和所需模型依赖；文件和原生执行能力在选择 coding 时装配。"
+      ],
+      "boundary": "安装检查、原生边界验收和真实模型实验分别建立证据。第三方许可与来源声明随发行保留。",
+      "sources": [
+        {
+          "path": "scripts/build_bridge.py",
+          "symbol": "main",
+          "line": 49,
+          "end": 68,
+          "code": "def main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument('--check', action='store_true')\n    parser.add_argument('--no-build', action='store_true')\n    parser.add_argument('--bundle-python', action='store_true', help='Include verified sandbox assets in a Python wheel')\n    args = parser.parse_args()\n    if not args.no_build:\n        node = shutil.which('node')\n        if node is None:\n            raise RuntimeError('Development compiler runtime is unavailable')\n        for project in ('packages/contracts', 'sandbox_bridge'):\n            # Retired sources must not survive as executable build outputs.\n            directory = ROOT / project / 'dist'\n            for compiled in directory.rglob('*.js'):\n                if not (ROOT / project / 'src' / compiled.relative_to(directory).with_suffix('.ts')).is_file():\n                    compiled.unlink()\n                    compiled.with_suffix('.d.ts').unlink(missing_ok=True)\n            subprocess.run([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / project / 'tsconfig.json')], cwd=ROOT, check=True)\n    package_lock = json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))\n    files = {'package.json', 'sandbox_bridge/package.json', 'packages/contracts/package.json'}",
+          "note": "查看锁文件依赖、构建和清单生成。"
+        },
+        {
+          "path": "scripts/check_sdk_install.py",
+          "symbol": "main",
+          "line": 14,
+          "end": 31,
+          "code": "def main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument('--output', type=Path, required=True)\n    args = parser.parse_args()\n    output = args.output.resolve()\n    output.mkdir(parents=True, exist_ok=False)\n    uv = shutil.which('uv')\n    if not uv:\n        raise ValueError('uv is required to build and install the standard wheel')\n    def run(command, *, cwd=output, environment=None):\n        result = subprocess.run([str(x) for x in command], cwd=cwd, env=environment,\n                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=180)\n        with (output / 'commands.log').open('a', encoding='utf-8') as stream:\n            stream.write(json.dumps([str(x) for x in command]) + '\\n' + result.stdout + result.stderr + '\\n')\n        if result.returncode:\n            raise RuntimeError(f'Command failed ({result.returncode}); see {output / \"commands.log\"}')\n        return result.stdout\n    run([uv, 'build', '--wheel', '--out-dir', output / 'wheels',",
+          "note": "跟踪两个干净环境中的安装与复验。"
+        }
+      ],
+      "tests": [
+        {
+          "path": "tests/test_core_sdk.py",
+          "symbol": "test_core_import_and_turn_without_optional_modules",
+          "line": 52,
+          "end": 52,
+          "code": "",
+          "note": "未启用可选模块时，核心会话可以独立运行。"
+        }
+      ],
+      "related": [
+        "entry",
+        "sandbox",
+        "contracts"
+      ],
+      "question": "为什么纯 SDK 可运行，还不能说明本机原生文件边界已经准备好？",
+      "answer": "SDK 核心和原生执行后端属于不同的安装及验证范围，原生 coding 还要经过自己的启动和能力检查。"
+    }
+  ],
+  "flows": [
+    {
+      "id": "coding",
+      "title": "一次 coding 请求",
+      "subtitle": "从“修改库存逻辑”到接受完成",
+      "description": "按状态变化走一遍正常回合。数值是用于解释实现的固定示例。",
+      "steps": [
+        [
+          "entry",
+          "接收需求",
+          "用户输入需要进入一个已打开的会话。SDK 将字符串标准化后交给流接口。",
+          "实现库存不足时的补货量。",
+          "输入进入 Conversation。",
+          0,
+          0,
+          0,
+          "待验证",
+          "running"
+        ],
+        [
+          "composition",
+          "装配 coding",
+          "按组合创建代码工具、模型和工作区边界，绑定 Journal。",
+          "AgentDefinition(base='coding')",
+          "得到同一会话的工具注册表与客户端。",
+          0,
+          0,
+          0,
+          "待验证",
+          "running"
+        ],
+        [
+          "models",
+          "请求读取文件",
+          "模型看到提示、工具定义和历史，产生完整的 read_file 调用。",
+          "模型请求 #1",
+          "read_file('plugin.py')",
+          1,
+          0,
+          0,
+          "待验证",
+          "running"
+        ],
+        [
+          "tools",
+          "获得文件内容",
+          "参数和权限检查通过后读取文件，将结构化结果加入历史。",
+          "read_file 工具参数",
+          "插件现有实现进入下一次请求。",
+          1,
+          1,
+          0,
+          "待验证",
+          "running"
+        ],
+        [
+          "models",
+          "请求精确修改",
+          "模型根据实际文件内容给出替换操作。",
+          "模型请求 #2",
+          "replace_text 的旧文本与新文本。",
+          2,
+          1,
+          0,
+          "待验证",
+          "running"
+        ],
+        [
+          "tools",
+          "应用修改",
+          "编辑成功，工作区版本推进；检查点和执行记录描述这次变化。",
+          "替换请求",
+          "workspace_revision=1",
+          2,
+          2,
+          1,
+          "待验证",
+          "running"
+        ],
+        [
+          "models",
+          "请求验证",
+          "模型请求用 verify 运行针对当前代码的测试。",
+          "模型请求 #3",
+          "verify('python -m unittest ...')",
+          3,
+          2,
+          1,
+          "待验证",
+          "running"
+        ],
+        [
+          "completion",
+          "形成有效证据",
+          "测试通过，证据绑定当前代码修订与环境版本。",
+          "验证命令成功退出",
+          "VerificationEvidence 对应 revision=1。",
+          3,
+          3,
+          1,
+          "通过",
+          "running"
+        ],
+        [
+          "models",
+          "提出完成",
+          "模型通过 finish_task 发送完成声明。",
+          "模型请求 #4",
+          "status=completed",
+          4,
+          3,
+          1,
+          "通过",
+          "running"
+        ],
+        [
+          "completion",
+          "接受完成",
+          "门禁核对当前证据及追加检查，最终状态写入 Journal 并发布给调用者。",
+          "完成声明与有效证据",
+          "TurnCompleted / completed",
+          4,
+          4,
+          1,
+          "通过",
+          "completed"
+        ]
+      ]
+    },
+    {
+      "id": "plugin",
+      "title": "插件开发与独立验收",
+      "subtitle": "看预期值如何留在控制器",
+      "description": "开发回合与验收探针各自使用已有运行时。交付由调用方显式发起。",
+      "steps": [
+        [
+          "customization",
+          "固定业务样例",
+          "调用方提供 stock=3、minimum=8，预期 reorder=5。",
+          "固定 acceptance.json",
+          "预期副本由控制器持有。",
+          0,
+          0,
+          0,
+          "待验证",
+          "running"
+        ],
+        [
+          "composition",
+          "建立开发会话",
+          "创建插件模板，选择 strict coding 和本回合预算。",
+          "自然语言需求与固定契约",
+          "开发工作区和 completion check 已注册。",
+          0,
+          0,
+          0,
+          "待验证",
+          "running"
+        ],
+        [
+          "runner",
+          "生成实现和测试",
+          "模型通过文件工具编写 plugin.py 与 unittest。",
+          "开发请求",
+          "实现进入新的工作区修订。",
+          2,
+          2,
+          1,
+          "待验证",
+          "running"
+        ],
+        [
+          "completion",
+          "自测并申请完成",
+          "verify 产生当前版本证据，finish_task 启动最终检查。",
+          "测试命令与完成声明",
+          "进入 independent-business 回调。",
+          4,
+          4,
+          1,
+          "自测通过",
+          "running"
+        ],
+        [
+          "customization",
+          "执行独立探针",
+          "控制器复制声明源码，测试进程拿到输入并通过公共工具接口调用插件。",
+          "stock=3, minimum=8",
+          "实际工具结果 reorder=5。",
+          4,
+          4,
+          1,
+          "判分中",
+          "running"
+        ],
+        [
+          "customization",
+          "比较预期并绑定",
+          "控制器比较实际与预期，确认清理和源码稳定性，生成分层结果。",
+          "actual == expected",
+          "接口与业务验收通过。",
+          4,
+          4,
+          1,
+          "通过",
+          "completed"
+        ],
+        [
+          "delivery",
+          "调用方导出成果",
+          "导出明确选择的源码、依赖、配置、验收与回执。",
+          "export 请求",
+          "带清单的 Agent ZIP。",
+          4,
+          4,
+          1,
+          "通过",
+          "completed"
+        ]
+      ]
+    },
+    {
+      "id": "budget",
+      "title": "调用次数先耗尽",
+      "subtitle": "为什么还剩时间也会结束",
+      "description": "用库存任务的停止机制说明预算判断。这里显示的是固定教学状态。",
+      "steps": [
+        [
+          "budget",
+          "只剩一次模型额度",
+          "任务已用 11 次请求，上限为 12，墙钟仍有剩余。",
+          "model_calls=11 / 12",
+          "允许最后一次模型请求。",
+          11,
+          14,
+          1,
+          "待验证",
+          "running"
+        ],
+        [
+          "models",
+          "第十二次请求",
+          "模型生成一次新的文件替换调用。",
+          "请求 #12",
+          "模型调用额度达到上限。",
+          12,
+          14,
+          1,
+          "待验证",
+          "running"
+        ],
+        [
+          "tools",
+          "完成这次文件替换",
+          "有效工具调用执行成功，形成新版本的代码产物。",
+          "replace_text",
+          "workspace_revision=2",
+          12,
+          15,
+          2,
+          "待验证",
+          "running"
+        ],
+        [
+          "budget",
+          "下一轮检查额度",
+          "循环准备下一次请求时检查父回合预算。",
+          "请求更多模型工作",
+          "model_budget_exhausted",
+          12,
+          15,
+          2,
+          "待验证",
+          "failed"
+        ],
+        [
+          "observability",
+          "保存失败终态",
+          "记录停止原因、已用次数、产物和清理结果。",
+          "failed / model_budget_exhausted",
+          "保留轨迹供后续诊断。",
+          12,
+          15,
+          2,
+          "待验证",
+          "failed"
+        ]
+      ]
+    },
+    {
+      "id": "switch",
+      "title": "回合间切换模型",
+      "subtitle": "历史、模型选择与预算怎样配合",
+      "description": "这条推演跟踪一次成功的空闲会话模型切换。",
+      "steps": [
+        [
+          "conversation",
+          "等待空闲边界",
+          "当前回合已结束，允许修改模型选择。",
+          "set_model('review')",
+          "检查会话可切换。",
+          3,
+          2,
+          1,
+          "已有证据",
+          "idle"
+        ],
+        [
+          "models",
+          "解析目标模型",
+          "读取别名与凭据引用，创建目标适配器并检查能力。",
+          "review 别名",
+          "获得目标 ModelClient。",
+          3,
+          2,
+          1,
+          "已有证据",
+          "idle"
+        ],
+        [
+          "context",
+          "转换可见历史",
+          "将工具交互投影成可见内容，保留可支持的图像块，检查目标窗口。",
+          "原对话历史",
+          "可移植 messages。",
+          3,
+          2,
+          1,
+          "已有证据",
+          "idle"
+        ],
+        [
+          "sessions",
+          "提交有效选择",
+          "有效选择与历史投影原子记录到 Journal。",
+          "model_selected",
+          "恢复时使用保存的选择。",
+          3,
+          2,
+          1,
+          "已有证据",
+          "idle"
+        ],
+        [
+          "models",
+          "准备下一回合",
+          "会话持有新的别名和客户端，等待下一次用户输入。",
+          "review 已选中",
+          "切换本身的新增模型请求为 0。",
+          3,
+          2,
+          1,
+          "已有证据",
+          "idle"
+        ]
+      ]
+    }
+  ],
+  "glossary": [
+    [
+      "Harness",
+      "围绕模型的执行环境。负责循环、工具、上下文、权限、预算、记录和关闭。",
+      "runner"
+    ],
+    [
+      "AgentDefinition",
+      "一个 Agent 的能力组合声明，例如 core/coding、插件和角色模型。",
+      "composition"
+    ],
+    [
+      "回合 Turn",
+      "一次输入驱动的有界工作过程，可以包含多次模型请求和工具调用。",
+      "conversation"
+    ],
+    [
+      "ModelClient",
+      "模型适配器需要符合的公共流式接口。",
+      "models"
+    ],
+    [
+      "ToolCall / ToolResult",
+      "前者描述模型提出的工具调用，后者描述工具实际执行的结果。",
+      "contracts"
+    ],
+    [
+      "Journal",
+      "追加保存的执行事实，可用于重建会话和分析不确定操作。",
+      "sessions"
+    ],
+    [
+      "Checkpoint",
+      "受管文件修改前的状态，用于相应的代码回退。",
+      "sessions"
+    ],
+    [
+      "revision / epoch",
+      "分别表示工作区代码状态和环境状态。验证证据通过它们判断新鲜度。",
+      "completion"
+    ],
+    [
+      "CompletionGate",
+      "根据任务策略和实际证据判断完成声明是否可以接受。",
+      "completion"
+    ],
+    [
+      "验收回执 receipt",
+      "记录具体检查结果及其代码、配置、依赖和环境绑定。",
+      "delivery"
+    ],
+    [
+      "MCP",
+      "工具服务接入协议。客户端发现服务的工具定义并按 schema 调用。",
+      "mcp"
+    ],
+    [
+      "受管子任务",
+      "继承父权限、共享父预算并有明确关闭流程的子会话。",
+      "children"
+    ],
+    [
+      "indeterminate",
+      "操作副作用尚不能确认，需要保留现场并检查实际状态。",
+      "tools"
+    ],
+    [
+      "投影 projection",
+      "从执行事实生成方便查询的视图，例如 Engine 的执行视图和轨迹。",
+      "application"
+    ],
+    [
+      "grader",
+      "独立判定任务产物是否满足要求的程序或任务验证器。",
+      "evaluation"
+    ],
+    [
+      "extra",
+      "Python 包的可选依赖集合，用于按能力选择安装范围。",
+      "release"
+    ],
+    [
+      "async / await",
+      "等待模型流、工具进程或网络时让出执行。取消也沿异步调用链传播。",
+      "entry"
+    ],
+    [
+      "ContextVar",
+      "跟随异步执行上下文传递状态。父预算通过它被受管子任务取得。",
+      "children"
+    ],
+    [
+      "Pydantic / JSON Schema",
+      "分别用于定义和校验结构化 Python 输入，以及跨边界 JSON 的形状和约束。",
+      "contracts"
+    ]
+  ],
+  "paths": [
+    {
+      "title": "先理解一次请求",
+      "text": "从入口到执行，再看结果如何持久化。",
+      "ids": [
+        "entry",
+        "composition",
+        "conversation",
+        "runner",
+        "tools",
+        "sessions"
+      ]
+    },
+    {
+      "title": "组装一个新的 Agent",
+      "text": "用公共接口接入模型、插件和子任务。",
+      "ids": [
+        "plugins",
+        "models",
+        "permissions",
+        "children",
+        "mcp",
+        "channels"
+      ]
+    },
+    {
+      "title": "理解为什么通过或失败",
+      "text": "沿预算、验证证据和独立判分找依据。",
+      "ids": [
+        "budget",
+        "completion",
+        "customization",
+        "delivery",
+        "evaluation",
+        "observability"
+      ]
+    }
+  ]
+}
+  </script>
+  <script>
+    'use strict';
+    const guide = JSON.parse(document.getElementById('guide-data').textContent);
+    const modules = new Map(guide.modules.map(function (module) { return [module.id, module]; }));
+    const groups = Array.from(new Set(guide.modules.map(function (module) { return module.group; })));
+    const content = document.getElementById('content');
+    const search = document.getElementById('module-search');
+    const nav = document.getElementById('module-nav');
+    const main = document.getElementById('main');
+    const sourceBase = 'https://github.com/Titans23/forgecode/blob/' + guide.revision + '/';
+    let playback = null;
+
+    function element(tag, className, text) {
+      const result = document.createElement(tag);
+      if (className) result.className = className;
+      if (text !== undefined) result.textContent = text;
+      return result;
+    }
+    function anchor(text, href, className) {
+      const result = element('a', className, text);
+      result.href = href;
+      return result;
+    }
+    function sourceLink(source, text) {
+      const result = anchor(text, sourceBase + source.path + '#L' + source.line);
+      result.target = '_blank';
+      result.rel = 'noopener noreferrer';
+      return result;
+    }
+    function section(title, subtitle) {
+      const result = element('section', 'section');
+      const head = element('div', 'section-head');
+      head.append(element('h2', '', title));
+      if (subtitle) head.append(element('p', 'caption', subtitle));
+      result.append(head);
+      return result;
+    }
+    function footer() {
+      const result = element('footer', 'footer');
+      result.append(element('span', '', '源码快照 ' + guide.revision.slice(0, 7) + ' · ' + guide.date));
+      result.append(anchor('架构说明', './implementation/architecture.md'));
+      return result;
+    }
+    function moduleLink(id, className) {
+      return anchor(modules.get(id).title, '#module/' + id, className);
+    }
+    function buildNavigation() {
+      groups.forEach(function (group) {
+        const block = element('div', 'nav-group');
+        block.dataset.group = group;
+        block.append(element('div', 'nav-heading', group));
+        guide.modules.filter(function (module) { return module.group === group; }).forEach(function (module) {
+          const link = moduleLink(module.id, 'nav-link nav-module');
+          link.dataset.module = module.id;
+          block.append(link);
+        });
+        nav.append(block);
+      });
+    }
+    function applySearch() {
+      const query = search.value.trim().toLowerCase();
+      let matches = 0;
+      guide.modules.forEach(function (module) {
+        const text = [module.title, module.symbol, module.summary, module.group, module.id].join(' ').toLowerCase();
+        const visible = !query || text.includes(query);
+        if (visible) matches++;
+        document.querySelectorAll('[data-module="' + module.id + '"]').forEach(function (node) { node.hidden = !visible; });
+      });
+      nav.querySelectorAll('.nav-group').forEach(function (group) {
+        group.hidden = !Array.from(group.querySelectorAll('.nav-module')).some(function (node) { return !node.hidden; });
+      });
+      document.querySelectorAll('.map-layer').forEach(function (group) {
+        group.hidden = !Array.from(group.querySelectorAll('.map-node')).some(function (node) { return !node.hidden; });
+      });
+      document.getElementById('search-count').textContent = query ? matches + ' 个匹配模块' : guide.modules.length + ' 个模块 · 6 个职责分区';
+      const empty = document.getElementById('map-empty');
+      if (empty) empty.hidden = matches > 0;
+    }
+    function renderOverview() {
+      const hero = element('section', 'hero');
+      hero.append(element('p', 'eyebrow', 'A guide to the running system'));
+      hero.append(element('h1', '', '走进一次 Agent 请求'));
+      hero.append(element('p', 'lead', '从一句需求，到模型与工具的协作，再到验收和交付。点开模块，看输入经过哪些判断、状态如何变化，以及源码里真正发生了什么。'));
+      const actions = element('div', 'actions');
+      actions.append(anchor('跟随一次请求 →', '#flow/coding', 'button primary'));
+      actions.append(anchor('进入核心循环', '#module/runner', 'button secondary'));
+      hero.append(actions);
+      const chain = element('div', 'hero-line');
+      const chainIds = ['entry', 'composition', 'runner', 'tools', 'completion', 'sessions'];
+      const chainNames = ['输入', '装配', '模型循环', '工具', '验收', '记录'];
+      chainIds.forEach(function (id, index) {
+        if (index) chain.append(element('span', '', '→'));
+        chain.append(anchor(chainNames[index], '#module/' + id));
+      });
+      hero.append(chain);
+      content.append(hero);
+
+      const journeys = section('选择一条学习路径', '从熟悉的行为进入具体实现');
+      const cards = element('div', 'three-grid');
+      guide.paths.forEach(function (path, index) {
+        const card = element('article', 'card route-card');
+        card.append(element('span', 'route-number', String(index + 1).padStart(2, '0')));
+        card.append(element('h3', '', path.title));
+        card.append(element('p', '', path.text));
+        const chips = element('div', 'route-chips');
+        path.ids.forEach(function (id) { chips.append(moduleLink(id)); });
+        card.append(chips);
+        cards.append(card);
+      });
+      journeys.append(cards);
+      content.append(journeys);
+
+      const architecture = section('全局架构', '每个方块都能进入实现讲解');
+      const map = element('div', 'blueprint');
+      groups.forEach(function (group, index) {
+        const layer = element('div', 'map-layer');
+        layer.append(element('div', 'layer-name', String(index + 1).padStart(2, '0') + ' / ' + group));
+        const nodes = element('div', 'map-nodes');
+        guide.modules.filter(function (module) { return module.group === group; }).forEach(function (module) {
+          const link = anchor('', '#module/' + module.id, 'map-node');
+          link.dataset.module = module.id;
+          if (['conversation', 'runner', 'budget'].includes(module.id)) link.dataset.core = 'true';
+          link.append(element('strong', '', module.title), element('small', '', module.symbol));
+          nodes.append(link);
+        });
+        layer.append(nodes);
+        map.append(layer);
+      });
+      const empty = element('p', 'empty', '没有匹配的模块。可以试试工具、权限或模型。');
+      empty.id = 'map-empty';
+      empty.hidden = true;
+      map.append(empty);
+      architecture.append(map);
+      architecture.append(element('p', 'muted-box', '阅读方向 · 入口装配共享内核，工具经过授权后进入相应执行边界；Journal 持续记录各阶段事实，完成检查和独立 grader 按各自范围判分。'));
+      content.append(architecture);
+
+      const simulations = section('把结构变成过程', '点击步骤，观察输入、输出和状态');
+      const simulationsGrid = element('div', 'module-grid');
+      guide.flows.forEach(function (flow) {
+        const card = anchor('', '#flow/' + flow.id, 'card route-card');
+        card.append(element('h3', '', flow.title), element('p', '', flow.subtitle));
+        simulationsGrid.append(card);
+      });
+      simulations.append(simulationsGrid);
+      content.append(simulations, footer());
+    }
+    function renderSource(source, index) {
+      const block = element('details', 'source');
+      block.open = index === 0;
+      const summary = element('summary', '', source.path);
+      summary.append(element('small', '', 'L' + source.line + ' · ' + source.symbol));
+      block.append(summary);
+      block.append(element('p', 'source-note', source.note));
+      const pre = element('pre');
+      const code = element('code');
+      source.code.split('\n').forEach(function (line, offset) {
+        const row = element('span', 'code-line');
+        const number = element('span', 'line-number', String(source.line + offset));
+        number.setAttribute('aria-hidden', 'true');
+        row.append(number, element('span', 'code-text', line || ' '));
+        code.append(row);
+      });
+      pre.append(code);
+      block.append(pre);
+      const links = element('div', 'source-footer');
+      links.append(sourceLink(source, '查看固定版本的完整源码 ↗'));
+      links.append(element('span', 'caption', '以上为真实源码节选'));
+      block.append(links);
+      return block;
+    }
+    function renderModule(module) {
+      const index = guide.modules.indexOf(module);
+      const crumbs = element('div', 'breadcrumbs');
+      crumbs.append(anchor('全局架构', '#overview'), element('span', '', '/'), element('span', '', module.group));
+      content.append(crumbs);
+      const heading = element('div', 'module-heading');
+      heading.append(element('div', 'chapter-index', String(index + 1).padStart(2, '0')));
+      const title = element('div');
+      title.append(element('p', 'eyebrow', module.group), element('h1', '', module.title), element('p', 'symbol', module.symbol));
+      heading.append(title);
+      content.append(heading, element('p', 'lead', module.summary));
+
+      const intro = element('div', 'section explain-grid');
+      const description = element('article', 'card prose');
+      description.append(element('h2', '', '这个模块负责什么'), element('p', '', module.concept));
+      module.implementation.forEach(function (paragraph) { description.append(element('p', '', paragraph)); });
+      const example = element('aside', 'card example');
+      example.append(element('div', 'example-label', '具体输入'), element('p', 'example-value', module.example[0]),
+        element('div', 'example-arrow', '↓'), element('div', 'example-label', '可以观察到的行为'), element('p', 'example-value', module.example[1]));
+      intro.append(description, example);
+      content.append(intro);
+
+      const process = section('实现怎样一步步发生', '选择一个步骤，跟踪当前状态');
+      const strip = element('div', 'step-strip');
+      const detail = element('div', 'step-detail');
+      detail.setAttribute('aria-live', 'polite');
+      function showStep(index) {
+        const step = module.steps[index];
+        strip.querySelectorAll('button').forEach(function (button, i) { button.setAttribute('aria-pressed', String(i === index)); });
+        const body = element('div');
+        body.append(element('h3', '', step[0]), element('p', '', step[1]));
+        detail.replaceChildren(body, element('div', 'state-code', step[2]));
+      }
+      module.steps.forEach(function (step, i) {
+        const button = element('button', 'step-button');
+        button.type = 'button';
+        button.append(element('span', '', String(i + 1).padStart(2, '0')), element('strong', '', step[0]));
+        button.addEventListener('click', function () { showStep(i); });
+        strip.append(button);
+      });
+      process.append(strip, detail);
+      showStep(0);
+      content.append(process);
+
+      const states = section('跟踪哪些状态', '读代码时，留意这些值的所有者和变化');
+      const table = element('table', 'state-table');
+      const body = element('tbody');
+      module.states.forEach(function (state) {
+        const row = element('tr');
+        const key = element('th', '', state[0]);
+        key.scope = 'row';
+        row.append(key, element('td', '', state[1]));
+        body.append(row);
+      });
+      table.append(body);
+      states.append(table);
+      const boundary = element('div', 'boundary');
+      boundary.append(element('strong', '', '实现边界与失败处理'), document.createTextNode(module.boundary));
+      states.append(boundary);
+      content.append(states);
+
+      const sources = section('沿真实源码阅读', '先跟踪标出的变量和条件，再展开完整方法');
+      module.sources.forEach(function (source, i) { sources.append(renderSource(source, i)); });
+      content.append(sources);
+
+      const tests = section('对应的行为测试', '测试入口说明它验证哪一个行为，执行状态以实际运行记录为准');
+      const list = element('div', 'test-list');
+      module.tests.forEach(function (test) {
+        const row = element('article', 'test-entry');
+        row.append(sourceLink(test, test.path + ' · ' + test.symbol), element('p', '', test.note));
+        list.append(row);
+      });
+      tests.append(list);
+      content.append(tests);
+
+      const check = section('试着解释一次');
+      const question = element('details', 'question');
+      question.append(element('summary', '', module.question), element('p', '', module.answer));
+      check.append(question);
+      content.append(check);
+
+      const next = section('继续沿调用关系阅读');
+      const related = element('div', 'related');
+      module.related.forEach(function (id) { related.append(moduleLink(id, 'button')); });
+      related.append(anchor('回到全局架构', '#overview', 'button'));
+      next.append(related);
+      content.append(next, footer());
+    }
+
+    function stopPlayback() {
+      if (playback !== null) clearInterval(playback);
+      playback = null;
+      const play = document.getElementById('play-flow');
+      if (play) { play.textContent = '播放流程'; play.setAttribute('aria-pressed', 'false'); }
+    }
+    function laneFor(id) {
+      if (['entry', 'composition', 'plugins'].includes(id)) return '入口';
+      if (id === 'models') return '模型';
+      if (['tools', 'sandbox', 'permissions', 'mcp'].includes(id)) return '工具';
+      if (['sessions', 'observability', 'delivery'].includes(id)) return '记录';
+      return '运行时';
+    }
+    function renderFlow(flow, initialStep) {
+      let position = Math.max(0, Math.min(flow.steps.length - 1, Number(initialStep) || 0));
+      content.append(element('p', 'eyebrow', '本地流程推演'), element('h1', '', flow.title), element('p', 'lead', flow.description));
+      const menu = element('div', 'flow-menu');
+      guide.flows.forEach(function (item) {
+        const link = anchor(item.title, '#flow/' + item.id, 'button');
+        if (item.id === flow.id) link.setAttribute('aria-current', 'page');
+        menu.append(link);
+      });
+      content.append(menu);
+      const layout = element('div', 'flow-layout');
+      const timeline = element('div', 'flow-timeline');
+      timeline.setAttribute('aria-label', '流程步骤');
+      const stage = element('div');
+      const scene = element('div', 'flow-scene');
+      const sceneHead = element('div');
+      const sceneNumber = element('p', 'caption');
+      const sceneTitle = element('h2', 'scene-title');
+      sceneHead.append(sceneNumber, sceneTitle);
+      const lanes = element('div', 'flow-lanes');
+      ['入口', '运行时', '模型', '工具', '记录'].forEach(function (name) { lanes.append(element('div', 'flow-lane', name)); });
+      const sceneText = element('p', 'caption');
+      scene.append(sceneHead, lanes, sceneText);
+      const io = element('div', 'io-grid');
+      const incoming = element('div', 'card');
+      const outgoing = element('div', 'card');
+      const inputText = element('p', 'io-text');
+      const outputText = element('p', 'io-text');
+      incoming.append(element('div', 'io-label', '进入这一步'), inputText);
+      outgoing.append(element('div', 'io-label', '离开这一步'), outputText);
+      io.append(incoming, outgoing);
+      const metrics = element('div', 'metric-row');
+      const metricValues = [];
+      ['模型请求', '工具请求', '代码修订', '验收状态'].forEach(function (name) {
+        const cell = element('div', 'metric');
+        const value = element('strong');
+        cell.append(element('small', '', name), value);
+        metrics.append(cell);
+        metricValues.push(value);
+      });
+      const controls = element('div', 'flow-controls');
+      const previous = element('button', 'button', '← 上一步');
+      const play = element('button', 'button', '播放流程');
+      play.id = 'play-flow';
+      play.setAttribute('aria-pressed', 'false');
+      const next = element('button', 'button primary', '下一步 →');
+      const positionText = element('span', 'flow-position');
+      controls.append(previous, play, next, positionText);
+      const currentModule = element('div', 'actions');
+      const live = element('p', 'sr-only');
+      live.setAttribute('aria-live', 'polite');
+      stage.append(scene, io, metrics, controls, currentModule, live);
+      layout.append(timeline, stage);
+      content.append(layout);
+      function update() {
+        const step = flow.steps[position];
+        timeline.querySelectorAll('button').forEach(function (button, i) {
+          if (i === position) button.setAttribute('aria-current', 'step');
+          else button.removeAttribute('aria-current');
+        });
+        sceneNumber.textContent = 'STEP ' + String(position + 1).padStart(2, '0') + ' / ' + step[9];
+        sceneTitle.textContent = step[1];
+        sceneText.textContent = step[2];
+        lanes.querySelectorAll('.flow-lane').forEach(function (lane) { lane.classList.toggle('active', lane.textContent === laneFor(step[0])); });
+        inputText.textContent = step[3];
+        outputText.textContent = step[4];
+        [step[5], step[6], step[7], step[8]].forEach(function (value, i) { metricValues[i].textContent = String(value); });
+        previous.disabled = position === 0;
+        next.disabled = position === flow.steps.length - 1;
+        positionText.textContent = (position + 1) + ' / ' + flow.steps.length;
+        currentModule.replaceChildren(moduleLink(step[0], 'button'));
+        live.textContent = '步骤 ' + (position + 1) + '，' + step[1] + '，' + step[8];
+        history.replaceState(null, '', '#flow/' + flow.id + '/' + position);
+        if (position === flow.steps.length - 1) stopPlayback();
+      }
+      flow.steps.forEach(function (step, i) {
+        const button = element('button', 'flow-stop');
+        button.type = 'button';
+        button.append(element('span', 'step-dot', String(i + 1)), element('span', '', step[1]));
+        button.addEventListener('click', function () { stopPlayback(); position = i; update(); });
+        timeline.append(button);
+      });
+      previous.addEventListener('click', function () { stopPlayback(); position--; update(); });
+      next.addEventListener('click', function () { stopPlayback(); position++; update(); });
+      play.addEventListener('click', function () {
+        if (playback !== null) { stopPlayback(); return; }
+        if (position === flow.steps.length - 1) position = 0;
+        update();
+        play.textContent = '暂停播放';
+        play.setAttribute('aria-pressed', 'true');
+        playback = setInterval(function () { position++; update(); }, 2300);
+      });
+      update();
+      content.append(element('p', 'muted-box', '这是按当前实现规则编排的教学步骤。界面中的状态值用于说明数据流，真实执行证据见 Journal、验证报告和官方判分。'), footer());
+    }
+    function renderGlossary() {
+      content.append(element('p', 'eyebrow', '把名称对应到行为'), element('h1', '', '术语与状态'),
+        element('p', 'lead', '理解一个名词时，同时定位它保存什么、由谁修改、在哪个边界被检查。'));
+      const list = element('dl', 'glossary');
+      guide.glossary.forEach(function (item) {
+        const block = element('div', 'card');
+        block.append(element('dt', '', item[0]), element('dd', '', item[1]), moduleLink(item[2]));
+        list.append(block);
+      });
+      content.append(list, footer());
+    }
+    function render() {
+      stopPlayback();
+      const parts = location.hash.replace(/^#/, '').split('/');
+      const page = parts[0] || 'overview';
+      content.replaceChildren();
+      if (page === 'module' && modules.has(parts[1])) renderModule(modules.get(parts[1]));
+      else if (page === 'flow' && guide.flows.some(function (flow) { return flow.id === parts[1]; })) {
+        renderFlow(guide.flows.find(function (flow) { return flow.id === parts[1]; }), parts[2]);
+      } else if (page === 'glossary') renderGlossary();
+      else {
+        if (page !== 'overview' && page !== 'main') content.append(element('p', 'empty', '这个地址没有对应内容，下面是项目全局架构。'));
+        renderOverview();
+      }
+      document.querySelectorAll('.nav-link').forEach(function (link) {
+        const active = link.dataset.module ? page === 'module' && link.dataset.module === parts[1] : link.dataset.route === page;
+        if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+      });
+      document.body.classList.remove('nav-open');
+      document.getElementById('nav-toggle').setAttribute('aria-expanded', 'false');
+      applySearch();
+      document.title = (page === 'module' && modules.has(parts[1]) ? modules.get(parts[1]).title + ' · ' : '') + 'ForgeCode 架构学习手册';
+      window.scrollTo({top: 0, behavior: 'instant'});
+    }
+    document.getElementById('revision-link').href = 'https://github.com/Titans23/forgecode/tree/' + guide.revision;
+    document.getElementById('nav-toggle').addEventListener('click', function () {
+      const open = document.body.classList.toggle('nav-open');
+      this.setAttribute('aria-expanded', String(open));
+    });
+    search.addEventListener('input', applySearch);
+    document.querySelector('.skip').addEventListener('click', function (event) {
+      event.preventDefault();
+      main.focus({preventScroll: true});
+      main.scrollIntoView({block: 'start', behavior: 'instant'});
+    });
+    window.addEventListener('hashchange', function () { render(); main.focus({preventScroll: true}); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stopPlayback(); });
+    buildNavigation();
+    render();
+  </script>
+</body>
+</html>
+

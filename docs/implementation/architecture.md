@@ -1,5 +1,7 @@
 # ForgeCode 当前架构
 
+[交互式学习手册](../architecture-guide.html)提供模块讲解、请求流程推演和固定源码版本的阅读入口，可直接在浏览器打开。
+
 ## 0. 产品范围
 
 当前实施 T03：通用 Python SDK、可组合 coding 能力、可信插件、多模型与可复验交付。旧 T01 结果保留为历史证据。`AgentDefinition.core()` 通过同一 Conversation/TurnRunner/Journal 运行，无需工作区；内部私有存储作用域不是文件工具授权，不启动原生执行器。模型、CLI、MCP 和原生依赖为选装项，完整旧终端安装使用 `[terminal]`。
