@@ -148,6 +148,7 @@ def test_gemini_stream_requires_terminal_before_tool_execution(terminal):
         requests = []
         chunks = [{'candidates': [{'content': {'parts': [{'functionCall': {'name': 'lookup', 'args': {'x': 1}},
                                                              'thoughtSignature': 'opaque-signature'}]}}]}]
+        chunks.insert(0, {'candidates': [{'content': {'parts': [{'text': 'Readable thought', 'thought': True}]}}]})
         if terminal:
             chunks.append({'candidates': [{'finishReason': 'STOP'}],
                            'usageMetadata': {'promptTokenCount': 10, 'candidatesTokenCount': 2,
@@ -173,7 +174,9 @@ def test_gemini_stream_requires_terminal_before_tool_execution(terminal):
             usage = [e for e in events if isinstance(e, ModelUsageUpdate)][-1]
             assert usage.usage.total_input_tokens == 10 and usage.usage.output_tokens == 6
             state = next(e for e in events if isinstance(e, ModelProviderState))
-            assert state.data['parts'][0]['thoughtSignature'] == 'opaque-signature'
+            assert state.data['parts'][1]['thoughtSignature'] == 'opaque-signature'
+        from forge.runtime.state import ModelReasoningDelta
+        assert [e.text for e in events if isinstance(e, ModelReasoningDelta)] == ['Readable thought']
     asyncio.run(run())
 
 

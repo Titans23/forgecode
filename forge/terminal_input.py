@@ -32,14 +32,18 @@ class TurnInput:
             if text.strip() == '/cancel':
                 self.turn.cancel()
                 return
+            if text.strip() == '/details':
+                view = self.terminal._response_view
+                view.expanded = not view.expanded
+                view._refresh()
+                continue
             follow_up = text.startswith('/follow ')
             if text.startswith('/') and not follow_up:
                 self.terminal.show_notice('Input', 'Use /cancel, /follow <task>, or type an adjustment while running.')
                 continue
             try:
                 content = self.expand(text[len('/follow '):] if follow_up else text)
-                identity = self.conversation.queue_input(content, follow_up=follow_up)
-                self.terminal.show_notice('Queued',
-                    f'{identity[:8]}: ' + ('after this turn' if follow_up else 'before the next model request'))
+                self.conversation.queue_input(content, follow_up=follow_up)
+                self.terminal.show_notice('已排队', '当前回复结束后处理。' if follow_up else '将在下一次模型请求前处理。')
             except ValueError as error:
                 self.terminal.show_error(error)

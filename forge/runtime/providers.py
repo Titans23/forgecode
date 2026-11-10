@@ -15,7 +15,7 @@ from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutEr
 from forge.config import ForgeConfig
 from forge.runtime.state import (
     ModelCallError, ModelProtocolError, ModelOutputTruncatedError,
-    ModelTextDelta, ModelToolCallStarted, ModelToolCallArgumentsDelta,
+    ModelTextDelta, ModelReasoningDelta, ModelToolCallStarted, ModelToolCallArgumentsDelta,
     ModelToolCallCompleted, ModelUsageUpdate, ModelResponseCompleted,
     ModelRetryScheduled, ModelProviderState, TokenUsage, ToolCall,
 )
@@ -200,7 +200,7 @@ class NativeModelClient:
                 generator = self._chat(arguments) if self.provider in {'deepseek', 'openai_chat'} else self._responses(arguments)
                 try:
                     async for event in generator:
-                        semantic_output = semantic_output or isinstance(event, (ModelTextDelta, ModelToolCallStarted))
+                        semantic_output = semantic_output or isinstance(event, (ModelTextDelta, ModelReasoningDelta, ModelToolCallStarted))
                         yield event
                 finally:
                     await generator.aclose()
@@ -246,10 +246,11 @@ class NativeModelClient:
                     if choice.index != 0:
                         raise ModelProtocolError('Only one completion choice is supported')
                     delta = choice.delta
-                    if delta.content:
-                        yield ModelTextDelta(delta.content)
                     if getattr(delta, 'reasoning_content', None):
                         reasoning.append(delta.reasoning_content)
+                        yield ModelReasoningDelta(delta.reasoning_content)
+                    if delta.content:
+                        yield ModelTextDelta(delta.content)
                     for part in delta.tool_calls or ():
                         item = pending.setdefault(part.index, {'id': '', 'name': '', 'arguments': ''})
                         if part.id:
@@ -292,6 +293,8 @@ class NativeModelClient:
                         usage_is_final=event.type in ('response.completed','response.incomplete','response.failed'))
                 if event.type == 'response.output_text.delta':
                     yield ModelTextDelta(event.delta, getattr(event, 'output_index', 0))
+                elif event.type == 'response.reasoning_summary_text.delta':
+                    yield ModelReasoningDelta(event.delta, getattr(event, 'output_index', 0))
                 elif event.type == 'response.output_item.added' and event.item.type == 'function_call':
                     yield ModelToolCallStarted(event.output_index, event.item.call_id, event.item.name)
                 elif event.type == 'response.function_call_arguments.delta':

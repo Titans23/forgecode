@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 from forge.config import ForgeConfig, ConfigurationError
 from forge.runtime.model_client import ModelCallError, ModelProtocolError
 from forge.runtime.providers import NativeModelClient, chat_messages, responses_input
-from forge.runtime.state import ModelToolCallCompleted, ModelProviderState, ModelUsageUpdate
+from forge.runtime.state import ModelToolCallCompleted, ModelProviderState, ModelUsageUpdate, ModelReasoningDelta, ModelTextDelta
 
 
 def chunks_response(events):
@@ -74,6 +74,7 @@ def test_deepseek_stream_reassembles_arguments_and_preserves_reasoning():
     call = next(e.tool_call for e in events if isinstance(e, ModelToolCallCompleted))
     assert call.arguments == {'path': 'a.py'}
     state = next(e for e in events if isinstance(e, ModelProviderState))
+    assert events[0] == ModelReasoningDelta('opaque state')
     history = [{'role': 'assistant', 'content': [{'type': 'tool_use', 'id': call.id,
         'name': call.name, 'input': call.arguments}],
         'provider_state': {'provider': state.provider, 'data': state.data}}]
@@ -111,6 +112,58 @@ def test_responses_native_call_and_encrypted_state_round_trip():
     assert requests[0]['store'] is False
     assert requests[0]['tools'][0]['parameters'] == {'type': 'object'}
     assert next(e.usage for e in events if isinstance(e, ModelUsageUpdate)).total_input_tokens == 100
+
+
+def test_reasoning_reaches_consumer_before_answer_or_stream_completion():
+    async def run():
+        release = asyncio.Event()
+        class GatedStream(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                yield ('data: ' + json.dumps(chat_chunk({'reasoning_content': '先检查输入。'})) + '\n\n').encode()
+                await release.wait()
+                yield ('data: ' + json.dumps(chat_chunk({'content': '2'}, 'stop')) + '\n\n').encode()
+                yield b'data: [DONE]\n\n'
+        def handler(request):
+            return httpx.Response(200, headers={'content-type': 'text/event-stream'}, stream=GatedStream())
+        async with AsyncOpenAI(api_key='offline', base_url='https://offline.invalid',
+                http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler))) as sdk:
+            adapter = NativeModelClient(ForgeConfig(api_key='offline', model_id='test', provider='deepseek'), client=sdk)
+            stream = adapter.stream([{'role': 'user', 'content': '1+1'}])
+            first = await asyncio.wait_for(anext(stream), 2)
+            assert first == ModelReasoningDelta('先检查输入。') and not release.is_set()
+            release.set()
+            remaining = [event async for event in stream]
+            assert [event.text for event in remaining if isinstance(event, ModelTextDelta)] == ['2']
+    asyncio.run(run())
+
+
+def test_responses_emits_only_readable_summary_not_encrypted_state():
+    final = dict(id='resp', object='response', created_at=1, status='completed', model='test',
+        output=[{'id': 'rs', 'type': 'reasoning', 'summary': [], 'encrypted_content': 'secret-opaque'}])
+    events, _ = run_stream('openai_responses', [
+        {'type': 'response.reasoning_summary_text.delta', 'delta': 'Readable summary',
+         'output_index': 0, 'item_id': 'rs', 'summary_index': 0},
+        {'type': 'response.completed', 'response': final}])
+    assert [e.text for e in events if isinstance(e, ModelReasoningDelta)] == ['Readable summary']
+
+
+def test_visible_reasoning_closes_the_automatic_retry_boundary():
+    from openai import APIConnectionError
+    from forge.runtime.state import ModelCallError
+    async def run():
+        adapter = NativeModelClient(ForgeConfig(api_key='offline', model_id='test', provider='deepseek'), client=object())
+        attempts = []
+        async def broken(arguments):
+            attempts.append(arguments)
+            yield ModelReasoningDelta('Already visible')
+            raise APIConnectionError(request=httpx.Request('POST', 'https://offline.invalid'))
+        adapter._chat = broken
+        events = []
+        with pytest.raises(ModelCallError):
+            async for event in adapter.stream([]):
+                events.append(event)
+        assert len(attempts) == 1 and events == [ModelReasoningDelta('Already visible')]
+    asyncio.run(run())
 
 
 def test_responses_missing_terminal_does_not_submit_a_tool():

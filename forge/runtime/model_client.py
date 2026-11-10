@@ -29,6 +29,7 @@ from forge.runtime.state import (
     ModelStreamCompleted,
     ModelStreamEvent,
     ModelTextDelta,
+    ModelReasoningDelta,
     ModelToolCallArgumentsDelta,
     ModelToolCallCompleted,
     ModelToolCallStarted,
@@ -188,6 +189,7 @@ class AnthropicModelClient:
                         event,
                         (
                             ModelTextDelta,
+                            ModelReasoningDelta,
                             ModelToolCallStarted,
                             ModelToolCallArgumentsDelta,
                             ModelToolCallCompleted,
@@ -318,6 +320,9 @@ class AnthropicModelClient:
                         text=event.delta.text,
                         index=event.index,
                     )
+                elif event.type == 'content_block_delta' and event.delta.type == 'thinking_delta':
+                    semantic_output = True
+                    yield ModelReasoningDelta(event.delta.thinking, event.index)
                 elif (
                     event.type == 'content_block_start'
                     and event.content_block.type == 'tool_use'

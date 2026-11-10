@@ -22,6 +22,7 @@ from forge.runtime.executor import ToolExecutor
 from forge.runtime.router import RouteResult, TurnDecision
 from forge.runtime.state import (
     ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate,
+    ModelReasoningDelta,
     TokenUsage, ToolCall, ToolExecutionCompleted, TurnCompleted,
     VerificationEvidence,
 )
@@ -82,6 +83,22 @@ def tool_results(events):
         event.tool_call.id: event.result
         for event in events if isinstance(event, ToolExecutionCompleted)
     }
+
+
+def test_reasoning_is_visible_as_an_event_without_becoming_the_answer(tmp_path):
+    client = ScriptedClient([ModelUsageUpdate(TokenUsage(10, 3)),
+        ModelReasoningDelta('Inspect the two numbers.'), ModelTextDelta('2')])
+    conversation, events = exercise(tmp_path, client)
+    assert any(isinstance(e, ModelReasoningDelta) for e in events)
+    assert events[-1].result.text == '2'
+    assert 'Inspect the two numbers.' not in json.dumps(conversation.messages)
+
+
+def test_visible_reasoning_prevents_empty_response_recovery(tmp_path):
+    from forge.runtime.state import ModelProtocolError
+    client = ScriptedClient([ModelReasoningDelta('Partial reasoning'), ModelProtocolError('stream lost')])
+    _, events = exercise(tmp_path, client)
+    assert len(client.calls) == 1 and events[-1].result.status == 'failed'
 
 
 def test_successful_edit_does_not_cancel_following_process(tmp_path: Path) -> None:

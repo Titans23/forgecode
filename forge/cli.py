@@ -36,6 +36,10 @@ from forge.runtime.profile import ExecutionProfile
 from forge.runtime.state import (
     CompletionBlocked,
     ModelTextDelta,
+    ModelReasoningDelta,
+    ModelCallStarted,
+    ModelRetryScheduled,
+    ModelToolCallStarted,
     ModelUsageUpdate,
     ToolExecutionCompleted,
     ToolExecutionStarted,
@@ -348,6 +352,8 @@ async def _run_interactive_chat(
             show_session_history(resolved_session, resolved_terminal)
 
         while True:
+            if isinstance(resolved_terminal, TerminalUI):
+                resolved_terminal.bind_session(getattr(getattr(resolved_session, 'session_journal', None), 'session_id', None))
             resume_options = build_resume_options(resolved_session)
             resolved_terminal.set_resume_options(resume_options)
             try:
@@ -383,6 +389,10 @@ async def _run_interactive_chat(
                 from forge.messages import input_text
                 prompt = input_text(queued['content'])
                 auto_queue = True
+
+            if prompt.strip() == '/details':
+                await resolved_terminal.show_details_async()
+                continue
 
             if prompt.strip() == '/context':
                 stats = getattr(resolved_session, 'context_stats', None)
@@ -767,6 +777,8 @@ async def render_streamed_turn(
     *, input_id=None,
 ) -> None:
     '''Render events; the runtime owns Journal persistence.'''
+    # Let the input renderer paint its waiting state before prompt preparation.
+    await asyncio.sleep(0)
     if recorder is not None:
         recorder.record_user_message(prompt)
     try:
@@ -775,6 +787,14 @@ async def render_streamed_turn(
                 recorder.record_event(event)
             if isinstance(event, ModelTextDelta):
                 response_view.append_text(event.text)
+            elif isinstance(event, ModelReasoningDelta):
+                response_view.append_reasoning(event.text)
+            elif isinstance(event, ModelCallStarted):
+                response_view.model_started()
+            elif isinstance(event, ModelRetryScheduled):
+                response_view.set_phase(f'正在重试 · {event.delay_seconds:g}s 后')
+            elif isinstance(event, ModelToolCallStarted):
+                response_view.set_phase('正在准备工具调用 · ' + event.name)
             elif isinstance(event, ModelUsageUpdate):
                 response_view.update_usage(
                     event.usage,
@@ -887,6 +907,8 @@ async def resume_interactive_session_async(
     session: Conversation,
     identifier: str,
 ) -> str:
+    if identifier == getattr(getattr(session, 'session_journal', None), 'session_id', None):
+        return '当前会话，无需切换。'
     resume_with_hooks = getattr(session, 'session_resume_with_hooks', None)
     if resume_with_hooks is not None:
         return await resume_with_hooks(identifier)
@@ -902,7 +924,7 @@ async def resume_interactive_session_async(
 def build_resume_options(
     conversation: Conversation,
 ) -> tuple[SessionOption, ...]:
-    '''Build picker and completion rows for other project sessions.'''
+    '''Include the live session even before its first durable message.'''
     store = getattr(conversation, 'session_store', None)
     if store is None:
         return ()
@@ -910,11 +932,12 @@ def build_resume_options(
     current_id = getattr(journal, 'session_id', None)
     options: list[SessionOption] = []
     for info in store.list():
-        if info.session_id == current_id or info.message_count == 0:
+        current = info.session_id == current_id
+        if info.message_count == 0 and not current:
             continue
-        label = info.title
+        label = '新会话' if current and info.message_count == 0 else info.title
         description = '{} · {} · {}'.format(
-            session_status_label(info.status),
+            '当前会话' if current else session_status_label(info.status),
             format_session_age(info.updated_at),
             info.session_id[-12:],
         )
@@ -925,6 +948,9 @@ def build_resume_options(
                 description=description,
             )
         )
+    if current_id and not any(option.identifier == current_id for option in options):
+        options.insert(0, SessionOption(current_id, '新会话', '当前会话 · 尚未发送消息 · ' + current_id[-12:]))
+    options.sort(key=lambda option: option.identifier != current_id)
     return tuple(options)
 
 

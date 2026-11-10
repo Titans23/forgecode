@@ -12,7 +12,7 @@ import httpx
 
 from forge.runtime.capabilities import ModelCapabilities
 from forge.runtime.state import (ModelCallError, ModelProtocolError, ModelOutputTruncatedError,
-    ModelTextDelta, ModelToolCallStarted, ModelToolCallCompleted, ModelUsageUpdate,
+    ModelTextDelta, ModelReasoningDelta, ModelToolCallStarted, ModelToolCallCompleted, ModelUsageUpdate,
     ModelProviderState, ModelResponseCompleted, ModelRetryScheduled, ToolCall)
 
 
@@ -98,7 +98,7 @@ class GeminiModelClient:
             emitted = False
             try:
                 async for event in self._stream(arguments):
-                    emitted = emitted or isinstance(event, (ModelTextDelta, ModelToolCallStarted))
+                    emitted = emitted or isinstance(event, (ModelTextDelta, ModelReasoningDelta, ModelToolCallStarted))
                     yield event
                 return
             except (httpx.HTTPError, httpx.StreamError) as error:
@@ -141,8 +141,8 @@ class GeminiModelClient:
                     finish = candidate.get('finishReason') or finish
                     for part in candidate.get('content', {}).get('parts', ()):
                         parts.append(part)
-                        if 'text' in part and not part.get('thought'):
-                            yield ModelTextDelta(part['text'])
+                        if 'text' in part:
+                            yield (ModelReasoningDelta(part['text']) if part.get('thought') else ModelTextDelta(part['text']))
                         if 'functionCall' in part:
                             function = part['functionCall']
                             if 'partialArgs' in function or not isinstance(function.get('args', {}), dict):

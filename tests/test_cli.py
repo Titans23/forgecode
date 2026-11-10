@@ -358,7 +358,7 @@ def test_cli_starts_an_interactive_conversation(
 
     assert result.exit_code == 0
     assert 'ForgeCode v0.1.2' in result.output
-    assert 'Ctrl+C to exit' in result.output
+    assert 'Ctrl+C 取消/退出' in result.output
     assert 'Ask a question or describe a coding task.' in result.output
     assert 'Hello' in result.output
     assert 'I remember' in result.output
@@ -657,7 +657,20 @@ def test_resume_options_exclude_empty_sessions(tmp_path: Path) -> None:
     identifiers = {option.identifier for option in options}
     assert resumable.session_id in identifiers
     assert empty.session_id not in identifiers
-    assert current.session_id not in identifiers
+    assert current.session_id in identifiers
+    assert options[0].identifier == current.session_id
+    assert options[0].description.startswith('当前会话')
+
+
+def test_resume_shows_deferred_current_session_without_creating_history(tmp_path):
+    store = SessionStore(tmp_path, data_root=tmp_path / 'data')
+    current = store.create(model='offline', deferred=True)
+    owner = SimpleNamespace(session_store=store, session_journal=current)
+    options = cli_module.build_resume_options(owner)
+    assert len(options) == 1 and options[0].identifier == current.session_id
+    assert options[0].label == '新会话' and '当前会话' in options[0].description
+    assert asyncio.run(cli_module.resume_interactive_session_async(owner, current.session_id)) == '当前会话，无需切换。'
+    assert current.deferred and not current.path.exists()
 
 
 def test_resume_picker_switches_context_without_calling_model() -> None:

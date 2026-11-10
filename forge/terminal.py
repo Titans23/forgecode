@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+from time import monotonic
 from typing import Any, Protocol
 
 from prompt_toolkit import PromptSession
@@ -55,6 +56,7 @@ SLASH_COMMANDS = (
     SlashCommandSpec('/status', '/status', '查看当前会话状态'),
     SlashCommandSpec('/history', '/history', '查看当前会话历史'),
     SlashCommandSpec('/history all', '/history all', '显示完整对话'),
+    SlashCommandSpec('/details', '/details', '展开最近一轮的思考、工具参数和结果'),
     SlashCommandSpec('/rename ', '/rename name', '重命名当前会话'),
     SlashCommandSpec('/branch ', '/branch [name]', '从当前上下文创建会话分支'),
     SlashCommandSpec('/clear', '/clear', '保存当前会话并开始空白会话'),
@@ -214,6 +216,11 @@ class _TextTimelineBlock:
 
 
 @dataclass(slots=True)
+class _ReasoningTimelineBlock:
+    text: str = ''
+
+
+@dataclass(slots=True)
 class _ToolActivity:
     tool_call: ToolCall
     result: ToolResult | None = None
@@ -224,7 +231,7 @@ class _ToolTimelineBlock:
     activities: list[_ToolActivity] = field(default_factory=list)
 
 
-type _TimelineBlock = _TextTimelineBlock | _ToolTimelineBlock
+type _TimelineBlock = _TextTimelineBlock | _ReasoningTimelineBlock | _ToolTimelineBlock
 
 
 class _InteractivePrompt(Protocol):
@@ -243,6 +250,8 @@ class TerminalUI:
         self.console = console if console is not None else Console()
         self.prompt_session = prompt_session
         self._response_view: StreamingResponseView | None = None
+        self._draft = ''
+        self._details_session = None
         self.slash_completer = SlashCommandCompleter(Path.cwd())
         if self.prompt_session is None and self.console.is_terminal and not self.console.is_dumb_terminal:
             self.prompt_session = PromptSession(
@@ -251,6 +260,18 @@ class TerminalUI:
                 reserve_space_for_menu=8,
             )
             self.prompt_session.app.min_redraw_interval = 1 / 30
+        self._bindings = KeyBindings()
+
+        @self._bindings.add('c-o')
+        async def details(event):
+            view = self._response_view
+            if view is not None and not view.completed:
+                view.expanded = not view.expanded
+                view._refresh()
+            else:
+                from prompt_toolkit.application import in_terminal
+                async with in_terminal():
+                    await self.show_details_async()
 
     def set_resume_options(
         self,
@@ -258,6 +279,11 @@ class TerminalUI:
     ) -> None:
         '''Refresh dynamic session candidates used by Slash completion.'''
         self.slash_completer.set_session_options(options)
+
+    def bind_session(self, identity) -> None:
+        if identity != self._details_session:
+            self._response_view = None
+            self._details_session = identity
 
     @property
     def supports_session_picker(self) -> bool:
@@ -424,21 +450,10 @@ class TerminalUI:
             ('ForgeCode', 'bold white'),
             (f' v{__version__}', 'dim'),
         )
-        details = Table.grid(padding=(0, 2))
-        details.add_column(style='dim', no_wrap=True)
-        details.add_column()
-        details.add_row('model', Text(model, style='bright_white'))
-        details.add_row('cwd', Text(str(Path.cwd()), style='bright_white'))
-
-        self.console.print(
-            Panel.fit(
-                details,
-                title=title,
-                subtitle=Text('Ctrl+C to exit', style='dim'),
-                border_style='bright_cyan',
-                padding=(1, 2),
-            )
-        )
+        title.append(f'  ·  {model}', style='dim')
+        self.console.print(title)
+        self.console.print(Text(str(Path.cwd()), style='dim'))
+        self.console.print(Text('Ctrl+C 取消/退出 · Ctrl+D 退出 · Ctrl+O 查看思考与工具详情', style='dim'))
         self.console.print(
             '[dim]Ask a question or describe a coding task.[/]'
         )
@@ -493,7 +508,20 @@ class TerminalUI:
         '''Read input without blocking MCP background notification tasks.'''
         prompt_async = getattr(self.prompt_session, 'prompt_async', None)
         if prompt_async is not None:
-            return await prompt_async(self._prompt_message)
+            if not isinstance(self.prompt_session, PromptSession):
+                return await prompt_async(self._prompt_message)
+            running = self._response_view is not None and not self._response_view.completed
+            self.prompt_session.app.erase_when_done = running
+            try:
+                text = await prompt_async(self._prompt_message, key_bindings=self._bindings,
+                    refresh_interval=0.12 if running else 0, default=self._draft)
+                self._draft = ''
+                if running and text:
+                    self.console.print(Text('❯ ' + text, style='bright_cyan'))
+                return text
+            except asyncio.CancelledError:
+                self._draft = self.prompt_session.default_buffer.text
+                raise
         return await asyncio.to_thread(self.read_prompt)
 
     def _prompt_message(self):
@@ -507,6 +535,38 @@ class TerminalUI:
         prompt = self.prompt_session if isinstance(self.prompt_session, PromptSession) else None
         self._response_view = StreamingResponseView(self.console, prompt=prompt)
         return self._response_view
+
+    async def show_details_async(self) -> None:
+        '''Read the last turn's full reasoning and tool results without replaying it.'''
+        view = self._response_view
+        if view is None:
+            self.show_notice('详情', '当前还没有模型响应。')
+            return
+        content = view.details_text()
+        if self.prompt_session is None or not self.console.is_terminal or self.console.is_dumb_terminal:
+            self.console.print(Text(content))
+            return
+        from prompt_toolkit.application import Application
+        from prompt_toolkit.layout import Layout, HSplit, Window
+        from prompt_toolkit.layout.controls import FormattedTextControl
+        from prompt_toolkit.widgets import TextArea, SearchToolbar
+        search = SearchToolbar()
+        body = TextArea(text=content, read_only=True, scrollbar=True, search_field=search)
+        keys = KeyBindings()
+        @keys.add('c-f')
+        def find(event):
+            from prompt_toolkit.search import start_search
+            start_search(body.control)
+        @keys.add('escape')
+        @keys.add('c-o')
+        @keys.add('c-c')
+        def close(event):
+            event.app.exit()
+        app = Application(layout=Layout(HSplit([
+            Window(FormattedTextControl(' 思考与工具详情  ·  ↑↓/PgUp/PgDn 滚动  Ctrl+F 搜索  Esc 返回'), height=1),
+            body, search,
+        ]), focused_element=body), key_bindings=keys, full_screen=True, mouse_support=True)
+        await app.run_async()
 
     def show_error(self, error: Exception) -> None:
         '''Render a recoverable request error without interpreting its markup.'''
@@ -623,6 +683,9 @@ class StreamingResponseView:
         self._prompt_paused = False
         self._published = False
         self._line_open = False
+        self.started = monotonic()
+        self.phase = '正在准备请求'
+        self.expanded = False
 
     def __enter__(self) -> StreamingResponseView:
         self.console.print()
@@ -668,8 +731,62 @@ class StreamingResponseView:
         # Measure wrapped terminal rows (including wide Chinese characters),
         # not source newlines, so the draft never scrolls into saved output.
         rows = self.console.render_lines(self._render(), self.console.options.update(width=width), pad=False)
-        lines = [''.join(segment.text for segment in row if not segment.control) for row in rows]
-        return [('', '\n'.join(lines[-height:]) + '\n')]
+        fragments = []
+        for row in rows[-height:]:
+            for segment in row:
+                if segment.control:
+                    continue
+                style = segment.style
+                tokens = []
+                if style:
+                    if style.color:
+                        tokens.append('fg:' + style.color.get_truecolor().hex)
+                    if style.bold:
+                        tokens.append('bold')
+                    if style.italic:
+                        tokens.append('italic')
+                    if style.dim:
+                        tokens.append('fg:#888888')
+                fragments.append((' '.join(tokens), segment.text))
+            fragments.append(('', '\n'))
+        return fragments
+
+    def set_phase(self, phase: str) -> None:
+        self.phase = phase
+        self._refresh()
+
+    def model_started(self) -> None:
+        self.set_phase('正在等待模型')
+
+    def append_reasoning(self, text: str) -> None:
+        if not text:
+            return
+        if self.timeline and isinstance(self.timeline[-1], _ReasoningTimelineBlock):
+            self.timeline[-1].text += text
+        else:
+            self.timeline.append(_ReasoningTimelineBlock(text))
+            if self.prompt is None:
+                self._end_text()
+                self.console.print(Text('思考中…', style='dim'))
+        self.set_phase('思考中')
+
+    def details_text(self) -> str:
+        sections = []
+        for block in self.timeline:
+            if isinstance(block, _ReasoningTimelineBlock):
+                sections.append('── 思考 ──\n' + block.text)
+            elif isinstance(block, _ToolTimelineBlock):
+                for activity in block.activities:
+                    call, result = activity.tool_call, activity.result
+                    status = ('完成' if result.success else '失败') if result else ('已中断，结果未确认' if self.completed else '执行中')
+                    sections.append(f'── {call.name} · {status} ──\n'
+                        + json.dumps(call.arguments, ensure_ascii=False, indent=2, default=str)
+                        + ('\n\n' + result.summary + '\n' + result.content if result else ''))
+        if not sections:
+            sections.append('本轮没有模型提供的可见思考或工具调用。')
+        sections.append(str(token_usage_summary(self.usage, streaming=not self.completed,
+            request_usage=self.request_usage, model_calls=self.model_calls)))
+        return '\n\n'.join(sections)
 
     def _end_text(self) -> None:
         if self._line_open:
@@ -712,7 +829,7 @@ class StreamingResponseView:
             self.console.print(Text(text), end='', soft_wrap=True)
             if text:
                 self._line_open = not text.endswith('\n')
-        self._refresh()
+        self.set_phase('正在回答')
 
     def update_usage(
         self,
@@ -741,7 +858,7 @@ class StreamingResponseView:
         if self.prompt is None:
             self._end_text()
             self.console.print(Text(f'Running {tool_call.name}...', style='dim'))
-        self._refresh()
+        self.set_phase('正在运行 ' + tool_call.name)
 
     def complete_tool(
         self,
@@ -757,7 +874,7 @@ class StreamingResponseView:
                     activity.result = result
                     if self.prompt is None:
                         self.console.print(self._render_tool_group(_ToolTimelineBlock([activity]), limit=None))
-                    self._refresh()
+                    self.set_phase('正在处理工具结果')
                     return
         self._refresh()
 
@@ -785,6 +902,7 @@ class StreamingResponseView:
         self.request_usage = result.last_request_usage
         self.model_calls = result.model_calls
         self.result = result
+        self.expanded = False
         self.completed = True
         if self.prompt is None:
             self._publish()
@@ -795,6 +913,7 @@ class StreamingResponseView:
         """Stop progress indicators without inventing a model or tool outcome."""
         self.cancelled = True
         self._interruption = 'cancelled'
+        self.expanded = False
         self.completed = True
         if self.prompt is None:
             self._publish()
@@ -817,21 +936,26 @@ class StreamingResponseView:
             or self.result.status != 'completed'
         ):
             renderables.append(completion_evidence_summary(self.result))
-        renderables.append(
-            token_usage_summary(
-                self.usage,
-                streaming=not self.completed,
-                request_usage=self.request_usage,
-                model_calls=self.model_calls,
-            )
-        )
+        elapsed = monotonic() - self.started
+        if not self.completed:
+            frames = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+            frame = frames[int(elapsed / .12) % len(frames)]
+            renderables.append(Text(f'{frame} {self.phase} · {elapsed:.1f}s  '
+                + ('Ctrl+O 收起详情' if self.expanded else 'Ctrl+O 展开详情'), style='bright_cyan', no_wrap=True, overflow='ellipsis'))
+        else:
+            usage = self.usage
+            line = f'↳ {elapsed:.1f}s'
+            if usage is not None:
+                line += f' · ↑ {usage.total_input_tokens:,}  ↓ {usage.output_tokens:,} · 合计 {usage.total_tokens:,} tokens'
+            line += f' · {self.model_calls} 次请求 · Ctrl+O 详情'
+            renderables.append(Text(line, style='dim'))
         return Group(*renderables)
 
     def _render_timeline(self) -> Group | Text:
         if not self.timeline:
             if self.cancelled:
                 return Group(Text(f'Turn {self._interruption}.', style='yellow'))
-            return Text('Waiting for model...', style='bright_cyan')
+            return Text('')
         if self.completed:
             renderables = [
                 self._render_timeline_block(block, line_budget=None)
@@ -851,7 +975,9 @@ class StreamingResponseView:
         selected: list[tuple[_TimelineBlock, int]] = []
         for block in reversed(self.timeline):
             if isinstance(block, _ToolTimelineBlock):
-                desired_lines = min(len(block.activities), 6) + 1
+                desired_lines = len(self._compact_tools(block).plain.splitlines()) if self.expanded else min(len(block.activities), 6)
+            elif isinstance(block, _ReasoningTimelineBlock):
+                desired_lines = len(block.text.splitlines()) + 1 if self.expanded else 1
             else:
                 desired_lines = max(1, len(block.text.splitlines()))
             line_budget = min(remaining_lines, desired_lines)
@@ -876,17 +1002,29 @@ class StreamingResponseView:
         *,
         line_budget: int | None,
     ) -> object:
+        if isinstance(block, _ReasoningTimelineBlock):
+            if self.expanded:
+                body = block.text if self.completed else streaming_preview(block.text,
+                    max_lines=max(4, line_budget or 4),
+                    max_characters=max(1000, self.console.width * (line_budget or 4) * 2))
+                return Group(Text('▾ 思考', style='dim'), Text(body, style='dim'))
+            lines = [line.strip().replace('**', '') for line in block.text.splitlines() if line.strip()]
+            summary = (lines[0] if self.completed else lines[-1]) if lines else ''
+            if not self.completed:
+                summary = streaming_preview(summary, max_lines=1,
+                    max_characters=max(20, (self.console.width - 12) // 2)).replace('\n', ' ')
+            return Text('▸ 思考 · ' + summary, style='dim', no_wrap=True, overflow='ellipsis')
         if isinstance(block, _TextTimelineBlock):
             if self.completed:
                 return Markdown(block.text)
             max_lines = line_budget or 4
-            return Text(
+            return Markdown(
                 streaming_preview(
                     block.text,
-                    max_lines=max_lines,
+                    max_lines=max(20, max_lines * 4),
                     max_characters=max(
-                        200,
-                        self.console.width * max_lines // 2,
+                        2000,
+                        self.console.width * max_lines * 4,
                     ),
                 )
             )
@@ -901,6 +1039,8 @@ class StreamingResponseView:
         *,
         limit: int | None,
     ) -> Text:
+        if self.prompt is not None:
+            return self._compact_tools(group)
         rendered = Text()
         activities = group.activities
         hidden_count = 0
@@ -980,6 +1120,33 @@ class StreamingResponseView:
                     )
             if not is_last:
                 rendered.append('\n')
+        return rendered
+
+    def _compact_tools(self, group: _ToolTimelineBlock) -> Text:
+        rendered = Text(no_wrap=not self.expanded, overflow='ellipsis' if not self.expanded else 'fold')
+        for position, activity in enumerate(group.activities):
+            call, result = activity.tool_call, activity.result
+            marker = ('✓' if result.success else '×') if result else ('?' if self.cancelled else '●')
+            target = next((call.arguments[key] for key in ('path', 'command', 'pattern', 'query')
+                           if isinstance(call.arguments.get(key), str)), '')
+            if position:
+                rendered.append('\n')
+            rendered.append('▾ ' if self.expanded else '▸ ', style='dim')
+            rendered.append(marker + ' ', style=('green' if result.success else 'red') if result else 'cyan')
+            rendered.append(call.name, style='bold')
+            if not self.expanded:
+                brief = ' '.join(target.split())
+                rendered.append('  ' + brief[:max(12, self.console.width - len(call.name) - 12)], style='dim')
+                if result is not None and not result.success:
+                    rendered.append('\n  ' + result.summary, style='red')
+            else:
+                body = json.dumps(call.arguments, ensure_ascii=False, indent=2, default=str)
+                if result is not None:
+                    body += '\n' + result.summary + '\n' + result.content
+                if not self.completed:
+                    body = streaming_preview(body, max_lines=max(4, self.console.height - 10),
+                        max_characters=max(1000, self.console.width * self.console.height * 2))
+                rendered.append('\n' + body, style='red' if result is not None and not result.success else 'dim')
         return rendered
 
 

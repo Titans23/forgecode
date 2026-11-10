@@ -16,7 +16,7 @@ from forge.runtime.state import ModelCallError, ModelOutputTruncatedError, Model
 from forge.runtime.state import (
     ModelResponseError, build_assistant_message, build_tool_result_message,
     ModelCallCompleted, ModelCallFailed, ModelCallStarted,
-    ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, ToolCall, ModelProviderState, ModelResponseCompleted,
+    ModelTextDelta, ModelReasoningDelta, ModelToolCallCompleted, ModelUsageUpdate, ToolCall, ModelProviderState, ModelResponseCompleted,
     ModelToolCallStarted, ModelToolCallArgumentsDelta,
     ToolExecutionCompleted, ToolExecutionStarted, TurnCompleted, TurnResult,
     VerificationCompleted, WorkspaceChanged,
@@ -343,6 +343,7 @@ class TurnRunner:
             calls: list[ToolCall] = []
             usage = None
             partial_tools = False
+            visible_reasoning = False
             provider_state = None
             provider_completed = False
             try:
@@ -357,6 +358,8 @@ class TurnRunner:
                             provider_completed = True
                         if isinstance(event, ModelTextDelta):
                             parts.append(event.text)
+                        elif isinstance(event, ModelReasoningDelta):
+                            visible_reasoning = visible_reasoning or bool(event.text)
                         elif isinstance(event, ModelToolCallCompleted):
                             calls.append(event.tool_call)
                             self.calls.append(event.tool_call)
@@ -395,7 +398,7 @@ class TurnRunner:
                     return
                 # Transport/empty output correction is safe only before any
                 # semantic output, including an incomplete tool block.
-                safe_to_correct = not parts and not calls and not partial_tools
+                safe_to_correct = not parts and not calls and not partial_tools and not visible_reasoning
                 if isinstance(error, ModelProtocolError) and safe_to_correct and self.state.response_errors < min(2, c.max_protocol_recoveries):
                     self.state.response_errors += 1
                     limit = min(2, c.max_protocol_recoveries)

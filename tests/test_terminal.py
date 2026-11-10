@@ -438,7 +438,7 @@ def test_redirected_terminal_streams_markdown_source_once() -> None:
     rendered = output.getvalue()
     assert 'ForgeCode v0.1.2' in rendered
     assert 'test-model' in rendered
-    assert 'Ctrl+C to exit' in rendered
+    assert 'Ctrl+C 取消/退出' in rendered
     assert rendered.count('**Hello** from ForgeCode') == 1
     assert 'input 1,200' in rendered
     assert 'output 34' in rendered
@@ -765,3 +765,132 @@ def test_dumb_terminal_streams_without_cursor_renderer(monkeypatch):
         assert 'Already visible' in output.getvalue()
         view.complete(TurnResult(text='Already visible', usage=TokenUsage(10, 2)))
     assert output.getvalue().count('Already visible') == 1
+
+
+def test_wait_animation_disclosure_and_draft_survive_turn_completion():
+    async def run():
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=100, height=30, color_system=None)
+        with create_pipe_input() as pipe, create_app_session(input=pipe, output=DummyOutput()):
+            prompt = PromptSession(input=pipe, output=DummyOutput())
+            terminal = TerminalUI(console=console, prompt_session=prompt)
+            rendered = asyncio.Event()
+            prompt.app.after_render += lambda app: rendered.set()
+            def screen():
+                value = prompt.app.renderer._last_screen
+                return '' if value is None else '\n'.join(''.join(c.char for _, c in sorted(row.items()))
+                    for _, row in sorted(value.data_buffer.items()))
+            async def wait_for(predicate):
+                async with asyncio.timeout(4):
+                    while not predicate():
+                        rendered.clear()
+                        await rendered.wait()
+            with terminal.stream_response() as view:
+                reader = asyncio.create_task(terminal.read_prompt_async())
+                try:
+                    await wait_for(lambda: '正在准备请求' in screen())
+                    initial = screen()
+                    # The renderer advances with no provider event at all.
+                    await wait_for(lambda: screen() != initial)
+                    view.append_reasoning('hidden earlier reasoning\nlatest reasoning')
+                    await wait_for(lambda: 'latest reasoning' in screen())
+                    assert 'hidden earlier reasoning' not in screen()
+                    pipe.send_text('\x0f')  # Ctrl+O expands in place, never submits input.
+                    await wait_for(lambda: 'hidden earlier reasoning' in screen())
+                    call = ToolCall(0, 'read', 'read_file', {'path': 'hello.txt'})
+                    view.start_tool(call)
+                    view.complete_tool(call, ToolResult.ok('Read.', content='complete tool output'))
+                    await wait_for(lambda: 'complete tool output' in screen())
+                    pipe.send_text('\x0f')
+                    await wait_for(lambda: 'complete tool output' not in screen())
+                    assert 'latest reasoning' in screen()
+                    pipe.send_text('尚未提交的输入')
+                    await wait_for(lambda: prompt.default_buffer.text == '尚未提交的输入')
+                    view.append_text('**Answer** arrives immediately.')
+                    await wait_for(lambda: 'Answer' in screen())
+                    assert 'Answer' not in output.getvalue()
+                    view.complete(TurnResult(text='**Answer** arrives immediately.', usage=TokenUsage(20, 5)))
+                finally:
+                    reader.cancel()
+                    await asyncio.gather(reader, return_exceptions=True)
+            assert 'hidden earlier reasoning\nlatest reasoning' not in output.getvalue()
+            assert 'complete tool output' not in output.getvalue()
+            assert output.getvalue().count('Answer') == 1
+            assert 'complete tool output' in view.details_text()
+            next_reader = asyncio.create_task(terminal.read_prompt_async())
+            try:
+                await wait_for(lambda: prompt.app.is_running and prompt.default_buffer.text == '尚未提交的输入')
+                pipe.send_text('\r')
+                assert await next_reader == '尚未提交的输入'
+            finally:
+                if not next_reader.done():
+                    next_reader.cancel()
+                    await asyncio.gather(next_reader, return_exceptions=True)
+    asyncio.run(run())
+
+
+def test_completed_details_viewer_closes_without_resubmitting_input(monkeypatch):
+    monkeypatch.setenv('TERM', 'xterm-256color')
+    async def run():
+        with create_pipe_input() as pipe, create_app_session(input=pipe, output=DummyOutput()):
+            prompt = PromptSession(input=pipe, output=DummyOutput())
+            terminal = TerminalUI(Console(file=StringIO(), force_terminal=True), prompt_session=prompt)
+            with terminal.stream_response() as view:
+                view.append_reasoning('Full reasoning available after the turn.')
+                view.complete(TurnResult(text='Answer', usage=TokenUsage(1, 2)))
+            task = asyncio.create_task(terminal.show_details_async())
+            try:
+                await asyncio.sleep(.1)
+                assert not task.done()
+                pipe.send_text('\x0f')
+                await asyncio.wait_for(task, 3)
+            finally:
+                if not task.done():
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+    asyncio.run(run())
+
+
+def test_switching_session_clears_previous_session_details():
+    terminal, _ = terminal_with_output()
+    terminal.bind_session('first')
+    with terminal.stream_response() as view:
+        view.append_reasoning('First session detail')
+        view.complete(TurnResult(text='first', usage=TokenUsage(1, 1)))
+    terminal.bind_session('first')
+    assert terminal._response_view is view
+    terminal.bind_session('second')
+    assert terminal._response_view is None
+
+
+def test_completed_detail_search_and_return_preserve_prompt(monkeypatch):
+    monkeypatch.setenv('TERM', 'xterm-256color')
+    async def run():
+        with create_pipe_input() as pipe, create_app_session(input=pipe, output=DummyOutput()):
+            prompt = PromptSession(input=pipe, output=DummyOutput())
+            terminal = TerminalUI(Console(file=StringIO(), force_terminal=True), prompt_session=prompt)
+            with terminal.stream_response() as view:
+                view.append_reasoning('first\n' * 50 + 'search target')
+                view.complete(TurnResult(text='done', usage=TokenUsage(1, 2)))
+            # Exercise the actual idle Ctrl+O binding, which suspends the prompt.
+            reader = asyncio.create_task(terminal.read_prompt_async())
+            async def wait_for(predicate):
+                async with asyncio.timeout(3):
+                    while not predicate():
+                        await asyncio.sleep(.01)
+            try:
+                await wait_for(lambda: prompt.app.is_running)
+                pipe.send_text('draft\x0f')
+                await wait_for(lambda: prompt.app._running_in_terminal)
+                pipe.send_text('\x06search target\r')
+                await asyncio.sleep(.1)
+                assert prompt.default_buffer.text == 'draft'
+                pipe.send_text('\x0f')
+                await wait_for(lambda: not prompt.app._running_in_terminal)
+                pipe.send_text('\r')
+                assert await asyncio.wait_for(reader, 3) == 'draft'
+            finally:
+                if not reader.done():
+                    reader.cancel()
+                    await asyncio.gather(reader, return_exceptions=True)
+    asyncio.run(run())

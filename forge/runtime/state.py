@@ -226,6 +226,14 @@ class ModelTextDelta:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelReasoningDelta:
+    '''Provider-supplied readable reasoning/summary, never opaque continuation data.'''
+
+    text: str
+    index: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class ModelStreamCompleted:
     '''A single model response completed with optional timing metadata.'''
 
@@ -366,6 +374,7 @@ class TurnCompleted:
 type ModelStreamEvent = (
     ModelProviderState |
     ModelTextDelta
+    | ModelReasoningDelta
     | ModelToolCallStarted
     | ModelToolCallArgumentsDelta
     | ModelToolCallCompleted

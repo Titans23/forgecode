@@ -335,11 +335,15 @@ def test_launch_preserves_subcommand_profile_argument(monkeypatch):
 
 
 def test_event_export_redacts_bearer_and_opaque_provider_continuation():
-    from forge.runtime.state import ModelProviderState
+    from forge.runtime.state import ModelProviderState, ModelReasoningDelta
     exported = event_dict(ModelTextDelta('Authorization: Bearer private-token-value'))
     assert 'private-token-value' not in json.dumps(exported)
     continuation = event_dict(ModelProviderState('openai_responses', {'private': 'opaque-secret'}))
     assert 'opaque-secret' not in json.dumps(continuation)
+    summary = event_dict(ModelReasoningDelta('Readable summary'))
+    assert summary['type'] == 'ModelReasoningDelta' and summary['payload']['text'] == 'Readable summary'
+    redacted = event_dict(ModelReasoningDelta('Authorization: Bearer private-token-value'))
+    assert 'private-token-value' not in json.dumps(redacted)
 
 
 def test_api_uses_requested_workspace_config_and_can_disable_routing(tmp_path, monkeypatch):

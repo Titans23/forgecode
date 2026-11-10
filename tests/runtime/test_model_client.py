@@ -19,6 +19,7 @@ from forge.runtime.model_client import (
 )
 from forge.runtime.state import (
     ModelTextDelta,
+    ModelReasoningDelta,
     ModelToolCallArgumentsDelta,
     ModelToolCallCompleted,
     ModelToolCallStarted,
@@ -90,6 +91,19 @@ class FakeMessages:
 class FakeAnthropic:
     def __init__(self) -> None:
         self.messages = FakeMessages()
+
+
+def test_anthropic_thinking_deltas_are_separate_from_answer_text():
+    sdk = FakeAnthropic()
+    sdk.messages.events = [SimpleNamespace(type='content_block_delta', index=0,
+        delta=SimpleNamespace(type='thinking_delta', thinking='Provider-visible reasoning')),
+        SimpleNamespace(type='content_block_delta', index=1,
+        delta=SimpleNamespace(type='text_delta', text='ok'))]
+    sdk.messages.final_message.content = [SimpleNamespace(type='thinking', thinking='Provider-visible reasoning', signature='opaque'),
+                                         SimpleNamespace(type='text', text='ok')]
+    events = collect_stream(AnthropicModelClient(model='test', client=sdk), messages=[])
+    assert events[0] == ModelReasoningDelta('Provider-visible reasoning', 0)
+    assert [e.text for e in events if isinstance(e, ModelTextDelta)] == ['ok']
 
 
 def test_mixed_stream_final_content_does_not_drop_tool_block():
@@ -857,13 +871,15 @@ def test_stream_retries_raw_httpx_transport_error_before_output(
     assert len(sdk.messages.calls) == 2
 
 
-def test_stream_does_not_retry_after_text_started() -> None:
+@pytest.mark.parametrize('reasoning', [False, True])
+def test_stream_does_not_retry_after_visible_output_started(reasoning) -> None:
     sdk = FakeAnthropic()
     sdk.messages.events = [
         SimpleNamespace(
             type='content_block_delta',
             index=0,
-            delta=SimpleNamespace(type='text_delta', text='Partial'),
+            delta=(SimpleNamespace(type='thinking_delta', thinking='Partial') if reasoning else
+                   SimpleNamespace(type='text_delta', text='Partial')),
         ),
         model_client_module.APIConnectionError(request=SimpleNamespace()),
     ]
@@ -883,7 +899,7 @@ def test_stream_does_not_retry_after_text_started() -> None:
 
     error = asyncio.run(collect())
 
-    assert collected == [ModelTextDelta(text='Partial')]
+    assert collected == [(ModelReasoningDelta if reasoning else ModelTextDelta)(text='Partial')]
     assert error.reason == 'stream_interrupted'
     assert error.retryable is False
     assert len(sdk.messages.calls) == 1

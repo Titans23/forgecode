@@ -20,6 +20,7 @@ from forge.runtime.state import (
     ModelRetryScheduled,
     ModelResponseCompleted,
     ModelTextDelta,
+    ModelReasoningDelta,
     ModelToolCallArgumentsDelta,
     ModelToolCallCompleted,
     ModelUsageUpdate,
@@ -81,7 +82,7 @@ class TrajectoryRecorder:
 
     def record_event(self, event: ConversationEvent) -> None:
         '''Record stable lifecycle events and skip high-volume stream deltas.'''
-        if isinstance(event, (ModelTextDelta, ModelToolCallArgumentsDelta)):
+        if isinstance(event, (ModelTextDelta, ModelReasoningDelta, ModelToolCallArgumentsDelta)):
             return
         if isinstance(event, ModelUsageUpdate):
             self._latest_usage = asdict(event.usage)
