@@ -56,6 +56,8 @@ def _stat_identity(value):
 def _identity(path):
     try:
         return _stat_identity(path.lstat())
+    except ContractError as error:
+        raise ContractError(f'{error}: {path.as_posix()!r}', kind=error.kind, code=error.code) from error
     except (FileNotFoundError, NotADirectoryError):
         return None
     except OSError as error:
@@ -109,7 +111,14 @@ def audit_workspace_links(root):
         raise ContractError('Workspace link audit is unavailable', kind='POLICY_DENIED', code=-32010) from error
     for directory, children, files in os.walk(root, followlinks=False, onerror=failed):
         for name in children + files:
-            _identity(Path(directory) / name)
+            try:
+                _identity(Path(directory) / name)
+            except ContractError as error:
+                raise ContractError(
+                    f'{error}\nWorkspace startup checks nested entries, including ignored files. '
+                    'Select a narrower workspace or move the reported entry outside it.',
+                    kind=error.kind, code=error.code,
+                ) from error
         children[:] = [name for name in children if name.casefold() not in ('.git', '.forge')]
 
 

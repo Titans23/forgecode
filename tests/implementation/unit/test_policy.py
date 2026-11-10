@@ -216,11 +216,16 @@ def test_worktree_gitdir_and_common_directory_are_protected(tmp_path):
             snapshot.paths.authorize(target)
 
 
-def test_actual_junction_or_symlink_cannot_bypass_path_policy(tmp_path):
+@pytest.mark.parametrize('relative', ['alias', '.build/node_modules'])
+def test_actual_junction_or_symlink_cannot_bypass_path_policy(tmp_path, relative, capsys):
     root, workspace, policy = policy_input(tmp_path)
+    paths = compile_policy(policy, workspace).paths
     outside = tmp_path / 'outside'
     outside.mkdir()
-    link = root / 'alias'
+    (outside / 'value.txt').write_text('outside unchanged', encoding='utf-8')
+    link = root / relative
+    link.parent.mkdir(parents=True, exist_ok=True)
+    (root / '.gitignore').write_text(relative + '\n', encoding='utf-8')
     if sys.platform == 'win32':
         import subprocess
         result = subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(outside)], capture_output=True)
@@ -228,7 +233,24 @@ def test_actual_junction_or_symlink_cannot_bypass_path_policy(tmp_path):
     else:
         link.symlink_to(outside, target_is_directory=True)
     try:
-        with pytest.raises(ContractError, match='link'):
+        with pytest.raises(ContractError, match='link') as error:
             compile_policy(policy, workspace)
+        assert error.value.kind == 'POLICY_DENIED'
+        assert error.value.code == -32010
+        assert repr(link.as_posix()) in str(error.value)
+        assert outside.as_posix() not in str(error.value)
+        from forge.cli import print_configuration_error
+        print_configuration_error(error.value)
+        output = capsys.readouterr().err
+        assert 'POLICY_DENIED' in output
+        assert repr(link.as_posix()) in output
+        assert 'nested entries, including ignored files' in output
+        assert 'move the reported entry outside' in output
+        for write in (False, True):
+            with pytest.raises(ContractError) as access:
+                paths.authorize(link / 'value.txt', write=write)
+            assert access.value.kind == 'POLICY_DENIED'
+            assert repr(link.as_posix()) in str(access.value)
+        assert (outside / 'value.txt').read_text(encoding='utf-8') == 'outside unchanged'
     finally:
         link.rmdir() if sys.platform == 'win32' else link.unlink()

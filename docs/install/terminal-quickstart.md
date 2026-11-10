@@ -168,6 +168,8 @@ forge --sandbox workspace-write --approval plan
 
 默认 `workspace-write` 允许所选项目写入；指定 `--write-root` 后只授予列出的既有子目录。普通文件编辑复用已选写入范围，删除、命令及其他风险仍经过权限决策。`read-only` 禁止修改项目，但允许每次执行的私有临时文件；执行结束后清理。`full-access` 显式使用宿主执行。`plan/supervised/auto` 是独立的审批策略，切换它不会改变沙盒范围。
 
+原生模式启动时会检查整个工作区的嵌套条目，忽略文件也不例外。若出现 `POLICY_DENIED: Symlink or reparse link paths are unsupported`，错误会列出实际的符号链接或 Windows Junction 路径；根目录本身不一定是链接。可选择不包含该条目的工作区，或将该条目移到工作区外并调整依赖它的脚本。不要删除链接指向的共享目录；更改 `.gitignore` 或 `--approval` 不能解除此限制。
+
 在 `full-access` 下启用 Hooks 时，Hook 结束或取消会清理它启动的后台子进程。命令应使用明确的解释器和参数：PATH、普通环境变量及 `FORGE_HOOK_*` 保留，凭据与 `PYTHONPATH`、`NODE_OPTIONS` 等加载器变量会被清除。stdout 与 stderr 合计超过 1 MB 或无法确认清理完成时，Hook 报错；阻断类 Hook 会拒绝后续操作。
 
 Windows 沙盒命令中的 `python` 通过会话级小型虚拟环境复用本机解释器和依赖，使默认临时目录继承已隔离的私有 ACL；会话退出后清理该环境。普通启动、`python -I` 及其 Python 子进程支持此适配。显式 `-S`、其他绝对路径解释器或在私有临时范围之外创建 `0700` 目录不经过适配，仍可能受 [CPython 的 Windows 受限令牌兼容问题](https://github.com/python/cpython/issues/134587)影响。
