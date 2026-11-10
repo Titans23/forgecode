@@ -40,7 +40,7 @@ def normalize_domain(value):
     return domain
 
 
-def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=()):
+def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), audit_workspace=True):
     validate('sandbox-policy', policy)
     value = json.loads(json.dumps(policy))
     if value['workspace_id'] != workspace['id']:
@@ -49,7 +49,10 @@ def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=()):
     identity = root.anchors[-1][1]
     if identity is None or not root.path.is_dir() or f'{identity[0]}:{identity[1]}' != workspace['file_identity']:
         raise ContractError('Workspace identity changed', kind='STALE_REVISION', code=-32010)
-    audit_workspace_links(root.path)
+    # Native admission audits the whole tree; explicit host execution still
+    # validates roots here and rejects unsafe paths on every file-tool access.
+    if audit_workspace:
+        audit_workspace_links(root.path)
     filesystem = value['filesystem']
     for name in ('read_roots', 'write_roots', 'protected_paths'):
         filesystem[name] = sorted(set(str(inspect_path(path, absolute=True).path) for path in filesystem[name]))

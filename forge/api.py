@@ -145,7 +145,8 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
             'session_artifact_bytes': 16777216}, 'environment_keys': [], 'fallback': 'deny',
         'session_mutation': 'replace_session'}
     policy = compile_policy(policy, workspace, control_roots=(control,
-        *(backend_factory.protected_roots if backend_factory is not None else ()))).value
+        *(backend_factory.protected_roots if backend_factory is not None else ())),
+        audit_workspace=options.sandbox != 'full-access').value
     if options.sandbox == 'full-access':
         backend = FileToolBackend(FileWorkerClient(workspace, policy, local_control=control))
     else:

@@ -170,6 +170,8 @@ forge --sandbox workspace-write --approval plan
 
 原生模式启动时会检查整个工作区的嵌套条目，忽略文件也不例外。若出现 `POLICY_DENIED: Symlink or reparse link paths are unsupported`，错误会列出实际的符号链接或 Windows Junction 路径；根目录本身不一定是链接。可选择不包含该条目的工作区，或将该条目移到工作区外并调整依赖它的脚本。不要删除链接指向的共享目录；更改 `.gitignore` 或 `--approval` 不能解除此限制。
 
+显式 `full-access` 不运行这项整工作区原生准入检查，因此可在含嵌套链接的目录中启动。文件工具仍逐路径拒绝链接、越界写入及受保护目录；宿主命令按当前用户权限运行，`supervised` 审批继续生效。链接造成的变更观察缺失仍标为不完整，不能据此通过代码任务的完成验收；能够启动不代表文件工具支持穿过链接操作。
+
 在 `full-access` 下启用 Hooks 时，Hook 结束或取消会清理它启动的后台子进程。命令应使用明确的解释器和参数：PATH、普通环境变量及 `FORGE_HOOK_*` 保留，凭据与 `PYTHONPATH`、`NODE_OPTIONS` 等加载器变量会被清除。stdout 与 stderr 合计超过 1 MB 或无法确认清理完成时，Hook 报错；阻断类 Hook 会拒绝后续操作。
 
 Windows 沙盒命令中的 `python` 通过会话级小型虚拟环境复用本机解释器和依赖，使默认临时目录继承已隔离的私有 ACL；会话退出后清理该环境。普通启动、`python -I` 及其 Python 子进程支持此适配。显式 `-S`、其他绝对路径解释器或在私有临时范围之外创建 `0700` 目录不经过适配，仍可能受 [CPython 的 Windows 受限令牌兼容问题](https://github.com/python/cpython/issues/134587)影响。

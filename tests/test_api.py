@@ -32,6 +32,102 @@ def options(tmp_path, **changes):
         config=ForgeConfig(api_key='test-only', model_id='offline-fixture'), **changes)
 
 
+@pytest.fixture
+def linked_workspace(tmp_path):
+    settings = options(tmp_path, profile=RunProfile(intent_routing=False))
+    (settings.root / 'ordinary.txt').write_text('workspace file', encoding='utf-8')
+    outside = tmp_path / 'shared dependencies'
+    outside.mkdir()
+    (outside / 'value.txt').write_text('shared file', encoding='utf-8')
+    link = settings.root / '.build' / 'node_modules'
+    link.parent.mkdir()
+    if sys.platform == 'win32':
+        subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(link), str(outside)],
+                       check=True, capture_output=True)
+    else:
+        link.symlink_to(outside, target_is_directory=True)
+    try:
+        yield settings, link, outside
+    finally:
+        link.rmdir() if sys.platform == 'win32' else link.unlink()
+
+
+@pytest.mark.parametrize('sandbox', ['read-only', 'workspace-write', 'full-access'])
+def test_linked_workspace_admission_respects_explicit_mode(linked_workspace, sandbox):
+    from dataclasses import replace
+    from forge.protocol import ContractError
+    settings, link, outside = linked_workspace
+    clients, approvals = [], []
+
+    def model_factory(*args, **kwargs):
+        clients.append(Model())
+        return clients[-1]
+
+    async def deny(request):
+        approvals.append(request)
+        return ApprovalResponse('deny')
+
+    async def run():
+        selected = replace(settings, sandbox=sandbox)
+        if sandbox != 'full-access':
+            with pytest.raises(ContractError, match='Symlink or reparse') as error:
+                await HarnessSession.open(selected, model_client_factory=model_factory)
+            assert error.value.kind == 'POLICY_DENIED'
+            assert link.as_posix() in str(error.value)
+            assert clients == []
+            return
+        async with await HarnessSession.open(selected, model_client_factory=model_factory,
+                approval_handler=deny) as session:
+            assert session.backend.mode == 'local-trusted'
+            worker = session.backend.observer
+            read = await worker.request('tool', name='read_file', arguments={'path': 'ordinary.txt'})
+            assert read['result']['success'] and 'workspace file' in read['result']['content']
+            write = await worker.request('tool', name='write_file',
+                arguments={'path': 'new.txt', 'content': 'new workspace file'})
+            assert write['result']['success'], write['result']
+            for name, arguments in (
+                ('read_file', {'path': '.build/node_modules/value.txt'}),
+                ('write_file', {'path': '.build/node_modules/value.txt', 'content': 'must not write'}),
+                ('read_file', {'path': str(settings.data_root / 'private.txt')}),
+                ('write_file', {'path': str(outside / 'value.txt'), 'content': 'must not write'}),
+            ):
+                with pytest.raises(ContractError) as error:
+                    await worker.request('tool', name=name, arguments=arguments)
+                assert error.value.kind == 'POLICY_DENIED'
+            # Startup permission is not proof of complete observation through links.
+            assert not (await worker.scan())['complete']
+            decision = await session.conversation.permission_manager.authorize(
+                PermissionRequest('run_command', 'process.exec', 'low', ('command',)))
+            assert decision.action == 'deny' and len(approvals) == 1
+            assert (await session.run('hello')).text == 'hello'
+        assert session.cleanup['state'] == 'clean'
+        assert (outside / 'value.txt').read_text(encoding='utf-8') == 'shared file'
+        assert (settings.root / 'new.txt').read_text(encoding='utf-8') == 'new workspace file'
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('sandbox', [None, 'read-only', 'full-access'])
+def test_real_cli_linked_workspace_startup_without_model_requests(linked_workspace, sandbox):
+    import os
+    settings, link, _ = linked_workspace
+    environment = {key: value for key, value in os.environ.items() if key.upper() in {
+        'PATH', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'HOME', 'USERPROFILE',
+        'APPDATA', 'LOCALAPPDATA', 'PATHEXT'}}
+    environment.update(FORGE_DATA_DIR=str(settings.data_root), FORGE_PROVIDER='anthropic',
+        FORGE_API_KEY='test-only', FORGE_MODEL='offline-fixture', FORGE_BASE_URL='http://127.0.0.1:1')
+    arguments = ['--sandbox', sandbox, '--approval', 'supervised'] if sandbox else []
+    completed = subprocess.run([sys.executable, '-I', '-X', 'utf8', '-m', 'forge', *arguments],
+        cwd=settings.root, env=environment, input='', capture_output=True, text=True,
+        encoding='utf-8', timeout=30)
+    if sandbox == 'full-access':
+        assert completed.returncode == 0, completed.stdout + completed.stderr
+        assert 'Session ended.' in completed.stdout
+        assert 'POLICY_DENIED' not in completed.stderr
+    else:
+        assert completed.returncode == 1
+        assert 'POLICY_DENIED' in completed.stderr and link.as_posix() in completed.stderr
+
+
 def test_public_multiturn_result_events_and_resume(tmp_path):
     async def run():
         settings = options(tmp_path)
