@@ -70,7 +70,11 @@ def build(output):
         stage = Path(temporary)
         if not stage.resolve().is_relative_to(output):
             raise ValueError('Package staging exceeds the selected output directory.')
-        run_logged([uv, 'build', '--wheel', '--out-dir', str(stage / 'wheel')], ROOT, log)
+        # Match the SDK installer: an incremental build/lib may retain removed
+        # helpers, so every delivery builds in its own newly owned staging tree.
+        run_logged([uv, 'build', '--wheel', '--out-dir', str(stage / 'wheel'),
+                    '--config-setting=--global-option=build',
+                    '--config-setting=--global-option=--build-base=' + str(stage / 'build')], ROOT, log)
         wheel, = (stage / 'wheel').glob('*.whl')
         wheel_report = check_wheel(wheel)
         package = stage / 'package'

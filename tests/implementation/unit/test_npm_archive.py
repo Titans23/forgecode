@@ -1,6 +1,9 @@
 """A distributable package must carry its runtime and exclude private configuration."""
 import io
 import tarfile
+import json
+import zipfile
+from hashlib import sha256
 
 import pytest
 
@@ -33,3 +36,41 @@ def test_runtime_payload_is_required(tmp_path):
     assert check_archive(output, 'runtime.whl') == 9
     with pytest.raises(ValueError, match='incomplete'):
         check_archive(output, 'missing.whl')
+
+
+@pytest.mark.parametrize('extra', [False, True])
+def test_wheel_rejects_uninventoried_retired_runner(tmp_path, extra):
+    from scripts.check_wheel import check
+    output = tmp_path / 'fixture.whl'
+    prefix = 'forge/_sandbox/'
+    payload = b'export {}'
+    manifest = {'schema_version': 'forge.bridge.runtime.v1', 'package_lock_sha256': sha256(b'{}').hexdigest(),
+                'files': [{'path': 'sandbox_bridge/dist/native-session.js', 'sha256': sha256(payload).hexdigest()}]}
+    with zipfile.ZipFile(output, 'w') as archive:
+        archive.writestr(prefix + 'package-lock.json', '{}')
+        archive.writestr(prefix + 'sandbox_bridge/runtime-manifest.json', json.dumps(manifest))
+        archive.writestr(prefix + 'sandbox_bridge/dist/native-session.js', payload)
+        if extra:
+            archive.writestr(prefix + 'sandbox_bridge/dist/workspace-runner.js', b'retired code')
+    if extra:
+        with pytest.raises(ValueError, match='outside its verified inventory'):
+            check(output)
+    else:
+        assert check(output)['status'] == 'pass'
+
+
+def test_bundle_discards_retired_assets_and_preserves_sources(tmp_path, monkeypatch):
+    from scripts import build_bridge
+    monkeypatch.setattr(build_bridge, 'ROOT', tmp_path)
+    (tmp_path / 'package-lock.json').write_text('{}')
+    asset = tmp_path / 'sandbox_bridge/dist/current.js'
+    asset.parent.mkdir(parents=True)
+    asset.write_text('export {}')
+    destination = tmp_path / 'forge/_sandbox'
+    destination.mkdir(parents=True)
+    retired = destination / 'retired.js'
+    retired.write_text('obsolete')
+    build_bridge.bundle_python({'files': [{'path': 'sandbox_bridge/dist/current.js', 'sha256': build_bridge.digest(asset)}]})
+    assert not retired.exists()
+    assert asset.read_text() == (destination / 'sandbox_bridge/dist/current.js').read_text() == 'export {}'
+    assert (destination / 'node_modules/@forgecode/contracts/index.js').is_file()

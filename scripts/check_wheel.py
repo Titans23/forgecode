@@ -21,6 +21,10 @@ def check(path):
                 raise ValueError('Sandbox asset hash differs: ' + entry['path'])
         if sha256(archive.read(prefix + 'package-lock.json')).hexdigest() != manifest['package_lock_sha256']:
             raise ValueError('Sandbox dependency lock hash differs')
+        expected = {prefix + entry['path'] for entry in manifest['files']} | {
+            prefix + 'sandbox_bridge/runtime-manifest.json', prefix + 'package-lock.json'}
+        if any(name.startswith(prefix) and not name.endswith('/') and name not in expected for name in names):
+            raise ValueError('Wheel contains sandbox assets outside its verified inventory')
         if 'forge/engine/http_adapter.py' in names or any(
                 '/node_modules/' + package + '/' in name for name in names
                 for package in ('electron', 'react', 'react-dom', 'vite')):

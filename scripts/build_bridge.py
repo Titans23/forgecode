@@ -91,6 +91,8 @@ def bundle_python(inventory):
     """A wheel carries the same verified closure, with a fixed workspace-package alias."""
     destination = ROOT / 'forge' / '_sandbox'
     destination.mkdir(parents=True, exist_ok=True)
+    if destination.resolve() != destination:
+        raise ValueError('Generated sandbox bundle must not redirect to another directory')
     files = {}
     for entry in inventory['files']:
         source = ROOT / entry['path']
@@ -110,6 +112,12 @@ def bundle_python(inventory):
     manifest = destination / 'sandbox_bridge/runtime-manifest.json'
     manifest.write_text(json.dumps({**inventory, 'files': [
         {'path': path, 'sha256': value} for path, value in sorted(files.items())]}, indent=2) + '\n', encoding='utf-8')
+    expected = set(files) | {'package-lock.json', 'sandbox_bridge/runtime-manifest.json'}
+    for path in destination.rglob('*'):
+        if not path.resolve().is_relative_to(destination):
+            raise ValueError('Generated sandbox asset redirects outside its owned bundle')
+        if path.is_file() and path.relative_to(destination).as_posix() not in expected:
+            path.unlink()
     print(json.dumps({'scope': 'python-sandbox-bundle', 'files': len(files)}))
 
 
