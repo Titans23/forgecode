@@ -21,9 +21,6 @@ def native_fixture_acl(tmp_path_factory):
     if os.environ.get('FORGE_EXPECT_WHEEL') == '1':
         import forge
         assert 'site-packages' in Path(forge.__file__).parts, forge.__file__
-    if sys.platform == 'win32':
-        from forge.sandbox.windows_worker import grant_controller_access
-        grant_controller_access(tmp_path_factory.getbasetemp())
 
 
 def settings(tmp_path, mode, **kwargs):
@@ -42,6 +39,7 @@ def settings(tmp_path, mode, **kwargs):
 
 
 async def prepared_native(session):
+    await session.backend.probe_process()
     return (await session.backend.prepare_process()).observer.native
 
 
@@ -154,7 +152,7 @@ def test_cli_and_file_policy_work_without_write_owner_but_native_command_fails(t
         receipts = list(options.data_root.glob('native/*/boundary-failure.json'))
         assert len(receipts) == 1
         failure = json.loads(receipts[0].read_bytes())
-        assert failure['exit_code'] == 125 and failure['cleanup']['state'] == 'clean'
+        assert failure['command_started'] is False and failure['cleanup']['state'] == 'clean'
         locator = json.loads(receipts[0].with_name('control-location.json').read_bytes())
         assert locator['state'] == 'clean' and not Path(locator['control_root']).exists()
         assert (options.root / 'existing.txt').read_text() == 'preserve'
@@ -404,14 +402,24 @@ def test_native_cancellation_reconciles_process_tree(tmp_path):
     async def run():
         async with await HarnessSession.open(settings(tmp_path, 'workspace-write')) as session:
             native = await prepared_native(session)
-            command = {'mode': 'argv', 'argv': [str(verify_runtime().node), '-e', 'setInterval(()=>{},1000)'],
+            marker = Path(native.workspace['canonical_path']) / 'descendant-heartbeat'
+            child = "const fs=require('fs');setInterval(()=>fs.appendFileSync('descendant-heartbeat','x'),50)"
+            script = ("require('child_process').spawn(process.execPath,['-e'," + json.dumps(child)
+                      + "],{stdio:'inherit'});setInterval(()=>{},1000)")
+            command = {'mode': 'argv', 'argv': [str(verify_runtime().node), '-e', script],
                 'cwd': native.workspace['canonical_path'], 'environment': {}, 'output_limit_bytes': 1024,
                 'deadline_utc': (datetime.now(timezone.utc) + timedelta(seconds=20)).isoformat().replace('+00:00', 'Z')}
             identity = 'exec-11111111-1111-4111-8111-111111111112'
             await native.execute(identity, command)
-            await asyncio.sleep(0.4)
+            for _ in range(100):
+                if marker.exists(): break
+                await asyncio.sleep(0.05)
+            assert marker.exists(), await native.status(identity)
             result = await native.cancel(identity, 'acceptance', command['deadline_utc'])
             assert result['confirmed'] and result['cleanup']['state'] == 'clean', result
+            size = marker.stat().st_size
+            await asyncio.sleep(0.2)
+            assert marker.stat().st_size == size
         assert session.cleanup['state'] == 'clean'
     asyncio.run(run())
 
@@ -502,28 +510,22 @@ def test_native_public_session_continues_with_structured_events(tmp_path):
 
 @pytest.mark.skipif(sys.platform != 'win32', reason='Windows Python cache/ACL compatibility')
 @pytest.mark.parametrize('mode', ['read-only', 'workspace-write'])
-def test_native_pytest_default_private_cache_preserves_real_failures(tmp_path, mode):
+def test_native_pytest_uses_requested_options_and_preserves_real_failures(tmp_path, mode):
     async def run():
         options = settings(tmp_path, mode)
         (options.root/'test_cache.py').write_text(
             'def test_pass():\n    assert True\ndef test_fail():\n    assert False, "visible real failure"\n')
-        script = '''import pytest, json, os, sys
-from pathlib import Path
-class Audit:
-    @pytest.hookimpl(trylast=True)
-    def pytest_configure(self, config):
-        scope = Path(json.loads(os.environ['FORGE_NATIVE_SCOPE'])['temp']).resolve()
-        assert config.pluginmanager.hasplugin('cacheprovider')
-        assert config.cache._cachedir.resolve().is_relative_to(scope)
-        print('owned pytest cache enabled')
-sys.exit(pytest.main(['-q', 'test_cache.py'], plugins=[Audit()]))
+        script = '''import pytest, os, sys
+assert 'FORGE_NATIVE_SCOPE' not in os.environ
+assert 'PYTEST_ADDOPTS' not in os.environ
+sys.exit(pytest.main(['-q', '--capture=sys', '-p', 'no:cacheprovider', 'test_cache.py']))
 '''
         async with await HarnessSession.open(options) as session:
             result = await session.backend.execute(ToolCall(0,'cache','run_command',
                 {'command':'python -','stdin':script,'timeout_seconds':30}),session.conversation.registry)
             assert not result.success and result.metadata['exit_code']==1, result
             assert not result.metadata['timed_out']
-            assert 'owned pytest cache enabled' in result.content and 'visible real failure' in result.content
+            assert 'visible real failure' in result.content
             assert '1 failed, 1 passed' in result.content
             assert not (options.root/'.pytest_cache').exists()
         assert session.cleanup['state']=='clean'
@@ -531,40 +533,35 @@ sys.exit(pytest.main(['-q', 'test_cache.py'], plugins=[Audit()]))
 
 
 @pytest.mark.parametrize('mode', ['read-only', 'workspace-write'])
-def test_native_python_private_temporary_directory_and_cleanup(tmp_path, mode):
+def test_native_temporary_write_scope_matches_dsh(tmp_path, mode):
     async def run():
         options = settings(tmp_path, mode)
         script = """
 from pathlib import Path
-import tempfile, os, subprocess, sys, json
-with tempfile.TemporaryDirectory() as directory:
-    path = Path(directory)
-    (path / 'nested').mkdir()
-    (path / 'nested/result').write_text('temporary data')
-    assert (path / 'nested/result').read_text() == 'temporary data'
-    if os.name == 'nt':
-        import win32security
-        scope = json.loads(os.environ['FORGE_NATIVE_SCOPE'])
-        acl = win32security.GetFileSecurity(str(path), win32security.DACL_SECURITY_INFORMATION).GetSecurityDescriptorDacl()
-        allowed = {win32security.ConvertSidToStringSid(acl.GetAce(i)[2]) for i in range(acl.GetAceCount()) if acl.GetAce(i)[0][0] == 0}
-        assert scope['tempSid'] in allowed
-        assert not allowed.intersection({'S-1-1-0','S-1-5-11','S-1-5-32-545','S-1-5-4'})
-assert not path.exists()
-subprocess.run([sys.executable, '-I', '-c', 'import tempfile; t=tempfile.TemporaryDirectory(); t.cleanup()'], check=True)
+import os
+path = Path(os.environ['TEMP']) / 'scope-check'
+try:
+    path.mkdir()
+    (path / 'result').write_text('temporary data')
+    (path / 'result').unlink()
+    path.rmdir()
+    print('temp writable')
+except PermissionError:
+    print('temp denied')
 try:
     Path('../escape.txt').write_text('must be denied')
 except OSError:
     pass
 else:
     raise AssertionError('OS write scope was widened')
-print('private temporary directory passed')
 """
         (options.root / 'temp_check.py').write_text(script, encoding='utf-8')
         async with await HarnessSession.open(options) as session:
             for command in ('python temp_check.py', 'python -I temp_check.py'):
                 result = await session.backend.execute(ToolCall(0, 'temp', 'run_command',
                     {'command': command, 'timeout_seconds': 15}), session.conversation.registry)
-                assert result.success and 'private temporary directory passed' in result.content, result
+                assert result.success, result
+                assert ('temp writable' if mode == 'workspace-write' else 'temp denied') in result.content
             native = await prepared_native(session)
         assert session.cleanup['state'] == 'clean'
         assert not list(native.control_root.glob('temp-*'))

@@ -97,23 +97,24 @@ def system_diagnosis():
         runtime_info = {'status': 'blocked', 'reason': str(error)}
     windows_status = {'status': 'not_applicable'}
     if sys.platform == 'linux' and runtime_info['status'] == 'pass':
-        for name, key in [('git', 'git'), ('rg', 'ripgrep')]:
-            tool = runtime.tools[key]
-            tools[name] = {'status': 'pass', 'path': str(tool), 'sha256': sha256(tool.read_bytes()).hexdigest(),
-                           'source': 'installed-runtime-tool'}
+        for name in ('git', 'rg'):
+            tool = runtime.tools.get(name)
+            tools[name] = ({'status': 'pass', 'path': str(tool), 'sha256': sha256(tool.read_bytes()).hexdigest(),
+                           'source': 'installed-runtime-tool'} if tool else
+                           {'status': 'blocked', 'reason': 'Optional host tool is unavailable'})
     if sys.platform == 'win32' and runtime_info['status'] == 'pass':
         windows_status = windows_status_diagnosis(runtime)
         with tempfile.TemporaryDirectory(prefix='forge-win-tools-') as directory:
             environment = bridge_environment(Path(directory))
-        for name, key in [('pwsh', 'powershell'), ('git', 'git'), ('rg', 'ripgrep')]:
+        for name, key in [('pwsh', 'powershell'), ('git', 'git'), ('rg', 'rg')]:
             tool = runtime.tools.get(key)
             tools[name] = ({'status': 'pass', 'path': str(tool), 'sha256': sha256(tool.read_bytes()).hexdigest()}
                            if tool else {'status': 'blocked', 'reason': 'Installed host tool is unavailable'})
         host['system_volume'] = windows_volume(Path(environment['SystemRoot']))
     from forge.release.toolchains import discover_toolchains
     project_tools=discover_toolchains()
-    capabilities = unavailable_report(backend_version='unprobed', reason='Workspace boundary verification runs at session initialization').value
-    capabilities['backend'] = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap' if sys.platform == 'linux' else 'unsupported'
+    capabilities = unavailable_report(backend_version='unprobed', reason='DSH confinement is applied when a command executes; no project ACL probe was run').value
+    capabilities['backend'] = 'dsh-local' if sys.platform in ('win32', 'linux') else 'unsupported'
     return {'schema_version': 'forge.sandbox.diagnosis.v1', 'status': 'blocked', 'read_only': True,
         'host': host, 'tools': tools, 'project_toolchains':project_tools, 'system_policy': system_policy, 'kernel_probe': kernel_probe, 'runtime': runtime_info,
         'windows_status': windows_status,
@@ -121,9 +122,9 @@ def system_diagnosis():
         'active_sessions': {'state': 'not_observed', 'count': None}, 'cleanup': {'state': 'not_observed'},
         'workspace_tools_executed': False, 'automatic_repair': False,
         'repair_steps': (['Prepare Node 22+, PowerShell 7, Git, ripgrep and an NTFS workspace.',
-            'Start forge --sandbox workspace-write in the selected project to run the native boundary probe.']
-            if sys.platform == 'win32' else ['Prepare Node 22+, Git, ripgrep and bubblewrap.',
-            'Use a host that permits unprivileged user namespaces; initialization failure refuses execution.'])}
+            'DSH applies ACL grants at command execution; opening the CLI does not test or repair project ACLs.']
+            if sys.platform == 'win32' else ['Prepare Node 22.13+; DSH selects bubblewrap or Landlock.',
+            'Confinement unavailable at execution time refuses that command without host fallback.'])}
 
 
 async def workspace_diagnosis(path):

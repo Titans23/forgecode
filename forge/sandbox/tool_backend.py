@@ -65,7 +65,9 @@ class FileToolBackend:
                 return replace(result, metadata={**result.metadata, 'execution_boundary':
                     'srt-file-worker' if self.mode == 'strict' else self.mode + '-file-worker'})
             except ContractError as error:
-                return ToolResult.fail(error.kind, str(error), metadata={'execution_boundary': self.mode + '-file-worker'})
+                return ToolResult.fail(error.kind, str(error),
+                    details={'command_started': False} if error.kind == 'SANDBOX_UNAVAILABLE' else None,
+                    metadata={'execution_boundary': self.mode + '-file-worker'})
         # These tools mutate trusted task state or dispatch Explore with this same
         # backend. Hooks/MCP/skill extensions cannot inherit a sandbox label.
         safe_control = {'finish_task', 'review_delivery', 'load_skill', 'read_skill_resource',

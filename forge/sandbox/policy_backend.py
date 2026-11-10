@@ -72,6 +72,11 @@ class PolicyToolBackend(FileToolBackend):
                 'execution_boundary': self.mode + '-file-policy', 'sandbox_covered': False})
         return result
 
+    async def probe_process(self):
+        """Evaluators explicitly request OS evidence before spending model budget."""
+        backend = await self.prepare_process()
+        return await backend.observer.native.probe()
+
     async def execute_approved(self, call, registry, mode):
         """Called only by ToolExecutor after an exact, one-call widening approval."""
         if self._closing is not None:

@@ -35,6 +35,7 @@ def test_native_long_temp_path_keeps_write_boundary_and_cleans_up(tmp_path, mode
 
     async def exercise():
         async with await HarnessSession.open(options) as session:
+            await session.backend.probe_process()
             native = (await session.backend.prepare_process()).observer.native
             boundary = json.loads((native.control_root / 'boundary.json').read_text())
             assert boundary['cleanup']['state'] == 'clean'
@@ -44,9 +45,11 @@ def test_native_long_temp_path_keeps_write_boundary_and_cleans_up(tmp_path, mode
             temp = native.control_root / ('temp-exec-' + str(uuid4()))
             assert len(str(temp)) < 260
             assert len(str(native.diagnostic_root / temp.name)) > 260
-            script = ("const fs=require('fs'),p=require('path');"
+            script = ("const fs=require('fs'),p=require('path');let writable=false;try{"
                       "const t=fs.mkdtempSync(p.toNamespacedPath(p.join(process.env.TEMP,'child-')));"
-                      "fs.writeFileSync(p.join(t,'inside.txt'),'scratch');"
+                      "fs.writeFileSync(p.join(t,'inside.txt'),'scratch');writable=true}catch{}"
+                      + f"if(writable!=={str(mode == 'workspace-write').lower()})process.exit(4);"
+                      +
                       "let denied=false;try{fs.writeFileSync(process.argv[1],'escape')}catch{denied=true}"
                       "if(!denied)process.exit(3);console.log('scratch-ok-outside-denied');")
             identity = 'exec-' + str(uuid4())
@@ -107,6 +110,9 @@ def test_native_short_runtime_sessions_cancel_independently(tmp_path):
                 assert cancelled['confirmed'] and cancelled['cleanup']['state'] == 'clean'
                 assert (await first.close())['state'] == 'clean'
                 assert not one.control_root.exists()
+                assert two.control_root.exists()
+                assert not two._executions  # Closing another session never probes or changes this one.
+                await second.backend.probe_process()
                 assert (two.control_root / 'boundary.json').exists()
             assert second.cleanup['state'] == 'clean'
             assert not two.control_root.exists()

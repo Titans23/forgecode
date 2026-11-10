@@ -49,7 +49,7 @@ def test_code_inventory_checks_all_bytes_without_host_tool_admission(monkeypatch
     root = Path(__file__).resolve().parents[3]
     monkeypatch.setattr(shutil, 'which', lambda name: pytest.fail('Code verification must not discover host tools'))
     entry, manifest_hash = verify_code_inventory(root)
-    assert entry.is_absolute() and entry.name == 'workspace-runner.js'
+    assert entry.is_absolute() and entry.name == 'native-session.js'
     assert manifest_hash
 
 
@@ -69,15 +69,13 @@ def test_tool_discovery_preserves_failure_without_loading_launcher(monkeypatch):
     assert rejected.value.code == -32010
 
 
-def test_runtime_still_refuses_missing_host_tool_after_code_verification(monkeypatch):
+def test_runtime_does_not_require_unrelated_host_tools(monkeypatch):
     import forge.release.toolchains as tools
     root = Path(__file__).resolve().parents[3]
     def missing(name):
         raise ContractError('required host tool unavailable', kind='SANDBOX_UNAVAILABLE')
     monkeypatch.setattr(tools, 'core_tool', missing)
-    with pytest.raises(ContractError, match='required host tool unavailable') as rejected:
-        verify_runtime(root)
-    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
+    assert verify_runtime(root).entry.name == 'native-session.js'
 
 
 @pytest.fixture
@@ -100,8 +98,6 @@ def available_host_tools(tmp_path, monkeypatch):
 @pytest.mark.parametrize('platform', ['win32', 'linux'])
 @pytest.mark.parametrize('tool,message', [
     ('node', 'Node 22.13 or newer is required'),
-    ('git', 'git is required on PATH'),
-    ('rg', 'rg is required on PATH'),
 ])
 def test_missing_runtime_tool_reports_the_actual_prerequisite(monkeypatch, available_host_tools, platform, tool, message):
     import forge.sandbox.launcher as launcher
@@ -112,16 +108,14 @@ def test_missing_runtime_tool_reports_the_actual_prerequisite(monkeypatch, avail
     assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
 
 
-def test_missing_windows_powershell_reports_the_install_requirement(monkeypatch, available_host_tools):
+def test_missing_windows_powershell_does_not_block_argv_commands(monkeypatch, available_host_tools):
     import forge.sandbox.launcher as launcher
     monkeypatch.setattr(launcher, 'sys', SimpleNamespace(platform='win32'))
     del available_host_tools['pwsh']
-    with pytest.raises(ContractError, match='PowerShell 7 is required') as rejected:
-        verify_runtime()
-    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
+    assert 'powershell' not in verify_runtime().tools
 
 
-def test_missing_linux_system_bubblewrap_reports_the_install_requirement(monkeypatch, available_host_tools):
+def test_missing_linux_bubblewrap_leaves_runner_selection_to_dsh(monkeypatch, available_host_tools):
     import forge.sandbox.launcher as launcher
     original_resolve = Path.resolve
     def resolve(path, *args, **kwargs):
@@ -130,6 +124,4 @@ def test_missing_linux_system_bubblewrap_reports_the_install_requirement(monkeyp
         return original_resolve(path, *args, **kwargs)
     monkeypatch.setattr(launcher, 'sys', SimpleNamespace(platform='linux'))
     monkeypatch.setattr(Path, 'resolve', resolve)
-    with pytest.raises(ContractError, match='system bubblewrap package') as rejected:
-        verify_runtime()
-    assert rejected.value.kind == 'SANDBOX_UNAVAILABLE'
+    assert 'bubblewrap' not in verify_runtime().tools

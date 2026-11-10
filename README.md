@@ -14,7 +14,7 @@ ForgeCode 自有代码采用 [MIT](LICENSE)；[第三方声明](THIRD_PARTY_NOTI
 
 当前展示主线是可运行、可验证的 Harness：模型调用 → 授权工具执行 → 验证门禁 → Journal 状态重建；评测另用独立 grader 判分，并用冻结任务报告完成率、失败类型、耗时和 token。共享预算、验证证据与副作用生命周期的调用链见 [当前架构](docs/implementation/architecture.md#4-核心调用链与证明边界)，现有证据及范围见 [T01](docs/implementation/tasks/T01.md) 和 [当前进展](docs/implementation/progress.json)。
 
-Windows 底层写限制复用 DSH，Linux 复用 bubblewrap；ForgeCode 层负责策略接入、执行所有权、验证与生命周期。当前 OS 读取、网络和硬资源隔离尚不完整，能力为 partial，不能表述为自研完整 OS 沙盒。完整强隔离不再是当前求职展示的前置条件；日常运行保持无 Docker 依赖。
+Windows/Linux 底层写限制及子进程范围复用 DSH 发布的 sandbox-local/subprocess-local；Linux 由 DSH 选择 bubblewrap 或 Landlock。ForgeCode 负责工具协议、会话、预算和验证。当前 OS 读取、网络和硬资源隔离尚不完整，能力为 partial，不能表述为自研完整 OS 沙盒；日常运行无 Docker 依赖。
 
 目录职责与开发入口见 [当前文档](docs/README.md)；虚拟环境、依赖、构建和测试产物不属于源码。
 
@@ -34,7 +34,7 @@ npm run setup
 
 `npm run setup` 自动准备 uv 和 Python，按锁文件安装构建依赖、编译沙盒、生成 Python wheel 和 npm 包，再安装全局 `forge`。运行时所需的 Git、ripgrep 和 Windows PowerShell 7 也会自动准备，下载校验 SHA-256；直接复用已有 Node。无需手动执行 `uv sync`、`npm ci` 或构建脚本，安装过程不调用模型。构建日志位于 `dist/package-build.log`。Windows x64/NTFS 启动不需要 WSL 或 Docker。
 
-Windows 和 Ubuntu x64 使用同一安装命令，在本机构建对应平台的包。安装与原生沙盒已在 Windows 10 和 WSL2 Ubuntu 26.04 上验证；Ubuntu 22.04 / 24.04 的原生验收仍待完成。Linux 选择原生沙盒提供方时还需要系统 Git、bubblewrap 和可用的 user namespace。
+Windows 和 Ubuntu x64 使用同一安装命令，在本机构建对应平台的包。历史安装与原生验收覆盖 Windows 10 和 WSL2 Ubuntu 26.04；当前 DSH 会话适配的原生验证范围见 progress.json。Linux 需具备可用的 bubblewrap/user namespace 或 Landlock；macOS 尚未接入 Forge 的控制进程所有权层。
 
 以后更新时，在这个源码目录执行：
 
@@ -81,9 +81,9 @@ forge
 
 将示例路径替换为实际项目目录。`forge config` 检查配置，不回显密钥；`forge` 启动持续对话。ForgeCode 安装目录与目标项目分开，避免安装目录保护导致沙盒初始化被拒绝。
 
-默认 workspace-write 按 DSH 的方式区分文件策略和进程隔离：启动、读取及文件编辑不申请原生 ACL；文件工具解析实际目标，写入限于工作区和平台临时目录，不再按 `.env` 等名称额外拒绝访问。符号链接和 Windows Junction 不会单独阻止启动。运行命令、验证或 Git 工具时才准备原生沙盒；安装目录与工作区重叠时仍拒绝原生命令。
+默认 workspace-write 按 DSH 的方式区分文件策略和进程隔离：启动、读取及文件编辑不申请原生 ACL；文件工具解析实际目标，写入限于工作区和平台临时目录，不再按 `.env` 等名称额外拒绝访问。符号链接和 Windows Junction 不会单独阻止启动。运行命令、验证或 Git 工具时由 DSH 施加原生边界，不再执行 Forge 的前置写入探针，也不因安装目录与工作区重叠而额外拒绝。
 
-遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。npm 安装会自动提供其管理的工具；Ubuntu 需检查系统 bubblewrap 和 user namespace，源码安装需检查构建文件。只读诊断在原生进程尚未准备时可为 `blocked`；成功打开 CLI 不代表 OS 隔离已经验证。
+遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。源码安装需检查构建文件，Linux 由 DSH 检测可用 runner。只读诊断可为 `blocked`；成功打开 CLI 不代表 OS 隔离已经验证。缺少 Git、rg 或 PowerShell 只影响需要它们的工具，不阻止其他命令。
 
 Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时拒绝该进程调用，保留会话和文件策略。命令、verify 和文件修改工具可通过 `sandbox_permissions` 和 `justification` 请求单次更宽权限。`--approval ask` 是默认审批策略，仅扩大范围或显式策略要求时询问；`never` 拒绝需要审批的请求。批准的 `danger-full-access` 操作使用宿主权限，下一次操作仍使用默认沙盒。没有自动切换或重试，也不会自动修复项目 ACL。
 

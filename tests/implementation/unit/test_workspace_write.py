@@ -49,7 +49,6 @@ def test_initialization_failure_cannot_admit_execution_or_fallback(tmp_path,monk
     policy,backend=fixture(tmp_path)
     def unavailable(*args):raise ContractError('owned fixture missing runtime',kind='SANDBOX_UNAVAILABLE')
     monkeypatch.setattr(module,'verify_runtime',unavailable)
-    monkeypatch.setattr(module,'windows_supported',lambda: True)  # Test missing runtime separately from OS admission.
     async def run():
         with pytest.raises(ContractError,match='missing runtime'):await backend.prepare(policy)
         assert backend._prepared is None and not backend._executions
@@ -76,20 +75,25 @@ def test_probe_failure_exposes_cause_without_admitting_or_falling_back(
     if mode == 'read-only':
         policy['filesystem']['write_roots'] = []
     monkeypatch.setattr(module, 'sys', SimpleNamespace(platform='win32'))
-    monkeypatch.setattr(module, 'windows_supported', lambda: True)
     monkeypatch.setattr(module, 'verify_runtime', lambda root: SimpleNamespace(
         root=tmp_path / 'installation', node=tmp_path / 'node', entry=tmp_path / 'runner', tools={}))
     monkeypatch.setattr(worker, 'grant_controller_access', lambda directory: None)
-    monkeypatch.setattr(worker, 'prepare_python_runtime', lambda directory: None)
+    from forge.sandbox.dsh_session import DshSession
+    async def start(self): pass
+    async def close(self): return {'state': 'clean'}
+    monkeypatch.setattr(DshSession, 'start', start)
+    monkeypatch.setattr(DshSession, 'close', close)
     async def failed_probe(entry):
         entry.update(exit_code=125, error=execution_error, cleanup=backend._report('clean'))
         entry['captured'] = {'stdout': proof, 'stderr': stderr.encode()}
     monkeypatch.setattr(backend, '_run', failed_probe)
     async def run():
+        await backend.prepare(policy)
+        assert not backend._executions
         with pytest.raises(ContractError) as caught:
-            await backend.prepare(policy)
+            await backend.probe()
         error = caught.value
-        assert error.kind == 'SANDBOX_UNAVAILABLE' and backend._prepared is None
+        assert error.kind == 'SANDBOX_UNAVAILABLE'
         assert f'Native {mode} probe failed' in str(error)
         assert ('WRITE_OWNER' in str(error)) == hint
         assert str(backend.control_root) in str(error)
@@ -100,9 +104,6 @@ def test_probe_failure_exposes_cause_without_admitting_or_falling_back(
         assert failure['stderr'] == stderr and failure['error'] == execution_error
         if execution_error:
             assert execution_error in str(error)
-        command = next(iter(backend._executions.values()))['command']
-        with pytest.raises(ContractError, match='No admitted native workspace session'):
-            await backend.execute(new_id('exec'), command)
         assert (await backend.close())['state'] == 'clean'
     asyncio.run(run())
 
@@ -125,11 +126,10 @@ def test_official_executor_refuses_both_non_strict_modes_before_model_access():
         assert issues[0]['kind']=='protocol_incompatible'
 
 
-def test_unsupported_windows_host_refuses_before_runtime_or_processes(tmp_path, monkeypatch):
+def test_unwired_platform_refuses_before_runtime_or_processes(tmp_path, monkeypatch):
     import forge.sandbox.workspace_backend as module
     policy,backend=fixture(tmp_path)
-    monkeypatch.setattr(module,'sys',SimpleNamespace(platform='win32'))
-    monkeypatch.setattr(module,'windows_supported',lambda: False)
+    monkeypatch.setattr(module,'sys',SimpleNamespace(platform='unsupported'))
     async def run():
         with pytest.raises(ContractError) as caught:
             await backend.prepare(policy)
@@ -139,62 +139,47 @@ def test_unsupported_windows_host_refuses_before_runtime_or_processes(tmp_path, 
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('fault', ['temp-delete', 'temp-revoke'])
-def test_failed_resource_reconciliation_remains_unknown(tmp_path, monkeypatch, fault):
+def test_failed_dsh_resource_reconciliation_remains_unknown(tmp_path):
     """Fault injection exercises reporting only, never establishes native capability."""
     from datetime import datetime, timedelta, timezone
-    import forge.sandbox.workspace_backend as module
     _, backend = fixture(tmp_path)
     backend.control_root.mkdir()
-    backend.runtime = SimpleNamespace(node=Path('/fixed/node'), tools={'powershell':Path('/fixed/pwsh'), 'git':Path('/fixed/git'), 'ripgrep':Path('/fixed/rg')})
-    backend.runner = Path('/fixed/runner')
-    async def failed_start(*args, **kwargs):
-        raise OSError('injected launch failure')
-    monkeypatch.setattr(module.LocalProcessOwner, 'start', failed_start)
-    async def failed_revoke(temp):
-        raise OSError('injected ACL revoke failure')
-    async def no_revoke(temp):
-        pass
-    if fault == 'temp-revoke':
-        monkeypatch.setattr(module, 'sys', SimpleNamespace(platform='win32'))
-        import forge.sandbox.windows_worker as worker
-        monkeypatch.setattr(worker, 'grant_controller_access', lambda directory: None)
-        monkeypatch.setattr(backend, '_revoke_temp', failed_revoke)
-    else:
-        monkeypatch.setattr(backend, '_revoke_temp', no_revoke)
-        def failed_delete(*args): raise OSError('injected resource inspection/delete failure')
-        monkeypatch.setattr(module.shutil, 'rmtree', failed_delete)
+    class FailedController:
+        async def execute(self, *args): raise OSError('injected launch failure')
+        async def cancel(self, *args): return {'state': 'unknown'}
+        async def close(self): return {'state': 'unknown'}
+    backend._controller = FailedController()
     async def run():
         entry = backend._accept(new_id('exec'), {'deadline_utc':(datetime.now(timezone.utc)+timedelta(seconds=5)).isoformat(),
             'output_limit_bytes':128}, publish=False)
         await entry['task']
         assert entry['cleanup']['state']=='unknown' and entry['cleanup']['completed_at_utc'] is None
-        assert list(backend.control_root.glob('temp-exec-*'))
+        assert backend.control_root.exists()
         assert (await backend.close())['state']=='unknown'
     asyncio.run(run())
 
 
-def test_partial_python_runtime_preparation_is_owned_and_cleaned(tmp_path, monkeypatch):
+def test_partial_dsh_controller_preparation_is_owned_and_cleaned(tmp_path, monkeypatch):
     import forge.sandbox.workspace_backend as module
     import forge.sandbox.windows_worker as worker
     policy, backend = fixture(tmp_path)
     monkeypatch.setattr(module, 'sys', SimpleNamespace(platform='win32'))
-    monkeypatch.setattr(module, 'windows_supported', lambda: True)
     monkeypatch.setattr(module, 'verify_runtime', lambda root: SimpleNamespace(
         root=tmp_path / 'installation', node=tmp_path / 'node', entry=tmp_path / 'runner', tools={}))
     monkeypatch.setattr(worker, 'grant_controller_access', lambda directory: None)
-    def partial(control):
-        root = control / 'python-runtime'
-        root.mkdir()
-        (root / 'partial').write_text('partial preparation')
-        raise OSError('injected venv failure')
-    monkeypatch.setattr(worker, 'prepare_python_runtime', partial)
+    from forge.sandbox.dsh_session import DshSession
+    closed = []
+    async def partial(self): raise OSError('injected controller failure')
+    async def close(self):
+        closed.append(self)
+        return {'state': 'clean'}
+    monkeypatch.setattr(DshSession, 'start', partial)
+    monkeypatch.setattr(DshSession, 'close', close)
     async def run():
-        with pytest.raises(OSError, match='venv failure'):
+        with pytest.raises(OSError, match='controller failure'):
             await backend.prepare(policy)
-        assert (backend.control_root / 'python-runtime').exists()
         assert (await backend.close())['state'] == 'clean'
-        assert not (backend.control_root / 'python-runtime').exists()
+        assert closed == [backend._controller]
         assert backend.control_root.exists()
     asyncio.run(run())
 
@@ -228,7 +213,7 @@ def test_burst_output_serves_active_consumer_without_relaxing_bounded_limits(
     import base64
     _, backend = fixture(tmp_path)
     backend._policy = SimpleNamespace(value={'limits': {'session_artifact_bytes': session_limit}})
-    payload = bytes(range(256)) * 512
+    payload = bytes(range(256)) * 1024
     class BufferedReader:
         position = 0
         async def read(self, size):
@@ -245,7 +230,9 @@ def test_burst_output_serves_active_consumer_without_relaxing_bounded_limits(
                 if consume == 'slow':
                     await asyncio.sleep(0.002)
         consumer = asyncio.create_task(collect()) if consume else None
-        await backend._read(entry, 'stdout', BufferedReader())
+        reader = BufferedReader()
+        while raw := await reader.read(16384):
+            await backend._output(entry, 'stdout', raw)
         assert backend.outputs.qsize() <= backend.outputs.maxsize == 8
         if consumer is not None:
             await backend.outputs.put(None)

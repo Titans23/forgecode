@@ -63,7 +63,7 @@ def test_windows_fixture_only_adds_inherited_controller_access_to_a_fresh_owned_
 def test_actual_read_only_system_diagnosis_never_installs_or_claims_verified():
     report = system_diagnosis()
     assert report['read_only'] is True
-    required_tools = ['node', 'git', 'rg'] + (['pwsh'] if sys.platform == 'win32' else [])
+    required_tools = ['node']
     missing = [name for name in required_tools if shutil.which(name) is None]
     assert report['runtime']['status'] == ('blocked' if missing else 'pass')
     if missing:
@@ -82,7 +82,8 @@ def test_missing_ripgrep_reports_blocked_without_automatic_repair(monkeypatch):
     original = shutil.which
     monkeypatch.setattr(shutil, 'which', lambda name: None if name == 'rg' else original(name))
     report = system_diagnosis()
-    assert report['runtime']['status'] == 'blocked' and report['runtime']['reason']
+    assert report['runtime']['status'] == 'pass'
+    assert report['tools']['rg']['status'] == 'blocked'
     assert report['automatic_repair'] is False and report['read_only'] is True
     assert not report['workspace_tools_executed']
     assert all(value['status'] != 'verified' for value in report['capabilities']['verification'].values())

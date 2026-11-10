@@ -59,7 +59,7 @@ class FileWorkerClient:
                     executable = shutil.which(name)
                     if executable:
                         directories.append(str(Path(executable).resolve().parent))
-                environment['PATH'] = os.pathsep.join([*dict.fromkeys(directories), environment['PATH']])
+                environment['PATH'] = os.pathsep.join([*dict.fromkeys(directories), os.environ.get('PATH', environment['PATH'])])
                 owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
                     environment=environment, output=True)
                 child = owner.process
@@ -136,6 +136,12 @@ class FileWorkerClient:
                         collector.result()
                     status = await native.status(execution_id)
                     if status['state'] in ('finished', 'indeterminate'):
+                        if status.get('runner_failed'):
+                            detail = str(status.get('error') or 'Confinement runner failed')
+                            if 'SetNamedSecurityInfoW' in detail and 'grantWrite' in detail:
+                                detail += '\nDSH workspace grants require directory ownership and WRITE_OWNER.'
+                            raise ContractError('DSH sandbox unavailable; command not started. ' + detail,
+                                                kind='SANDBOX_UNAVAILABLE')
                         if status['state'] != 'finished' or status['discarded_bytes'] or status['exit_code'] not in (0, 2):
                             raise ContractError('File helper execution is unconfirmed; do not replay', kind='INDETERMINATE', code=-32010)
                         await asyncio.wait_for(finished.wait(), 1)

@@ -97,7 +97,7 @@ npm run setup
 
 命令自动准备 uv、Python，按锁文件安装 Node 构建依赖、编译沙盒、构建并校验 wheel/npm 包，再全局安装 `forge`。构建日志保存在 `dist/package-build.log`。包安装器继续自动校验并准备运行时工具，直接复用已有 Node。用户配置保存在安装包之外，升级不会清空旧包正在使用的 Python 环境。Windows x64/NTFS 原生沙盒不需要 WSL 或 Docker。
 
-安装与原生沙盒已在 Windows 10 和 WSL2 Ubuntu 26.04（ext4 工作区）上验证；Ubuntu 22.04 / 24.04 仍待原生验证。Linux 需要系统 Git、bubblewrap 和可用的非特权 user namespace。安装器不会执行 sudo、关闭系统保护策略或在沙盒失败后自动切换为 full-access。
+历史安装与原生验收覆盖 Windows 10 和 WSL2 Ubuntu 26.04（ext4 工作区）；当前 DSH 会话适配的验证范围见 progress.json。Linux 由 DSH 选择 bubblewrap/user namespace 或 Landlock。安装器不会执行 sudo、关闭系统保护策略或在沙盒失败后自动切换为 full-access；macOS 控制进程所有权层尚未接入。
 
 更新时在源码目录执行 `git pull --ff-only`，再执行 `npm run setup`。开发包尚未发布到 npm registry；该命令直接安装 `dist` 中本机生成的包，不需要手动下载 `.tgz`。安装仓库与目标项目分开，在目标项目运行 `forge`。
 
@@ -177,7 +177,7 @@ forge --sandbox workspace-write --approval plan
 
 默认 `workspace-write` 文件策略允许所选项目和平台临时目录写入；指定 `--write-root` 后使用列出的既有子目录。`read-only` 拒绝文件修改，命令仍可在原生只读边界中运行。`danger-full-access`（兼容原名 `full-access`）显式使用宿主执行，文件工具与命令均不受工作区写入围栏限制。默认审批策略为 `ask`：普通操作由沙盒范围决定，扩大权限及显式工具/用户规则才请求审批；`never` 自动拒绝需要审批的请求。`supervised/auto/plan` 保留旧调用兼容；它们不是 DSH 的 Auto review 插件，后者没有在本次文件授权改动中引入。
 
-内置提供方采用 DSH 的文件/进程分离机制：启动和普通文件操作使用可信 helper 的路径策略，不申请工作区 ACL；运行命令、verify 或可能加载仓库辅助程序的 Git 工具时，才初始化原生进程沙盒。准备失败作为该工具调用的错误返回，会话和文件操作仍可继续，命令不会自动回退到宿主；修正原生环境后需重新打开会话。文件策略不是 OS 隔离，结果标记为 `*-file-policy`；需要执行测试的评测会在模型请求前显式预检进程沙盒。
+内置提供方采用 DSH 的文件/进程分离机制：启动和普通文件操作使用可信 helper 的路径策略，不申请工作区 ACL；命令、verify 或 Git 工具交给发布的 DSH sandbox-local/subprocess-local。普通执行不再先跑 Forge 写入探针。实际 confinement 失败作为该调用的错误返回，会话和文件操作仍可继续，命令不自动回退宿主。文件策略不是 OS 隔离，结果标记为 `*-file-policy`；评测在模型请求前显式预检进程沙盒。
 
 命令、verify 和文件修改工具共享 DSH 式单次授权：在真实沙盒拒绝或初始化失败后，模型可为同一操作设置 `sandbox_permissions: "danger-full-access"` 和非空 `justification`。审批展示完整参数与理由，明确本次不受工作区沙盒限制；只有“仅允许这一次”或拒绝，不保存为会话/项目规则。文件修改的快照与执行使用同一个临时后端；授权不会进入下一次调用或已保存的 verify 定义。`read-only` 也可请求单次 `workspace-write`。显式禁止规则、任务约束和外部工具自带策略继续生效；普通内置工具不再按凭据文件名或命令关键字自动拒绝。无审批通道或选择 `never` 时拒绝扩大权限。结果记录实际 `execution_mode`、`sandbox_override: "allow_once"` 及清理状态；宿主执行不标为 OS 隔离。
 
@@ -191,13 +191,13 @@ forge --sandbox workspace-write --approval plan
 
 在 `full-access` 下启用 Hooks 时，Hook 结束或取消会清理它启动的后台子进程。命令应使用明确的解释器和参数：PATH、普通环境变量及 `FORGE_HOOK_*` 保留，凭据与 `PYTHONPATH`、`NODE_OPTIONS` 等加载器变量会被清除。stdout 与 stderr 合计超过 1 MB 或无法确认清理完成时，Hook 报错；阻断类 Hook 会拒绝后续操作。
 
-Windows 沙盒命令中的 `python` 通过会话级小型虚拟环境复用本机解释器和依赖，使默认临时目录继承已隔离的私有 ACL；会话退出后清理该环境。普通启动、`python -I` 及其 Python 子进程支持此适配。显式 `-S`、其他绝对路径解释器或在私有临时范围之外创建 `0700` 目录不经过适配，仍可能受 [CPython 的 Windows 受限令牌兼容问题](https://github.com/python/cpython/issues/134587)影响。
+Windows workspace-write 的私有临时目录由 DSH 按会话持有；read-only 不额外授予临时写权限。进程范围退出后才撤销临时授权。工作区 standing ACL grant 遵循 DSH 的保留语义，运行原生命令仍可能写入项目 ACL 和低完整性标签。
 
-Windows 原生 Python 命令的 pytest 缓存默认放入本次执行的私有临时目录，cacheprovider 保持启用；不修改全局配置，显式 `PYTEST_ADDOPTS` 和命令行选项按 pytest 的既有优先级覆盖。缓存随执行清理，不承诺跨命令的 `--lf` 或缓存持久化。
+命令使用原解释器；Forge 不再创建私有 venv、修改 Python mkdir 或注入 pytest 缓存选项。[CPython Windows 受限令牌兼容问题](https://github.com/python/cpython/issues/134587)仍可能影响 0700 目录和默认缓存，需要命令本身选择适当配置。
 
-文件工具按所选模式校验实际目标，并保留凭据、安装和控制目录保护。当前 OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程、Linux 动态硬链接等限制仍存在，能力记录为 partial。首次进程准入使用真实边界探针，失败拒绝该命令；未运行探针不标记 OS 隔离已验证。强隔离的正式评测要求不能由此替代。
+文件工具按所选模式校验实际目标，明确配置的拒绝规则继续生效；不再生成凭据文件名或安装路径黑名单。OS 沙盒主要限制写入，读取及网络继承宿主；Windows ambient ACL、硬链接和 Node 管道子进程等限制仍存在，能力保守记录为 partial。未运行显式探针不标记 OS 隔离已验证。强隔离评测要求不能由此替代。
 
-`forge sandbox --json` 是只读环境诊断，原生进程尚未准备时会报告未验证/blocked；实际沙盒证明在首次进程准入时产生。
+`forge sandbox --json` 是只读环境诊断，可报告未验证/blocked；不会触发项目 ACL 探针或自动修复。
 
 若运行命令时报 `SetNamedSecurityInfoW failed (Win32 5): grantWrite(...)`，是 Windows 拒绝 DSH 设置目录 ACL 与低完整性标签。目录可编辑不代表能设置进程沙盒：DSH 还要求目录归当前用户所有且授予 `WRITE_OWNER`；仅有 Modify 或所有者隐含的 `WRITE_DAC` 不足。错误会保留后端原因和诊断目录，详细记录为 `boundary-failure.json`。默认 CLI 的启动和文件操作无需这项授权；原生命令仍需满足权限条件。不修改目录权限时，可以批准上面的单次 `danger-full-access` 请求继续执行该命令；也可显式选择 `forge --sandbox full-access --approval supervised` 让整个会话使用宿主执行。两者都不代表修复了原生 ACL 隔离，也不会自动切换。
 

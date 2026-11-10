@@ -641,7 +641,8 @@ class TurnRunner:
             return ToolResult.fail('scoped_instructions_required',
                 'New or changed repository instructions apply to this target. '
                 'Read the updated repository instructions in the next request before retrying.')
-        if self.read_only and c.registry.effect(call.name) != 'read_only':
+        if (self.read_only and c.permission_manager.execution_mode is None
+                and c.registry.effect(call.name) != 'read_only'):
             return ToolResult.fail('read_only_intent', 'The current user turn only authorizes inspection.')
         if c.registry.effect(call.name) != 'workspace_write':
             return None

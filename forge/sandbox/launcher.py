@@ -56,7 +56,7 @@ def verify_code_inventory(root: Path = ROOT) -> tuple[Path, str]:
         if sha256((root / 'package-lock.json').read_bytes()).hexdigest() != inventory.get('package_lock_sha256'):
             unavailable('Sandbox dependency lock differs; rebuild the sandbox')
         paths = {entry['path']: verify_asset(root, entry) for entry in inventory['files']}
-        entry = paths['sandbox_bridge/dist/workspace-runner.js']
+        entry = paths['sandbox_bridge/dist/native-session.js']
         if 'sandbox_bridge/dist/dispatcher.js' not in paths or 'packages/contracts/dist/index.js' not in paths:
             unavailable('Sandbox code inventory is incomplete')
         return entry, sha256(manifest_path.read_bytes()).hexdigest()
@@ -79,23 +79,11 @@ def verify_runtime(root: Path = ROOT) -> TrustedRuntime:
             **({'creationflags': subprocess.CREATE_NO_WINDOW} if sys.platform == 'win32' else {}))
         if version.returncode or tuple(map(int, version.stdout.strip().lstrip('v').split('.'))) < (22, 13, 0):
             unavailable('Node 22.13 or newer is required for the native sandbox')
-        from forge.release.toolchains import core_tool
-        tools = {'git': core_tool('git'), 'ripgrep': core_tool('rg')}
-        if sys.platform == 'win32':
-            shell = shutil.which('pwsh')
-            if not shell:
-                unavailable('PowerShell 7 is required for Windows commands')
-            tools['powershell'] = Path(shell).resolve(strict=True)
-        elif sys.platform == 'linux':
-            binary = Path('/usr/bin/bwrap')
-            try:
-                binary = binary.resolve(strict=True)
-                info = binary.stat()
-            except OSError:
-                unavailable('Ubuntu native sandbox requires the system bubblewrap package (/usr/bin/bwrap)')
-            if not binary.is_file() or info.st_uid != 0 or info.st_mode & 0o022:
-                unavailable('The system bubblewrap executable must be root-owned and not writable by other users')
-            tools['bubblewrap'] = binary
+        tools = {}
+        for name, executable in (('git', 'git'), ('rg', 'rg'), ('powershell', 'pwsh'), ('bubblewrap', 'bwrap')):
+            found = shutil.which(executable)
+            if found:
+                tools[name] = Path(found).resolve(strict=True)
         return TrustedRuntime(root, node, entry, manifest_hash, tools=tools)
     except ContractError:
         raise

@@ -1,8 +1,7 @@
-"""Explicit workspace-write through DSH/bubblewrap and existing owned process trees."""
+"""DSH session adapter with Forge protocol, budget and cleanup accounting."""
 import asyncio
 import base64
 from datetime import datetime, timedelta, timezone
-from hashlib import sha256
 import json
 from pathlib import Path
 import shutil
@@ -10,11 +9,10 @@ import sys
 from uuid import uuid4
 
 from forge.protocol import ContractError, canonical_hash, validate
-from forge.sandbox.capabilities import CapabilityReport, FEATURES, windows_supported
-from forge.sandbox.launcher import ROOT, bridge_environment, verify_runtime
+from forge.sandbox.capabilities import CapabilityReport, FEATURES
+from forge.sandbox.launcher import ROOT, verify_runtime
 from forge.sandbox.path_policy import inspect_path
 from forge.sandbox.policy import compile_policy
-from forge.sandbox.process_owner import LocalProcessOwner
 from forge.storage_paths import private_storage_path
 
 
@@ -62,37 +60,12 @@ class WorkspaceWriteBackend:
         if policy.get('execution_mode', self.mode) != self.mode:
             raise ContractError('Native execution mode differs from the requested policy',
                                 kind='CAPABILITY_UNSATISFIED', code=-32010)
-        if sys.platform not in ('win32', 'linux') or (sys.platform == 'win32' and not windows_supported()):
+        if sys.platform not in ('win32', 'linux'):
             raise ContractError('Workspace-write requires Windows or Linux', kind='SANDBOX_UNAVAILABLE', code=-32010)
         snapshot = compile_policy(policy, self.workspace, control_roots=(self.control_root,))
         self.runtime = verify_runtime(self.trusted_root)
-        self.backend_name = 'dsh-windows-acl' if sys.platform == 'win32' else 'bubblewrap'
+        self.backend_name = 'dsh-local'
         self.backend_version = '0.2.1-alpha.1'
-        if sys.platform == 'linux':
-            binary = self.runtime.tools['bubblewrap']
-            process = await asyncio.create_subprocess_exec(str(binary), '--version',
-                env=bridge_environment(self.control_root), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-            try:
-                async with asyncio.timeout(5):
-                    output, _ = await process.communicate()
-                if process.returncode != 0 or not output.startswith(b'bubblewrap '):
-                    raise ValueError('Could not determine bubblewrap version')
-                self.backend_version = output.decode('ascii').strip().removeprefix('bubblewrap ')
-            finally:
-                if process.returncode is None:
-                    process.kill()
-                    await process.wait()
-        self.runner = self.runtime.entry
-        root = Path(self.workspace['canonical_path'])
-        if any(path.is_relative_to(root) for path in (self.runtime.node, *self.runtime.tools.values())):
-            raise ContractError('Host tools must be installed outside the selected workspace', kind='POLICY_DENIED', code=-32010)
-        protected_roots = [self.runtime.root, self.control_root]
-        if self.diagnostic_root is not None:
-            from forge.sandbox.windows_worker import windows_native_runtime_root
-            protected_roots.extend((self.diagnostic_root, windows_native_runtime_root()))
-        for protected in protected_roots:
-            if root == protected or root.is_relative_to(protected) or protected.is_relative_to(root):
-                raise ContractError('Installation and control must be separate from workspace', kind='POLICY_DENIED', code=-32010)
         if self.mode == 'read-only' and snapshot.value['filesystem']['write_roots']:
             raise ContractError('Read-only cannot grant writable roots', kind='CAPABILITY_UNSATISFIED', code=-32010)
         inspect_path(str(self.control_root), absolute=True).assert_current()
@@ -107,11 +80,23 @@ class WorkspaceWriteBackend:
         self.control_root.mkdir(parents=True, exist_ok=False, mode=0o700)
         self._control_anchor = inspect_path(self.control_root, absolute=True)
         if sys.platform == 'win32':
-            from forge.sandbox.windows_worker import grant_controller_access, prepare_python_runtime
+            from forge.sandbox.windows_worker import grant_controller_access
             grant_controller_access(self.control_root)
-            self.python_runtime = self.control_root / 'python-runtime' / 'Scripts'
-            prepare_python_runtime(self.control_root)
         self._policy = snapshot
+        from forge.sandbox.dsh_session import DshSession
+        self._controller = DshSession(self.runtime, self.workspace, self.mode, self.owner['sandbox_session_id'],
+            snapshot.value['filesystem']['write_roots'], self.control_root)
+        await self._controller.start()
+        self._prepared = snapshot
+        return self._admission_result(verified=False)
+
+    async def probe(self):
+        """Explicit evaluator/diagnostic check; ordinary coding commands skip it."""
+        if self._prepared is None or self._closing is not None:
+            raise ContractError('No open DSH session to probe', kind='SANDBOX_UNAVAILABLE')
+        snapshot = self._prepared
+        policy = snapshot.value
+        root = Path(self.workspace['canonical_path'])
         identity = 'exec-' + str(uuid4())
         write_roots = snapshot.value['filesystem']['write_roots']
         inside = Path(write_roots[0]) / ('.forge-canary-' + identity) if write_roots else root / ('.forge-canary-' + identity)
@@ -133,7 +118,7 @@ class WorkspaceWriteBackend:
             if execution['exit_code'] != 0 or proof != expected or execution['cleanup']['state'] != 'clean':
                 raise ValueError('Native write/stdin/cleanup boundary probe failed')
             evidence = {'backend': self.backend_name, 'version': self.backend_version, 'probe': proof, 'cleanup': execution['cleanup'],
-                'workspace_grant': 'none' if self.mode == 'read-only' else 'standing; intentionally retained across sessions' if sys.platform == 'win32' else 'per-process mount namespace', 'mode': self.mode, 'read_network_isolation': False}
+                'workspace_grant': 'none' if self.mode == 'read-only' else 'standing; intentionally retained across sessions' if sys.platform == 'win32' else 'DSH selected per-process boundary', 'mode': self.mode, 'read_network_isolation': False}
             (self.control_root/'boundary.json').write_text(json.dumps(evidence,indent=2),encoding='utf-8')
         except (ValueError, KeyError) as error:
             (self.control_root/'boundary-failure.json').write_text(json.dumps({
@@ -159,18 +144,21 @@ class WorkspaceWriteBackend:
                 outside.unlink(missing_ok=True)
         if self._closing:
             raise ContractError('Native session closed during initialization', kind='SANDBOX_UNAVAILABLE', code=-32010)
+        return self._admission_result(verified=True)
+
+    def _admission_result(self, *, verified):
         verification = {name: {'status': 'unsupported', 'evidence_refs': []} for name in FEATURES}
-        verification['write_isolation'] = {'status': 'partial', 'evidence_refs': ['owned-native-write-canary']}
-        verification['process_cleanup'] = {'status': 'verified', 'evidence_refs': ['owned-job-zero-active-and-temp-removed']}
+        if verified:
+            verification['write_isolation'] = {'status': 'partial', 'evidence_refs': ['owned-native-write-canary']}
+            verification['process_cleanup'] = {'status': 'verified', 'evidence_refs': ['dsh-managed-range-empty']}
         report = CapabilityReport({'platform': 'windows-native' if sys.platform == 'win32' else 'linux-native', 'backend': self.backend_name, 'backend_version': self.backend_version,
             'read_isolation': 'unavailable', 'write_isolation': False, 'direct_network_isolation': False,
-            'dns_isolation': False, 'socket_isolation': False, 'process_cleanup': True,
+            'dns_isolation': False, 'socket_isolation': False, 'process_cleanup': verified,
             'resource_enforcement': {name:'unavailable' for name in ('memory','disk','pids')}, 'readiness': 'ready',
             'issues': [('Read-only project write restriction; reads and network inherit host access' if self.mode == 'read-only' else 'Partial write restriction; reads and network inherit host access'),
-                       'Ambient ACL and hard-link limitations remain; Node/libuv piped grandchildren are unsupported (use inherited or file stdio)' if sys.platform == 'win32' else 'Write allowlist uses an owned bubblewrap mount namespace; dynamic hard links are not inode-isolated'],
+                       'Ambient ACL and hard-link limitations remain; Node/libuv piped grandchildren are unsupported (use inherited or file stdio)' if sys.platform == 'win32' else 'DSH selects bubblewrap or Landlock; enforcement depends on host capability'],
             'measured_at_utc': datetime.now(timezone.utc).isoformat().replace('+00:00','Z'), 'verification': verification})
-        self._prepared = snapshot
-        return {'sandbox_session_id': self.owner['sandbox_session_id'], 'policy_hash': snapshot.sha256,
+        return {'sandbox_session_id': self.owner['sandbox_session_id'], 'policy_hash': self._prepared.sha256,
                 'owner': self.owner, 'capabilities': report.value, 'state': 'ready'}
 
     def _accept(self, identity, command, *, publish=True):
@@ -196,7 +184,7 @@ class WorkspaceWriteBackend:
             raise ContractError('Execution quota exhausted', kind='ARTIFACT_LIMIT', code=-32010)
         cwd = self._prepared.paths.authorize(command['cwd']).path
         root = Path(self.workspace['canonical_path'])
-        if not cwd.is_relative_to(root):
+        if self._prepared.value.get('execution_mode') is None and not cwd.is_relative_to(root):
             raise ContractError('Command cwd exceeds workspace', kind='POLICY_DENIED', code=-32010)
         from forge.sandbox.policy import UNSAFE_ENV
         if any(UNSAFE_ENV.search(key) or key not in self._prepared.value['environment_keys'] for key in command['environment']):
@@ -207,104 +195,71 @@ class WorkspaceWriteBackend:
         entry = self._accept(execution_id, command)
         return {key:entry[key] for key in ('execution_id','owner','state')} | {'reused_existing_execution': False}
 
-    async def _read(self, entry, stream, reader):
-        while raw := await reader.read(8192):
-            entry[stream+'_bytes'] += len(raw)
-            allowed = max(0,min(entry['command']['output_limit_bytes']-entry['retained'], self._policy.value['limits']['session_artifact_bytes']-self._retained))
-            retained = raw[:allowed]
-            entry['discarded_bytes'] += len(raw)-len(retained)
-            entry['retained'] += len(retained); self._retained += len(retained)
-            if not entry['publish']: entry['captured'][stream] += retained
-            elif retained:
-                entry['sequence'] += 1
-                frame = {'execution_id':entry['execution_id'],'owner':entry['owner'],'stream':stream,
-                    'sequence':str(entry['sequence']),'raw_base64':base64.b64encode(retained).decode(),
-                    'text':retained.decode('utf-8',errors='replace'),'encoding':'utf-8','final':False}
-                try: self.outputs.put_nowait(frame)
-                except asyncio.QueueFull: entry['discarded_bytes'] += len(retained)
-                else:
-                    # Buffered reads may complete synchronously in a burst.
-                    # Let the already-waiting collector drain bounded frames.
-                    await asyncio.sleep(0)
+    async def _output(self, entry, stream, raw):
+        entry[stream + '_bytes'] += len(raw)
+        allowed = max(0, min(entry['command']['output_limit_bytes'] - entry['retained'],
+                            self._policy.value['limits']['session_artifact_bytes'] - self._retained))
+        retained = raw[:allowed]
+        entry['discarded_bytes'] += len(raw) - len(retained)
+        entry['retained'] += len(retained)
+        self._retained += len(retained)
+        if not entry['publish']:
+            entry['captured'][stream] += retained
+        elif retained:
+            entry['sequence'] += 1
+            frame = {'execution_id': entry['execution_id'], 'owner': entry['owner'], 'stream': stream,
+                'sequence': str(entry['sequence']), 'raw_base64': base64.b64encode(retained).decode(),
+                'text': retained.decode('utf-8', errors='replace'), 'encoding': 'utf-8', 'final': False}
+            try:
+                self.outputs.put_nowait(frame)
+            except asyncio.QueueFull:
+                entry['discarded_bytes'] += len(retained)
+            await asyncio.sleep(0)
 
     async def _run(self, entry):
         identity, command = entry['execution_id'], entry['command']
-        temp, payload = self.control_root/('temp-'+identity), self.control_root/(identity+'.json')
-        owner = None; readers = []
         try:
-            temp.mkdir(mode=0o700)
-            if sys.platform == 'win32':
-                from forge.sandbox.windows_worker import grant_controller_access
-                grant_controller_access(temp)
-            raw = json.dumps({'command':command,'shells':{'pwsh':str(self.runtime.tools['powershell'])} if sys.platform == 'win32' else {'bash':'/bin/bash','sh':'/bin/sh'},
-                'tools':{'git':str(self.runtime.tools['git']),'rg':str(self.runtime.tools['ripgrep'])}}).encode()
-            if len(raw)>1048576: raise ValueError('Launch payload exceeds quota')
-            with payload.open('xb') as output: output.write(raw)
-            argv = [str(self.runtime.node),str(self.runner),'--workspace',self.workspace['canonical_path'],'--temp',str(temp),
-                '--payload-file',str(payload),'--payload-sha256',sha256(raw).hexdigest()]
-            if sys.platform == 'win32':
-                argv += ['--python-runtime', str(self.python_runtime)]
-            argv += ['--write-roots', json.dumps(self._policy.value['filesystem']['write_roots'])]
-            if self.mode == 'read-only':
-                argv.append('--read-only')
-            remaining = (datetime.fromisoformat(command['deadline_utc'].replace('Z','+00:00'))-datetime.now(timezone.utc)).total_seconds()
-            async with asyncio.timeout(max(0,remaining)):
-                owner = await LocalProcessOwner.start(argv,cwd=self.workspace['canonical_path'],environment=bridge_environment(self.control_root),output=True,capture_stderr=True)
+            remaining = (datetime.fromisoformat(command['deadline_utc'].replace('Z', '+00:00'))
+                         - datetime.now(timezone.utc)).total_seconds()
+            async with asyncio.timeout(max(0, remaining)):
                 entry['state'] = 'running'
-                if sys.platform == 'win32' and command.get('stdin_base64'):
-                    owner.process.stdin.write(base64.b64decode(command['stdin_base64'], validate=True))
-                    await owner.process.stdin.drain()
-                owner.process.stdin.close()
-                readers = [asyncio.create_task(self._read(entry,stream,getattr(owner.process,stream))) for stream in ('stdout','stderr')]
-                entry['exit_code'] = await owner.process.wait()
-                await asyncio.gather(*readers)
-                entry['state'] = 'finished'
+                result = await self._controller.execute(identity, command,
+                    lambda stream, raw: self._output(entry, stream, raw))
+                entry['exit_code'] = result['exit_code']
+                entry['runner_failed'] = result.get('runner_failed', False)
+                entry['error'] = result.get('error')
+                entry['enforcement'] = result.get('enforcement')
+                entry['runner'] = result.get('runner')
+                entry['state'] = 'indeterminate' if result.get('cancelled') else 'finished'
+                entry['cleanup'] = self._report(result['cleanup']['state'], entry['owner'])
         except BaseException as error:
             entry['state'] = 'indeterminate'
-            entry['error'] = type(error).__name__
+            entry['error'] = str(error) or type(error).__name__
         finally:
-            processes = await owner.close() if owner else {'state':'clean','active_processes':0}
+            processes = await self._controller.cancel(identity)
             entry['process_cleanup'] = processes
-            for task in readers:
-                if not task.done(): task.cancel()
-            await asyncio.gather(*readers,return_exceptions=True)
-            clean = processes['state'] == 'clean'
-            if clean and temp.exists():
-                try:
-                    if sys.platform == 'win32': await self._revoke_temp(temp)
-                    if temp.parent != self.control_root or temp.resolve() != temp: raise ValueError('Owned temp identity changed')
-                    shutil.rmtree(private_storage_path(temp))
-                    clean = not temp.exists()
-                except Exception as error:
-                    clean = False; entry['cleanup_error'] = type(error).__name__ + ': ' + str(error)
-            if clean: payload.unlink(missing_ok=True)
-            entry['cleanup'] = self._report('clean' if clean else 'unknown',entry['owner'])
+            entry['cleanup'] = self._report(processes.get('state', 'unknown'), entry['owner'])
+            if entry.get('runner_failed'):
+                (self.control_root / 'boundary-failure.json').write_text(json.dumps({
+                    'mode': self.mode, 'exit_code': entry['exit_code'], 'error': entry.get('error'),
+                    'command_started': False, 'cleanup': entry['cleanup']}, indent=2), encoding='utf-8')
             if entry['publish']:
-                for stream in ('stdout','stderr'):
+                for stream in ('stdout', 'stderr'):
                     entry['sequence'] += 1
                     try:
-                        await asyncio.wait_for(self.outputs.put({'execution_id':identity,'owner':entry['owner'],'stream':stream,
-                            'sequence':str(entry['sequence']),'raw_base64':'','text':'','encoding':'utf-8','final':True}),1)
-                    except TimeoutError: entry['discarded_bytes'] += 1
-
-    async def _revoke_temp(self, temp):
-        owner = await LocalProcessOwner.start([str(self.runtime.node),str(self.runner),'--cleanup-temp',str(temp)],
-            cwd=str(self.control_root),environment=bridge_environment(self.control_root),output=True,capture_stderr=True)
-        try:
-            async with asyncio.timeout(5):
-                owner.process.stdin.close()
-                raw, diagnostic = await asyncio.gather(owner.process.stdout.read(4097), owner.process.stderr.read(4097))
-                await owner.process.wait()
-                if owner.process.returncode != 0 or json.loads(raw) != {'temp_grant_revoked': True}:
-                    raise ValueError('Temporary ACL cleanup failed: ' + diagnostic.decode('utf-8',errors='replace')[:1024])
-        finally:
-            if (await owner.close())['state'] != 'clean': raise ValueError('ACL cleanup process remains unconfirmed')
+                        await asyncio.wait_for(self.outputs.put({'execution_id': identity, 'owner': entry['owner'],
+                            'stream': stream, 'sequence': str(entry['sequence']), 'raw_base64': '',
+                            'text': '', 'encoding': 'utf-8', 'final': True}), 1)
+                    except TimeoutError:
+                        entry['discarded_bytes'] += 1
 
     async def status(self, execution_id):
         entry = self._executions[execution_id]
         # Completion includes final output frames and resource reconciliation.
         state = entry['state'] if entry['task'].done() else 'running'
-        return {key:entry[key] for key in ('execution_id','owner','exit_code','stdout_bytes','stderr_bytes','discarded_bytes')} | {'state':state}
+        return {key:entry[key] for key in ('execution_id','owner','exit_code','stdout_bytes','stderr_bytes','discarded_bytes')} | {
+            'state':state, 'runner_failed':entry.get('runner_failed', False), 'error':entry.get('error'),
+            'enforcement':entry.get('enforcement'), 'runner':entry.get('runner')}
 
     async def cancel(self, execution_id, reason, deadline):
         entry = self._executions[execution_id]
@@ -339,17 +294,11 @@ class WorkspaceWriteBackend:
             _,pending = await asyncio.wait(tasks,timeout=8)
             if pending: return self._report('unknown')
         if not all(e['cleanup']['state']=='clean' for e in self._executions.values()):
+            if hasattr(self, '_controller'):
+                await self._controller.close()
             return self._report('unknown')
-        if getattr(self, 'python_runtime', None) is not None:
-            root = self.python_runtime.parent
-            try:
-                if root != self.control_root / 'python-runtime':
-                    raise ValueError('Python runtime ownership changed')
-                inspect_path(root, absolute=True).assert_current()
-                if root.exists():
-                    shutil.rmtree(private_storage_path(root))
-            except (OSError, ValueError):
-                return self._report('unknown')
+        if hasattr(self, '_controller') and (await self._controller.close())['state'] != 'clean':
+            return self._report('unknown')
         if self.diagnostic_root is not None and hasattr(self, '_control_anchor'):
             try:
                 self._control_anchor.assert_current()

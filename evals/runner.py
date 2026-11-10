@@ -393,7 +393,7 @@ async def run_case(
                 async with session:
                     # Evaluations require command execution; prove it before
                     # spending model requests, unlike an interactive session.
-                    prepare_process = getattr(session.backend, 'prepare_process', None)
+                    prepare_process = getattr(session.backend, 'probe_process', None) or getattr(session.backend, 'prepare_process', None)
                     if prepare_process is not None:
                         await prepare_process()
                     if case.setup_command is not None:

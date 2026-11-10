@@ -13,6 +13,7 @@ import shlex
 import subprocess
 import sys
 from typing import Any
+import pytest
 
 from forge.permissions.policy import PermissionManager
 from forge.runtime.agent_loop import Conversation
@@ -190,6 +191,24 @@ def test_router_consumes_the_same_model_budget(tmp_path: Path) -> None:
     assert final.status == 'failed'
     assert final.stop_reason == 'model_budget_exhausted'
     assert final.usage == TokenUsage(7, 2)
+
+
+@pytest.mark.parametrize('mode', [None, 'full-access'])
+def test_inferred_inspection_does_not_add_an_execution_fence(tmp_path, mode):
+    class Router:
+        async def route(self, *args, **kwargs):
+            return RouteResult(decision=TurnDecision(intent='read_only', task_relation='none',
+                requires_workspace_change=False, confidence=1, reason='diagnosis'), usage=TokenUsage(0, 0))
+    client = ScriptedClient(request(ToolCall(0, 'inspect', 'run_command', {
+        'command': python_command("print('diagnostic command')")})),
+        [ModelUsageUpdate(TokenUsage(1, 1)), ModelTextDelta('Inspected.')])
+    _, events = exercise(tmp_path, client, intent_router=Router(),
+        permission_manager=PermissionManager(tmp_path, mode='ask', execution_mode=mode, load_stored_rules=False))
+    result = tool_results(events)['inspect']
+    if mode is None:
+        assert result.error.code == 'read_only_intent'
+    else:
+        assert result.success and 'diagnostic command' in result.content
 
 
 def test_completion_requires_every_explicit_check(tmp_path: Path) -> None:

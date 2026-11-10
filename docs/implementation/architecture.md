@@ -99,21 +99,21 @@ Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程
 
 python -m forge.engine的stdio RPC及原main/renderer角色保留兼容；当前不交付Electron或Web客户端。未来客户端接入API/RPC。test_refs必须指向实际测试，生成文件从contracts/v1产生。
 
-workspace-write 的文件工具提供可信代码内的路径写范围检查；进程工具另由原生后端限制写入，OS 读取和网络继承宿主。参照 DSH fs-sandbox 与 sandbox-local.confine 的分工，CLI 启动不创建 ACL/原生探针，首次进程调用才准入；失败拒绝该调用并保留会话，不回退宿主。文件结果标记 `*-file-policy`、sandbox_covered=false，不宣称 OS 隔离；原生探针通过后才产生能力证明。evals.runner 在模型请求前显式 prepare_process，保留评测先预检后消耗预算的边界。full-access 须显式选择。离线、原生、wheel、模型和训练分别验收。
+workspace-write 的文件工具提供可信代码内的路径写范围检查；进程工具复用发布的 DSH sandbox-local/subprocess-local 0.2.1-alpha.1。每个原生会话持有一个私有 JSONL 控制进程，DSH 负责 runner 选择、授权和子进程范围；Forge 负责协议、预算和清理记录。CLI 启动不创建项目 ACL，普通命令不跑 Forge 前置写入探针；实际 confinement 失败拒绝该调用并保留会话，不回退宿主。文件结果标记 `*-file-policy`、sandbox_covered=false。evals.runner 在模型请求前显式 probe_process，只有该探针通过才记录已测能力。full-access 须显式选择。离线、原生、wheel、模型和训练分别验收。
 
-内置提供方按 [DSH 的文件效果策略](https://github.com/deepseek-ai/deepseek-harness/blob/fcc0ad462172522aaf5c93a7b2e01f6b9f0b0159/packages/fs/fs-sandbox/README.md)记录显式 execution_mode：读取继承宿主，写入按实际解析目标检查；workspace-write 只授予已选范围，read-only 拒绝修改，danger-full-access/原 full-access 取消工作区写入围栏。凭据与 Harness 控制目录保护独立保留。符号链接、Junction 和普通硬链接不再触发整个工作区的启动拒绝；规范化后的目标用于实际操作，身份重检保留。无 execution_mode 的旧策略仍执行原严格检查，原生后端拒绝模式不匹配且不回退宿主。
+内置提供方按 DSH 文件效果策略记录 execution_mode：读取继承宿主，写入按实际解析目标检查；workspace-write 只授予已选范围，read-only 拒绝修改，danger-full-access/原 full-access 取消工作区写入围栏。不再按凭据文件名、安装目录重叠、命令关键字或模型推断的只读意图叠加拒绝；显式调用方拒绝规则、任务范围、环境凭据过滤、预算与清理契约保留。符号链接、Junction 和普通硬链接不触发整个工作区的启动拒绝；实际目标的身份重检保留。无 execution_mode 的旧接口保留兼容策略。
 
 工作区扫描记录链接本身的身份和目标摘要，不遍历其外部目录；明确工具目标另行观察，链接变化会改变工作区证据。普通链接不再令整个基线失效；扫描限额、超时和实际读取失败仍阻断缺失证据的完成声明。完全访问的外部文件检查点由已授权 helper 提供内容，只有显式宿主会话可创建外部目标条目；宿主直接恢复受限检查点仍被拒绝。Windows/硬链接等剩余边界保持 partial，不据路径校验宣称强隔离。
 
-read-only 同样有每次执行独立的私有临时写入范围，项目写权限不因此增加。Windows 用未授予项目目录的隔离 SID 与独立临时 SID 组合，Linux 仅额外绑定私有临时目录。Windows 命令使用的小型 Python venv 复用本机解释器和依赖，在私有临时目录下保留继承 ACL，避免 CPython `0700` 重设 DACL 后丢失临时写入能力；它是兼容处理，不是安全边界，原生令牌仍负责授权。Python `-S`、外部解释器和临时范围之外的 `0700` 不在适配范围。进程树清理完成后才撤销临时授权、删除临时文件和会话 Python 环境。
+Windows workspace-write 使用 DSH 持有的会话级私有临时目录，workspace standing grant 按 DSH 语义保留；read-only 不增加临时写权限。Linux 由 DSH 选择 bubblewrap 或 Landlock。显式多个/空 write_roots 复用 DSH runner 与授权组件构造限定范围，不先授予整个工作区。子进程范围确认退出后才撤销临时授权，清理不确定仍报告 unknown。原生宿主目前接入 Windows/Linux；DSH 的 macOS Seatbelt 尚未接入 Forge 控制进程所有权层。
 
 沙盒保持原生轻量路线，安装和日常运行不依赖 Docker。试验性的 Docker 执行层、镜像构建入口及相关 CI 已移除。现有 DSH/bubblewrap 仍只提供已验证的部分隔离；`strict` 在完整能力具备前继续拒绝准入。后续原生能力审计、网络白名单、资源配额和完整 CLI/SDK 验收见 T01，不能用历史容器测试证明原生能力。与运行平台无关的 `workspace_transfer.py` 保留有界输入快照、敏感路径过滤及冲突检查回写，供原生隔离工作区使用；它本身不构成 OS 沙盒。单文件替换原子化，多文件应用不是文件系统事务，I/O中断明确返回已应用路径及 INDETERMINATE，不自动重放。
 
 Windows 的 ACL 授予和撤销在 Win32 调用处使用扩展路径形式，避免长控制目录中的临时授权失败；策略路径比较及 SID 派生仍使用原规范路径。环境变量和应用路径 API 不全局重写，例如 Node `mkdtemp` 自身处理长路径时仍需使用其支持的扩展路径形式。
 
-Windows 原生会话的内部控制与执行临时目录放在 OS 解析的 LocalAppData/ForgeCode/native 下，按会话 UUID 独立持有，避免长产物路径使 Python 子进程启动超时。该根在策略冻结前加入保护范围；原产物目录保留定位文件和边界诊断。只有 Job、临时授权及所属目录均确认清理后才发布 clean，未知清理保留现场；不修改系统 TEMP，也不清理其它会话。
+Windows 控制进程目录放在 OS 解析的 LocalAppData/ForgeCode/native 下，按会话 UUID 独立持有；DSH 临时目录建立在该会话的 scratch 下，产物目录保留定位文件和失败诊断。只有子进程范围、临时授权及所属目录均确认清理后才发布 clean，未知清理保留现场；不修改系统 TEMP，也不清理其它会话。
 
-任务的旧版 Python 也复用私有临时目录兼容包装，保留内置函数的调用方式并更新已缓存的 pathlib 入口。原生 Python 命令默认通过进程内 PYTEST_ADDOPTS 使用每次执行的私有 pytest 缓存，避免项目目录内 `mkdir(0700)` 被拒后反复重试；独立评测器也使用所属临时缓存。cacheprovider、冻结测试映射及断言不变；显式选项保持 pytest 的优先级，缓存随执行清理，不保证跨命令持久化。任意项目路径的 `0700` 语义仍不在该兼容范围内。
+原生命令使用原解释器，不创建 Forge 私有 venv，不修改 Python mkdir/临时目录语义或注入 PYTEST_ADDOPTS。Windows CPython 的 0700 与受限令牌兼容问题按 DSH 原生行为暴露，需调用方选择适合该模式的缓存配置；不能把此限制表述为已解决。
 
 原生文件观察复用 Git 改动路径与授权文件指纹，并枚举普通 ignored 文件；`.gitignore` 不作为安全白名单，已声明的运行缓存仍排除。Git 配置包含过滤器、include 或工作树重定向时使用既有有界扫描；输出截断、超时和观察缺失不算完整。已确认的文件工具目标直接刷新前后指纹，避免每次修改都重扫仓库；初始基线不完整时仍拒绝完成。受限观察不启用宿主 Git diff 子进程。输出生产者在有界队列成功入队后让出调度，消费者缺失、缓慢或配额耗尽仍报告丢弃。
 

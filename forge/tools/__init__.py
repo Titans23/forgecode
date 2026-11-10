@@ -90,7 +90,7 @@ def create_default_registry(
         # phase temporarily changes the schema set.
         hidden_tools={'write_file_chunk'},
     )
-    if tool_backend is not None and getattr(tool_backend, 'mode', None) != 'strict':
+    if getattr(getattr(tool_backend, 'observer', None), 'policy', {}).get('execution_mode') is not None:
         registry.implementation('write_file').description = (
             'Atomically create or replace a UTF-8 text file under the current sandbox policy. '
             'Read existing content before changing it; observed versions are checked for conflicts. '

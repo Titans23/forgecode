@@ -4,8 +4,9 @@ The root MIT license covers ForgeCode-owned code that its contributors can licen
 It does not replace the licenses of dependencies, bundled third-party files, public
 benchmark tasks, datasets, model outputs or user-supplied plugins and business data.
 
-- The Windows ACL dependency `@deepseek-ai/dsh-sandbox-windows-acl@0.2.1-alpha.1`
-  is Copyright (c) 2026 DeepSeek, MIT. Its upstream LICENSE is retained in the
+- The DSH dependencies `@deepseek-ai/dsh-sandbox-local`, `@deepseek-ai/dsh-subprocess-local`
+  and `@deepseek-ai/dsh-sandbox-windows-acl` at `0.2.1-alpha.1`, plus their Cordis runtime,
+  are Copyright (c) 2026 DeepSeek, MIT. Their upstream LICENSE files are retained in the
   installed dependency and in bundled `forge/_sandbox/node_modules` assets.
 - Context compaction defaults reference [pi](https://github.com/earendil-works/pi)
   at `e65b3b88c08412bb8ffbd21fb5dc5756064a6e5a`. Request-pressure pruning references

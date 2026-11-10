@@ -52,7 +52,8 @@ def create_runtime(
     agent = agent or AgentDefinition()
     coding = agent.base == 'coding'
     if task_policy is None and agent.completion == 'strict':
-        task_policy = TaskPolicy(require_verification=True, require_positive_verification=True, max_delivery_repairs=2)
+        task_policy = TaskPolicy(require_verification=True, require_positive_verification=True,
+                                 max_delivery_repairs=2, forbidden_paths=())
     config = bindings.config if bindings and bindings.config else ForgeConfig.from_env(model_environment(root / '.env'))
     default_config = config
     client_factory = bindings.model_client_factory if bindings and bindings.model_client_factory else create_model_client

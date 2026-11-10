@@ -1,6 +1,6 @@
 {
   "schema_version": "forge.bridge.runtime.v1",
-  "package_lock_sha256": "deba417399cc01c3051bb4c29a5b46f35e251b4db0984bf081c8114d0fb01f7d",
+  "package_lock_sha256": "8556ea8195f154fcc3cc8dacefae81e809e56294d3af4b3326e7c5ad1c208a6f",
   "files": [
     {
       "path": "node_modules/@deepseek-ai/cordis/LICENSE",
@@ -467,6 +467,38 @@
       "sha256": "8a116e03c629ba2bbbaad960ad30dcc18f00f4482085e52598ad2f7e355502bc"
     },
     {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/README.i18n.yaml",
+      "sha256": "911a49b52928ecc9763888f4681b9b27fa5f52624839b539949a4e96a176618a"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/README.md",
+      "sha256": "8fe3e30b15e2411086a93f28ebbfdfd2bba30e21d47c52c225647333c141fbc1"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/README.zh.md",
+      "sha256": "1ed67cbb9d4cec9216f0274b986b76e4c05e636198d486e319d0875f99cf1c95"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/lib/index.js",
+      "sha256": "be6e1107871cf8d94c040090b13c405bc833822e2f51ed5280e93eececf762be"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/lib/types/index.d.ts",
+      "sha256": "c8c9fa8089169c305a2d87227dafcb464bf548a5c812ef616ce78eae04b0172f"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/lib/types/profiles.d.ts",
+      "sha256": "5b8526e645f401e977a71af3740caa63bdfc508ebac7882e24bf6c6f6d3aeed1"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox-local/package.json",
+      "sha256": "1c06b8f73d5f633055509bf3bbcc83423d19a45b9ff38d01bcb75efaabb498fe"
+    },
+    {
       "path": "node_modules/@deepseek-ai/dsh-sandbox-windows-acl/LICENSE",
       "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
     },
@@ -551,6 +583,46 @@
       "sha256": "e24dd7df165dab54068222248c2f2a040d5307242471d0a3403d5a4970441c25"
     },
     {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/README.i18n.yaml",
+      "sha256": "69eb5e3230a01df9c384dc1acf7dca804aba72af8179002ba965354985f4577f"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/README.md",
+      "sha256": "50d8423e72704840a5a47efe6370b0f3957b6f6243b28aa019d9899437b96a4f"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/README.zh.md",
+      "sha256": "e5c11c201f48be173cefc4deacdc321c43dfedfd6366904c6afa3be33f2e3a26"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/lib/index.js",
+      "sha256": "b56373befbfcfe281c17c8892e9a4b2cdcb96851290b3ed0ff56b08915e2f743"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/lib/types/diagnostics.d.ts",
+      "sha256": "9ec1b7b13b0f4f7ac4c41d1938990f55b35f33f63f6535c13b52277259cb1d15"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/lib/types/escalation.d.ts",
+      "sha256": "85718dabe332b6d9b7e3837ec0d51d1d5988c12bf8bb0f5a1fe12ea11dccc8bb"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/lib/types/index.d.ts",
+      "sha256": "2738a2a57d62450251f3328ef92d0691d6c485766519013a2f3dfe72a6149182"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/lib/types/roots.d.ts",
+      "sha256": "82e211251f48e17408ae7d0c756cbbc5a9021485e2c06dfc15e23f60a8a52261"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-sandbox/package.json",
+      "sha256": "3420770fea90a4c89249c72bae3ff2150fcca0b8ac5a388ded7970292353fb22"
+    },
+    {
       "path": "node_modules/@deepseek-ai/dsh-scope/LICENSE",
       "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
     },
@@ -583,6 +655,110 @@
       "sha256": "349fbf80c9e286f251983d804f13640dde284c21023ccea6330bb485e0f8718c"
     },
     {
+      "path": "node_modules/@deepseek-ai/dsh-session/LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/README.i18n.yaml",
+      "sha256": "bbef07372ee5427eeecb087440e745d086cab2cf2df188c648c91c49359230d3"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/README.md",
+      "sha256": "ead10429ffe552e7696eca1261fed573e674013128ece348e9873e8e1f119a0a"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/README.zh.md",
+      "sha256": "7cf5c2c00aedf3f2590057875f0e8f5208ff1159c9adba87653c1246e4ad3386"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/index.js",
+      "sha256": "b847e7ec736ce4049ec40ea0b20753bad5d7c2388785b4369d2bf00baa32472b"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/fork.d.ts",
+      "sha256": "9b2c19802c8d3f1d40cab23105a0892a8f7a0c9b921af108b1dfcdf2b22a9712"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/fork.js",
+      "sha256": "72ca7ae2cce506eb607e565f2e6b15fc6e3c2663de8403f79e37fc3a469e34cf"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/index.d.ts",
+      "sha256": "0d7bec761fd4917f4641d6aa38bb64b322e6a4a5ca86bf7d2baf62c8b4521a7f"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/index.js",
+      "sha256": "5dd1772de7b4052d4700d8725759169152eaaecaa681f9f0c9db2540a3f43565"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/known-event-types.d.ts",
+      "sha256": "6cf20e965e779aa12958f963814381351da2cf9497b2f1f2216a73f23cc9a33a"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/known-event-types.js",
+      "sha256": "8f38e6fc9439bb4e47f2bd3aa21c86d5141ef9679f41181c9d9a48765c67d3be"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/preparation.d.ts",
+      "sha256": "68d4989dc05cee14dbe6e653488b4c2e5413d03a3bebf0f7cc1035d10885e2b3"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/preparation.js",
+      "sha256": "78dea29f5e11a4d220945a572b3eb26cb66460e6a368a423bf597c3ef05a5faa"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/repair.d.ts",
+      "sha256": "b273d04d155f944ce374a71b01f408a60ee33db36cafe566e0c50b7b0151233f"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/repair.js",
+      "sha256": "ee2e02d4e924bf01af621c38c27e030b89eaa8e0abfdf801a6220eca95aa2038"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/request-header.d.ts",
+      "sha256": "83641242078a38eb0ff6c1a3d79a7b62a7733d1789423e9557187f44bd93f9a0"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/request-header.js",
+      "sha256": "3f73ee59af794df50df159a9c45c606f0fbce364c482b371831d1e8f26b87aea"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/seq-ranges.d.ts",
+      "sha256": "4ba712f10f632fb2e1f337f0557f97e2c5475917103d6c95c0eddbbf5eb32b0b"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/seq-ranges.js",
+      "sha256": "68a127c76affa98edeeb50e302eb43f154f4d24f7d04cb95ba8b323e88f3d09e"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/surface.d.ts",
+      "sha256": "bdeda5e930c9e5f839089aaed2bbe23296a8d06523b6e8300e21e5ca9259ef8b"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/surface.js",
+      "sha256": "ebe8920a22fca8d987cbacab94c9db92f71df44863f58370a1be559155be734e"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/tool-history.d.ts",
+      "sha256": "d271c952a40f46baffac120de4a124395ec7bdd4803cd94bff30260da103bc09"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/tool-history.js",
+      "sha256": "2d2c4f4cbb6717aa2f487af52ce6a81e2002ce2c768cb5a4210c867ec49a0e95"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/types.d.ts",
+      "sha256": "d46f867afad2ce27298dcc99762dc241d803e6d2102a4587587fddccedf1c733"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/lib/types/types.js",
+      "sha256": "a03acad09eec657b94441109af0da31b5b29668feae35d1b9e72fd99beca505f"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-session/package.json",
+      "sha256": "e9d5af863ff3cb1544425bf31902e78ef232f2d8d127cf6e5d90c245bc535d2c"
+    },
+    {
       "path": "node_modules/@deepseek-ai/dsh-skill/LICENSE",
       "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
     },
@@ -609,6 +785,110 @@
     {
       "path": "node_modules/@deepseek-ai/dsh-skill/package.json",
       "sha256": "abe42101308c76244a88005fde6d823e941ff4561776b46ec694c461e04d86ab"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/README.i18n.yaml",
+      "sha256": "7730e397117460cddcc584cf376813c8f1d1aba48b2229bb602b6ffe3928324e"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/README.md",
+      "sha256": "285d84abb4469373a565ce4486f20241c73608e6d95b49b7c4ecba09bba71a5a"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/README.zh.md",
+      "sha256": "e0439e32e172873b3ffedcc902f12dbe2863cf59f32929c50eb3b469475094f2"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/index.js",
+      "sha256": "e40106ed35a1e1744c016e77f2cf59b07f87969bb7c4b424d26fb08da75e3922"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/output.js",
+      "sha256": "4f77ef6da608d36df168c99177e9b527e7145df1418845eba567635e64a4c2a3"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/runner-launch-B2zsQ1Dz.js",
+      "sha256": "6df08adc4a27f278878a5f4cde8b551b51e647b922ac7d6591fd62d272ced153"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/runner.js",
+      "sha256": "4e21528dfdb3e92bdce2340945dc4dcb202e4a4af0bbeb8b97585f67735d30c1"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/bin.d.ts",
+      "sha256": "da66652fbef2bbd57b20551684c146a564c7eb824872a4d7823706243f113809"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/control-spawn.d.ts",
+      "sha256": "c00d2d7216f097d33b7788be44ac30096783891f069186148acefbd6d15454ee"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/index.d.ts",
+      "sha256": "c3d4dc17a6d24790aba668a27b50333f125b8e12d9b3462072e29ae7187e0d1b"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/linux-execve.d.ts",
+      "sha256": "d617e4f932c4d780005037f806c2daa4e29aee33d66edfa0ec47fe47aeec153e"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/linux-scope.d.ts",
+      "sha256": "589d5b2c3ea97e48a856460dfb8670ee838cff3ba91c752e4c2f9b50c4bd4ed5"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/managed-owner.d.ts",
+      "sha256": "5d6c543c864b477ddb64ae4327d828f0a84696caf14cd83929123fa987a1033b"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/output.d.ts",
+      "sha256": "e055570766060901a849c3347770ae149f366ed342b0f849183e98b354c8d520"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/process-inspector.d.ts",
+      "sha256": "03fd7af1b4ac530a1e4d95ecdb98b96d5aa15fff84c4811615ba78d6633650e1"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/runner-launch.d.ts",
+      "sha256": "6c6cfd1779e0baba81630aba14c83652238cc34ed36d119b0a3890186e4f342d"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/runner-protocol.d.ts",
+      "sha256": "fc0c7b8e296cde29316580dd3ddde33087da4fac04a0224e208ea8519176a7c9"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/shell-activity.d.ts",
+      "sha256": "84f90ec23fd00b1ddbba78093b772e1137a998f6c60d155316d9808cd29be8e2"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/spawn-runner.d.ts",
+      "sha256": "e28cbc01b73407985b3640a96ae64a1a43d47763578ed776115c1dc84d1e1623"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/spawn.d.ts",
+      "sha256": "2ddf544cf6d49fddc1ba942f41971502a6ac7f24c741b99b294e5f1766b2c7f3"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/terminal.d.ts",
+      "sha256": "208f4714ced982f1a5d9cdbfc95aa3a54bf13ccc5d2632ee7523c2385431fbc7"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/windows-inspector.d.ts",
+      "sha256": "4b1881eb70caa2695f883e8b82640da362681d78a05ebf23fd05ac109a8d2722"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/lib/types/windows-job.d.ts",
+      "sha256": "4c3e0f9dbb8f919328968f0244c6a627e7b55d98822d20218ba03c1d5a234b09"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/package.json",
+      "sha256": "283943e8dcac28e07d0d9fc526cfe6e737a7d8c4661f61a204785da8b56e9518"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/dsh-subprocess-local/scripts/ensure-spawn-helper.mjs",
+      "sha256": "ca5509febf1e6ec1356df121835ebe5ed2f9cace4bdc2ba6d83d41c7e45e0f1b"
     },
     {
       "path": "node_modules/@deepseek-ai/dsh-subprocess/LICENSE",
@@ -853,6 +1133,50 @@
     {
       "path": "node_modules/@deepseek-ai/dsh-win32-process/package.json",
       "sha256": "a69521f1444f62b573e539b44eb202db15ff9184da6112e943f70f91ef44d79c"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/LICENSE",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/README.i18n.yaml",
+      "sha256": "40321d58205cca8563e57025a53702f8961dda6acb43b9dc1df25934e105dbad"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/README.md",
+      "sha256": "65425460d727184c6131273ad5276100728af80e6b66936e34a47dd62f8f03e7"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/README.zh.md",
+      "sha256": "04ebeb2aea41761fa68ef0c6e4fc7c5035f73c2ac3bfbb9c91c878e131356c5b"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/lib/flock.d.ts",
+      "sha256": "611643bff49ce94e74f126b06eeca6c2609c5c7a8a243d0d03bc1a1cb2f37f91"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/lib/flock.js",
+      "sha256": "e42af00c298d56322c073bf7cc66485096028318ab645a2e69dc2aa7481ba646"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/lib/index.d.ts",
+      "sha256": "ae1e48734ebb3143c72778c5f8086ca602d2a45e96de8828156c4e8296226e73"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/lib/index.js",
+      "sha256": "a0f04e2990b6fff091d6776c41e56dac8c630a37b944632e743fa8f2ee9c4813"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/package.json",
+      "sha256": "e8aebe0548e3fd3e733b03476a0a6531076ba40678137421ecd7fb191792d50a"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/src/flock.c",
+      "sha256": "c1aa773c7a62b03ce3973156b928f41773fef9407afd79d71b2f625b5616421f"
+    },
+    {
+      "path": "node_modules/@deepseek-ai/node-addon-system/src/main.c",
+      "sha256": "0b3f13a6d19b809ea5a895a4873fe94cdea02471f928f214266dfd0a22a949b5"
     },
     {
       "path": "node_modules/@deepseek-ai/schemastery/LICENSE",
@@ -3461,6 +3785,278 @@
     {
       "path": "node_modules/koffi/vendor/node-api-headers/include/node_api_types.h",
       "sha256": "a25356630d3058f0a0c8937d9f297e9471e037fda58c2696d8a505c2bd99cb00"
+    },
+    {
+      "path": "node_modules/node-addon-api/LICENSE.md",
+      "sha256": "89024017b88a9f2b763f79b941a4f2db3b4428edfcacdc0b23866b2da633ad0c"
+    },
+    {
+      "path": "node_modules/node-addon-api/README.md",
+      "sha256": "61e2635acb30be02d28512a65075c96bd91eb0007069047c20f0e7a41afab13e"
+    },
+    {
+      "path": "node_modules/node-addon-api/common.gypi",
+      "sha256": "60083ca8544cfee3b47ce2ae1faf394da40bf24722ad4fb7828eb9598e8101d6"
+    },
+    {
+      "path": "node_modules/node-addon-api/except.gypi",
+      "sha256": "ddbc09f5b66fe24dd898fbe659085a6ff72e9575025004fc3762271dba781e8b"
+    },
+    {
+      "path": "node_modules/node-addon-api/index.js",
+      "sha256": "be71328f325cf541f37704a644e53cd04af1b69bc119b39733d64589e64dffdb"
+    },
+    {
+      "path": "node_modules/node-addon-api/napi-inl.deprecated.h",
+      "sha256": "b66ed1e565e735bbfabcc2f72d466ab7c5414d3ef8851d1af440b81be7f2375c"
+    },
+    {
+      "path": "node_modules/node-addon-api/napi-inl.h",
+      "sha256": "4b053c184dfed740fbd802fdcf97e85fb8c7b0eb1d83322000d932d31662eda7"
+    },
+    {
+      "path": "node_modules/node-addon-api/napi.h",
+      "sha256": "2f2f5d1e4ca96f315c51ad96c292c18294dbb999b98f8b2f33b80816a3189fb0"
+    },
+    {
+      "path": "node_modules/node-addon-api/node_addon_api.gyp",
+      "sha256": "a1f080ca22f191902d118bc2a169984a9e761af091ca6d0ea456197bf7b6543c"
+    },
+    {
+      "path": "node_modules/node-addon-api/node_api.gyp",
+      "sha256": "3cd2c44fb0974f016376b676d46bbebbca7c89d4383b09ece30e4cb4122a1499"
+    },
+    {
+      "path": "node_modules/node-addon-api/noexcept.gypi",
+      "sha256": "494060b87197c489497a038504147c435b1d09306152048add42ba0d7d16e747"
+    },
+    {
+      "path": "node_modules/node-addon-api/nothing.c",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "node_modules/node-addon-api/package-support.json",
+      "sha256": "b1cb7da23cca1681c7392a3c889eb0cc4916c53d2d7692d4b654ae751f3442f3"
+    },
+    {
+      "path": "node_modules/node-addon-api/package.json",
+      "sha256": "e4947cf10e432c42459e60a00947ccd1ad2501e16cf1a530b3d39f0c2de5c83f"
+    },
+    {
+      "path": "node_modules/node-addon-api/tools/README.md",
+      "sha256": "65e9ea918538f453166b10a1d609cf44cec3d2d01f23fecb5265fb3a4bf303d5"
+    },
+    {
+      "path": "node_modules/node-addon-api/tools/check-napi.js",
+      "sha256": "9e1207808023cd998fe9e377aefbe77d6c59fa129f94e6acbf24907149d8c11e"
+    },
+    {
+      "path": "node_modules/node-addon-api/tools/clang-format.js",
+      "sha256": "3e0b5e6d6f1a0c5ed106115871d0fd48f37bac5554effdacaf8d2439f4ed0c65"
+    },
+    {
+      "path": "node_modules/node-addon-api/tools/conversion.js",
+      "sha256": "e089cbad94331ad07dfb103b5d5aafaaf99fba89e9674d64f4f35e9dfc432357"
+    },
+    {
+      "path": "node_modules/node-addon-api/tools/eslint-format.js",
+      "sha256": "befbda4868248093b1f5e4307d28f412d12fa16929cd0c07f5e2575e2635646d"
+    },
+    {
+      "path": "node_modules/node-pty/LICENSE",
+      "sha256": "a3d60eaf32d2fb09c9d82ef39f14bd6e2c0f3ca7de30daa827486c0d6f8b6e9f"
+    },
+    {
+      "path": "node_modules/node-pty/README.md",
+      "sha256": "e2be297b0919196300e637fd2efb0cd039ee7f994515f45a0dd8eac112ec1eaf"
+    },
+    {
+      "path": "node_modules/node-pty/binding.gyp",
+      "sha256": "60087f9bc86f372a5ad49d15d7854140c29fac959aaa1fb2c8ffd0dc021595dd"
+    },
+    {
+      "path": "node_modules/node-pty/lib/conpty_console_list_agent.js",
+      "sha256": "6fc8e611a9f547e03c24ffd25a18ea82010fbadbf3921e6324c69bc0356d900d"
+    },
+    {
+      "path": "node_modules/node-pty/lib/eventEmitter2.js",
+      "sha256": "f1c14613aa90c10def4ca7238329270871997eb26f919f7074dc25533e3e75dd"
+    },
+    {
+      "path": "node_modules/node-pty/lib/index.js",
+      "sha256": "17e79806518ab350cd7d729dcc94154c5d770ea03e38e53684c5a8618065f99c"
+    },
+    {
+      "path": "node_modules/node-pty/lib/interfaces.js",
+      "sha256": "56e4173f09aad26173f9d4c79800fda0b808c34424f987ef8d671cc931119a0a"
+    },
+    {
+      "path": "node_modules/node-pty/lib/shared/conout.js",
+      "sha256": "1573129ede3b54a32a4dc3be122566eae0b1979b4513d31329bbd115a4a0e85f"
+    },
+    {
+      "path": "node_modules/node-pty/lib/terminal.js",
+      "sha256": "771f5388103c3eb7bc698b589f41c08f06044d96de609eec45c9a79e4ee4fc00"
+    },
+    {
+      "path": "node_modules/node-pty/lib/types.js",
+      "sha256": "408bf8287717b6322cc380ea66caf1b5e366dcf697707ae2f3cc454e08f3b151"
+    },
+    {
+      "path": "node_modules/node-pty/lib/unixTerminal.js",
+      "sha256": "63b605fb25c4e6d237493cd1799b01a8d880d89c78850108aae1853d04b4cdf0"
+    },
+    {
+      "path": "node_modules/node-pty/lib/utils.js",
+      "sha256": "807bc62c8b702377d591136862309718ba48fb2b9eca54f4b25fbe43838c8fc6"
+    },
+    {
+      "path": "node_modules/node-pty/lib/windowsConoutConnection.js",
+      "sha256": "c87159520fc74cb0745f273260cc701cdb9e4c01ab0bae12cb4bd8d7f6e2f7c9"
+    },
+    {
+      "path": "node_modules/node-pty/lib/windowsPtyAgent.js",
+      "sha256": "4f503c377b11cbd113e1f32b3932fdc35e8132b0e647f4c6b70dc84224127c53"
+    },
+    {
+      "path": "node_modules/node-pty/lib/windowsTerminal.js",
+      "sha256": "b05d53d49cf9f422c2836029676ac2829f59cc14f5bbbbfaafa08382ff044267"
+    },
+    {
+      "path": "node_modules/node-pty/lib/worker/conoutSocketWorker.js",
+      "sha256": "241ff80c89ab6aaf01a7f98b9ae5d865cd3f76850b1eb5ba8a0aa30fbbe5ab2d"
+    },
+    {
+      "path": "node_modules/node-pty/package.json",
+      "sha256": "f4a19bbc7cf4c2e35c081e6a18a3d11d21c54c2f3cc25bfe48142742a781b71d"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/darwin-arm64/pty.node",
+      "sha256": "0aae85518beb134a666f8e415f78bf528b2e9d40b47498af97433dc459661366"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper",
+      "sha256": "08bc83a084651d095645010d34783f94b9af443614747e953e66d6578027e999"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/darwin-x64/pty.node",
+      "sha256": "811f4a357e260fc0e520c250a3de5990483761d82afd635effbdf4b793b8a0e9"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/darwin-x64/spawn-helper",
+      "sha256": "a3bed36ae3ed83b2ac2fce475bd578c51f5b536041f0b2dfe116987f565e9758"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/linux-arm64/pty.node",
+      "sha256": "5a3b8930d62535edabec2eac79fe8eca70a178d93fbb76b1ae875dd60ee8f825"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/linux-x64/pty.node",
+      "sha256": "123792d8f22f36d519b21dfb6f4b716f9b18b9e579085ea2840d0773d88d35fd"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-arm64/conpty.node",
+      "sha256": "6da15dc84b864bb4630d95faef97da5f323a078b53d73f395b5efd6f7952c3e0"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-arm64/conpty.pdb",
+      "sha256": "e1b9db81b9b10f8b8b7eb3ad5c9375d4adb328933d8dbd830eaeea4ce447fa4b"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-arm64/conpty/OpenConsole.exe",
+      "sha256": "7fa560be0c9b6c81db5d1b855a4a6e0f3ee5a2ea75d36eebb3ae44443b8d4866"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-arm64/conpty/conpty.dll",
+      "sha256": "b3a9f975c51d5b9b96d290bf784e990e3f85203b063c21614457353f566266ff"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-arm64/conpty_console_list.node",
+      "sha256": "327cf47db8b524a75813c98871037bc60f0a08660e75635897aed957a059b690"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-arm64/conpty_console_list.pdb",
+      "sha256": "21a3b6dc0600e4db43e1f1e3149daab199e333c064a65714fd61d5205a52ebfa"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-x64/conpty.node",
+      "sha256": "ec2fd8545c30e051ee3fa17d26127f7e615919814879c7f746cf4c80845226e0"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-x64/conpty.pdb",
+      "sha256": "9275fecdca50f646579134e44604ba0ce81b184cea8edfc7c9fa53e59b475013"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-x64/conpty/OpenConsole.exe",
+      "sha256": "7f68c840226505004215c0b82d4e502c24b5bc3f4b93c4baaaa19bd679c0def8"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-x64/conpty/conpty.dll",
+      "sha256": "3319b484b80bb53d1f4d0a9eb0ea60fd0f61da69db7280ca43b84215f19245ff"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-x64/conpty_console_list.node",
+      "sha256": "d46800643f90fc56b9fd67398f04a04a871521de0e825211c8382d187859d3ed"
+    },
+    {
+      "path": "node_modules/node-pty/prebuilds/win32-x64/conpty_console_list.pdb",
+      "sha256": "eedbd0fb50293fff4532465ac6e7d765c0d543923ae11e6b1a05b5ae55fe3476"
+    },
+    {
+      "path": "node_modules/node-pty/scripts/post-install.js",
+      "sha256": "98b3f6379debdab20eea21f216e0d09fa38c7757ddc3411f1a743eae7f5be14a"
+    },
+    {
+      "path": "node_modules/node-pty/scripts/prebuild.js",
+      "sha256": "7e604b10f7769d7dc95947d3481c00513b9e3bb6c561d5264506350a16a0381a"
+    },
+    {
+      "path": "node_modules/node-pty/src/unix/pty.cc",
+      "sha256": "5809f87b15122f335017b0b3020071df4c6205c7827186a2c5a9e0edc9ef59b2"
+    },
+    {
+      "path": "node_modules/node-pty/src/unix/spawn-helper.cc",
+      "sha256": "22195de1710b574d5904fc89be5624c25e531de20d5e17e5998a2fd19d86e0e6"
+    },
+    {
+      "path": "node_modules/node-pty/src/win/conpty.cc",
+      "sha256": "800d10d36e888ade40cdb63382a87ae05df208620717d237407ff622d5aaa9d4"
+    },
+    {
+      "path": "node_modules/node-pty/src/win/conpty.h",
+      "sha256": "32b74fe493b4435bc2f8362cfa4bcb4f49a290438002cc4a369e9379c7728d3c"
+    },
+    {
+      "path": "node_modules/node-pty/src/win/conpty_console_list.cc",
+      "sha256": "9eb316fb370652d9141027a43172508287de322dbfb9bad1c8262f80d9721e17"
+    },
+    {
+      "path": "node_modules/node-pty/src/win/path_util.cc",
+      "sha256": "54a6041c38bf714893c1d18db3d2888f42089d0209c3d1dc8d444ac6dbf46a0b"
+    },
+    {
+      "path": "node_modules/node-pty/src/win/path_util.h",
+      "sha256": "f877c15389b7794f1c25a0f3b05101a0fde92ccf8b0a351500ebd5b7922c3bff"
+    },
+    {
+      "path": "node_modules/node-pty/third_party/conpty/1.25.260303002/win10-arm64/OpenConsole.exe",
+      "sha256": "7fa560be0c9b6c81db5d1b855a4a6e0f3ee5a2ea75d36eebb3ae44443b8d4866"
+    },
+    {
+      "path": "node_modules/node-pty/third_party/conpty/1.25.260303002/win10-arm64/conpty.dll",
+      "sha256": "b3a9f975c51d5b9b96d290bf784e990e3f85203b063c21614457353f566266ff"
+    },
+    {
+      "path": "node_modules/node-pty/third_party/conpty/1.25.260303002/win10-x64/OpenConsole.exe",
+      "sha256": "7f68c840226505004215c0b82d4e502c24b5bc3f4b93c4baaaa19bd679c0def8"
+    },
+    {
+      "path": "node_modules/node-pty/third_party/conpty/1.25.260303002/win10-x64/conpty.dll",
+      "sha256": "3319b484b80bb53d1f4d0a9eb0ea60fd0f61da69db7280ca43b84215f19245ff"
+    },
+    {
+      "path": "node_modules/node-pty/typings/node-pty.d.ts",
+      "sha256": "5e2960f29b6d3ca6b8a438cca419e0485d046cb7d9acf67471d5627803ad8db0"
     },
     {
       "path": "node_modules/require-from-string/index.js",
@@ -8644,7 +9240,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "59426fe99e5385c2ab7f18865cfd8fd7c6f56f4193ca3290582f8a1e7d8e0be9"
+      "sha256": "e8ed7a714717b45147d409a037e53acbe4790c1a749b5db4b2607d0d70c021d6"
     },
     {
       "path": "packages/contracts/dist/core.d.ts",
@@ -8679,10 +9275,6 @@
       "sha256": "2a02171947404df76c61d1891dfed8758c57b939f23553fc331a2c76f7f0bff8"
     },
     {
-      "path": "sandbox_bridge/dist/bubblewrap.js",
-      "sha256": "70b9f1eb8137fd9fc56b7e71faa1cd4de9d171ee23bc71ab648f46daeb1ef9a0"
-    },
-    {
       "path": "sandbox_bridge/dist/dispatcher.js",
       "sha256": "fa8df276ad6a8b2104579ce40481d8b9efd4d75d222f7f9a705c1d25e89287cc"
     },
@@ -8691,8 +9283,12 @@
       "sha256": "d07278775169bf74c3607a2348933f1df6210444dde11c8eaeecd07087d22f33"
     },
     {
-      "path": "sandbox_bridge/dist/workspace-runner.js",
-      "sha256": "d5f09179cd3cbc8280d1cea50e203c26435cc090d439eabb585de6db00a05ea4"
+      "path": "sandbox_bridge/dist/native-session.js",
+      "sha256": "e98b791fc7bba263bb2f8a2a8552c723d96dfe6fff983ea2c89b0bdce40cf516"
+    },
+    {
+      "path": "sandbox_bridge/dist/scoped-windows-runner.js",
+      "sha256": "9a00287e0d8c7034b74dbfc8fa83b5060c98410ae3f827c99f3a476a8c4455a4"
     },
     {
       "path": "sandbox_bridge/package.json",

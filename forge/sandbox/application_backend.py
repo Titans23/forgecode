@@ -48,7 +48,7 @@ class NativeBackendFactory:
             diagnostic_root=diagnostic_root if control_root != diagnostic_root else None)
         client=FileWorkerClient(workspace,policy,native=native)
         try:
-            await native.prepare(policy)  # Real prerequisite/boundary proof, never invented verified capabilities.
+            await native.prepare(policy)  # Bind DSH services; confinement occurs when a command actually runs.
             if native.policy_hash!=canonical_hash(policy):
                 raise ContractError('Prepared policy differs from accepted snapshot',kind='STALE_REVISION',code=-32010)
             backend=FileToolBackend(client)
