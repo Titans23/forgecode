@@ -10,7 +10,7 @@ import shlex
 
 from pydantic import Field
 
-from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.base import SandboxInput, Tool, ToolExecutionError, ToolResult
 from forge.tools.paths import display_path, resolve_repository_path
 from forge.tools.filesystem import (
     MAX_EDIT_CHARACTERS,
@@ -24,7 +24,7 @@ from forge.tools.shell import (
 )
 
 
-class ApplyPatchInput(ToolInput):
+class ApplyPatchInput(SandboxInput):
     patch: str = Field(min_length=1, max_length=MAX_EDIT_CHARACTERS)
 
 

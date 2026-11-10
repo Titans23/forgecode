@@ -13,13 +13,13 @@ from pydantic import Field, model_validator
 
 from forge.runtime.workspace import WorkspaceTracker
 from forge.runtime.verification import verification_quality
-from forge.tools.base import Tool, ToolExecutionError, ToolResult
+from forge.tools.base import SandboxInput, Tool, ToolExecutionError, ToolResult
 from forge.tools.paths import display_path, resolve_repository_path
-from forge.tools.shell import CommandSandboxInput, has_unquoted_heredoc, process_metadata, render_process_output, run_process
+from forge.tools.shell import has_unquoted_heredoc, process_metadata, render_process_output, run_process
 from forge.tools.verification_checks import OutputCheck, dormant_python_tests, evaluate_output_checks
 
 
-class VerifyInput(CommandSandboxInput):
+class VerifyInput(SandboxInput):
     check_id: str | None = Field(default=None, description='Rerun a stored check definition by ID; command and assertions need not be repeated.')
     inherit_checks_from: list[str] = Field(default_factory=list, max_length=20,
         description='Reuse exact output assertions from these verification IDs when repairing a checker. Omit rewritten old output_checks; add only new checks. Without recorded output assertions, command, stdin and cwd must remain unchanged. Requires revision_reason and unchanged cwd. Automatically adds supersedes.')

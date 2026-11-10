@@ -183,9 +183,16 @@ class ToolExecutor:
         request = self.registry.permission_request(call.name, arguments)
         if request is None:
             request = classify_tool_call(effective_call, effect)
+            if self.permission_manager.execution_mode is not None:
+                # Legacy command/name heuristics are not a DSH sandbox policy.
+                # Explicit tool requests and configured deny rules remain authoritative.
+                request = replace(request, hard_deny=False,
+                    reason='Access is governed by the selected sandbox mode.')
         execution_call = effective_call
         wider_mode = None
-        if call.name in {'run_command', 'verify'}:
+        from forge.tools.base import SandboxInput
+        implementation = self.registry.implementation(call.name)
+        if implementation is not None and issubclass(implementation.input_model, SandboxInput):
             target = arguments.get('sandbox_permissions')
             target = 'full-access' if target == 'danger-full-access' else target
             current_mode = self.permission_manager.execution_mode
@@ -197,8 +204,8 @@ class ToolExecutor:
                         'This execution provider cannot widen the current sandbox to the requested mode.'),
                         'rejected', started, arguments, revision, epoch)
                 wider_mode = target
-                consequence = ('本次命令将使用宿主权限执行，不受工作区沙盒限制。' if target == 'full-access'
-                               else '本次命令将允许写入已授权的工作区范围。')
+                consequence = ('本次操作将使用宿主权限执行，不受工作区沙盒限制。' if target == 'full-access'
+                               else '本次操作将允许写入已授权的工作区范围。')
                 request = replace(request, sandbox_mode=target, risk=request.risk if request.hard_deny else 'high',
                     reason=(request.reason if request.hard_deny else
                             f'{consequence} 仅本次有效，会话默认模式不变。\n理由：{arguments["justification"]}'),
@@ -244,31 +251,36 @@ class ToolExecutor:
         if effect != 'read_only':
             self._read_cache.clear()
         execution_started = False
+        execution_backend = self.backend
+        temporary_backend = None
+        cleanup = None
         try:
+            if wider_mode is not None and callable(getattr(self.backend, 'open_approved', None)):
+                temporary_backend = self.backend.open_approved(wider_mode)
+                execution_backend = temporary_backend
             if self.workspace_tracker is not None and effect == 'workspace_write':
                 await self.workspace_tracker.watch_paths_async(checkpoint_paths)
             if checkpoint_id is not None and checkpoint_paths:
                 if self.checkpoint_store is None:
                     raise CheckpointError('Checkpoint store is unavailable.')
-                if self.backend is not None and hasattr(self.backend, 'snapshot'):
-                    observed = await self.backend.snapshot(checkpoint_paths, recursive=call.name == 'remove_directory')
+                if execution_backend is not None and hasattr(execution_backend, 'snapshot'):
+                    observed = await execution_backend.snapshot(checkpoint_paths, recursive=call.name == 'remove_directory')
                     self.checkpoint_store.capture_observations(checkpoint_id, observed['files'],
-                        host=self.permission_manager.execution_mode == 'full-access'
-                             and self.backend.mode == 'local-trusted')
+                        host=True)
                     checkpoint_paths = tuple(observed['files'])
                 else:
                     self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
             await self._journal_started(effective_call)
             execution_started = True
-            if wider_mode is not None:
+            if wider_mode is not None and temporary_backend is None:
                 result = await self.backend.execute_approved(execution_call, self.registry, wider_mode)
-            elif self.backend is not None:
-                result = await self.backend.execute(execution_call, self.registry)
+            elif execution_backend is not None:
+                result = await execution_backend.execute(execution_call, self.registry)
             else:
                 result = await self.registry.execute(call.name, execution_call.arguments)
             if checkpoint_id is not None and checkpoint_paths:
-                if self.backend is not None and hasattr(self.backend, 'snapshot'):
-                    observed = await self.backend.snapshot(checkpoint_paths)
+                if execution_backend is not None and hasattr(execution_backend, 'snapshot'):
+                    observed = await execution_backend.snapshot(checkpoint_paths)
                     self.checkpoint_store.record_observations(checkpoint_id, observed['files'])
                 else:
                     self.checkpoint_store.record_after(checkpoint_id, checkpoint_paths)
@@ -318,6 +330,17 @@ class ToolExecutor:
                 arguments,
                 *self._state(),
             )
+        finally:
+            if temporary_backend is not None:
+                cleanup = await self.backend.close_approved(temporary_backend)
+
+        if temporary_backend is not None:
+            result = replace(result, metadata={**result.metadata, 'execution_mode': wider_mode,
+                'sandbox_override': 'allow_once', 'cleanup': cleanup,
+                **({'sandbox_covered': False} if wider_mode == 'full-access' else {})})
+            if cleanup.get('state') != 'clean':
+                result = ToolResult.fail('INDETERMINATE', 'Operation cleanup was not proven clean; inspect before retrying.',
+                    content=result.content, metadata=result.metadata)
 
         if (
             effect == 'process'

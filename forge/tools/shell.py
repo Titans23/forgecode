@@ -12,11 +12,10 @@ import tempfile
 import sys
 import json
 from time import perf_counter
-from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field
 
-from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.base import SandboxInput, Tool, ToolExecutionError, ToolResult
 from forge.tools.paths import file_access_guard, display_path, resolve_repository_path
 from forge.runtime.profile import ExecutionProfile
 
@@ -339,26 +338,7 @@ def render_process_output(result: ProcessResult) -> str:
     return '\n\n'.join(sections)
 
 
-class CommandSandboxInput(ToolInput):
-    sandbox_permissions: Literal['workspace-write', 'danger-full-access'] | None = Field(
-        default=None, description='Request a wider mode for this call only, with justification. '
-        'After a real sandbox denial or initialization failure, request the narrowest mode needed '
-        'for the same command. danger-full-access runs with host permissions after explicit approval; '
-        'it does not change the session default. Never automatically retry an indeterminate command. '
-        'If approval is denied or unavailable, stop; do not resubmit or work around it.')
-    justification: str | None = Field(default=None, min_length=1, max_length=2000,
-        description='Required with sandbox_permissions: explain why this exact command needs wider access.')
-
-    @model_validator(mode='after')
-    def require_sandbox_justification(self):
-        if (self.sandbox_permissions is None) != (self.justification is None):
-            raise ValueError('sandbox_permissions and justification must be provided together')
-        if self.justification is not None and not self.justification.strip():
-            raise ValueError('justification must not be blank')
-        return self
-
-
-class RunCommandInput(CommandSandboxInput):
+class RunCommandInput(SandboxInput):
     command: str = Field(min_length=1)
     cwd: str = '.'
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
@@ -369,8 +349,7 @@ class RunCommandTool(Tool[RunCommandInput]):
     name = 'run_command'
     description = (
         'Run an executable command for exploration, diagnostics, '
-        'or development. Do not use it to display source files or directory '
-        'trees; use read_file, grep, find_files, or list_directory. '
+        'or development under the selected execution policy. '
         'Use verify instead when the command is '
         'intended as formal completion evidence. For multiline scripts, pass '
         'command="python -" or command="node" and put the script in stdin; '
@@ -415,7 +394,9 @@ class RunCommandTool(Tool[RunCommandInput]):
         return self.execution_profile.allow_command_file_writes
 
     async def execute(self, arguments: RunCommandInput) -> ToolResult:
-        if not self.execution_profile.allow_command_file_writes:
+        access = file_access_guard.get()
+        policy_controls_access = getattr(getattr(access, 'policy', None), 'execution_mode', None) is not None
+        if not policy_controls_access and not self.execution_profile.allow_command_file_writes:
             directory_write = shell_directory_write_reason(arguments.command)
             if directory_write is not None:
                 raise ToolExecutionError(
@@ -442,7 +423,7 @@ class RunCommandTool(Tool[RunCommandInput]):
                 },
             )
         destructive_reason = destructive_git_command_reason(arguments.command)
-        if destructive_reason is not None:
+        if not policy_controls_access and destructive_reason is not None:
             raise ToolExecutionError(
                 'destructive_git_command_denied',
                 'run_command cannot discard repository changes. Use '
@@ -450,7 +431,7 @@ class RunCommandTool(Tool[RunCommandInput]):
                 'files.',
                 details={'detected': destructive_reason},
             )
-        if not self.execution_profile.allow_command_file_writes:
+        if not policy_controls_access and not self.execution_profile.allow_command_file_writes:
             read_reason = shell_file_read_reason(arguments.command)
             if read_reason is not None:
                 raise ToolExecutionError(
@@ -470,6 +451,7 @@ class RunCommandTool(Tool[RunCommandInput]):
                 )
         if (
             arguments.stdin is not None
+            and not policy_controls_access
             and not self.execution_profile.allow_command_file_writes
         ):
             stdin_read_reason = shell_file_read_reason(arguments.stdin)

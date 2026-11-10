@@ -95,7 +95,7 @@ def test_missing_one_shot_consent_never_executes(tmp_path, options):
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('case', ['deny_rule', 'hard_deny', 'scope', 'unsupported', 'narrower'])
+@pytest.mark.parametrize('case', ['deny_rule', 'scope', 'unsupported', 'narrower'])
 def test_other_boundaries_still_precede_widening(tmp_path, case):
     async def run():
         runtime, prompts = executor(tmp_path, sandbox='full-access' if case == 'narrower' else 'workspace-write')
@@ -122,7 +122,8 @@ def test_read_only_can_widen_once_but_plan_cannot(tmp_path):
         assert runtime.backend.calls[0][0] == 'workspace-write'
         assert prompts[0].sandbox_mode == 'workspace-write'
         assert runtime.permission_manager.execution_mode == 'read-only'
-        assert not (await runtime.execute(ToolCall(1, 'two', 'run_command', {'command': 'echo ok'}))).result.success
+        assert (await runtime.execute(ToolCall(1, 'two', 'run_command', {'command': 'echo ok'}))).result.success
+        assert runtime.backend.calls[-1][0] == 'default'
     asyncio.run(run())
 
 

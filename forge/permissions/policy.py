@@ -12,7 +12,7 @@ from typing import Any, Awaitable, Callable, Literal
 from forge.config import warn_unknown_config_fields
 
 
-PermissionMode = Literal['plan', 'supervised', 'auto']
+PermissionMode = Literal['ask', 'never', 'plan', 'supervised', 'auto']
 PermissionAction = Literal['allow', 'ask', 'deny']
 PermissionScope = Literal['user', 'project', 'session']
 ApprovalChoice = Literal[
@@ -129,8 +129,8 @@ class PermissionManager:
             self.session_rules.clear()
 
     def set_mode(self, mode: str) -> PermissionMode:
-        if mode not in {'plan', 'supervised', 'auto'}:
-            raise ValueError('Permission mode must be plan, supervised, or auto.')
+        if mode not in {'ask', 'never', 'plan', 'supervised', 'auto'}:
+            raise ValueError('Approval policy must be ask or never (legacy: plan, supervised, auto).')
         self.mode = mode  # type: ignore[assignment]
         self._audit('permission_mode_changed', {'mode': mode})
         return self.mode
@@ -148,7 +148,8 @@ class PermissionManager:
             return self._decision('deny', request, request.reason, 'hard_deny')
 
         read_only = request.capability in {'file.read', 'repository.read', 'mcp.read'}
-        if not read_only and (self.mode == 'plan' or (self.execution_mode == 'read-only' and not request.sandbox_mode)):
+        mutation = request.capability in {'file.write', 'file.delete'} and request.tool_name not in {'run_command', 'verify'}
+        if not read_only and (self.mode == 'plan' or (mutation and self.execution_mode == 'read-only' and not request.sandbox_mode)):
             return self._decision('deny', request, 'Read-only policy forbids this operation.', 'read_only')
 
         matching = [
@@ -212,6 +213,8 @@ class PermissionManager:
         }
         if self.mode == 'plan':
             return 'allow' if read_only else 'deny'
+        if self.execution_mode is not None or self.mode in {'ask', 'never'}:
+            return 'allow'  # The selected sandbox governs ordinary tool access.
         if self.mode == 'supervised':
             return 'allow' if read_only else 'ask'
         if request.risk == 'low':
@@ -228,6 +231,8 @@ class PermissionManager:
             'permission_requested',
             {'request': self._request_payload(request), 'source': source},
         )
+        if self.mode == 'never':
+            return self._decision('deny', request, 'Approval prompts are disabled for this session.', 'approval_disabled')
         if self.approval_handler is None:
             return self._decision(
                 'deny',

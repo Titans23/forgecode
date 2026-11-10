@@ -4,6 +4,14 @@
   "development_checkout": "D:/projects/forgecode",
   "development_branch": "main",
   "current_task": "T03",
+  "dsh_alignment": {
+    "reference": "deepseek-ai/deepseek-harness@ddefc45fbc7f8e46dd73185e68295696d1297887",
+    "file_access": "Implemented: shared one-call grants for file mutations and commands; ordinary explicit-mode access follows sandbox scope, without implicit name/command denials. Explicit caller rules and legacy no-mode interfaces remain compatible.",
+    "session_mode": "pending",
+    "native_lifecycle": "pending",
+    "validation": "File/permission regression initially 176 passed; four expectations changed by the requested semantics were updated, then 96 focused cases passed including the repaired cases. Seven quality commands passed. No existing project ACL modified and no paid model calls.",
+    "evidence_refs": [".local/implementation/dsh-alignment/files-regression.xml", ".local/implementation/dsh-alignment/files-final.xml", ".local/implementation/dsh-alignment/files-quality.json"]
+  },
   "terminal_streaming": {
     "status": "implemented_locally_verified",
     "scope": "One prompt_toolkit renderer owns interactive draft/input updates; Rich prints the final transcript after input stops. Redirected/dumb terminals flush text deltas without cursor redraw or final replay. Approval pauses, cancellation, pending input and usage remain separate from rendering.",

@@ -68,8 +68,10 @@ def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), a
             denied('Write root is outside workspace or trusted temporary roots')
     if mode == 'read-only' and filesystem['write_roots']:
         denied('Read-only cannot grant write roots')
-    protected = [*map(Path, filesystem['protected_paths']), root.path / '.forge', *git_metadata_paths(root.path)]
-    for path in control_roots:
+    protected = list(map(Path, filesystem['protected_paths']))
+    if mode is None:
+        protected.extend((root.path / '.forge', *git_metadata_paths(root.path)))
+    for path in control_roots if mode is None else ():
         candidate = inspect_path(path, absolute=True).path
         if not any(candidate == parent or candidate.is_relative_to(parent) for parent in protected):
             protected.append(candidate)

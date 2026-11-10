@@ -56,7 +56,7 @@ def create_default_registry(
 
     tracker = WorkspaceTracker(root, observer=getattr(tool_backend, 'observer', None))
     skill_manager = SkillManager(root)
-    return ToolRegistry(
+    registry = ToolRegistry(
         [
             ListDirectoryTool(root),
             FindFilesTool(root),
@@ -90,6 +90,14 @@ def create_default_registry(
         # phase temporarily changes the schema set.
         hidden_tools={'write_file_chunk'},
     )
+    if tool_backend is not None and getattr(tool_backend, 'mode', None) != 'strict':
+        registry.implementation('write_file').description = (
+            'Atomically create or replace a UTF-8 text file under the current sandbox policy. '
+            'Read existing content before changing it; observed versions are checked for conflicts. '
+            'Use apply_patch or replace_text for focused edits. Missing parent directories are created. '
+            'A denied file write can request a wider mode for this operation with sandbox_permissions and justification.')
+        registry.implementation('run_command').description = RunCommandTool.description
+    return registry
 
 
 __all__ = [

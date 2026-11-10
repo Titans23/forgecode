@@ -94,7 +94,7 @@ class PathPolicy:
     execution_mode: str | None = None
 
     def is_protected(self, path):
-        return (any(part.casefold() in SENSITIVE or part.casefold().startswith('.env.') for part in path.parts)
+        return ((self.execution_mode is None and any(part.casefold() in SENSITIVE or part.casefold().startswith('.env.') for part in path.parts))
                 or any(path == protected or path.is_relative_to(protected) for protected in self.protected_paths))
 
     def authorize(self, raw, *, write=False):

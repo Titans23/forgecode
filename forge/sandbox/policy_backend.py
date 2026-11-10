@@ -10,6 +10,7 @@ from forge.tools.base import ToolResult
 
 # Git can execute repository-configured helpers; it belongs with command tools.
 NATIVE_TOOLS = PROCESS_TOOLS | {'git_status', 'git_diff', 'git_log'}
+MUTATION_TOOLS = {'create_directory', 'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch'}
 
 
 class PolicyToolBackend(FileToolBackend):
@@ -75,7 +76,7 @@ class PolicyToolBackend(FileToolBackend):
         """Called only by ToolExecutor after an exact, one-call widening approval."""
         if self._closing is not None:
             return ToolResult.fail('SANDBOX_UNAVAILABLE', 'Execution session is closed')
-        if (call.name not in PROCESS_TOOLS or self._mode_factory is None
+        if (call.name not in PROCESS_TOOLS | MUTATION_TOOLS or self._mode_factory is None
                 or mode not in {'read-only': ('workspace-write', 'full-access'),
                                'workspace-write': ('full-access',)}.get(self.mode, ())):
             return ToolResult.fail('CAPABILITY_UNSATISFIED', 'This backend cannot apply the approved command mode')
@@ -83,17 +84,11 @@ class PolicyToolBackend(FileToolBackend):
         if invalid is not None:
             return invalid
         # Constructing a temporary file-policy backend does not initialize native grants.
-        backend = self._mode_factory(mode)
-        self._temporary.add(backend)
+        backend = self.open_approved(mode)
         try:
             result = await backend.execute(call, registry)
         finally:
-            try:
-                report = await backend.close()
-            except Exception as error:
-                report = {'state': 'unknown', 'reason': type(error).__name__}
-            self._temporary_reports.append(report)
-            self._temporary.discard(backend)
+            report = await self.close_approved(backend)
         metadata = {**result.metadata, 'execution_mode': mode, 'sandbox_override': 'allow_once', 'cleanup': report}
         if mode == 'full-access':
             metadata['sandbox_covered'] = False
@@ -101,6 +96,28 @@ class PolicyToolBackend(FileToolBackend):
             return ToolResult.fail('INDETERMINATE', 'Command cleanup was not proven clean; inspect before retrying.',
                 content=result.content, metadata=metadata)
         return replace(result, metadata=metadata)
+
+    def open_approved(self, mode):
+        if self._closing is not None or self._mode_factory is None:
+            raise ContractError('Execution provider is closed or cannot widen', kind='SANDBOX_UNAVAILABLE')
+        if mode not in {'read-only': ('workspace-write', 'full-access'), 'workspace-write': ('full-access',)}.get(self.mode, ()):
+            raise ContractError('Requested mode is not wider than the current mode', kind='POLICY_DENIED')
+        backend = self._mode_factory(mode)
+        if hasattr(backend, '_observed'):
+            backend._observed.update(self._observed)
+        self._temporary.add(backend)
+        return backend
+
+    async def close_approved(self, backend):
+        try:
+            report = await backend.close()
+        except Exception as error:
+            report = {'state': 'unknown', 'reason': type(error).__name__}
+        self._temporary_reports.append(report)
+        if hasattr(backend, '_observed'):
+            self._observed.update(backend._observed)
+        self._temporary.discard(backend)
+        return report
 
     async def close(self):
         if self._closing is None:

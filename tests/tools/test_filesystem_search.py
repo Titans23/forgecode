@@ -449,7 +449,7 @@ def test_write_file_schema_does_not_expose_legacy_hash_argument(
     assert result.success is False
     assert result.error is not None
     assert result.error.code == 'invalid_arguments'
-    assert result.error.details['allowed_arguments'] == ['content', 'path']
+    assert result.error.details['allowed_arguments'] == ['content', 'justification', 'path', 'sandbox_permissions']
     assert path.read_text(encoding='utf-8') == 'const value = 1;\n'
 
 

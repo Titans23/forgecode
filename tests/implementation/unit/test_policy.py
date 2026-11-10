@@ -297,8 +297,10 @@ def test_explicit_modes_resolve_links_then_check_actual_write_scope(tmp_path, mo
             with pytest.raises(ContractError):
                 paths.authorize(link / 'new' / 'future.txt', write=True)
         for secret in (root / '.env', root / '.forge/data.json'):
-            with pytest.raises(ContractError):
-                paths.authorize(secret)
+            assert paths.authorize(secret).path == secret
+        policy['filesystem']['protected_paths'] = [str(root / '.env')]
+        with pytest.raises(ContractError):
+            compile_policy(policy, workspace).paths.authorize(root / '.env')
         policy['filesystem']['write_roots'] = [str(outside)]
         if mode == 'full-access':
             assert compile_policy(policy, workspace).paths.authorize(root / 'new.txt', write=True).path == root / 'new.txt'

@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, ClassVar, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from forge.permissions.policy import PermissionRequest
 from forge.tools.paths import (
@@ -24,6 +24,24 @@ class ToolInput(BaseModel):
     '''Strict base model for model-provided tool arguments.'''
 
     model_config = ConfigDict(extra='forbid')
+
+
+class SandboxInput(ToolInput):
+    sandbox_permissions: Literal['workspace-write', 'danger-full-access'] | None = Field(
+        default=None, description='Request a wider sandbox mode for this operation only, with justification. '
+        'After an actual sandbox denial or initialization failure, request the narrowest wider mode needed '
+        'for the same operation. Explicit one-shot approval is required; the session default stays unchanged. '
+        'Do not retry an indeterminate operation or resubmit a rejected/unavailable approval.')
+    justification: str | None = Field(default=None, min_length=1, max_length=2000,
+        description='Required with sandbox_permissions: explain why this exact operation needs wider access.')
+
+    @model_validator(mode='after')
+    def require_sandbox_justification(self):
+        if (self.sandbox_permissions is None) != (self.justification is None):
+            raise ValueError('sandbox_permissions and justification must be provided together')
+        if self.justification is not None and not self.justification.strip():
+            raise ValueError('justification must not be blank')
+        return self
 
 
 from forge.tool_types import ToolError, ToolResult, ToolExecutionError

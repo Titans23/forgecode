@@ -17,7 +17,7 @@ import tempfile
 from pydantic import Field, model_validator
 
 from forge.permissions.policy import PermissionRequest
-from forge.tools.base import Tool, ToolExecutionError, ToolInput, ToolResult
+from forge.tools.base import SandboxInput, Tool, ToolExecutionError, ToolInput, ToolResult
 from forge.tools.paths import display_path, file_access_guard, is_repository_path_protected, resolve_repository_path
 
 
@@ -81,7 +81,7 @@ class ListDirectoryTool(Tool[ListDirectoryInput]):
         )
 
 
-class CreateDirectoryInput(ToolInput):
+class CreateDirectoryInput(SandboxInput):
     path: str = Field(min_length=1)
 
 
@@ -133,7 +133,7 @@ class CreateDirectoryTool(Tool[CreateDirectoryInput]):
         )
 
 
-class RemoveDirectoryInput(ToolInput):
+class RemoveDirectoryInput(SandboxInput):
     path: str = Field(min_length=1)
     recursive: bool = False
     contents_only: bool = False
@@ -367,7 +367,7 @@ class ReadFileTool(Tool[ReadFileInput]):
         )
 
 
-class WriteFileInput(ToolInput):
+class WriteFileInput(SandboxInput):
     path: str = Field(min_length=1)
     content: str = Field(max_length=MAX_EDIT_CHARACTERS)
 
@@ -484,7 +484,9 @@ class WriteFileTool(Tool[WriteFileInput]):
         )
 
     def _execute_sync(self, arguments: WriteFileInput) -> ToolResult:
-        if empty_write_looks_like_directory(
+        access = file_access_guard.get()
+        policy_controls_access = getattr(getattr(access, 'policy', None), 'execution_mode', None) is not None
+        if not policy_controls_access and empty_write_looks_like_directory(
             arguments.path,
             arguments.content,
         ):
@@ -543,7 +545,7 @@ class WriteFileTool(Tool[WriteFileInput]):
                         'status': 'already_completed',
                     },
                 )
-            if current.strip():
+            if current.strip() and not policy_controls_access:
                 raise ToolExecutionError(
                     'file_already_exists',
                     f'write_file will not overwrite non-empty file '
@@ -583,7 +585,7 @@ class WriteFileTool(Tool[WriteFileInput]):
         )
 
 
-class WriteFileChunkInput(ToolInput):
+class WriteFileChunkInput(SandboxInput):
     path: str = Field(min_length=1)
     content: str = Field(min_length=1, max_length=MAX_EDIT_CHARACTERS)
     offset: int = Field(ge=0)
@@ -721,7 +723,7 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
         )
 
 
-class ReplaceTextInput(ToolInput):
+class ReplaceTextInput(SandboxInput):
     path: str = Field(min_length=1)
     old_text: str = Field(min_length=1, max_length=MAX_EDIT_CHARACTERS)
     new_text: str = Field(max_length=MAX_EDIT_CHARACTERS)

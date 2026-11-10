@@ -44,7 +44,7 @@ class RunProfile:
 class SessionOptions:
     root: Path | None = None
     sandbox: str | None = None
-    approval: str = 'supervised'
+    approval: str = 'ask'
     read_roots: tuple[Path, ...] = ()
     write_roots: tuple[Path, ...] | None = None
     data_root: Path | None = None
@@ -60,8 +60,8 @@ class SessionOptions:
             object.__setattr__(self, 'sandbox', 'full-access')
         if self.sandbox not in ('read-only', 'workspace-write', 'full-access'):
             raise ValueError('Sandbox must be read-only, workspace-write or full-access')
-        if self.approval not in ('plan', 'supervised', 'auto'):
-            raise ValueError('Approval must be plan, supervised or auto')
+        if self.approval not in ('ask', 'never', 'plan', 'supervised', 'auto'):
+            raise ValueError('Approval must be ask or never (legacy: plan, supervised, auto)')
         if self.sandbox == 'read-only' and self.write_roots:
             raise ValueError('Read-only cannot grant write roots')
         if self.agent.base == 'coding' and self.root is None:

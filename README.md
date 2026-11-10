@@ -81,11 +81,11 @@ forge
 
 将示例路径替换为实际项目目录。`forge config` 检查配置，不回显密钥；`forge` 启动持续对话。ForgeCode 安装目录与目标项目分开，避免安装目录保护导致沙盒初始化被拒绝。
 
-默认 workspace-write 按 DSH 的方式区分文件策略和进程隔离：启动、读取及工作区内文件编辑不申请原生 ACL；文件工具解析实际目标，拒绝工作区外写入并保护安装与控制目录。符号链接和 Windows Junction 不会单独阻止启动。运行命令、验证或 Git 工具时才准备原生沙盒；安装目录与工作区重叠时仍拒绝原生命令。
+默认 workspace-write 按 DSH 的方式区分文件策略和进程隔离：启动、读取及文件编辑不申请原生 ACL；文件工具解析实际目标，写入限于工作区和平台临时目录，不再按 `.env` 等名称额外拒绝访问。符号链接和 Windows Junction 不会单独阻止启动。运行命令、验证或 Git 工具时才准备原生沙盒；安装目录与工作区重叠时仍拒绝原生命令。
 
 遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。npm 安装会自动提供其管理的工具；Ubuntu 需检查系统 bubblewrap 和 user namespace，源码安装需检查构建文件。只读诊断在原生进程尚未准备时可为 `blocked`；成功打开 CLI 不代表 OS 隔离已经验证。
 
-Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时拒绝该进程调用，保留会话和文件策略。与 DSH 一样，`run_command` / `verify` 可通过 `sandbox_permissions` 和 `justification` 请求单次更宽权限：用户明确批准后，该次 `danger-full-access` 命令使用宿主权限，不申请工作区 ACL；下一条命令仍使用默认沙盒。不会自动切换或重试，无法审批或拒绝时不执行。
+Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时拒绝该进程调用，保留会话和文件策略。命令、verify 和文件修改工具可通过 `sandbox_permissions` 和 `justification` 请求单次更宽权限。`--approval ask` 是默认审批策略，仅扩大范围或显式策略要求时询问；`never` 拒绝需要审批的请求。批准的 `danger-full-access` 操作使用宿主权限，下一次操作仍使用默认沙盒。没有自动切换或重试，也不会自动修复项目 ACL。
 
 恢复已有会话：
 

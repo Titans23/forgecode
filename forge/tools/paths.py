@@ -133,6 +133,7 @@ def is_repository_path_protected(path: Path) -> bool:
             guard(path)
         except Exception:
             return True
+        return False
     for part in path.parts:
         name = part.casefold()
         if name in CONTROL_PLANE_DIRECTORIES:
