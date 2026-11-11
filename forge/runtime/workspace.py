@@ -34,22 +34,33 @@ class WorkspaceTracker:
         self.environment_epoch = 0
         self.available = False
         self._baseline_complete = False
+        self.baseline_pending = False
         self.git_available = False
         self._watched_paths: set[str] = set()
         self._carried_paths: set[str] = set()
 
-    async def begin_turn(self) -> None:
-        '''Use the current working tree as the immutable baseline for one turn.'''
+    async def begin_turn(self, *, deferred: bool = False) -> None:
+        '''Reset one turn; ordinary chat can capture just before its first effect.'''
         self._watched_paths.clear()
         self._carried_paths.clear()
+        self.baseline = self.current = WorkspaceSnapshot()
+        self.available = self._baseline_complete = self.git_available = False
+        self.revision = self.environment_epoch = 0
+        self.baseline_pending = True
+        if not deferred:
+            await self.ensure_baseline()
+
+    async def ensure_baseline(self) -> None:
+        '''Capture once before an authorized side effect, never after it.'''
+        if not self.baseline_pending:
+            return
         snapshot = await self._capture()
         self.available = snapshot is not None
         self._baseline_complete = self.available
         resolved = snapshot or WorkspaceSnapshot()
         self.baseline = resolved
         self.current = resolved
-        self.revision = 0
-        self.environment_epoch = 0
+        self.baseline_pending = False
 
     def mark_environment_change(self) -> int:
         '''Invalidate process-derived evidence without fabricating a file diff.'''
@@ -109,6 +120,8 @@ class WorkspaceTracker:
 
     async def refresh(self) -> WorkspaceChange | None:
         '''Capture tool-caused changes and advance the revision when needed.'''
+        if self.baseline_pending:
+            return None  # No side effect has required a before-image this turn.
         snapshot = await self._capture()
         if snapshot is None:
             self.available = False

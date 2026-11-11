@@ -248,8 +248,11 @@ class NoChangeWorkspaceTracker:
         self.revision = 0
         self.changed_paths: tuple[str, ...] = ()
 
-    async def begin_turn(self) -> None:
+    async def begin_turn(self, *, deferred=False) -> None:
         self.revision = 0
+
+    async def ensure_baseline(self) -> None:
+        pass
 
     def watch_paths(self, paths: tuple[str, ...]) -> None:
         pass

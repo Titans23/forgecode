@@ -196,7 +196,15 @@ class TurnRunner:
         if self.journal is not None:
             self.journal.record_task_state(c.task_manager.active)
         if self.tracker is not None:
-            await self.tracker.begin_turn()
+            # Preserve turn-start evidence for explicit acceptance, resumed work
+            # and host extensions. Plain interaction needs no full tree scan
+            # until an authorized tool can change the workspace or environment.
+            eager_baseline = bool(
+                c.completion_gate and c.completion_gate.policy.has_contract
+                or c.verification_history or previous and previous.workspace_paths
+                or c.task_relation is not None or c.hook_manager is not None or c.completion_checks
+            )
+            await self.tracker.begin_turn(deferred=not eager_baseline)
             if previous is not None and decision is not None and decision.intent == 'continue_task':
                 self.tracker.carry_existing_changes(previous.workspace_paths)
         c.working_state = WorkingState()

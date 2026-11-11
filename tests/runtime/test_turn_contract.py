@@ -311,3 +311,114 @@ def test_read_only_execution_does_not_rescan_workspace(tmp_path: Path) -> None:
         assert scans == 0
 
     asyncio.run(check())
+
+
+@pytest.mark.parametrize('read_file', [False, True])
+def test_plain_turn_streams_and_finishes_without_full_workspace_scan(tmp_path, read_file):
+    (tmp_path / 'sample.txt').write_text('readable')
+    responses = ([request(ToolCall(0, 'read', 'read_file', {'path': 'sample.txt'}))] if read_file else [])
+    client = ScriptedClient(*responses, [*request(), ModelTextDelta('ready')], [*request(), ModelTextDelta('next turn')])
+    registry = create_default_registry(tmp_path)
+    async def unexpected_capture():
+        pytest.fail('Plain text and read-only tools must not scan the entire workspace')
+    registry.workspace_tracker._capture = unexpected_capture
+    conversation = Conversation(client=client, registry=registry, context_root=tmp_path)
+    async def check():
+        for prompt in ('Read or answer.', 'Another question.'):
+            events = [event async for event in conversation.stream(prompt)]
+            assert events[-1].result.status == 'completed'
+            assert registry.workspace_tracker.baseline_pending
+            assert not registry.workspace_tracker.available
+            assert registry.workspace_tracker.changed_paths == ()
+        assert all('Git is unavailable' not in call['system'] for call in client.calls)
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize('effect', ['workspace_write', 'process'])
+def test_baseline_precedes_first_effect_but_not_first_text(tmp_path, effect):
+    (tmp_path / 'user.txt').write_text('original')
+    registry = create_default_registry(tmp_path)
+    tracker = registry.workspace_tracker
+    capture, scans = tracker._capture, []
+    async def counted_capture():
+        scans.append(True)
+        if len(scans) == 1:
+            assert not (tmp_path / 'agent.txt').exists()
+        return await capture()
+    tracker._capture = counted_capture
+    call = (ToolCall(0, 'edit', 'write_file', {'path': 'agent.txt', 'content': 'agent'})
+        if effect == 'workspace_write' else ToolCall(0, 'command', 'run_command',
+            {'command': python_command("print('command executed')")}))
+    class Client(ScriptedClient):
+        async def stream(self, *args, **kwargs):
+            if not self.calls:
+                assert not scans
+                (tmp_path / 'user.txt').write_text('external edit while model is thinking')
+            async for event in super().stream(*args, **kwargs):
+                yield event
+    client = Client([ModelTextDelta('Starting now.'), *request(call)], [*request(), ModelTextDelta('Done.')])
+    conversation = Conversation(client=client, registry=registry, context_root=tmp_path,
+        permission_manager=PermissionManager(tmp_path, mode='auto', load_stored_rules=False))
+    async def check():
+        events = [event async for event in conversation.stream('Create agent.txt.')]
+        assert tool_results(events)[call.id].success
+        assert tracker.changed_paths == (('agent.txt',) if effect == 'workspace_write' else ())
+        assert scans and tracker.environment_epoch == (1 if effect == 'process' else 0)
+        assert not tracker.baseline_pending and tracker.available
+        assert (tmp_path / 'user.txt').read_text() == 'external edit while model is thinking'
+    asyncio.run(check())
+
+
+def test_denied_first_mutation_never_starts_workspace_scan(tmp_path):
+    registry = create_default_registry(tmp_path)
+    async def unexpected_capture():
+        pytest.fail('A denied tool must not trigger a deferred workspace baseline')
+    registry.workspace_tracker._capture = unexpected_capture
+    client = ScriptedClient(request(ToolCall(0, 'denied', 'write_file', {'path': 'no.txt', 'content': 'no'})),
+                            [*request(), ModelTextDelta('Permission was denied.')])
+    conversation = Conversation(client=client, registry=registry, context_root=tmp_path,
+        permission_manager=PermissionManager(tmp_path, mode='plan', load_stored_rules=False))
+    async def check():
+        events = [event async for event in conversation.stream('Create no.txt.')]
+        assert tool_results(events)['denied'].error.code == 'permission_denied'
+        assert not (tmp_path / 'no.txt').exists()
+    asyncio.run(check())
+
+
+def test_explicit_acceptance_captures_baseline_before_model(tmp_path):
+    registry = create_default_registry(tmp_path)
+    class Client(ScriptedClient):
+        async def stream(self, *args, **kwargs):
+            assert not registry.workspace_tracker.baseline_pending
+            assert registry.workspace_tracker.available
+            async for event in super().stream(*args, **kwargs):
+                yield event
+    conversation = Conversation(client=Client([*request(), ModelTextDelta('No changes made.')]), registry=registry,
+        context_root=tmp_path, task_policy=TaskPolicy(require_changes=True))
+    async def check():
+        events = [event async for event in conversation.stream('A required change.')]
+        assert events[-1].result.status == 'partial'
+        assert 'Diff is empty' in str(events[-1].result)
+    asyncio.run(check())
+
+
+def test_cancel_during_deferred_baseline_never_executes_tool(tmp_path):
+    async def check():
+        registry = create_default_registry(tmp_path)
+        tracker = registry.workspace_tracker
+        await tracker.begin_turn(deferred=True)
+        scanning = asyncio.Event()
+        async def capture():
+            scanning.set()
+            await asyncio.Event().wait()
+        tracker._capture = capture
+        executor = ToolExecutor(registry, PermissionManager(tmp_path, mode='auto', load_stored_rules=False),
+                                workspace_tracker=tracker)
+        task = asyncio.create_task(executor.execute(ToolCall(0, 'edit', 'write_file', {'path': 'no.txt', 'content': 'no'})))
+        await asyncio.wait_for(scanning.wait(), 2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not (tmp_path / 'no.txt').exists()
+        assert tracker.baseline_pending and not tracker.available
+    asyncio.run(check())

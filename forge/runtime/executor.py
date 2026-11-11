@@ -251,6 +251,8 @@ class ToolExecutor:
             return self._outcome(call, cached, 'cached', started, arguments, *self._state())
         if effect != 'read_only':
             self._read_cache.clear()
+            if self.workspace_tracker is not None:
+                await self.workspace_tracker.ensure_baseline()
         execution_started = False
         execution_backend = self.backend
         temporary_backend = None

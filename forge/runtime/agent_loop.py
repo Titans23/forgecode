@@ -514,6 +514,8 @@ class Conversation:
             else 'a build, test, lint, type, syntax, or task-specific check '
             '(Git is unavailable in this environment)'
         )
+        if self.workspace_tracker is not None and getattr(self.workspace_tracker, 'baseline_pending', False):
+            verification_hint = 'a build, test, lint, type, syntax, or task-specific check (Git availability has not been checked yet)'
         if os.name == 'nt':
             parts.append(
                 '[Runtime Environment]\n'
