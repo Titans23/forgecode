@@ -1,10 +1,10 @@
 {
   "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
-  "tool_definitions_commit": "21d4fcb",
-  "tool_definitions_review": "Reviewed DSH alignment: run_command description and optional paired sandbox_permissions/justification on commands, verify and file mutators. Existing required arguments, tool names and CLI parameter prefixes remain compatible. Snapshot covers legacy host-profile definitions; explicit-mode file descriptions follow the actual backend policy.",
+  "tool_definitions_commit": "aa85d71",
+  "tool_definitions_review": "Reviewed DSH alignment including optional paired sandbox_permissions/justification on Git queries. Removing only those optional Git fields reproduces the previous reviewed Windows digest exactly; required arguments, tool names and CLI parameter prefixes are unchanged. POSIX digest is confirmed by CI run 42955384111. Snapshot covers legacy host-profile definitions; explicit-mode file descriptions follow the actual backend policy.",
   "tool_definitions_sha256_by_os": {
-    "nt": "b9d6c546a6e1d74cbaf8b6cc9417a1ba0077561170741f8e3891c9e545534b4d",
-    "posix": "03566934a13ae4e6af3225f2a48b4a9b20de0c7a4d7a8a3e6422a21ee26793d3"
+    "nt": "716185184dea734528ca70d8518bb2be331e730fae64cf6c6ededaaf15c13c8b",
+    "posix": "748992ef0f4d3e6337cec6ca036854f5274c948f7fa5b3b53a8c084c263d2a82"
   },
   "tools": [
     "list_directory",

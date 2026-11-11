@@ -10,7 +10,6 @@ from forge.tools.base import ToolResult
 
 # Git can execute repository-configured helpers; it belongs with command tools.
 NATIVE_TOOLS = PROCESS_TOOLS | {'git_status', 'git_diff', 'git_log'}
-MUTATION_TOOLS = {'create_directory', 'remove_directory', 'write_file', 'write_file_chunk', 'replace_text', 'apply_patch'}
 
 
 class PolicyToolBackend(FileToolBackend):
@@ -78,31 +77,6 @@ class PolicyToolBackend(FileToolBackend):
         """Evaluators explicitly request OS evidence before spending model budget."""
         backend = await self.prepare_process()
         return await backend.observer.native.probe()
-
-    async def execute_approved(self, call, registry, mode):
-        """Called only by ToolExecutor after an exact, one-call widening approval."""
-        if self._closing is not None:
-            return ToolResult.fail('SANDBOX_UNAVAILABLE', 'Execution session is closed')
-        if (call.name not in NATIVE_TOOLS | MUTATION_TOOLS or self._mode_factory is None
-                or mode not in {'read-only': ('workspace-write', 'full-access'),
-                               'workspace-write': ('full-access',)}.get(self.mode, ())):
-            return ToolResult.fail('CAPABILITY_UNSATISFIED', 'This backend cannot apply the approved command mode')
-        invalid = registry.validate(call.name, call.arguments)
-        if invalid is not None:
-            return invalid
-        # Constructing a temporary file-policy backend does not initialize native grants.
-        backend = self.open_approved(mode)
-        try:
-            result = await backend.execute(call, registry)
-        finally:
-            report = await self.close_approved(backend)
-        metadata = {**result.metadata, 'execution_mode': mode, 'sandbox_override': 'allow_once', 'cleanup': report}
-        if mode == 'full-access':
-            metadata['sandbox_covered'] = False
-        if report.get('state') != 'clean':
-            return ToolResult.fail('INDETERMINATE', 'Command cleanup was not proven clean; inspect before retrying.',
-                content=result.content, metadata=metadata)
-        return replace(result, metadata=metadata)
 
     def open_approved(self, mode):
         if self._closing is not None or self._mode_factory is None:

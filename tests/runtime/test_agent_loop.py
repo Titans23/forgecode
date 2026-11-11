@@ -779,8 +779,10 @@ def test_supervised_permission_can_be_allowed_for_session(
     assert second.source == 'session'
 
 
+@pytest.mark.parametrize('execution_mode', [None, 'workspace-write'])
 def test_plan_mode_hides_effectful_tools_and_explains_mode(
     tmp_path: Path,
+    execution_mode,
 ) -> None:
     read_tool = RecordingReadFileTool(tmp_path)
     write_tool = NoOpWriteTool(tmp_path)
@@ -790,7 +792,7 @@ def test_plan_mode_hides_effectful_tools_and_explains_mode(
     conversation = Conversation(
         client=client,
         registry=registry,
-        permission_manager=PermissionManager(tmp_path, mode='plan'),
+        permission_manager=PermissionManager(tmp_path, mode='plan', execution_mode=execution_mode),
     )
 
     events = collect_turn(conversation, '帮我修改文件')
@@ -800,7 +802,8 @@ def test_plan_mode_hides_effectful_tools_and_explains_mode(
     assert 'no_op_write' not in names
     assert 'run_process' not in names
     assert 'Current mode: plan' in client.calls[0]['system']
-    assert '/permission supervised' in client.calls[0]['system']
+    expected = 'workspace-write' if execution_mode else 'supervised'
+    assert f'/permission {expected}' in client.calls[0]['system']
     assert isinstance(events[-1], TurnCompleted)
     assert events[-1].result.status == 'completed'
     assert conversation.task_manager.active is None

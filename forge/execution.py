@@ -57,46 +57,51 @@ async def open_execution(request: ExecutionRequest, provider: str | None, *, plu
     return setup
 
 
-async def select_session_mode(conversation, mode, *, persist=True):
-    """Switch an idle session's execution policy, with one durable mode event."""
+async def select_session_mode(conversation, mode, *, persist=True, approval=None):
+    """Publish sandbox and approval together after preparation and one durable event."""
     conversation._require_idle()
     options = getattr(conversation, 'session_options', None)
     if options is None or options.agent.base != 'coding' or conversation.tool_executor is None:
         raise ValueError('This session has no coding execution provider')
-    selected = replace(options, sandbox=mode)
     manager = conversation.permission_manager
-    if manager.execution_mode == selected.sandbox:
+    selected = replace(options, sandbox=mode, approval=manager.mode if approval is None else approval)
+    mode_changed = manager.execution_mode != selected.sandbox
+    if not mode_changed and manager.mode == selected.approval:
         return selected.sandbox
     previous = conversation.tool_executor.backend
     setup = None
     conversation._running = True
     try:
-        setup = await open_execution(ExecutionRequest(selected.root.resolve(), conversation.session_store.data_root,
-            selected.sandbox, selected.read_roots, selected.write_roots, selected.profile.wall_seconds),
-            selected.agent.sandbox_provider, plugins=getattr(conversation, 'plugin_host', None))
-        old_client, new_client = getattr(previous, 'observer', None), getattr(setup.backend, 'observer', None)
-        if old_client is not None and new_client is not None:
-            if old_client.workspace['file_identity'] != new_client.workspace['file_identity']:
-                raise ValueError('Workspace identity changed while selecting the sandbox mode')
-        cleanup = await previous.close()
-        if not cleanup or cleanup.get('state') != 'clean':
-            raise ValueError('Previous execution cleanup is unconfirmed; sandbox mode was not changed')
+        if mode_changed:
+            setup = await open_execution(ExecutionRequest(selected.root.resolve(), conversation.session_store.data_root,
+                selected.sandbox, selected.read_roots, selected.write_roots, selected.profile.wall_seconds),
+                selected.agent.sandbox_provider, plugins=getattr(conversation, 'plugin_host', None))
+            old_client, new_client = getattr(previous, 'observer', None), getattr(setup.backend, 'observer', None)
+            if old_client is not None and new_client is not None:
+                if old_client.workspace['file_identity'] != new_client.workspace['file_identity']:
+                    raise ValueError('Workspace identity changed while selecting the sandbox mode')
+            cleanup = await previous.close()
+            if not cleanup or cleanup.get('state') != 'clean':
+                raise ValueError('Previous execution cleanup is unconfirmed; sandbox mode was not changed')
         if persist:
-            conversation.session_journal.append('sandbox_mode_changed', {'mode': selected.sandbox})
+            conversation.session_journal.append('permissions_changed', {
+                'sandbox_mode': selected.sandbox, 'approval_policy': selected.approval})
         # No await between the durable event and updating its live projection.
-        if hasattr(previous, '_observed') and hasattr(setup.backend, '_observed'):
-            setup.backend._observed.update(previous._observed)
-        conversation.tool_executor.backend = setup.backend
-        conversation.execution_policy = setup.policy
-        conversation.tool_executor._read_cache.clear()
-        if conversation.workspace_tracker is not None:
-            conversation.workspace_tracker.observer = new_client
-        from forge.subagents.explore import ExploreRepositoryTool
-        explore = conversation.registry.implementation('explore_repository')
-        if isinstance(explore, ExploreRepositoryTool):
-            explore.tool_backend = setup.backend
+        if setup is not None:
+            if hasattr(previous, '_observed') and hasattr(setup.backend, '_observed'):
+                setup.backend._observed.update(previous._observed)
+            conversation.tool_executor.backend = setup.backend
+            conversation.execution_policy = setup.policy
+            conversation.tool_executor._read_cache.clear()
+            if conversation.workspace_tracker is not None:
+                conversation.workspace_tracker.observer = new_client
+            from forge.subagents.explore import ExploreRepositoryTool
+            explore = conversation.registry.implementation('explore_repository')
+            if isinstance(explore, ExploreRepositoryTool):
+                explore.tool_backend = setup.backend
+            manager.authorized_write_roots = tuple(map(Path, setup.policy['filesystem']['write_roots']))
         manager.execution_mode = selected.sandbox
-        manager.authorized_write_roots = tuple(map(Path, setup.policy['filesystem']['write_roots']))
+        manager.mode = selected.approval
         conversation.session_options = selected
         return selected.sandbox
     except BaseException:

@@ -200,7 +200,8 @@ class ToolExecutor:
             if target is not None and target != current_mode:
                 if (target not in {'read-only': ('workspace-write', 'full-access'),
                                    'workspace-write': ('full-access',)}.get(current_mode, ())
-                        or not callable(getattr(self.backend, 'execute_approved', None))):
+                        or not callable(getattr(self.backend, 'open_approved', None))
+                        or not callable(getattr(self.backend, 'close_approved', None))):
                     return self._outcome(call, ToolResult.fail('permission_denied',
                         'This execution provider cannot widen the current sandbox to the requested mode.'),
                         'rejected', started, arguments, revision, epoch)
@@ -258,7 +259,7 @@ class ToolExecutor:
         temporary_backend = None
         cleanup = None
         try:
-            if wider_mode is not None and callable(getattr(self.backend, 'open_approved', None)):
+            if wider_mode is not None:
                 temporary_backend = self.backend.open_approved(wider_mode)
                 execution_backend = temporary_backend
             if self.workspace_tracker is not None and effect == 'workspace_write':
@@ -275,9 +276,7 @@ class ToolExecutor:
                     self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
             await self._journal_started(effective_call)
             execution_started = True
-            if wider_mode is not None and temporary_backend is None:
-                result = await self.backend.execute_approved(execution_call, self.registry, wider_mode)
-            elif execution_backend is not None:
+            if execution_backend is not None:
                 result = await execution_backend.execute(execution_call, self.registry)
             else:
                 result = await self.registry.execute(call.name, execution_call.arguments)

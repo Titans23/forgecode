@@ -9,6 +9,19 @@ from forge.permissions.policy import PermissionManager, PermissionRequest, Permi
 from forge.permissions.risk import classify_tool_call
 from forge.runtime.state import ToolCall
 
+@pytest.mark.parametrize('choice', ['allow_session', 'allow_project'])
+def test_explicit_sandbox_approvals_cannot_create_remembered_grants(tmp_path, choice):
+    from forge.permissions.policy import ApprovalResponse, PermissionManager, PermissionRequest, PermissionRule
+    async def run():
+        async def approve(request): return ApprovalResponse(choice)
+        manager = PermissionManager(tmp_path, mode='ask', execution_mode='workspace-write',
+            approval_handler=approve, load_stored_rules=False)
+        manager.session_rules.append(PermissionRule('ask', 'file.write', 'target.txt'))
+        result = await manager.authorize(PermissionRequest('write_file', 'file.write', 'low', ('target.txt',)))
+        assert result.action == 'deny'
+        assert len(manager.session_rules) == 1 and not manager.project_rules
+        assert not manager.project_path.exists()
+    asyncio.run(run())
 
 def test_allow_rule_cannot_authorize_a_second_uncovered_target(tmp_path: Path) -> None:
     manager = PermissionManager(tmp_path, mode='supervised', user_path=tmp_path / 'user.json')

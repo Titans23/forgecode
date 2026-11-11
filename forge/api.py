@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import aclosing
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import asdict, dataclass, field, is_dataclass, replace
 from pathlib import Path
 
 from forge.config import ForgeConfig, model_environment
@@ -167,10 +167,9 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
             policy = conversation.execution_policy
         if state is not None and state.approval_policy is not None:
             permissions.mode = state.approval_policy
-        if state is None or state.sandbox_mode is None:
-            journal.append('sandbox_mode_changed', {'mode': permissions.execution_mode})
-        if state is None or state.approval_policy is None:
-            journal.append('permission_mode_changed', {'mode': permissions.mode})
+        conversation.session_options = replace(conversation.session_options, approval=permissions.mode)
+        if state is None or state.sandbox_mode is None or state.approval_policy is None:
+            journal.append('permissions_changed', {'sandbox_mode': permissions.execution_mode, 'approval_policy': permissions.mode})
         journal.append('execution_profile', {'profile': asdict(options.profile), 'sandbox': permissions.execution_mode,
             'sandbox_provider': options.agent.sandbox_provider if permissions.execution_mode != 'full-access' else None,
             'approval': permissions.mode, 'policy': policy})
@@ -343,6 +342,12 @@ class HarnessSession:
         if self._closed or self.running:
             raise RuntimeError('Sandbox changes require an idle open session')
         return await self.conversation.select_sandbox(mode)
+
+    async def set_permissions(self, preset):
+        """Select one named sandbox/approval pair for this idle session."""
+        if self._closed or self.running:
+            raise RuntimeError('Session is closed or running')
+        return await self.conversation.select_permissions(preset)
 
     def add_completion_check(self, name, callback):
         """Add a deterministic check returning unmet reasons; never grants authority."""

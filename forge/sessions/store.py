@@ -558,9 +558,11 @@ class SessionStore:
             {'source_session_id': source.info.session_id, 'source_sequence': source.info.sequence},
         )
         journal.append('message_checkpoint', {'messages': messages})
-        if source.sandbox_mode is not None:
+        if source.sandbox_mode is not None and source.approval_policy is not None:
+            journal.append('permissions_changed', {'sandbox_mode': source.sandbox_mode, 'approval_policy': source.approval_policy})
+        elif source.sandbox_mode is not None:
             journal.append('sandbox_mode_changed', {'mode': source.sandbox_mode})
-        if source.approval_policy is not None:
+        elif source.approval_policy is not None:
             journal.append('permission_mode_changed', {'mode': source.approval_policy})
         if preserve_model_selection and source.model_selection and model == source.info.model and (provider is None or provider == source.info.provider):
             journal.append('model_selected', {**source.model_selection, 'messages': messages})
@@ -860,12 +862,12 @@ class SessionStore:
 
         for record in records[1:]:
             payload = self._payload(record, path)
-            if record['type'] == 'sandbox_mode_changed':
-                sandbox_mode = payload.get('mode')
+            if record['type'] in {'sandbox_mode_changed', 'permissions_changed'}:
+                sandbox_mode = payload.get('sandbox_mode') if record['type'] == 'permissions_changed' else payload.get('mode')
                 if sandbox_mode not in ('read-only', 'workspace-write', 'full-access'):
                     raise SessionCorruptError('Invalid stored sandbox mode')
-            elif record['type'] == 'permission_mode_changed':
-                approval_policy = payload.get('mode')
+            if record['type'] in {'permission_mode_changed', 'permissions_changed'}:
+                approval_policy = payload.get('approval_policy') if record['type'] == 'permissions_changed' else payload.get('mode')
                 if approval_policy not in ('ask', 'never', 'plan', 'supervised', 'auto'):
                     raise SessionCorruptError('Invalid stored approval policy')
             event_type = record['type']

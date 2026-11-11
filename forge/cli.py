@@ -91,7 +91,6 @@ _NOTICE_COMMANDS = {
     '/history': ('History', 'session_history'),
     '/skills': ('Skills', 'skill_list'),
     '/mcp': ('MCP Servers', 'mcp_status'),
-    '/permission': ('Permissions', 'permission_status'),
     '/sandbox': ('Sandbox', 'permission_status'),
     '/approval': ('Approval', 'permission_status'),
     '/checkpoints': ('Checkpoints', 'checkpoint_history'),
@@ -314,6 +313,7 @@ async def _run_interactive_chat(
                 return await asyncio.to_thread(
                     resolved_terminal.select_permission,
                     request,
+                    remember=getattr(permission_manager, 'execution_mode', None) is None,
                 )
             finally:
                 if active_response_view is not None:
@@ -413,6 +413,25 @@ async def _run_interactive_chat(
                     )
                 else:
                     resolved_terminal.show_compaction(await compact())
+                continue
+
+            if prompt.strip() == '/permission':
+                resolved_terminal.show_notice('权限', resolved_session.permission_status())
+                from forge.permissions.presets import PERMISSION_PRESETS, current_permission
+                settings = getattr(resolved_session, 'session_options', None)
+                if settings is not None and settings.agent.base == 'coding':
+                    if resolved_terminal.supports_session_picker:
+                        current = current_permission(resolved_session.permission_manager)
+                        selected = await asyncio.to_thread(resolved_terminal.select_permission_mode, current.name if current else None)
+                        if selected is not None:
+                            try:
+                                notice = await resolved_session.select_permissions(selected)
+                                resolved_terminal.show_notice('权限', notice)
+                            except (ValueError, RuntimeError, OSError) as error:
+                                resolved_terminal.show_error(error)
+                    else:
+                        resolved_terminal.show_notice('可选权限', '\n'.join(
+                            f'/permission {preset.name}  {preset.label}：{preset.description}' for preset in PERMISSION_PRESETS))
                 continue
 
             notice_command = _NOTICE_COMMANDS.get(prompt.strip())
@@ -554,9 +573,7 @@ async def _run_interactive_chat(
                 try:
                     choice = prompt.split(' ', 1)[1].strip()
                     if prompt.startswith('/permission ') and choice in ('read-only', 'workspace-write', 'full-access', 'danger-full-access'):
-                        mode = await resolved_session.select_sandbox(choice)
-                        resolved_session.permission_set_mode('never' if mode == 'full-access' else 'ask')
-                        notice = resolved_session.permission_status()
+                        notice = await resolved_session.select_permissions(choice)
                     else:
                         notice = resolved_session.permission_set_mode(choice)
                     resolved_terminal.show_notice('Permissions', notice)

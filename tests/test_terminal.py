@@ -95,6 +95,34 @@ def test_partial_inventory_is_a_visible_limitation_not_a_failed_delivery():
     assert '仅列出已确认的文件变更' in summary and '×' not in summary
 
 
+def test_modern_approval_has_only_one_call_consent_and_denial(monkeypatch):
+    captured = {}
+    def choose(**kwargs):
+        captured.update(kwargs)
+        return 'allow_once'
+    monkeypatch.setattr(terminal_module, 'permission_choice', choose)
+    terminal = TerminalUI(Console(file=StringIO(), force_terminal=True), prompt_session=FakePromptSession(''))
+    result = terminal.select_permission(PermissionRequest('write_file', 'file.write', 'high'), remember=False)
+    assert result.choice == 'allow_once'
+    assert [key for key, _ in captured['options']] == ['allow_once', 'deny']
+
+
+def test_permission_picker_uses_shared_presets_and_cancel_keeps_custom_settings(monkeypatch):
+    from forge.permissions.presets import PERMISSION_PRESETS
+    captured = {}
+    def choose(**kwargs):
+        captured.update(kwargs)
+        return kwargs['default']
+    monkeypatch.setattr(terminal_module, 'permission_choice', choose)
+    terminal = TerminalUI(Console(file=StringIO(), force_terminal=True), prompt_session=FakePromptSession(''))
+    assert terminal.select_permission_mode('workspace-write') == 'workspace-write'
+    assert [key for key, _ in captured['options']] == [p.name for p in PERMISSION_PRESETS]
+    assert '宿主权限' in captured['options'][-1][1]
+    assert terminal.select_permission_mode(None) is None
+    assert captured['options'][0][0] is None
+    assert not any(item.completion in ('/sandbox ', '/approval ') for item in terminal_module.SLASH_COMMANDS)
+
+
 def test_saved_history_limits_user_turns_and_summarizes_tools():
     terminal, output = terminal_with_output()
     messages = []

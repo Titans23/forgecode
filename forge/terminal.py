@@ -68,8 +68,6 @@ SLASH_COMMANDS = (
         '/permission [workspace-write|danger-full-access|read-only]',
         '查看或切换权限模式',
     ),
-    SlashCommandSpec('/sandbox ', '/sandbox [read-only|workspace-write|danger-full-access]', '切换本会话沙盒模式'),
-    SlashCommandSpec('/approval ', '/approval [ask|never]', '切换本会话审批策略'),
     SlashCommandSpec('/undo', '/undo', '撤销最近一次 Agent 代码修改'),
     SlashCommandSpec('/checkpoints', '/checkpoints', '列出文件 Checkpoint'),
     SlashCommandSpec(
@@ -239,8 +237,9 @@ class _InteractivePrompt(Protocol):
         ...
 
 
-def permission_choice(*, options, default, key_bindings):
-    """An unnumbered approval selector; the reviewed operation stays above it."""
+def permission_choice(*, options, default, key_bindings, message='是否允许本次操作？',
+                      instructions='↑/↓ 选择 · Enter 确认 · Y 同意一次 · N/Esc 拒绝'):
+    """Shared unnumbered selector for permission presets and one-call consent."""
     from prompt_toolkit.application import Application
     from prompt_toolkit.layout import HSplit, Layout, Window
     from prompt_toolkit.layout.controls import FormattedTextControl
@@ -251,8 +250,8 @@ def permission_choice(*, options, default, key_bindings):
     def accept(event):
         event.app.exit(result=selection.current_value)
     app = Application(layout=Layout(HSplit([
-        Window(FormattedTextControl('是否允许本次操作？'), height=1), selection,
-        Window(FormattedTextControl('↑/↓ 选择 · Enter 确认 · Y 同意一次 · N/Esc 拒绝'), height=1),
+        Window(FormattedTextControl(message), height=1), selection,
+        Window(FormattedTextControl(instructions), height=1),
     ]), focused_element=selection), key_bindings=key_bindings, erase_when_done=True,
         style=Style.from_dict({'radio-list': 'bg:default', 'radio': '',
             'radio-selected': 'ansibrightcyan bold', 'radio-checked': 'ansibrightcyan bold'}))
@@ -364,9 +363,28 @@ class TerminalUI:
         except KeyboardInterrupt:
             return None
 
+    def select_permission_mode(self, current: str | None) -> str | None:
+        from forge.permissions.presets import PERMISSION_PRESETS
+        if not self.supports_session_picker:
+            return None
+        values = [(preset.name, f'{preset.label} ({preset.name})\n  {preset.description}') for preset in PERMISSION_PRESETS]
+        if current is None:
+            values.insert(0, (None, '保留当前自定义组合'))
+        bindings = KeyBindings()
+        @bindings.add('escape', eager=True)
+        @bindings.add('c-c', eager=True)
+        def cancel(event):
+            event.app.exit(result=None)
+        try:
+            return permission_choice(options=values, default=current, key_bindings=bindings,
+                message='本会话权限', instructions='↑/↓ 选择 · Enter 应用 · Esc 保持当前设置')
+        except KeyboardInterrupt:
+            return None
+
     def select_permission(
         self,
         request: PermissionRequest,
+        *, remember: bool = True,
     ) -> ApprovalResponse:
         '''Ask for one explicit, scoped permission decision.'''
         if not self.supports_session_picker:
@@ -398,7 +416,7 @@ class TerminalUI:
         if request.sandbox_mode:
             detail = request.reason + '\n\n' + detail
         raw_values = [('allow_once', '是，仅允许这一次')]
-        if request.sandbox_mode:
+        if request.sandbox_mode or not remember:
             pass  # Wider execution authority is never remembered.
         elif request.capability == 'file.delete':
             if len(request.targets) == 1:

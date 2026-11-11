@@ -14,7 +14,7 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 接口结果绑定插件代码、SDK 源码和已安装依赖；业务结果另绑定配置与验收。确定性检查不验证角色模型，模型变化不废弃这些检查，也不会产生新模型已实测的结论。ZIP 交付包使用显式源码、标准 SDK wheel、依赖 pins、AgentDefinition 与验收；导入不安装、不执行、不启用。原环境结果仅作来源证据，新环境须重新 check。可信 Python 的宿主能力不因独立进程或这些检查变成恶意插件隔离。
 
-渠道可注册为受管服务，通过 `HarnessSession.service(name)` 使用同一会话的 run/stream/cancel；上下文扩展使用 HookOutcome，验收扩展追加 completion check。插件不能通过这些公开接口移除已有权限和预算。会话权限规则跨回合保留，受管子会话复制父规则；切换会话仍重置会话规则。
+渠道可注册为受管服务，通过 `HarnessSession.service(name)` 使用同一会话的 run/stream/cancel；上下文扩展使用 HookOutcome，验收扩展追加 completion check。插件不能通过这些公开接口移除已有权限和预算。已有显式规则跨回合保留，受管子会话复制父规则；切换会话仍重置会话规则。现代沙盒会话的交互审批只允许本次，不再创建记住规则；旧无 execution_mode 接口保留兼容。
 
 统一 CLI 评测计划位于 `benchmark/harbor/platform.py`，复用既有源码/任务冻结、Harbor runner 与独立 grader；三类对照分开比较 model/plugin/harness 条件。可选价格表复用现有用量标准化和 PriceBook，未知请求保持未知。`benchmark/comparison` 通过 pi 的公开 SDK 执行相同确定性业务探针；不是模型能力或人工效率排名。新 CI 安装用例在无 Node 路径的进程运行通用 SDK，并在第二个 Python 环境导入复验。
 
@@ -24,7 +24,9 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 文件修改、命令和 Git 查询工具的 `SandboxInput` 共享 DSH 的 `sandbox_permissions` / `justification`。ToolExecutor 在最终参数与任务范围检查后要求单独的 allow_once，已有 allow 规则不能绕过。显式模式下普通内置工具遵循沙盒策略，不使用旧命令/敏感名称启发式作为拒绝依据；工具提供的显式限制和用户 deny 规则继续有效。文件修改通过临时后端完成快照、执行与结果观察，控制字段不进入命令或存储的 verify 定义；原生执行依旧按需准备。清理失败保留 indeterminate；单次授权不会替换默认策略或泄漏给下一次调用。旧的无 execution_mode 接口保留历史兼容语义。
 
-`select_session_mode` 是会话沙盒切换入口：只在空闲时准备新提供方，确认旧资源清理后追加 `sandbox_mode_changed`，同步切换 Executor、observer、Explore 后端和子任务默认值。模式与审批策略由 SessionState 重放；恢复沿用已记录选择，分支复制，清空回到启动默认值。Journal 失败或取消不发布新权限。核心 Agent 不加载沙盒；插件/MCP 的独立 JSON Schema 工具不被误当作内置 Pydantic 授权输入。
+`permissions.presets` 用一张表描述工作区、只读和完全访问预设，遵循 DSH permission-presets 的“沙盒＋审批”组合方式；当前预设从真实取值推导，非匹配组合为 custom，不另存一份权限状态。CLI `/permission` 与 SDK `set_permissions` 共用 `select_session_mode`：只在空闲时准备新提供方，确认旧资源清理后用一条 `permissions_changed` 保存两项值，再同步 Executor、observer、Explore 与子任务默认值；仅审批变化时复用后端，重复选择不追加事件。SessionState 同时读取新组合事件和旧分项事件；恢复、分支、清空保持原语义。Journal 失败或取消不发布新权限。核心 Agent 不加载沙盒；插件/MCP 的独立 JSON Schema 工具不被误当作内置 Pydantic 授权输入。
+
+ToolExecutor 独占单次授权生命周期：获批后 `open_approved`，在该后端完成快照、执行及观察，最后 `close_approved`。移除重复的 execute_approved 分支；不改变会话默认，不静默回退。显式 deny、预算、取消、清理未知和原生平台条件仍是独立边界。旧 `/sandbox`、`/approval` 和审批名称只作为兼容/高级接口保留。
 
 T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据；T03 在此基础上实现可扩展底座。完整跨平台 OS 强隔离仍是未完成扩展，不代表原沙盒目标已完成。保持无 Docker 的日常运行和现有权限/取消边界，不新增训练扩展或未经授权的模型调用。
 

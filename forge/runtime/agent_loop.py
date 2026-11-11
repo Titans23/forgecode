@@ -336,6 +336,13 @@ class Conversation:
         from forge.execution import select_session_mode
         return await select_session_mode(self, mode, persist=persist)
 
+    async def select_permissions(self, name):
+        from forge.permissions.presets import permission_preset
+        from forge.execution import select_session_mode
+        preset = permission_preset(name)
+        await select_session_mode(self, preset.sandbox, approval=preset.approval)
+        return self.permission_status()
+
     def create_role_client(self, role):
         from forge.runtime.model_registry import config_for_alias
         alias = self.agent_definition.role_models.get(role)
@@ -572,6 +579,7 @@ class Conversation:
     def _permission_system_context(self) -> str:
         mode = self.permission_manager.mode
         if mode == 'plan':
+            switch = 'workspace-write' if self.permission_manager.execution_mode is not None else 'supervised'
             return (
                 '[ForgeCode Permission Mode]\n'
                 'Current mode: plan. You may inspect and analyze the '
@@ -580,7 +588,7 @@ class Conversation:
                 'other effectful tools. Those tools are intentionally absent. '
                 'When the user asks for a change, provide the plan or analysis '
                 'they requested and clearly tell them to switch with '
-                '`/permission supervised` or `/permission auto` before asking '
+                f'`/permission {switch}` before asking '
                 'you to implement it.'
             )
         return (
@@ -874,10 +882,15 @@ class Conversation:
         return f'Resumed {task.id}: {task.goal}'
 
     def permission_status(self) -> str:
-        return f'Sandbox: {self.permission_manager.execution_mode or "unconfigured"}\n' + self.permission_manager.describe()
+        from forge.permissions.presets import describe_permissions
+        return describe_permissions(self.permission_manager)
 
     def permission_set_mode(self, mode: str) -> str:
+        self._require_idle()
         resolved = self.permission_manager.set_mode(mode)
+        if hasattr(self, 'session_options'):
+            from dataclasses import replace
+            self.session_options = replace(self.session_options, approval=resolved)
         return f'Permission mode set to {resolved}.'
 
     def mcp_status(self) -> str:
@@ -1134,6 +1147,9 @@ class Conversation:
                 router_client.model = state.info.model
         self._bind_session(journal)
         self.permission_manager.mode = state.approval_policy or getattr(self, 'default_approval_policy', self.permission_manager.mode)
+        if hasattr(self, 'session_options'):
+            from dataclasses import replace
+            self.session_options = replace(self.session_options, approval=self.permission_manager.mode)
         journal.record_resumed()
         warning = (
             f' Warning: {len(state.indeterminate_tools)} indeterminate '
@@ -1186,9 +1202,11 @@ class Conversation:
         )
         self._bind_session(journal)
         self.permission_manager.mode = getattr(self, 'default_approval_policy', self.permission_manager.mode)
+        if hasattr(self, 'session_options'):
+            from dataclasses import replace
+            self.session_options = replace(self.session_options, approval=self.permission_manager.mode)
         if default_mode is not None:
-            journal.append('sandbox_mode_changed', {'mode': default_mode})
-            journal.append('permission_mode_changed', {'mode': self.permission_manager.mode})
+            journal.append('permissions_changed', {'sandbox_mode': default_mode, 'approval_policy': self.permission_manager.mode})
         self.messages.clear()
         self._reset_history_context()
         self.task_manager.restore(None)

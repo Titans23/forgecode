@@ -37,16 +37,19 @@ def test_widening_requires_paired_valid_fields(model, extra):
 
 
 class RecordingBackend:
-    def __init__(self):
-        self.calls = []
+    def __init__(self, calls=None, mode='default'):
+        self.calls = [] if calls is None else calls
+        self.mode = mode
 
     async def execute(self, call, registry):
-        self.calls.append(('default', call))
-        return ToolResult.ok('default')
+        self.calls.append((self.mode, call))
+        return ToolResult.ok(self.mode)
 
-    async def execute_approved(self, call, registry, mode):
-        self.calls.append((mode, call))
-        return ToolResult.ok('approved')
+    def open_approved(self, mode):
+        return RecordingBackend(self.calls, mode)
+
+    async def close_approved(self, backend):
+        return {'state': 'clean'}
 
 
 def executor(root, *, choice='allow_once', mode='supervised', sandbox='workspace-write', handler=True):

@@ -131,8 +131,13 @@ class PermissionManager:
     def set_mode(self, mode: str) -> PermissionMode:
         if mode not in {'ask', 'never', 'plan', 'supervised', 'auto'}:
             raise ValueError('Approval policy must be ask or never (legacy: plan, supervised, auto).')
+        if mode == self.mode:
+            return self.mode
+        if self.execution_mode is None:
+            self._audit('permission_mode_changed', {'mode': mode})
+        else:
+            self._audit('permissions_changed', {'sandbox_mode': self.execution_mode, 'approval_policy': mode})
         self.mode = mode  # type: ignore[assignment]
-        self._audit('permission_mode_changed', {'mode': mode})
         return self.mode
 
     def describe(self) -> str:
@@ -241,9 +246,9 @@ class PermissionManager:
                 'approval_unavailable',
             )
         response = await self.approval_handler(request)
-        if request.sandbox_mode and response.choice != 'allow_once':
+        if (request.sandbox_mode or self.execution_mode is not None) and response.choice not in {'allow_once', 'deny'}:
             return self._decision('deny', request,
-                response.reason or 'Sandbox escalation requires an explicit allow_once decision.', 'user')
+                response.reason or 'This operation requires an explicit allow_once decision.', 'user')
         # Remembered delete grants must never broaden into file.delete:*.
         # Every distinct destructive operation requires a fresh confirmation.
         if request.capability == 'mcp.write' and response.choice in {

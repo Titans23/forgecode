@@ -490,7 +490,12 @@ def test_sandbox_and_permission_presets_are_local_commands(monkeypatch, command,
         mode = 'full-access' if mode == 'danger-full-access' else mode
         conversation.session_actions.append(('sandbox', mode))
         return mode
+    async def preset(mode):
+        await select(mode)
+        conversation.permission_set_mode('never' if mode in ('full-access', 'danger-full-access') else 'ask')
+        return conversation.permission_status()
     conversation.select_sandbox = select
+    conversation.select_permissions = preset
     monkeypatch.setattr(cli_module, 'Conversation', lambda **kwargs: conversation)
     result = runner.invoke(app, input=command + '\n')
     assert result.exit_code == 0, result.output
