@@ -7,30 +7,30 @@ from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
 from benchmark.harbor.deadline_plugin import ForgeCodeDeadlinePlugin
 
 
-def test_resolved_deadline_reaches_kernel_and_reserves_cleanup(tmp_path, monkeypatch):
+def test_only_official_deadline_controls_supervisor_and_reserves_cleanup(tmp_path, monkeypatch):
     monkeypatch.setattr('benchmark.harbor.forgecode_agent.monotonic', lambda: 100)
-    agent = ForgeCodeHarborAgent(logs_dir=tmp_path, max_turn_seconds=1800)
-    assert agent.effective_turn_seconds() == 1800
+    agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    with pytest.raises(ValueError, match='official Harbor'):
+        agent.effective_turn_seconds()
     agent.set_phase_timeout(750)
     assert agent.effective_turn_seconds() == 720
-    assert '--max-turn-seconds 720 ' in agent._run_command('task')
+    assert 'timeout --kill-after=10s 720 ' in agent._run_command('task')
+    assert '--max-turn-seconds' not in agent._run_command('task')
     monkeypatch.setattr('benchmark.harbor.forgecode_agent.monotonic', lambda: 110)
     assert agent.effective_turn_seconds() == 710
     agent.set_phase_timeout(3600)
-    assert agent.effective_turn_seconds() == 1800
+    assert agent.effective_turn_seconds() == 3570
     agent.set_phase_timeout(1)
     monkeypatch.setattr('benchmark.harbor.forgecode_agent.monotonic', lambda: 112)
     with pytest.raises(TimeoutError):
         agent.effective_turn_seconds()
-    unlimited = ForgeCodeHarborAgent(logs_dir=tmp_path, max_model_calls=None, max_tool_calls='unlimited', max_turn_seconds=None)
-    with pytest.raises(ValueError, match='official Harbor'): unlimited.effective_turn_seconds()
-    unlimited.set_phase_timeout(3000)
-    command = unlimited._run_command('fixture task')
-    assert '--max-model-calls unlimited --max-tool-calls unlimited' in command
-    assert '--max-turn-seconds 2970 ' in command
+    agent.set_phase_timeout(3000)
+    command = agent._run_command('fixture task')
+    assert '--max-model-calls' not in command and '--max-tool-calls' not in command
+    assert 'timeout --kill-after=10s 2970 ' in command
     from benchmark.harbor.run_forge import build_parser
-    parsed = build_parser().parse_args(['--message', 'fixture', '--max-model-calls', 'unlimited', '--max-tool-calls', 'unlimited'])
-    assert parsed.max_model_calls is None and parsed.max_tool_calls is None
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(['--message', 'fixture', '--max-model-calls', 'unlimited'])
 
 
 def test_plugin_passes_actual_phase_timeout_and_restores_hook(tmp_path, monkeypatch):

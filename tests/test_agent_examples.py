@@ -27,7 +27,7 @@ def test_public_example_acceptance_without_repository(tmp_path, name):
     assert result['model_evaluation'] == {'status': 'unverified', 'api_calls': 0}
 
 
-def test_coordinator_uses_worker_role_and_shared_budget(tmp_path):
+def test_coordinator_uses_worker_role_and_shared_usage(tmp_path):
     agent = load_definition(EXAMPLES / 'coordinator/agent.json', trust=True)
     models = []
     class Model:
@@ -49,7 +49,7 @@ def test_coordinator_uses_worker_role_and_shared_budget(tmp_path):
         options = SessionOptions(agent=agent, data_root=tmp_path, approval='auto',
             config=ForgeConfig(api_key='unused', model_id='main'),
             models={'local-worker': {'provider': 'anthropic', 'model': 'worker'}},
-            profile=RunProfile(max_model_calls=4, intent_routing=False))
+            profile=RunProfile(intent_routing=False))
         async with await HarnessSession.open(options, model_client_factory=lambda c, **k: Model(c)) as session:
             result = await session.run('Summarize local events')
             assert result.status == 'completed' and result.model_calls == 4

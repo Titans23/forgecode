@@ -31,7 +31,7 @@ def _policy(request, factory=None):
             'protected_paths': [], 'deny_overrides_allow': True, 'reject_unsafe_links': True},
         'network': {'mode': 'inherit', 'allowed_domains': [], 'dns_isolation_required': False},
         'limits': {'memory_bytes': None, 'disk_bytes': None, 'pids': None,
-            'wall_time_seconds': request.wall_seconds, 'command_output_bytes': 1048576,
+            'wall_time_seconds': None, 'command_output_bytes': 1048576,
             'session_artifact_bytes': 16777216}, 'environment_keys': [], 'fallback': 'deny',
         'session_mutation': 'replace_session'}
     policy = compile_policy(policy, workspace, control_roots=(control,

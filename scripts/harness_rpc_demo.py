@@ -126,9 +126,8 @@ def seed_demo(directory):
             'limits': {'memory_bytes': None, 'disk_bytes': None, 'pids': None, 'wall_time_seconds': 60,
                 'command_output_bytes': 1048576, 'session_artifact_bytes': 104857600},
             'environment_keys': [], 'fallback': 'deny', 'session_mutation': 'replace_session'})
-        budget = service.put_budget({'max_model_calls': 5, 'max_tool_calls': 8, 'wall_seconds': 60})
         params = {'client_action_id': new_id('act'), 'workspace_id': workspace['id'], 'expected_workspace_revision': 1,
-            'connection_id': connection, 'policy_id': policy_id, 'budget_profile_id': budget}
+            'connection_id': connection, 'policy_id': policy_id}
     value['credentials'][connection] = 'scripted-test-only'
     fixture = directory / 'scripted.json'
     fixture.write_text(json.dumps(value, indent=2), encoding='utf-8')

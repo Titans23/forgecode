@@ -69,7 +69,7 @@ def python_command(code: str) -> str:
 def exercise(tmp_path: Path, client: ScriptedClient, **kwargs):
     conversation = Conversation(
         client=client, registry=create_default_registry(tmp_path),
-        context_root=tmp_path, max_iterations=4, **kwargs,
+        context_root=tmp_path,  **kwargs,
     )
 
     async def collect():
@@ -205,7 +205,7 @@ def test_kernel_persists_final_statistics_without_event_consumer(tmp_path: Path)
     assert final.statistics['model_requests'] == 1
 
 
-def test_router_consumes_the_same_model_budget(tmp_path: Path) -> None:
+def test_optional_router_contributes_to_usage_without_a_request_quota(tmp_path: Path) -> None:
     class Router:
         async def route(self, prompt, active_task, recent_messages):
             return RouteResult(
@@ -218,10 +218,10 @@ def test_router_consumes_the_same_model_budget(tmp_path: Path) -> None:
 
     client = ScriptedClient([
         ModelUsageUpdate(TokenUsage(11, 3)),
-        ModelTextDelta('This request exceeds the budget.'),
+        ModelTextDelta('Inspection complete.'),
     ])
     conversation = Conversation(
-        client=client, context_root=tmp_path, intent_router=Router(), max_iterations=1,
+        client=client, context_root=tmp_path, intent_router=Router(),
     )
 
     async def collect():
@@ -229,10 +229,10 @@ def test_router_consumes_the_same_model_budget(tmp_path: Path) -> None:
 
     events = asyncio.run(collect())
     final = next(event.result for event in events if isinstance(event, TurnCompleted))
-    assert not client.calls
-    assert final.status == 'failed'
-    assert final.stop_reason == 'model_budget_exhausted'
-    assert final.usage == TokenUsage(7, 2)
+    assert len(client.calls) == 1
+    assert final.status == 'completed'
+    assert final.model_calls == 2
+    assert final.usage == TokenUsage(18, 5)
 
 
 @pytest.mark.parametrize('mode', [None, 'full-access'])
@@ -472,7 +472,7 @@ def test_dynamic_context_preserves_system_and_history_prefix_without_accumulatin
         assert call['messages'][:2] == history
         contexts = [m for m in call['messages'] if str(m.get('content', '')).startswith('[ForgeCode current context]')]
         assert contexts == [call['messages'][-1]]
-        assert '[Remaining turn budget]' in contexts[0]['content']
+        assert '[Remaining turn budget]' not in contexts[0]['content']
         assert '[Remaining turn budget]' not in call['system']
     assert 'sample.txt' in client.calls[1]['messages'][-1]['content']
     assert client.calls[0]['messages'][-1] != client.calls[1]['messages'][-1]

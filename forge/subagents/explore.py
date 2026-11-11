@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 import json
 from pathlib import Path
 import re
@@ -23,20 +22,6 @@ if TYPE_CHECKING:
 
 MAX_REPORT_CHARACTERS = 20_000
 EvidenceText = Annotated[str, Field(min_length=1, max_length=1_000)]
-
-
-@dataclass(frozen=True, slots=True)
-class ExploreAgentConfig:
-    '''Hard bounds owned by the subagent rather than the calling model.'''
-
-    max_iterations: int = 8
-    max_input_tokens: int = 120_000
-
-    def __post_init__(self) -> None:
-        if self.max_iterations < 1:
-            raise ValueError('max_iterations must be positive')
-        if self.max_input_tokens < 1:
-            raise ValueError('max_input_tokens must be positive')
 
 
 class RelevantFile(BaseModel):
@@ -156,13 +141,11 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
         self,
         root: Path,
         *,
-        config: ExploreAgentConfig | None = None,
         client_factory: Callable[[], ModelClient] | None = None,
         tool_backend: Any | None = None,
         event_recorder: Any | None = None,
     ) -> None:
         super().__init__(root)
-        self.config = config or ExploreAgentConfig()
         self._client_factory = client_factory
         self.tool_backend = tool_backend
         self.event_recorder = event_recorder
@@ -199,8 +182,6 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
             client=self._create_client(),
             system_prompt=load_explore_prompt(),
             registry=create_explore_registry(self.root),
-            max_iterations=self.config.max_iterations,
-            max_turn_input_tokens=self.config.max_input_tokens,
             context_root=self.root,
             include_task_tools=False,
             tool_backend=self.tool_backend,
@@ -278,8 +259,6 @@ class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):
             'subagent': 'explore',
             'isolated_context': True,
             'read_only': True,
-            'max_iterations': self.config.max_iterations,
-            'max_input_tokens': self.config.max_input_tokens,
             'model_calls': model_calls,
             'input_tokens': input_tokens,
             'output_tokens': output_tokens,

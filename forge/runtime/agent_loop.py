@@ -86,7 +86,6 @@ class Conversation:
         system_prompt: str | None = None,
         tools: list[dict[str, Any]] | None = None,
         registry: ToolRegistry | None = None,
-        max_iterations: int | None = 80,
         task_policy: TaskPolicy | None = None,
         context_config: CompactionConfig | None = None,
         context_root: Path | None = None,
@@ -99,9 +98,6 @@ class Conversation:
         change_exploration_limit: int = 8,
         completion_decision_limit: int = 3,
         mutation_recovery_limit: int = 4,
-        max_tool_calls: int | None = 120,
-        max_turn_input_tokens: int | None = None,
-        max_turn_seconds: float | None = None,
         initial_messages: list[dict[str, Any]] | None = None,
         active_task: ActiveTask | None = None,
         session_journal: SessionJournal | None = None,
@@ -134,14 +130,12 @@ class Conversation:
             ('mutation_recovery_limit', mutation_recovery_limit, 4),
         ):
             if value != previous_default:
-                warnings.warn(f'{name} is deprecated and has no effect; use explicit turn budgets.',
+                warnings.warn(f'{name} is deprecated and has no effect.',
                               DeprecationWarning, stacklevel=2)
         self.event_recorder = event_recorder
         self.owns_tool_backend = owns_tool_backend
         self._close_task = None
         self.turn_baseline_handler = turn_baseline_handler
-        if max_iterations is not None and max_iterations < 1:
-            raise ValueError('max_iterations must be positive')
         if max_protocol_recoveries < 0:
             raise ValueError('max_protocol_recoveries must not be negative')
         if max_tool_protocol_recoveries < 1:
@@ -164,10 +158,6 @@ class Conversation:
             raise ValueError('completion_decision_limit must be positive')
         if mutation_recovery_limit < 1:
             raise ValueError('mutation_recovery_limit must be positive')
-        if max_tool_calls is not None and max_tool_calls < 1:
-            raise ValueError('max_tool_calls must be positive')
-        if max_turn_input_tokens is not None and max_turn_input_tokens < 1:
-            raise ValueError('max_turn_input_tokens must be positive')
         if client is None:
             from forge.runtime.factory import create_model_client
             client = create_model_client()
@@ -194,7 +184,6 @@ class Conversation:
         self._persisted_turn_events: set[str] = set()
         self._kernel_owns_events = False
         self.registry = registry
-        self.max_iterations = max_iterations
         tracker = (
             getattr(registry, 'workspace_tracker', None)
             if registry is not None
@@ -301,11 +290,6 @@ class Conversation:
         self.change_exploration_limit = change_exploration_limit
         self.completion_decision_limit = completion_decision_limit
         self.mutation_recovery_limit = mutation_recovery_limit
-        self.max_tool_calls = max_tool_calls
-        self.max_turn_input_tokens = max_turn_input_tokens
-        if max_turn_seconds is not None and max_turn_seconds <= 0:
-            raise ValueError('max_turn_seconds must be positive')
-        self.max_turn_seconds = max_turn_seconds
         self._last_repository_context = self._repository_context('')
 
     # Context and evidence consumers retain these lists across turn commits
@@ -359,10 +343,10 @@ class Conversation:
         return self.role_model_clients['summary']
 
     async def run_child(self, prompt, definition, *, role='worker'):
-        """A foreground child shares the active turn budget and cannot add capabilities."""
+        """A foreground child shares the active turn usage accounting and cannot add capabilities."""
         from dataclasses import replace
         from forge.api import HarnessSession
-        from forge.runtime.turn_state import parent_budget
+        from forge.runtime.turn_state import parent_turn
         from forge.runtime.model_registry import config_for_alias
         if not self._running or self.turn_state is None:
             raise RuntimeError('Managed children require an active parent turn')
@@ -382,7 +366,7 @@ class Conversation:
                           approval=self.permission_manager.mode, sandbox=self.permission_manager.execution_mode)
         if definition.base == 'core':
             options = replace(options, root=None, read_roots=(), write_roots=None)
-        token = parent_budget.set(self.turn_state)
+        token = parent_turn.set(self.turn_state)
         try:
             child = await HarnessSession.open(options, approval_handler=self.permission_manager.approval_handler,
                                              model_client_factory=self.model_factory)
@@ -403,7 +387,7 @@ class Conversation:
             self.session_journal.append('child_session_finished', {'session_id': child.session_id, 'status': result.status})
             return result
         finally:
-            parent_budget.reset(token)
+            parent_turn.reset(token)
 
     def _repository_context(self, query: str) -> str:
         if getattr(getattr(self, 'agent_definition', None), 'base', 'coding') == 'core':

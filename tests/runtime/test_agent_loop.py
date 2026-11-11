@@ -1292,7 +1292,7 @@ def test_failed_tool_result_is_returned_to_model(
     assert payload['error']['code'] == 'unknown_tool'
 
 
-def test_agent_loop_stops_at_model_call_limit(tmp_path: Path) -> None:
+def test_agent_loop_continues_past_the_removed_default_model_limit(tmp_path: Path) -> None:
     first = ToolCall(
         index=0,
         id='toolu_1',
@@ -1305,22 +1305,23 @@ def test_agent_loop_stops_at_model_call_limit(tmp_path: Path) -> None:
         name='read_file',
         arguments={'path': 'b.py'},
     )
-    client = FakeModelClient(tool_response(first), tool_response(second))
+    client = FakeModelClient(*[tool_response(first if i % 2 else second) for i in range(81)],
+                             streamed_response('Inspection complete.'))
     conversation = Conversation(
         client=client,
         registry=ToolRegistry([RecordingReadFileTool(tmp_path)]),
-        max_iterations=2,
+
     )
 
-    events = collect_turn(conversation, 'Never finish')
+    events = collect_turn(conversation, 'Inspect until complete')
 
-    assert len(client.calls) == 2
+    assert len(client.calls) == 82
     assert isinstance(events[-1], TurnCompleted)
-    assert events[-1].result.status == 'failed'
-    assert events[-1].result.stop_reason == 'model_budget_exhausted'
+    assert events[-1].result.status == 'completed'
+    assert events[-1].result.model_calls == 82
 
 
-def test_agent_loop_stops_before_exceeding_tool_call_limit(
+def test_agent_loop_executes_a_batch_beyond_the_removed_default_tool_limit(
     tmp_path: Path,
 ) -> None:
     tool = RecordingReadFileTool(tmp_path)
@@ -1331,28 +1332,26 @@ def test_agent_loop_stops_before_exceeding_tool_call_limit(
             name='read_file',
             arguments={'path': f'{index}.py'},
         )
-        for index in range(3)
+        for index in range(121)
     )
     conversation = Conversation(
-        client=FakeModelClient(tool_response(*calls)),
+        client=FakeModelClient(tool_response(*calls), streamed_response('Inspected.')),
         registry=ToolRegistry([tool]),
-        max_tool_calls=2,
+
     )
 
     events = collect_turn(conversation, 'Inspect many files')
 
     assert isinstance(events[-1], TurnCompleted)
-    assert events[-1].result.status == 'failed'
-    assert events[-1].result.stop_reason == 'tool_budget_exhausted'
-    assert tool.calls == []
+    assert events[-1].result.status == 'completed'
+    assert len(tool.calls) == 121
+    assert events[-1].result.statistics['tool_requests'] == 121
 
 
-def test_agent_loop_has_bounded_calls_but_no_input_token_limit_by_default() -> None:
-    conversation = Conversation(client=FakeModelClient())
-
-    assert conversation.max_iterations == 80
-    assert conversation.max_tool_calls == 120
-    assert conversation.max_turn_input_tokens is None
+@pytest.mark.parametrize('removed', ['max_iterations', 'max_tool_calls', 'max_turn_input_tokens', 'max_turn_seconds'])
+def test_removed_turn_budgets_are_rejected_instead_of_silently_ignored(removed) -> None:
+    with pytest.raises(TypeError, match=removed):
+        Conversation(client=FakeModelClient(), **{removed: 1})
 
 
 def test_invalid_tool_json_gets_explicit_correction_without_executing_partial_calls(
@@ -1585,7 +1584,7 @@ def test_current_goal_survives_many_tool_calls_and_message_snipping(
 
 
 
-def test_turn_stops_at_cumulative_input_token_limit(
+def test_turn_reports_cumulative_input_tokens_without_terminating(
     tmp_path: Path,
 ) -> None:
     tool = RecordingReadFileTool(tmp_path)
@@ -1598,11 +1597,12 @@ def test_turn_stops_at_cumulative_input_token_limit(
             ToolCall(0, 'read-two', 'read_file', {'path': 'two.js'}),
             input_tokens=60,
         ),
+        streamed_response('Complete.', input_tokens=1, output_tokens=1),
     )
     conversation = Conversation(
         client=client,
         registry=ToolRegistry([tool]),
-        max_turn_input_tokens=100,
+
         stagnation_warning=10,
         stagnation_limit=20,
     )
@@ -1612,11 +1612,10 @@ def test_turn_stops_at_cumulative_input_token_limit(
     result = next(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
-    assert result.status == 'failed'
-    assert result.model_calls == 2
-    assert result.usage.input_tokens == 120
-    assert result.stop_reason == 'token_budget_exhausted'
-    assert len(client.calls) == 2
+    assert result.status == 'completed'
+    assert result.model_calls == 3
+    assert result.usage.input_tokens == 121
+    assert len(client.calls) == 3
 
 
 def test_failed_mutation_remains_evidence_without_implicit_completion_gate(
@@ -1638,7 +1637,7 @@ def test_failed_mutation_remains_evidence_without_implicit_completion_gate(
     conversation = Conversation(
         client=client,
         registry=ToolRegistry([write]),
-        max_iterations=3,
+
     )
 
     events = collect_turn(conversation, 'Fix the rendering bug')

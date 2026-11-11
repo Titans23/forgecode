@@ -1747,11 +1747,6 @@
         "max_context_tokens": 1,
         "compaction_enabled": true,
         "max_delivery_repairs": 0,
-        "parent_budget": {
-          "max_model_calls": 1,
-          "max_tool_calls": 1,
-          "wall_seconds": 1
-        },
         "explore_enabled": true,
         "trusted_extensions_enabled": true
       },

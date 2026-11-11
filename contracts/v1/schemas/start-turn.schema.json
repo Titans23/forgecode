@@ -49,10 +49,6 @@
     "policy_id": {
       "type": "string",
       "pattern": "^policy-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-    },
-    "budget_profile_id": {
-      "type": "string",
-      "pattern": "^budget-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     }
   },
   "required": [
@@ -61,7 +57,6 @@
     "expected_workspace_revision",
     "input",
     "connection_id",
-    "policy_id",
-    "budget_profile_id"
+    "policy_id"
   ]
 }

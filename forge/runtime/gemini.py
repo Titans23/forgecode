@@ -18,7 +18,7 @@ from forge.runtime.state import (ModelCallError, ModelProtocolError, ModelOutput
 
 class GeminiModelClient:
     provider = 'gemini'
-    observes_request_budget = True
+    observes_requests = True
 
     def __init__(self, config, *, max_tokens=None, max_attempts=3, client=None):
         if max_attempts < 1:
@@ -30,7 +30,7 @@ class GeminiModelClient:
         self.base_url = config.base_url.rstrip('/')
         self._key = config.api_key
         self.max_attempts = max_attempts
-        from forge.runtime.model_budget import observe_wire_request
+        from forge.runtime.model_observation import observe_wire_request
         self._client = client or httpx.AsyncClient(timeout=config.request_timeout_seconds,
             follow_redirects=False, event_hooks={'request': [observe_wire_request]})
 
@@ -89,7 +89,7 @@ class GeminiModelClient:
         return value
 
     async def stream(self, messages, tools=None, system=None):
-        from forge.runtime.model_budget import request_observer
+        from forge.runtime.model_observation import request_observer
         arguments = self.request_arguments(messages, tools, system)
         for attempt in range(1, self.max_attempts + 1):
             observer = request_observer.get()

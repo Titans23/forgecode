@@ -60,9 +60,6 @@ class EvalCase(BaseModel):
     allowed_paths: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = ('tests/hidden/**',)
     success_criteria: dict[str, bool] = Field(default_factory=dict)
-    max_model_calls: int = Field(default=80, gt=0, strict=True)
-    max_tool_calls: int = Field(default=120, gt=0, strict=True)
-    max_turn_seconds: int = Field(default=1800, gt=0, strict=True)
     intent_routing: bool = True
 
     @field_validator('repo')
@@ -360,8 +357,7 @@ async def run_case(
                 provider = getattr(client, 'provider', 'anthropic')
                 config = ForgeConfig(api_key='injected-client', model_id=getattr(client, 'model', 'scripted-client'),
                     provider=provider if provider in {'anthropic', 'deepseek', 'openai_responses'} else 'anthropic')
-        profile = RunProfile(name='evaluation', max_model_calls=case.max_model_calls,
-            max_tool_calls=case.max_tool_calls, wall_seconds=case.max_turn_seconds,
+        profile = RunProfile(name='evaluation',
             intent_routing=case.intent_routing if client is None else False)
         outcome.run_configuration = {'provider': config.provider, 'model': config.model_id,
             'profile': asdict(profile), 'sandbox': sandbox, 'injected_client': client is not None,

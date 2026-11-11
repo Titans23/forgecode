@@ -17,7 +17,7 @@ from forge.runtime.state import TokenUsage, ToolCall, VerificationEvidence
 from forge.tools.base import ToolResult
 
 
-parent_budget: ContextVar[TurnState | None] = ContextVar('forge_parent_budget', default=None)
+parent_turn: ContextVar[TurnState | None] = ContextVar('forge_parent_turn', default=None)
 
 
 ExecutionStatus = Literal[
@@ -98,14 +98,10 @@ class EvidenceLedger:
 
 @dataclass(slots=True)
 class TurnState:
-    '''Mutable budget and execution facts for exactly one user turn.'''
+    '''Usage and execution facts for exactly one user turn.'''
 
     goal: str = ''
     constraints: tuple[str, ...] = ()
-    max_model_calls: int | None = None
-    max_tool_calls: int | None = None
-    max_input_tokens: int | None = None
-    max_seconds: float | None = None
     model_calls: int = 0
     tool_requests: int = 0
     usage: TokenUsage = field(default_factory=lambda: TokenUsage(0, 0))
@@ -131,32 +127,6 @@ class TurnState:
         self.unknown_usage_requests += 1
         if self.parent is not None:
             self.parent.record_unknown_usage()
-
-    def can_request_model(self) -> bool:
-        return self.budget_reason() is None
-
-    def budget_reason(self, *, include_model: bool = True) -> str | None:
-        if self.parent is not None:
-            inherited = self.parent.budget_reason(include_model=include_model)
-            if inherited:
-                return inherited
-        if self.max_seconds is not None and monotonic() - self.started_at >= self.max_seconds:
-            return 'time_budget_exhausted'
-        if self.max_input_tokens is not None and self.usage.total_input_tokens >= self.max_input_tokens:
-            return 'token_budget_exhausted'
-        if include_model and self.max_model_calls is not None and self.model_calls >= self.max_model_calls:
-            return 'model_budget_exhausted'
-        return None
-
-    def can_request_tool_batch(self, count: int) -> bool:
-        return (
-            count >= 0
-            and (self.parent is None or self.parent.can_request_tool_batch(count))
-            and (
-                self.max_tool_calls is None
-                or self.tool_requests + count <= self.max_tool_calls
-            )
-        )
 
     def record_model_request(self, usage: TokenUsage | None = None, *, stage: str = 'model') -> None:
         if self.parent is not None:
@@ -219,14 +189,6 @@ class TurnState:
         counts.update({f'{key}_seconds': round(value, 6) for key, value in self.timings.items()})
         counts['elapsed_seconds'] = round(monotonic() - self.started_at, 6)
         return counts
-
-
-class BudgetExhausted(RuntimeError):
-    '''A terminal budget condition, never an external user blocker.'''
-
-    def __init__(self, reason: str) -> None:
-        self.reason = reason
-        super().__init__(reason)
 
 
 def add_usage(left: TokenUsage, right: TokenUsage) -> TokenUsage:

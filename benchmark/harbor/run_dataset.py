@@ -64,18 +64,6 @@ def configured_values(env_file: Path) -> dict[str, str]:
     return model_environment(env_file)
 
 
-def budget_limit(value) -> int | None:
-    if value is None or value == 'unlimited':
-        return None
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError) as error:
-        raise ValueError('Budget must be a positive integer or unlimited.') from error
-    if parsed < 1:
-        raise ValueError('Budget must be a positive integer or unlimited.')
-    return parsed
-
-
 def harbor_executable() -> str:
     candidate = Path(sys.executable).with_name('harbor.exe' if os.name == 'nt' else 'harbor')
     if candidate.is_file():
@@ -122,10 +110,6 @@ def build_parser(
     parser.add_argument('--agent', choices=[AGENT, 'oracle'], default=AGENT)
     parser.add_argument('--source-dir', type=Path, default=PROJECT_ROOT,
                         help='Source checkout to freeze for a controlled baseline/candidate comparison.')
-    parser.add_argument('--max-model-calls', type=budget_limit, default=120)
-    parser.add_argument('--max-tool-calls', type=budget_limit, default=240)
-    parser.add_argument('--max-turn-seconds', type=budget_limit, default=1800,
-                        help='Agent limit or unlimited; official benchmark deadlines always apply.')
     parser.add_argument('--agent-setup-timeout-multiplier', type=int, default=12)
     parser.add_argument('--timeout-multiplier', type=float)
     parser.add_argument('--force-build', action='store_true')
@@ -184,13 +168,11 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
     else:
         config = None if args.agent == 'oracle' or args.prepare_only else ForgeConfig.from_env(model_environment(args.env_file, overrides))
     model = {key: value for key, value in asdict(config).items() if key != 'api_key'} if config else None
-    budget = {'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
-              'wall_seconds': args.max_turn_seconds}
     manifest = {'schema_version': 'forge.evaluation.v1', 'dataset': args.dataset,
         'dataset_ref': args.dataset_ref, 'selection': {'tasks': args.task, 'n_tasks': args.n_tasks, 'all': args.all},
         'harbor_version': '0.18.0', 'usage': 'evaluation-only', 'model': model,
         'agent': args.agent, 'concurrency': args.concurrency, 'attempts': 1, 'task_retries': args.max_retries,
-        'budget': budget, 'timeout_multiplier': args.timeout_multiplier or 1,
+        'harness_budgets': False, 'timeout_multiplier': args.timeout_multiplier or 1,
         'agent_setup_timeout_multiplier': args.agent_setup_timeout_multiplier,
         'grader': {'harbor_version': '0.18.0', 'protocol': 'official-task-verifier',
                    'env': {'UV_HTTP_TIMEOUT': '120', 'UV_CACHE_DIR': '/opt/forgecode-cache',
@@ -198,12 +180,12 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'parameters': {'temperature': None, 'top_p': None, 'max_output_tokens': config.max_tokens,
                        'reasoning_effort': config.reasoning_effort} if config else None,
         'harness': {'max_context_tokens': model['context_window'], 'compaction_enabled': True,
-                    'max_delivery_repairs': 2, 'parent_budget': budget, 'explore_enabled': True,
+                    'max_delivery_repairs': 2, 'explore_enabled': True,
                     'trusted_extensions_enabled': False} if config else None}
     if launch_plan:
         from benchmark.harbor.platform import runtime_bundle
-        if budget != launch_plan['budget'] or args.dataset != launch_plan['dataset'] or set(args.task) != set(launch_plan['taskset']['tasks']):
-            raise ValueError('Launch arguments differ from frozen task/budget conditions')
+        if args.dataset != launch_plan['dataset'] or set(args.task) != set(launch_plan['taskset']['tasks']):
+            raise ValueError('Launch arguments differ from frozen task conditions')
         if args.max_retries != 0 or args.concurrency != 1 or args.timeout_multiplier not in (None, 1) or args.agent_setup_timeout_multiplier != 12:
             raise ValueError('Launch protocol differs from frozen plan')
         manifest['harness'].update(launch_plan['harness'])
@@ -234,11 +216,9 @@ def frozen_job(args, manifest, taskset, source, output):
            'FORGECODE_CONTEXT_WINDOW': str(model['context_window']),
            'FORGECODE_REASONING_EFFORT': model['reasoning_effort'] or '',
            'MODEL_REQUEST_TIMEOUT_SECONDS': str(model['request_timeout_seconds'])} if model else {}
-    agent = AgentConfig(name='oracle', max_timeout_sec=args.max_turn_seconds) if args.agent == 'oracle' else AgentConfig(import_path=AGENT,
-        model_name=model['model_id'], max_timeout_sec=args.max_turn_seconds, env=env,
-        kwargs={'source_dir': str(source), 'frozen_configuration': json.dumps(frozen),
-                'max_model_calls': args.max_model_calls, 'max_tool_calls': args.max_tool_calls,
-                'max_turn_seconds': args.max_turn_seconds})
+    agent = AgentConfig(name='oracle') if args.agent == 'oracle' else AgentConfig(import_path=AGENT,
+        model_name=model['model_id'], env=env,
+        kwargs={'source_dir': str(source), 'frozen_configuration': json.dumps(frozen)})
     if frozen.get('composition'):
         agent.env.update({name: '${' + name + '}' for name in frozen['composition']['credential_references']})
     return JobConfig(job_name='job', jobs_dir=output, n_attempts=1, n_concurrent_trials=args.concurrency,

@@ -1,7 +1,7 @@
 """Small programmatic entry shared by terminal, SDK and evaluation consumers.
 
 The Journal and Conversation remain the facts for a session and active turn.
-Profiles select budgets; sandbox permissions are an independent explicit input.
+Profiles select entry behavior; sandbox permissions are an independent explicit input.
 """
 from __future__ import annotations
 
@@ -24,16 +24,11 @@ from forge.sessions.trajectory import TrajectoryRecorder, sanitize
 @dataclass(frozen=True, slots=True)
 class RunProfile:
     name: str = 'terminal'
-    max_model_calls: int = 80
-    max_tool_calls: int = 120
-    wall_seconds: int = 1800
     intent_routing: bool = False
 
     def __post_init__(self):
         if type(self.intent_routing) is not bool:
             raise ValueError('intent_routing must be a boolean')
-        if any(type(value) is not int or value < 1 for value in (self.max_model_calls, self.max_tool_calls, self.wall_seconds)):
-            raise ValueError('Profile budgets must be positive')
 
     @classmethod
     def evaluation(cls):
@@ -132,7 +127,7 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
         raise ValueError('Session storage and workspace must be separate')
     data.mkdir(parents=True, exist_ok=True)
     execution = await open_execution(ExecutionRequest(root, data, options.sandbox,
-        options.read_roots, options.write_roots, options.profile.wall_seconds),
+        options.read_roots, options.write_roots),
         options.agent.sandbox_provider, plugins=plugin_host)
     backend, policy = execution.backend, execution.policy
     writes = tuple(map(Path, policy['filesystem']['write_roots']))
@@ -149,9 +144,8 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
         return client
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=tracked_client_factory,
         permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
-        max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
         intent_routing=options.profile.intent_routing,
-        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host,
+        plugin_host=plugin_host,
         model_aliases=model_catalog(options),
         model_environment=model_environment(root / '.env', normalize_aliases=False))
     try:
@@ -220,8 +214,7 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
                                     load_stored_rules=False, execution_mode=options.sandbox)
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=create,
         permission_manager=permissions, trusted_extensions=False, intent_routing=False,
-        max_model_calls=options.profile.max_model_calls, max_tool_calls=options.profile.max_tool_calls,
-        wall_seconds=options.profile.wall_seconds, plugin_host=plugin_host,
+        plugin_host=plugin_host,
         model_aliases=model_catalog(options),
         model_environment=model_environment(normalize_aliases=False))
     try:

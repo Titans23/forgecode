@@ -50,7 +50,7 @@ def test_repair_plan_cli_is_offline_and_refuses_to_overwrite(tmp_path):
         path = tmp_path / 'base.json'
         path.write_text(json.dumps(export_runspec(spec, values)), encoding='utf-8')
         destination = tmp_path / 'frozen-plans'
-        argv = [sys.executable, 'scripts/delivery_experiment.py', 'freeze',
+        argv = [sys.executable, '-X', 'utf8', 'scripts/delivery_experiment.py', 'freeze',
             '--from-plan', str(path), '--output', str(destination)]
         first = subprocess.run(argv, capture_output=True, text=True, timeout=20)
         assert first.returncode == 0, first.stdout + first.stderr
@@ -77,10 +77,10 @@ def test_harbor_materialize_refuses_inconsistent_plan_before_writing_job(tmp_pat
     methods, spec = make_evaluation(tmp_path)
     try:
         spec, values, _ = freeze_spec(methods.store, spec)
-        values['harness']['parent_budget']['max_model_calls'] += 1
+        values['harness']['max_delivery_repairs'] += 1
         spec['harness']['configuration']['sha256'] = canonical_hash(values['harness'])
         output = tmp_path / 'job'
-        with pytest.raises(ContractError, match='budget'):
+        with pytest.raises(ContractError, match='repair policy'):
             HarborAdapter('aider-polyglot').materialize(spec, values, {}, output, endpoint='https://example.test')
         assert not output.exists()
     finally:
@@ -132,7 +132,7 @@ def test_bound_runner_rejects_drift_before_any_model_request(tmp_path, drift):
             data_root=tmp_path / 'harness', backend=LocalTrustedBackend(), trusted_extensions=False)
         with pytest.raises(ValueError, match='differ(?:s)? from'):
             asyncio.run(run_turn(project, 'No request may start.', resume=False,
-                max_model_calls=10, max_tool_calls=20, max_turn_seconds=30,
+
                 frozen_configuration=frozen, runtime_bindings=bindings))
         assert sum(client.calls for client in clients) == 0
         assert not list(project.iterdir())
@@ -207,7 +207,7 @@ def test_export_rejects_rehashed_but_inconsistent_snapshots(tmp_path, field):
     try:
         spec, values, _ = freeze_spec(methods.store, spec)
         if field == 'harness':
-            values[field]['parent_budget']['max_model_calls'] += 1
+            values[field]['max_delivery_repairs'] += 1
         elif field == 'environment':
             values[field]['platform'] = 'windows-native'
         elif field == 'grader':
@@ -234,10 +234,10 @@ def test_export_validates_snapshot_schema_and_does_not_mutate_the_plan(tmp_path)
         exported = export_runspec(spec, values)
         assert (spec, values) == original
         changed_spec, changed_values = deepcopy(original)
-        changed_values['harness']['parent_budget']['max_model_calls'] = None
+        changed_values['harness']['parent_budget'] = {'max_model_calls': 1}
         group, key, _ = REFERENCES['harness']
         changed_spec[group][key]['sha256'] = canonical_hash(changed_values['harness'])
-        with pytest.raises(ContractError, match='budgets must match'):
+        with pytest.raises(ContractError):
             export_runspec(changed_spec, changed_values)
         assert exported['spec_hash'] == canonical_hash(spec)
         values['environment']['unrecognized_authority'] = 'trusted'

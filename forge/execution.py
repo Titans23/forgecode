@@ -13,7 +13,6 @@ class ExecutionRequest:
     mode: str
     read_roots: tuple[Path, ...]
     write_roots: tuple[Path, ...] | None
-    wall_seconds: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +73,7 @@ async def select_session_mode(conversation, mode, *, persist=True, approval=None
     try:
         if mode_changed:
             setup = await open_execution(ExecutionRequest(selected.root.resolve(), conversation.session_store.data_root,
-                selected.sandbox, selected.read_roots, selected.write_roots, selected.profile.wall_seconds),
+                selected.sandbox, selected.read_roots, selected.write_roots),
                 selected.agent.sandbox_provider, plugins=getattr(conversation, 'plugin_host', None))
             old_client, new_client = getattr(previous, 'observer', None), getattr(setup.backend, 'observer', None)
             if old_client is not None and new_client is not None:

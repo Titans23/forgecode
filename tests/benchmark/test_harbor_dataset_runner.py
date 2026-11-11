@@ -107,15 +107,15 @@ def test_dry_run_freezes_shared_configuration_without_starting_a_job(tmp_path, m
     assert data['model']['model_id'] == 'explicit-model' and data['model']['max_tokens'] == 4096
     assert data['model']['base_url'] == 'https://api.anthropic.com'
     assert data['concurrency'] == data['attempts'] == 1 and data['task_retries'] == 0
-    assert data['budget'] == {'max_model_calls': 120, 'max_tool_calls': 240, 'wall_seconds': 1800}
+    assert data['harness_budgets'] is False and 'budget' not in data
     assert not data['ready'] and data['model_calls'] == 0
     assert 'private-fixture-key' not in rendered and not output.exists()
     assert runner.main(['--n-tasks', '1', '--env-file', str(project), '--concurrency', '4',
-        '--max-model-calls', 'unlimited', '--max-tool-calls', 'unlimited', '--max-turn-seconds', 'unlimited', '--dry-run'],
+        '--dry-run'],
         default_dataset=dataset) == 0
     unlimited = json.loads(capsys.readouterr().out)
     assert unlimited['concurrency'] == 4
-    assert unlimited['budget'] == dict(max_model_calls=None, max_tool_calls=None, wall_seconds=None)
+    assert unlimited['harness_budgets'] is False and 'parent_budget' not in unlimited['harness']
     from forge.application.models import validate
     assert validate('harness-config', unlimited['harness']) == unlimited['harness']
 
@@ -174,7 +174,7 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     assert restored.agents[0].env['FORGECODE_CONTEXT_WINDOW'] == '262144'
     assert restored.agents[0].env['FORGECODE_REASONING_EFFORT'] == 'high'
     assert Path(restored.agents[0].kwargs['source_dir']) == tmp_path / 'source'
-    assert restored.agents[0].max_timeout_sec == 1800 and restored.retry.max_retries == 0
+    assert restored.agents[0].max_timeout_sec is None and restored.retry.max_retries == 0
     assert len(restored.metrics) == 1 and restored.metrics[0].type.value == 'mean'
     assert restored.verifier.env == manifest['grader']['env']
     assert restored.verifier.env['UV_HTTP_TIMEOUT'] == '120' and restored.verifier.max_timeout_sec is None

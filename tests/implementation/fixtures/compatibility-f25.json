@@ -1,9 +1,9 @@
 {
   "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
-  "tool_definitions_review": "Reviewed direct-coding file semantics: write_file, replace_text and apply_patch have no fixed content maxLength, and descriptions allow observed whole-file replacement. Required arguments, tool names/order and CLI parameter prefixes are unchanged. Windows digest is calculated from actual definitions; the POSIX projection changes only the existing cmd.exe description to the platform-shell text, and native POSIX CI verifies it. Paired one-call permission fields remain unchanged.",
+  "tool_definitions_review": "Reviewed direct-coding file semantics remain unchanged. run_command and verify now accept positive finite explicit timeouts above 600 seconds, retaining the 120-second default. Actual Windows and WSL POSIX definitions were measured; restoring only maximum=600 on those two timeout fields reproduces both previous reviewed hashes. Required arguments, tool names/order, CLI parameter prefixes and one-call permission fields are unchanged.",
   "tool_definitions_sha256_by_os": {
-    "nt": "e3c84862fb409215d64928406534801e724295a811e2adf9765bc66614ddaf7a",
-    "posix": "cf12a7cd33d76c6b58c1c37829e44949adc800b78aa30bab6aaced035fef8d35"
+    "nt": "e981c02637d06dc525bb97fc0c6acab5783694d325155eee4d6d9b3770125c85",
+    "posix": "2df97616a8797edcf1c138eeaabeda6e8bc6fcc92ba5879aa8ebb5d76ea04e11"
   },
   "tools": [
     "list_directory",

@@ -98,8 +98,7 @@ class EvaluationClient:
             spec['budget']={key:c[key] for key in spec['budget']}
             values['model_parameters']={k:c[k] for k in ('temperature','top_p','reasoning_effort','max_output_tokens')}
             values['harness'].update(max_delivery_repairs=c['max_delivery_repairs'],max_context_tokens=c['max_context_tokens'],
-                compaction_enabled=c['compaction_enabled'],explore_enabled=c['explore_enabled'],trusted_extensions_enabled=False,
-                parent_budget={'max_model_calls':c['max_model_requests_per_attempt'],'max_tool_calls':c['max_tool_calls_per_attempt'],'wall_seconds':c['attempt_wall_seconds']})
+                compaction_enabled=c['compaction_enabled'],explore_enabled=c['explore_enabled'],trusted_extensions_enabled=False)
             spec['harness']['max_delivery_repairs']=c['max_delivery_repairs']
             spec['protocol'].update(repeats=c['repeats'],max_infrastructure_attempts=c['max_infrastructure_attempts'],
                 infrastructure_retry_categories=c['infrastructure_retry_categories'],feedback=c['feedback'])

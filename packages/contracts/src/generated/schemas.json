@@ -8731,41 +8731,6 @@
           "minimum": 0,
           "type": "integer"
         },
-        "parent_budget": {
-          "additionalProperties": false,
-          "properties": {
-            "max_model_calls": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "max_tool_calls": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "wall_seconds": {
-              "maximum": 9007199254740991,
-              "minimum": 1,
-              "type": [
-                "integer",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "max_model_calls",
-            "max_tool_calls",
-            "wall_seconds"
-          ],
-          "type": "object"
-        },
         "trusted_extensions_enabled": {
           "type": "boolean"
         }
@@ -8774,7 +8739,6 @@
         "max_context_tokens",
         "compaction_enabled",
         "max_delivery_repairs",
-        "parent_budget",
         "explore_enabled",
         "trusted_extensions_enabled"
       ],
@@ -9992,16 +9956,8 @@
               "minimum": 1,
               "type": "integer"
             },
-            "max_model_requests_per_attempt": {
-              "minimum": 1,
-              "type": "integer"
-            },
             "max_output_tokens": {
               "maximum": 9007199254740991,
-              "minimum": 1,
-              "type": "integer"
-            },
-            "max_tool_calls_per_attempt": {
               "minimum": 1,
               "type": "integer"
             },
@@ -10104,8 +10060,6 @@
           "required": [
             "attempt_wall_seconds",
             "trial_wall_seconds",
-            "max_model_requests_per_attempt",
-            "max_tool_calls_per_attempt",
             "spend_ceiling",
             "currency",
             "spend_policy",
@@ -13589,12 +13543,6 @@
         "session.create.request": {
           "additionalProperties": false,
           "properties": {
-            "budget_profile_id": {
-              "maxLength": 64,
-              "minLength": 1,
-              "pattern": "^budget-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "type": "string"
-            },
             "client_action_id": {
               "maxLength": 64,
               "minLength": 1,
@@ -13630,8 +13578,7 @@
             "workspace_id",
             "expected_workspace_revision",
             "connection_id",
-            "policy_id",
-            "budget_profile_id"
+            "policy_id"
           ],
           "type": "object"
         },
@@ -15669,10 +15616,14 @@
               "type": "string"
             },
             "max_model_requests_per_attempt": {
+              "deprecated": true,
+              "description": "Historical result metadata only; active plans reject retired Harness limits.",
               "minimum": 1,
               "type": "integer"
             },
             "max_tool_calls_per_attempt": {
+              "deprecated": true,
+              "description": "Historical result metadata only; active plans reject retired Harness limits.",
               "minimum": 1,
               "type": "integer"
             },
@@ -15703,8 +15654,6 @@
           "required": [
             "attempt_wall_seconds",
             "trial_wall_seconds",
-            "max_model_requests_per_attempt",
-            "max_tool_calls_per_attempt",
             "spend_ceiling",
             "currency",
             "spend_policy"
@@ -16383,9 +16332,11 @@
               "type": "integer"
             },
             "wall_time_seconds": {
-              "maximum": 604800,
               "minimum": 1,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             }
           },
           "required": [
@@ -16809,10 +16760,6 @@
       "additionalProperties": false,
       "description": "仅 RPC params；受理事务、归属、revision、凭证和幂等规则由 Engine 验证。",
       "properties": {
-        "budget_profile_id": {
-          "pattern": "^budget-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-          "type": "string"
-        },
         "client_action_id": {
           "pattern": "^act-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
           "type": "string"
@@ -16864,8 +16811,7 @@
         "expected_workspace_revision",
         "input",
         "connection_id",
-        "policy_id",
-        "budget_profile_id"
+        "policy_id"
       ],
       "title": "session.start_turn params v1",
       "type": "object"

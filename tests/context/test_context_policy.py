@@ -9,9 +9,9 @@ import pytest
 
 from forge.context.compactor import CompactionConfig, cheap_compact, prune_tool_content
 from forge.context.manager import ContextManager
-from forge.runtime.model_budget import BudgetedModelClient
+from forge.runtime.model_observation import ObservedModelClient
 from forge.runtime.state import ModelTextDelta, ModelUsageUpdate, TokenUsage
-from forge.runtime.turn_state import BudgetExhausted, TurnState
+from forge.runtime.turn_state import TurnState
 
 
 def test_pi_threshold_does_not_subtract_the_output_ceiling_twice(tmp_path):
@@ -105,28 +105,22 @@ def test_summary_selects_token_tail_not_six_messages_and_keeps_pairs(tmp_path):
     assert saved == original
 
 
-@pytest.mark.parametrize('budget', [1, 2])
-def test_pressure_retry_is_bounded_and_charges_shared_budget(tmp_path, budget):
+def test_pressure_retry_is_bounded_and_records_both_summary_requests(tmp_path):
     messages = [{'role': 'assistant', 'content': str(index) + 'x' * 40_000}
                 for index in range(30)]
     original = deepcopy(messages)
     client = Summarizer([{'goal': 'repair', 'findings': ['y' * 960_000]}, {'goal': 'repair'}])
-    state = TurnState(max_model_calls=budget)
+    state = TurnState()
     manager = ContextManager(messages, tmp_path)
-    request = manager.compact_history(messages, BudgetedModelClient(client, state, 'compaction'),
+    request = manager.compact_history(messages, ObservedModelClient(client, state, 'compaction'),
                                      context_window_tokens=262_144, reserved_output_tokens=65_536)
-    if budget == 1:
-        with pytest.raises(BudgetExhausted):
-            asyncio.run(request)
-        assert messages == original
-    else:
-        report = asyncio.run(request)
-        assert report.success, report.reason
-        assert report.usage == TokenUsage(200, 40)
-        assert not manager.compaction_required(messages, context_window_tokens=262_144,
-                                               reserved_output_tokens=65_536)
-    assert len(client.inputs) == state.model_calls == budget
-    assert state.usage == TokenUsage(100 * budget, 20 * budget)
+    report = asyncio.run(request)
+    assert report.success, report.reason
+    assert report.usage == TokenUsage(200, 40)
+    assert not manager.compaction_required(messages, context_window_tokens=262_144,
+                                           reserved_output_tokens=65_536)
+    assert len(client.inputs) == state.model_calls == 2
+    assert state.usage == TokenUsage(200, 40)
 
 
 def test_pruning_can_remove_pressure_without_a_summary_request(tmp_path):

@@ -59,7 +59,7 @@ async def run(payload):
         options = SessionOptions(root=workspace if definition.base == 'coding' else None, agent=definition,
             data_root=directory / f'session-{index}', approval='auto',
             config=ForgeConfig(api_key='unused-probe', model_id=model.model),
-            profile=RunProfile(max_model_calls=len(group) + 2, max_tool_calls=max(1, len(group)), wall_seconds=45, intent_routing=False))
+            profile=RunProfile(intent_routing=False))
         async with await HarnessSession.open(options, approval_handler=approve, model_client_factory=lambda *a, **k: model) as session:
             terminal = None
             if index:

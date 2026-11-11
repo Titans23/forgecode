@@ -33,7 +33,7 @@ SYMBOLS = {
     'file_tools': ('forge/tools/base.py', ['ToolRegistry.execute']),
     'tool_paths': ('forge/tools/paths.py', ['resolve_repository_path', 'mutation_target_paths']),
     'context': ('forge/context/manager.py', ['ContextManager.prepare', 'ContextManager.compact_history']),
-    'model_budget': ('forge/runtime/model_budget.py', ['BudgetedModelClient.stream', 'observe_wire_request']),
+    'model_observation': ('forge/runtime/model_observation.py', ['ObservedModelClient.stream', 'observe_wire_request']),
     'model': ('forge/runtime/model_client.py', ['AnthropicModelClient.__init__', 'AnthropicModelClient.stream']),
     'providers': ('forge/runtime/providers.py', ['create_model_client', 'NativeModelClient.stream']),
     'journal': ('forge/sessions/store.py', ['SessionJournal.append', 'SessionJournal._append_locked', 'SessionStore.create', 'SessionStore.open', 'SessionStore.load']),

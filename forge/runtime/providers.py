@@ -122,7 +122,7 @@ def _call(index, identity, name, arguments):
 
 
 class NativeModelClient:
-    observes_request_budget = True
+    observes_requests = True
 
     @property
     def capabilities(self):
@@ -145,7 +145,7 @@ class NativeModelClient:
         self.max_attempts = max_attempts
         from forge.runtime.service_health import profile_health
         self.health = profile_health(config)
-        from forge.runtime.model_budget import observe_wire_request
+        from forge.runtime.model_observation import observe_wire_request
         if client is not None and hasattr(client, 'with_options'):
             client = client.with_options(max_retries=0)
         self._client = client or AsyncOpenAI(api_key=config.api_key, base_url=config.base_url,
@@ -187,7 +187,7 @@ class NativeModelClient:
         await self._client.close()
 
     async def stream(self, messages, tools=None, system=None) -> AsyncIterator:
-        from forge.runtime.model_budget import request_observer
+        from forge.runtime.model_observation import request_observer
         arguments = self.request_arguments(messages, tools, system)
         for attempt in range(1, self.max_attempts + 1):
             self.health.before_request()

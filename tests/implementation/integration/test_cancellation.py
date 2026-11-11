@@ -113,7 +113,7 @@ def test_cancelled_process_never_calls_model_again_or_replays_unknown_write(tmp_
     asyncio.run(scenario())
 
 
-def test_agent_deadline_interrupts_inflight_real_engine_model_and_persists_cleanup(tmp_path):
+def test_explicit_cancel_interrupts_inflight_engine_model_and_persists_cleanup(tmp_path):
     from test_application import setup
     from forge.engine.test_profile import ScriptedModelClient
     clients = []
@@ -123,43 +123,45 @@ def test_agent_deadline_interrupts_inflight_real_engine_model_and_persists_clean
         return client
     service, store, _, _, _, turn = setup(tmp_path, factory=factory)
     try:
-        # Reserve startup time so this case actually exercises an in-flight
-        # request, even while other real build/test processes contend for I/O.
-        budget = service.put_budget({'max_model_calls': 4, 'max_tool_calls': 6, 'wall_seconds': 5})
-        accepted = service.start_turn({**turn, 'budget_profile_id': budget})
+        accepted = service.start_turn(turn)
         async def run():
-            await asyncio.wait_for(service.execute_turn(accepted['turn_id']), 10)
+            task = asyncio.create_task(service.execute_turn(accepted['turn_id']))
+            async with asyncio.timeout(10):
+                while not clients or not clients[0].calls:
+                    await asyncio.sleep(.01)
+                service.cancel_turn({'turn_id': accepted['turn_id'], 'client_action_id': new_id('act'), 'reason': 'User cancellation'})
+                await task
         asyncio.run(run())
         result = service.get_snapshot(turn['session_id'])['turns'][0]
-        assert result['outcome'] == 'timed_out' and clients[0].calls == 1
+        assert result['outcome'] == 'cancelled' and clients[0].calls == 1
         row = store.connection.execute('SELECT * FROM turn_lifecycle WHERE turn_id=?', (accepted['turn_id'],)).fetchone()
         assert row['cancel_state'] == 'confirmed' and row['cleanup_state'] == 'clean'
-        assert row['agent_deadline_utc'] and row['environment_deadline_utc'] and row['grader_deadline_utc'] is None
+        assert row['agent_deadline_utc'] is row['environment_deadline_utc'] is row['grader_deadline_utc'] is None
         assert any(e['event_type'] == 'cancellation.confirmed' for e in store.events())
     finally:
         store.close()
 
 
-def test_agent_deadline_expired_during_real_preparation_never_starts_model_request(tmp_path):
+def test_slow_preparation_does_not_create_a_turn_deadline(tmp_path):
     import time
     from test_application import setup
     from forge.engine.test_profile import ScriptedModelClient
     clients=[]
     def factory(config,**kwargs):
-        client=ScriptedModelClient(config,[{'delay_seconds':30,'text_chunks':['too late']}])
+        client=ScriptedModelClient(config,[{'text_chunks':['Ready after preparation'],
+                                          'usage': {'input_tokens': 1, 'output_tokens': 2}}])
         clients.append(client)
-        time.sleep(2)  # Actual preparation work exceeds the one-second agent deadline.
+        time.sleep(1.1)
         return client
     service,store,_,_,_,turn=setup(tmp_path,factory=factory)
     try:
-        budget=service.put_budget({'max_model_calls':4,'max_tool_calls':6,'wall_seconds':1})
-        accepted=service.start_turn({**turn,'budget_profile_id':budget})
+        accepted=service.start_turn(turn)
         async def run():await asyncio.wait_for(service.execute_turn(accepted['turn_id']),10)
         asyncio.run(run())
-        assert clients and sum(client.calls for client in clients)==0
-        assert service.get_snapshot(turn['session_id'])['turns'][0]['outcome']=='timed_out'
+        assert clients and sum(client.calls for client in clients)==1
+        assert service.get_snapshot(turn['session_id'])['turns'][0]['outcome']=='completed'
         row=store.connection.execute('SELECT cancel_state,cleanup_state FROM turn_lifecycle WHERE turn_id=?',(accepted['turn_id'],)).fetchone()
-        assert tuple(row)==('confirmed','clean')
+        assert tuple(row)==('none','clean')
     finally:store.close()
 
 

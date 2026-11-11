@@ -34,9 +34,6 @@ class RuntimeBindings:
     recorder: EventRecorder | None = None
     trusted_extensions: bool = True
     task_relation: str | None = None
-    max_model_calls: int | None = None
-    max_tool_calls: int | None = None
-    wall_seconds: int | None = None
     intent_routing: bool = False
     turn_baseline_handler: Callable[[], Awaitable[None] | None] | None = None
     plugin_host: Any | None = None
@@ -49,8 +46,6 @@ class RuntimeBindings:
                    'turn_baseline_handler': self.turn_baseline_handler}
         if self.permission_manager is not None:
             options['permission_manager'] = self.permission_manager
-        for key, value in (('task_relation', self.task_relation), ('max_iterations', self.max_model_calls),
-                           ('max_tool_calls', self.max_tool_calls), ('max_turn_seconds', self.wall_seconds)):
-            if value is not None:
-                options[key] = value
+        if self.task_relation is not None:
+            options['task_relation'] = self.task_relation
         return options

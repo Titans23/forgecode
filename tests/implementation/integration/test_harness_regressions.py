@@ -7,9 +7,9 @@ import pytest
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import TaskPolicy, checker_revision_covers
 from forge.runtime.delivery import completion_report
-from forge.runtime.model_budget import BudgetedModelClient, request_observer
+from forge.runtime.model_observation import ObservedModelClient, request_observer
 from forge.runtime.state import ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, TokenUsage, ToolCall, TurnCompleted, VerificationEvidence
-from forge.runtime.turn_state import TurnState, parent_budget
+from forge.runtime.turn_state import TurnState, parent_turn
 from forge.tools import create_default_registry
 from forge.permissions.policy import PermissionManager, ApprovalResponse
 from forge.context.compactor import CompactionConfig
@@ -26,7 +26,7 @@ def test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow():
         port=server.sockets[0].getsockname()[1]
         class LegacyClient:
             provider='scripted-loopback'
-            observes_request_budget=True
+            observes_requests=True
             async def stream(self,**kwargs):
                 asyncio.current_task().cancel()
                 try:await asyncio.sleep(0)
@@ -36,9 +36,9 @@ def test_pending_cancel_stops_actual_loopback_request_after_legacy_swallow():
                 writer.write(b'GET /offline HTTP/1.1\r\nHost: localhost\r\n\r\n')
                 await writer.drain();await reader.read();writer.close();await writer.wait_closed()
                 yield ModelUsageUpdate(TokenUsage(1,1))
-        state=TurnState(max_model_calls=3)
+        state=TurnState()
         async def consume():
-            async for _ in BudgetedModelClient(LegacyClient(),state).stream([]):pass
+            async for _ in ObservedModelClient(LegacyClient(),state).stream([]):pass
         try:
             with pytest.raises(asyncio.CancelledError):await asyncio.create_task(consume())
             assert requests==[] and state.model_calls==0
@@ -63,9 +63,9 @@ def test_stale_success_never_masks_current_failure_in_delivery(same_command):
     assert not fixed.failed_checks and fixed.verification_status=='passed_checks'
 
 
-def test_two_child_harnesses_share_request_and_cumulative_usage_budget_once(tmp_path):
+def test_child_harnesses_share_request_and_cumulative_usage_accounting_once(tmp_path):
     async def run():
-        events=[];root=TurnState(max_model_calls=2,request_event_sink=lambda kind,value:events.append((kind,value)))
+        events=[];root=TurnState(request_event_sink=lambda kind,value:events.append((kind,value)))
         class Client:
             provider='scripted'
             calls=0
@@ -75,19 +75,19 @@ def test_two_child_harnesses_share_request_and_cumulative_usage_budget_once(tmp_
                 yield ModelUsageUpdate(TokenUsage(4,2),usage_is_final=True)
                 yield ModelTextDelta('Read-only answer')
         clients=[Client() for _ in range(3)];results=[]
-        token=parent_budget.set(root)
+        token=parent_turn.set(root)
         try:
             for client in clients:
-                conversation=Conversation(client=client,context_root=tmp_path,include_task_tools=False,max_iterations=8)
+                conversation=Conversation(client=client,context_root=tmp_path,include_task_tools=False)
                 async for event in conversation.stream('Answer without tools.'):
                     if isinstance(event,TurnCompleted):results.append(event.result)
-        finally:parent_budget.reset(token)
-        assert root.model_calls==2 and root.usage==TokenUsage(8,4)
-        assert [c.calls for c in clients]==[1,1,0]
-        assert results[-1].model_calls==0 and results[-1].stop_reason=='model_budget_exhausted'
+        finally:parent_turn.reset(token)
+        assert root.model_calls==3 and root.usage==TokenUsage(12,6)
+        assert [c.calls for c in clients]==[1,1,1]
+        assert all(result.status=='completed' and result.model_calls==1 for result in results)
         starts=[v['request_id'] for k,v in events if k=='model_request_started']
-        assert len(starts)==len(set(starts))==2
-        assert sum(k=='model_request_finished' for k,_ in events)==2
+        assert len(starts)==len(set(starts))==3
+        assert sum(k=='model_request_finished' for k,_ in events)==3
     asyncio.run(run())
 
 
@@ -113,7 +113,7 @@ def test_real_long_read_full_compaction_keeps_pairs_and_original_constraints(tmp
                     assert constraint in str(messages)
                     yield ModelToolCallCompleted(ToolCall(0,'finish','finish_task',{'task_kind':'answer','status':'completed','summary':'Read actual file.'}))
     async def run():
-        client=Client();conversation=Conversation(client=client,context_root=tmp_path,registry=create_default_registry(tmp_path),max_iterations=5,
+        client=Client();conversation=Conversation(client=client,context_root=tmp_path,registry=create_default_registry(tmp_path),
             context_config=CompactionConfig(auto_compact_characters=9000,keep_recent_tokens=1000))
         # The old investigation becomes the compactable prefix after the real
         # read. The newest read/result pair must fit intact beside the summary.
@@ -142,11 +142,11 @@ def test_repair_zero_and_two_execute_different_paths_under_identical_limits(tmp_
     async def run():
         client=Client();conversation=Conversation(client=client,context_root=tmp_path,registry=create_default_registry(tmp_path),
             permission_manager=PermissionManager(tmp_path,mode='supervised',approval_handler=approve,load_stored_rules=False),
-            max_iterations=5,max_tool_calls=2,max_turn_seconds=30,
+
             task_policy=TaskPolicy(require_verification=True,required_paths=('delivery.txt',),max_delivery_repairs=repairs))
         async for event in conversation.stream('Create delivery.txt and verify its exact content.'):
             if isinstance(event,TurnCompleted):result=event.result
-        assert (conversation.max_iterations,conversation.max_tool_calls,conversation.max_turn_seconds)==(5,2,30)
+        assert result.statistics['model_requests'] == result.model_calls
         assert result.model_calls==client.calls==(1 if repairs==0 else 5)
         assert result.status==('partial' if repairs==0 else 'completed')
         if repairs:
@@ -186,7 +186,7 @@ def test_adapter_exports_actual_repair_switch_and_keeps_existing_defaults(tmp_pa
     policy = TaskPolicy(max_delivery_repairs=repairs)
     adapter = HarnessAdapter(tmp_path, config=ForgeConfig(api_key='offline-fixture', model_id='scripted-test'),
         data_root=tmp_path/'private-data', backend=LocalTrustedBackend(),
-        budget={'max_model_calls': 5, 'max_tool_calls': 2, 'wall_seconds': 30},
+
         model_client_factory=lambda *args, **kwargs: Client(), task_policy=policy)
     try:
         assert adapter.conversation.completion_gate.policy == policy
@@ -228,7 +228,7 @@ def test_external_edit_expires_actual_verify_and_completion_event(tmp_path):
     async def run():
         client = Client()
         conversation = Conversation(client=client, context_root=project, registry=create_default_registry(project),
-            max_iterations=2, session_journal=journal, task_policy=TaskPolicy(require_verification=True),
+             session_journal=journal, task_policy=TaskPolicy(require_verification=True),
             permission_manager=PermissionManager(project, mode='supervised', approval_handler=approve, load_stored_rules=False))
         async for event in conversation.stream('Verify delivery.txt before completing.'):
             if isinstance(event, TurnCompleted): result = event.result

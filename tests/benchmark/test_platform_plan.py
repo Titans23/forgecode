@@ -144,14 +144,13 @@ def test_frozen_composition_flows_through_existing_benchmark_loop(tmp_path):
     bundle = tmp_path / 'agent.zip'
     bundle_manifest = export_agent(agent, {'cases': []}, bundle)
     configuration = ForgeConfig(api_key='unused', model_id='scripted-benchmark')
-    budget = {'max_model_calls': 5, 'max_tool_calls': 3, 'wall_seconds': 60}
     scope = Scope()
     composition = {'archive_base64': base64.b64encode(bundle.read_bytes()).decode(),
         'archive_sha256': sha256(bundle.read_bytes()).hexdigest(), 'models': {},
         'definition': agent.as_dict(), 'files': bundle_manifest['files'], 'plan_hash': 'fixture'}
     frozen = {'parameters': {'temperature': None, 'top_p': None, 'max_output_tokens': configuration.max_tokens, 'reasoning_effort': None},
         'harness': {'max_context_tokens': configuration.context_window, 'compaction_enabled': True, 'max_delivery_repairs': 2,
-            'parent_budget': budget, 'explore_enabled': True, 'trusted_extensions_enabled': False},
+            'explore_enabled': True, 'trusted_extensions_enabled': False},
         'model': {k: v for k, v in asdict(configuration).items() if k != 'api_key'}, 'composition': composition,
         'scope': {'trace_id': scope.trace_id, 'span_id': scope.span_id, 'run_id': 'run-' + str(uuid4()), 'trial_id': 'trial-' + str(uuid4())},
         'attempt_id': 'attempt-' + str(uuid4())}
@@ -172,9 +171,24 @@ def test_frozen_composition_flows_through_existing_benchmark_loop(tmp_path):
     model = Model()
     project = tmp_path / 'project'
     project.mkdir()
-    result = asyncio.run(run_turn(project, 'Apply the fixture tool', resume=False, max_model_calls=5, max_tool_calls=3,
-        max_turn_seconds=60, frozen_configuration=frozen, result_path=tmp_path / 'result.json',
+    result = asyncio.run(run_turn(project, 'Apply the fixture tool', resume=False,
+         frozen_configuration=frozen, result_path=tmp_path / 'result.json',
         runtime_bindings=RuntimeBindings(config=configuration, model_client_factory=lambda *a, **k: model,
             data_root=tmp_path / 'data', permission_manager=PermissionManager(project), intent_routing=False, trusted_extensions=False)))
     assert result.tool_calls[0].name == 'summarize_expenses' and model.closed
     assert json.loads((tmp_path / 'result.json').read_text())['cleanup']['state'] == 'clean'
+
+
+@pytest.mark.parametrize('legacy', ['missing_marker', 'budget_present'])
+def test_frozen_legacy_limits_are_not_silently_discarded(tmp_path, legacy):
+    platform.make_plan(fixture_config(tmp_path), tmp_path / 'plan')
+    path = tmp_path / 'plan/plan.json'
+    plan = json.loads(path.read_text())
+    if legacy == 'missing_marker':
+        plan.pop('harness_budgets')
+    else:
+        plan['budget'] = {'max_model_calls': 1, 'max_tool_calls': 1, 'wall_seconds': 1}
+    plan['plan_hash'] = platform.digest({key: value for key, value in plan.items() if key != 'plan_hash'})
+    path.write_text(json.dumps(plan))
+    with pytest.raises(ValueError, match='budgets have been removed'):
+        platform.run_plan(path, execute=True)

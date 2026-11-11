@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from forge.runtime.model_budget import BudgetedModelClient
+from forge.runtime.model_observation import ObservedModelClient
 from forge.runtime.request_snapshot import RequestSnapshot
 from forge.runtime.state import ModelResponseCompleted
 from forge.runtime.turn_state import TurnState
@@ -36,7 +36,7 @@ def test_recorded_snapshot_is_the_actual_input_despite_callback_mutation():
             events.append((kind, payload))
             original[0]['content'] = 'modified by observer'
         state = TurnState(request_event_sink=record)
-        async for _ in BudgetedModelClient(Client(), state).stream(original):
+        async for _ in ObservedModelClient(Client(), state).stream(original):
             pass
         snapshot = next(payload for kind, payload in events if kind == 'model_input_snapshot')
         attempt = next(payload for kind, payload in events if kind == 'model_request_started')
@@ -51,7 +51,7 @@ def test_wire_audit_matches_native_request_and_marks_missing_usage():
     import httpx
     from openai import AsyncOpenAI
     from forge.config import ForgeConfig
-    from forge.runtime.model_budget import observe_wire_request
+    from forge.runtime.model_observation import observe_wire_request
     from forge.runtime.providers import NativeModelClient
 
     async def run():
@@ -67,7 +67,7 @@ def test_wire_audit_matches_native_request_and_marks_missing_usage():
                 event_hooks={'request': [observe_wire_request]})) as sdk:
             adapter = NativeModelClient(ForgeConfig(api_key='offline', model_id='test', provider='deepseek'), client=sdk)
             state = TurnState(request_event_sink=lambda kind, data: records.append((kind, data)))
-            events = [event async for event in BudgetedModelClient(adapter, state).stream(
+            events = [event async for event in ObservedModelClient(adapter, state).stream(
                 [{'role': 'user', 'content': 'hello'}])]
         assert any(isinstance(event, ModelResponseCompleted) for event in events)
         wire = next(data for kind, data in records if kind == 'model_wire_snapshot')

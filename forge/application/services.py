@@ -16,7 +16,6 @@ from forge.application.sessions import outcome_for, session_view, turn_view, Tur
 from forge.application.workspaces import WorkspaceService
 from forge.config import ForgeConfig
 from forge.engine.journal_projection import JournalProjector
-from forge.engine.lifecycle import Deadline
 from forge.engine.persistence import encoded, new_id, utc_now
 from forge.runtime.state import TurnCompleted
 from forge.sessions.store import SessionStore
@@ -102,15 +101,6 @@ class ApplicationServices:
                 (policy['policy_id'], snapshot.sha256, encoded(snapshot.value), self.mode))
         return policy['policy_id']
 
-    def put_budget(self, budget):
-        if set(budget) != {'max_model_calls', 'max_tool_calls', 'wall_seconds'} or any(
-                type(value) is not int or not 1 <= value <= 2**53-1 for value in budget.values()):
-            raise ContractError('Budget requires positive integer model, tool and wall limits')
-        budget_id = new_id('budget')
-        with self.store.transaction():
-            self.store.connection.execute('INSERT INTO budget_profiles VALUES(?,?)', (budget_id, encoded(budget)))
-        return budget_id
-
     def _workspace(self, workspace_id, *, expected_revision=None, execution=False):
         row = self.store.connection.execute('SELECT * FROM workspaces WHERE id=?', (workspace_id,)).fetchone()
         if row is None:
@@ -132,9 +122,8 @@ class ApplicationServices:
         workspace = self._workspace(workspace_id, expected_revision=params['expected_workspace_revision'], execution=execution)
         connection = self.store.connection.execute('SELECT * FROM connections WHERE id=?', (params['connection_id'],)).fetchone()
         policy = self.store.connection.execute('SELECT * FROM policies WHERE id=?', (params['policy_id'],)).fetchone()
-        budget = self.store.connection.execute('SELECT * FROM budget_profiles WHERE id=?', (params['budget_profile_id'],)).fetchone()
-        if connection is None or policy is None or budget is None:
-            raise ContractError('Connection, policy or budget not found', kind='NOT_FOUND', code=-32010)
+        if connection is None or policy is None:
+            raise ContractError('Connection or policy not found', kind='NOT_FOUND', code=-32010)
         policy_value = json.loads(policy['normalized_json'])
         if policy['capability_requirement'] != self.mode:
             raise ContractError('Policy execution mode changed', kind='STALE_REVISION', code=-32010)
@@ -157,8 +146,8 @@ class ApplicationServices:
         value = {'workspace_id': workspace_id, 'workspace_revision': workspace['revision'],
             'connection_id': params['connection_id'], 'connection_revision': connection['revision'],
             'model': json.loads(connection['configuration_json']), 'policy_id': policy['id'], 'policy_hash': policy['hash'],
-            'budget_profile_id': params['budget_profile_id'], 'mode': self.mode,
-            'model_source': 'injected' if self.model_client_factory else 'provider', **json.loads(budget['configuration_json'])}
+            'mode': self.mode,
+            'model_source': 'injected' if self.model_client_factory else 'provider'}
         return value
 
     def _existing_action(self, method, params):
@@ -269,8 +258,6 @@ class ApplicationServices:
         result = None
         outcome = 'failed'
         reason = 'harness_error'
-        timer = None
-        deadline_expired = False
         cleanup = {'state': 'clean', 'scope': self.mode, 'resources': {}}
         projection_error = None
         model_cleanup_error = None
@@ -282,21 +269,15 @@ class ApplicationServices:
             configuration = json.loads(self.store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
                 (reference['snapshot_id'],)).fetchone()[0])
             params = {'expected_workspace_revision': configuration['workspace_revision'],
-                **{key: configuration[key] for key in ('connection_id', 'policy_id', 'budget_profile_id')}}
+                **{key: configuration[key] for key in ('connection_id', 'policy_id')}}
             current = self._configuration(params, configuration['workspace_id'], execution=True)
             if canonical_hash(current) != canonical_hash(configuration):
                 raise ContractError('Accepted configuration is no longer available', kind='STALE_REVISION', code=-32010)
-            deadline = Deadline.start(configuration['wall_seconds'])
             with self.store.transaction():
                 self.store.connection.execute('INSERT INTO turn_lifecycle(turn_id,owner_epoch,agent_deadline_utc,environment_deadline_utc,cancel_state,cleanup_state) '
                     'VALUES(?,?,?,?,?,?) ON CONFLICT(turn_id) DO UPDATE SET agent_deadline_utc=excluded.agent_deadline_utc, '
                     'environment_deadline_utc=excluded.environment_deadline_utc',
-                    (turn_id, self.store.epoch, deadline.utc_text, deadline.utc_text, 'none', 'pending'))
-            def expire():
-                nonlocal deadline_expired
-                deadline_expired = True
-                self.cancel_turn({'turn_id': turn_id, 'client_action_id': new_id('act'), 'reason': 'Agent deadline exceeded'})
-            timer = asyncio.create_task(deadline.watch(asyncio.current_task(), expire))
+                    (turn_id, self.store.epoch, None, None, 'none', 'pending'))
             if self.backend_factory is not None:
                 policy = json.loads(self.store.connection.execute('SELECT normalized_json FROM policies WHERE id=?',
                     (configuration['policy_id'],)).fetchone()[0])
@@ -321,7 +302,7 @@ class ApplicationServices:
                 async def approval(request):
                     return await self.approvals.authorize(request, turn_id=turn_id, configuration=configuration)
             adapter = HarnessAdapter(root, config=config, data_root=self.store.data_dir / 'harness',
-                backend=turn_backend, budget=configuration, model_client_factory=self.model_client_factory,
+                backend=turn_backend, model_client_factory=self.model_client_factory,
                 recorder=self.recorder, approval_handler=approval, task_relation=self.task_relation,
                 resume_identifier=session['legacy_ref'], fork_session=fork,
                 turn_baseline_handler=lambda: self.workspaces.capture(turn_id, session['workspace_id']))
@@ -381,8 +362,6 @@ class ApplicationServices:
             records = adapter.conversation.turn_state.execution_records if adapter and adapter.conversation.turn_state else []
             outcome = 'indeterminate' if any(r.status == 'indeterminate' for r in records) else 'cancelled'
             reason = 'cancellation_propagated' if outcome == 'cancelled' else 'cancelled_with_unknown_tool_result'
-            if deadline_expired and outcome != 'indeterminate':
-                outcome, reason = 'timed_out', 'agent_deadline_exceeded'
         except Exception as error:
             outcome, reason = 'indeterminate' if adapter else 'failed', type(error).__name__
         finally:
@@ -393,9 +372,6 @@ class ApplicationServices:
                 await asyncio.gather(observation_timer,return_exceptions=True)
             if messages is not None:
                 messages.flush(final=True)
-            if timer is not None:
-                timer.cancel()
-                await asyncio.gather(timer, return_exceptions=True)
             with self.store.transaction():
                 self.store.connection.execute("UPDATE turn_lifecycle SET cleanup_state='running' WHERE turn_id=? AND owner_epoch=?",
                     (turn_id, self.store.epoch))

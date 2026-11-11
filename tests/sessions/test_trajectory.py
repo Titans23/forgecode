@@ -29,7 +29,7 @@ def test_journal_atif_resolves_payloads_and_distinguishes_closure_from_completen
     import asyncio
     from forge.sessions.store import SessionStore
     from forge.sessions.trajectory import journal_events, journal_completeness, journal_to_atif
-    from forge.runtime.model_budget import BudgetedModelClient
+    from forge.runtime.model_observation import ObservedModelClient
     from forge.runtime.turn_state import TurnState
     from forge.runtime.state import ModelToolCallStarted, ModelToolCallArgumentsDelta, ModelTextDelta
     from harbor.models.trajectories.trajectory import Trajectory
@@ -46,7 +46,7 @@ def test_journal_atif_resolves_payloads_and_distinguishes_closure_from_completen
             yield ModelToolCallCompleted(ToolCall(0, 'call', 'read_file', {'path': 'README.md'}))
             yield ModelResponseCompleted('tool_use')
     async def run():
-        async for _ in BudgetedModelClient(Client(), state).stream([{'role': 'user', 'content': 'api_key=fixture-secret'}]): pass
+        async for _ in ObservedModelClient(Client(), state).stream([{'role': 'user', 'content': 'api_key=fixture-secret'}]): pass
     asyncio.run(run())
     journal.record_tool_started('call', 'read_file', {'path': 'README.md'})
     journal.record_tool_completed('call', 'read_file', True, duration_seconds=.2, exit_code=0)

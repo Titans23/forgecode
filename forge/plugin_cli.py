@@ -98,10 +98,10 @@ def emit_result(result, output=None):
 @app.command('develop')
 def develop(request: str, directory: Path = typer.Option(..., '--directory'),
             cases: Path = typer.Option(..., '--cases'), execute: bool = typer.Option(False, '--execute'),
-            max_model_calls: int = typer.Option(40, min=1), output: Path | None = None):
+            output: Path | None = None):
     from forge.development import develop_plugin
     result = asyncio.run(develop_plugin(request, directory, json.loads(cases.read_text(encoding='utf-8')),
-                                       execute=execute, max_model_calls=max_model_calls))
+                                       execute=execute))
     if execute:
         emit_result(result, output)
     else:

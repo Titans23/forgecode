@@ -138,6 +138,8 @@ class NativeTaskAdapter:
         self.suite = json.loads((ROOT / spec['suite']).read_text(encoding='utf-8'))
 
     def case(self, ordinal, limits):
+        if {'max_model_calls', 'max_tool_calls', 'max_turn_seconds'} & limits.keys():
+            raise ValueError('Harness budgets have been removed; replay historical capped plans with their frozen source.')
         python = str(Path('../environment') / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python'))
         task = (self.row['problem_statement'] + '\n\nTask Python: ' + shell_command([python])
             + '\nUse this task interpreter for all Python commands and import checks. '
@@ -151,8 +153,7 @@ class NativeTaskAdapter:
             test_command=shell_command([python, '-m', 'compileall', '-q', self.scope]),
             hidden_test_command='independent frozen grader (adapter required)',
             allowed_paths=(self.scope + '/**',), forbidden_paths=('tests/**', 'testing/**', '.git/**', '.venv/**'),
-            max_model_calls=limits['max_model_calls'], max_tool_calls=limits['max_tool_calls'],
-            max_turn_seconds=limits['max_turn_seconds'], timeout_seconds=limits['verifier_timeout_seconds'],
+            timeout_seconds=limits['verifier_timeout_seconds'],
             require_task_verification=limits.get('require_task_verification', False),
             require_positive_verification=limits.get('require_positive_verification', False),
             max_delivery_repairs=limits.get('max_delivery_repairs', 0),
@@ -237,7 +238,7 @@ class NativeTaskAdapter:
                 options = SessionOptions(verifier.workspace, sandbox=self.sandbox, approval='auto',
                     data_root=self.logs / 'verifier-session',
                     config=ForgeConfig(api_key='unused-verifier', model_id=NoModelCalls.model),
-                    profile=RunProfile(name='independent-verifier', intent_routing=False, wall_seconds=900))
+                    profile=RunProfile(name='independent-verifier', intent_routing=False))
                 session = await HarnessSession.open(options, model_client_factory=lambda *a, **kw: NoModelCalls())
                 async with session:
                     public_command = shell_command([str(python), '-m', 'compileall', '-q', self.scope])

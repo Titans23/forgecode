@@ -16,7 +16,6 @@ from benchmark.catalog import get_benchmark
 from benchmark.harbor.snapshot import freeze_source, verify_frozen_source
 from benchmark.adapters.materialize import materialize_dataset, reuse_taskset, resolve_task
 from forge.agents import AgentDefinition
-from forge.api import RunProfile
 from forge.delivery import export_agent, import_agent, load_definition, portable
 from forge.runtime.model_registry import ModelSelection, ProviderRegistry
 from forge.validation import digest
@@ -46,7 +45,7 @@ def credential_references(value):
 def make_plan(config_path, destination):
     config_path, destination = Path(config_path).resolve(), Path(destination).resolve()
     config = json.loads(config_path.read_text(encoding='utf-8'))
-    allowed = {'benchmark', 'model', 'models', 'agent', 'budget', 'tasks', 'dataset_ref', 'taskset_directory',
+    allowed = {'benchmark', 'model', 'models', 'agent', 'tasks', 'dataset_ref', 'taskset_directory',
                'source_directory', 'harness', 'pricing'}
     if set(config) - allowed:
         raise ValueError('Unknown plan configuration fields: ' + ', '.join(sorted(set(config) - allowed)))
@@ -70,8 +69,6 @@ def make_plan(config_path, destination):
     selected = models[definition.role_models['main']] if definition.role_models.get('main') not in (None, 'default') else config['model']
     model = asdict(ModelSelection(**selected))
     ModelSelection(**model).resolve({credential_name(model): 'unused-planning'})
-    budget = {'max_model_calls': 120, 'max_tool_calls': 240, 'wall_seconds': 1800, **config.get('budget', {})}
-    RunProfile(**budget)
     harness = {'max_delivery_repairs': 2, **config.get('harness', {})}
     if set(harness) != {'max_delivery_repairs'} or type(harness['max_delivery_repairs']) is not int or not 0 <= harness['max_delivery_repairs'] <= 2:
         raise ValueError('Supported Harness override: max_delivery_repairs in 0..2; use Agent context_options/prompt/tools for composition changes')
@@ -98,7 +95,7 @@ def make_plan(config_path, destination):
     value = {'schema_version': 'forge.evaluation.launch-plan.v1', 'benchmark': spec.key, 'dataset': spec.dataset,
         'taskset': taskset, 'source': source.relative_to(destination).as_posix(),
         'source_manifest': json.loads((source.parent / 'manifest.json').read_text()),
-        'model': model, 'models': models, 'budget': budget, 'harness': harness, 'pricing': config.get('pricing'),
+        'model': model, 'models': models, 'harness_budgets': False, 'harness': harness, 'pricing': config.get('pricing'),
         'composition': {'definition': delivered_definition, 'files': bundle_manifest['files'], 'dependencies': dependencies},
         'bundle': 'agent.zip', 'bundle_sha256': sha256(bundle.read_bytes()).hexdigest(),
         'credential_references': sorted(references), 'protocol': {'feedback': 'none', 'attempts': 1, 'task_retries': 0,
@@ -115,6 +112,8 @@ def load_plan(path):
     value = json.loads(path.read_text(encoding='utf-8'))
     if value.get('schema_version') != 'forge.evaluation.launch-plan.v1' or value.get('plan_hash') != digest({k: v for k, v in value.items() if k != 'plan_hash'}):
         raise ValueError('Launch plan bytes changed')
+    if value.get('harness_budgets') is not False or 'budget' in value:
+        raise ValueError('Harness budgets have been removed; create a new launch plan instead of ignoring frozen limits')
     from forge.validation import relative_file
     for key in ('source', 'bundle'):
         relative_file(value[key])
@@ -147,8 +146,6 @@ def run_plan(path, *, output=None, execute=False, trust_plugins=False):
         resolved = resolve_task(path.parent / 'tasks', plan['taskset'], task)
         if not Task(resolved).config.environment.docker_image:
             raise ValueError('This task has no official prebuilt image; direct-image execution remains unverified and no image is built automatically')
-    for key, flag in [('max_model_calls', '--max-model-calls'), ('max_tool_calls', '--max-tool-calls'), ('wall_seconds', '--max-turn-seconds')]:
-        args += [flag, str(plan['budget'][key])]
     if output:
         args += ['--output-dir', str(output)]
     if trust_plugins:

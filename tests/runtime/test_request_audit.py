@@ -1,6 +1,6 @@
 import asyncio
 
-from forge.runtime.model_budget import BudgetedModelClient
+from forge.runtime.model_observation import ObservedModelClient
 from forge.runtime.model_client import ModelCallError
 from forge.runtime.state import ModelRetryScheduled, ModelTextDelta, ModelUsageUpdate, TokenUsage, ModelToolCallStarted, ModelToolCallArgumentsDelta
 from forge.runtime.turn_state import TurnState
@@ -8,14 +8,14 @@ from forge.runtime.turn_state import TurnState
 
 def test_actual_attempt_lifecycle_survives_failure_without_event_consumer():
     events = []
-    state = TurnState(max_model_calls=4)
+    state = TurnState()
     state.request_event_sink = lambda kind, payload: events.append((kind, payload))
 
     class Client:
-        observes_request_budget = True
+        observes_requests = True
 
         async def stream(self, **kwargs):
-            from forge.runtime.model_budget import request_observer
+            from forge.runtime.model_observation import request_observer
             request_observer.get()()
             yield ModelUsageUpdate(TokenUsage(3, 1))
             yield ModelRetryScheduled(2, 'server_error', 0)
@@ -27,7 +27,7 @@ def test_actual_attempt_lifecycle_survives_failure_without_event_consumer():
 
     async def run():
         try:
-            async for _ in BudgetedModelClient(Client(), state, 'compaction').stream([]):
+            async for _ in ObservedModelClient(Client(), state, 'compaction').stream([]):
                 pass
         except ModelCallError:
             pass

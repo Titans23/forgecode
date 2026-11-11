@@ -34,23 +34,23 @@ from forge.runtime.state import TokenUsage, TurnResult, VerificationEvidence
 from harbor.trial.trial import Trial
 
 
-def test_adapter_builds_quoted_resumable_command(tmp_path: Path) -> None:
+def test_adapter_builds_quoted_resumable_command(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr('benchmark.harbor.forgecode_agent.monotonic', lambda: 100.0)
     agent = ForgeCodeHarborAgent(
         logs_dir=tmp_path,
-        max_model_calls='77',
-        max_tool_calls='155',
     )
 
+    agent.set_phase_timeout(1830)
     command = agent._run_command('Fix it.\nRun tests.', resume=True)
 
     assert '-m benchmark.harbor.run_forge' in command
     assert ' -I -m benchmark.harbor.process_supervisor' in command
     assert ' -I -m benchmark.harbor.run_forge' in command
     assert '--resume' in command
-    assert '--max-model-calls 77' in command
-    assert '--max-tool-calls 155' in command
-    assert '--max-turn-seconds 1800' in command
-    assert 'timeout --kill-after=10s 1815 ' in command
+    assert '--max-model-calls' not in command
+    assert '--max-tool-calls' not in command
+    assert '--max-turn-seconds' not in command
+    assert 'timeout --kill-after=10s 1800 ' in command
     assert 'FORGECODE_API_KEY' in command
     assert 'ANTHROPIC_API_KEY=' in command
     assert '${FORGECODE_MODEL_MAX_TOKENS:-65536}' in command
@@ -129,6 +129,7 @@ def test_harbor_result_serializes_classified_verification_history() -> None:
 
 def test_adapter_can_run_with_uploaded_message_file(tmp_path: Path) -> None:
     agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    agent.set_phase_timeout(900)
 
     command = agent._run_command(
         resume=False,
@@ -152,6 +153,7 @@ def test_first_turn_creates_git_baseline_but_resume_does_not(
     tmp_path: Path,
 ) -> None:
     agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    agent.set_phase_timeout(900)
 
     first = agent._run_command('Fix it.')
     resumed = agent._run_command('Tests failed.', resume=True)
@@ -248,7 +250,7 @@ def test_feedback_plugin_restores_trial_factory() -> None:
 
 
 def test_adapter_rejects_invalid_limits(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match='Budget must be a positive integer or unlimited'):
+    with pytest.raises(ValueError, match='Harness budgets have been removed'):
         ForgeCodeHarborAgent(logs_dir=tmp_path, max_model_calls=0)
     with pytest.raises(ValueError, match='max_turn_seconds'):
         ForgeCodeHarborAgent(logs_dir=tmp_path, max_turn_seconds='nan')

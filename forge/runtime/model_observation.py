@@ -14,7 +14,7 @@ import asyncio
 
 from forge.runtime.state import (ModelUsageUpdate, ModelRetryScheduled, ModelTextDelta,
     ModelToolCallStarted, ModelToolCallArgumentsDelta, ModelToolCallCompleted, ModelResponseCompleted)
-from forge.runtime.turn_state import BudgetExhausted, TurnState
+from forge.runtime.turn_state import TurnState
 from forge.runtime.request_snapshot import RequestSnapshot
 
 
@@ -33,7 +33,7 @@ async def observe_wire_request(request) -> None:
                   'method': request.method, 'path': request.url.path})
 
 
-class BudgetedModelClient:
+class ObservedModelClient:
     '''A turn-scoped adapter; the provider invokes the observer per HTTP attempt.
 
     Older embedded clients have no retry notification boundary, so one stream
@@ -86,6 +86,7 @@ class BudgetedModelClient:
         chunk_parts = []
         chunk_bytes = 0
         last_chunk_flush = monotonic()
+        observed_blocks = set()
 
         def flush_chunks():
             nonlocal pending_chunk, chunk_parts, chunk_bytes, last_chunk_flush
@@ -104,6 +105,14 @@ class BudgetedModelClient:
         def emit_chunk(kind, payload):
             nonlocal pending_chunk, chunk_bytes
             field = 'partial_json' if kind == 'model_tool_chunk' else 'text'
+            key = (payload['request_id'], kind, payload.get('index'))
+            if key not in observed_blocks:
+                flush_chunks()
+                observed_blocks.add(key)
+                emit(kind, {**payload, 'delta_count': 1,
+                            **({'size_bytes': len(payload[field].encode('utf-8'))}
+                               if kind == 'model_request_chunk' else {})})
+                return
             if pending_chunk is not None and (
                 pending_chunk[0] != kind or pending_chunk[1].get('index') != payload.get('index')
             ):
@@ -150,22 +159,12 @@ class BudgetedModelClient:
             debug_chunks=[]
             debug_bytes=0
             debug_truncated=False
-            reason = self.state.budget_reason()
-            if reason:
-                raise BudgetExhausted(reason)
             self.state.record_model_request(stage=self.stage)
             attempt_no+=1
             request_started = monotonic()
-            remaining=[]
-            current_state=self.state
-            while current_state is not None:
-                if current_state.max_model_calls is not None:
-                    remaining.append(max(0,current_state.max_model_calls-current_state.model_calls))
-                current_state=current_state.parent
             request = dict(request_id=uuid4().hex, ordinal=self.state.model_calls,
                            invocation_id=invocation_id,attempt_no=attempt_no,requested_model=frozen['model'],
                            provider=getattr(self.client,'provider','unreported'),
-                           remaining_model_calls=min(remaining) if remaining else None,
                            stage=self.stage, text_characters=0, tool_blocks={}, stop_reason=None,
                            input_sha256=snapshot.sha256)
             if retry_started_ns is not None:
@@ -178,7 +177,7 @@ class BudgetedModelClient:
             **payload, 'request_id': request['request_id'] if request else None,
             'input_sha256': snapshot.sha256, 'stage': self.stage}))
         try:
-            if not getattr(self.client, 'observes_request_budget', False):
+            if not getattr(self.client, 'observes_requests', False):
                 begin_request()
             async with aclosing(self.client.stream(messages=frozen['messages'], tools=frozen['tools'], system=frozen['system'])) as stream:
                 async for event in stream:

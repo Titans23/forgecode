@@ -79,8 +79,7 @@ def task(tmp_path):
     adapter = FixtureAdapter({'environments': {'fixture': {}}}, spec, row, cache, tmp_path / 'out',
                              sandbox='full-access')
     adapter.grader_started = False
-    limits = dict(max_model_calls=6, max_tool_calls=12, max_turn_seconds=60,
-                  verifier_timeout_seconds=30, intent_routing=False)
+    limits = dict(verifier_timeout_seconds=30, intent_routing=False)
     case = adapter.case(1, limits).model_copy(update={'test_command': native.shell_command(
         [sys.executable, '-m', 'compileall', '-q', 'src'])})
     return adapter, case
@@ -88,8 +87,7 @@ def task(tmp_path):
 
 def test_native_case_preserves_explicit_behavior_requirements(tmp_path):
     adapter, _ = task(tmp_path)
-    limits = dict(max_model_calls=18, max_tool_calls=48, max_turn_seconds=900,
-                  verifier_timeout_seconds=600, intent_routing=False,
+    limits = dict(verifier_timeout_seconds=600, intent_routing=False,
                   require_task_verification=True, require_positive_verification=True, max_delivery_repairs=2)
     case = adapter.case(1, limits)
     assert case.require_task_verification and case.require_positive_verification
@@ -112,11 +110,9 @@ def client_for(adapter, case, *, content='new\n', leak=False):
     return adapter.client
 
 
-@pytest.mark.parametrize('scenario', ['correct', 'wrong', 'budget', 'leak'])
+@pytest.mark.parametrize('scenario', ['correct', 'wrong', 'leak'])
 def test_shared_runner_independent_grading_and_invalid_attempts(tmp_path, scenario):
     adapter, case = task(tmp_path)
-    if scenario == 'budget':
-        case = case.model_copy(update={'max_model_calls': 2})
     client = client_for(adapter, case, content='wrong\n' if scenario == 'wrong' else 'new\n',
                         leak=scenario == 'leak')
     outcome = asyncio.run(native.run_native_case(adapter, case, client=client))
@@ -214,7 +210,7 @@ def test_shared_factory_zero_retries_makes_one_transport_attempt(monkeypatch, pr
     import httpx
     from forge.config import ForgeConfig
     from forge.runtime.model_client import ModelCallError
-    from forge.runtime.model_budget import request_observer
+    from forge.runtime.model_observation import request_observer
     from forge.runtime.service_health import profile_health
 
     attempts = []

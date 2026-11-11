@@ -34,7 +34,7 @@ def test_only_repairs_may_differ_and_frozen_snapshots_are_checked(tmp_path):
     try:
         av,b,bv=configurations(methods,a)
         assert compare_repairs(a,b,av,bv)['comparable']
-        changed=deepcopy(b);changed['budget']['max_model_requests_per_attempt']+=1
+        changed=deepcopy(b);changed['budget']['trial_wall_seconds']+=1
         assert not compare_repairs(a,changed,av,bv)['comparable']
         bad=deepcopy(bv);bad['model_parameters']['max_output_tokens']+=1
         with pytest.raises(ValueError,match='frozen hash'):compare_repairs(a,b,av,bad)

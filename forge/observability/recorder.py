@@ -95,9 +95,8 @@ class JournalRecorder:
             if compaction is not None:
                 compaction.setdefault('summary_request_ids',[]).append(request_id)
             self.emit('model.request.started',base,scope=scope)
-            remaining=attributes.get('remaining_model_calls')
             self.emit('budget.consumed',{'dimension':'model_calls','model_request_id':request_id,'amount_decimal':'1',
-                'remaining_decimal':str(remaining) if remaining is not None else None},scope=scope)
+                'remaining_decimal':None},scope=scope)
         elif kind in ('model_request_chunk','model_request_finished'):
             request=self.requests.get(attributes['request_id'])
             if request is None:
@@ -309,24 +308,14 @@ class JournalRecorder:
         branch=active.get().branch.span_id
         request=next((item for item in reversed(list(self.requests.values())) if item['branch']==branch),None)
         self.emit('budget.consumed',{'dimension':'tool_calls','model_request_id':request['base']['model_request_id'] if request else None,
-            'amount_decimal':'1','remaining_decimal':str(max(0,state.max_tool_calls-state.tool_requests)) if state.max_tool_calls is not None else None})
+            'amount_decimal':'1','remaining_decimal':None})
 
-    def reserve_budget(self, state):
-        for dimension,limit in [('model_calls',state.max_model_calls),('tool_calls',state.max_tool_calls),('wall_seconds',state.max_seconds)]:
-            if limit is not None:
-                amount=format(Decimal(str(limit)), 'f')
-                self.emit('budget.reserved',{'dimension':dimension,'model_request_id':None,'amount_decimal':amount,'remaining_decimal':amount})
-
-    def finish_budget(self, state, reason):
+    def finish_turn_usage(self, state):
         def decimal_text(value):
             return format(Decimal(str(max(0,value))).quantize(Decimal('0.000001')),'f').rstrip('0').rstrip('.') or '0'
         elapsed=monotonic()-state.started_at
         self.emit('budget.consumed',{'dimension':'wall_seconds','model_request_id':None,'amount_decimal':decimal_text(elapsed),
-            'remaining_decimal':decimal_text(state.max_seconds-elapsed) if state.max_seconds is not None else None})
-        dimension={'time_budget_exhausted':'wall_seconds','model_budget_exhausted':'model_calls',
-                   'tool_budget_exhausted':'tool_calls','token_budget_exhausted':'input_tokens'}.get(reason)
-        if dimension:
-            self.emit('budget.limit_reached',{'dimension':dimension,'model_request_id':None,'amount_decimal':'0','remaining_decimal':'0'})
+            'remaining_decimal':None})
 
     async def grade(self, operation, *, attempt_id, grader_bytes, artifact_bytes, scope=None):
         """Observe a trusted grader callback. F20 supplies the actual adapter/protocol."""

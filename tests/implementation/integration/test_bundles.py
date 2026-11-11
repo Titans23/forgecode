@@ -368,6 +368,36 @@ def test_saved_mini_bundle_has_stable_hand_computable_offline_metrics():
     assert report['origin']=='imported_unverified'
 
 
+def test_legacy_bundle_keeps_original_identity_but_cannot_become_an_active_plan(tmp_path):
+    from benchmark.core.spec import validate_resolved_spec
+    from forge.application.models import canonical_hash
+    from copy import deepcopy
+    path = Path('tests/implementation/fixtures/eval-mini-bundle/result-bundle.zip')
+    with staged_bundle(path) as (root, manifest, _):
+        loaded = read_results(root, manifest)
+    run = next(iter(loaded['runs'].values()))
+    spec = run['spec']
+    assert 'max_model_requests_per_attempt' in spec['budget']
+    assert canonical_hash(spec) == run['spec_hash']
+    validate('run-spec', spec)  # The archival format preserves historical metadata.
+    with pytest.raises(ContractError, match='removed'):
+        validate_resolved_spec(spec, {})
+    for value in (0, -1, True, '10', None):
+        invalid = deepcopy(spec)
+        invalid['budget']['max_model_requests_per_attempt'] = value
+        with pytest.raises(ContractError):
+            validate('run-spec', invalid)
+    methods, _ = make_evaluation(tmp_path)
+    try:
+        imported, _ = import_file(methods, path)
+        snapshot = methods.evaluation_client.snapshot({'run_id': imported['run_ids'][0]})
+        validate('evaluation.snapshot.result', snapshot)
+        assert snapshot['read_only'] and not snapshot['compatible']
+        assert snapshot['spec'] == spec and snapshot['spec_hash'] == run['spec_hash']
+    finally:
+        methods.store.close()
+
+
 def test_migration_backs_up_and_binds_existing_attempt_artifact_without_guessing_owner(tmp_path):
     migrations=tmp_path/'old-migrations';migrations.mkdir()
     for path in Path('forge/engine/migrations').glob('*.sql'):

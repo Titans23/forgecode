@@ -191,9 +191,8 @@
           ]
         },
         "wall_time_seconds": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 604800
+          "type": ["integer", "null"],
+          "minimum": 1
         },
         "command_output_bytes": {
           "type": "integer",

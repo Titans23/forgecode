@@ -37,7 +37,7 @@ Use verify to run the strongest available behavioral check on the final artifact
 A test entrypoint must actually execute its tests, not merely import definitions.
 Assert required thresholds against the specification or independent reference;
 do not mask failures or weaken expectations. Missing executables may need building.
-Investigate a concrete recovery step before stopping, within the remaining budget.
+Investigate a concrete recovery step before stopping.
 
 Official verifiers independently grade the result after your turn. Requirement IDs
 and JSON output_checks are optional here; assertions inside an executed test are
@@ -52,9 +52,6 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
     def __init__(
         self,
         *args,
-        max_model_calls: int | str | None = 120,
-        max_tool_calls: int | str | None = 240,
-        max_turn_seconds: float | str | None = 1800,
         install_retries: int | str = 5,
         install_retry_delay_seconds: float | str = 20,
         source_dir: str | Path | None = None,
@@ -62,13 +59,10 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         frozen_configuration: str | None = None,
         **kwargs,
     ) -> None:
+        removed = {'max_model_calls', 'max_tool_calls', 'max_turn_seconds'} & kwargs.keys()
+        if removed:
+            raise ValueError('Harness budgets have been removed: ' + ', '.join(sorted(removed)))
         super().__init__(*args, **kwargs)
-        from benchmark.harbor.run_dataset import budget_limit
-        self._max_model_calls = budget_limit(max_model_calls)
-        self._max_tool_calls = budget_limit(max_tool_calls)
-        self._max_turn_seconds = None if max_turn_seconds in (None, 'unlimited') else _positive_float(
-            max_turn_seconds, 'max_turn_seconds'
-        )
         self._install_retries = _positive_int(
             install_retries, 'install_retries'
         )
@@ -90,17 +84,15 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         self._phase_deadline = None if seconds is None else monotonic() + _positive_float(seconds, 'phase_timeout')
 
     def effective_turn_seconds(self) -> float:
-        # 实际预算取 kernel 上限与 Harbor 剩余期限的较小值，并留出日志清理时间。
+        # Official task deadline owns cancellation; leave time for log export.
         if self._phase_deadline is None:
-            if self._max_turn_seconds is None:
-                raise ValueError('Unlimited kernel time requires an official Harbor phase deadline.')
-            return self._max_turn_seconds
+            raise ValueError('An official Harbor phase deadline is required.')
         remaining = self._phase_deadline - monotonic()
         if remaining <= 0:
             raise TimeoutError('Harbor phase deadline expired before agent launch.')
         # Leave time for interpreter startup, supervisor shutdown and log export.
         reserve = min(30.0, remaining / 2)
-        return remaining - reserve if self._max_turn_seconds is None else min(self._max_turn_seconds, remaining - reserve)
+        return remaining - reserve
 
     @staticmethod
     @override
@@ -164,8 +156,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         environment: BaseEnvironment,
         context: AgentContext,
     ) -> None:
-        context.metadata = {**(context.metadata or {}), 'configured_kernel_seconds': self._max_turn_seconds,
-                            'effective_kernel_seconds': self.effective_turn_seconds(),
+        context.metadata = {**(context.metadata or {}), 'harness_budgets': False,
+                            'official_task_seconds_remaining': self.effective_turn_seconds(),
                             'outer_deadline_bound': self._phase_deadline is not None}
         resume = instruction.startswith(
             'The tests are correct. Do not modify the tests.'
@@ -328,10 +320,9 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         resume_arg = '--resume ' if resume else ''
         log_name = 'forgecode-repair.txt' if resume else 'forgecode.txt'
         effective_seconds = self.effective_turn_seconds()
-        timeout = format(effective_seconds, 'g')
-        # The kernel owns the task deadline. The outer guard leaves only a
-        # bounded cleanup/logging grace period, with no extra model/tool work.
-        watchdog_timeout = format(effective_seconds + 15, 'g')
+        # Only the official deadline stops the agent; the supervisor owns its
+        # process tree and cleanup. No independent cumulative Harness timeout.
+        watchdog_timeout = format(effective_seconds, 'g')
         baseline = '' if resume or self._frozen_configuration else _git_baseline_command()
         message_arg = (
             f'--message-file {shlex.quote(message_file)}'
@@ -360,9 +351,6 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             + ('--frozen-configuration /installed-agent/forgecode-harness.json --result-file /logs/agent/forgecode-result.json ' if self._frozen_configuration else '')
             +
             f'{resume_arg}'
-            f'--max-model-calls {self._max_model_calls or "unlimited"} '
-            f'--max-tool-calls {self._max_tool_calls or "unlimited"} '
-            f'--max-turn-seconds {shlex.quote(timeout)} '
             f'{message_arg} '
             f'2>&1 | tee /logs/agent/{log_name}; '
             'FORGECODE_EXIT="${PIPESTATUS[0]}"; '
@@ -398,15 +386,6 @@ class LegacyBaselineHarborAgent(ForgeCodeHarborAgent):
         supervisor = Path(__file__).with_name('process_supervisor.py')
         shutil.copy2(supervisor, staged / 'benchmark' / 'harbor' / supervisor.name)
         return staged
-
-    def _run_command(self, *args, **kwargs) -> str:
-        command = super()._run_command(*args, **kwargs)
-        command = command.replace(f'--max-turn-seconds {self._max_turn_seconds:g} ', '')
-        return command.replace(
-            f'timeout --kill-after=10s {self._max_turn_seconds + 15:g} ',
-            f'timeout --kill-after=10s {self._max_turn_seconds:g} ',
-        )
-
 
 def _patch_capture_command(baseline: str) -> str:
     # Runtime checkpoints may leave the working index locked on interruption.

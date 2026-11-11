@@ -98,7 +98,8 @@ class FileWorkerClient:
         seconds = 30
         if request.get('name') in ('run_command', 'verify'):
             seconds = request['arguments'].get('timeout_seconds', 120) + 5
-        return min(seconds, self.policy['limits']['wall_time_seconds'])
+        limit = self.policy['limits']['wall_time_seconds']
+        return min(seconds, limit) if limit is not None else seconds
 
     async def _native_request(self, execution_id, raw):
         native = self.native

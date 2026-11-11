@@ -318,7 +318,7 @@ def test_cancelled_process_is_terminated_and_propagates_cancellation(
             run_process(
                 [sys.executable, '-c', 'import time; time.sleep(60)'],
                 cwd=tmp_path,
-                timeout_seconds=120,
+                timeout_seconds=7200,
             )
         )
         await asyncio.sleep(0.2)

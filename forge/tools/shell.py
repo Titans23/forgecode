@@ -63,7 +63,9 @@ async def run_process(
         raise ValueError('max_output_bytes must be positive')
     access = file_access_guard.get()
     if access is not None:
-        timeout_seconds = min(timeout_seconds, access.limits['wall_time_seconds'])
+        limit = access.limits['wall_time_seconds']
+        if limit is not None:
+            timeout_seconds = min(timeout_seconds, limit)
         # Two streams plus JSON escaping must fit the one-frame helper response.
         max_output_bytes = min(max_output_bytes, access.limits['command_output_bytes'] // 2, 65536)
     job = None
@@ -341,7 +343,7 @@ def render_process_output(result: ProcessResult) -> str:
 class RunCommandInput(SandboxInput):
     command: str = Field(min_length=1)
     cwd: str = '.'
-    timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+    timeout_seconds: float = Field(default=120.0, gt=0, allow_inf_nan=False)
     stdin: str | None = Field(default=None, max_length=8_000)
 
 

@@ -101,7 +101,7 @@ class ApprovalService:
         cwd = (Path(workspace['canonical_path']) / arguments.get('cwd', '.')).resolve()
         if not cwd.is_relative_to(Path(workspace['canonical_path'])):
             return ApprovalResponse('deny', 'Tool cwd is outside the selected workspace')
-        expires = (datetime.now(timezone.utc) + timedelta(seconds=min(120, configuration['wall_seconds']))).isoformat().replace('+00:00', 'Z')
+        expires = (datetime.now(timezone.utc) + timedelta(seconds=120)).isoformat().replace('+00:00', 'Z')
         value = {'approval_id': new_id('approval'), 'workspace_id': workspace['id'], 'turn_id': turn_id,
             'execution_id': context.execution_id, 'workspace_revision': tracker.revision, 'policy_hash': policy, 'cwd': str(cwd),
             'argv': None, 'script_hash': sha256(arguments['command'].encode()).hexdigest() if isinstance(arguments.get('command'), str) else None,
@@ -123,7 +123,7 @@ class ApprovalService:
             self._event('approval.requested', value, None)
         self.pending[value['approval_id']] = (future, tracker, configuration, context)
         try:
-            decision = await asyncio.wait_for(future, min(120, configuration['wall_seconds']))
+            decision = await asyncio.wait_for(future, 120)
             if decision != 'approve':
                 return ApprovalResponse('deny', 'Main denied this exact operation')
             await self._check_live(value['approval_id'], value['binding_hash'], states=('approved',))

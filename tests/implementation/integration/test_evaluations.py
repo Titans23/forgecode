@@ -47,7 +47,7 @@ def make_evaluation(tmp_path, *, repeats=1, categories=None, service=None):
     values = [(spec['source'],'source_snapshot',{'origin':'synthetic-fixture','files':{}}),
         (spec['model'],'parameters',{'temperature':None,'top_p':None,'max_output_tokens':1024,'reasoning_effort':None}),
         (spec['harness'],'configuration',{'max_context_tokens':4096,'compaction_enabled':True,'max_delivery_repairs':0,
-            'parent_budget':{'max_model_calls':10,'max_tool_calls':20,'wall_seconds':30},'explore_enabled':True,'trusted_extensions_enabled':False}),
+            'explore_enabled':True,'trusted_extensions_enabled':False}),
         (spec['execution'],'environment_snapshot',environment),(spec['execution'],'sandbox_capabilities',capabilities),
         (spec['execution'],'sandbox_policy',policy), (spec['execution'],'network_cache_configuration',
             {'network_mode':'deny_direct','allowed_domains':[],'cache_mode':'cold','cache_snapshot':None}),
@@ -280,7 +280,7 @@ def test_real_harness_attempt_journal_costs_and_replay_use_one_actual_request_le
     async def exercise():
         adapter=HarnessAdapter(project,config=ForgeConfig(api_key='unused-fixture',model_id='fixture-model-v1'),
             data_root=methods.store.data_dir/'harness',backend=LocalTrustedBackend(),
-            budget={'max_model_calls':10,'max_tool_calls':20,'wall_seconds':30},model_client_factory=factory,task_relation='new')
+            model_client_factory=factory,task_relation='new')
         adapter.journal.observation_scope=Scope(trace_id=work['trace_id'],parent_span_id=work['span_id'],
             identities={'run_id':run['run_id'],'trial_id':work['trial_id'],'attempt_id':work['business_id']})
         try:

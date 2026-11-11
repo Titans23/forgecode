@@ -461,8 +461,7 @@
         "workspace_id": "ws-11111111-1111-4111-8111-111111111111",
         "expected_workspace_revision": 0,
         "connection_id": "conn-11111111-1111-4111-8111-111111111111",
-        "policy_id": "policy-11111111-1111-4111-8111-111111111111",
-        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111"
+        "policy_id": "policy-11111111-1111-4111-8111-111111111111"
       },
       "expected": "valid"
     },
@@ -474,7 +473,6 @@
         "expected_workspace_revision": 0,
         "connection_id": "conn-11111111-1111-4111-8111-111111111111",
         "policy_id": "policy-11111111-1111-4111-8111-111111111111",
-        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111",
         "unexpected_field": true
       },
       "expected": "invalid"
@@ -611,8 +609,7 @@
           }
         ],
         "connection_id": "conn-11111111-1111-4111-8111-111111111111",
-        "policy_id": "policy-11111111-1111-4111-8111-111111111111",
-        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111"
+        "policy_id": "policy-11111111-1111-4111-8111-111111111111"
       },
       "expected": "valid"
     },
@@ -630,7 +627,6 @@
         ],
         "connection_id": "conn-11111111-1111-4111-8111-111111111111",
         "policy_id": "policy-11111111-1111-4111-8111-111111111111",
-        "budget_profile_id": "budget-11111111-1111-4111-8111-111111111111",
         "unexpected_field": true
       },
       "expected": "invalid"
@@ -1278,8 +1274,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -1386,8 +1380,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -1517,8 +1509,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -1535,7 +1525,7 @@
           "model_mode": "scripted_mock"
         },
         "validation_ticket": "ticket-11111111-1111-4111-8111-111111111111",
-        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "spec_hash": "defcde53591b0e3c981c6d640d41c03eb5f0f72c6dd0b8b6e36c033c02e798dc"
       },
       "expected": "valid"
     },
@@ -1628,8 +1618,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -3307,8 +3295,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -3327,8 +3313,6 @@
         "defaults": {
           "attempt_wall_seconds": 120,
           "trial_wall_seconds": 120,
-          "max_model_requests_per_attempt": 10,
-          "max_tool_calls_per_attempt": 20,
           "spend_ceiling": "0",
           "currency": "USD",
           "spend_policy": "unknown_usage_stop_next_request",
@@ -3446,8 +3430,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -3466,8 +3448,6 @@
         "defaults": {
           "attempt_wall_seconds": 120,
           "trial_wall_seconds": 120,
-          "max_model_requests_per_attempt": 10,
-          "max_tool_calls_per_attempt": 20,
           "spend_ceiling": "0",
           "currency": "USD",
           "spend_policy": "unknown_usage_stop_next_request",
@@ -3506,8 +3486,6 @@
         "choices": {
           "attempt_wall_seconds": 120,
           "trial_wall_seconds": 120,
-          "max_model_requests_per_attempt": 10,
-          "max_tool_calls_per_attempt": 20,
           "spend_ceiling": "0",
           "currency": "USD",
           "spend_policy": "unknown_usage_stop_next_request",
@@ -3544,8 +3522,6 @@
         "choices": {
           "attempt_wall_seconds": 120,
           "trial_wall_seconds": 120,
-          "max_model_requests_per_attempt": 10,
-          "max_tool_calls_per_attempt": 20,
           "spend_ceiling": "0",
           "currency": "USD",
           "spend_policy": "unknown_usage_stop_next_request",
@@ -3663,8 +3639,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -3680,7 +3654,7 @@
           },
           "model_mode": "scripted_mock"
         },
-        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "spec_hash": "defcde53591b0e3c981c6d640d41c03eb5f0f72c6dd0b8b6e36c033c02e798dc",
         "configuration_origin": "trusted_configuration",
         "planned_trials": 2
       },
@@ -3774,8 +3748,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -3933,8 +3905,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"
@@ -3950,7 +3920,7 @@
           },
           "model_mode": "scripted_mock"
         },
-        "spec_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "spec_hash": "defcde53591b0e3c981c6d640d41c03eb5f0f72c6dd0b8b6e36c033c02e798dc",
         "state": "created",
         "origin": "local",
         "configuration_origin": "trusted_configuration",
@@ -4057,8 +4027,6 @@
           "budget": {
             "attempt_wall_seconds": 120,
             "trial_wall_seconds": 120,
-            "max_model_requests_per_attempt": 10,
-            "max_tool_calls_per_attempt": 20,
             "spend_ceiling": "0",
             "currency": "USD",
             "spend_policy": "unknown_usage_stop_next_request"

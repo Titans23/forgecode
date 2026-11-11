@@ -79,8 +79,8 @@ def make_case(commit: str) -> EvalCase:
         ),
         allowed_paths=('value.txt',),
         forbidden_paths=('tests/hidden/**',),
-        max_model_calls=6,
-        max_tool_calls=12,
+
+
         intent_routing=False,
     )
 
@@ -291,12 +291,12 @@ def test_eval_repair_is_explicit_bounded_integer_with_zero_default(invalid):
         EvalCase.model_validate(data)
 
 
-@pytest.mark.parametrize('scenario,budget,expected_calls', [('repair',6,6),('repeat-gap',8,5),('exhausted',4,4)])
-def test_opt_in_repair_reverifies_in_one_turn_without_new_budget(tmp_path, scenario, budget, expected_calls):
+@pytest.mark.parametrize('scenario,expected_calls', [('repair',6),('repeat-gap',5)])
+def test_opt_in_repair_reverifies_in_one_turn_with_usage_accounting(tmp_path, scenario, expected_calls):
     """Real shared runner/tools and independent graders; scripted client, no native/cloud claim."""
     from forge.sessions.store import SessionStore
     case=make_case(initialize_project(tmp_path)).model_copy(update={
-        'max_model_calls':budget,'max_delivery_repairs':2,'require_task_verification':True,
+        'max_delivery_repairs':2,'require_task_verification':True,
         'require_positive_verification':True})
     inspect=subprocess.list2cmdline([sys.executable,'-c','print("inspection after verification")'])
     responses=[
@@ -316,13 +316,13 @@ def test_opt_in_repair_reverifies_in_one_turn_without_new_budget(tmp_path, scena
             self.calls+=1
             if self.calls==5:
                 assert any('Completion was not accepted' in str(message) for message in messages)
-                assert any('original budget still applies' in str(message) for message in messages)
+                assert all('original budget still applies' not in str(message) for message in messages)
             async for event in super().stream(messages,tools,system):
                 yield event
     client=Client(*responses)
     result=asyncio.run(run_case(case,project_root=tmp_path,output_dir=tmp_path/'out',client=client,sandbox='full-access'))
     assert client.calls==result.model_calls==result.statistics['model_requests']==expected_calls
-    assert result.run_configuration['profile']['max_model_calls']==budget
+    assert 'max_model_calls' not in result.run_configuration['profile']
     assert result.run_configuration['task_policy']['max_delivery_repairs']==2
     assert result.passed==(scenario=='repair')
     assert result.public_tests.success and result.hidden_tests.success
@@ -333,14 +333,16 @@ def test_opt_in_repair_reverifies_in_one_turn_without_new_budget(tmp_path, scena
         assert result.task_status=='partial' and result.stop_reason=='acceptance_unmet'
 
 
-def test_budget_exhaustion_keeps_failed_attempt_even_when_public_grader_passes(tmp_path):
-    case = make_case(initialize_project(tmp_path)).model_copy(update={'max_model_calls': 2})
+def test_explicit_failed_completion_is_not_overruled_by_passing_grader(tmp_path):
+    case = make_case(initialize_project(tmp_path))
     client = successful_client(case)
+    client.responses[-1] = tool_response(ToolCall(0, 'finish-failed', 'finish_task', {
+        'task_kind': 'change', 'status': 'failed', 'summary': 'Remaining work is incomplete.'}))
     output = tmp_path / 'out'
     result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=output,
         client=client, sandbox='full-access'))
     assert not result.passed and result.task_status == 'failed'
-    assert 'budget' in result.stop_reason and result.model_calls == 2
+    assert result.model_calls == 3
     assert result.public_tests.success and result.hidden_tests.success
     assert client.closed and result.cleanup['state'] == 'clean'
     records = list(output.glob('demo-001-*.json'))

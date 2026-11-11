@@ -213,7 +213,7 @@ def test_cancel_closes_stream_and_allows_next_turn(tmp_path):
 
 def test_cancel_after_streamed_text_closes_in_context_and_resumes_pending_input(tmp_path):
     from contextlib import aclosing
-    from forge.runtime.model_budget import request_observer, wire_observer
+    from forge.runtime.model_observation import request_observer, wire_observer
 
     class StreamingModel(Model):
         calls = 0
@@ -258,12 +258,12 @@ def test_cancel_after_streamed_text_closes_in_context_and_resumes_pending_input(
 
 
 def test_profile_is_independent_of_sandbox(tmp_path):
-    assert RunProfile.evaluation().max_model_calls > 0
+    assert RunProfile.evaluation().name == 'evaluation'
     assert options(tmp_path, profile=RunProfile.evaluation()).sandbox == 'full-access'
     with pytest.raises(ValueError):
-        RunProfile(max_model_calls=0)
-    with pytest.raises(ValueError):
-        RunProfile(max_model_calls=True)
+        RunProfile(intent_routing=1)
+    with pytest.raises(TypeError, match='max_model_calls'):
+        RunProfile(**{'max_model_calls': 0})
     with pytest.raises(ValueError):
         ApprovalResponse('unknown')
 

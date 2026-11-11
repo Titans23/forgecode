@@ -180,7 +180,7 @@ def test_real_host_command_after_native_failure_without_changing_session(tool):
             subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
                             'commit', '--allow-empty', '-qm', 'fixture'], cwd=root, check=True)
             (root / 'note.txt').write_text('fixture')
-        setup = await open_native_execution(ExecutionRequest(root, data, 'workspace-write', (), None, 30))
+        setup = await open_native_execution(ExecutionRequest(root, data, 'workspace-write', (), None))
         frozen = deepcopy(setup.policy)
         native_attempts = []
         async def unavailable():
@@ -256,7 +256,7 @@ def test_cancellation_closes_the_temporary_command_backend(tmp_path):
     async def run():
         root = tmp_path / 'project'
         root.mkdir()
-        setup = await open_native_execution(ExecutionRequest(root, tmp_path / 'data', 'workspace-write', (), None, 30))
+        setup = await open_native_execution(ExecutionRequest(root, tmp_path / 'data', 'workspace-write', (), None))
         started, closed = asyncio.Event(), []
         class Running:
             async def execute(self, call, registry):
@@ -283,7 +283,7 @@ def test_unknown_temporary_cleanup_is_indeterminate_and_retained_on_close(tmp_pa
     async def run():
         root = tmp_path / 'project'
         root.mkdir()
-        setup = await open_native_execution(ExecutionRequest(root, tmp_path / 'data', 'workspace-write', (), None, 30))
+        setup = await open_native_execution(ExecutionRequest(root, tmp_path / 'data', 'workspace-write', (), None))
         class Unclean:
             async def execute(self, call, registry):
                 return ToolResult.ok('ran', content='observed output')

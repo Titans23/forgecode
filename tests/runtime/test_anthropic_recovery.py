@@ -67,7 +67,7 @@ def test_malformed_sse_is_a_protocol_error_not_an_unhandled_decoder_error():
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('mode', ['corrected', 'repeated', 'budget'])
+@pytest.mark.parametrize('mode', ['corrected', 'repeated'])
 def test_protocol_correction_is_explicit_bounded_and_never_executes_invalid_input(tmp_path, mode):
     requests = []
     project = tmp_path / 'project'
@@ -92,7 +92,7 @@ def test_protocol_correction_is_explicit_bounded_and_never_executes_invalid_inpu
     async def run():
         options = SessionOptions(project, data_root=tmp_path / 'data',
             config=ForgeConfig(api_key='offline', model_id='offline', max_tokens=1024),
-            profile=RunProfile(max_model_calls=1 if mode == 'budget' else 4, max_tool_calls=3),
+            profile=RunProfile(),
             agent=AgentDefinition(tools=('write_file',)))
         async with await HarnessSession.open(options, model_client_factory=factory) as session:
             result = await session.run('Create out.txt with one write.')
@@ -103,6 +103,6 @@ def test_protocol_correction_is_explicit_bounded_and_never_executes_invalid_inpu
                 assert result.status == 'completed' and len(requests) == 3 and len(executed) == 1
             else:
                 assert result.status == 'failed' and not (project / 'out.txt').exists() and not executed
-                assert len(requests) == (1 if mode == 'budget' else 3)
+                assert len(requests) == 3
             assert result.model_calls == len(requests)
     asyncio.run(run())

@@ -8,7 +8,7 @@ from evals.runner import observed_requests
 from evals.native_swe_campaign import stop_reason
 from forge.observability.recorder import JournalRecorder
 from forge.sessions.store import SessionStore
-from forge.runtime.model_budget import BudgetedModelClient
+from forge.runtime.model_observation import ObservedModelClient
 from forge.runtime.turn_state import TurnState
 from forge.runtime.state import ModelUsageUpdate, ModelResponseCompleted, TokenUsage
 
@@ -54,11 +54,11 @@ def test_all_roles_override_root_only_events_without_double_counting(tmp_path):
         'cache_creation_input_tokens': 4, 'cache_read_input_tokens': 5}
 
 
-def test_actual_parent_child_budget_and_recorder_lifecycle(tmp_path):
+def test_actual_parent_child_usage_and_recorder_lifecycle(tmp_path):
     store = journal(tmp_path)
     recorder = JournalRecorder(store)
-    parent = TurnState(max_model_calls=5)
-    child = TurnState(max_model_calls=5, parent=parent)
+    parent = TurnState()
+    child = TurnState(parent=parent)
     def root_sink(kind, attributes):
         store.append(kind, attributes)
         recorder.record_request(kind, attributes)
@@ -75,11 +75,11 @@ def test_actual_parent_child_budget_and_recorder_lifecycle(tmp_path):
             yield ModelResponseCompleted('end_turn')
     async def exercise():
         with recorder.turn():
-            async for _ in BudgetedModelClient(Client(TokenUsage(10, 2, 0, 5)), parent, 'model').stream(
+            async for _ in ObservedModelClient(Client(TokenUsage(10, 2, 0, 5)), parent, 'model').stream(
                     [{'role': 'user', 'content': 'parent'}]):
                 pass
             with recorder.turn(nested=True):
-                async for _ in BudgetedModelClient(Client(TokenUsage(20, 3, 4, 0)), child, 'model').stream(
+                async for _ in ObservedModelClient(Client(TokenUsage(20, 3, 4, 0)), child, 'model').stream(
                         [{'role': 'user', 'content': 'child'}]):
                     pass
     asyncio.run(exercise())

@@ -308,7 +308,7 @@ def test_real_harness_preserves_read_answer_completion_through_helper(tmp_path):
     bindings = RuntimeBindings(config=config, data_root=control / 'harness', backend=backend,
         model_client_factory=lambda cfg, **kwargs: ScriptedModelClient(cfg, responses, **kwargs),
         permission_manager=PermissionManager(root, mode='auto', load_stored_rules=False), trusted_extensions=False,
-        task_relation='new', max_model_calls=4, max_tool_calls=6, wall_seconds=30)
+        task_relation='new',  )
     async def scenario():
         conversation, journal, _ = create_runtime(root, bindings=bindings)
         try:

@@ -18,8 +18,8 @@ def workspace_execution(root):
     key = f'{identity.st_dev}:{identity.st_ino}'
     if key in _owned.get():
         # A child Explore turn inherits its parent's ownership and budget.
-        from forge.runtime.turn_state import parent_budget
-        if parent_budget.get() is not None:
+        from forge.runtime.turn_state import parent_turn
+        if parent_turn.get() is not None:
             yield
             return
     directory = Path(os.environ.get('FORGE_WORKSPACE_LOCK_DIR', Path.home() / '.forge' / 'workspace-locks'))

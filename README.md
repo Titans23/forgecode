@@ -12,9 +12,9 @@ ForgeCode 自有代码采用 [MIT](LICENSE)；[第三方声明](THIRD_PARTY_NOTI
 
 当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 
-当前展示主线是可运行、可验证的 Harness：模型调用 → 授权工具执行 → 验证门禁 → Journal 状态重建；评测另用独立 grader 判分，并用冻结任务报告完成率、失败类型、耗时和 token。共享预算、验证证据与副作用生命周期的调用链见 [当前架构](docs/implementation/architecture.md#4-核心调用链与证明边界)，现有证据及范围见 [T01](docs/implementation/tasks/T01.md) 和 [当前进展](docs/implementation/progress.json)。
+当前展示主线是可运行、可验证的 Harness：模型调用 → 授权工具执行 → 验证门禁 → Journal 状态重建；评测另用独立 grader 判分，并用冻结任务报告完成率、失败类型、耗时和 token。共享用量统计、验证证据与副作用生命周期的调用链见 [当前架构](docs/implementation/architecture.md#4-核心调用链与证明边界)，现有证据及范围见 [T01](docs/implementation/tasks/T01.md) 和 [当前进展](docs/implementation/progress.json)。
 
-Windows/Linux 底层写限制及子进程范围复用 DSH 发布的 sandbox-local/subprocess-local；Linux 由 DSH 选择 bubblewrap 或 Landlock。ForgeCode 负责工具协议、会话、预算和验证。当前 OS 读取、网络和硬资源隔离尚不完整，能力为 partial，不能表述为自研完整 OS 沙盒；日常运行无 Docker 依赖。
+Windows/Linux 底层写限制及子进程范围复用 DSH 发布的 sandbox-local/subprocess-local；Linux 由 DSH 选择 bubblewrap 或 Landlock。ForgeCode 负责工具协议、会话、用量统计和验证。当前 OS 读取、网络和硬资源隔离尚不完整，能力为 partial，不能表述为自研完整 OS 沙盒；日常运行无 Docker 依赖。
 
 目录职责与开发入口见 [当前文档](docs/README.md)；虚拟环境、依赖、构建和测试产物不属于源码。
 
@@ -122,7 +122,7 @@ forge --sandbox full-access --approval supervised
 
 npm 终端安装包含内置原生沙盒提供方，默认 coding Agent 使用它；通用 core Agent 不加载沙盒，其他组合可显式设置 `sandbox_provider: null` 使用宿主执行。可信插件可注册自己的提供方。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。当前版本移除了 Electron、React、Vite 和运行中的 Web 客户端。
 
-源码开发环境准备好后，可用公开示例演示真实原生工具、验证过期、同回合预算内修复和 Journal 只读重建，无需模型密钥：
+源码开发环境准备好后，可用公开示例演示真实原生工具、验证过期、同回合修复和 Journal 只读重建，无需模型密钥：
 
 ```text
 uv run --no-sync python examples/harness_demo.py --output .local/implementation/api-demo-001
@@ -134,7 +134,7 @@ uv run --no-sync python examples/harness_demo.py --output .local/implementation/
 
 保留 `evals.runner`、`benchmark` 的官方协议适配、RunSpec/ResultBundle、独立 grader 与可复现信息。后训练复用 `extensions.qwen_tool_distillation` 的模型/工具轨迹、rollout、反馈与奖励、版本化 SFT/DPO 导出及数据检查；训练框架只由显式功能加载。
 
-本地 `evals.runner` 与 CLI/API 共用 HarnessSession、模型配置、预算、权限和资源关闭，Agent 与独立判分默认走原生 workspace-write，不可用时不会回退。`python -m evals.runner --list` 只列任务、不调用模型；实际运行读取用户模型配置。案例可冻结 `max_model_calls`、`max_tool_calls`、`max_turn_seconds` 和 `intent_routing`。每个 run_id 保留结果及 Journal/trajectory，只有 `passed=true` 算完整成功，latest 文件不重复计数。现有三个自建夹具用于工程回归，不是实际开源仓库 Coding Agent 能力分数。
+本地 `evals.runner` 与 CLI/API 共用 HarnessSession、模型配置、用量统计、权限和资源关闭，Agent 与独立判分默认走原生 workspace-write，不可用时不会回退。`python -m evals.runner --list` 只列任务、不调用模型；实际运行读取用户模型配置。Harness 不设置累计模型次数、工具次数、token 或回合总时长预算，旧预算参数已移除；模型上下文容量、单次网络/命令超时和评测器的独立截止时间仍生效。每个 run_id 保留结果及 Journal/trajectory，只有 `passed=true` 算完整成功，latest 文件不重复计数。现有三个自建夹具用于工程回归，不是实际开源仓库 Coding Agent 能力分数。
 
 ```text
 uv sync --locked --all-extras --group dev

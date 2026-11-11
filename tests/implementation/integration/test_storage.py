@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[3]
 def request(session, revision=0):
     return {'client_action_id': new_id('act'), 'session_id': session['id'], 'expected_workspace_revision': revision,
             'input': [{'type': 'text', 'text': 'Inspect project'}], 'connection_id': new_id('conn'),
-            'policy_id': new_id('policy'), 'budget_profile_id': new_id('budget')}
+            'policy_id': new_id('policy')}
 
 
 def initialize(tmp_path):

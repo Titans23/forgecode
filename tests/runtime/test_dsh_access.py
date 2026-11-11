@@ -18,7 +18,7 @@ from forge.tools.base import SandboxInput
 
 async def runtime_at(root, data, *, mode='workspace-write', approval='ask', accept=True):
     root.mkdir(exist_ok=True)
-    setup = await open_native_execution(ExecutionRequest(root, data, mode, (), None, 30))
+    setup = await open_native_execution(ExecutionRequest(root, data, mode, (), None))
     prompts = []
     async def approve(request):
         prompts.append(request)
@@ -133,7 +133,7 @@ def test_host_command_is_not_rejected_by_keyword_or_shell_read_write_heuristics(
     async def run():
         root = tmp_path / 'project'
         root.mkdir()
-        setup = await open_host_execution(ExecutionRequest(root, tmp_path / 'data', 'full-access', (), None, 30))
+        setup = await open_host_execution(ExecutionRequest(root, tmp_path / 'data', 'full-access', (), None))
         permissions = PermissionManager(root, mode='ask', execution_mode='full-access', load_stored_rules=False)
         executor = ToolExecutor(create_default_registry(root, tool_backend=setup.backend), permissions, backend=setup.backend)
         try:

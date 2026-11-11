@@ -93,9 +93,8 @@ def setup(tmp_path, *, backend=None, mode='local-trusted', factory=None, recorde
             'command_output_bytes': 1048576, 'session_artifact_bytes': 104857600},
         'environment_keys': [], 'fallback': 'deny', 'session_mutation': 'replace_session'}
     service.put_policy(policy)
-    budget_id = service.put_budget({'max_model_calls': 4, 'max_tool_calls': 6, 'wall_seconds': 30})
     params = {'client_action_id': new_id('act'), 'workspace_id': workspace['id'], 'expected_workspace_revision': 1,
-        'connection_id': connection_id, 'policy_id': policy_id, 'budget_profile_id': budget_id}
+        'connection_id': connection_id, 'policy_id': policy_id}
     session = service.create_session(params)
     turn = {key: value for key, value in params.items() if key != 'workspace_id'}
     turn.update(client_action_id=new_id('act'), session_id=session['session_id'], input=[{'type': 'text', 'text': 'Read the value.'}])
@@ -110,7 +109,7 @@ def test_cli_and_service_use_same_tools_and_completion(tmp_path, monkeypatch, ca
     cli_client = ScriptedClient(script())
     bindings = RuntimeBindings(config=ForgeConfig(api_key='test', model_id='scripted-test', max_tokens=1024),
         model_client_factory=lambda config, **kwargs: cli_client, data_root=tmp_path / 'cli-data',
-        trusted_extensions=False, task_relation='new', max_model_calls=4, max_tool_calls=6, wall_seconds=30)
+        trusted_extensions=False, task_relation='new',  )
 
     async def run():
         cli, _, _ = create_session_runtime(tmp_path / 'project', bindings=bindings)
@@ -237,15 +236,15 @@ def test_running_model_cancel_propagates_and_preserves_journal(tmp_path):
         store.close()
 
 
-def test_budget_is_enforced_by_original_runner(tmp_path):
+def test_service_turn_counts_usage_without_creating_a_budget_profile(tmp_path):
     service, store, _, clients, params, turn = setup(tmp_path)
     try:
-        turn['budget_profile_id'] = service.put_budget({'max_model_calls': 1, 'max_tool_calls': 6, 'wall_seconds': 30})
         accepted = service.start_turn(turn)
         result = asyncio.run(service.execute_turn(accepted['turn_id']))
-        assert len(clients[0].calls) == 1
-        assert result.stop_reason == 'model_budget_exhausted'
-        assert service.get_snapshot(turn['session_id'])['turns'][0]['outcome'] == 'budget_exhausted'
+        assert len(clients[0].calls) == result.model_calls == 2
+        assert result.status == 'completed'
+        assert service.get_snapshot(turn['session_id'])['turns'][0]['outcome'] == 'completed'
+        assert store.connection.execute('SELECT COUNT(*) FROM budget_profiles').fetchone()[0] == 0
     finally:
         store.close()
 

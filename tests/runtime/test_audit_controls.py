@@ -45,16 +45,15 @@ def test_source_changes_are_not_whitespace_reflow(quote):
         anchored_source_quote(quote, ('Output 42 to /app/result.bin; do not write elsewhere.',))
 
 
-def test_budget_reservation_includes_all_ancestors():
-    root = TurnState(max_tool_calls=2)
+def test_tool_usage_includes_all_ancestors():
+    root = TurnState()
     parent = TurnState(parent=root)
     child = TurnState(parent=parent)
     child.record_tool_request()
     child.record_tool_request()
-    assert child.can_request_tool_batch(0)  # Reserved calls may execute at the limit.
-    assert not child.can_request_tool_batch(1)
+    assert root.tool_requests == parent.tool_requests == child.tool_requests == 2
     child.record_tool_request()
-    assert not child.can_request_tool_batch(0)
+    assert root.tool_requests == parent.tool_requests == child.tool_requests == 3
 
 
 def test_unjustified_supersession_remains_failed():
@@ -108,7 +107,9 @@ def test_journal_tail_refuses_corruption_without_mutating(tmp_path, suffix):
 
 def test_reasoning_override_is_in_container_command(tmp_path):
     from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
-    script = ForgeCodeHarborAgent(logs_dir=tmp_path)._run_command('Offline test')
+    agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    agent.set_phase_timeout(900)
+    script = agent._run_command('Offline test')
     assert 'export FORGE_REASONING_EFFORT="${FORGECODE_REASONING_EFFORT:-}"' in script
 
 

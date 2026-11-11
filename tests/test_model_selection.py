@@ -101,7 +101,7 @@ def test_portable_history_keeps_images_and_tool_results():
     assert 'Earlier tool call' in projected[0]['content'][0]['text']
 
 
-def test_plugin_child_uses_role_model_and_shared_budget(tmp_path, monkeypatch):
+def test_plugin_child_uses_role_model_and_shared_usage_without_cross_session_counts(tmp_path, monkeypatch):
     monkeypatch.setenv('SECOND_KEY', 'fixture')
     path = tmp_path / 'delegate'
     path.mkdir()
@@ -123,22 +123,22 @@ def activate(ctx, config):
             else:
                 yield ModelTextDelta(self.model)
                 yield ModelResponseCompleted('end_turn')
-    async def run(limit):
+    async def run():
         opts = options(tmp_path)
         opts = replace(opts, agent=replace(opts.agent, plugins=(PluginSpec(str(path), trusted=True),),
                                           role_models={'worker': 'second'}),
-                       profile=RunProfile(max_model_calls=limit, intent_routing=False))
+                       profile=RunProfile(intent_routing=False))
         made = []
         def create(config, **kwargs):
             made.append(Parent(config))
             return made[-1]
         async with await HarnessSession.open(opts, model_client_factory=create) as session:
             result = await session.run('delegate')
-            assert result.model_calls == limit
+            assert result.model_calls == 3
             assert any(c.model == 'beta' and c.closed for c in made)
             return result.status
-    assert asyncio.run(run(3)) == 'completed'
-    assert asyncio.run(run(2)) == 'failed'
+    assert asyncio.run(run()) == 'completed'
+    assert asyncio.run(run()) == 'completed'
 
 
 @pytest.mark.parametrize('terminal', [True, False])

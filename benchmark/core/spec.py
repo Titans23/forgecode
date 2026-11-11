@@ -42,6 +42,8 @@ def validate_resolved_spec(spec, values):
     its environment and the snapshots. This function grants no execution rights.
     """
     validate('run-spec', spec)
+    if {'max_model_requests_per_attempt', 'max_tool_calls_per_attempt'} & spec['budget'].keys():
+        raise ContractError('Harness limits have been removed; archived budget metadata cannot configure an active plan')
     if len(spec['dataset']['task_ids']) * spec['protocol']['repeats'] > 10000:
         raise ContractError('P0 run supports at most 10000 planned trials', kind='ARTIFACT_LIMIT', code=-32010)
     if len(json.dumps(spec, ensure_ascii=False).encode()) > 524288:
@@ -71,10 +73,8 @@ def validate_resolved_spec(spec, values):
     harness, budget = values['harness'], spec['budget']
     if budget['trial_wall_seconds'] > 604800:
         raise ContractError('P0 trial wall budget is bounded to seven days')
-    if harness['max_delivery_repairs'] != spec['harness']['max_delivery_repairs'] or harness['parent_budget'] != {
-            'max_model_calls': budget['max_model_requests_per_attempt'],
-            'max_tool_calls': budget['max_tool_calls_per_attempt'], 'wall_seconds': budget['attempt_wall_seconds']}:
-        raise ContractError('Harness and attempt budgets must match; repairs receive no extra budget')
+    if harness['max_delivery_repairs'] != spec['harness']['max_delivery_repairs']:
+        raise ContractError('Harness repair policy differs from the frozen specification')
     if values['environment']['platform'] != spec['execution']['target_platform']:
         raise ContractError('Execution target and frozen environment differ')
     if (values['grader']['adapter_id'], values['grader']['revision']) != (spec['grader']['adapter_id'], spec['grader']['revision']):

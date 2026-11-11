@@ -19,7 +19,7 @@ from forge.context.compactor import (
 )
 from forge.context.repository import MemoryRecord, RepositoryContext
 from forge.runtime.state import TokenUsage
-from forge.runtime.turn_state import BudgetExhausted, add_usage
+from forge.runtime.turn_state import add_usage
 
 
 @dataclass(frozen=True, slots=True)
@@ -399,8 +399,6 @@ class ContextManager:
                     client, prefix or working, retained_messages=tail,
                     scope_hints=scope_hints, task_goal=task_goal,
                 )
-            except BudgetExhausted:
-                raise
             except Exception as error:
                 reason = str(error)
                 break

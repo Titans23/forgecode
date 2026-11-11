@@ -139,19 +139,11 @@ def test_process_and_verify_are_never_repeat_cached(tmp_path: Path) -> None:
     run(exercise())
 
 
-def test_turn_state_keeps_execution_status_counts_and_budgets() -> None:
-    state = TurnState(
-        goal='test the boundary',
-        max_model_calls=1,
-        max_tool_calls=2,
-    )
-    assert state.can_request_model() is True
-    assert state.can_request_tool_batch(2) is True
+def test_turn_state_keeps_execution_status_counts() -> None:
+    state = TurnState(goal='test the boundary')
     state.record_model_request()
     state.record_tool_request()
     state.record_tool_request()
-    assert state.can_request_model() is False
-    assert state.can_request_tool_batch(1) is False
     assert state.statistics()['model_requests'] == 1
     assert state.statistics()['tool_requests'] == 2
 

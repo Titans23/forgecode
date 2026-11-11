@@ -163,7 +163,7 @@ def test_export_uses_actual_snapshot_hashes_and_cli_does_not_overwrite_or_run(tm
         assert json.loads(before)==exported
         assert subprocess.run(argv,capture_output=True,timeout=20).returncode!=0
         assert destination.read_bytes()==before
-        values['harness']['parent_budget']['max_model_calls']+=1
+        values['harness']['max_context_tokens']+=1
         with pytest.raises(ContractError,match='snapshot'):
             export_runspec(spec,values)
         assert methods.store.connection.execute('SELECT COUNT(*) FROM model_requests').fetchone()[0]==0
@@ -221,7 +221,7 @@ def test_frozen_harbor_harness_runs_real_tools_and_tests_without_extra_repair_bu
         config['plan']=export_runspec(spec,values)
         result_path=tmp_path/'actual-result.json'
         result=asyncio.run(run_turn(project,'Fix integer addition; run the unchanged standard-library tests.',
-            resume=False,max_model_calls=10,max_tool_calls=20,max_turn_seconds=30,
+            resume=False,
             frozen_configuration=config,runtime_bindings=bindings,result_path=result_path))
         assert 'return left + right' in (project/'calculator.py').read_text()
         assert subprocess.run([sys.executable,'-m','unittest','-v'],cwd=project,capture_output=True).returncode==0
@@ -233,8 +233,8 @@ def test_frozen_harbor_harness_runs_real_tools_and_tests_without_extra_repair_bu
         observations=[event['payload']['event'] for event in events if event.get('type')=='observation']
         assert observations and all(event['attempt_id']==config['attempt_id'] for event in observations)
         with pytest.raises(ValueError,match='Unsupported'):
-            asyncio.run(run_turn(project,'Must not call model',resume=True,max_model_calls=10,max_tool_calls=20,
-                max_turn_seconds=30,frozen_configuration=config,runtime_bindings=bindings))
+            asyncio.run(run_turn(project,'Must not call model',resume=True,
+                frozen_configuration=config,runtime_bindings=bindings))
         assert sum(client.calls for client in clients)==5
     finally:methods.store.close()
 

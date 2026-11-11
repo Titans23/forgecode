@@ -56,7 +56,7 @@ class _PendingToolCall:
 
 
 class AnthropicModelClient:
-    observes_request_budget = True
+    observes_requests = True
     '''Adapter over the Anthropic SDK's raw Messages event transport.'''
 
     provider = DEFAULT_MODEL_PROVIDER
@@ -127,7 +127,7 @@ class AnthropicModelClient:
             resolved_config = (
                 config if config is not None else ForgeConfig.from_env()
             )
-            from forge.runtime.model_budget import observe_wire_request
+            from forge.runtime.model_observation import observe_wire_request
             self._client = AsyncAnthropic(
                 api_key=resolved_config.api_key,
                 base_url=resolved_config.base_url,
@@ -176,10 +176,9 @@ class AnthropicModelClient:
 
         for attempt in range(1, self.max_retries + 2):
             self.health.before_request()
-            # Count and authorize the actual request, including retries. The
-            # observer is turn-local, so independent Conversations do not share
-            # counters and route/summary calls cannot bypass the same budget.
-            from forge.runtime.model_budget import request_observer
+            # Count each actual request, including retries. The observer is
+            # turn-local; routing and summary calls retain their own statistics.
+            from forge.runtime.model_observation import request_observer
             observer = request_observer.get()
             response_started = False
             stream = None

@@ -88,9 +88,6 @@ async def run_turn(
     message: str,
     *,
     resume: bool,
-    max_model_calls: int | None,
-    max_tool_calls: int | None,
-    max_turn_seconds: float = 1800,
     frozen_configuration: dict | None = None,
     runtime_bindings=None,
     result_path: Path | None = None,
@@ -114,13 +111,9 @@ async def run_turn(
                     or harness!=checked['resolved_snapshots']['harness']):
                 raise ValueError('Frozen launch configuration differs from RunSpec')
         if resume or harness['trusted_extensions_enabled'] or not harness['compaction_enabled'] or not harness['explore_enabled'] or harness['max_delivery_repairs']>2:
-            raise ValueError('Unsupported fixed-budget Harness protocol')
+            raise ValueError('Unsupported Harness protocol')
         if parameters['temperature'] is not None or parameters['top_p'] is not None:
             raise ValueError('Unsupported sampling parameter must not be silently ignored')
-        if (harness['parent_budget']['max_model_calls'],harness['parent_budget']['max_tool_calls'])!=(max_model_calls,max_tool_calls):
-            raise ValueError('Frozen call budget differs from launch arguments')
-        if harness['parent_budget']['wall_seconds'] is not None and max_turn_seconds>harness['parent_budget']['wall_seconds']:
-            raise ValueError('Launch deadline cannot exceed frozen parent budget')
         policy=replace(policy,max_delivery_repairs=harness['max_delivery_repairs'])
         if runtime_bindings is None:
             config=replace(ForgeConfig.from_env(environ=os.environ),max_tokens=parameters['max_output_tokens'],
@@ -160,11 +153,9 @@ async def run_turn(
         runtime_bindings.plugin_host.model_startup['active'] = False
         runtime_bindings.plugin_host.model_startup['clients'].clear()
         from forge.api import SessionOptions, RunProfile
-        from math import ceil
         conversation.session_options = SessionOptions(project, sandbox='full-access', data_root=runtime_bindings.data_root,
             config=runtime_bindings.config, agent=definition, models=composition['models'],
-            profile=RunProfile(max_model_calls=max_model_calls, max_tool_calls=max_tool_calls,
-                               wall_seconds=ceil(max_turn_seconds), intent_routing=False))
+            profile=RunProfile(name='evaluation', intent_routing=False))
         journal.append('evaluation_composition', {'plan_hash': composition['plan_hash'],
             'definition': composition['definition'], 'files': composition['files']})
     if frozen_configuration:
@@ -172,9 +163,6 @@ async def run_turn(
         scope=frozen_configuration['scope']
         journal.observation_scope=Scope(trace_id=scope['trace_id'],span_id=scope['span_id'],
             identities={key:scope[key] for key in ('run_id','trial_id')} | {'attempt_id':frozen_configuration['attempt_id']})
-    conversation.max_iterations = max_model_calls
-    conversation.max_tool_calls = max_tool_calls
-    conversation.max_turn_seconds = max_turn_seconds
 
     async def approve_isolated_benchmark_operation(
         request: PermissionRequest,
@@ -254,16 +242,12 @@ async def run_turn(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    from benchmark.harbor.run_dataset import budget_limit
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', type=Path, default=Path('.'))
     message = parser.add_mutually_exclusive_group(required=True)
     message.add_argument('--message')
     message.add_argument('--message-file', type=Path)
     parser.add_argument('--resume', action='store_true')
-    parser.add_argument('--max-model-calls', type=budget_limit, default=120)
-    parser.add_argument('--max-tool-calls', type=budget_limit, default=240)
-    parser.add_argument('--max-turn-seconds', type=float, default=1800)
     parser.add_argument('--frozen-configuration',type=Path)
     parser.add_argument('--result-file',type=Path)
     return parser
@@ -271,8 +255,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.max_turn_seconds <= 0:
-        raise SystemExit('Turn time limit must be positive.')
     instruction = args.message
     if args.message_file is not None:
         try:
@@ -290,9 +272,6 @@ def main(argv: list[str] | None = None) -> int:
             args.project.resolve(),
             instruction,
             resume=args.resume,
-            max_model_calls=args.max_model_calls,
-            max_tool_calls=args.max_tool_calls,
-            max_turn_seconds=args.max_turn_seconds,
             **({'frozen_configuration':json.loads(args.frozen_configuration.read_text(encoding='utf-8'))}
                 if args.frozen_configuration else {}),
             **({'result_path':args.result_file} if args.result_file else {}),

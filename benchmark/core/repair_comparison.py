@@ -28,9 +28,6 @@ def compare_repairs(a_spec,b_spec,a_values,b_values):
         if spec['harness']['max_delivery_repairs']!=cap or values['harness']['max_delivery_repairs']!=cap:
             issues.append('harness.max_delivery_repairs')
         config=deepcopy(values['harness']);config.pop('max_delivery_repairs')
-        if config['parent_budget']!={'max_model_calls':spec['budget']['max_model_requests_per_attempt'],
-                'max_tool_calls':spec['budget']['max_tool_calls_per_attempt'],'wall_seconds':spec['budget']['attempt_wall_seconds']}:
-            issues.append('harness.parent_budget')
         value['harness'].pop('max_delivery_repairs');value['harness']['configuration']=config
         value['dataset']['task_ids'].sort()
         normalized.append(value)

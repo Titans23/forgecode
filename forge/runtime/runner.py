@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from forge.context.working import WorkingState
 from forge.hooks import HookEvent
-from forge.runtime.model_budget import BudgetedModelClient
+from forge.runtime.model_observation import ObservedModelClient
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.state import ModelCallError, ModelOutputTruncatedError, ModelProtocolError
 from forge.runtime.state import (
@@ -21,7 +21,7 @@ from forge.runtime.state import (
     ToolExecutionCompleted, ToolExecutionStarted, TurnCompleted, TurnResult,
     VerificationCompleted, WorkspaceChanged,
 )
-from forge.runtime.turn_state import BudgetExhausted, TurnState, add_usage, parent_budget
+from forge.runtime.turn_state import TurnState, add_usage, parent_turn
 from forge.runtime.verification import verification_from_result
 from forge.tools.base import ToolResult
 
@@ -32,19 +32,13 @@ if TYPE_CHECKING:
 class TurnRunner:
     '''Orchestrate requests, sequential batches, evidence and one terminal path.
 
-    No recovery phase owns a tool list or grants permission. No progress counter
-    enlarges the budget or terminates a valid diagnostic strategy early.
+    No recovery phase owns a tool list or grants permission. Usage counters
+    describe execution; they do not terminate a valid diagnostic strategy.
     '''
 
     def __init__(self, conversation: Conversation) -> None:
         self.conversation = conversation
-        self.state = TurnState(
-            max_model_calls=conversation.max_iterations,
-            max_tool_calls=conversation.max_tool_calls,
-            max_input_tokens=conversation.max_turn_input_tokens,
-            max_seconds=conversation.max_turn_seconds,
-            parent=parent_budget.get(),
-        )
+        self.state = TurnState(parent=parent_turn.get())
         if self.state.parent is not None:
             self.state.request_event_sink = self.state.parent.request_event_sink
         self.calls: list[ToolCall] = []
@@ -84,19 +78,10 @@ class TurnRunner:
         self.state.goal = prompt
         self.messages = [*c.messages]
         try:
-            async with asyncio.timeout(self.state.max_seconds):
-                await self._prepare_turn(prompt, content=content, input_id=input_id)
-                async with aclosing(self._loop()) as stream:
-                    async for event in stream:
-                        yield event
-        except BudgetExhausted as error:
-            yield await self._finish('failed', error.reason, error.reason, (error.reason,))
-        except TimeoutError:
-            yield await self._finish(
-                'failed', 'time_budget_exhausted',
-                'The turn time budget was exhausted; existing work was preserved.',
-                ('time_budget_exhausted',),
-            )
+            await self._prepare_turn(prompt, content=content, input_id=input_id)
+            async with aclosing(self._loop()) as stream:
+                async for event in stream:
+                    yield event
         except (asyncio.CancelledError, GeneratorExit):
             c.inbox.defer_steering()
             if self.journal is not None and not self.finished:
@@ -127,8 +112,6 @@ class TurnRunner:
         recorder=current()
         if self.journal is not None or c.event_recorder is not None or recorder:
             self.state.request_event_sink = c.record_model_request
-        if recorder:
-            recorder.reserve_budget(self.state)
         if c.tool_executor is not None:
             c.tool_executor.session_journal = self.journal
             c.tool_executor.checkpoint_store = c.checkpoint_store
@@ -149,9 +132,8 @@ class TurnRunner:
         elif router is not None:
             original_client = getattr(router, 'client', None)
             if original_client is not None:
-                router.client = BudgetedModelClient(original_client, self.state, 'routing')
+                router.client = ObservedModelClient(original_client, self.state, 'routing')
             else:
-                self._check_budget()
                 self.state.record_model_request(stage='routing')
             try:
                 routed = await router.route(prompt, c.task_manager.active, self.messages[:-1])
@@ -214,11 +196,6 @@ class TurnRunner:
         c._last_repository_context = c._repository_context(prompt)
         self._commit_messages()
 
-    def _check_budget(self) -> None:
-        reason = self.state.budget_reason()
-        if reason:
-            raise BudgetExhausted(reason)
-
     def _tools(self):
         c = self.conversation
         definitions = c._permission_filtered_tools(c._tool_definitions())
@@ -262,13 +239,6 @@ class TurnRunner:
             'replanning does not remove requirements.'
             if c.completion_gate and c.completion_gate.policy.require_acceptance_reconciliation
             and c.task_manager.active is not None and c.task_manager.active.acceptance_criteria else ''),
-            '[Remaining turn budget]\n'
-            + f'Model requests used: {self.state.model_calls}/{self.state.max_model_calls}; '
-            + f'tool requests used: {self.state.tool_requests}/{self.state.max_tool_calls}; '
-            + (f'time remaining: {max(0, int(self.state.max_seconds - (monotonic() - self.state.started_at)))} seconds. '
-               if self.state.max_seconds is not None else 'No turn time limit. ')
-            + 'Choose command timeouts within this remaining budget. Reserve time to validate '
-              'the actual deliverable. Repeated dependency downloads/builds consume this same budget.',
         ) if part)
 
     def _evidence_context(self) -> str:
@@ -303,7 +273,6 @@ class TurnRunner:
                 return None
         except ValueError as error:
             return str(error)
-        self._check_budget()
         outcome = await c._emit_hook(HookEvent(
             name='BeforeCompact', session_id=c._session_id(),
             payload={'automatic': not force, 'message_count': len(self.messages)},
@@ -320,7 +289,7 @@ class TurnRunner:
         try:
             with bind(recorder,scope,branch=active.get().branch,role=active.get().role) if recorder else nullcontext():
                 report = await c.context.compact_history(
-                    self.messages, BudgetedModelClient(c.summary_model_client(), self.state, 'compaction'),
+                    self.messages, ObservedModelClient(c.summary_model_client(), self.state, 'compaction'),
                     force=force, task_goal=self.state.goal, **kwargs,
                 )
         except BaseException as error:
@@ -337,19 +306,17 @@ class TurnRunner:
     async def _loop(self):
         c = self.conversation
         while True:
-            self._check_budget()
             self._admit_steering()
             tools = self._tools()
             self.request_repository_context = c._last_repository_context
             system = self._system()
             context = self._request_context()
             # Account for the request-only context without persisting obsolete
-            # budget/evidence copies in conversation history.
+            # runtime/evidence copies in conversation history.
             compaction_error = await self._compact(system + '\n\n' + context, tools)
             if compaction_error:
                 yield await self._finish('failed', 'context_compaction_failed', compaction_error, (compaction_error,))
                 return
-            self._check_budget()
             hook = await c._emit_hook(HookEvent(
                 name='BeforeModelCall', session_id=c._session_id(),
                 payload={'iteration': self.state.model_calls + 1, 'message_count': len(self.messages)},
@@ -371,7 +338,7 @@ class TurnRunner:
             provider_state = None
             provider_completed = False
             try:
-                client = BudgetedModelClient(c.client, self.state)
+                client = ObservedModelClient(c.client, self.state)
                 request_messages = c.context.prepare(self.messages)
                 request_messages.append({'role': 'user', 'content': context})
                 async with aclosing(client.stream(request_messages, tools=tools, system=system)) as stream:
@@ -427,7 +394,7 @@ class TurnRunner:
                 # All tools are staged until a valid response completes. A
                 # malformed argument block can therefore receive explicit
                 # correction feedback even after visible output. This is a new
-                # budgeted request, never a replay of partially parsed tools.
+                # observed request, never a replay of partially parsed tools.
                 correctable_arguments = isinstance(error, ModelProtocolError) and error.reason in {
                     'invalid_tool_arguments', 'unavailable_tool',
                 }
@@ -526,9 +493,6 @@ class TurnRunner:
         results: list[tuple[ToolCall, ToolResult]] = []
         ordered = sorted(calls, key=lambda call: call.index)
         batch_reason = None
-        if not self.state.can_request_tool_batch(0):
-            batch_reason = 'tool_budget_exhausted'
-            self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))
         mixed_finish = len(calls) > 1 and any(call.name == 'finish_task' for call in calls)
         # 完成声明必须单独处理，防止同批后续工具改动产物后仍沿用旧验收结论。
         if mixed_finish:
@@ -537,16 +501,11 @@ class TurnRunner:
         self.batch_active = True
         try:
             for call in ordered:
-                if not self.state.can_request_tool_batch(0):
-                    batch_reason = 'tool_budget_exhausted'
-                    self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))
                 if batch_reason:
                     outcome = executor.record_result(call, ToolResult.fail(
                         batch_reason, 'This tool did not execute. Replan using the preceding results.',
                     ), status='cancelled')
                 else:
-                    if self.state.budget_reason(include_model=False):
-                        raise BudgetExhausted(self.state.budget_reason(include_model=False))
                     yield ToolExecutionStarted(call)
                     if call.name == 'verify' and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id')):
                         # 先展开已存检查，再交给统一执行器校验和授权；不能用引用绕过权限边界。
@@ -561,7 +520,7 @@ class TurnRunner:
                             self.state.record_execution(outcome.record)
                             yield ToolExecutionCompleted(call, outcome.result)
                             continue
-                    budget_token = parent_budget.set(self.state)
+                    turn_token = parent_turn.set(self.state)
                     try:
                         outcome = await executor.execute(
                             call, checkpoint_id=self.checkpoint_id,
@@ -570,7 +529,7 @@ class TurnRunner:
                                                 else self._review_delivery if call.name == 'review_delivery' else None),
                         )
                     finally:
-                        parent_budget.reset(budget_token)
+                        parent_turn.reset(turn_token)
                 effective = ToolCall(call.index, call.id, call.name, outcome.arguments)
                 results.append((effective, outcome.result))
                 self.state.record_execution(outcome.record)
@@ -818,14 +777,14 @@ class TurnRunner:
             reasons = ('Before stopping an incomplete task, check for an actionable next step: '
                        'compile supplied source, install a missing task dependency, or use the '
                        'current execution profile to generate required files. Continue only '
-                       'within existing permissions and remaining budget. If no useful step '
+                       'within existing permissions. If no useful step '
                        'is available, submit partial or failed again with the observed reason.',)
             if self._offer_delivery_repair(reasons):
                 return ToolResult.fail('delivery_repair_required', reasons[0],
                                        metadata={'acceptance_reasons': reasons})
         if observations and status == 'completed' and self._offer_delivery_repair(observations):
             return ToolResult.fail('delivery_repair_required',
-                                   'Completion checks failed. Repair the observed gaps within the remaining budget, or submit an honest partial/failed result.',
+                                   'Completion checks failed. Repair the observed gaps or submit an honest partial/failed result.',
                                    metadata={'acceptance_reasons': tuple(observations)})
         if observations:
             status = 'partial'
@@ -842,8 +801,7 @@ class TurnRunner:
         limit = gate.policy.effective_delivery_repairs if gate else 0
         signature = tuple(sorted(set(reasons)))
         if (len(self.delivery_repair_reasons) >= limit
-                or signature in self.delivery_repair_reasons
-                or not self.state.can_request_model()):
+                or signature in self.delivery_repair_reasons):
             return False
         self.delivery_repair_reasons.add(signature)
         from forge.observability.events import current
@@ -855,7 +813,7 @@ class TurnRunner:
             recorder.emit('completion.rejected',attributes)
             recorder.emit('completion.repair_started',attributes)
         self._feedback('Completion was not accepted. Fix the implementation or supply missing evidence; '
-                       'do not weaken acceptance checks. The original budget still applies. '
+                       'do not weaken acceptance checks. '
                        'If the gaps cannot be repaired, finish with partial or failed.\n'
                        + '\n'.join(reason[:1000] for reason in signature[:8]))
         return True
@@ -952,7 +910,7 @@ class TurnRunner:
         from forge.observability.events import current
         recorder=current()
         if recorder:
-            recorder.finish_budget(self.state,reason)
+            recorder.finish_turn_usage(self.state)
             recorder.evidence_state(self.state.workspace_revision,self.state.environment_epoch)
             recorder.completion(accepted=status=='completed',reason=reason,revision=self.state.workspace_revision,
                 evidence_revision=evidence[-1].workspace_revision if evidence else self.state.workspace_revision,

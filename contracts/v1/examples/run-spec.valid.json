@@ -83,8 +83,6 @@
   "budget": {
     "attempt_wall_seconds": 120,
     "trial_wall_seconds": 120,
-    "max_model_requests_per_attempt": 10,
-    "max_tool_calls_per_attempt": 20,
     "spend_ceiling": "0",
     "currency": "USD",
     "spend_policy": "unknown_usage_stop_next_request"

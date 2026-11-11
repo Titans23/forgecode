@@ -108,7 +108,7 @@ class WorkspaceWriteBackend:
             script = "const fs=require('node:fs');const [a,b]=process.argv.slice(1);const denied=f=>{try{f();return false;}catch{return true;}};console.log(JSON.stringify({insideRead:fs.readFileSync(a,'utf8')==='probe',insideDenied:denied(()=>fs.writeFileSync(a,'escape')),deleteDenied:denied(()=>fs.unlinkSync(a)),outsideDenied:denied(()=>fs.writeFileSync(b,'escape',{flag:'wx'})),stdin:fs.readFileSync(0,'utf8')}));"
             expected = {'insideRead': True, 'insideDenied': True, 'deleteDenied': True, 'outsideDenied': True, 'stdin': 'forge-probe'}
         command = {'mode': 'argv', 'argv': [str(self.runtime.node), '-e', script, str(inside), str(outside)],
-            'cwd': str(root), 'environment': {}, 'deadline_utc': (datetime.now(timezone.utc)+timedelta(seconds=min(25, policy['limits']['wall_time_seconds']))).isoformat().replace('+00:00','Z'),
+            'cwd': str(root), 'environment': {}, 'deadline_utc': (datetime.now(timezone.utc)+timedelta(seconds=min(25, policy['limits']['wall_time_seconds'] or 25))).isoformat().replace('+00:00','Z'),
             'output_limit_bytes': min(65536, policy['limits']['command_output_bytes']), 'stdin_base64': base64.b64encode(b'forge-probe').decode()}
         if self._closing: raise ContractError('Session closed before native probe',kind='SANDBOX_UNAVAILABLE',code=-32010)
         execution = self._accept(identity, command, publish=False)
@@ -190,7 +190,8 @@ class WorkspaceWriteBackend:
         if any(UNSAFE_ENV.search(key) or key not in self._prepared.value['environment_keys'] for key in command['environment']):
             raise ContractError('Command environment exceeds policy', kind='POLICY_DENIED', code=-32010)
         seconds = (datetime.fromisoformat(command['deadline_utc'].replace('Z','+00:00'))-datetime.now(timezone.utc)).total_seconds()
-        if not 0 < seconds <= self._prepared.value['limits']['wall_time_seconds'] or command['output_limit_bytes'] > self._prepared.value['limits']['command_output_bytes']:
+        limit = self._prepared.value['limits']['wall_time_seconds']
+        if seconds <= 0 or (limit is not None and seconds > limit) or command['output_limit_bytes'] > self._prepared.value['limits']['command_output_bytes']:
             raise ContractError('Command exceeds frozen limits', kind='POLICY_DENIED', code=-32010)
         entry = self._accept(execution_id, command)
         return {key:entry[key] for key in ('execution_id','owner','state')} | {'reused_existing_execution': False}

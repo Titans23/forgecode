@@ -81,8 +81,8 @@ async def run(output):
         (project / 'value.txt').write_text('old', encoding='utf-8')
         options = SessionOptions(project, data_root=output / 'sessions', sandbox='workspace-write', approval='auto',
             config=ForgeConfig(api_key='unused-scripted-demo', model_id=client.model),
-            profile=RunProfile(name='api-demo', max_model_calls=8, max_tool_calls=8,
-                               wall_seconds=120, intent_routing=False))
+            profile=RunProfile(name='api-demo',
+                                intent_routing=False))
         policy = TaskPolicy(require_changes=True, require_verification=True, require_task_verification=True,
                             require_positive_verification=True, max_delivery_repairs=2, allowed_paths=('value.txt',))
         events = []

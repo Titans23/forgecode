@@ -128,8 +128,6 @@ class HarborAdapter:
         agent={'import_path':'benchmark.harbor.forgecode_agent:ForgeCodeHarborAgent',
             'model_name':spec['model']['requested_model'],'override_timeout_sec':work['duration_seconds'],
             'kwargs':{'source_dir':str(self.source_root.resolve()),'install_retries':1,'install_retry_delay_seconds':1,
-                'max_model_calls':spec['budget']['max_model_requests_per_attempt'],
-                'max_tool_calls':spec['budget']['max_tool_calls_per_attempt'],'max_turn_seconds':work['duration_seconds'],
                 'frozen_configuration':json.dumps(frozen,separators=(',',':'))},
             'env':{'FORGECODE_API_KEY':'${FORGE_EVAL_API_KEY}','FORGECODE_PROVIDER':spec['model']['provider'],
                 'FORGECODE_MODEL':spec['model']['requested_model'],'FORGECODE_BASE_URL':endpoint,

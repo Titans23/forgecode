@@ -174,7 +174,7 @@ def test_development_repairs_real_plugin_in_original_budget(tmp_path):
         async def aclose(self):
             pass
     model = Model()
-    result = asyncio.run(develop_plugin('Greet Ada with Hello', root, cases, execute=True, max_model_calls=6,
+    result = asyncio.run(develop_plugin('Greet Ada with Hello', root, cases, execute=True,
         config=ForgeConfig(api_key='unused', model_id=model.model), model_client_factory=lambda *a, **k: model,
         sandbox='full-access', data_root=tmp_path / 'data'))
     assert result['status'] == 'passed', result

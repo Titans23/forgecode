@@ -116,7 +116,7 @@ async def run():
     runtime,_,_=create_session_runtime(Path(sys.argv[1]),bindings=RuntimeBindings(
         config=ForgeConfig(api_key='offline-fixture',model_id='scripted-test',max_tokens=1024),
         model_client_factory=lambda config,**kwargs:WaitingClient(),data_root=Path(sys.argv[2]),
-        trusted_extensions=False,task_relation='new',max_model_calls=1,max_tool_calls=1,wall_seconds=60))
+        trusted_extensions=False,task_relation='new'))
     try:
         async for event in runtime.stream('Read the value.'):pass
     finally:await runtime.runtime_close()
@@ -162,7 +162,7 @@ def test_cli_can_run_same_script_after_crashed_owner_releases_os_lock(tmp_path):
             runtime,_,_=create_session_runtime(root,bindings=RuntimeBindings(
                 config=ForgeConfig(api_key='offline-fixture',model_id='scripted-test',max_tokens=1024),
                 model_client_factory=lambda config,**kwargs:client,data_root=tmp_path/'cli-data',
-                trusted_extensions=False,task_relation='new',max_model_calls=4,max_tool_calls=6,wall_seconds=30))
+                trusted_extensions=False,task_relation='new',))
             try:
                 events=[event async for event in runtime.stream('Read the value.')]
                 from forge.runtime.state import TurnCompleted

@@ -28,7 +28,7 @@ class LocalTrustedBackend:
 
 
 class HarnessAdapter:
-    def __init__(self, root: Path, *, config, data_root, backend, budget,
+    def __init__(self, root: Path, *, config, data_root, backend,
                  model_client_factory=None, recorder=None, approval_handler=None, task_relation=None,
                  resume_identifier=None, fork_session=False, turn_baseline_handler=None, task_policy=None):
         permissions = PermissionManager(root, mode='supervised', approval_handler=approval_handler,
@@ -36,8 +36,7 @@ class HarnessAdapter:
         bindings = RuntimeBindings(config=config, data_root=data_root, backend=backend, recorder=recorder,
             owns_tool_backend=False,
             model_client_factory=model_client_factory, permission_manager=permissions, trusted_extensions=False,
-            task_relation=task_relation, max_model_calls=budget['max_model_calls'],
-            max_tool_calls=budget['max_tool_calls'], wall_seconds=budget['wall_seconds'],
+            task_relation=task_relation,
             turn_baseline_handler=turn_baseline_handler)
         self.conversation, self.journal, _ = create_runtime(root, bindings=bindings,
             task_policy=task_policy,

@@ -36,12 +36,10 @@ def main():
             resolve_task(args.taskset,adapter.taskset,name)
             with tempfile.TemporaryDirectory(dir=ROOT/'.local/f20') as temporary:
                 directory=Path(temporary)/'prepared'
-                spec={'model':{'requested_model':'unconfigured-awaiting-selection','provider':'anthropic'},
-                    'budget':{'max_model_requests_per_attempt':10,'max_tool_calls_per_attempt':20}}
+                spec={'model':{'requested_model':'unconfigured-awaiting-selection','provider':'anthropic'}}
                 values={'model_parameters':{'temperature':None,'top_p':None,'max_output_tokens':16384,'reasoning_effort':None},
                     'harness':{'max_context_tokens':128000,'compaction_enabled':True,'explore_enabled':True,
-                        'trusted_extensions_enabled':False,'max_delivery_repairs':0,
-                        'parent_budget':{'max_model_calls':10,'max_tool_calls':20,'wall_seconds':120}},
+                        'trusted_extensions_enabled':False,'max_delivery_repairs':0},
                     'grader':{'timeout_seconds':1800}}
                 work={'task_id':name,'business_id':new_id('attempt'),'run_id':new_id('run'),
                     'trial_id':new_id('trial'),'trace_id':'1'*32,'span_id':'2'*16,'duration_seconds':120}

@@ -293,7 +293,7 @@ class Store:
             source_seq = self.connection.execute('SELECT COALESCE(MAX(source_seq),0)+1 FROM events WHERE source_id=?', (producer,)).fetchone()[0]
             self._insert_event(self.event_body('turn.accepted', producer, source_seq,
                 {'configuration': configuration_ref, 'budget_summary': {
-                    'model_calls_remaining': configuration.get('max_model_calls'), 'tool_calls_remaining': configuration.get('max_tool_calls'), 'wall_seconds_remaining': configuration.get('wall_seconds')}},
+                    'model_calls_remaining': None, 'tool_calls_remaining': None, 'wall_seconds_remaining': None}},
                 workspace_id=session['workspace_id'], session_id=params['session_id'], turn_id=turn_id), producer, source_seq)
             return result
 

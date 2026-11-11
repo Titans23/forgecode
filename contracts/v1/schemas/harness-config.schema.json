@@ -17,32 +17,6 @@
       "minimum": 0,
       "maximum": 10
     },
-    "parent_budget": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "max_model_calls": {
-          "type": ["integer", "null"],
-          "minimum": 1,
-          "maximum": 9007199254740991
-        },
-        "max_tool_calls": {
-          "type": ["integer", "null"],
-          "minimum": 1,
-          "maximum": 9007199254740991
-        },
-        "wall_seconds": {
-          "type": ["integer", "null"],
-          "minimum": 1,
-          "maximum": 9007199254740991
-        }
-      },
-      "required": [
-        "max_model_calls",
-        "max_tool_calls",
-        "wall_seconds"
-      ]
-    },
     "explore_enabled": {
       "type": "boolean"
     },
@@ -54,7 +28,6 @@
     "max_context_tokens",
     "compaction_enabled",
     "max_delivery_repairs",
-    "parent_budget",
     "explore_enabled",
     "trusted_extensions_enabled"
   ]

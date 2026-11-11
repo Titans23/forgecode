@@ -28,7 +28,7 @@ def test_model_receives_feedback_and_can_submit_honest_partial(tmp_path, declara
                     'task_kind': 'change', 'summary': 'Done' if self.calls == 1 else 'Verification remains missing'}))
     client = Client()
     conversation = Conversation(client=client, context_root=tmp_path,
-        registry=create_default_registry(tmp_path), max_iterations=3,
+        registry=create_default_registry(tmp_path),
         task_policy=TaskPolicy(require_verification=True, max_delivery_repairs=2))
     async def run():
         return [event async for event in conversation.stream('Verify the delivery.')]
@@ -39,7 +39,7 @@ def test_model_receives_feedback_and_can_submit_honest_partial(tmp_path, declara
     assert result.stop_reason == 'partial'
 
 
-def test_rejected_completion_gets_one_chance_per_gap_with_unchanged_budget(tmp_path):
+def test_rejected_completion_gets_one_chance_per_gap_in_the_same_turn(tmp_path):
     conversation = Conversation(client=object(), context_root=tmp_path,
         registry=create_default_registry(tmp_path),
         task_policy=TaskPolicy(require_verification=True, max_delivery_repairs=2))
@@ -48,7 +48,7 @@ def test_rejected_completion_gets_one_chance_per_gap_with_unchanged_budget(tmp_p
         'finish_task': True, 'status': 'completed', 'task_kind': 'change', 'summary': 'Done'})
     async def run():
         await runner.tracker.begin_turn()
-        original = (runner.state.max_model_calls, runner.state.max_tool_calls, runner.state.max_seconds)
+        original = runner.state
         first = await runner._finish_declaration(declaration)
         assert not first.success and first.error.code == 'delivery_repair_required'
         assert runner.terminal is None
@@ -56,7 +56,7 @@ def test_rejected_completion_gets_one_chance_per_gap_with_unchanged_budget(tmp_p
         second = await runner._finish_declaration(declaration)
         assert second.metadata['status'] == 'partial'
         assert runner.terminal[:2] == ('partial', 'acceptance_unmet')
-        assert (runner.state.max_model_calls, runner.state.max_tool_calls, runner.state.max_seconds) == original
+        assert runner.state is original
     asyncio.run(run())
 
 
@@ -90,7 +90,7 @@ def test_task_failure_gets_one_bounded_actionability_check(tmp_path, status):
                 'summary': 'The supplied executable is missing.'}))
     client = Client()
     conversation = Conversation(client=client, context_root=tmp_path,
-        registry=create_default_registry(tmp_path), max_iterations=3,
+        registry=create_default_registry(tmp_path),
         task_policy=TaskPolicy(require_task_verification=True, max_delivery_repairs=2))
     async def run():
         return [e async for e in conversation.stream('Build the supplied source.')]
@@ -99,17 +99,19 @@ def test_task_failure_gets_one_bounded_actionability_check(tmp_path, status):
     assert result.status == status
 
 
-@pytest.mark.parametrize('status,exhausted', [('blocked', False), ('failed', True), ('partial', True)])
-def test_actionability_check_does_not_retry_blocked_or_exhausted_tasks(tmp_path, status, exhausted):
+@pytest.mark.parametrize('status', ['blocked', 'failed', 'partial'])
+def test_actionability_check_uses_evidence_and_repair_policy_not_request_count(tmp_path, status):
     conversation = Conversation(client=object(), context_root=tmp_path,
-        registry=create_default_registry(tmp_path), max_iterations=1,
+        registry=create_default_registry(tmp_path),
         task_policy=TaskPolicy(require_task_verification=True, max_delivery_repairs=2))
     runner = TurnRunner(conversation)
-    if exhausted:
-        runner.state.model_calls = 1
+    runner.state.model_calls = 1000
     declaration = ToolResult.ok('finish', metadata={'finish_task': True, 'status': status,
         'task_kind': 'change', 'summary': 'Cannot proceed', 'blocked_reasons': ['Unavailable dependency']})
     result = asyncio.run(runner._finish_declaration(declaration))
+    if status != 'blocked':
+        assert not result.success and result.error.code == 'delivery_repair_required'
+        result = asyncio.run(runner._finish_declaration(declaration))
     assert result.success
     assert runner.terminal is not None
-    assert not runner.delivery_repair_reasons
+    assert len(runner.delivery_repair_reasons) == (0 if status == 'blocked' else 1)

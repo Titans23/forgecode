@@ -150,7 +150,7 @@ def test_signed_paging_and_comparison_never_cross_run_profile_or_task_filter(tmp
         assert not {t['id'] for t in first['trials']} & {t['id'] for t in second['trials']}
         for changed in ({'run_id':other['run_id']},{'task_id':'case-pass'}):
             with pytest.raises(ContractError):methods.evaluation_client.snapshot({'run_id':run['run_id'],'cursor':first['next_cursor'],**changed})
-        changed=draft(methods,run,max_model_requests_per_attempt=9);different,_=create(methods,changed['spec'])
+        changed=draft(methods,run,attempt_wall_seconds=9);different,_=create(methods,changed['spec'])
         comparison=methods.evaluation_client.comparison({'run_ids':[run['run_id'],different['run_id']],'protocol':'paired_task_set'})
         assert not comparison['comparable'] and any('budget' in x for x in comparison['differences'])
         other_profile=EngineMethods(ApplicationServices(methods.store,profile_id='other',credentials=MemoryCredentials()),profile='test')
@@ -244,7 +244,7 @@ def test_actual_harness_scheduler_and_separate_process_grader_flow_through_clien
             def factory(config,**kwargs):
                 client=ScriptedClient(script());client.provider='scripted_mock';client.model='fixture-model-v1';return client
             adapter=HarnessAdapter(root,config=ForgeConfig(api_key='unused-fixture',model_id='fixture-model-v1'),data_root=methods.store.data_dir/'harness',
-                backend=LocalTrustedBackend(),budget={'max_model_calls':10,'max_tool_calls':20,'wall_seconds':30},model_client_factory=factory,task_relation='new')
+                backend=LocalTrustedBackend(),model_client_factory=factory,task_relation='new')
             adapter.journal.observation_scope=Scope(trace_id=work['trace_id'],parent_span_id=work['span_id'],identities={'run_id':work['run_id'],'trial_id':work['trial_id'],'attempt_id':work['business_id']})
             try:
                 async for _ in adapter.stream([{'text':'Read value.txt and report its value.'}]):pass

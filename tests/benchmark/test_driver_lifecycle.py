@@ -66,6 +66,7 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     from forge.sessions.store import SessionStore
     agent = ForgeCodeHarborAgent(logs_dir=tmp_path,
         frozen_configuration=json.dumps({'run_id': 'run-' + str(uuid4())}))
+    agent.set_phase_timeout(900)
     workspace = tmp_path / 'workspace'
     workspace.mkdir()
     subprocess.run(['git', 'init', str(workspace)], check=True, capture_output=True)
@@ -92,8 +93,9 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     journal = SessionStore(tmp_path, data_root=tmp_path / 'state').create(model='fixture')
     recorder = JournalRecorder(journal, scope=Scope(trace_id=scope['trace_id'], span_id=scope['span_id'],
         identities={key: scope[key] for key in ('run_id', 'trial_id')} | {'attempt_id': frozen['attempt_id']}))
-    recorder.reserve_budget(TurnState(max_seconds=30))
-    assert journal.path.read_text().count('budget.reserved') == 1
+    recorder.finish_turn_usage(TurnState())
+    assert journal.path.read_text().count('budget.consumed') == 1
+    assert 'budget.reserved' not in journal.path.read_text()
     assert '+print("fixture")' in (tmp_path / 'forgecode-pregrade.patch').read_text()
     assert 'warning:' not in (tmp_path / 'forgecode-pregrade.patch').read_text()
     assert (workspace / 'new.py').read_text() == 'print("fixture")\n'

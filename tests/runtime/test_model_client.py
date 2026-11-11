@@ -259,7 +259,7 @@ def test_client_passes_explicit_config_to_anthropic_sdk(
     )
 
     transport = constructor_calls[0].pop('http_client')
-    from forge.runtime.model_budget import observe_wire_request
+    from forge.runtime.model_observation import observe_wire_request
     assert transport.event_hooks['request'] == [observe_wire_request]
     asyncio.run(transport.aclose())
     assert constructor_calls == [
@@ -446,7 +446,7 @@ def test_stream_delegates_events_and_merges_usage() -> None:
 
 
 def test_stream_attaches_final_provider_identity_without_rebilling_usage() -> None:
-    from forge.runtime.model_budget import BudgetedModelClient
+    from forge.runtime.model_observation import ObservedModelClient
     from forge.runtime.turn_state import TurnState
     sdk=FakeAnthropic()
     sdk.messages.events=[
@@ -456,9 +456,9 @@ def test_stream_attaches_final_provider_identity_without_rebilling_usage() -> No
     sdk.messages.final_message=SimpleNamespace(usage=usage(input_tokens=2,output_tokens=0),stop_reason='end_turn',
         id='provider-message-fixture',model='returned-fixture')
     client=AnthropicModelClient(model='requested-fixture',client=sdk)
-    state=TurnState(max_model_calls=2)
+    state=TurnState()
     async def run():
-        return [event async for event in BudgetedModelClient(client,state).stream([{'role':'user','content':'Inspect.'}])]
+        return [event async for event in ObservedModelClient(client,state).stream([{'role':'user','content':'Inspect.'}])]
     events=asyncio.run(run())
     updates=[event for event in events if isinstance(event,ModelUsageUpdate)]
     assert len(updates)==3 and updates[-1].provider_request_id=='provider-message-fixture'

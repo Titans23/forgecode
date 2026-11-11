@@ -19,7 +19,6 @@ from forge.runtime.state import (
     ToolCall,
 )
 from forge.subagents.explore import (
-    ExploreAgentConfig,
     ExploreRepositoryTool,
     _extract_report,
     create_explore_registry,
@@ -179,7 +178,6 @@ def test_explore_returns_only_structured_isolated_report(
     client = FakeExploreClient(valid_report())
     tool = ExploreRepositoryTool(
         tmp_path,
-        config=ExploreAgentConfig(max_iterations=3, max_input_tokens=5_000),
         client_factory=lambda: client,
     )
 

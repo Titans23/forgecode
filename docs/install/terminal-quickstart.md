@@ -8,7 +8,7 @@
 forge plugin init ./my-plugin --name my-plugin
 forge plugin check ./my-plugin --cases ./acceptance.json --trust --output ./validation.json
 forge plugin develop "实现需求" --directory ./my-plugin --cases ./acceptance.json
-# 检查计划后，显式 --execute 才使用模型；失败在原回合预算内修复，最多两次。
+# 检查计划后，显式 --execute 才使用模型；失败在原回合内修复，最多两次。
 forge plugin develop "实现需求" --directory ./my-plugin --cases ./acceptance.json --execute --max-model-calls 40
 forge agent check ./agent.json --cases ./acceptance.json --trust --output ./validation.json
 uv build --wheel --out-dir .local/wheels
@@ -46,7 +46,7 @@ Chat Completions 网关可设置 `chat_token_field: "max_tokens"`，默认使用
 
 插件可通过 `ctx.register_provider(name, factory)` 注册提供方；factory 接收 ForgeConfig 和
 `max_tokens`/`max_retries`，返回现有 ModelClient。使用 `ctx.run_child(prompt, definition, role='worker')`
-创建前台受管子任务；权限不能扩大，模型/工具/时间仍受父预算约束。插件自行绕过核心发出的请求不在此保证中。
+创建前台受管子任务；权限不能扩大，模型/工具用量汇总到父回合。插件自行绕过核心发出的请求不在此保证中。
 协议夹具通过不等于真实云模型实测；上述接入不需要执行付费测试才能检查安装和配置。
 
 `forge plugin init <新目录> --name hello` 创建本地插件；`forge plugin enable <目录> --trust`
@@ -65,7 +65,7 @@ core 无需代码工作区；coding 使用原来的文件工具及权限。
 
 执行提供方按 Agent 选择：`sandbox_provider` 默认随 base 解析为 coding 的 `"native"` 或 core 的 `null`。
 普通 coding 默认 `danger-full-access`；配置 `{"base":"coding","sandbox_provider":null}` 则完全不使用沙盒提供方。显式自定义提供方或写入范围保持受限模式，也可用 `--sandbox` 明确选择。
-显式 `read-only`/`workspace-write` 必须有提供方，初始化失败不回退宿主。审批和回合预算独立于提供方，受管 coding 子任务不能更换父提供方。
+显式 `read-only`/`workspace-write` 必须有提供方，初始化失败不回退宿主。审批与用量统计独立于提供方，受管 coding 子任务不能更换父提供方。
 
 可信插件可在 activate 中用 `ctx.register_sandbox_provider(name, factory)` 注册提供方，然后在 Agent 配置中填写该名称。
 `factory` 是异步函数，接收 `forge.execution.ExecutionRequest`（工作区、数据目录、模式、读写范围、时限，不含模型凭据），返回 `ExecutionSetup(backend, policy)`。
@@ -142,7 +142,7 @@ forge config
 
 用户配置按原样读取，兼容 `ANTHROPIC_API_KEY`、`MODEL_ID` 等原有字段；也支持 `openai_responses` 和 `deepseek` 协议。优先级为进程环境变量 > 项目 `.env` > 用户配置；项目内检查的有效配置可能覆盖刚修改的用户配置。`forge config` 只检查配置，不验证网络连接、不调用模型、不显示密钥。
 
-默认上下文为 256K（262,144 tokens），单请求输出上限为 64K（65,536 tokens），分别由 `MODEL_CONTEXT_WINDOW`、`MODEL_MAX_TOKENS` 覆盖；已有显式配置仍优先。这里配置的是 Harness 预算，所用服务需支持相应容量。沿用 Pi 的预算方式，总预留设为 48K（49,152 tokens），输入超过 212,992 tokens 时触发压缩，保留约 20,000 tokens 的近期原文。64K 是输出上限，实际请求额度随剩余窗口缩小，并留出窗口 1% 的估算余量；大工具输出超过 8,192 字符时保留头 4,096、尾 1,024 字符，完整原文仍可通过受限 artifact 接口读取。压缩规则见 [架构说明](../implementation/architecture.md)。
+默认上下文为 256K（262,144 tokens），单请求输出上限为 64K（65,536 tokens），分别由 `MODEL_CONTEXT_WINDOW`、`MODEL_MAX_TOKENS` 覆盖；已有显式配置仍优先。这里配置的是单请求模型容量，所用服务需支持相应容量。沿用 Pi 的预算方式，总预留设为 48K（49,152 tokens），输入超过 212,992 tokens 时触发压缩，保留约 20,000 tokens 的近期原文。64K 是输出上限，实际请求额度随剩余窗口缩小，并留出窗口 1% 的估算余量；大工具输出超过 8,192 字符时保留头 4,096、尾 1,024 字符，完整原文仍可通过受限 artifact 接口读取。压缩规则见 [架构说明](../implementation/architecture.md)。
 
 ## 持续对话
 
@@ -176,7 +176,7 @@ Anthropic 兼容接口的完整思考块及签名会随工具结果续传，并�
 
 文件写入、替换和补丁没有原来的 30,000 字符上限；不会强制分块或解析 JSON 内容。已有文件需要先读取，版本变化时必须重新读取；新文件不会覆盖并发创建的内容。普通目标观察只传指纹，不受检查点 512 KiB 内容配额限制。显式检查点、工具传输和资源预算仍有各自的上限。
 
-预算、任务和工具证据等动态上下文放在请求末尾，系统提示和较早历史保持稳定，有利于提供方复用前缀缓存。缓存命中不减少模型生成代码所需的输出 token，也不能保证所有请求命中；工具定义变化、长历史压缩及提供方缓存状态仍会影响结果。
+任务和工具证据等动态上下文放在请求末尾，系统提示和较早历史保持稳定，有利于提供方复用前缀缓存。缓存命中不减少模型生成代码所需的输出 token，也不能保证所有请求命中；工具定义变化、长历史压缩及提供方缓存状态仍会影响结果。
 恢复会话默认显示最近 10 轮，`/history all` 显示完整可用对话；工具历史以摘要展示，
 不会重新执行。`/clear` 保留旧会话，新会话等待下一次对话再保存。
 
@@ -270,6 +270,10 @@ API 同时接受 `[{'type': 'text', 'text': '分析图片'}, image_block(png_byt
 
 `RunProfile.intent_routing` 默认 False；旧调用方可显式设 True 使用兼容路由，它会增加模型请求。工具批次按顺序执行，`max_parallel_reads` 参数已移除。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
 
+Harness 不再接受 `max_model_calls`、`max_tool_calls`、`max_iterations`、`max_turn_input_tokens`、`max_turn_seconds` 或 Profile 的 `wall_seconds`。回合持续到完成、明确失败或取消，模型/工具次数、token 与耗时仍记录。`run_command` 和 `verify` 的 `timeout_seconds` 默认 120 秒，可显式设为 7200 等更长的正有限值，不再截断到 600 秒或回合预算；Ctrl+C 仍取消并清理所属进程。工具传输容量和模型上下文容量保持独立。
+
+模型网络故障默认最多重试两次；有效 `Retry-After` 优先，超过 60 秒停止自动重试，不提前请求。收到正文、思考或工具调用后不透明重试。等待期间可以取消。旧累计预算配置必须删除，不能靠保留旧参数限制新版本；历史有预算的实验应使用当时冻结的源码重放。
+
 ## 5 分钟 Harness 演示
 
 先完成源码开发安装。在安装仓库运行下面的公开示例；它会创建与安装目录分开的新临时项目，无需用户模型配置，也不调用提供方：
@@ -278,7 +282,7 @@ API 同时接受 `[{'type': 'text', 'text': '分析图片'}, image_block(png_byt
 uv run --no-sync python examples/harness_demo.py --output .local/implementation/api-demo-001
 ```
 
-重复演示时换一个新的输出目录。示例使用 `HarnessSession.stream`、真实原生文件/进程工具和同一个 TaskPolicy：修改 `value.txt`，运行行为检查，再执行命令使验证过期；第一次 `finish_task` 被拒后，在原 8 次请求预算内重新验证并完成，共 6 次脚本请求。`max_delivery_repairs=2` 只启用已有回合内反馈，不放宽新鲜度或断言。
+重复演示时换一个新的输出目录。示例使用 `HarnessSession.stream`、真实原生文件/进程工具和同一个 TaskPolicy：修改 `value.txt`，运行行为检查，再执行命令使验证过期；第一次 `finish_task` 被拒后，在同一回合内重新验证并完成，共 6 次脚本请求。`max_delivery_repairs=2` 只启用已有回合内反馈，不放宽新鲜度或断言。
 
 检查输出的两个文件：
 
@@ -293,13 +297,13 @@ uv run --no-sync python examples/harness_demo.py --output .local/implementation/
 uv run --no-sync --with pyarrow==19.0.1 python -m evals.native_swe_campaign --replay-outcome <保存的结果.json> --output <新的判分目录>
 ```
 
-该命令需要对应的冻结任务缓存，输出 `replay.json` 和原生判分/清理证据；它不加载模型客户端，原尝试的 partial/failed、历史未知清理及完成率保持原样。只读状态重建、候选重新判分和同回合修复是三项不同能力。原 Agent 跨进程保留剩余预算续跑尚未实现；`forge --resume` 开启新回合。
+该命令需要对应的冻结任务缓存，输出 `replay.json` 和原生判分/清理证据；它不加载模型客户端，原尝试的 partial/failed、历史未知清理及完成率保持原样。只读状态重建、候选重新判分和同回合修复是三项不同能力。原 Agent 进行中回合的跨进程续跑尚未实现；`forge --resume` 开启新回合。
 
-展示贡献时，底层 Windows 写限制归于 DSH，Linux 归于 bubblewrap；ForgeCode 复用已有 Python Agent 循环，工作集中在共享运行时接入、权限/预算传递、验证门禁、Journal、评测与生命周期证据。脚本模型演示和 `.env` 真实任务结果分别展示，不据此宣称自研 OS 隔离或稳定模型收益。
+展示贡献时，底层 Windows 写限制归于 DSH，Linux 归于 bubblewrap；ForgeCode 复用已有 Python Agent 循环，工作集中在共享运行时接入、权限传递和用量统计、验证门禁、Journal、评测与生命周期证据。脚本模型演示和 `.env` 真实任务结果分别展示，不据此宣称自研 OS 隔离或稳定模型收益。
 
 ## 评测与后训练
 
-`evals.runner` 保留 `EvalCase/EvalOutcome`、可调用的离线用例接口和可复现的仓库版本/命令证据；`benchmark.cli`、`benchmark.harbor.run_forge.run_turn`、RunSpec/ResultBundle 及独立 verifier 保持原协议。终端初始化不加载 Harbor，正式评测需要兼容的外部环境和单独的模型预算授权。
+`evals.runner` 保留 `EvalCase/EvalOutcome`、可调用的离线用例接口和可复现的仓库版本/命令证据；`benchmark.cli`、`benchmark.harbor.run_forge.run_turn`、RunSpec/ResultBundle 保留任务冻结与独立 verifier 判分，累计预算字段已移除。终端初始化不加载 Harbor，正式评测需要兼容的外部环境和单独的模型预算授权。
 
 原生真实仓库任务会安装独立的固定 Python 环境，任务文本中的 `Task Python` 给出其路径；Python 命令和导入检查使用该解释器，公开测试通过它的 `-m pytest` 运行。裸 `python` / `pytest` 仍属于 Harness 环境，版本和依赖可能不同。适配器明确展示环境，不自动改写任意命令或全局 PATH。
 

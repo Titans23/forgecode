@@ -2,7 +2,7 @@
 
 ## 冻结 Agent / 插件 / 模型的统一入口
 
-`forge eval plan config.json --output <新目录>` 冻结源码、依赖、精确任务、Agent 组合、插件产物、模型与预算。
+`forge eval plan config.json --output <新目录>` 冻结源码、依赖、精确任务、Agent 组合、插件产物与模型。Harness 累计预算已移除；官方任务截止时间和外部评测准入规则保持独立。
 规划不调用模型；未给 `taskset_directory` 时会下载官方任务元数据和输入，需要 `[evaluation]`。
 配置示例（路径相对 config.json，任务 ID 使用官方精确值）：
 
@@ -13,14 +13,13 @@
   "dataset_ref": "latest",
   "source_directory": ".",
   "model": {"provider": "openai_chat", "model": "your-model", "api_key_env": "EVAL_MODEL_KEY"},
-  "budget": {"max_model_calls": 120, "max_tool_calls": 240, "wall_seconds": 1800},
   "harness": {"max_delivery_repairs": 2}
 }
 ```
 
 可选 `agent` 指向 AgentDefinition JSON，`models` 提供角色模型别名；插件使用标准交付产物和固定依赖。
 `pricing` 可提供现有 PriceBook 的 `revision/currency/source/rates` 快照，不提供时费用保持 unknown。
-冻结后的运行不接受随意覆盖预算、任务、源码或采样参数。
+冻结后的运行不接受随意覆盖任务、源码或采样参数。旧 Harness 预算参数会被拒绝，历史有预算的报告和冻结输入保留，不能作为当前无预算运行的同条件结果。
 
 ```sh
 forge eval run --plan <计划目录>
@@ -172,10 +171,10 @@ export FORGE_BASE_URL='http://host.docker.internal:60578'
 
 ### 10 题、并发 4 的标准命令
 
-以下使用 Bash、新输出目录、每题一次、任务级重试 0，显式固定预算和上下文。
-官方任务时限仍生效。`--max-retries 0` 不关闭同一预算内的交付修复（当前最多 2 次），
+以下使用 Bash、新输出目录、每题一次、任务级重试 0，显式固定模型和上下文。
+官方任务时限仍生效。`--max-retries 0` 不关闭同一回合内的交付修复（当前最多 2 次），
 也不等于关闭模型传输层重试。首次无外部阻塞的提前放弃可获得一次诊断反馈，
-也占用上述修复次数与原预算，不是另一次任务尝试。最终由官方 verifier 判分；
+也占用上述修复次数，不是另一次任务尝试。最终由官方 verifier 判分；
 内部要求执行行为检查及说明覆盖范围，不强制额外填写需求 ID 或 JSON 断言协议。
 
 判分前的 Git 补丁归档上限为 100 MiB。超过上限时，适配器在
@@ -187,7 +186,6 @@ run_dir="$HOME/.local/share/forgecode/evaluation/terminal10-gpt6luna-$(date -u +
 eval_args=(
   --n-tasks 10 --concurrency 4 --max-retries 0
   --model gpt-6-luna --provider anthropic --base-url "$FORGE_BASE_URL"
-  --max-model-calls 120 --max-tool-calls 240 --max-turn-seconds 1800
   --max-output-tokens 65536 --context-window 262144
   --output-dir "$run_dir"
 )

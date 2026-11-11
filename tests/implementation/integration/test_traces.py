@@ -74,17 +74,17 @@ def observations(journal):
 
 
 def test_retry_attempts_share_invocation_keep_usage_quality_and_parent_context(tmp_path):
-    from forge.runtime.model_budget import BudgetedModelClient, request_observer
+    from forge.runtime.model_observation import ObservedModelClient, request_observer
     from forge.runtime.model_client import ModelCallError
     from forge.runtime.state import ModelRetryScheduled
     from forge.runtime.turn_state import TurnState
     journal=SessionJournal(tmp_path/'requests.jsonl',session_id='session-'+'b'*24,project_root=tmp_path)
     journal.append('session_started',{})
     recorder=JournalRecorder(journal)
-    state=TurnState(max_model_calls=4,request_event_sink=recorder.record_request)
+    state=TurnState(request_event_sink=recorder.record_request)
     class Client:
         model='actual-test-model'
-        observes_request_budget=True
+        observes_requests=True
         async def stream(self,**kwargs):
             request_observer.get()()
             yield ModelUsageUpdate(TokenUsage(3,1))
@@ -95,7 +95,7 @@ def test_retry_attempts_share_invocation_keep_usage_quality_and_parent_context(t
     async def run():
         with recorder.turn():
             with pytest.raises(ModelCallError):
-                async for _ in BudgetedModelClient(Client(),state).stream([]):
+                async for _ in ObservedModelClient(Client(),state).stream([]):
                     pass
     asyncio.run(run())
     events=observations(journal)
@@ -371,15 +371,18 @@ def test_import_source_cannot_occupy_internal_producer_namespace(tmp_path):
         store.close()
 
 
-def test_small_wall_budget_uses_decimal_literal_without_exponent(tmp_path):
+def test_small_elapsed_usage_uses_decimal_literal_without_reserving_budget(tmp_path, monkeypatch):
     from forge.runtime.turn_state import TurnState
     journal=SessionJournal(tmp_path/'budget.jsonl',session_id='session-'+'e'*24,project_root=tmp_path)
     journal.append('session_started',{})
     recorder=JournalRecorder(journal)
+    monkeypatch.setattr('forge.observability.recorder.monotonic', lambda: 1.00001)
     with recorder.turn():
-        recorder.reserve_budget(TurnState(max_seconds=0.00001))
-    reserved=next(e for e in observations(journal) if e['event_type']=='budget.reserved' and e['attributes']['dimension']=='wall_seconds')
-    assert reserved['attributes']['amount_decimal']=='0.00001'
+        recorder.finish_turn_usage(TurnState(started_at=1))
+    consumed=next(e for e in observations(journal) if e['event_type']=='budget.consumed' and e['attributes']['dimension']=='wall_seconds')
+    assert consumed['attributes']['amount_decimal']=='0.00001'
+    assert consumed['attributes']['remaining_decimal'] is None
+    assert not any(e['event_type']=='budget.reserved' for e in observations(journal))
 
 
 def test_duplicate_logical_request_and_wrong_source_sequence_are_quarantined(tmp_path):

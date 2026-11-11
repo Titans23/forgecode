@@ -35,7 +35,7 @@ class VerifyInput(SandboxInput):
     )
     command: str = ''
     cwd: str = Field(default='.', description='Working directory, resolved and authorized like other command paths.')
-    timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+    timeout_seconds: float = Field(default=120.0, gt=0, allow_inf_nan=False)
     stdin: str | None = Field(default=None, max_length=200_000)
     covers: list[str] = Field(
         default_factory=list, max_length=20,

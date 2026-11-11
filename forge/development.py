@@ -1,4 +1,4 @@
-"""Natural-language development in the existing coding Harness and original budget."""
+"""Natural-language development in the existing coding Harness."""
 from dataclasses import asdict, replace
 import json
 from pathlib import Path
@@ -9,7 +9,7 @@ from forge.validation import check_agent, validate_acceptance
 from forge.delivery import load_definition
 
 
-async def develop_plugin(request, directory, acceptance, *, execute=False, max_model_calls=40,
+async def develop_plugin(request, directory, acceptance, *, execute=False,
                          config=None, model_client_factory=None, sandbox='workspace-write', data_root=None):
     directory = Path(directory).resolve()
     acceptance = validate_acceptance(acceptance)  # Controller's private copy, outside candidate scope.
@@ -25,7 +25,7 @@ async def develop_plugin(request, directory, acceptance, *, execute=False, max_m
             'plugins': [{'source': '.', 'trusted': False}]}, indent=2), encoding='utf-8')
     if not execute:
         return {'status': 'planned', 'directory': str(directory), 'model_api_calls': 0,
-                'case_ids': [c['id'] for c in acceptance['cases']], 'next': 'Repeat with --execute to use the configured model budget'}
+                'case_ids': [c['id'] for c in acceptance['cases']], 'next': 'Repeat with --execute to use the configured model'}
     latest = None
     async def independent_check():
         nonlocal latest, candidate
@@ -39,8 +39,7 @@ async def develop_plugin(request, directory, acceptance, *, execute=False, max_m
         return ('Independent acceptance failed: ' + ', '.join(failures) + '; ' + json.dumps(latest, ensure_ascii=False)[-9000:],)
     options = SessionOptions(directory, data_root=data_root, config=config, sandbox=sandbox, approval='auto',
         agent=AgentDefinition(name='plugin-developer', completion='strict'),
-        profile=RunProfile(name='plugin-development', max_model_calls=max_model_calls, max_tool_calls=max_model_calls * 3,
-                           wall_seconds=1800, intent_routing=False))
+        profile=RunProfile(name='plugin-development', intent_routing=False))
     prompt = (f'Develop a ForgeCode Python plugin in this directory. Requirement: {request}\n'
               'Use forge.plugins.PluginContext public methods. Keep distributable code and tests listed in forge-plugin.json files. '
               'Keep agent.json as the deliverable Agent configuration; use its plugin config for business parameters. '
@@ -53,4 +52,4 @@ async def develop_plugin(request, directory, acceptance, *, execute=False, max_m
             (session.cleanup or {}).get('state') == 'clean' else 'failed',
             'turn': asdict(result), 'validation': latest, 'cleanup': session.cleanup,
             'definition': replace(candidate, plugins=tuple(replace(p, trusted=False) for p in candidate.plugins)).as_dict(),
-            'plugin_enabled': False, 'scope': 'bounded development; no new turn or replacement budget for repair'}
+            'plugin_enabled': False, 'scope': 'development with independent acceptance; repair stays in the same turn'}

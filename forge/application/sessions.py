@@ -136,19 +136,16 @@ def create_default_session(service, params):
         return existing
     root = service._workspace(params['workspace_id'], expected_revision=params['expected_workspace_revision'])['canonical_path']
     identity = params['client_action_id'][4:]
-    policy_id, budget_id = 'policy-'+identity, 'budget-'+identity
+    policy_id = 'policy-'+identity
     if not service.store.connection.execute('SELECT 1 FROM policies WHERE id=?', (policy_id,)).fetchone():
         service.put_policy({'schema_version': 'forge.sandbox.policy.v1', 'policy_id': policy_id, 'workspace_id': params['workspace_id'],
             'filesystem': {'read_mode': 'host_default' if service.mode == 'workspace-write' else 'backend_default_with_protected_paths', 'read_roots': [root], 'write_roots': [root],
                 'protected_paths': [], 'deny_overrides_allow': True, 'reject_unsafe_links': True},
             'network': {'mode': 'inherit' if service.mode == 'workspace-write' else 'deny_direct', 'allowed_domains': [], 'dns_isolation_required': False},
-            'limits': {'memory_bytes': None, 'disk_bytes': None, 'pids': None, 'wall_time_seconds': 300,
+            'limits': {'memory_bytes': None, 'disk_bytes': None, 'pids': None, 'wall_time_seconds': None,
                 'command_output_bytes': 1048576, 'session_artifact_bytes': 104857600},
             'environment_keys': [], 'fallback': 'deny', 'session_mutation': 'replace_session'})
-    with service.store.transaction():
-        service.store.connection.execute('INSERT OR IGNORE INTO budget_profiles VALUES(?,?)',
-            (budget_id, json.dumps({'max_model_calls': 16, 'max_tool_calls': 64, 'wall_seconds': 300})))
-    return service.create_session({**params, 'policy_id': policy_id, 'budget_profile_id': budget_id},
+    return service.create_session({**params, 'policy_id': policy_id},
         action_method='session.create_default', action_params=params)
 
 
@@ -160,7 +157,7 @@ def submit(service, params):
     config = json.loads(service.store.connection.execute('SELECT normalized_json FROM configuration_snapshots WHERE id=?',
         (session['configuration']['snapshot_id'],)).fetchone()[0])
     request = {**params, 'expected_workspace_revision': config['workspace_revision'],
-        **{k: config[k] for k in ('connection_id', 'policy_id', 'budget_profile_id')}}
+        **{k: config[k] for k in ('connection_id', 'policy_id')}}
     if session['active_turn_id']:
         raise ContractError('Session has an active turn', kind='STALE_REVISION', code=-32010)
     return service.start_turn(request, action_method='session.submit', action_params=params)

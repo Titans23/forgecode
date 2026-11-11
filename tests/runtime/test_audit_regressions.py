@@ -15,7 +15,7 @@ from forge.config import ForgeConfig
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.completion import checker_revision_covers, unresolved_verification_failures
 from forge.runtime.delivery import completion_report
-from forge.runtime.model_budget import BudgetedModelClient
+from forge.runtime.model_observation import ObservedModelClient
 from forge.runtime.model_client import ModelOutputTruncatedError
 from forge.runtime.providers import NativeModelClient
 from forge.runtime.runner import TurnRunner
@@ -25,7 +25,7 @@ from forge.runtime.verification import verification_quality
 from forge.tools.base import Tool, ToolInput, ToolRegistry, ToolResult
 
 
-def test_child_dispatch_must_enforce_exhausted_parent_tool_budget(tmp_path):
+def test_child_dispatch_counts_parent_usage_without_a_quota(tmp_path):
     calls = []
 
     class Probe(Tool[ToolInput]):
@@ -38,17 +38,17 @@ def test_child_dispatch_must_enforce_exhausted_parent_tool_budget(tmp_path):
             return ToolResult.ok('read')
 
     async def run():
-        parent = TurnState(max_tool_calls=1)
-        parent.record_tool_request()  # Parent has consumed its final slot.
+        parent = TurnState()
+        parent.record_tool_request()
         conversation = Conversation(client=object(), context_root=tmp_path,
             registry=ToolRegistry([Probe(tmp_path)]), include_task_tools=False)
         runner = TurnRunner(conversation)
         runner.state.parent = parent
         runner.state.record_tool_request()  # Actual model event accounting.
-        assert not parent.can_request_tool_batch(1)
+        assert parent.tool_requests == 2
         async for _ in runner._batch([ToolCall(0, 'child-call', 'audit_read', {})]):
             pass
-        assert calls == [], 'Child execution crossed the exhausted parent tool budget'
+        assert calls == ['executed']
 
     asyncio.run(run())
 
@@ -87,7 +87,7 @@ def test_truncated_native_response_preserves_known_usage(provider):
             model_id='audit-' + provider, provider=provider), client=sdk)
         state = TurnState()
         with pytest.raises(ModelOutputTruncatedError):
-            async for _ in BudgetedModelClient(client, state).stream([]):
+            async for _ in ObservedModelClient(client, state).stream([]):
                 pass
         assert state.model_calls == 1
         assert state.usage.total_input_tokens == 91, 'Provider-supplied usage was discarded on truncation'
