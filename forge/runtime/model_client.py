@@ -7,7 +7,6 @@ from copy import deepcopy
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 import json
-import random
 from typing import Any
 
 from anthropic import (
@@ -41,6 +40,7 @@ from forge.runtime.state import (
     TokenUsage,
     ToolCall,
 )
+from forge.runtime.retry import retry_delay
 
 
 DEFAULT_MODEL_PROVIDER = 'anthropic'
@@ -250,6 +250,8 @@ class AnthropicModelClient:
                     and not response_started
                     and attempt <= self.max_retries
                 )
+                delay = retry_delay(attempt, error) if can_retry else None
+                can_retry = can_retry and delay is not None
                 if not can_retry:
                     if response_started and retryable:
                         reason = 'stream_interrupted'
@@ -259,7 +261,6 @@ class AnthropicModelClient:
                         retryable=retryable and not response_started,
                     ) from error
 
-                delay = retry_delay(attempt)
                 yield ModelRetryScheduled(
                     attempt=attempt + 1,
                     reason=reason,
@@ -612,6 +613,9 @@ def classify_provider_error(error: Exception) -> tuple[str, bool]:
             return 'overloaded', True
         return 'server_error', True
     if isinstance(error, APIStatusError):
+        if error.status_code in {408, 409, 429} or error.status_code >= 500:
+            return ('timeout' if error.status_code == 408 else 'rate_limit'
+                    if error.status_code == 429 else f'http_{error.status_code}'), True
         details = str(error).lower()
         if error.status_code == 400 and any(
             marker in details
@@ -625,12 +629,6 @@ def classify_provider_error(error: Exception) -> tuple[str, bool]:
             return 'context_overflow', False
         return f'http_{error.status_code}', False
     return 'provider_error', False
-
-
-def retry_delay(retry_number: int) -> float:
-    '''Return bounded exponential backoff with up to 25% jitter.'''
-    base = min(0.5 * (2 ** (retry_number - 1)), 8.0)
-    return base + random.uniform(0, base * 0.25)
 
 
 def model_error_message(reason: str, response_started: bool) -> str:

@@ -902,7 +902,7 @@ def test_stream_retries_connection_error_before_output(
         delays.append(delay)
 
     monkeypatch.setattr(model_client_module.asyncio, 'sleep', record_sleep)
-    monkeypatch.setattr(model_client_module.random, 'uniform', lambda *_: 0)
+    monkeypatch.setattr('forge.runtime.retry.random.uniform', lambda *_: 0)
     client = AnthropicModelClient(
         model='claude-test',
         max_retries=1,
@@ -942,7 +942,7 @@ def test_stream_retries_raw_httpx_transport_error_before_output(
         delays.append(delay)
 
     monkeypatch.setattr(model_client_module.asyncio, 'sleep', record_sleep)
-    monkeypatch.setattr(model_client_module.random, 'uniform', lambda *_: 0)
+    monkeypatch.setattr('forge.runtime.retry.random.uniform', lambda *_: 0)
     client = AnthropicModelClient(
         model='claude-test',
         max_retries=1,

@@ -105,12 +105,13 @@ class GeminiModelClient:
                 status = error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None
                 retryable = status is None or status in {408, 429} or status >= 500
                 reason = 'rate_limit' if status == 429 else 'request_rejected' if status else 'connection_error'
-                if retryable and not emitted and attempt < self.max_attempts:
-                    delay = min(8, 2 ** (attempt - 1))
-                    yield ModelRetryScheduled(attempt, reason, delay)
+                from forge.runtime.retry import retry_delay
+                delay = retry_delay(attempt, error) if retryable and not emitted and attempt < self.max_attempts else None
+                if delay is not None:
+                    yield ModelRetryScheduled(attempt + 1, reason, delay)
                     await asyncio.sleep(delay)
                     continue
-                raise ModelCallError(reason, f'Gemini transport failed ({status or reason})', retryable=retryable) from error
+                raise ModelCallError(reason, f'Gemini transport failed ({status or reason})', retryable=retryable and not emitted) from error
 
     async def _stream(self, arguments):
         from forge.observability.usage_ledger import token_usage

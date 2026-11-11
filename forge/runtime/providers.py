@@ -7,7 +7,6 @@ provider has supplied an explicit successful terminal event.
 from collections.abc import AsyncIterator
 import asyncio
 import json
-import random
 import httpx
 
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutError
@@ -220,13 +219,14 @@ class NativeModelClient:
                     if any(marker in detail for marker in ('context_length_exceeded', 'context_window_exceeded',
                             'maximum context length', 'context window', 'prompt is too long', 'too many tokens')):
                         reason = 'context_overflow'
-                if retryable and not semantic_output and attempt < self.max_attempts:
-                    delay = min(8.0, 2 ** (attempt - 1)) + random.random() * .25
-                    yield ModelRetryScheduled(attempt, reason, delay)
+                from forge.runtime.retry import retry_delay
+                delay = retry_delay(attempt, error) if retryable and not semantic_output and attempt < self.max_attempts else None
+                if delay is not None:
+                    yield ModelRetryScheduled(attempt + 1, reason, delay)
                     await asyncio.sleep(delay)
                     continue
                 raise ModelCallError(reason, f'{self.provider} request failed ({status or reason})',
-                                     retryable=bool(retryable)) from error
+                                     retryable=bool(retryable) and not semantic_output) from error
             finally:
                 self.health.probe_inflight = False
 

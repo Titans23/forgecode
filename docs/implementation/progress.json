@@ -1,4 +1,5 @@
 {
+  "transport_retry": {"scope":"Shared bounded Retry-After handling for Anthropic, Chat/Responses and Gemini; no SDK retry stacking, no transparent replay after semantic output, cancellable waits. Server delays over 60 seconds stop automatic retry instead of being shortened.","validation":"79 related offline tests passed, including actual SDK HTTP transport header handling and cancellation. No paid API calls. CI is tracked per pushed commit; global installation waits for the remaining budget-removal checkpoint and final successful CI.","evidence_refs":[".local/implementation/runtime-no-budgets/retry.xml"]},
   "schema_version": "forge.implementation.progress.v1",
   "active_scope": "extensible-harness",
   "development_checkout": "D:/projects/forgecode",
