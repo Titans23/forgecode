@@ -40,6 +40,7 @@ from forge.runtime.state import (
     ModelCallStarted,
     ModelRetryScheduled,
     ModelToolCallStarted,
+    ModelToolCallArgumentsDelta,
     ModelUsageUpdate,
     ToolExecutionCompleted,
     ToolExecutionStarted,
@@ -794,7 +795,9 @@ async def render_streamed_turn(
             elif isinstance(event, ModelRetryScheduled):
                 response_view.set_phase(f'正在重试 · {event.delay_seconds:g}s 后')
             elif isinstance(event, ModelToolCallStarted):
-                response_view.set_phase('正在准备工具调用 · ' + event.name)
+                response_view.prepare_tool(event.index, event.name)
+            elif isinstance(event, ModelToolCallArgumentsDelta):
+                response_view.append_tool_arguments(event.index, event.partial_json)
             elif isinstance(event, ModelUsageUpdate):
                 response_view.update_usage(
                     event.usage,

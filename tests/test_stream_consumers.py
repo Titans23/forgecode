@@ -15,6 +15,7 @@ from forge.permissions.policy import PermissionManager
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.state import (
     ModelResponseCompleted, ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate,
+    ModelToolCallStarted, ModelToolCallArgumentsDelta,
     TokenUsage, ToolCall, ToolExecutionCompleted,
 )
 from forge.sessions.store import SessionStore
@@ -35,6 +36,8 @@ class ScriptedModel:
     async def stream(self, messages, **kwargs):
         self.calls += 1
         if self.calls == 1:
+            yield ModelToolCallStarted(0, 'read-once', 'read_file')
+            yield ModelToolCallArgumentsDelta(0, '{"path":"note.txt"}')
             yield ModelToolCallCompleted(ToolCall(0, 'read-once', 'read_file', {'path': 'note.txt'}))
         else:
             self.waiting.set()
@@ -97,7 +100,8 @@ def test_consumers_preserve_one_durable_lifecycle(tmp_path, consumer, outcome):
 
         view = SimpleNamespace(append_text=ignore, update_usage=ignore, start_tool=ignore,
             complete_tool=tool_completed, complete=turn_completed, block_completion=ignore,
-            model_started=ignore, set_phase=ignore, append_reasoning=ignore)
+            model_started=ignore, set_phase=ignore, append_reasoning=ignore,
+            prepare_tool=ignore, append_tool_arguments=ignore)
 
         async def consume():
             if consumer == 'cli':

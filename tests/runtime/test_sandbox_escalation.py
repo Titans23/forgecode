@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import sys
+import subprocess
 from tempfile import TemporaryDirectory, gettempdir
 
 import pytest
@@ -19,19 +20,20 @@ from forge.sandbox.provider import open_native_execution
 from forge.tools.base import ToolRegistry, ToolResult
 from forge.tools.shell import RunCommandInput, RunCommandTool
 from forge.tools.verify import VerifyInput, VerifyTool
+from forge.tools.git import GitStatusInput, GitStatusTool, GitDiffInput, GitDiffTool, GitLogInput, GitLogTool
 
 
 OVERRIDE = {'sandbox_permissions': 'danger-full-access', 'justification': 'Native setup denied WRITE_OWNER.'}
 
 
-@pytest.mark.parametrize('model', [RunCommandInput, VerifyInput])
+@pytest.mark.parametrize('model', [RunCommandInput, VerifyInput, GitStatusInput, GitDiffInput, GitLogInput])
 @pytest.mark.parametrize('extra', [
     {'sandbox_permissions': 'danger-full-access'}, {'justification': 'reason'},
     {**OVERRIDE, 'justification': '  '}, {**OVERRIDE, 'sandbox_permissions': 'anything'},
 ])
 def test_widening_requires_paired_valid_fields(model, extra):
     with pytest.raises(ValidationError):
-        model.model_validate({'command': 'echo ok', **extra})
+        model.model_validate({**({'command': 'echo ok'} if model in (RunCommandInput, VerifyInput) else {}), **extra})
 
 
 class RecordingBackend:
@@ -55,7 +57,8 @@ def executor(root, *, choice='allow_once', mode='supervised', sandbox='workspace
     manager = PermissionManager(root, mode=mode, execution_mode=sandbox,
         approval_handler=approve if handler else None, load_stored_rules=False)
     manager.session_rules.append(PermissionRule('allow', '*', '*'))
-    registry = ToolRegistry([RunCommandTool(root), VerifyTool(root, WorkspaceTracker(root))])
+    registry = ToolRegistry([RunCommandTool(root), VerifyTool(root, WorkspaceTracker(root)),
+                            GitStatusTool(root), GitDiffTool(root), GitLogTool(root)])
     backend = RecordingBackend()
     return ToolExecutor(registry, manager, backend=backend), prompts
 
@@ -153,11 +156,27 @@ def test_cancelling_pending_approval_never_starts_command(tmp_path):
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('tool', ['run_command', 'verify'])
+@pytest.mark.parametrize('tool', ['git_status', 'git_diff', 'git_log'])
+def test_git_host_retry_denial_never_executes(tmp_path, tool):
+    async def run():
+        runtime, prompts = executor(tmp_path, choice='deny')
+        result = await runtime.execute(ToolCall(0, 'git-denied', tool, OVERRIDE))
+        assert result.result.error.code == 'permission_denied' and result.record.status == 'rejected'
+        assert len(prompts) == 1 and runtime.backend.calls == []
+        assert runtime.permission_manager.execution_mode == 'workspace-write'
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('tool', ['run_command', 'verify', 'git_status', 'git_diff', 'git_log'])
 def test_real_host_command_after_native_failure_without_changing_session(tool):
     async def run(tmp_path):
         root, data = tmp_path / 'project', tmp_path / 'data'
         root.mkdir()
+        if tool.startswith('git_'):
+            subprocess.run(['git', 'init', '--quiet', str(root)], check=True)
+            subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+                            'commit', '--allow-empty', '-qm', 'fixture'], cwd=root, check=True)
+            (root / 'note.txt').write_text('fixture')
         setup = await open_native_execution(ExecutionRequest(root, data, 'workspace-write', (), None, 30))
         frozen = deepcopy(setup.policy)
         native_attempts = []
@@ -171,6 +190,8 @@ def test_real_host_command_after_native_failure_without_changing_session(tool):
         runtime.backend = setup.backend
         arguments = {'command': f'"{sys.executable}" -', 'stdin': 'import os\nprint("executed", os.getcwd())',
                      'cwd': '.', 'timeout_seconds': 10}
+        if tool.startswith('git_'):
+            arguments = {}
         try:
             first = await runtime.execute(ToolCall(0, 'native', tool, arguments))
             assert first.result.error.code == 'SANDBOX_UNAVAILABLE'
@@ -179,7 +200,8 @@ def test_real_host_command_after_native_failure_without_changing_session(tool):
             assert 'sandbox_permissions="danger-full-access"' in first.result.content
             second = await runtime.execute(ToolCall(1, 'approved', tool, {**arguments, **OVERRIDE}))
             assert second.result.success, second.result
-            assert 'executed' in second.result.content and str(root) in second.result.content
+            if not tool.startswith('git_'):
+                assert 'executed' in second.result.content and str(root) in second.result.content
             assert second.result.metadata['sandbox_covered'] is False
             assert second.result.metadata['execution_mode'] == 'full-access'
             assert second.result.metadata['cleanup']['state'] == 'clean'

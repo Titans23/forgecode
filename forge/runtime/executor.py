@@ -345,7 +345,7 @@ class ToolExecutor:
                 result = ToolResult.fail('INDETERMINATE', 'Operation cleanup was not proven clean; inspect before retrying.',
                     content=result.content, metadata=result.metadata)
 
-        not_started = (effect == 'process' and result.error is not None
+        not_started = (result.error is not None
             and result.error.code == 'SANDBOX_UNAVAILABLE'
             and result.error.details.get('command_started') is False)
         if (

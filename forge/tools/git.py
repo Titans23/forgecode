@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import Field
 
-from forge.tools.base import Tool, ToolInput, ToolResult
+from forge.tools.base import Tool, SandboxInput, ToolResult
 from forge.tools.paths import display_path, resolve_repository_path
 from forge.tools.shell import (
     process_metadata,
@@ -22,7 +22,7 @@ MAX_UNSCOPED_DIFF_CHARACTERS = 30_000
 MAX_SCOPED_DIFF_CHARACTERS = 30_000
 
 
-class GitStatusInput(ToolInput):
+class GitStatusInput(SandboxInput):
     pass
 
 
@@ -57,7 +57,7 @@ class GitStatusTool(Tool[GitStatusInput]):
         )
 
 
-class GitLogInput(ToolInput):
+class GitLogInput(SandboxInput):
     max_count: int = Field(default=10, ge=1, le=50)
     path: str | None = Field(default=None, min_length=1)
 
@@ -112,7 +112,7 @@ class GitLogTool(Tool[GitLogInput]):
         )
 
 
-class GitDiffInput(ToolInput):
+class GitDiffInput(SandboxInput):
     staged: bool = False
     path: str | None = Field(default=None, min_length=1)
     offset: int = Field(default=0, ge=0)

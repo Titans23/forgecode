@@ -66,6 +66,24 @@ def terminal_with_output() -> tuple[TerminalUI, StringIO]:
     return TerminalUI(console=console), output
 
 
+def test_pending_tool_reports_received_bytes_without_claiming_execution():
+    view = terminal_module.StreamingResponseView(Console(file=StringIO(), width=110))
+    view.prepare_tool(0, 'write_file')
+    view.append_tool_arguments(0, '中' * 1024)
+    assert 'write_file · 3.0 KB · 未执行' in view.phase
+    assert not view.timeline
+    view.prepare_tool(1, 'git_status')
+    view.append_tool_arguments(1, '{}')
+    view.append_tool_arguments(0, 'a' * 1024)
+    assert 'write_file · 4.0 KB · 未执行' in view.phase
+    view.start_tool(ToolCall(0, 'write', 'write_file', {'path': 'output.html', 'content': 'done'}))
+    assert view.phase == '正在运行 write_file'
+    view.model_started()
+    view.prepare_tool(0, 'write_file')
+    view.append_tool_arguments(0, 'a' * 1024)
+    assert '1.0 KB' in view.phase
+
+
 def test_saved_history_limits_user_turns_and_summarizes_tools():
     terminal, output = terminal_with_output()
     messages = []

@@ -701,6 +701,7 @@ class StreamingResponseView:
         self.started = monotonic()
         self.phase = '正在准备请求'
         self.expanded = False
+        self.pending_tools: dict[int, tuple[str, int]] = {}
 
     def __enter__(self) -> StreamingResponseView:
         self.console.print()
@@ -771,7 +772,18 @@ class StreamingResponseView:
         self._refresh()
 
     def model_started(self) -> None:
+        self.pending_tools.clear()
         self.set_phase('正在等待模型')
+
+    def prepare_tool(self, index: int, name: str) -> None:
+        self.pending_tools[index] = (name, 0)
+        self.set_phase(f'正在生成参数 · {name} · 未执行')
+
+    def append_tool_arguments(self, index: int, text: str) -> None:
+        name, size = self.pending_tools.get(index, ('工具', 0))
+        size += len(text.encode('utf-8'))
+        self.pending_tools[index] = (name, size)
+        self.set_phase(f'正在生成参数 · {name} · {size / 1024:.1f} KB · 未执行')
 
     def append_reasoning(self, text: str) -> None:
         if not text:

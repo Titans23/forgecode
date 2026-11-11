@@ -83,7 +83,7 @@ class PolicyToolBackend(FileToolBackend):
         """Called only by ToolExecutor after an exact, one-call widening approval."""
         if self._closing is not None:
             return ToolResult.fail('SANDBOX_UNAVAILABLE', 'Execution session is closed')
-        if (call.name not in PROCESS_TOOLS | MUTATION_TOOLS or self._mode_factory is None
+        if (call.name not in NATIVE_TOOLS | MUTATION_TOOLS or self._mode_factory is None
                 or mode not in {'read-only': ('workspace-write', 'full-access'),
                                'workspace-write': ('full-access',)}.get(self.mode, ())):
             return ToolResult.fail('CAPABILITY_UNSATISFIED', 'This backend cannot apply the approved command mode')

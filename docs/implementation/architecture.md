@@ -22,7 +22,7 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 `forge.execution` 定义不含模型凭据的执行请求及后端契约；coding 的内置 `native` 提供方按选择延迟加载，core 不依赖它。内置提供方先绑定可信文件路径策略，PolicyToolBackend 在命令、verify 或 Git 调用前才准备原生进程后端；文件操作不等待 OS 探针。可信插件通过 `register_sandbox_provider` 注册，AgentDefinition 显式选择；配置为 None 的 coding 组合默认走宿主执行，原 coding 默认仍为 workspace-write。提供方失败不回退，子任务不能更换父提供方；会话先关闭模型与执行后端，再释放插件资源。原生提供方沿用现有平台实现与证据限制。
 
-文件修改和命令工具的 `SandboxInput` 共享 DSH 的 `sandbox_permissions` / `justification`。ToolExecutor 在最终参数与任务范围检查后要求单独的 allow_once，已有 allow 规则不能绕过。显式模式下普通内置工具遵循沙盒策略，不使用旧命令/敏感名称启发式作为拒绝依据；工具提供的显式限制和用户 deny 规则继续有效。文件修改通过临时后端完成快照、执行与结果观察，控制字段不进入命令或存储的 verify 定义；原生执行依旧按需准备。清理失败保留 indeterminate；单次授权不会替换默认策略或泄漏给下一次调用。旧的无 execution_mode 接口保留历史兼容语义。
+文件修改、命令和 Git 查询工具的 `SandboxInput` 共享 DSH 的 `sandbox_permissions` / `justification`。ToolExecutor 在最终参数与任务范围检查后要求单独的 allow_once，已有 allow 规则不能绕过。显式模式下普通内置工具遵循沙盒策略，不使用旧命令/敏感名称启发式作为拒绝依据；工具提供的显式限制和用户 deny 规则继续有效。文件修改通过临时后端完成快照、执行与结果观察，控制字段不进入命令或存储的 verify 定义；原生执行依旧按需准备。清理失败保留 indeterminate；单次授权不会替换默认策略或泄漏给下一次调用。旧的无 execution_mode 接口保留历史兼容语义。
 
 `select_session_mode` 是会话沙盒切换入口：只在空闲时准备新提供方，确认旧资源清理后追加 `sandbox_mode_changed`，同步切换 Executor、observer、Explore 后端和子任务默认值。模式与审批策略由 SessionState 重放；恢复沿用已记录选择，分支复制，清空回到启动默认值。Journal 失败或取消不发布新权限。核心 Agent 不加载沙盒；插件/MCP 的独立 JSON Schema 工具不被误当作内置 Pydantic 授权输入。
 
@@ -140,6 +140,7 @@ API 接受字符串或类型明确的 text/image blocks，CLI 的 @path 支持�
 终端生成预览与输入共用 prompt_toolkit 的差量渲染，按实际终端行宽截取预览，停止输入读取后只打印一次最终 Rich Markdown；不再叠加 Rich Live 的定时重绘。重定向和 dumb 终端直接输出文本增量，取消/异常保留已到达的文本与未确认工具状态。
 交互提示使用同一 renderer 的 120ms 刷新显示等待动画和用时；运行中的输入在结束时擦除并保留草稿，避免把空提示符留在回答中。ModelReasoningDelta 单独传递提供方的可读思考/摘要，Runner 不将其拼入答案，已显示的思考也会关闭透明重试边界；原 ModelProviderState 继续独立持有不透明续传状态。默认思考单行、工具摘要，Ctrl+O 展开有界预览；完成后的详情窗口复用 prompt_toolkit，保留完整当前回合内容、滚动和搜索，返回时恢复输入，不执行工具。切换会话清除旧详情；轨迹仍跳过高频文本/思考增量。
 恢复选择器按更新时间倒序排列已保存会话并标记当前项，包含延迟保存的新会话；选择当前项是无副作用操作，不为展示创建空 Journal。审批使用无编号 RadioList，单次授权仍不能记为会话规则。启动卡片展示模型、工作区与快捷入口；动态计时标为本轮累计。
+CLI 消费 ModelToolCallArgumentsDelta，按请求内工具索引累计 UTF-8 参数字节，显示 KB 与“未执行”；计数在新模型请求重置，不把未完成的参数标成已执行，也不额外保存参数正文。
 原生 runner 与初始化阶段的 SANDBOX_UNAVAILABLE 共用恢复提示，明确命令未启动及单次授权路径。Executor 只在可信失败结果确认 command_started=false 时记为 rejected，并跳过环境版本推进与执行后扫描；不自动切换宿主、不修改 ACL，也不缓存故障来禁止后续显式操作。
 恢复展示从 Journal 原始消息重建，独立于压缩后的模型上下文；默认最近 10 轮，支持完整历史。
 

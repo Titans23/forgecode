@@ -18,6 +18,8 @@ from forge.config import ConfigurationError
 from forge.runtime.state import (
     ConversationEvent,
     ModelTextDelta,
+    ModelToolCallStarted,
+    ModelToolCallArgumentsDelta,
     ModelUsageUpdate,
     TokenUsage,
     ToolCall,
@@ -220,6 +222,12 @@ class FakeResponseView:
     def append_text(self, text: str) -> None:
         self.actions.append(('text', text))
 
+    def prepare_tool(self, index: int, name: str) -> None:
+        self.actions.append(('tool_preparing', (index, name)))
+
+    def append_tool_arguments(self, index: int, text: str) -> None:
+        self.actions.append(('tool_arguments', (index, text)))
+
     def update_usage(
         self,
         usage: TokenUsage,
@@ -306,6 +314,8 @@ def test_stream_events_are_forwarded_to_live_view() -> None:
         ModelUsageUpdate(usage=initial_usage),
         ModelTextDelta(text='Hel'),
         ModelTextDelta(text='lo'),
+        ModelToolCallStarted(0, tool_call.id, tool_call.name),
+        ModelToolCallArgumentsDelta(0, '{"path":"README.md"}'),
         ToolExecutionStarted(tool_call=tool_call),
         ToolExecutionCompleted(
             tool_call=tool_call,
@@ -334,6 +344,8 @@ def test_stream_events_are_forwarded_to_live_view() -> None:
         ('usage', initial_usage),
         ('text', 'Hel'),
         ('text', 'lo'),
+        ('tool_preparing', (0, 'read_file')),
+        ('tool_arguments', (0, '{"path":"README.md"}')),
         ('tool_started', tool_call),
         ('tool_completed', (tool_call, tool_result)),
         ('usage', final_usage),
