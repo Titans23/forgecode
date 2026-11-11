@@ -7,6 +7,16 @@ import sys
 
 from scripts.model_regression import frozen_task,grade
 
+
+def test_historical_budget_is_not_silently_ignored_before_execution(tmp_path):
+    from scripts.model_regression import attempt
+    import pytest
+    for key in ('max_model_requests_per_attempt', 'max_tool_calls_per_attempt'):
+        destination = tmp_path / key
+        with pytest.raises(ValueError, match='frozen source'):
+            asyncio.run(attempt(destination, tmp_path / 'missing-task', {}, None, {key: 1}, 'unused'))
+        assert not destination.exists()
+
 def test_independent_grader_rejects_stub_and_accepts_delivered_behavior(tmp_path):
     tests={'answer_test.py':b'import unittest\nfrom answer import answer\nclass Tests(unittest.TestCase):\n def test_negative(self): self.assertEqual(answer(-4), -3)\n def test_zero(self): self.assertEqual(answer(0), 1)\n'}
     async def scenario():

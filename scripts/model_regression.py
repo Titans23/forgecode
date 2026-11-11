@@ -80,6 +80,8 @@ async def grade(directory,public,tests):
         'runner_sha256':sha256(GRADER_PROGRAM.encode()).hexdigest(),'output_sha256':sha256((process.stdout+process.stderr).encode()).hexdigest()}
 
 async def attempt(directory,task,schedule,config,budget,trial_id):
+    if {'max_model_requests_per_attempt', 'max_tool_calls_per_attempt'} & budget.keys():
+        raise ValueError('Harness budgets have been removed; run historical capped experiments with their frozen source')
     directory.mkdir()
     project=directory/'project';project.mkdir()
     public,tests,instructions=frozen_task(task)
@@ -103,9 +105,7 @@ async def attempt(directory,task,schedule,config,budget,trial_id):
     try:
         bindings=RuntimeBindings(config=config,data_root=directory/'harness',
             permission_manager=PermissionManager(project,mode='auto',load_stored_rules=False),
-            backend=LocalTrustedBackend(),recorder=recorder,trusted_extensions=False,task_relation='new',
-            max_model_calls=budget['max_model_requests_per_attempt'],max_tool_calls=budget['max_tool_calls_per_attempt'],
-            wall_seconds=budget['attempt_wall_seconds'])
+            backend=LocalTrustedBackend(),recorder=recorder,trusted_extensions=False,task_relation='new')
         conversation,journal,_=create_runtime(project,bindings=bindings,task_policy=policy)
         async with asyncio.timeout(budget['attempt_wall_seconds']+10):
             async for event in conversation.stream(prompt):
