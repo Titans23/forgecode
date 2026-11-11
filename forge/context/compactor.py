@@ -124,7 +124,12 @@ async def summarize_history(
     task_goal: str = '',
 ) -> FullCompactionResult:
     '''Ask the configured model only for a structured continuity summary.'''
-    transcript = json.dumps(describe_images(messages), ensure_ascii=False, default=str)
+    # Summarize canonical history, not opaque signatures or a duplicate native
+    # replay array. Retained messages keep their original state unchanged.
+    transcript = json.dumps(describe_images([
+        {key: value for key, value in message.items() if key != 'provider_state'}
+        for message in messages
+    ]), ensure_ascii=False, default=str)
     prompt = (
         'Summarize this ForgeCode task history as one JSON object. '
         'Return JSON only, with fields goal, constraints, findings, '

@@ -12,8 +12,10 @@ from test_rpc import seed, launch, initialize, send, receive, stop
 def test_real_engine_wait_is_queryable_and_only_exact_main_grant_runs_tool(tmp_path, decision):
     fixture, _, turn = seed(tmp_path)
     value = json.loads(fixture.read_text())
-    value['allowed_tools'] = ['apply_patch', 'finish_task']
-    value['responses'][0]['tool_calls'] = [{'id': 'delete', 'name': 'apply_patch',
+    value['allowed_tools'] = ['read_file', 'apply_patch', 'finish_task']
+    value['responses'][0]['tool_calls'] = [
+        {'id': 'read-before-delete', 'name': 'read_file', 'arguments': {'path': 'value.txt'}},
+        {'id': 'delete', 'name': 'apply_patch',
         'arguments': {'patch': '*** Begin Patch\n*** Delete File: value.txt\n*** End Patch'}}]
     fixture.write_text(json.dumps(value), encoding='utf-8')
     async def run():

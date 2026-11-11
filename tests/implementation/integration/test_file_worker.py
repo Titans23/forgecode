@@ -76,7 +76,7 @@ def test_trusted_helper_drains_large_checkpoint_without_truncating_or_blocking(t
     async def run():
         client = FileWorkerClient(workspace, policy, local_control=control)
         try:
-            result = await asyncio.wait_for(client.snapshot(('large.txt',)), 15)
+            result = await asyncio.wait_for(client.snapshot(('large.txt',), include_content=True), 15)
             value = result['files']['large.txt']
             assert result['complete'] and base64.b64decode(value['content_base64']) == content
             assert value['sha256'] == sha256(content).hexdigest()

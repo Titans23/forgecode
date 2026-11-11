@@ -12,7 +12,9 @@ from test_application import setup, ScriptedClient
 
 
 def deletion_script():
-    return [[ModelUsageUpdate(TokenUsage(10, 2)), ModelToolCallCompleted(ToolCall(0, 'delete', 'apply_patch', {'patch': '*** Begin Patch\n*** Delete File: value.txt\n*** End Patch'}))],
+    return [[ModelUsageUpdate(TokenUsage(10, 2)),
+        ModelToolCallCompleted(ToolCall(0, 'read-before-delete', 'read_file', {'path': 'value.txt'})),
+        ModelToolCallCompleted(ToolCall(1, 'delete', 'apply_patch', {'patch': '*** Begin Patch\n*** Delete File: value.txt\n*** End Patch'}))],
         [ModelUsageUpdate(TokenUsage(10, 2)), ModelToolCallCompleted(ToolCall(0, 'finish', 'finish_task', {'task_kind': 'answer', 'status': 'completed', 'summary': 'The exact deletion finished.'}))]]
 
 
@@ -29,7 +31,7 @@ async def pending(service, store, turn):
             await asyncio.sleep(.01)
 
 
-@pytest.mark.parametrize('change', [False, True])
+@pytest.mark.parametrize('change', [False, True, 'unrelated'])
 def test_real_approval_wait_binds_exact_deletion_and_rejects_changed_workspace(tmp_path, change):
     client = ScriptedClient(deletion_script())
     service, store, _, _, _, turn = setup(tmp_path, factory=lambda *args, **kwargs: client)
@@ -41,9 +43,14 @@ def test_real_approval_wait_binds_exact_deletion_and_rejects_changed_workspace(t
             path = tmp_path / 'project/value.txt'
             try:
                 assert path.exists() and approval['state'] == 'pending'
+                consent_tracker = service.approvals.pending[approval['approval_id']][1]
+                turn_tracker = service.approvals.pending[approval['approval_id']][3].tracker
+                assert consent_tracker is not turn_tracker and not turn_tracker.full_inventory
                 assert store.connection.execute('SELECT state FROM turns WHERE id=?', (approval['turn_id'],)).fetchone()[0] == 'awaiting_approval'
                 challenge = await service.approvals.prepare({'approval_id': approval['approval_id'], 'binding_hash': approval['binding_hash']})
-                if change:
+                if change == 'unrelated':
+                    (path.parent / 'unrelated.txt').write_text('Changed during consent', encoding='utf-8')
+                elif change:
                     path.write_text('User changed the file during approval', encoding='utf-8')
                 params = {'client_action_id': new_id('act'), 'approval_id': approval['approval_id'],
                     'binding_hash': approval['binding_hash'], 'decision': 'approve', 'confirmation_token': challenge['confirmation_token']}
@@ -57,7 +64,7 @@ def test_real_approval_wait_binds_exact_deletion_and_rejects_changed_workspace(t
                     assert (await service.approvals.decide(params))['reused_existing_action'] is True
                 await task
                 if change:
-                    assert path.read_text() == 'User changed the file during approval'
+                    assert path.read_text() == ('B' if change == 'unrelated' else 'User changed the file during approval')
                 else:
                     assert not path.exists()
                     assert service.approvals.get({'approval_id': approval['approval_id']})['state'] == 'consumed'
@@ -94,7 +101,7 @@ def test_forged_binding_and_expired_nonce_never_authorize_real_write(tmp_path):
         store.close()
 
 
-@pytest.mark.parametrize('operation', ['deny', 'cancel', 'arguments_change'])
+@pytest.mark.parametrize('operation', ['deny', 'cancel', 'arguments_change', 'environment_change'])
 def test_denial_cancellation_and_changed_final_arguments_do_not_delete(tmp_path, operation):
     client = ScriptedClient(deletion_script())
     service, store, _, _, _, turn = setup(tmp_path, factory=lambda *args, **kwargs: client)
@@ -106,8 +113,12 @@ def test_denial_cancellation_and_changed_final_arguments_do_not_delete(tmp_path,
                 challenge = await service.approvals.prepare({'approval_id': approval['approval_id'], 'binding_hash': approval['binding_hash']})
                 params = {'client_action_id': new_id('act'), 'approval_id': approval['approval_id'], 'binding_hash': approval['binding_hash'],
                     'confirmation_token': challenge['confirmation_token'], 'decision': 'deny'}
-                if operation == 'arguments_change':
-                    service.approvals.pending[approval['approval_id']][3].call.arguments['patch'] += '\nchanged'
+                if operation in ('arguments_change', 'environment_change'):
+                    context = service.approvals.pending[approval['approval_id']][3]
+                    if operation == 'arguments_change':
+                        context.call.arguments['patch'] += '\nchanged'
+                    else:
+                        context.tracker.mark_environment_change()
                     params['decision'] = 'approve'
                     with pytest.raises(ContractError): await service.approvals.decide(params)
                 elif operation == 'deny':

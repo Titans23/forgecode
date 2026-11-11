@@ -49,6 +49,20 @@ def valid_summary() -> str:
     )
 
 
+def test_summary_excludes_opaque_replay_but_retained_messages_keep_it():
+    from forge.context.compactor import summarize_history
+    state = {'provider': 'anthropic', 'data': {'model': 'test', 'content': [
+        {'type': 'thinking', 'thinking': 'private-reasoning', 'signature': 'opaque-signature'},
+        {'type': 'text', 'text': 'working'}]}}
+    history = [{'role': 'assistant', 'content': 'working', 'provider_state': state}]
+    client = SummaryClient(valid_summary())
+    result = asyncio.run(summarize_history(client, history, retained_messages=history))
+    prompt = client.calls[0]['messages'][0]['content']
+    assert 'working' in prompt and 'opaque-signature' not in prompt and 'private-reasoning' not in prompt
+    assert result.messages[-1]['provider_state'] == state
+    assert history[0]['provider_state'] == state
+
+
 def test_forced_compaction_preserves_structured_state_and_transcript(
     tmp_path: Path,
 ) -> None:

@@ -19,6 +19,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.shortcuts import choice
 from prompt_toolkit.styles import Style
 from rich.console import Console, Group
+from rich.cells import cell_len
 from rich.markdown import Markdown
 from rich.markup import escape
 from rich.panel import Panel
@@ -717,6 +718,10 @@ class StreamingResponseView:
         self._published = False
         self._line_open = False
         self.started = monotonic()
+        self.activity_started = self.started
+        self.last_received = self.started
+        self.received_bytes = 0
+        self.waiting_model = False
         self.phase = '正在准备请求'
         self.expanded = False
         self.pending_tools: dict[int, tuple[str, int]] = {}
@@ -761,7 +766,10 @@ class StreamingResponseView:
             return []
         size = self.prompt.app.output.get_size()
         width = max(1, min(size.columns, self.console.width))
-        height = max(1, min(size.rows, self.console.height) - 6)
+        draft_rows = sum(max(1, (cell_len(line) + 2 + width - 1) // width)
+                         for line in self.prompt.default_buffer.text.split('\n'))
+        menu_rows = self.prompt.reserve_space_for_menu if self.prompt.completer is not None else 0
+        height = max(1, min(size.rows, self.console.height) - max(6, menu_rows + 2, draft_rows + 2))
         # Measure wrapped terminal rows (including wide Chinese characters),
         # not source newlines, so the draft never scrolls into saved output.
         rows = self.console.render_lines(self._render(), self.console.options.update(width=width), pad=False)
@@ -791,13 +799,22 @@ class StreamingResponseView:
 
     def model_started(self) -> None:
         self.pending_tools.clear()
+        self.activity_started = self.last_received = monotonic()
+        self.received_bytes = 0
+        self.waiting_model = True
         self.set_phase('正在等待模型')
+
+    def _received(self, text: str) -> None:
+        if text:
+            self.received_bytes += len(text.encode('utf-8'))
+            self.last_received = monotonic()
 
     def prepare_tool(self, index: int, name: str) -> None:
         self.pending_tools[index] = (name, 0)
         self.set_phase(f'正在生成参数 · {name} · 未执行')
 
     def append_tool_arguments(self, index: int, text: str) -> None:
+        self._received(text)
         name, size = self.pending_tools.get(index, ('工具', 0))
         size += len(text.encode('utf-8'))
         self.pending_tools[index] = (name, size)
@@ -806,6 +823,7 @@ class StreamingResponseView:
     def append_reasoning(self, text: str) -> None:
         if not text:
             return
+        self._received(text)
         if self.timeline and isinstance(self.timeline[-1], _ReasoningTimelineBlock):
             self.timeline[-1].text += text
         else:
@@ -863,6 +881,7 @@ class StreamingResponseView:
 
     def append_text(self, text: str) -> None:
         '''Append one provider text delta and refresh immediately.'''
+        self._received(text)
         if (
             self.timeline
             and isinstance(self.timeline[-1], _TextTimelineBlock)
@@ -891,6 +910,8 @@ class StreamingResponseView:
 
     def start_tool(self, tool_call: ToolCall) -> None:
         '''Show a model-requested tool while it is executing.'''
+        self.waiting_model = False
+        self.activity_started = monotonic()
         if (
             self.timeline
             and isinstance(self.timeline[-1], _ToolTimelineBlock)
@@ -985,8 +1006,17 @@ class StreamingResponseView:
         if not self.completed:
             frames = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
             frame = frames[int(elapsed / .12) % len(frames)]
-            renderables.append(Text(f'{frame} {self.phase} · 本轮 {elapsed:.1f}s  '
-                + ('Ctrl+O 收起详情' if self.expanded else 'Ctrl+O 展开详情'), style='bright_cyan', no_wrap=True, overflow='ellipsis'))
+            now = monotonic()
+            timing = f'请求 {now - self.activity_started:.1f}s' if self.waiting_model else f'当前 {now - self.activity_started:.1f}s'
+            renderables.append(Text(f'{frame} {self.phase} · {timing}', style='bright_cyan', no_wrap=True, overflow='ellipsis'))
+            progress = f'本轮 {elapsed:.1f}s'
+            if self.waiting_model:
+                progress += f' · 已接收 {self.received_bytes / 1024:.1f} KB'
+                idle = now - self.last_received
+                if idle >= 5:
+                    progress += f' · {idle:.0f}s 无新内容'
+            renderables.append(Text(progress + ' · ' + ('Ctrl+O 收起详情' if self.expanded else 'Ctrl+O 展开详情'),
+                style='dim', no_wrap=True, overflow='ellipsis'))
         else:
             usage = self.usage
             line = f'↳ {elapsed:.1f}s'

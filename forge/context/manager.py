@@ -158,6 +158,13 @@ def measure_messages(
     total = 0
     tool_results = 0
     for message in messages:
+        state = message.get('provider_state', {})
+        if state.get('provider') == 'anthropic' and isinstance(state.get('data', {}).get('content'), list):
+            # Native replay replaces canonical content on the wire; counting
+            # both would double-count tool arguments/text and compact too soon.
+            message = {key: value for key, value in message.items() if key != 'provider_state'} | {
+                'content': state['data']['content'],
+            }
         total += len(json.dumps(message, ensure_ascii=False, default=str))
         content = message.get('content')
         if not isinstance(content, list):

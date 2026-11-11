@@ -83,6 +83,14 @@ class ApprovalService:
         if context is None or context.tracker is None or request.hard_deny:
             return ApprovalResponse('deny', 'Exact trusted execution context is unavailable')
         tracker = context.tracker
+        if not tracker.full_inventory:
+            # Legacy RPC consent binds the whole workspace. Capture only when
+            # that consent is needed, without replacing the coding turn's
+            # target observations or requiring inventory on ordinary requests.
+            from forge.runtime.workspace import WorkspaceTracker
+            tracker = WorkspaceTracker(tracker.root, observer=tracker.observer)
+            await tracker.begin_turn()
+            tracker.environment_epoch = context.tracker.environment_epoch
         await tracker.watch_paths_async(tuple(request.targets))
         await tracker.refresh()
         if not tracker.available:
@@ -149,7 +157,7 @@ class ApprovalService:
         self.service._workspace(value['workspace_id'], expected_revision=row['database_revision'], execution=True)
         policy_hash = self.store.connection.execute('SELECT hash FROM policies WHERE id=?', (configuration['policy_id'],)).fetchone()[0]
         turn = self.store.connection.execute('SELECT state FROM turns WHERE id=?', (row['turn_id'],)).fetchone()
-        if not tracker.available or tracker.revision != value['workspace_revision'] or tracker.environment_epoch != row['environment_epoch'] or policy_hash != value['policy_hash'] or turn['state'] != 'awaiting_approval':
+        if not tracker.available or tracker.revision != value['workspace_revision'] or context.tracker.environment_epoch != row['environment_epoch'] or policy_hash != value['policy_hash'] or turn['state'] != 'awaiting_approval':
             refuse('Workspace, policy, environment or turn changed', 'STALE_REVISION')
         return value
 

@@ -30,6 +30,7 @@ from forge.runtime.state import (
     ModelStreamEvent,
     ModelTextDelta,
     ModelReasoningDelta,
+    ModelProviderState,
     ModelToolCallArgumentsDelta,
     ModelToolCallCompleted,
     ModelToolCallStarted,
@@ -145,8 +146,17 @@ class AnthropicModelClient:
         tools: list[dict[str, Any]] | None = None,
         system: str | None = None,
     ) -> AsyncIterator[ModelStreamEvent]:
+        wire_messages = []
+        for message in messages:
+            wire = {key: value for key, value in message.items() if key != 'provider_state'}
+            state = message.get('provider_state', {})
+            if message.get('role') == 'assistant' and state.get('provider') == self.provider:
+                data = state.get('data', {})
+                if data.get('model') == self.model and isinstance(data.get('content'), list):
+                    wire['content'] = data['content']
+            wire_messages.append(wire)
         output_tokens = request_output_tokens(context_stats(
-            messages, system_prompt=system or '', tools=tools,
+            wire_messages, system_prompt=system or '', tools=tools,
             context_window_tokens=self.context_window, reserved_output_tokens=self.max_tokens,
         ))
         if output_tokens <= 0:
@@ -154,8 +164,7 @@ class AnthropicModelClient:
         sdk_arguments: dict[str, Any] = {
             'model': self.model,
             'max_tokens': output_tokens,
-            'messages': [{key: value for key, value in message.items() if key != 'provider_state'}
-                         for message in messages],
+            'messages': wire_messages,
         }
         if self.reasoning_effort:
             sdk_arguments['output_config'] = {'effort': self.reasoning_effort}
@@ -299,6 +308,7 @@ class AnthropicModelClient:
         provider_request_id = returned_model = None
         semantic_output = False
         text_blocks: dict[int, str] = {}
+        signatures: dict[int, str] = {}
         completed_blocks: dict[int, ToolCall] = {}
         tool_ids: set[str] = set()
         pending_tool_calls: dict[int, _PendingToolCall] = {}
@@ -323,6 +333,14 @@ class AnthropicModelClient:
                 elif event.type == 'content_block_delta' and event.delta.type == 'thinking_delta':
                     semantic_output = True
                     yield ModelReasoningDelta(event.delta.thinking, event.index)
+                elif event.type == 'content_block_start' and event.content_block.type == 'thinking':
+                    signature = getattr(event.content_block, 'signature', None)
+                    if signature is not None:
+                        signatures[event.index] = signature
+                elif event.type == 'content_block_delta' and event.delta.type == 'signature_delta':
+                    # DSH concatenates signature fragments. The SDK snapshot
+                    # currently replaces them, losing all but the last delta.
+                    signatures[event.index] = signatures.get(event.index, '') + event.delta.signature
                 elif (
                     event.type == 'content_block_start'
                     and event.content_block.type == 'tool_use'
@@ -472,6 +490,20 @@ class AnthropicModelClient:
                 '(stop_reason=%s).' % (stop_reason or 'unknown'),
                 reason='empty_model_response',
             )
+        # Signed thinking is opaque replay state, not answer text. Preserve the
+        # entire completed content array: interleaved block order also matters.
+        # Never publish replay state for interrupted/truncated/invalid responses.
+        if isinstance(final_content, list) and any(
+            block.type in ('thinking', 'redacted_thinking') for block in final_content
+        ):
+            replay_content = [block.model_dump(mode='json', exclude_none=True) for block in final_content]
+            for index, signature in signatures.items():
+                if index < len(replay_content) and replay_content[index]['type'] == 'thinking':
+                    replay_content[index]['signature'] = signature
+            yield ModelProviderState(self.provider, {
+                'model': self.model,
+                'content': replay_content,
+            })
         yield ModelResponseCompleted(stop_reason=stop_reason)
 
 

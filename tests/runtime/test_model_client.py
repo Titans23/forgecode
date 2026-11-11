@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from types import SimpleNamespace
 from typing import Any
 
 import httpx
 import pytest
+from anthropic.types import ThinkingBlock, TextBlock, ToolUseBlock, RedactedThinkingBlock
 
 from forge.config import ForgeConfig
 import forge.runtime.model_client as model_client_module
@@ -20,6 +22,7 @@ from forge.runtime.model_client import (
 from forge.runtime.state import (
     ModelTextDelta,
     ModelReasoningDelta,
+    ModelProviderState,
     ModelToolCallArgumentsDelta,
     ModelToolCallCompleted,
     ModelToolCallStarted,
@@ -99,11 +102,61 @@ def test_anthropic_thinking_deltas_are_separate_from_answer_text():
         delta=SimpleNamespace(type='thinking_delta', thinking='Provider-visible reasoning')),
         SimpleNamespace(type='content_block_delta', index=1,
         delta=SimpleNamespace(type='text_delta', text='ok'))]
-    sdk.messages.final_message.content = [SimpleNamespace(type='thinking', thinking='Provider-visible reasoning', signature='opaque'),
-                                         SimpleNamespace(type='text', text='ok')]
+    sdk.messages.final_message.content = [ThinkingBlock(type='thinking', thinking='Provider-visible reasoning', signature='opaque'),
+                                         TextBlock(type='text', text='ok')]
     events = collect_stream(AnthropicModelClient(model='test', client=sdk), messages=[])
     assert events[0] == ModelReasoningDelta('Provider-visible reasoning', 0)
     assert [e.text for e in events if isinstance(e, ModelTextDelta)] == ['ok']
+
+
+def test_anthropic_replays_complete_signed_content_after_serialization():
+    from forge.context.manager import measure_messages
+    from forge.runtime.model_registry import portable_history
+    sdk = FakeAnthropic()
+    blocks = [ThinkingBlock(type='thinking', thinking='检查\n输入', signature='signed-one'),
+              TextBlock(type='text', text='Checking.'),
+              RedactedThinkingBlock(type='redacted_thinking', data='opaque-redaction'),
+              ToolUseBlock(type='tool_use', id='read-1', name='read_file', input={'path': 'a'}),
+              ThinkingBlock(type='thinking', thinking='next', signature='signed-two')]
+    sdk.messages.final_message.content = blocks
+    sdk.messages.final_message.stop_reason = 'tool_use'
+    client = AnthropicModelClient(model='test', client=sdk)
+    events = collect_stream(client, messages=[], tools=[{'name': 'read_file'}])
+    state = next(e for e in events if isinstance(e, ModelProviderState))
+    canonical = [{'type': 'text', 'text': 'Checking.'}, blocks[3].model_dump()]
+    history = json.loads(json.dumps([{'role': 'assistant', 'content': canonical,
+        'provider_state': {'provider': state.provider, 'data': state.data}},
+        {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'read-1', 'content': 'a'}]}]))
+    original = json.dumps(history)
+    collect_stream(client, messages=history, tools=[{'name': 'read_file'}])
+    wire = sdk.messages.calls[-1]['messages']
+    assert wire[0]['content'] == [b.model_dump(mode='json', exclude_none=True) for b in blocks]
+    assert all('provider_state' not in m for m in wire)
+    assert measure_messages(history) == measure_messages(wire)
+    assert json.dumps(history) == original
+    assert 'signed-one' not in json.dumps(portable_history(history))
+    client.model = 'different-model'
+    collect_stream(client, messages=history, tools=[{'name': 'read_file'}])
+    assert sdk.messages.calls[-1]['messages'][0]['content'] == canonical
+    history[0]['provider_state']['provider'] = 'deepseek'
+    client.model = 'test'
+    collect_stream(client, messages=history, tools=[{'name': 'read_file'}])
+    assert sdk.messages.calls[-1]['messages'][0]['content'] == canonical
+
+
+@pytest.mark.parametrize('stop_reason', ['max_tokens', None])
+def test_incomplete_thinking_has_no_replay_state(stop_reason):
+    sdk = FakeAnthropic()
+    sdk.messages.final_message.content = [ThinkingBlock(type='thinking', thinking='partial', signature=''),
+                                         TextBlock(type='text', text='unfinished')]
+    sdk.messages.final_message.stop_reason = stop_reason
+    async def run():
+        events = []
+        with pytest.raises((ModelProtocolError, ModelOutputTruncatedError)):
+            async for event in AnthropicModelClient(model='test', client=sdk).stream([]):
+                events.append(event)
+        assert not any(isinstance(e, ModelProviderState) for e in events)
+    asyncio.run(run())
 
 
 def test_mixed_stream_final_content_does_not_drop_tool_block():

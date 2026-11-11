@@ -84,6 +84,34 @@ def test_pending_tool_reports_received_bytes_without_claiming_execution():
     assert '1.0 KB' in view.phase
 
 
+def test_model_wait_progress_uses_current_request_and_real_received_bytes(monkeypatch):
+    now = 100.0
+    monkeypatch.setattr(terminal_module, 'monotonic', lambda: now)
+    output = StringIO()
+    console = Console(file=output, width=160, color_system=None)
+    view = terminal_module.StreamingResponseView(console)
+    view.model_started()
+    now += 12
+    console.print(view._render())
+    assert '请求 12.0s' in output.getvalue() and '12s 无新内容' in output.getvalue()
+    view.append_reasoning('中' * 1024)
+    view.prepare_tool(0, 'write_file')
+    view.append_tool_arguments(0, 'a' * 1024)
+    output.truncate(0)
+    output.seek(0)
+    now += 2
+    console.print(view._render())
+    assert '已接收 4.0 KB' in output.getvalue() and '未执行' in output.getvalue()
+    assert '无新内容' not in output.getvalue()
+    view.model_started()
+    now += 7
+    output.truncate(0)
+    output.seek(0)
+    console.print(view._render())
+    assert '请求 7.0s' in output.getvalue() and '本轮 21.0s' in output.getvalue()
+    assert '已接收 0.0 KB' in output.getvalue()
+
+
 def test_partial_inventory_is_a_visible_limitation_not_a_failed_delivery():
     from forge.runtime.delivery import completion_report
     report = completion_report(status='completed', evidence=(), workspace_revision=1, environment_epoch=0,
@@ -834,6 +862,54 @@ def test_dumb_terminal_streams_without_cursor_renderer(monkeypatch):
         assert 'Already visible' in output.getvalue()
         view.complete(TurnResult(text='Already visible', usage=TokenUsage(10, 2)))
     assert output.getvalue().count('Already visible') == 1
+
+
+def test_long_tool_history_keeps_wait_animation_visible_with_completion_menu():
+    async def run():
+        output = StringIO()
+        console = Console(file=output, force_terminal=True, width=80, height=24)
+        class SizedOutput(DummyOutput):
+            def get_size(self):
+                from prompt_toolkit.data_structures import Size
+                return Size(rows=24, columns=80)
+        with create_pipe_input() as pipe:
+            # Use the actual CLI's completion reservation, absent from earlier
+            # preview tests. It competes with the timeline for terminal rows.
+            prompt = PromptSession(input=pipe, output=SizedOutput(),
+                completer=SLASH_COMMAND_COMPLETER, reserve_space_for_menu=8)
+            terminal = TerminalUI(console=console, prompt_session=prompt)
+            rendered = asyncio.Event()
+            prompt.app.after_render += lambda app: rendered.set()
+            def screen():
+                value = prompt.app.renderer._last_screen
+                return '' if value is None else '\n'.join(''.join(c.char for _, c in sorted(row.items()))
+                    for _, row in sorted(value.data_buffer.items()))
+            async def wait_for(predicate):
+                async with asyncio.timeout(3):
+                    while not predicate():
+                        rendered.clear()
+                        await rendered.wait()
+            with terminal.stream_response() as view:
+                for i in range(12):
+                    view.append_reasoning('正在检查第 ' + str(i) + ' 步')
+                    call = ToolCall(0, str(i), 'run_command', {'command': 'echo ok'})
+                    view.start_tool(call)
+                    view.complete_tool(call, ToolResult.ok('ok'))
+                view.model_started()
+                reader = asyncio.create_task(terminal.read_prompt_async())
+                try:
+                    await wait_for(lambda: '正在等待模型' in screen())
+                    previous = screen()
+                    await wait_for(lambda: screen() != previous)
+                    pipe.send_text('保留草稿')
+                    await wait_for(lambda: prompt.default_buffer.text == '保留草稿')
+                    pipe.send_text('\x0f')
+                    await wait_for(lambda: view.expanded and '正在等待模型' in screen())
+                    assert prompt.default_buffer.text == '保留草稿'
+                finally:
+                    reader.cancel()
+                    await asyncio.gather(reader, return_exceptions=True)
+    asyncio.run(run())
 
 
 def test_wait_animation_disclosure_and_draft_survive_turn_completion():
