@@ -98,6 +98,35 @@ def test_git_does_not_discover_parent_repository(access):
     assert asyncio.run(access._git_snapshot()) is None
 
 
+@pytest.mark.parametrize('git_scan', [False, True])
+def test_scan_deadline_interrupts_one_large_file_without_a_partial_fingerprint(access, monkeypatch, git_scan):
+    from hashlib import sha256
+    from dataclasses import replace
+    import forge.sandbox.file_worker as worker
+    if not git_scan:
+        child = access.root / 'plain'
+        child.mkdir()
+        access.root = child
+        access.policy = replace(access.policy, workspace=inspect_path(child, absolute=True))
+    target = access.root / 'source.py'
+    target.write_bytes(b'x' * (3 * 65536))
+    elapsed, hashed = [0], []
+    class Digest:
+        def __init__(self): self.value = sha256()
+        def update(self, chunk):
+            hashed.append(len(chunk))
+            self.value.update(chunk)
+            elapsed[0] = 11  # The first chunk consumed the scan's time allowance.
+        def hexdigest(self): return self.value.hexdigest()
+    monkeypatch.setattr(worker, 'monotonic', lambda: elapsed[0])
+    monkeypatch.setattr(worker, 'sha256', Digest)
+    result = asyncio.run(access._git_snapshot()) if git_scan else access._scan_filesystem()
+    assert result == {'files': {}, 'complete': False, 'reason': 'scan_limit'}
+    assert hashed == [65536]
+    # Explicit target observations still read the complete version for CAS.
+    assert access.observation(target)['sha256'] == sha256(target.read_bytes()).hexdigest()
+
+
 def test_link_inventory_records_retargeting_without_external_contents(access):
     from dataclasses import replace
     from forge.runtime.workspace import observation_fingerprint

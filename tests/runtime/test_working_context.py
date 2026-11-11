@@ -23,13 +23,13 @@ def test_actual_loop_preserves_read_cache_freshness_and_search_after_covered_rea
             request = self.calls
             self.calls += 1
             if request:
-                result = json.loads(messages[-1]['content'][0]['content'])
+                result = json.loads(messages[-2]['content'][0]['content'])
                 assert result['success']
                 if request <= 3:
                     reads.append(result)
                 else:
                     assert 'new_value = 2' in result['content']
-                assert 'sample.py @ revision 0: lines 1-1' in kwargs['system']
+                assert 'sample.py @ revision 0: lines 1-1' in messages[-1]['content']
             yield ModelUsageUpdate(TokenUsage(1, 1))
             if request < 3:
                 if request == 2:

@@ -52,7 +52,7 @@ class FileAccess:
             path = self.policy.authorize(raw, write=True).path
             self.expected[path] = digest
 
-    def observation(self, raw, *, content=False):
+    def observation(self, raw, *, content=False, deadline=None):
         authorized = self.policy.authorize(raw)
         path = authorized.path
         if not path.exists():
@@ -73,6 +73,8 @@ class FileAccess:
             authorized.assert_current()
             digest, chunks, length = sha256(), [], 0
             while chunk := stream.read(65536):
+                if deadline is not None and monotonic() >= deadline:
+                    raise TimeoutError('Workspace scan time limit reached')
                 digest.update(chunk)
                 length += len(chunk)
                 if content:
@@ -208,7 +210,9 @@ class FileAccess:
             try:
                 if self.policy.execution_mode is not None and (self.root / path).resolve() != self.root / path:
                     return None  # Inventory links without traversing targets in the filesystem scan.
-                files[path] = self.observation(path)
+                files[path] = self.observation(path, deadline=deadline)
+            except TimeoutError:
+                return {'files': files, 'complete': False, 'reason': 'scan_limit'}
             except (OSError, ValueError, RuntimeError):
                 # The bounded filesystem path retains the existing handling
                 # of protected paths, unsafe links and incomplete observations.
@@ -266,9 +270,11 @@ class FileAccess:
                             else:
                                 complete = False
                         elif entry.is_file(follow_symlinks=False):
-                            files[candidate.relative_to(self.root).as_posix()] = self.observation(candidate)
+                            files[candidate.relative_to(self.root).as_posix()] = self.observation(candidate, deadline=deadline)
                             if len(files) >= 2000:
                                 return {'files': files, 'complete': False, 'reason': 'transport_limit'}
+            except TimeoutError:
+                return {'files': files, 'complete': False, 'reason': 'scan_limit'}
             except OSError:
                 complete = False
         return {'files': files, 'complete': complete}

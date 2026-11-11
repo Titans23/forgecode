@@ -141,8 +141,9 @@ def test_nested_rules_are_injected_after_read_and_refreshed_next_turn(tmp_path):
 
         async def stream(self, messages, system, **kwargs):
             self.calls += 1
-            assert ('Nested project notice.' in system) == (self.calls > 1)
-            assert ('Updated root rule.' if self.calls == 4 else 'Root project rule.') in system
+            context = messages[-1]['content']
+            assert ('Nested project notice.' in context) == (self.calls > 1)
+            assert ('Updated root rule.' if self.calls == 4 else 'Root project rule.') in context
             if self.calls == 1:
                 yield ModelToolCallCompleted(ToolCall(0, 'read-input', 'read_file', {'path': 'src/input.txt'}))
             elif self.calls == 2:
@@ -197,8 +198,8 @@ def test_unseen_rules_block_write_until_next_model_request(tmp_path, read_in_sam
                     {'path': 'src/result.txt', 'content': 'missing notice'}))
             elif self.calls == 2:
                 assert not target.exists()
-                assert 'Include the project notice' in system
-                assert 'scoped_instructions_required' in str(messages[-1])
+                assert 'Include the project notice' in messages[-1]['content']
+                assert 'scoped_instructions_required' in str(messages[-2])
                 yield ModelToolCallCompleted(ToolCall(0, 'informed-write', 'write_file',
                     {'path': 'src/result.txt', 'content': 'project notice'}))
             else:

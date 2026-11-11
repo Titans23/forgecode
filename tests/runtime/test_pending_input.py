@@ -16,10 +16,10 @@ def test_steering_is_admitted_at_request_boundary_and_followup_waits(tmp_path):
             if self.calls == 1:
                 conversation.queue_input('Use Python')
                 conversation.queue_input('Then explain the result', follow_up=True)
-                assert messages[-1]['content'] == 'Implement the task'
+                assert messages[-2]['content'] == 'Implement the task'
             else:
-                assert messages[-1]['content'] == 'Use Python'
-                contract = kwargs['system'].split('[Current turn contract]\n', 1)[1].split('[Runtime request tools]', 1)[0]
+                assert messages[-2]['content'] == 'Use Python'
+                contract = messages[-1]['content'].split('[Current turn contract]\n', 1)[1].split('[Runtime request tools]', 1)[0]
                 assert 'Implement the task' in contract
                 assert 'Use Python' in contract
             yield ModelTextDelta('done')

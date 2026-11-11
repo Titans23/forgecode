@@ -285,7 +285,7 @@ def test_resumed_task_can_finish_from_persisted_workspace_change(
     assert completed.result.status == 'completed'
     assert completed.result.changed_paths == ('sample.txt',)
     assert completed.result.verification is not None
-    assert 'Change and verify sample.txt' in str(client.calls[0]['system'])
+    assert 'Change and verify sample.txt' in client.calls[0]['messages'][-1]['content']
     first_tool_names = {
         str(definition['name'])
         for definition in client.calls[0]['tools'] or ()
@@ -1616,7 +1616,7 @@ def test_runtime_tells_model_that_request_tools_are_available(
     assert len(client.calls) == 1
     assert (
         'Only the following tools are included in this model request:'
-        in (client.calls[0]['system'] or '')
+        in client.calls[0]['messages'][-1]['content']
     )
 
 

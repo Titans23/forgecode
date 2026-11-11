@@ -61,6 +61,7 @@ class WorkspaceTracker:
         self.baseline = resolved
         self.current = resolved
         self.baseline_pending = False
+        self._carried_paths.intersection_update(resolved.files)
 
     def mark_environment_change(self) -> int:
         '''Invalidate process-derived evidence without fabricating a file diff.'''
@@ -72,7 +73,7 @@ class WorkspaceTracker:
         self._carried_paths = {
             normalize_path(path)
             for path in paths
-            if normalize_path(path) in self.baseline.files
+            if self.baseline_pending or normalize_path(path) in self.baseline.files
         }
 
     def watch_paths(self, paths: tuple[str, ...]) -> None:
@@ -121,18 +122,21 @@ class WorkspaceTracker:
     async def refresh(self) -> WorkspaceChange | None:
         '''Capture tool-caused changes and advance the revision when needed.'''
         if self.baseline_pending:
-            return None  # No side effect has required a before-image this turn.
+            if not self._carried_paths:
+                return None  # No side effect has required a before-image this turn.
+            # A continuation can validate earlier task paths at completion,
+            # without blocking the first model request on a whole-tree scan.
+            await self.ensure_baseline()
+            return None
+        if self.observer is not None and not self._baseline_complete:
+            # Another inventory cannot reconstruct a missing before-image.
+            # Recheck the only targets for which this turn has actual evidence.
+            return await self.refresh_paths(tuple(self._watched_paths)) if self._watched_paths else None
         snapshot = await self._capture()
         if snapshot is None:
             self.available = False
             return None
         self.available = self.observer is None or self._baseline_complete
-        if not self.available:
-            # A later full scan cannot reconstruct an unknown pre-turn tree.
-            # Keep only targets with a confirmed before-image, so unrelated
-            # preexisting/user edits are never attributed to this task.
-            snapshot = WorkspaceSnapshot({**self.current.files, **{
-                path: snapshot.files[path] for path in self._watched_paths if path in snapshot.files}})
         self._carried_paths.intersection_update(snapshot.files)
         paths = changed_paths(self.current, snapshot)
         if not paths:
@@ -187,7 +191,8 @@ class WorkspaceTracker:
     @property
     def changed_paths(self) -> tuple[str, ...]:
         '''Return only paths whose content differs from the turn baseline.'''
-        paths = set(changed_paths(self.baseline, self.current)) | self._carried_paths
+        paths = set(changed_paths(self.baseline, self.current)) | (
+            self._carried_paths if not self.baseline_pending else set())
         changed_watched_directories = {
             path
             for path in self._watched_paths

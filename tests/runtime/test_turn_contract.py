@@ -224,8 +224,10 @@ def test_inferred_inspection_does_not_add_an_execution_fence(tmp_path, mode):
     result = tool_results(events)['inspect']
     if mode is None:
         assert result.error.code == 'read_only_intent'
+        assert 'run_command' not in {tool['name'] for tool in client.calls[0]['tools']}
     else:
         assert result.success and 'diagnostic command' in result.content
+        assert 'run_command' in {tool['name'] for tool in client.calls[0]['tools']}
 
 
 def test_completion_requires_every_explicit_check(tmp_path: Path) -> None:
@@ -422,3 +424,66 @@ def test_cancel_during_deferred_baseline_never_executes_tool(tmp_path):
         assert not (tmp_path / 'no.txt').exists()
         assert tracker.baseline_pending and not tracker.available
     asyncio.run(check())
+
+
+def test_dynamic_context_preserves_system_and_history_prefix_without_accumulating(tmp_path):
+    from forge.context.manager import original_user_instructions
+    from copy import deepcopy
+    history = [
+        {'role': 'user', 'content': 'Keep these earlier instructions.'},
+        {'role': 'assistant', 'content': 'Earlier answer. ' * 1000},
+    ]
+    (tmp_path / 'sample.txt').write_text('evidence')
+    client = ScriptedClient(request(ToolCall(0, 'read', 'read_file', {'path': 'sample.txt'})),
+        [*request(), ModelTextDelta('done')], [*request(), ModelTextDelta('next')])
+    conversation = Conversation(client=client, registry=create_default_registry(tmp_path), context_root=tmp_path)
+    conversation.messages = deepcopy(history)
+    async def run():
+        async for _ in conversation.stream('Read sample.txt.'): pass
+        async for _ in conversation.stream('Summarize it.'): pass
+    asyncio.run(run())
+    assert len({call['system'] for call in client.calls}) == 1
+    for call in client.calls:
+        assert call['messages'][:2] == history
+        contexts = [m for m in call['messages'] if str(m.get('content', '')).startswith('[ForgeCode current context]')]
+        assert contexts == [call['messages'][-1]]
+        assert '[Remaining turn budget]' in contexts[0]['content']
+        assert '[Remaining turn budget]' not in call['system']
+    assert 'sample.txt' in client.calls[1]['messages'][-1]['content']
+    assert client.calls[0]['messages'][-1] != client.calls[1]['messages'][-1]
+    assert all(not str(m.get('content', '')).startswith('[ForgeCode current context]') for m in conversation.messages)
+    assert original_user_instructions(client.calls[2]['messages']) == [
+        'Keep these earlier instructions.', 'Read sample.txt.', 'Summarize it.']
+
+
+def test_continuation_with_history_and_empty_hooks_reaches_model_before_scan(tmp_path):
+    from dataclasses import replace
+    from forge.hooks.manager import HookManager
+    from forge.hooks.models import HookSettings
+    from forge.runtime.workspace import WorkspaceSnapshot
+    registry = create_default_registry(tmp_path)
+    tracker = registry.workspace_tracker
+    scans = []
+    async def capture():
+        scans.append(True)
+        return WorkspaceSnapshot({'prior.txt': 'changed', 'unrelated.txt': 'user edit'})
+    tracker._capture = capture
+    class Client(ScriptedClient):
+        async def stream(self, *args, **kwargs):
+            assert not scans
+            assert tracker.baseline_pending and tracker.changed_paths == ()
+            async for event in super().stream(*args, **kwargs): yield event
+    class Router:
+        async def route(self, *args):
+            return RouteResult(TurnDecision(intent='continue_task', task_relation='active',
+                requires_workspace_change=False, confidence=1, reason='continue'), TokenUsage(0, 0))
+    conversation = Conversation(client=Client([*request(), ModelTextDelta('done')]), registry=registry,
+        context_root=tmp_path, intent_router=Router(), hook_manager=HookManager(tmp_path, HookSettings()))
+    previous = conversation.task_manager.start('Earlier task')
+    conversation.task_manager.active = replace(previous, workspace_paths=('prior.txt', 'reverted.txt'))
+    conversation.verification_history.append(VerificationEvidence('old check', '.', 0, .01, False, 0))
+    async def run():
+        async for _ in conversation.stream('Continue.'): pass
+    asyncio.run(run())
+    assert scans and tracker.changed_paths == ('prior.txt',)
+    assert not tracker.baseline_pending

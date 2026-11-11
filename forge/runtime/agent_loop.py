@@ -507,8 +507,8 @@ class Conversation:
         self,
         *,
         include_tool_availability: bool = True,
+        include_state: bool = True,
     ) -> str:
-        task_context = self.task_manager.system_suffix()
         parts = [self.system_prompt]
         git_available = (
             self.workspace_tracker is None
@@ -523,6 +523,8 @@ class Conversation:
         )
         if self.workspace_tracker is not None and getattr(self.workspace_tracker, 'baseline_pending', False):
             verification_hint = 'a build, test, lint, type, syntax, or task-specific check (Git availability has not been checked yet)'
+        if not include_state:
+            verification_hint = 'a build, test, lint, type, syntax, or task-specific check; use Git only when available'
         if os.name == 'nt':
             parts.append(
                 '[Runtime Environment]\n'
@@ -540,11 +542,10 @@ class Conversation:
                 '- repository inspection: prefer dedicated repository tools\n'
                 f'- verification: use {verification_hint}'
             )
-        if task_context:
-            parts.append(task_context)
-        working_context = self.working_state.system_suffix()
-        if working_context:
-            parts.append(working_context)
+        if include_state:
+            parts.extend(filter(None, (
+                self.task_manager.system_suffix(), self.working_state.system_suffix(),
+            )))
         if self._tool_definitions() and include_tool_availability:
             parts.append(
                 '[Runtime Tool Availability]\n'

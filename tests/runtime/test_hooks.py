@@ -176,7 +176,8 @@ def test_tool_and_file_hooks_wrap_actual_mutation(tmp_path: Path) -> None:
         'PostToolUse',
         'BeforeModelCall',
     ]
-    assert 'tool policy context' in str(client.calls[1]['system'])
+    assert 'tool policy context' in client.calls[1]['messages'][-1]['content']
+    assert client.calls[0]['system'] == client.calls[1]['system']
     completed = [
         event
         for event in events

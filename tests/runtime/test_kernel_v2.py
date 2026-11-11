@@ -297,7 +297,7 @@ def test_read_batch_runs_in_order_and_stops_before_unexecuted_tail(tmp_path, out
                     for index in (2, 0, 1):
                         yield ModelToolCallCompleted(ToolCall(index, str(index), 'read_file', {'path': f'{index}.txt'}))
                 else:
-                    assert [block['tool_use_id'] for block in messages[-1]['content']] == ['0', '1', '2']
+                    assert [block['tool_use_id'] for block in messages[-2]['content']] == ['0', '1', '2']
                     yield ModelTextDelta('done')
                 yield ModelResponseCompleted('tool_use' if self.calls == 1 else 'end_turn')
 

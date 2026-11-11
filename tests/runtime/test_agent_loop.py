@@ -801,9 +801,9 @@ def test_plan_mode_hides_effectful_tools_and_explains_mode(
     assert 'read_file' in names
     assert 'no_op_write' not in names
     assert 'run_process' not in names
-    assert 'Current mode: plan' in client.calls[0]['system']
+    assert 'Current mode: plan' in client.calls[0]['messages'][-1]['content']
     expected = 'workspace-write' if execution_mode else 'supervised'
-    assert f'/permission {expected}' in client.calls[0]['system']
+    assert f'/permission {expected}' in client.calls[0]['messages'][-1]['content']
     assert isinstance(events[-1], TurnCompleted)
     assert events[-1].result.status == 'completed'
     assert conversation.task_manager.active is None
@@ -1090,7 +1090,7 @@ def test_conversation_forwards_stream_and_returns_final_result() -> None:
             )
         ),
     ]
-    assert client.calls[0]['messages'] == [
+    assert client.calls[0]['messages'][:-1] == [
         {'role': 'user', 'content': 'Only reply READY'}
     ]
     assert client.calls[0]['tools'] is None
@@ -1406,7 +1406,7 @@ def test_max_tokens_truncation_retries_with_small_patch_feedback() -> None:
     events = collect_turn(conversation, 'Build a game')
 
     assert events[-1].result.text == 'Retried in smaller steps.'
-    feedback = client.calls[1]['messages'][-1]['content']
+    feedback = client.calls[1]['messages'][-2]['content']
     assert 'reached the max_tokens limit' in feedback
     assert 'Split the operation into smaller tool calls' in feedback
 
@@ -1432,7 +1432,7 @@ def test_plain_text_truncation_preserves_and_continues_response() -> None:
     result = events[-1].result
     assert result.text == 'First half, second half.'
     assert result.usage == TokenUsage(25, 8195)
-    continuation_messages = client.calls[1]['messages'][-2:]
+    continuation_messages = client.calls[1]['messages'][-3:-1]
     assert continuation_messages[0] == {
         'role': 'assistant',
         'content': 'First half, ',
@@ -1508,7 +1508,7 @@ def test_empty_model_response_is_retried_as_protocol_recovery() -> None:
     assert events[-1].result.status == 'completed'
     assert events[-1].result.text == 'Recovered after the empty response.'
     assert len(client.calls) == 2
-    feedback = str(client.calls[1]['messages'][-1]['content'])
+    feedback = str(client.calls[1]['messages'][-2]['content'])
     assert 'stop_reason=end_turn' in feedback
 
 
@@ -1523,7 +1523,7 @@ def test_conversation_sends_previous_turns_as_context() -> None:
     collect_turn(conversation, 'Hello')
     collect_turn(conversation, 'What is my name?')
 
-    assert client.calls[1]['messages'] == [
+    assert client.calls[1]['messages'][:-1] == [
         {'role': 'user', 'content': 'Hello'},
         {'role': 'assistant', 'content': 'Hello'},
         {'role': 'user', 'content': 'What is my name?'},
@@ -1575,7 +1575,7 @@ def test_current_goal_survives_many_tool_calls_and_message_snipping(
     # discard the turn; the explicit read cache may still bound execution.
     assert len(client.calls) > 9
     assert all(
-        'Goal:\nKeep this exact active goal' in call['system']
+        'Goal:\nKeep this exact active goal' in call['messages'][-1]['content']
         for call in client.calls
     )
 
@@ -1676,7 +1676,7 @@ def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:
     )
     assert result.status == 'failed'
     assert result.stop_reason == 'tool_protocol_exhausted'
-    first_recovery = client.calls[1]['messages'][-1]
+    first_recovery = client.calls[1]['messages'][-2]
     assert first_recovery['role'] == 'user'
     assert 'Invalid arguments for tool read_file' in first_recovery['content']
     assert '`unexpected` is not an allowed argument' in (
@@ -1832,8 +1832,9 @@ def test_relevant_repository_memory_is_injected_only_for_current_query(
     collect_turn(conversation, 'How do calculator tests run?')
     collect_turn(conversation, 'How should formatting work?')
 
-    assert 'Calculator tests use pytest.' in client.calls[0]['system']
-    assert 'Calculator tests use pytest.' not in client.calls[1]['system']
+    assert 'Calculator tests use pytest.' in client.calls[0]['messages'][-1]['content']
+    assert 'Calculator tests use pytest.' not in client.calls[1]['messages'][-1]['content']
+    assert client.calls[0]['system'] == client.calls[1]['system']
 
 
 def test_conversation_does_not_commit_stream_without_usage() -> None:

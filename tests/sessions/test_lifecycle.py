@@ -31,9 +31,9 @@ class DummyClient:
     max_tokens = 1_000
 
     async def stream(self, messages, tools=None, system=None):
-        del messages, tools
+        del tools
         yield ModelUsageUpdate(usage=TokenUsage(10, 0))
-        yield ModelTextDelta(text=f'模型读取到的当前任务上下文：{system}')
+        yield ModelTextDelta(text=f'模型读取到的当前任务上下文：{messages[-1]["content"]}')
         yield ModelUsageUpdate(usage=TokenUsage(10, 2))
 
 

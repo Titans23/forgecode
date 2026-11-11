@@ -54,6 +54,10 @@ def test_confirmed_target_change_survives_incomplete_scan_without_claiming_compl
         (tmp_path / 'user.py').write_text('later user edit\n')
         await tracker.refresh()
         assert not tracker.available and tracker.changed_paths == ('target.py',)
+        assert observer.scans == 1
+        (tmp_path / 'target.py').write_text('changed by a later command\n')
+        assert (await tracker.refresh()).paths == ('target.py',)
+        assert observer.scans == 1
     asyncio.run(run())
 
 
