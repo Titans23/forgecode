@@ -114,19 +114,44 @@ def test_successful_edit_does_not_cancel_following_process(tmp_path: Path) -> No
     assert result.success and 'B' in result.content
 
 
-def test_failed_process_cancels_tail_but_allows_replanning(tmp_path: Path) -> None:
+def test_failed_process_keeps_later_calls_and_allows_replanning(tmp_path: Path) -> None:
     client = ScriptedClient(request(
         ToolCall(0, 'failure', 'run_command', {'command': python_command('raise SystemExit(7)')}),
-        ToolCall(1, 'tail', 'write_file', {'path': 'must-not-exist.txt', 'content': 'wrong'}),
+        ToolCall(1, 'tail', 'write_file', {'path': 'independent.txt', 'content': 'done'}),
     ), request(
         ToolCall(0, 'retry', 'run_command', {'command': python_command("print('replanned')")}),
     ), stop())
     _, events = exercise(tmp_path, client)
     results = tool_results(events)
     assert not results['failure'].success
-    assert not (tmp_path / 'must-not-exist.txt').exists()
-    assert results['tail'].metadata['execution_status'] == 'cancelled'
+    assert (tmp_path / 'independent.txt').read_text() == 'done'
+    assert results['tail'].metadata['execution_status'] == 'executed'
     assert results['retry'].success
+
+
+@pytest.mark.parametrize('failure', ['timeout', 'invalid_arguments'])
+def test_ordinary_failures_do_not_skip_independent_later_tools(tmp_path, failure):
+    failing = (ToolCall(0, 'first', 'run_command', {
+        'command': python_command('import time; time.sleep(10)'), 'timeout_seconds': 1,
+    }) if failure == 'timeout' else ToolCall(0, 'first', 'read_file', {}))
+    client = ScriptedClient(request(failing,
+        ToolCall(1, 'second', 'write_file', {'path': 'independent.txt', 'content': 'ok'})), stop())
+    _, events = exercise(tmp_path, client)
+    result = tool_results(events)
+    assert result['first'].error.code == ('command_timeout' if failure == 'timeout' else 'invalid_arguments')
+    assert result['second'].success and (tmp_path / 'independent.txt').read_text() == 'ok'
+
+
+def test_permission_denial_still_stops_the_rest_of_the_batch(tmp_path):
+    client = ScriptedClient(request(
+        ToolCall(0, 'denied', 'write_file', {'path': 'denied.txt', 'content': 'no'}),
+        ToolCall(1, 'tail', 'list_directory', {'path': '.'})), stop())
+    _, events = exercise(tmp_path, client, permission_manager=PermissionManager(
+        tmp_path, mode='supervised', load_stored_rules=False))
+    result = tool_results(events)
+    assert result['denied'].error.code == 'permission_denied'
+    assert result['tail'].metadata['execution_status'] == 'cancelled'
+    assert not (tmp_path / 'denied.txt').exists()
 
 
 def test_permission_denial_returns_evidence_and_model_can_replan(tmp_path: Path) -> None:

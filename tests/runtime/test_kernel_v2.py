@@ -255,7 +255,7 @@ def test_conversation_exposes_only_controlled_artifact_reader(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize('outcome', ['success', 'failure', 'cancel'])
-def test_read_batch_runs_in_order_and_stops_before_unexecuted_tail(tmp_path, outcome):
+def test_read_batch_runs_in_order_continues_after_error_and_stops_on_cancel(tmp_path, outcome):
     from forge.runtime.agent_loop import Conversation
     from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted, ModelTextDelta
     from forge.tools.base import ToolRegistry
@@ -318,12 +318,14 @@ def test_read_batch_runs_in_order_and_stops_before_unexecuted_tail(tmp_path, out
             else:
                 await task
             assert maximum == 1 and active == 0
-            assert paths == (['0.txt', '1.txt', '2.txt'] if outcome == 'success' else ['0.txt', '1.txt'])
+            assert paths == (['0.txt', '1.txt'] if outcome == 'cancel' else ['0.txt', '1.txt', '2.txt'])
             records = conversation.turn_state.execution_records
             assert [record.tool_call_id for record in records] == ['0', '1', '2']
-            if outcome != 'success':
+            if outcome == 'cancel':
                 assert records[-1].status == 'cancelled'
                 assert not records[-1].success
+            elif outcome == 'failure':
+                assert not records[1].success and records[-1].success
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)

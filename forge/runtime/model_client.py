@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 import json
@@ -56,7 +57,7 @@ class _PendingToolCall:
 
 class AnthropicModelClient:
     observes_request_budget = True
-    '''Thin adapter around Anthropic AsyncAnthropic.messages.stream.'''
+    '''Adapter over the Anthropic SDK's raw Messages event transport.'''
 
     provider = DEFAULT_MODEL_PROVIDER
 
@@ -265,6 +266,8 @@ class AnthropicModelClient:
                     delay_seconds=delay,
                 )
                 await asyncio.sleep(delay)
+            except (json.JSONDecodeError, UnicodeDecodeError) as error:
+                raise ModelProtocolError('Provider returned malformed stream data.', reason='invalid_response_json') from error
             except AssertionError as error:
                 self.health.failed()
                 # Anthropic-compatible proxies can terminate a malformed
@@ -313,12 +316,37 @@ class AnthropicModelClient:
         tool_ids: set[str] = set()
         pending_tool_calls: dict[int, _PendingToolCall] = {}
         protocol_error: ModelProtocolError | None = None
+        final_message = None
+        content_blocks: dict[int, Any] = {}
+        message_stopped = False
         allowed_tool_names = {
             str(tool.get('name', ''))
             for tool in sdk_arguments.get('tools', [])
         }
-        async with self._client.messages.stream(**sdk_arguments) as stream:
+        # Use the SDK's raw event transport. Its higher-level stream helper
+        # reparses unfinished tool JSON on every fragment and can raise before
+        # we see the offending bytes. DSH buffers those bytes until block end.
+        async with await self._client.messages.create(**sdk_arguments, stream=True) as stream:
             async for event in stream:
+                if message_stopped:
+                    raise ModelProtocolError('Content followed message termination.', reason='conflicting_model_content')
+                if event.type == 'content_block_start':
+                    if event.index in content_blocks:
+                        raise ModelProtocolError('Duplicate content block index.', reason='conflicting_model_content')
+                    content_blocks[event.index] = deepcopy(event.content_block)
+                    if event.content_block.type == 'text' and event.content_block.text:
+                        text_blocks[event.index] = event.content_block.text
+                        semantic_output = True
+                        yield ModelTextDelta(event.content_block.text, event.index)
+                elif event.type == 'content_block_delta':
+                    block = content_blocks.get(event.index)
+                    if block is None:
+                        raise ModelProtocolError('Received delta before content block start.', reason='invalid_tool_arguments')
+                    field = {'text_delta': 'text', 'thinking_delta': 'thinking'}.get(event.delta.type)
+                    if field is not None:
+                        if not hasattr(block, field):
+                            raise ModelProtocolError('Delta conflicts with content block type.', reason='conflicting_model_content')
+                        setattr(block, field, getattr(block, field) + getattr(event.delta, field))
                 if (
                     event.type == 'content_block_delta'
                     and event.delta.type == 'text_delta'
@@ -338,14 +366,15 @@ class AnthropicModelClient:
                     if signature is not None:
                         signatures[event.index] = signature
                 elif event.type == 'content_block_delta' and event.delta.type == 'signature_delta':
-                    # DSH concatenates signature fragments. The SDK snapshot
-                    # currently replaces them, losing all but the last delta.
+                    # Signatures may arrive separately in multiple fragments.
                     signatures[event.index] = signatures.get(event.index, '') + event.delta.signature
                 elif (
                     event.type == 'content_block_start'
                     and event.content_block.type == 'tool_use'
                 ):
                     block = event.content_block
+                    if not isinstance(block.input, dict):
+                        raise ModelProtocolError('Tool input must be a JSON object.', reason='invalid_tool_arguments', tool_name=block.name)
                     if not block.id or block.id in tool_ids:
                         raise ModelProtocolError('Missing or duplicate tool ID.', reason='conflicting_model_content')
                     tool_ids.add(block.id)
@@ -396,6 +425,7 @@ class AnthropicModelClient:
                     else:
                         semantic_output = True
                         completed_blocks[event.index] = ToolCall(event.index, pending.id, pending.name, arguments)
+                        content_blocks[event.index].input = arguments
                         yield ModelToolCallCompleted(
                             tool_call=ToolCall(
                                 index=event.index,
@@ -405,6 +435,10 @@ class AnthropicModelClient:
                             )
                         )
                 elif event.type == 'message_start':
+                    if final_message is not None:
+                        raise ModelProtocolError('Duplicate message start.', reason='conflicting_model_content')
+                    final_message = deepcopy(event.message)
+                    content_blocks = {i: deepcopy(block) for i, block in enumerate(getattr(event.message, 'content', []))}
                     from forge.observability.usage_ledger import usage_dict
                     current_raw.update(usage_dict(event.message.usage))
                     provider_request_id=getattr(event.message,'id',None)
@@ -416,6 +450,10 @@ class AnthropicModelClient:
                     yield ModelUsageUpdate(usage=current_usage,raw_usage=dict(current_raw),
                         provider_request_id=provider_request_id,returned_model=returned_model,usage_is_final=False)
                 elif event.type == 'message_delta':
+                    if final_message is None:
+                        raise ModelProtocolError('Received message delta before message start.')
+                    final_message.stop_reason = event.delta.stop_reason
+                    final_message.usage = event.usage
                     from forge.observability.usage_ledger import usage_dict
                     current_raw.update(usage_dict(event.usage))
                     current_usage = merge_usage(
@@ -424,8 +462,12 @@ class AnthropicModelClient:
                     )
                     yield ModelUsageUpdate(usage=current_usage,raw_usage=dict(current_raw),
                         provider_request_id=provider_request_id,returned_model=returned_model,usage_is_final=False)
+                elif event.type == 'message_stop':
+                    message_stopped = True
 
-            final_message = await stream.get_final_message()
+        if final_message is None or not message_stopped:
+            raise ModelProtocolError('Stream has no complete message termination.', reason='stream_termination_missing')
+        final_message.content = [content_blocks[index] for index in sorted(content_blocks)]
 
         stop_reason = getattr(final_message, 'stop_reason', None)
         final_usage = merge_usage(final_message.usage, current_usage)
@@ -458,7 +500,7 @@ class AnthropicModelClient:
             raise ModelProtocolError('Stream content has no response termination reason.', reason='stream_termination_missing')
 
         # Reconcile each block, not the response-wide presence of any text.
-        # Pending blocks above are never guessed complete from an SDK snapshot.
+        # Pending blocks above are never guessed complete from the message envelope.
         final_content = getattr(final_message, 'content', None)
         if isinstance(final_content, list):
             for index, block in enumerate(final_content):

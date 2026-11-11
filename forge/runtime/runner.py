@@ -424,7 +424,14 @@ class TurnRunner:
                 # Transport/empty output correction is safe only before any
                 # semantic output, including an incomplete tool block.
                 safe_to_correct = not parts and not calls and not partial_tools and not visible_reasoning
-                if isinstance(error, ModelProtocolError) and safe_to_correct and self.state.response_errors < min(2, c.max_protocol_recoveries):
+                # All tools are staged until a valid response completes. A
+                # malformed argument block can therefore receive explicit
+                # correction feedback even after visible output. This is a new
+                # budgeted request, never a replay of partially parsed tools.
+                correctable_arguments = isinstance(error, ModelProtocolError) and error.reason in {
+                    'invalid_tool_arguments', 'unavailable_tool',
+                }
+                if isinstance(error, ModelProtocolError) and (safe_to_correct or correctable_arguments) and self.state.response_errors < min(2, c.max_protocol_recoveries):
                     self.state.response_errors += 1
                     limit = min(2, c.max_protocol_recoveries)
                     available = ', '.join(item['name'] for item in (tools or ())) or 'none'
@@ -553,7 +560,6 @@ class TurnRunner:
                             results.append((call, outcome.result))
                             self.state.record_execution(outcome.record)
                             yield ToolExecutionCompleted(call, outcome.result)
-                            batch_reason = 'not_executed_after_failure'
                             continue
                     budget_token = parent_budget.set(self.state)
                     try:
@@ -622,7 +628,9 @@ class TurnRunner:
                     interrupted = True
                     batch_reason = 'not_executed_after_interruption'
                 elif not outcome.result.success:
-                    if batch_reason is None:
+                    if batch_reason is None and outcome.result.error and outcome.result.error.code in {
+                        'permission_denied', 'outside_task_scope', 'read_only_intent', 'hook_denied', 'POLICY_DENIED',
+                    }:
                         batch_reason = 'not_executed_after_failure'
                     self._diagnose(effective, outcome.result)
                     if (outcome.record.status == 'executed' and outcome.result.error

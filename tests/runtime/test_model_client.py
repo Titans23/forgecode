@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -62,16 +63,53 @@ class FakeStream:
 
     def __aiter__(self) -> Any:
         async def iterate() -> Any:
+            # Translate the fixture's summary into real raw SSE boundaries.
+            # The production adapter no longer consumes SDK-made snapshots.
+            initial = next((e.message for e in self.events if getattr(e, 'type', '') == 'message_start'),
+                           SimpleNamespace(usage=usage(input_tokens=0, output_tokens=0)))
+            initial = deepcopy(initial)
+            initial.content = []
+            initial.stop_reason = None
+            initial.id = getattr(self.final_message, 'id', None)
+            initial.model = getattr(self.final_message, 'model', None)
+            yield SimpleNamespace(type='message_start', message=initial)
+            seen, texts = set(), {}
+            had_delta = False
             for event in self.events:
                 if isinstance(event, Exception):
                     raise event
+                if event.type == 'message_start':
+                    continue
+                if event.type == 'content_block_start':
+                    seen.add(event.index)
+                if event.type == 'content_block_delta':
+                    delta = event.delta
+                    if event.index not in seen and delta.type in ('text_delta', 'thinking_delta'):
+                        block = (TextBlock(type='text', text='') if delta.type == 'text_delta' else
+                                 ThinkingBlock(type='thinking', thinking='', signature=''))
+                        yield SimpleNamespace(type='content_block_start', index=event.index, content_block=block)
+                        seen.add(event.index)
+                    if delta.type == 'text_delta':
+                        texts[event.index] = texts.get(event.index, '') + delta.text
+                if event.type == 'message_delta':
+                    event = deepcopy(event)
+                    event.delta = SimpleNamespace(stop_reason=getattr(self.final_message, 'stop_reason', None))
+                    had_delta = True
                 yield event
+            for index, block in enumerate(getattr(self.final_message, 'content', [])):
+                if index not in seen or block.type == 'text' and index in texts and block.text != texts[index]:
+                    yield SimpleNamespace(type='content_block_start', index=index, content_block=block)
+                    yield SimpleNamespace(type='content_block_stop', index=index)
+                elif block.type == 'thinking':
+                    yield SimpleNamespace(type='content_block_delta', index=index,
+                        delta=SimpleNamespace(type='signature_delta', signature=block.signature))
+            if not had_delta:
+                yield SimpleNamespace(type='message_delta',
+                    delta=SimpleNamespace(stop_reason=getattr(self.final_message, 'stop_reason', None)),
+                    usage=self.final_message.usage)
+            yield SimpleNamespace(type='message_stop')
 
         return iterate()
-
-    async def get_final_message(self) -> Any:
-        return self.final_message
-
 
 class FakeMessages:
     def __init__(self) -> None:
@@ -84,7 +122,8 @@ class FakeMessages:
             content=[SimpleNamespace(type='text', text='ok')],
         )
 
-    def stream(self, **kwargs: Any) -> FakeStream:
+    async def create(self, **kwargs: Any) -> FakeStream:
+        assert kwargs.pop('stream') is True
         self.calls.append(kwargs)
         if self.errors:
             raise self.errors.pop(0)
@@ -105,7 +144,7 @@ def test_anthropic_thinking_deltas_are_separate_from_answer_text():
     sdk.messages.final_message.content = [ThinkingBlock(type='thinking', thinking='Provider-visible reasoning', signature='opaque'),
                                          TextBlock(type='text', text='ok')]
     events = collect_stream(AnthropicModelClient(model='test', client=sdk), messages=[])
-    assert events[0] == ModelReasoningDelta('Provider-visible reasoning', 0)
+    assert next(e for e in events if isinstance(e, ModelReasoningDelta)) == ModelReasoningDelta('Provider-visible reasoning', 0)
     assert [e.text for e in events if isinstance(e, ModelTextDelta)] == ['ok']
 
 
@@ -183,7 +222,7 @@ def test_conflicting_final_text_is_not_silently_accepted():
         delta=SimpleNamespace(type='text_delta', text='original'))]
     sdk.messages.final_message = SimpleNamespace(usage=usage(input_tokens=1, output_tokens=1),
         stop_reason='end_turn', content=[SimpleNamespace(type='text', text='different')])
-    with pytest.raises(ModelProtocolError, match='conflict'):
+    with pytest.raises(ModelProtocolError, match='Duplicate content block'):
         collect_stream(AnthropicModelClient(model='test', client=sdk), messages=[])
 
 
@@ -422,7 +461,7 @@ def test_stream_attaches_final_provider_identity_without_rebilling_usage() -> No
         return [event async for event in BudgetedModelClient(client,state).stream([{'role':'user','content':'Inspect.'}])]
     events=asyncio.run(run())
     updates=[event for event in events if isinstance(event,ModelUsageUpdate)]
-    assert len(updates)==2 and updates[-1].provider_request_id=='provider-message-fixture'
+    assert len(updates)==3 and updates[-1].provider_request_id=='provider-message-fixture'
     assert updates[-1].returned_model=='returned-fixture' and updates[-1].raw_usage=={'input_tokens':2,'output_tokens':0}
     assert state.model_calls==1 and state.usage.input_tokens==2
 
@@ -875,7 +914,7 @@ def test_stream_retries_connection_error_before_output(
         messages=[{'role': 'user', 'content': 'Hello'}],
     )
 
-    assert events[0] == ModelRetryScheduled(
+    assert next(e for e in events if isinstance(e, ModelRetryScheduled)) == ModelRetryScheduled(
         attempt=2,
         reason='connection_error',
         delay_seconds=0.5,
@@ -889,14 +928,14 @@ def test_stream_retries_raw_httpx_transport_error_before_output(
 ) -> None:
     sdk = FakeAnthropic()
     sdk.messages.events = [httpx.RemoteProtocolError('incomplete stream')]
-    original_stream = sdk.messages.stream
+    original_stream = sdk.messages.create
 
-    def transient_stream(**kwargs: Any) -> FakeStream:
-        stream = original_stream(**kwargs)
+    async def transient_stream(**kwargs: Any) -> FakeStream:
+        stream = await original_stream(**kwargs)
         sdk.messages.events = []
         return stream
 
-    sdk.messages.stream = transient_stream
+    sdk.messages.create = transient_stream
     delays: list[float] = []
 
     async def record_sleep(delay: float) -> None:
@@ -915,7 +954,7 @@ def test_stream_retries_raw_httpx_transport_error_before_output(
         messages=[{'role': 'user', 'content': 'Hello'}],
     )
 
-    assert events[0] == ModelRetryScheduled(
+    assert next(e for e in events if isinstance(e, ModelRetryScheduled)) == ModelRetryScheduled(
         attempt=2,
         reason='connection_error',
         delay_seconds=0.5,
@@ -952,7 +991,8 @@ def test_stream_does_not_retry_after_visible_output_started(reasoning) -> None:
 
     error = asyncio.run(collect())
 
-    assert collected == [(ModelReasoningDelta if reasoning else ModelTextDelta)(text='Partial')]
+    assert [e for e in collected if not isinstance(e, ModelUsageUpdate)] == [
+        (ModelReasoningDelta if reasoning else ModelTextDelta)(text='Partial')]
     assert error.reason == 'stream_interrupted'
     assert error.retryable is False
     assert len(sdk.messages.calls) == 1

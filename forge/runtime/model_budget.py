@@ -80,9 +80,45 @@ class BudgetedModelClient:
             if self.state.request_event_sink is not None:
                 self.state.request_event_sink(kind, payload)
 
+        # Display each delta immediately, but persist diagnostic fragments in
+        # bounded batches. Execution/lifecycle records keep their durability.
+        pending_chunk = None
+        chunk_parts = []
+        chunk_bytes = 0
+        last_chunk_flush = monotonic()
+
+        def flush_chunks():
+            nonlocal pending_chunk, chunk_parts, chunk_bytes, last_chunk_flush
+            if pending_chunk is None:
+                return
+            kind, payload = pending_chunk
+            field = 'partial_json' if kind == 'model_tool_chunk' else 'text'
+            payload[field] = ''.join(chunk_parts)
+            payload['delta_count'] = len(chunk_parts)
+            if kind == 'model_request_chunk':
+                payload['size_bytes'] = chunk_bytes
+            pending_chunk, chunk_parts, chunk_bytes = None, [], 0
+            emit(kind, payload)
+            last_chunk_flush = monotonic()
+
+        def emit_chunk(kind, payload):
+            nonlocal pending_chunk, chunk_bytes
+            field = 'partial_json' if kind == 'model_tool_chunk' else 'text'
+            if pending_chunk is not None and (
+                pending_chunk[0] != kind or pending_chunk[1].get('index') != payload.get('index')
+            ):
+                flush_chunks()
+            if pending_chunk is None:
+                pending_chunk = kind, {key: value for key, value in payload.items() if key != field}
+            chunk_parts.append(payload[field])
+            chunk_bytes += len(payload[field].encode('utf-8'))
+            if chunk_bytes >= 16_384 or monotonic() - last_chunk_flush >= 1:
+                flush_chunks()
+
         def end_request(outcome, reason=''):
             nonlocal request
             if request is not None:
+                flush_chunks()
                 if usage is None or usage_is_final is False:
                     self.state.record_unknown_usage()
                 emit('model_request_finished', {
@@ -163,23 +199,26 @@ class BudgetedModelClient:
                                 debug_bytes+=min(len(raw_text),remaining)
                                 debug_truncated=debug_truncated or len(raw_text)>remaining
                             request['text_characters'] += len(event.text)
-                            emit('model_request_chunk',{'request_id':request['request_id'],'size_bytes':len(event.text.encode('utf-8')),
+                            emit_chunk('model_request_chunk',{'request_id':request['request_id'],'index':event.index,
                                 'text': event.text,
                                 'client_observed_at_utc':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'client_monotonic_ns':str(monotonic_ns())})
                         elif isinstance(event, ModelToolCallStarted):
+                            flush_chunks()
                             request['tool_blocks'][str(event.index)] = {'id': event.id, 'name': event.name, 'argument_characters': 0, 'complete': False}
                             emit('model_tool_chunk', {'request_id': request['request_id'], 'index': event.index,
                                 'id': event.id, 'name': event.name})
                         elif isinstance(event, ModelToolCallArgumentsDelta):
                             block = request['tool_blocks'].setdefault(str(event.index), {'complete': False, 'argument_characters': 0})
                             block['argument_characters'] += len(event.partial_json)
-                            emit('model_tool_chunk', {'request_id': request['request_id'], 'index': event.index,
+                            emit_chunk('model_tool_chunk', {'request_id': request['request_id'], 'index': event.index,
                                 'partial_json': event.partial_json})
                         elif isinstance(event, ModelToolCallCompleted):
+                            flush_chunks()
                             block = request['tool_blocks'].setdefault(str(event.tool_call.index), {})
                             block.update(id=event.tool_call.id, name=event.tool_call.name, complete=True,
                                          arguments=event.tool_call.arguments)
                         elif isinstance(event, ModelResponseCompleted):
+                            flush_chunks()
                             request['stop_reason'] = event.stop_reason
                         elif isinstance(event, ModelRetryScheduled):
                             end_request('retrying', event.reason)

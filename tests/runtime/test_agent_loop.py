@@ -1355,7 +1355,7 @@ def test_agent_loop_has_bounded_calls_but_no_input_token_limit_by_default() -> N
     assert conversation.max_turn_input_tokens is None
 
 
-def test_invalid_tool_json_after_partial_response_stops_without_replay(
+def test_invalid_tool_json_gets_explicit_correction_without_executing_partial_calls(
     tmp_path: Path,
 ) -> None:
     partial_call = ToolCall(
@@ -1385,10 +1385,13 @@ def test_invalid_tool_json_after_partial_response_stops_without_replay(
     events = collect_turn(conversation, 'Build a page')
 
     assert tool.calls == []
-    assert len(client.calls) == 1
-    assert events[-1].result.stop_reason == 'invalid_tool_arguments'
-    assert events[-1].result.usage.input_tokens == 10
-    results = conversation.messages[-1]['content']
+    assert len(client.calls) == 2
+    assert events[-1].result.text == 'Recovered safely.'
+    assert events[-1].result.usage.input_tokens == 22
+    assert 'No tool was executed' in str(client.calls[1]['messages'])
+    results = next(m['content'] for m in conversation.messages
+                   if isinstance(m.get('content'), list) and m['content']
+                   and m['content'][0].get('type') == 'tool_result')
     assert results[0]['tool_use_id'] == 'toolu_partial'
     assert 'incomplete_model_response' in results[0]['content']
 

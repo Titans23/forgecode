@@ -51,6 +51,10 @@ forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime�
 
 Anthropic 适配器按 DSH Messages 的续传机制拼接 signature_delta，并在响应完整通过协议检查后，将原始有序 content（含 thinking、redacted_thinking、text、tool_use）存入 ModelProviderState。同模型后续请求与恢复会话使用该内容，切换模型/提供方不复用签名；中断、截断、协议错误不发布可续传状态。上下文估算只计算实际发送的内容，摘要只读取可移植消息，不重复输入原生内容与不透明签名。旧会话已经丢失的思考无法补造。
 
+Anthropic 传输使用 SDK 的原始事件接口，工具 JSON 在内容块结束后才解析，避免高层流助手提前解析不完整参数。无效参数或不可用工具可触发至多两次显式格式纠正；整条响应通过校验前不执行工具，先前已解析的调用记录为未执行。传输中断、缺少终止标记和内容冲突不会因为已显示部分输出而透明重放。纠正请求保留原统计与限制。
+
+流式正文和工具参数直接交给消费者，高频诊断事件按同一请求/内容块合并，在达到 16 KiB 或持续接收满一秒时落盘；块结束、请求终态、重试、异常、取消和消费者关闭均排空缓冲。签名及完整响应仍在既有状态中保存。授权、工具 intent/终态和会话事实继续同步 fsync。硬退出可能丢失尚未落盘的最后一批诊断分片，不能据其缺失推断工具执行；这与 DSH 的实时流和持久化结算分离原则一致，不移植其存储框架。
+
 观测投影复用观测层 ID 生成函数，不反向导入持久化模块；工具发现直接使用公共错误契约，不依赖沙盒启动器。持久化仍在同一事务内调用投影，启动器仍负责执行前的完整准入检查。
 
 禁用可信扩展时，工厂不导入 MCP SDK 或读取 MCP 配置；启用路径仍使用原有权限与关闭流程。工具只通过已选择的 backend 或 registry 执行，不保留无调用方的 operation 注入路径。
@@ -140,7 +144,7 @@ API 接受字符串或类型明确的 text/image blocks，CLI 的 @path 支持�
 
 待处理输入先记为 input_queued；steering 只在请求边界进入上下文，user_message 同时记录消费 ID。follow_up 等待下一回合。取消将未消费 steering 转为待办，不自动重放工具；恢复从 Journal 重建队列。运行中不得切换会话历史。
 
-工具批次按模型索引顺序执行，失败或取消后不执行后续工具。实时 Engine 投影只消费当前写入者已 fsync 的新增记录，结束与恢复仍全量检查。上下文压缩沿用完整请求大小与输出预留的固定估算阈值；真实 token 用量独立用于回合预算，不再校准下一次压缩阈值。
+工具批次按模型索引顺序执行；普通命令失败、确定已清理的超时和参数错误作为该工具的结果返回，后续调用继续独立校验与授权。权限/Hook/任务范围拒绝、取消、预算耗尽和清理不确定仍停止待执行尾部。与 DSH 一样区分普通工具错误和调度中止，但仍保留 Python Harness 的顺序调度。实时 Engine 投影只消费当前写入者已 fsync 的新增记录，结束与恢复仍全量检查。上下文压缩沿用完整请求大小与输出预留的固定估算阈值；真实 token 用量独立用于回合预算，不再校准下一次压缩阈值。
 
 `tools.base` 负责工具协议、输入校验与注册；路径解析、保护路径、访问守卫和目标提取统一归属 `tools.paths`，base 的旧路径导出指向同一对象。授权前校验与执行入口校验各自保留。Explore 复用 Conversation，固定只读工具集限制能力，共享父回合预算并借用后端；结构化报告限制进入父上下文的内容，不另设子代理调度框架。
 
@@ -188,7 +192,7 @@ EvalCase 可显式设置已有 max_delivery_repairs（默认 0，最多 2），N
 
 | 调用链 | 机制与取舍 | 代码和现有验证入口 |
 |---|---|---|
-| Agent Loop → 工具/Explore → 压缩 | TurnRunner 按索引顺序执行工具，失败后记录未执行尾部。ContextVar 传入父 TurnState；支持请求观察协议的提供方按实际尝试扣预算，旧嵌入客户端按 stream 调用计数。子代理用量向父级累计，路由和摘要也计入。Explore 借用同一后端但不关闭它。压缩计算完整请求及输出预留，保存原始约束并成对保留 tool_use/result；这是预算与协议正确性，不是稳定提速结论。 | [TurnRunner._batch](../../forge/runtime/runner.py#L484)、[BudgetedModelClient.stream](../../forge/runtime/model_budget.py#L101)、[TurnState](../../forge/runtime/turn_state.py#L138)、[Explore](../../forge/subagents/explore.py#L198)、[压缩阈值](../../forge/context/manager.py#L473)；[共享预算](../../tests/runtime/test_shared_budget.py#L10)、[实际读取/压缩夹具](../../tests/implementation/integration/test_harness_regressions.py#L94) |
+| Agent Loop → 工具/Explore → 压缩 | TurnRunner 按索引顺序执行工具，普通失败继续后续调用；取消、拒绝和不确定清理记录未执行尾部。ContextVar 传入父 TurnState；支持请求观察协议的提供方按实际尝试扣预算，旧嵌入客户端按 stream 调用计数。子代理用量向父级累计，路由和摘要也计入。Explore 借用同一后端但不关闭它。压缩计算完整请求及输出预留，保存原始约束并成对保留 tool_use/result；这是预算与协议正确性，不是稳定提速结论。 | [TurnRunner._batch](../../forge/runtime/runner.py#L484)、[BudgetedModelClient.stream](../../forge/runtime/model_budget.py#L101)、[TurnState](../../forge/runtime/turn_state.py#L138)、[Explore](../../forge/subagents/explore.py#L198)、[压缩阈值](../../forge/context/manager.py#L473)；[共享预算](../../tests/runtime/test_shared_budget.py#L10)、[实际读取/压缩夹具](../../tests/implementation/integration/test_harness_regressions.py#L94) |
 | verify → check ledger → CompletionGate → 同回合反馈 | 文件 revision 与环境 epoch 同时匹配才是当前证据；普通进程执行保守地推进 epoch。检查按 ID 保存定义，修检查器必须继承原断言、需求和 cwd，不能改阈值冲掉失败。完成被拒后最多反馈两个不同缺口，仍扣原预算；行为检查和独立 grader 是不同层。 | [环境失效](../../forge/runtime/executor.py#L300)、[检查继承](../../forge/runtime/check_contracts.py#L62)、[完成门禁](../../forge/runtime/completion.py#L142)、[有界反馈](../../forge/runtime/runner.py#L768)；[不可削弱断言](../../tests/runtime/test_check_contracts.py#L57)、[公开原生演示](../../examples/harness_demo.py#L61) |
 | 规则激活 → 授权 → Journal intent → 执行/取消 → 状态重建 | 访问路径激活祖先规则；新规则尚未进入模型请求时，写入/进程先被拒绝，同批先读后写也不能绕过。统一执行器先授权；需要文件 checkpoint 时捕获 before image，intent fsync 后才执行。取消后的写入/进程结果可为 indeterminate。重建列出未匹配 intent，不自动重放；关闭只释放自己拥有的客户端和后端。 | [祖先规则](../../forge/context/repository.py#L191)、[请求边界](../../forge/runtime/runner.py#L622)、[授权/intent](../../forge/runtime/executor.py#L192)、[Journal fsync](../../forge/sessions/store.py#L381)、[重建未知工具](../../forge/sessions/store.py#L985)、[幂等关闭](../../forge/runtime/agent_loop.py#L795)；[未知副作用恢复](../../tests/implementation/integration/test_recovery.py#L55)、[Explore 后父后端仍可用](../../tests/implementation/integration/test_file_worker.py#L69) |
 
