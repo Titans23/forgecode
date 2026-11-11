@@ -1,6 +1,7 @@
 """Scripted-model integration; real tools/pytest, no provider calls or native claim."""
 
 import asyncio
+from dataclasses import replace
 import json
 from pathlib import Path
 import subprocess
@@ -33,7 +34,11 @@ class ScriptedClient:
         assert self.adapter.spec['id'] not in prompt
         assert not (self.adapter.agent_workspace / 'tests/test_hidden.py').exists()
         yield ModelUsageUpdate(TokenUsage(10, 0))
-        yield ModelToolCallCompleted(self.calls.pop(0))
+        call = self.calls.pop(0)
+        if call.name == 'replace_text':
+            yield ModelToolCallCompleted(ToolCall(0, call.id + '-read', 'read_file', {'path': call.arguments['path']}))
+            call = replace(call, index=1)
+        yield ModelToolCallCompleted(call)
         yield ModelUsageUpdate(TokenUsage(10, 2))
 
 
@@ -147,7 +152,8 @@ def test_cancelled_agent_never_starts_independent_grader(tmp_path):
                 if not getattr(self, 'edited', False):
                     self.edited = True
                     yield ModelUsageUpdate(TokenUsage(10, 0))
-                    yield ModelToolCallCompleted(ToolCall(0, 'partial-edit', 'replace_text', {
+                    yield ModelToolCallCompleted(ToolCall(0, 'partial-read', 'read_file', {'path': 'src/value.txt'}))
+                    yield ModelToolCallCompleted(ToolCall(1, 'partial-edit', 'replace_text', {
                         'path': 'src/value.txt', 'old_text': 'old\n', 'new_text': 'partial\n'}))
                     yield ModelUsageUpdate(TokenUsage(10, 2), usage_is_final=True)
                     return

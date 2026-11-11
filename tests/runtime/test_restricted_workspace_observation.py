@@ -132,7 +132,7 @@ def test_confirmed_delivery_distinguishes_normal_task_from_explicit_acceptance(t
         result = events[-1].result
         assert result.status == ('partial' if strict else 'completed')
         assert result.changed_paths == ('target.py',)
-        assert result.completion_report.workspace_tracking_complete is False
+        assert result.completion_report.workspace_tracking_complete is (False if strict else None)
         assert result.completion_report.verification_status == 'unverified'
         assert result.completion_report.acceptance_status == ('unmet' if strict else 'not_configured')
         assert any('unavailable' in reason for reason in result.completion_reasons) == strict
@@ -140,7 +140,7 @@ def test_confirmed_delivery_distinguishes_normal_task_from_explicit_acceptance(t
         assert (root / 'target.py').read_text() == 'new'
         assert (root / 'user.py').read_text() == 'preexisting user edit\n'
         completed = [row for row in journal_events(journal.path) if row['type'] == 'turn_completed'][-1]
-        assert completed['payload']['completion_report']['workspace_tracking_complete'] is False
+        assert completed['payload']['completion_report']['workspace_tracking_complete'] is (False if strict else None)
     asyncio.run(run())
 
 

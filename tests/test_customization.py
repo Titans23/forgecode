@@ -167,7 +167,9 @@ def test_development_repairs_real_plugin_in_original_budget(tmp_path):
                 assert 'Independent acceptance failed' in str(messages)
             name, args = steps[self.calls]
             self.calls += 1
-            yield ModelToolCallCompleted(ToolCall(0, str(self.calls), name, args))
+            if name == 'replace_text':
+                yield ModelToolCallCompleted(ToolCall(0, str(self.calls) + '-read', 'read_file', {'path': args['path']}))
+            yield ModelToolCallCompleted(ToolCall(1 if name == 'replace_text' else 0, str(self.calls), name, args))
             yield ModelResponseCompleted('tool_use')
         async def aclose(self):
             pass

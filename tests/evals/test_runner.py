@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncIterator
+from dataclasses import replace
 import json
 from pathlib import Path
 import subprocess
@@ -124,9 +125,13 @@ class FailingModelClient:
 
 
 def tool_response(call: ToolCall) -> list[ModelStreamEvent]:
+    # The scripted agent observes existing content before editing, in the same
+    # response/budget slot as the edit. Independent graders remain unchanged.
+    calls = ([ToolCall(0, call.id + '-read', 'read_file', {'path': call.arguments['path']}),
+              replace(call, index=1)] if call.name == 'replace_text' else [call])
     return [
         ModelUsageUpdate(usage=TokenUsage(10, 0)),
-        ModelToolCallCompleted(tool_call=call),
+        *(ModelToolCallCompleted(tool_call=item) for item in calls),
         ModelUsageUpdate(usage=TokenUsage(10, 2)),
     ]
 
