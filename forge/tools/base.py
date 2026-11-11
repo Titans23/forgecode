@@ -114,15 +114,6 @@ def _validation_recovery_hint(
     '''Give the model a concrete next action for common schema failures.'''
     error_types = {str(error.get('type')) for error in errors}
     if 'string_too_long' in error_types:
-        if tool_name == 'write_file':
-            return (
-                'Create a smaller new-file skeleton and extend it through '
-                'focused apply_patch calls.'
-            )
-        if tool_name == 'apply_patch':
-            return 'Split the change into multiple focused patches.'
-        if tool_name == 'replace_text':
-            return 'Split the replacement into multiple smaller edits.'
         return 'Split the value across multiple supported tool calls.'
     if 'extra_forbidden' in error_types:
         return 'Remove arguments that are not in the allowed field list.'

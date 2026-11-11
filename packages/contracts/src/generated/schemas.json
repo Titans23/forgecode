@@ -8334,6 +8334,9 @@
           "maxProperties": 1000,
           "type": "object"
         },
+        "include_content": {
+          "type": "boolean"
+        },
         "name": {
           "maxLength": 64,
           "minLength": 1,

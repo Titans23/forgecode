@@ -37,7 +37,7 @@ class RuntimeBindings:
     max_model_calls: int | None = None
     max_tool_calls: int | None = None
     wall_seconds: int | None = None
-    intent_routing: bool = True
+    intent_routing: bool = False
     turn_baseline_handler: Callable[[], Awaitable[None] | None] | None = None
     plugin_host: Any | None = None
     model_aliases: dict = field(default_factory=dict)

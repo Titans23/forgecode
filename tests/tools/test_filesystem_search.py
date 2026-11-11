@@ -399,7 +399,7 @@ def test_read_file_truncates_large_ranges_with_continuation_metadata(
     assert focused.metadata.get('next_start_line') is None
 
 
-def test_write_file_creates_new_text_and_never_overwrites(
+def test_write_file_creates_and_replaces_text_atomically(
     tmp_path: Path,
 ) -> None:
     tool = WriteFileTool(tmp_path)
@@ -409,10 +409,9 @@ def test_write_file_creates_new_text_and_never_overwrites(
 
     assert created.success is True
     assert created.metadata['created'] is True
-    assert overwrite.success is False
-    assert overwrite.error is not None
-    assert overwrite.error.code == 'file_already_exists'
-    assert (tmp_path / 'game.html').read_text(encoding='utf-8') == 'first'
+    assert overwrite.success is True
+    assert overwrite.metadata['created'] is False
+    assert (tmp_path / 'game.html').read_text(encoding='utf-8') == 'second'
     assert not list(tmp_path.glob('*.forge-tmp'))
 
 
@@ -428,6 +427,20 @@ def test_write_file_creates_missing_repository_parents(tmp_path: Path) -> None:
     assert (tmp_path / 'play/assets/index.html').read_text(
         encoding='utf-8'
     ) == '<main>game</main>'
+
+
+def test_new_file_does_not_replace_a_concurrent_creation(tmp_path, monkeypatch):
+    import os
+    operation = 'rename' if os.name == 'nt' else 'link'
+    original = getattr(os, operation)
+    def concurrent_publish(source, destination, **kwargs):
+        Path(destination).write_text('external content')
+        return original(source, destination, **kwargs)
+    monkeypatch.setattr('forge.tools.filesystem.os.' + operation, concurrent_publish)
+    result = run(WriteFileTool(tmp_path).run({'path': 'new.txt', 'content': 'agent content'}))
+    assert not result.success and result.error.code == 'write_conflict'
+    assert (tmp_path / 'new.txt').read_text() == 'external content'
+    assert not list(tmp_path.glob('*.forge-tmp'))
 
 
 def test_write_file_schema_does_not_expose_legacy_hash_argument(
@@ -453,7 +466,7 @@ def test_write_file_schema_does_not_expose_legacy_hash_argument(
     assert path.read_text(encoding='utf-8') == 'const value = 1;\n'
 
 
-def test_write_file_rejects_content_over_30000_characters(
+def test_write_file_accepts_content_over_30000_characters(
     tmp_path: Path,
 ) -> None:
     result = run(
@@ -462,10 +475,8 @@ def test_write_file_rejects_content_over_30000_characters(
         )
     )
 
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'invalid_arguments'
-    assert not (tmp_path / 'large.html').exists()
+    assert result.success is True
+    assert (tmp_path / 'large.html').read_text() == 'x' * 30_001
 
 
 def test_write_file_chunk_assembles_ordered_chunks_atomically(

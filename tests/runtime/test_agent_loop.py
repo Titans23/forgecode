@@ -1616,7 +1616,7 @@ def test_turn_stops_at_cumulative_input_token_limit(
     assert len(client.calls) == 2
 
 
-def test_failed_mutation_without_tracker_rejects_text_completion(
+def test_failed_mutation_remains_evidence_without_implicit_completion_gate(
     tmp_path: Path,
 ) -> None:
     write = FailingWriteTool(tmp_path)
@@ -1644,12 +1644,13 @@ def test_failed_mutation_without_tracker_rejects_text_completion(
         event.result for event in events if isinstance(event, TurnCompleted)
     )
     assert conversation.workspace_tracker is None
-    assert result.status == 'partial'
+    assert result.status == 'completed'
     assert result.model_calls == 2
-    assert result.stop_reason == 'acceptance_unmet'
+    assert result.stop_reason == 'completed'
     assert result.completion_report.agent_assessment == 'completed'
     assert result.completion_report.verification_status == 'unverified'
-    assert result.completion_reasons
+    assert not result.completion_reasons
+    assert any(isinstance(event, ToolExecutionCompleted) and not event.result.success for event in events)
 
 
 def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:

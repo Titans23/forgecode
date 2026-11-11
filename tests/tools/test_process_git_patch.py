@@ -1107,22 +1107,22 @@ def test_apply_patch_standard_diff_rejects_repository_escape(
     assert not outside.exists()
 
 
-def test_apply_patch_description_requires_small_focused_writes(
+def test_apply_patch_description_allows_large_and_whole_file_edits(
     tmp_path: Path,
 ) -> None:
     description = ApplyPatchTool(tmp_path).definition['description']
 
-    assert 'limited to 30000 characters' in description
-    assert 'split large changes across focused calls' in description
+    assert '30000' not in description
     assert 'Codex envelope' in description
-    assert 'Use write_file only to create a new small file' in description
+    assert 'write_file for whole-file replacement' in description
 
 
-def test_apply_patch_rejects_payload_over_30000_characters(
+def test_apply_patch_applies_payload_over_30000_characters(
     tmp_path: Path,
 ) -> None:
-    result = run(ApplyPatchTool(tmp_path).run({'patch': 'x' * 30_001}))
+    content = 'x' * 30_001
+    patch = f'*** Begin Patch\n*** Add File: large.txt\n+{content}\n*** End Patch'
+    result = run(ApplyPatchTool(tmp_path).run({'patch': patch}))
 
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'invalid_arguments'
+    assert result.success is True
+    assert (tmp_path / 'large.txt').read_text() == content + '\n'

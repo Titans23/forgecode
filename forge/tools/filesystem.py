@@ -6,7 +6,6 @@ import asyncio
 from collections.abc import Mapping
 import difflib
 import hashlib
-import json
 import os
 from pathlib import Path
 import re
@@ -21,9 +20,7 @@ from forge.tools.base import SandboxInput, Tool, ToolExecutionError, ToolInput, 
 from forge.tools.paths import display_path, file_access_guard, is_repository_path_protected, resolve_repository_path
 
 
-MAX_EDIT_CHARACTERS = 30_000
 MAX_READ_LINES = 400
-MAX_CHUNKED_FILE_CHARACTERS = 1_000_000
 
 
 class ListDirectoryInput(ToolInput):
@@ -369,24 +366,17 @@ class ReadFileTool(Tool[ReadFileInput]):
 
 class WriteFileInput(SandboxInput):
     path: str = Field(min_length=1)
-    content: str = Field(max_length=MAX_EDIT_CHARACTERS)
+    content: str
 
 
 class WriteFileTool(Tool[WriteFileInput]):
     name = 'write_file'
     description = (
-        'Create one new UTF-8 filesystem text file, or initialize an existing '
-        'empty/whitespace-only UTF-8 placeholder, atomically with real '
-        'task-relevant content limited to 30000 characters. An exact '
-        'content replay is an idempotent success; different model-supplied '
-        'content never overwrites a non-empty file. ForgeCode may internally '
-        'correct a file already changed by the active task using a checked '
-        'current-content hash. JSON content is parsed before it can reach disk. '
-        'The tool automatically creates missing parent '
-        'directories. Never call it with an empty extensionless path to create '
-        'a directory; write the concrete child file directly instead. Use '
-        'apply_patch for focused changes to non-empty files. For a larger new '
-        'file, create a focused skeleton and extend it with apply_patch calls.'
+        'Create or replace one UTF-8 text file atomically, creating missing parent '
+        'directories. Read an existing target before replacing it; a changed '
+        'version requires a fresh read. Exact content replay is idempotent. '
+        'Content is written as supplied, without format validation. Use apply_patch '
+        'or replace_text for focused edits.'
     )
     input_model = WriteFileInput
     effect = 'workspace_write'
@@ -434,7 +424,6 @@ class WriteFileTool(Tool[WriteFileInput]):
                 'not_a_file',
                 f'Path is not a file: {raw_path}',
             )
-        validate_structured_file_content(path, content, raw_path)
         try:
             current = read_text_preserving_newlines(path)
         except UnicodeDecodeError as error:
@@ -484,27 +473,6 @@ class WriteFileTool(Tool[WriteFileInput]):
         )
 
     def _execute_sync(self, arguments: WriteFileInput) -> ToolResult:
-        access = file_access_guard.get()
-        policy_controls_access = getattr(getattr(access, 'policy', None), 'execution_mode', None) is not None
-        if not policy_controls_access and empty_write_looks_like_directory(
-            arguments.path,
-            arguments.content,
-        ):
-            raise ToolExecutionError(
-                'directory_intent_mismatch',
-                'write_file cannot create an empty directory-shaped path. '
-                'Write the concrete child file directly (missing parents are '
-                'created automatically), or use create_directory only when an '
-                'empty directory is the actual task result.',
-                details={
-                    'path': arguments.path,
-                    'recommended_tools': ['write_file', 'create_directory'],
-                    'recovery': (
-                        'For example, write play/src/entities/index.ts directly '
-                        'instead of writing empty content to play/src/entities.'
-                    ),
-                },
-            )
         path = resolve_repository_path(
             self.root,
             arguments.path,
@@ -515,11 +483,6 @@ class WriteFileTool(Tool[WriteFileInput]):
                 'not_a_file',
                 f'Path is not a file: {arguments.path}',
             )
-        validate_structured_file_content(
-            path,
-            arguments.content,
-            arguments.path,
-        )
         existed = path.exists()
         initialized_placeholder = False
         if existed:
@@ -545,32 +508,11 @@ class WriteFileTool(Tool[WriteFileInput]):
                         'status': 'already_completed',
                     },
                 )
-            if current.strip() and not policy_controls_access:
-                raise ToolExecutionError(
-                    'file_already_exists',
-                    f'write_file will not overwrite non-empty file '
-                    f'{arguments.path}. Use apply_patch or replace_text for a '
-                    'focused change. Whole-file replacement is a last resort. '
-                    'If it is explicitly required, split the real replacement '
-                    'content across at least two non-empty write_file_chunk '
-                    'calls: first offset=0, truncate=true, final=false with an '
-                    'actual prefix, then append the remainder at next_offset '
-                    'with final=true. Never send an empty starter chunk.',
-                    details={
-                        'path': arguments.path,
-                        'existing_characters': len(current),
-                        'recommended_tools': [
-                            'apply_patch',
-                            'replace_text',
-                            'write_file_chunk',
-                        ],
-                    },
-                )
-            initialized_placeholder = True
+            initialized_placeholder = not current.strip()
         ensure_parent_directory(path, arguments.path)
         atomic_write_text(path, arguments.content)
         shown_path = display_path(self.root, path)
-        action = 'Initialized' if initialized_placeholder else 'Created'
+        action = 'Initialized' if initialized_placeholder else 'Updated' if existed else 'Created'
         return ToolResult.ok(
             f'{action} {shown_path} with {len(arguments.content)} characters.',
             metadata={
@@ -587,7 +529,7 @@ class WriteFileTool(Tool[WriteFileInput]):
 
 class WriteFileChunkInput(SandboxInput):
     path: str = Field(min_length=1)
-    content: str = Field(min_length=1, max_length=MAX_EDIT_CHARACTERS)
+    content: str
     offset: int = Field(ge=0)
     truncate: bool = False
     final: bool = False
@@ -608,17 +550,13 @@ class WriteFileChunkInput(SandboxInput):
 class WriteFileChunkTool(Tool[WriteFileChunkInput]):
     name = 'write_file_chunk'
     description = (
-        'Create or extend one UTF-8 filesystem file in ordered chunks of at '
-        'most 30000 characters. Start a new or multi-chunk replacement file '
-        'with a non-empty real content prefix, offset=0, truncate=true, and '
-        'final=false; an empty starter chunk is invalid. A single final chunk '
-        'cannot replace an existing non-empty file; use apply_patch for that. '
+        'Create, replace or extend one UTF-8 file in ordered chunks. '
+        'Start a replacement with offset=0 and truncate=true. Read existing targets first. '
         'For every later chunk, set offset to '
         'the exact next_offset returned by the previous call. Each chunk is '
         'applied atomically and an offset mismatch is rejected without '
         'writing. Set final=true on the last chunk and optionally provide '
-        'expected_sha256 for whole-file integrity. Total file size is '
-        'limited to 1000000 characters. A new file safely creates missing '
+        'expected_sha256 for whole-file integrity. A new file safely creates missing '
         'repository-relative parent directories.'
     )
     input_model = WriteFileChunkInput
@@ -639,19 +577,6 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
                 f'Path is not a file: {arguments.path}',
             )
         existed = path.exists()
-        if (
-            existed
-            and arguments.truncate
-            and arguments.final
-            and path.stat().st_size > 0
-        ):
-            raise ToolExecutionError(
-                'single_chunk_overwrite_denied',
-                'write_file_chunk cannot replace an existing non-empty file '
-                'with one final chunk. Use apply_patch for a focused change, '
-                'or start a genuine multi-chunk replacement with final=false.',
-                details={'path': arguments.path},
-            )
         if arguments.truncate:
             existing = ''
         elif existed:
@@ -678,12 +603,6 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
             )
 
         updated = existing + arguments.content
-        if len(updated) > MAX_CHUNKED_FILE_CHARACTERS:
-            raise ToolExecutionError(
-                'chunked_file_too_large',
-                f'Chunked file would contain {len(updated)} characters; '
-                f'maximum is {MAX_CHUNKED_FILE_CHARACTERS}.',
-            )
         digest = hashlib.sha256(updated.encode('utf-8')).hexdigest()
         if (
             arguments.expected_sha256 is not None
@@ -698,12 +617,6 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
                 },
             )
 
-        if arguments.final:
-            validate_structured_file_content(
-                path,
-                updated,
-                arguments.path,
-            )
         ensure_parent_directory(path, arguments.path)
         atomic_write_text(path, updated)
         shown_path = display_path(self.root, path)
@@ -725,8 +638,8 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
 
 class ReplaceTextInput(SandboxInput):
     path: str = Field(min_length=1)
-    old_text: str = Field(min_length=1, max_length=MAX_EDIT_CHARACTERS)
-    new_text: str = Field(max_length=MAX_EDIT_CHARACTERS)
+    old_text: str = Field(min_length=1)
+    new_text: str
 
     @model_validator(mode='after')
     def validate_real_change(self) -> ReplaceTextInput:
@@ -739,8 +652,7 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
     name = 'replace_text'
     description = (
         'Replace one exact, unique UTF-8 text fragment in an existing '
-        'filesystem file. Both old_text and new_text are limited to 30000 '
-        'characters. Use this for a focused edit after reading the relevant '
+        'filesystem file. Use this for a focused edit after reading the relevant '
         'source. If old_text is missing, the error returns the closest exact '
         'current text when it is small enough; copy that text directly into '
         'the next old_text instead of re-reading or guessing whitespace. Do '
@@ -852,11 +764,6 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
             new_text,
             1,
         )
-        validate_structured_file_content(
-            path,
-            updated,
-            arguments.path,
-        )
         atomic_write_text(path, updated)
         shown_path = display_path(self.root, path)
         return ToolResult.ok(
@@ -923,55 +830,6 @@ def closest_text_diagnostic(content: str, old_text: str) -> dict[str, object]:
     }
 
 
-DIRECTORY_LIKE_NAMES = frozenset({
-    'ai',
-    'assets',
-    'build',
-    'combat',
-    'components',
-    'config',
-    'configs',
-    'dist',
-    'entities',
-    'graphics',
-    'input',
-    'lib',
-    'loot',
-    'public',
-    'scripts',
-    'services',
-    'spawn',
-    'src',
-    'system',
-    'systems',
-    'test',
-    'tests',
-    'ui',
-    'weapons',
-})
-
-
-def empty_write_looks_like_directory(raw_path: str, content: str) -> bool:
-    '''Detect writes that are almost certainly mistaken directory creation.'''
-    rendered = raw_path.replace('\\', '/')
-    normalized = rendered.rstrip('/')
-    leaf = normalized.rsplit('/', 1)[-1] if normalized else ''
-    if rendered.endswith(('/', '/.', '/..')):
-        return True
-    if leaf.casefold() in DIRECTORY_LIKE_NAMES:
-        return True
-    return bool(
-        not content
-        and (
-            leaf in {'', '.', '..'}
-            or (
-                '.' not in leaf
-                and leaf.casefold() not in {'makefile', 'license'}
-            )
-        )
-    )
-
-
 def ensure_parent_directory(path: Path, raw_path: str) -> None:
     '''Create validated parent directories when needed.'''
     ancestor = path.parent
@@ -1012,42 +870,14 @@ def ensure_parent_directory(path: Path, raw_path: str) -> None:
         )
 
 
-def validate_structured_file_content(
-    path: Path,
-    content: str,
-    raw_path: str,
-) -> None:
-    '''Reject malformed structured text before it reaches the workspace.'''
-    if path.suffix.casefold() != '.json':
-        return
-    try:
-        json.loads(content)
-    except json.JSONDecodeError as error:
-        raise ToolExecutionError(
-            'invalid_json_content',
-            f'JSON content for {raw_path} is invalid at line '
-            f'{error.lineno}, column {error.colno}: {error.msg}. '
-            'No file was written.',
-            details={
-                'path': raw_path,
-                'line': error.lineno,
-                'column': error.colno,
-                'position': error.pos,
-                'recovery': (
-                    'Send one complete JSON document. Do not initialize a JSON '
-                    'file with a partial object or trailing property separator.'
-                ),
-            },
-        ) from error
-
-
 def atomic_write_text(path: Path, content: str) -> None:
     '''Replace one text file without exposing a partially written result.'''
     temporary_path: Path | None = None
     guard = file_access_guard.get()
     if guard is not None:
         guard(path)
-    mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else None
+    existed = path.exists()
+    mode = stat.S_IMODE(path.stat().st_mode) if existed else None
     try:
         with tempfile.NamedTemporaryFile(
             mode='w',
@@ -1067,7 +897,18 @@ def atomic_write_text(path: Path, content: str) -> None:
         guard = file_access_guard.get()
         if guard is not None:
             guard(path)
-        temporary_path.replace(path)
+        if existed:
+            temporary_path.replace(path)
+        else:
+            # Publish a complete new file without replacing a concurrently
+            # created destination. The temporary and target share a directory.
+            try:
+                if os.name == 'nt':
+                    os.rename(temporary_path, path)  # Windows rename refuses an existing destination.
+                else:
+                    os.link(temporary_path, path)
+            except FileExistsError as error:
+                raise ToolExecutionError('write_conflict', 'The target was created concurrently; read it before retrying.') from error
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()

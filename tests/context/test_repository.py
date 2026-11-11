@@ -214,9 +214,10 @@ def test_unseen_rules_block_write_until_next_model_request(tmp_path, read_in_sam
             async for _ in conversation.stream('Create src/result.txt'):
                 pass
             assert target.read_text() == 'project notice'
-            # This boundary-only fixture supplies no independent delivery
-            # evidence to clear the rejected write; do not claim acceptance.
-            assert conversation.turn_state.stop_reason == 'acceptance_unmet'
+            # The instruction boundary still rejects the first write. A later
+            # successful correction needs no implicit acceptance ceremony.
+            assert conversation.turn_state.stop_reason == 'completed'
+            assert conversation.completion_gate is None
         finally:
             await conversation.runtime_close()
     asyncio.run(run())

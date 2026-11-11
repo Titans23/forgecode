@@ -263,7 +263,7 @@ def test_conversation_injects_catalog_and_explicit_body(tmp_path: Path) -> None:
 
     # Assert the actual tool-enabled request and its complete skill context.
     request = next(call for call in client.calls if call['tools'] is not None)
-    system = str(request['system'])
+    system = request['messages'][-1]['content']
     raw_tools = request['tools']
     assert isinstance(raw_tools, list)
     tool_names = {str(item['name']) for item in raw_tools}
@@ -333,7 +333,7 @@ def test_implicit_skill_loading_round_trip_uses_read_only_tool(
     asyncio.run(run())
 
     assert len(client.calls) == 2
-    first_system = str(client.calls[0]['system'])
+    first_system = client.calls[0]['messages'][-1]['content']
     assert 'Review code changes for correctness and regressions.' in first_system
     assert 'Inspect the diff and report concrete findings.' not in first_system
     assert len(completed) == 1

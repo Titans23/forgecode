@@ -191,7 +191,7 @@ def test_sandbox_provider_selection_is_explicit_and_serializable(tmp_path):
     host = AgentDefinition(name='host', sandbox_provider=None)
     assert AgentDefinition.from_dict(host.as_dict()) == host
     assert SessionOptions(tmp_path, agent=host).sandbox == 'full-access'
-    assert SessionOptions(tmp_path).sandbox == 'workspace-write'
+    assert SessionOptions(tmp_path).sandbox == 'full-access'
     with pytest.raises(ValueError, match='requires a sandbox provider'):
         SessionOptions(tmp_path, agent=host, sandbox='read-only')
 
@@ -276,7 +276,7 @@ def activate(ctx, config):
                 yield ModelToolCallCompleted(ToolCall(0, 'child', 'delegate', {}))
                 yield ModelResponseCompleted('tool_use')
             else:
-                assert 'Child sandbox provider must be inherited' in str(kwargs['messages'][-1])
+                assert 'Child sandbox provider must be inherited' in str(kwargs['messages'][-2])
                 yield ModelTextDelta('blocked')
                 yield ModelResponseCompleted('end_turn')
     async def run():

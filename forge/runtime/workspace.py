@@ -36,6 +36,7 @@ class WorkspaceTracker:
         self._baseline_complete = False
         self.baseline_pending = False
         self.git_available = False
+        self.full_inventory = True
         self._watched_paths: set[str] = set()
         self._carried_paths: set[str] = set()
 
@@ -54,6 +55,9 @@ class WorkspaceTracker:
         '''Capture once before an authorized side effect, never after it.'''
         if not self.baseline_pending:
             return
+        if not self.full_inventory:
+            self.baseline_pending = False
+            return
         snapshot = await self._capture()
         self.available = snapshot is not None
         self._baseline_complete = self.available
@@ -70,6 +74,8 @@ class WorkspaceTracker:
 
     def carry_existing_changes(self, paths: tuple[str, ...]) -> None:
         '''Restore only persisted task paths still dirty relative to Git HEAD.'''
+        if not self.full_inventory:
+            return
         self._carried_paths = {
             normalize_path(path)
             for path in paths
@@ -128,7 +134,7 @@ class WorkspaceTracker:
             # without blocking the first model request on a whole-tree scan.
             await self.ensure_baseline()
             return None
-        if self.observer is not None and not self._baseline_complete:
+        if not self.full_inventory or self.observer is not None and not self._baseline_complete:
             # Another inventory cannot reconstruct a missing before-image.
             # Recheck the only targets for which this turn has actual evidence.
             return await self.refresh_paths(tuple(self._watched_paths)) if self._watched_paths else None

@@ -345,9 +345,7 @@ def test_cli_runtime_restores_recorded_model(
     )
 
     assert conversation.client.model == 'recorded-model'
-    assert isinstance(conversation.intent_router, ModelIntentRouter)
-    assert conversation.intent_router.client.max_tokens == 600
-    assert conversation.intent_router.client.model == 'recorded-model'
+    assert conversation.intent_router is None
     assert resumed.session_id == journal.session_id
     assert state is not None
 

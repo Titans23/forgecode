@@ -63,6 +63,7 @@ def test_file_grant_covers_checkpoint_and_write_but_not_following_call(tmp_path,
         try:
             denied = await runtime.execute(call('write_file', path=str(destination), content='denied'))
             assert not denied.result.success and destination.read_text() == 'before'
+            assert (await runtime.execute(call('read_file', path=str(destination)))).result.success
             result = await runtime.execute(call('write_file', path=str(destination), content='after',
                 sandbox_permissions=target, justification='Update this one owned fixture.'), checkpoint_id=checkpoint)
             assert result.result.success, result.result

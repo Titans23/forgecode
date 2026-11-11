@@ -130,6 +130,8 @@ class FileAccess:
             if self.write:
                 current = self.observation(path)
                 if path in self.expected and current['sha256'] != self.expected[path]:
+                    if self.expected[path] is None:
+                        fail('FS_NOT_OBSERVED', 'Read the existing file before replacing or editing it')
                     fail('STALE_FILE', 'File changed after the approved observation')
                 previous = self.before.setdefault(path, current)
                 if previous != current:
@@ -279,7 +281,7 @@ class FileAccess:
                 complete = False
         return {'files': files, 'complete': complete}
 
-    def snapshot(self, paths, recursive=False):
+    def snapshot(self, paths, recursive=False, *, include_content=True):
         files, pending = {}, list(paths)
         while pending:
             raw = pending.pop()
@@ -287,7 +289,7 @@ class FileAccess:
             key = path.relative_to(self.root).as_posix() if path.is_relative_to(self.root) else path.as_posix()
             if key in files:
                 continue
-            files[key] = self.observation(path, content=True)
+            files[key] = self.observation(path, content=include_content)
             if len(files) > 1000:
                 fail('ARTIFACT_LIMIT', 'Recursive checkpoint exceeds helper path quota')
             if recursive and files[key]['exists'] and not files[key]['is_file']:
@@ -351,7 +353,8 @@ async def execute(request):
     if operation == 'scan':
         return await access.scan(), {}
     if operation == 'snapshot':
-        return access.snapshot(request['paths'], request.get('recursive', False)), {}
+        return access.snapshot(request['paths'], request.get('recursive', False),
+                               include_content=request.get('include_content', True)), {}
     from forge.tools.base import file_access_guard
     from forge.tools.filesystem import (CreateDirectoryTool, ListDirectoryTool, ReadFileTool,
         RemoveDirectoryTool, ReplaceTextTool, WriteFileChunkTool, WriteFileTool)

@@ -169,7 +169,7 @@ def test_tool_validation_failure_does_not_raise(tmp_path: Path) -> None:
     )
 
 
-def test_tool_validation_failure_explains_oversized_content(
+def test_tool_registry_accepts_large_content_without_a_skeleton_workaround(
     tmp_path: Path,
 ) -> None:
     registry = create_default_registry(tmp_path)
@@ -181,16 +181,8 @@ def test_tool_validation_failure_explains_oversized_content(
         )
     )
 
-    assert result.success is False
-    assert result.error is not None
-    assert result.error.code == 'invalid_arguments'
-    assert '`content` has 30001 characters; maximum is 30000' in (
-        result.error.message
-    )
-    assert 'smaller new-file skeleton' in result.error.message
-    assert result.error.details['recovery_hint'].startswith(
-        'Create a smaller new-file skeleton'
-    )
+    assert result.success is True
+    assert (tmp_path / 'large.js').read_text() == 'x' * 30_001
 
 
 def test_repository_tools_can_read_paths_outside_working_directory(

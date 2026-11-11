@@ -27,7 +27,7 @@ class RunProfile:
     max_model_calls: int = 80
     max_tool_calls: int = 120
     wall_seconds: int = 1800
-    intent_routing: bool = True
+    intent_routing: bool = False
 
     def __post_init__(self):
         if type(self.intent_routing) is not bool:
@@ -44,7 +44,7 @@ class RunProfile:
 class SessionOptions:
     root: Path | None = None
     sandbox: str | None = None
-    approval: str = 'ask'
+    approval: str | None = None
     read_roots: tuple[Path, ...] = ()
     write_roots: tuple[Path, ...] | None = None
     data_root: Path | None = None
@@ -55,11 +55,14 @@ class SessionOptions:
 
     def __post_init__(self):
         if self.sandbox is None:
-            object.__setattr__(self, 'sandbox', 'workspace-write' if self.agent.sandbox_provider else 'full-access')
+            scoped = self.write_roots is not None or self.agent.sandbox_provider not in (None, 'native')
+            object.__setattr__(self, 'sandbox', 'workspace-write' if scoped else 'full-access')
         if self.sandbox == 'danger-full-access':
             object.__setattr__(self, 'sandbox', 'full-access')
         if self.sandbox not in ('read-only', 'workspace-write', 'full-access'):
             raise ValueError('Sandbox must be read-only, workspace-write or full-access')
+        if self.approval is None:
+            object.__setattr__(self, 'approval', 'never' if self.sandbox == 'full-access' else 'ask')
         if self.approval not in ('ask', 'never', 'plan', 'supervised', 'auto'):
             raise ValueError('Approval must be ask or never (legacy: plan, supervised, auto)')
         if self.agent.base == 'coding' and self.root is None:

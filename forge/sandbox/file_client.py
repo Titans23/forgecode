@@ -164,8 +164,9 @@ class FileWorkerClient:
     async def scan(self):
         return (await self.request('scan'))['result']
 
-    async def snapshot(self, paths, *, recursive=False):
-        return (await self.request('snapshot', paths=list(paths), recursive=recursive))['result']
+    async def snapshot(self, paths, *, recursive=False, include_content=False):
+        return (await self.request('snapshot', paths=list(paths), recursive=recursive,
+                                   include_content=include_content))['result']
 
     async def close(self):
         if self._closing is None:

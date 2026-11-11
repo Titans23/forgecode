@@ -83,13 +83,13 @@ forge config
 forge
 ```
 
-将示例路径替换为实际项目目录。`forge config` 检查配置，不回显密钥；`forge` 启动持续对话。ForgeCode 安装目录与目标项目分开，避免安装目录保护导致沙盒初始化被拒绝。
+将示例路径替换为实际项目目录。`forge config` 检查配置，不回显密钥；在目标项目目录运行 `forge` 启动持续对话。
 
-默认 workspace-write 按 DSH 的方式区分文件策略和进程隔离：启动、读取及文件编辑不申请原生 ACL；文件工具解析实际目标，写入限于工作区和平台临时目录，不再按 `.env` 等名称额外拒绝访问。符号链接和 Windows Junction 不会单独阻止启动。运行命令、验证或 Git 工具时由 DSH 施加原生边界，不再执行 Forge 的前置写入探针，也不因安装目录与工作区重叠而额外拒绝。
+新建普通 coding 会话默认使用 `danger-full-access`＋`never`：文件和命令使用当前用户的宿主权限，不初始化原生沙盒或修改项目 ACL。普通回合直接请求主模型，不做独立意图分类、全盘基线扫描或强制完成验收；仅记录实际工具目标的变化。需要隔离时使用 `forge --sandbox workspace-write` 或 `/permission workspace-write`，文件写入限于工作区和平台临时目录，命令按需使用 DSH 原生边界。显式写入范围和自定义沙盒提供方仍采用其受限模式。
 
 遇到 `SANDBOX_UNAVAILABLE` 时，先执行 `forge sandbox --json` 查看 `runtime` 的检查结果。源码安装需检查构建文件，Linux 由 DSH 检测可用 runner。只读诊断可为 `blocked`；成功打开 CLI 不代表 OS 隔离已经验证。缺少 Git、rg 或 PowerShell 只影响需要它们的工具，不阻止其他命令。
 
-Windows 原生命令仍需要目标项目满足 DSH 的目录授权条件，包括设置低完整性标签所需的 WRITE_OWNER（“完全控制”包含该权限）。不足时拒绝该进程调用，保留会话和文件策略。命令、verify 和文件修改工具可通过 `sandbox_permissions` 和 `justification` 请求单次更宽权限。`--approval ask` 是默认审批策略，仅扩大范围或显式策略要求时询问；`never` 拒绝需要审批的请求。批准的 `danger-full-access` 操作使用宿主权限，下一次操作仍使用默认沙盒。没有自动切换或重试，也不会自动修复项目 ACL。
+选择 Windows 原生沙盒时，目标目录仍须满足 DSH 的授权条件，包括设置低完整性标签所需的 WRITE_OWNER。不足时命令不会启动；命令、verify、Git 和文件修改工具可用 `sandbox_permissions` 与 `justification` 请求单次更宽权限。受限模式默认 `ask`，完全访问默认 `never`，后者拒绝需要审批的请求；显式禁止规则仍有效。一次批准不会改变会话模式，也不会自动修复项目 ACL。
 
 会话空闲时可用 `/sandbox read-only|workspace-write|danger-full-access` 切换沙盒，`/approval ask|never` 切换审批；`/permission workspace-write` 和 `/permission danger-full-access` 分别选择 workspace-write＋ask、full-access＋never。选择保存在当前会话中，恢复时重放；分支继承，`/clear` 回到启动默认值，不改全局配置。SDK 对应 `await session.set_sandbox(mode)`。
 
@@ -100,7 +100,7 @@ forge --continue
 forge --resume SESSION_ID
 ```
 
-`--continue` 恢复当前项目的上次会话，`--resume` 指定会话 ID；清除会话数据后需要重新开始。默认使用 workspace-write 文件策略与按需原生进程沙盒。其他模型连接、明确的权限范围、完整访问、审批、wheel 安装及使用限制见 [终端使用指南](docs/install/terminal-quickstart.md)。
+`--continue` 恢复当前项目的上次会话，`--resume` 指定会话 ID；恢复保留该会话保存的权限，不把旧会话自动改为完全访问。其他模型连接、权限范围、审批、wheel 安装及使用限制见 [终端使用指南](docs/install/terminal-quickstart.md)。
 
 ## 入口组合
 

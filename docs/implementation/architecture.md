@@ -20,7 +20,7 @@ ProviderRegistry 按选择延迟导入协议适配器。`model_selected` 原子�
 
 持续对话终端与 Python Harness API。terminal/evaluation 启动 Profile 选择入口；`bundles` 是入口描述，不是插件依赖注入系统。SDK 直接调用 API。原生权限由 SessionOptions 单独选择，预算配置不提升权限。
 
-`forge.execution` 定义不含模型凭据的执行请求及后端契约；coding 的内置 `native` 提供方按选择延迟加载，core 不依赖它。内置提供方先绑定可信文件路径策略，PolicyToolBackend 在命令、verify 或 Git 调用前才准备原生进程后端；文件操作不等待 OS 探针。可信插件通过 `register_sandbox_provider` 注册，AgentDefinition 显式选择；配置为 None 的 coding 组合默认走宿主执行，原 coding 默认仍为 workspace-write。提供方失败不回退，子任务不能更换父提供方；会话先关闭模型与执行后端，再释放插件资源。原生提供方沿用现有平台实现与证据限制。
+`forge.execution` 定义不含模型凭据的执行请求及后端契约；普通 coding 默认 `danger-full-access`＋`never`，不初始化原生沙盒。显式写入范围、自定义提供方或受限模式继续使用所选边界；原生 PolicyToolBackend 在命令、verify 或 Git 调用前才准备进程后端。可信插件通过 `register_sandbox_provider` 注册，AgentDefinition 显式选择；core 不依赖沙盒。提供方失败不回退，子任务不能更换父提供方，旧会话恢复其保存的权限；会话先关闭模型与执行后端，再释放提供方资源。
 
 文件修改、命令和 Git 查询工具的 `SandboxInput` 共享 DSH 的 `sandbox_permissions` / `justification`。ToolExecutor 在最终参数与任务范围检查后要求单独的 allow_once，已有 allow 规则不能绕过。显式模式下普通内置工具遵循沙盒策略，不使用旧命令/敏感名称启发式作为拒绝依据；工具提供的显式限制和用户 deny 规则继续有效。文件修改通过临时后端完成快照、执行与结果观察，控制字段不进入命令或存储的 verify 定义；原生执行依旧按需准备。清理失败保留 indeterminate；单次授权不会替换默认策略或泄漏给下一次调用。旧的无 execution_mode 接口保留历史兼容语义。
 
@@ -117,8 +117,10 @@ Windows 控制进程目录放在 OS 解析的 LocalAppData/ForgeCode/native 下�
 
 原生命令使用原解释器，不创建 Forge 私有 venv，不修改 Python mkdir/临时目录语义或注入 PYTEST_ADDOPTS。Windows CPython 的 0700 与受限令牌兼容问题按 DSH 原生行为暴露，需调用方选择适合该模式的缓存配置；不能把此限制表述为已解决。
 
-原生文件观察复用 Git 改动路径与授权文件指纹，并枚举普通 ignored 文件；`.gitignore` 不作为安全白名单，已声明的运行缓存仍排除。Git 配置包含过滤器、include 或工作树重定向时使用既有有界扫描；输出截断、超时和观察缺失不算完整。已确认的文件工具目标直接刷新前后指纹，避免每次修改都重扫仓库。初始基线不完整仍阻断显式验收或没有已确认变更的修改声明；普通无验收契约的交付可依据已确认目标完成，CompletionReport.workspace_tracking_complete=false 保留限制，终端说明变更列表不完整，不宣称验证通过。受限观察不启用宿主 Git diff 子进程。输出生产者在有界队列成功入队后让出调度，消费者缺失、缓慢或配额耗尽仍报告丢弃。
-普通交互先重置工作区证据，完整扫描延迟到首次通过权限检查的写入或进程工具之前；历史验证、历史修改路径和空 HookManager 不再阻塞首个模型请求。续接任务的旧路径在建立基线或完成检查时核实，未核实前不算当前变更。显式任务/验收契约、启用的宿主 Hooks 与自定义完成检查保留轮次开始时的基线；取消扫描不会执行工具。扫描的时间限制也在单文件哈希读取中检查；初始盘点不完整后仅刷新已有前像的工具目标，不能凭后续全盘扫描补造前像。意图路由仍是独立模型请求，提供方首包与思考耗时另计。
+显式全盘观察复用 Git 改动路径与授权文件指纹，并枚举普通 ignored 文件；`.gitignore` 不作为安全白名单，已声明的运行缓存仍排除。Git 配置包含过滤器、include 或工作树重定向时使用有界扫描；输出截断、超时和观察缺失不算完整。严格验收中的不完整基线仍可阻止完成；普通 coding 未请求全盘盘点时，CompletionReport.workspace_tracking_complete 为 None，不把目标观察误报为全盘扫描失败或成功。受限观察不启用宿主 Git diff 子进程。输出生产者在有界队列成功入队后让出调度，消费者缺失、缓慢或配额耗尽仍报告丢弃。
+普通 coding 的 WorkspaceTracker 只观察工具目标，不执行全盘基线或全盘刷新，命令仅推进环境版本并复查已观察目标；变更列表不宣称完整。没有显式 TaskPolicy 时不创建 CompletionGate 或自动检查点；工具失败保留为事实，不再自动阻止模型结束回合。strict Agent、显式 TaskPolicy 及插件完成检查继续执行调用方约束；严格扫描的时间限制覆盖单文件哈希读取，不完整基线不会靠后续扫描补造前像。RunProfile 与 RuntimeBindings 的 intent_routing 默认 False，工厂不再额外创建路由模型；显式 True 仅保留旧调用兼容。
+
+文件写入、替换和补丁移除固定字符上限、单块覆盖禁令、目录名称推断及强制 JSON 校验。FileToolBackend 保存模型读取或写入得到的目标指纹；内部检查点不代表模型已读取。未观察的目标只能新建，现有文件须先读，外部修改使旧指纹失效。普通 snapshot 只传版本信息，显式检查点才包含内容；原有传输、检查点、预算、取消和清理边界保留。
 
 主模型的系统指令保持稳定；任务、仓库上下文、工作证据、权限状态、预算和 Hook 补充放在请求末尾的 `[ForgeCode current context]` 用户消息中，明确来源且不提升仓库文本权限。该消息只存在于请求副本，不把过期状态累积进持久历史；压缩预算包含它的大小。这样状态变化不再使整个历史的缓存前缀失效；最近请求尾部、工具 schema 变化和压缩仍可能造成缓存未命中，实际命中以提供方计量为准。显式沙盒模式下，意图分类不再隐藏进程或写入工具，真实权限、调用方规则和任务约束仍由 Executor 执行；旧无 execution_mode 的只读意图限制保留兼容。
 
@@ -163,7 +165,7 @@ Journal 是执行事实源；ATIF 和 SFT 都是离线投影。版本比较核�
 开发时只跑新增行为、失败用例与相关模块，稳定后运行一次相关回归以及 contracts/quality，再推送并检查 CI。
 仅公共核心变化或未覆盖风险触发全量回归，不在 Windows、WSL 和 CI 默认重复全量；原生验收按阶段需求执行。
 CI 的 unit 自动发现非 native/fixture 的功能测试目录，portable 覆盖实现集成与协议测试；有测试收录检查防止遗漏。quality 同时运行 Ruff、公共输入/结果类型的 mypy 和架构依赖检查。根据 JUnit 耗时减少重复准备，保留关键边界测试。
-离线存储性能基准：`uv run --no-sync python scripts/benchmark_architecture.py --records 100 --output .local/implementation/architecture-performance.json`。RunProfile.intent_routing=False 可用于单独测量前置路由开销，不改变默认权限。真实模型消融必须固定任务、模型、预算和环境后另行授权。
+离线存储性能基准：`uv run --no-sync python scripts/benchmark_architecture.py --records 100 --output .local/implementation/architecture-performance.json`。RunProfile.intent_routing=True 可显式启用兼容路由作对照，不改变权限。真实模型消融必须固定任务、模型、预算和环境后另行授权。
 清理不授权付费模型、管理员设置或生产签名。
 
 每个独立验收点完成相关检查后单独 commit、push，并报告 SHA/链接、验证范围和实际 CI 状态。源码存在、离线脚本模型通过、真实原生测试和真实模型收益是不同证据；完整完成率包含所有已尝试任务，预算耗尽、取消及基础设施失败不能算成功。成功任务成本与双成功配对另列，不用删掉失败后的均值代表总体改进。当前 P3 七个双成功配对的 token -3.4%、耗时 +1.6% 未证明稳定收益，不能摘取前者作为简历性能结论。

@@ -13,7 +13,6 @@ from pydantic import Field
 from forge.tools.base import SandboxInput, Tool, ToolExecutionError, ToolResult
 from forge.tools.paths import display_path, resolve_repository_path
 from forge.tools.filesystem import (
-    MAX_EDIT_CHARACTERS,
     dominant_newline,
     read_text_preserving_newlines,
 )
@@ -25,7 +24,7 @@ from forge.tools.shell import (
 
 
 class ApplyPatchInput(SandboxInput):
-    patch: str = Field(min_length=1, max_length=MAX_EDIT_CHARACTERS)
+    patch: str = Field(min_length=1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,10 +57,9 @@ class ApplyPatchTool(Tool[ApplyPatchInput]):
         'unified diff (--- a/path, +++ b/path, and numbered @@ hunks) or a '
         'Codex envelope (*** Begin Patch with *** Update File, *** Add File, '
         'or *** Delete File sections; Update sections may use bare @@ hunks). '
-        'The patch is limited to 30000 characters; split large changes across '
-        'focused calls. Use repository-relative paths. On patch_rejected, '
+        'Use repository-relative paths. On patch_rejected, '
         'inspect only the smallest relevant current range and retry once with '
-        'its exact content. Use write_file only to create a new small file.'
+        'its exact content. Use write_file for whole-file replacement after reading the target.'
     )
     input_model = ApplyPatchInput
     effect = 'workspace_write'

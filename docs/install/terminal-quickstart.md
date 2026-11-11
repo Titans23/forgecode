@@ -64,7 +64,7 @@ SDK 使用 `AgentDefinition` 和 `PluginSpec(source=..., trusted=True)` 显式�
 core 无需代码工作区；coding 使用原来的文件工具及权限。
 
 执行提供方按 Agent 选择：`sandbox_provider` 默认随 base 解析为 coding 的 `"native"` 或 core 的 `null`。
-配置 `{"base":"coding","sandbox_provider":null}` 可创建明确使用宿主执行的组合；未指定 `--sandbox` 时由该组合决定，默认 coding 仍为 `workspace-write`。
+普通 coding 默认 `danger-full-access`；配置 `{"base":"coding","sandbox_provider":null}` 则完全不使用沙盒提供方。显式自定义提供方或写入范围保持受限模式，也可用 `--sandbox` 明确选择。
 显式 `read-only`/`workspace-write` 必须有提供方，初始化失败不回退宿主。审批和回合预算独立于提供方，受管 coding 子任务不能更换父提供方。
 
 可信插件可在 activate 中用 `ctx.register_sandbox_provider(name, factory)` 注册提供方，然后在 Agent 配置中填写该名称。
@@ -168,7 +168,9 @@ forge --continue --fork-session
 新交互会话在首次提交对话时才保存；直接退出或仅查看历史不会生成空会话。
 `/resume` 按更新时间倒序显示已保存会话，最近的在前；当前会话保留标记但不强行置顶。新建但尚未提交的会话显示为“新会话”，不会因此写入空历史。选择当前会话不会重新加载或重放工具。
 权限选择器不显示编号，方向键选择、Enter 确认，Y 同意一次，N/Esc/Ctrl+C 拒绝；完整操作参数仍在确认前展示。
-普通问答和只读查看不会在主模型请求前扫描整个工作区；已有修改/验证记录和空的 Hooks 配置也不再触发这项等待。首次获准的写入或命令执行仍会先建立基线；显式验收任务和启用的宿主扩展保留开始时检查。大文件读取遵循扫描期限，首次盘点不完整后只复查已记录的工具目标，并保留“不完整”说明。首字仍包含意图路由与模型服务本身的耗时。
+普通 coding 直接调用主模型，不做前置意图分类、全盘基线扫描或自动检查点；写入和命令执行也不会触发全盘扫描。文件工具只观察实际目标及其版本。普通回复不经过强制完成验收；显式 TaskPolicy、strict Agent 和插件完成检查继续执行调用方要求。没有独立验收时，completed 表示回合完成，不代表已经通过测试或调用方验收。
+
+文件写入、替换和补丁没有原来的 30,000 字符上限；不会强制分块或解析 JSON 内容。已有文件需要先读取，版本变化时必须重新读取；新文件不会覆盖并发创建的内容。普通目标观察只传指纹，不受检查点 512 KiB 内容配额限制。显式检查点、工具传输和资源预算仍有各自的上限。
 
 预算、任务和工具证据等动态上下文放在请求末尾，系统提示和较早历史保持稳定，有利于提供方复用前缀缓存。缓存命中不减少模型生成代码所需的输出 token，也不能保证所有请求命中；工具定义变化、长历史压缩及提供方缓存状态仍会影响结果。
 恢复会话默认显示最近 10 轮，`/history all` 显示完整可用对话；工具历史以摘要展示，
@@ -184,7 +186,7 @@ forge --sandbox danger-full-access --approval supervised
 forge --sandbox workspace-write --approval plan
 ```
 
-默认 `workspace-write` 文件策略允许所选项目和平台临时目录写入；指定 `--write-root` 后使用列出的既有子目录。`read-only` 拒绝文件修改，命令仍可在原生只读边界中运行。`danger-full-access`（兼容原名 `full-access`）显式使用宿主执行，文件工具与命令均不受工作区写入围栏限制。默认审批策略为 `ask`：普通操作由沙盒范围决定，扩大权限及显式工具/用户规则才请求审批；`never` 自动拒绝需要审批的请求。`supervised/auto/plan` 保留旧调用兼容；它们不是 DSH 的 Auto review 插件，后者没有在本次文件授权改动中引入。
+默认 `danger-full-access`（兼容原名 `full-access`）使用宿主执行，文件和命令不受工作区写入围栏限制，审批默认 `never`。显式 `workspace-write` 允许项目和平台临时目录写入；指定 `--write-root` 后使用列出的既有子目录。`read-only` 拒绝文件修改，命令仍可在原生只读边界中运行。受限模式默认 `ask`，扩大权限及显式规则才请求审批；`never` 拒绝需要审批的请求。`supervised/auto/plan` 保留旧调用兼容，它们不是 DSH 的 Auto review 插件。
 
 内置提供方采用 DSH 的文件/进程分离机制：启动和普通文件操作使用可信 helper 的路径策略，不申请工作区 ACL；命令、verify 或 Git 工具交给发布的 DSH sandbox-local/subprocess-local。普通执行不再先跑 Forge 写入探针。实际 confinement 失败作为该调用的错误返回，会话和文件操作仍可继续，命令不自动回退宿主。文件策略不是 OS 隔离，结果标记为 `*-file-policy`；评测在模型请求前显式预检进程沙盒。
 
@@ -202,13 +204,13 @@ forge --sandbox workspace-write --approval plan
 
 高级接口 `set_sandbox()`、`/sandbox`、`/approval` 及旧审批名称保留兼容，不再出现在常用菜单。分别修改底层值产生的非预设组合显示为“自定义”，不会自动扩大权限。旧 Journal 继续读取；新组合用一条 `permissions_changed` 保存。准备、清理或保存失败时不发布新权限。
 
-交互终端在生成过程中实时显示回复预览，可继续输入调整或 `/cancel`；完成后只保留一份 Markdown 回复及用量。重定向输出和 `TERM=dumb` 直接逐段输出 Markdown 原文，不重绘历史。默认回合先做意图判断再生成回复，因此简单对话也可能显示两次模型调用；等待阶段不会循环打印提示。
+交互终端在生成过程中实时显示回复预览，可继续输入调整或 `/cancel`；完成后只保留一份 Markdown 回复及用量。重定向输出和 `TERM=dumb` 直接逐段输出 Markdown 原文，不重绘历史。默认简单对话只需一次主模型请求；等待阶段不会循环打印提示。
 工具参数仍在生成时，状态行显示已接收 KB 和“未执行”；这不是文件已写入的大小。只有完整参数到达并进入执行阶段，才显示“正在运行”。
-普通任务已确认目标文件变更时，全目录清单采集不完整只显示说明，不单独把交付降为 partial；变更列表仅含已确认项，没运行测试仍标为 unverified。显式验收要求、实际检查失败和禁止路径规则仍会阻止完成。
+普通任务的变更列表仅含已观察的工具目标，不宣称枚举了命令产生的全部文件；未运行测试仍是 unverified。工具失败会返回模型并记录事实，但不会自动把最终回复降为 partial。显式验收策略及完成检查仍可阻止完成。
 
 默认提供方不因无关子目录含符号链接、Junction 或硬链接而拒绝整个工作区。文件操作先解析实际目标：读取继承宿主可读范围，`workspace-write` 只允许实际目标位于已授权写入范围，`read-only` 拒绝修改。链接指向外部共享依赖时，可以读取，越界修改需要单次授权。`--read-root` 保留兼容，不作为默认读取白名单；内置提供方不再叠加按文件名或安装路径生成的文件工具黑名单。调用方明确配置的禁止规则仍然有效。
 
-工作区观察记录链接本身及其目标标识，不递归扫描外部链接目录；工具明确访问的文件另按实际目标记录证据。因此普通链接不再阻断代码完成验收；超时、配额耗尽和实际观察失败仍保留为不完整。完全访问模式允许已审批的工作区外文件修改并记录检查点，不因此开放受限检查点的宿主直接恢复。旧的无显式 execution_mode 策略仍保留原有严格链接检查。
+显式全盘观察记录链接本身及其目标标识，不递归扫描外部链接目录；普通文件工具按实际目标记录证据。严格验收中的超时、配额耗尽和观察失败仍是不完整证据。显式启用的检查点可以记录完全访问模式下的外部文件，但不会开放受限检查点的宿主直接恢复。旧的无显式 execution_mode 策略仍保留原有链接检查。
 
 在 `full-access` 下启用 Hooks 时，Hook 结束或取消会清理它启动的后台子进程。命令应使用明确的解释器和参数：PATH、普通环境变量及 `FORGE_HOOK_*` 保留，凭据与 `PYTHONPATH`、`NODE_OPTIONS` 等加载器变量会被清除。stdout 与 stderr 合计超过 1 MB 或无法确认清理完成时，Hook 报错；阻断类 Hook 会拒绝后续操作。
 
@@ -262,7 +264,7 @@ asyncio.run(main())
 
 API 同时接受 `[{'type': 'text', 'text': '分析图片'}, image_block(png_bytes)]`，`image_block` 从 `forge.messages` 导入。执行中使用 `session.queue_input('追加约束')`；`follow_up=True` 排队新任务。`session.pending_inputs` 返回待办，`await session.run_next()` 明确执行下一项。同一会话不能并发启动多个回合。
 
-`RunProfile(intent_routing=True)` 控制前置意图分类。工具批次按顺序执行，`max_parallel_reads` 参数已移除，旧调用应删除该参数。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。完成报告中的运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
+`RunProfile.intent_routing` 默认 False；旧调用方可显式设 True 使用兼容路由，它会增加模型请求。工具批次按顺序执行，`max_parallel_reads` 参数已移除。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
 
 ## 5 分钟 Harness 演示
 

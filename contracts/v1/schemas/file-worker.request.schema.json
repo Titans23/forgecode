@@ -17,6 +17,7 @@
     "policy_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "operation": {"enum": ["bootstrap", "tool", "scan", "snapshot"]},
     "recursive": {"type": "boolean"},
+    "include_content": {"type": "boolean"},
     "name": {"type": "string", "minLength": 1, "maxLength": 64},
     "arguments": {"type": "object"},
     "paths": {"type": "array", "maxItems": 1000, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},

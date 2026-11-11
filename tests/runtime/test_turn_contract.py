@@ -337,7 +337,7 @@ def test_plain_turn_streams_and_finishes_without_full_workspace_scan(tmp_path, r
 
 
 @pytest.mark.parametrize('effect', ['workspace_write', 'process'])
-def test_baseline_precedes_first_effect_but_not_first_text(tmp_path, effect):
+def test_ordinary_effect_observes_targets_without_a_full_baseline(tmp_path, effect):
     (tmp_path / 'user.txt').write_text('original')
     registry = create_default_registry(tmp_path)
     tracker = registry.workspace_tracker
@@ -365,8 +365,8 @@ def test_baseline_precedes_first_effect_but_not_first_text(tmp_path, effect):
         events = [event async for event in conversation.stream('Create agent.txt.')]
         assert tool_results(events)[call.id].success
         assert tracker.changed_paths == (('agent.txt',) if effect == 'workspace_write' else ())
-        assert scans and tracker.environment_epoch == (1 if effect == 'process' else 0)
-        assert not tracker.baseline_pending and tracker.available
+        assert not scans and tracker.environment_epoch == (1 if effect == 'process' else 0)
+        assert not tracker.baseline_pending and not tracker.available
         assert (tmp_path / 'user.txt').read_text() == 'external edit while model is thinking'
     asyncio.run(check())
 
@@ -456,7 +456,7 @@ def test_dynamic_context_preserves_system_and_history_prefix_without_accumulatin
         'Keep these earlier instructions.', 'Read sample.txt.', 'Summarize it.']
 
 
-def test_continuation_with_history_and_empty_hooks_reaches_model_before_scan(tmp_path):
+def test_ordinary_continuation_does_not_scan_or_claim_historical_changes(tmp_path):
     from dataclasses import replace
     from forge.hooks.manager import HookManager
     from forge.hooks.models import HookSettings
@@ -485,5 +485,6 @@ def test_continuation_with_history_and_empty_hooks_reaches_model_before_scan(tmp
     async def run():
         async for _ in conversation.stream('Continue.'): pass
     asyncio.run(run())
-    assert scans and tracker.changed_paths == ('prior.txt',)
-    assert not tracker.baseline_pending
+    assert not scans and tracker.changed_paths == ()
+    assert tracker.baseline_pending
+    assert all(item.freshness == 'unknown' for item in conversation.verification_history)

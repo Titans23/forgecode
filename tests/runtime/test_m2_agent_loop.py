@@ -682,7 +682,7 @@ def test_edit_recovery_counts_failures_per_target(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
-    (tmp_path / 'tmp').write_text('existing\n', encoding='utf-8')
+    (tmp_path / 'tmp').mkdir()  # A real type mismatch, not a forbidden whole-file replacement.
     unrelated_failure = ToolCall(
         0,
         'unrelated-create-failure',
@@ -888,7 +888,7 @@ def test_targetless_patch_failure_clears_on_real_code_edit(
     assert (tmp_path / 'sample.txt').read_text(encoding='utf-8') == 'new\n'
 
 
-def test_existing_file_strategy_error_clears_on_task_relevant_sibling_edit(
+def test_whole_file_replacement_and_sibling_edit_are_both_recorded(
     tmp_path: Path,
 ) -> None:
     initialize_git_repository(tmp_path)
@@ -940,7 +940,8 @@ def test_existing_file_strategy_error_clears_on_task_relevant_sibling_edit(
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.result.status == 'completed'
-    assert completed.result.changed_paths == ('other.py',)
+    assert completed.result.changed_paths == ('other.py', 'sample.txt')
+    assert (tmp_path / 'sample.txt').read_text() == 'dummy'
     assert (tmp_path / 'other.py').read_text(encoding='utf-8') == (
         'READY = True\n'
     )
@@ -1172,6 +1173,7 @@ def test_reverted_process_batch_does_not_hide_later_real_edit(
     conversation = Conversation(
         client=client,
         registry=registry,
+        task_policy=TaskPolicy(),
     )
 
     events = collect_turn(conversation, 'Fix sample.txt')
@@ -1810,6 +1812,7 @@ def test_inspection_finish_without_evidence_is_rejected_once(
     conversation = Conversation(
         client=client,
         registry=create_default_registry(tmp_path),
+        task_policy=TaskPolicy(),
     )
 
     events = collect_turn(conversation, 'Inspect sample.txt')
@@ -2167,6 +2170,7 @@ def test_directory_patch_failure_recovers_with_remove_directory(
         intent_router=router,
         permission_manager=permission_manager,
         checkpoint_store=checkpoint_store,
+        task_policy=TaskPolicy(),
     )
 
     events = collect_turn(conversation, '继续帮我完成任务')

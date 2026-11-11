@@ -42,11 +42,9 @@ class FileToolBackend:
             LocalTrustedBackend().check_ready(policy, required_mode=required_mode)
 
     async def snapshot(self, paths, *, recursive=False):
-        snapshot = await self.observer.snapshot(paths, recursive=recursive)
+        snapshot = await self.observer.snapshot(paths, recursive=recursive, include_content=True)
         if not snapshot['complete']:
             raise ContractError('Authorized checkpoint observation is incomplete', kind='INDETERMINATE', code=-32010)
-        for path, value in snapshot['files'].items():
-            self._observed.setdefault(path, value['sha256'])
         return snapshot
 
     async def execute(self, call, registry):
@@ -62,9 +60,13 @@ class FileToolBackend:
                     candidate = Path(self.observer.workspace['canonical_path']) / path
                     return (candidate.resolve(strict=False) if self.observer.policy.get('execution_mode')
                             else Path(os.path.abspath(candidate)))
-                targets = {target_path(path) for path in mutation_target_paths(call, maximum=None)}
+                targets = ({target_path(path) for path in mutation_target_paths(call, maximum=None)}
+                           if registry.effect(call.name) == 'workspace_write' else set())
                 expected = {path: digest for path, digest in self._observed.items()
                     if target_path(path) in targets}
+                for target in targets:
+                    if not any(target_path(path) == target for path in expected):
+                        expected[str(target)] = None  # Unobserved targets may only be created, not overwritten.
                 reply = await self.observer.request('tool', name=call.name, arguments=call.arguments,
                     expected_hashes=expected)
                 raw = reply['result']

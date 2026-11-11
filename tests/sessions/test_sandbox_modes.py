@@ -21,6 +21,7 @@ class NoRequests:
 def options(tmp_path, **changes):
     root = tmp_path / 'project'
     root.mkdir(exist_ok=True)
+    changes.setdefault('sandbox', 'workspace-write')  # These transition tests start from an explicit confined mode.
     return SessionOptions(root, data_root=tmp_path / 'data',
         config=ForgeConfig(api_key='offline-only', model_id='offline'),
         profile=RunProfile(intent_routing=False), **changes)

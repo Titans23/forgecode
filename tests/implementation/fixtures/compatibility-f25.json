@@ -1,10 +1,9 @@
 {
   "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
-  "tool_definitions_commit": "aa85d71",
-  "tool_definitions_review": "Reviewed DSH alignment including optional paired sandbox_permissions/justification on Git queries. Removing only those optional Git fields reproduces the previous reviewed Windows digest exactly; required arguments, tool names and CLI parameter prefixes are unchanged. POSIX digest is confirmed by CI run 42955384111. Snapshot covers legacy host-profile definitions; explicit-mode file descriptions follow the actual backend policy.",
+  "tool_definitions_review": "Reviewed direct-coding file semantics: write_file, replace_text and apply_patch have no fixed content maxLength, and descriptions allow observed whole-file replacement. Required arguments, tool names/order and CLI parameter prefixes are unchanged. Windows digest is calculated from actual definitions; the POSIX projection changes only the existing cmd.exe description to the platform-shell text, and native POSIX CI verifies it. Paired one-call permission fields remain unchanged.",
   "tool_definitions_sha256_by_os": {
-    "nt": "716185184dea734528ca70d8518bb2be331e730fae64cf6c6ededaaf15c13c8b",
-    "posix": "748992ef0f4d3e6337cec6ca036854f5274c948f7fa5b3b53a8c084c263d2a82"
+    "nt": "e3c84862fb409215d64928406534801e724295a811e2adf9765bc66614ddaf7a",
+    "posix": "cf12a7cd33d76c6b58c1c37829e44949adc800b78aa30bab6aaced035fef8d35"
   },
   "tools": [
     "list_directory",

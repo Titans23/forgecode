@@ -116,7 +116,8 @@ def create_runtime(
     from forge.context.compactor import CompactionConfig
     conversation = conversation_type(
         client=model, intent_router=(ModelIntentRouter(client_factory(config, max_tokens=600))
-            if coding and task_relation is None and (bindings is None or bindings.intent_routing and bindings.task_relation is None) else None),
+            if coding and task_relation is None and bindings is not None
+            and bindings.intent_routing and bindings.task_relation is None else None),
         registry=registry, initial_messages=list(state.messages) if state else None,
         active_task=state.active_task if state else None, session_journal=journal,
         checkpoint_store=checkpoint, session_store=store, hook_manager=hooks, mcp_manager=mcp,

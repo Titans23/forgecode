@@ -129,6 +129,10 @@ def test_host_linked_edit_keeps_approval_checkpoint_and_completion(linked_worksp
     from dataclasses import replace
     from forge.runtime.state import ModelToolCallCompleted, ToolCall
     from forge.sessions.checkpoint import CheckpointError
+    from forge.runtime.factory import create_runtime
+    from forge.runtime.completion import TaskPolicy
+    def checked_runtime(root, **kwargs):
+        return create_runtime(root, task_policy=TaskPolicy(), **kwargs)
     settings, _, outside = linked_workspace
     settings = replace(settings, write_roots=())
     calls = [
@@ -152,7 +156,7 @@ def test_host_linked_edit_keeps_approval_checkpoint_and_completion(linked_worksp
             return ApprovalResponse('allow_once')
         model = Scripted()
         async with await HarnessSession.open(settings, model_client_factory=lambda *a, **k: model,
-                approval_handler=approve) as session:
+                approval_handler=approve, runtime_factory=checked_runtime) as session:
             result = await session.run('Change the shared file to updated and verify it.')
             assert result.status == 'completed', result
             assert model.count == 5

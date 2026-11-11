@@ -286,9 +286,11 @@ class Conversation:
         )
         self.completion_gate = (
             CompletionGate(tracker.root, task_policy)
-            if tracker is not None
+            if tracker is not None and task_policy is not None
             else None
         )
+        if tracker is not None:
+            tracker.full_inventory = self.completion_gate is not None
         self.completion_checks = {}
         self.max_protocol_recoveries = max_protocol_recoveries
         self.max_tool_protocol_recoveries = max_tool_protocol_recoveries

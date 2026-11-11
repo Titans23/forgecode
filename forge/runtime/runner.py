@@ -189,7 +189,7 @@ class TurnRunner:
             item for item in c.verification_history if item.task_id == task_id)
         if c.mcp_manager is not None:
             await c.mcp_manager.ensure_connected()
-        if c.checkpoint_store is not None:
+        if c.checkpoint_store is not None and c.completion_gate is not None:
             self.checkpoint_id = c.checkpoint_store.begin()
             if self.journal is not None:
                 self.journal.record_checkpoint_created(self.checkpoint_id, c.messages, c.task_manager.active)
@@ -199,7 +199,7 @@ class TurnRunner:
             # Strict acceptance and actual extensions retain turn-start evidence.
             # Historical checks/paths and an empty HookManager do not require a
             # full tree scan before the model can answer an ordinary continuation.
-            eager_baseline = bool(
+            eager_baseline = c.completion_gate is not None and bool(
                 c.completion_gate and c.completion_gate.policy.has_contract
                 or c.task_relation is not None or c.completion_checks
                 or c.hook_manager is not None and (
@@ -700,7 +700,7 @@ class TurnRunner:
     async def _workspace_completion_reasons(self) -> tuple[str, ...]:
         c = self.conversation
         if self.tracker is None or c.completion_gate is None or c.permission_manager.mode == 'plan':
-            if self.mutation_attempted and self.mutation_failed:
+            if c.completion_gate is not None and self.mutation_attempted and self.mutation_failed:
                 return ('A workspace mutation failed and no final workspace evidence proves the requested change.',)
             return ()
         started = monotonic()
@@ -735,7 +735,8 @@ class TurnRunner:
             reasons=reasons, has_contract=bool(c.completion_gate and c.completion_gate.policy.has_contract),
             usage_complete=self.state.unknown_usage_requests == 0,
             workspace_tracking_complete=(getattr(self.tracker, 'available', None)
-                if not getattr(self.tracker, 'baseline_pending', False) else None),
+                if getattr(self.tracker, 'full_inventory', True)
+                and not getattr(self.tracker, 'baseline_pending', False) else None),
         )
         content = report.summary()
         if reasons:
@@ -779,6 +780,7 @@ class TurnRunner:
         if (
             status == 'completed'
             and task_kind == 'inspection'
+            and self.conversation.completion_gate is not None
             and not self.conversation.working_state.evidence_paths
         ):
             reasons = ('An inspection completion requires repository evidence from a read or search tool.',)
@@ -796,7 +798,8 @@ class TurnRunner:
             metadata = {**metadata, 'acceptance_criteria': task.acceptance_criteria if task is not None else ()}
             reasons = await self._completion_reasons()
             observations.extend(reasons)
-        elif status == 'blocked' and not self.conversation.working_state.has_external_blocker:
+        elif (status == 'blocked' and self.conversation.completion_gate is not None
+              and not self.conversation.working_state.has_external_blocker):
             reasons = ('blocked requires observed external evidence such as permission, credentials, network, or an unavailable dependency. If the attempted task is unsuccessful, use finish_task status=failed; it does not require successful verification.',)
             observations.extend(reasons)
         gate = self.conversation.completion_gate
@@ -936,7 +939,8 @@ class TurnRunner:
             has_contract=has_contract, agent_assessment=self.declared_status,
             usage_complete=self.state.unknown_usage_requests == 0,
             workspace_tracking_complete=(getattr(self.tracker, 'available', None)
-                if not getattr(self.tracker, 'baseline_pending', False) else None))
+                if getattr(self.tracker, 'full_inventory', True)
+                and not getattr(self.tracker, 'baseline_pending', False) else None))
         from forge.observability.events import current
         recorder=current()
         if recorder:

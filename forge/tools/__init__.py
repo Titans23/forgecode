@@ -85,17 +85,11 @@ def create_default_registry(
             ReviewDeliveryTool(root),
         ],
         workspace_tracker=tracker,
-        # Chunked whole-file writes remain an internal compatibility primitive.
-        # apply_patch is the single model-visible large-edit path; no recovery
-        # phase temporarily changes the schema set.
+        # Chunked writes remain an internal compatibility primitive. Normal
+        # model calls can use write_file or apply_patch for large text edits.
         hidden_tools={'write_file_chunk'},
     )
     if getattr(getattr(tool_backend, 'observer', None), 'policy', {}).get('execution_mode') is not None:
-        registry.implementation('write_file').description = (
-            'Atomically create or replace a UTF-8 text file under the current sandbox policy. '
-            'Read existing content before changing it; observed versions are checked for conflicts. '
-            'Use apply_patch or replace_text for focused edits. Missing parent directories are created. '
-            'A denied file write can request a wider mode for this operation with sandbox_permissions and justification.')
         registry.implementation('run_command').description = RunCommandTool.description
     return registry
 
