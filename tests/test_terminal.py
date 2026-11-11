@@ -84,6 +84,17 @@ def test_pending_tool_reports_received_bytes_without_claiming_execution():
     assert '1.0 KB' in view.phase
 
 
+def test_partial_inventory_is_a_visible_limitation_not_a_failed_delivery():
+    from forge.runtime.delivery import completion_report
+    report = completion_report(status='completed', evidence=(), workspace_revision=1, environment_epoch=0,
+        reasons=(), has_contract=False, workspace_tracking_complete=False)
+    result = TurnResult('Created file.', TokenUsage(1, 1), changed_paths=('output.html',), completion_report=report)
+    summary = terminal_module.completion_evidence_summary(result).plain
+    assert 'task completed' in summary and 'output.html' in summary
+    assert 'unverified' in summary and 'not_configured' in summary
+    assert '仅列出已确认的文件变更' in summary and '×' not in summary
+
+
 def test_saved_history_limits_user_turns_and_summarizes_tools():
     terminal, output = terminal_with_output()
     messages = []

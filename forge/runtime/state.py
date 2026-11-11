@@ -168,6 +168,7 @@ class CompletionReport:
     historical_checks: tuple[str, ...] = ()
     unmet_requirements: tuple[str, ...] = ()
     usage_complete: bool = True
+    workspace_tracking_complete: bool | None = None
 
     def summary(self) -> str:
         return (f'Verification: {self.verification_status}; '

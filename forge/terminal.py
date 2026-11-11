@@ -1285,4 +1285,6 @@ def completion_evidence_summary(result: TurnResult) -> Text:
         rendered.append(f'\n  × {reason}', style='red')
     if result.completion_report is not None:
         rendered.append('\n  ' + result.completion_report.summary(), style='dim')
+        if result.completion_report.workspace_tracking_complete is False:
+            rendered.append('\n  仅列出已确认的文件变更；整个工作区的清单未完整采集。', style='dim')
     return rendered

@@ -121,7 +121,10 @@ class CompletionGate:
             return CompletionDecision(allowed=True)
 
         reasons: list[str] = []
-        if not tracker.available:
+        # Ordinary delivery may rely on confirmed per-target observations.
+        # Explicit acceptance and an unobserved claimed change still need the
+        # complete inventory; do not turn a partial scan into complete evidence.
+        if not tracker.available and (self.policy.has_contract or verification_required or not changed_paths):
             reasons.append(
                 'Workspace change tracking is unavailable for this task.'
             )

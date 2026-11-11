@@ -717,6 +717,8 @@ class TurnRunner:
             environment_epoch=getattr(self.tracker, 'environment_epoch', 0),
             reasons=reasons, has_contract=bool(c.completion_gate and c.completion_gate.policy.has_contract),
             usage_complete=self.state.unknown_usage_requests == 0,
+            workspace_tracking_complete=(getattr(self.tracker, 'available', None)
+                if not getattr(self.tracker, 'baseline_pending', False) else None),
         )
         content = report.summary()
         if reasons:
@@ -915,7 +917,9 @@ class TurnRunner:
             workspace_revision=self.state.workspace_revision,
             environment_epoch=self.state.environment_epoch, reasons=reasons,
             has_contract=has_contract, agent_assessment=self.declared_status,
-            usage_complete=self.state.unknown_usage_requests == 0)
+            usage_complete=self.state.unknown_usage_requests == 0,
+            workspace_tracking_complete=(getattr(self.tracker, 'available', None)
+                if not getattr(self.tracker, 'baseline_pending', False) else None))
         from forge.observability.events import current
         recorder=current()
         if recorder:

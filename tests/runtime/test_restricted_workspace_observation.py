@@ -1,6 +1,7 @@
 """Completion evidence transitions only; real native proof uses repository sources."""
 import asyncio
 from hashlib import sha256
+import pytest
 
 from forge.runtime.completion import CompletionGate, TaskPolicy
 from forge.runtime.workspace import WorkspaceTracker
@@ -91,4 +92,59 @@ def test_incomplete_target_snapshot_and_unwatched_paths_never_authorize_completi
         observer.snapshot_complete = True
         await tracker.refresh_paths(('user.py',))
         assert not tracker.available and tracker.changed_paths == ()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('strict', [False, True])
+def test_confirmed_delivery_distinguishes_normal_task_from_explicit_acceptance(tmp_path, strict):
+    from forge.runtime.agent_loop import Conversation
+    from forge.runtime.state import ModelTextDelta, ModelToolCallCompleted, ModelUsageUpdate, TokenUsage, ToolCall, ToolExecutionCompleted
+    from forge.permissions.policy import PermissionManager
+    from forge.sessions.store import SessionStore
+    from forge.sessions.trajectory import journal_events
+    from forge.tools import create_default_registry
+    root = tmp_path / 'project'
+    root.mkdir()
+    (root / 'user.py').write_text('preexisting user edit\n')
+    registry = create_default_registry(root)
+    registry.workspace_tracker.observer = Observer(root, complete=False)
+    class Client:
+        calls = 0
+        async def stream(self, **kwargs):
+            self.calls += 1
+            yield ModelUsageUpdate(TokenUsage(10, 2))
+            if self.calls == 1:
+                yield ModelToolCallCompleted(ToolCall(0, 'edit', 'write_file', {'path': 'target.py', 'content': 'new'}))
+            else:
+                yield ModelTextDelta('Created the requested file; no tests were requested or run.')
+    store = SessionStore(root, data_root=tmp_path / 'sessions')
+    journal = store.create(model='fixture')
+    conversation = Conversation(client=Client(), registry=registry, context_root=root, session_journal=journal,
+        permission_manager=PermissionManager(root, mode='auto', load_stored_rules=False),
+        task_policy=TaskPolicy(require_changes=True) if strict else None)
+    async def run():
+        events = [event async for event in conversation.stream('Create target.py. Do not run tests.')]
+        assert next(event.result for event in events if isinstance(event, ToolExecutionCompleted)).success
+        result = events[-1].result
+        assert result.status == ('partial' if strict else 'completed')
+        assert result.changed_paths == ('target.py',)
+        assert result.completion_report.workspace_tracking_complete is False
+        assert result.completion_report.verification_status == 'unverified'
+        assert result.completion_report.acceptance_status == ('unmet' if strict else 'not_configured')
+        assert any('unavailable' in reason for reason in result.completion_reasons) == strict
+        assert not registry.workspace_tracker.available
+        assert (root / 'target.py').read_text() == 'new'
+        assert (root / 'user.py').read_text() == 'preexisting user edit\n'
+        completed = [row for row in journal_events(journal.path) if row['type'] == 'turn_completed'][-1]
+        assert completed['payload']['completion_report']['workspace_tracking_complete'] is False
+    asyncio.run(run())
+
+
+def test_no_confirmed_change_still_cannot_satisfy_mutation_claim(tmp_path):
+    files(tmp_path)
+    tracker = WorkspaceTracker(tmp_path, observer=Observer(tmp_path, complete=False))
+    async def run():
+        await tracker.begin_turn()
+        decision = await CompletionGate(tmp_path).evaluate(tracker, None, mutation_attempted=True)
+        assert not decision.allowed
     asyncio.run(run())

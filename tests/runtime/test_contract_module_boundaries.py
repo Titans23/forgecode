@@ -63,7 +63,8 @@ def test_standalone_contract_repair_and_report_preserve_evidence(entry):
         assert json.loads(json.dumps(asdict(report))) == {
             'run_status': 'completed', 'agent_assessment': 'completed', 'acceptance_status': 'met',
             'verification_status': 'passed_checks', 'passed_checks': ['fixed'], 'failed_checks': [],
-            'historical_checks': ['old'], 'unmet_requirements': [], 'usage_complete': False}
+            'historical_checks': ['old'], 'unmet_requirements': [], 'usage_complete': False,
+            'workspace_tracking_complete': None}
         assert report.summary() == ('Verification: passed_checks; 1 passed, 0 failed, 1 historical/expired. '
                                     'Caller acceptance: met. Token usage is incomplete.')
         assert not any(name == prefix or name.startswith(prefix + '.')

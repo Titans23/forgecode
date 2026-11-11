@@ -8,7 +8,8 @@ from forge.runtime.verification import verification_quality
 def completion_report(*, status: str, evidence: tuple['VerificationEvidence', ...],
                       workspace_revision: int, environment_epoch: int,
                       reasons: tuple[str, ...], has_contract: bool,
-                      agent_assessment: str | None = None, usage_complete: bool = True) -> CompletionReport:
+                      agent_assessment: str | None = None, usage_complete: bool = True,
+                      workspace_tracking_complete: bool | None = None) -> CompletionReport:
     # Repeated runs of the same check remain in the durable ledger; presentation
     # uses the latest observation, without erasing distinct failed checks.
     current_evidence = tuple(item for item in evidence if item.freshness == 'current'
@@ -40,6 +41,7 @@ def completion_report(*, status: str, evidence: tuple['VerificationEvidence', ..
         failed_checks=tuple(failed), historical_checks=tuple(historical),
         unmet_requirements=reasons,
         usage_complete=usage_complete,
+        workspace_tracking_complete=workspace_tracking_complete,
     )
 
 
