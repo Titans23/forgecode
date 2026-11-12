@@ -110,7 +110,10 @@ class AnonymousPipeProcess:
 
         async def read(self, size):
             import asyncio
-            return await asyncio.to_thread(self.stream.read, size)
+            # BufferedReader.read(n) waits for n bytes or EOF. read1 preserves
+            # each flushed pipe update while the command is still running.
+            read = getattr(self.stream, 'read1', self.stream.read)
+            return await asyncio.to_thread(read, size)
 
     class Writer:
         def __init__(self, stream):

@@ -409,8 +409,18 @@ def main(argv=None):
         if not isinstance(request, dict):
             request = {}
             fail('INVALID_PARAMS', 'File helper request must be an object')
-        with redirect_stdout(sys.stderr):
-            result, observations = asyncio.run(execute(request))
+        from forge.process_output import process_output
+        def emit(stream, data):
+            frame = {'type': 'output', 'request_id': request['request_id'], 'stream': stream,
+                     'data': base64.b64encode(data).decode('ascii')}
+            output.write(json.dumps(frame, separators=(',', ':')).encode('utf-8') + b'\n')
+            output.flush()
+        token = process_output.set(emit if request.get('stream_output') else None)
+        try:
+            with redirect_stdout(sys.stderr):
+                result, observations = asyncio.run(execute(request))
+        finally:
+            process_output.reset(token)
         response = {'schema_version': 'forge.file-worker.response.v1', 'request_id': request['request_id'],
             'policy_hash': request['policy_hash'], 'status': 'ok', 'result': result, 'observations': observations}
         code = 0

@@ -67,6 +67,8 @@ async def select_session_mode(conversation, mode, *, persist=True, approval=None
     mode_changed = manager.execution_mode != selected.sandbox
     if not mode_changed and manager.mode == selected.approval:
         return selected.sandbox
+    if getattr(conversation, 'command_jobs', None):
+        conversation.command_jobs.require_idle()
     previous = conversation.tool_executor.backend
     setup = None
     conversation._running = True

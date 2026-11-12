@@ -384,6 +384,27 @@ def test_cli_starts_an_interactive_conversation(
     assert conversation.prompts == ['first', 'second']
 
 
+def test_jobs_commands_show_output_and_cancel_without_calling_model(monkeypatch):
+    conversation = FakeConversation()
+    actions = []
+    class Jobs:
+        jobs = {'job-fixture': SimpleNamespace(id='job-fixture', state='running', command='echo owned')}
+        async def output(self, identity):
+            actions.append(('output', identity))
+            return ToolResult.ok('running', content='incremental-output')
+        async def cancel(self, identity):
+            actions.append(('cancel', identity))
+            return ToolResult.ok('cancelled', content='owned job stopped')
+    conversation.command_jobs = Jobs()
+    monkeypatch.setattr(cli_module, 'Conversation', lambda **kwargs: conversation)
+    result = runner.invoke(app, input='/jobs\n/jobs job-fixture\n/jobs stop job-fixture\n')
+    assert result.exit_code == 0
+    assert 'echo owned' in result.output and 'incremental-output' in result.output
+    assert 'owned job stopped' in result.output
+    assert conversation.prompts == []
+    assert actions == [('output', 'job-fixture'), ('cancel', 'job-fixture')]
+
+
 def test_expand_file_mentions_appends_file_content(tmp_path: Path) -> None:
     source = tmp_path / 'src'
     source.mkdir()

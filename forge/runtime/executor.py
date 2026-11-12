@@ -78,6 +78,7 @@ class ToolExecutor:
         path_resolver: PathResolver | None = None,
         hook_context_sink: HookContextSink | None = None,
         backend: Any | None = None,
+        jobs: Any | None = None,
     ) -> None:
         self.registry = registry
         self.permission_manager = permission_manager
@@ -88,6 +89,7 @@ class ToolExecutor:
         self.path_resolver = path_resolver or default_tool_paths
         self.hook_context_sink = hook_context_sink
         self.backend = backend
+        self.jobs = jobs
         self._read_cache: dict[str, ToolResult] = {}
 
     async def execute(self, call: ToolCall, **options) -> ExecutionOutcome:
@@ -216,6 +218,10 @@ class ToolExecutor:
                 )
 
         request = self.registry.permission_request(call.name, arguments)
+        if self.jobs is not None and self.jobs.running and call.name in {'verify', 'finish_task'}:
+            return self._outcome(call, ToolResult.fail('background_jobs_running',
+                'Wait for command jobs with job_output, or stop them with job_kill, before verifying or declaring completion.'),
+                'rejected', started, arguments, revision, epoch)
         if request is None:
             request = classify_tool_call(effective_call, effect)
             if self.permission_manager.execution_mode is not None:
@@ -227,6 +233,11 @@ class ToolExecutor:
         wider_mode = None
         from forge.tools.base import SandboxInput
         implementation = self.registry.implementation(call.name)
+        background = bool(getattr(implementation, 'supports_background', False) and arguments.get('run_in_background'))
+        if background and (self.jobs is None or 'job_output' not in self.registry.names or 'job_kill' not in self.registry.names):
+            return self._outcome(call, ToolResult.fail('background_unavailable',
+                'This runtime has no owned command job tools. Run in the foreground.'),
+                'rejected', started, arguments, revision, epoch)
         input_model = getattr(implementation, 'input_model', None)
         if isinstance(input_model, type) and issubclass(input_model, SandboxInput):
             target = arguments.get('sandbox_permissions')
@@ -251,6 +262,9 @@ class ToolExecutor:
             # Approval fields are control input, not part of a stored check or subprocess input.
             execution_call = replace(effective_call, arguments={key: value for key, value in arguments.items()
                 if key not in {'sandbox_permissions', 'justification'}})
+        if background:
+            execution_call = replace(execution_call, arguments={key: value for key, value in execution_call.arguments.items()
+                                                               if key != 'run_in_background'})
         from forge.observability.events import active, current
         recorder=current()
         if recorder:
@@ -289,7 +303,10 @@ class ToolExecutor:
             self._read_cache.clear()
             if self.workspace_tracker is not None:
                 await self.workspace_tracker.ensure_baseline()
-        async def dispatch():
+        def operation_outcome(*args, **kwargs):
+            return self._outcome(*args, **kwargs, persist=not background)
+
+        async def operation():
             nonlocal checkpoint_paths
             execution_started = False
             execution_backend = self.backend
@@ -311,7 +328,8 @@ class ToolExecutor:
                         checkpoint_paths = tuple(observed['files'])
                     else:
                         self.checkpoint_store.capture_before(checkpoint_id, checkpoint_paths)
-                await self._journal_started(effective_call)
+                if not background:
+                    await self._journal_started(effective_call)
                 execution_started = True
                 if execution_backend is not None:
                     result = await execution_backend.execute(execution_call, self.registry)
@@ -331,7 +349,7 @@ class ToolExecutor:
                 status: ExecutionStatus = (
                     'indeterminate' if effect in {'workspace_write', 'process'} else 'cancelled'
                 )
-                return self._outcome(
+                return operation_outcome(
                     call,
                     result,
                     status,
@@ -347,7 +365,7 @@ class ToolExecutor:
                      'Workspace execution was refused because its checkpoint could not be created.'),
                     content=str(error),
                 )
-                return self._outcome(
+                return operation_outcome(
                     call,
                     result,
                     'indeterminate' if execution_started else 'rejected',
@@ -361,7 +379,7 @@ class ToolExecutor:
                     getattr(error, 'kind', 'executor_failed'),
                     f'Tool executor failed before a determinate result: {error}',
                 )
-                return self._outcome(
+                return operation_outcome(
                     call,
                     result,
                     'indeterminate' if execution_started and effect in {'workspace_write', 'process'} else 'rejected',
@@ -410,7 +428,8 @@ class ToolExecutor:
                     result = replace(result, metadata=metadata)
                 if effect == 'workspace_write' and result.success:
                     await self._hook('AfterFileEdit', effective_call, arguments)
-                await self._hook('PostToolUse', effective_call, arguments, result=result)
+                if not background:
+                    await self._hook('PostToolUse', effective_call, arguments, result=result)
                 if result_transformer is not None:
                     result = await result_transformer(result)
                 if cache_key is not None and result.success:
@@ -420,7 +439,7 @@ class ToolExecutor:
                         if len(self._read_cache) >= 128:
                             self._read_cache.clear()
                         self._read_cache[cache_key] = result
-                return self._outcome(
+                return operation_outcome(
                     call,
                     result,
                     ('indeterminate' if result.error and result.error.code == 'INDETERMINATE'
@@ -437,16 +456,35 @@ class ToolExecutor:
             return self._outcome(call, ToolResult.fail(reason, 'The tool did not execute before the batch stopped.'),
                                  'cancelled', started, arguments, *self._state())
 
-        def abort():
+        def abort(*, persist=None):
             return self._outcome(call, ToolResult.fail('execution_cancelled',
                 'Execution was interrupted; effects of an admitted write or process may be unknown.'),
                 'indeterminate' if effect in {'workspace_write', 'process'} else 'cancelled',
-                started, arguments, *self._state())
+                started, arguments, *self._state(), persist=not background if persist is None else persist)
 
-        def failed(error):
+        def failed(error, *, persist=None):
             return self._outcome(call, ToolResult.fail('INDETERMINATE',
                 f'Tool settlement failed after execution: {type(error).__name__}. Inspect before retrying.'),
-                'indeterminate', started, arguments, *self._state())
+                'indeterminate', started, arguments, *self._state(), persist=not background if persist is None else persist)
+
+        async def dispatch():
+            if not background:
+                return await operation()
+            from forge.runtime.turn_state import parent_turn
+            await self._journal_started(effective_call)
+            if self.workspace_tracker is not None:
+                self.workspace_tracker.mark_environment_change()
+            async def run_job():
+                return await self.finish(await operation())
+            identity = self.jobs.start(effective_call, run_job, owner=parent_turn.get())
+            result = ToolResult.ok('Background command accepted; it has not completed.',
+                content=f'job_id: {identity}\nUse job_output to read status/output or job_kill to cancel.',
+                metadata={'job_id': identity, 'state': 'queued', 'background': True})
+            async def finish_start():
+                await self._hook('PostToolUse', effective_call, arguments, result=result)
+                return self._outcome(call, result, 'executed', started, arguments, *self._state())
+            return DispatchedExecution(effective_call, result, finish_start,
+                lambda: abort(persist=True), lambda error: failed(error, persist=True), copy_context())
 
         return PreparedExecution(effective_call, dispatch, skip, abort, copy_context())
 
@@ -543,6 +581,7 @@ class ToolExecutor:
         epoch: int,
         *,
         workspace_change: WorkspaceChange | None = None,
+        persist: bool = True,
     ) -> ExecutionOutcome:
         result = replace(result, metadata={
             **result.metadata,
@@ -558,6 +597,8 @@ class ToolExecutor:
             workspace_revision=revision,
             environment_epoch=epoch,
         )
+        if not persist:
+            return ExecutionOutcome(result, record, arguments, workspace_change)
         if self.session_journal is not None:
             self.session_journal.record_tool_completed(
                 call.id,

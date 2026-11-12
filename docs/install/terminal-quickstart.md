@@ -4,6 +4,10 @@
 
 独立文件读取、搜索、图片与 Git 查询支持批内并行。Agent JSON 的 `max_parallel_tools` 默认为 10，设为 1 可顺序执行；这是同时运行数量，不是累计调用预算。终端显示各调用的排队、运行、待归档和完成状态，Ctrl+O 展开详情。插件通过 `ctx.register_tool(..., concurrency_safe=True)` 或参数分类函数显式加入并行组；默认独占，权限要求不变。
 
+长命令可用 `run_command(..., run_in_background=true, timeout_seconds=3600)` 启动作业，收到 `job_id` 表示已受理。用 `job_output(job_id, after=上次的 next_cursor, wait_seconds=30)` 获取新输出并等待；退出码成功后才执行依赖步骤。`job_kill` 取消作业。单次超时仍有效，等待输出超时不会终止命令。
+
+终端空闲时输入 `/jobs` 查看本会话作业，`/jobs <id>` 查看输出，`/jobs stop <id>` 停止；这些本地命令不调用模型。退出会话会清理所属作业，恢复历史不会重新启动旧命令。有作业运行时，先等待或停止它，再切换权限/会话历史或进行最终验证。不要让后台命令同时修改同一文件或同一个包管理器状态。
+
 定制、验收和复用入口（`check` 不调用模型）：
 
 ```sh

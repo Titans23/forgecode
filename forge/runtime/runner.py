@@ -83,6 +83,7 @@ class TurnRunner:
                 async for event in stream:
                     yield event
         except (asyncio.CancelledError, GeneratorExit):
+            await c.command_jobs.cancel_owner(self.state)
             c.inbox.defer_steering()
             if self.journal is not None and not self.finished:
                 self._commit_messages()
@@ -91,6 +92,7 @@ class TurnRunner:
                 )
             raise
         except Exception as error:
+            await c.command_jobs.cancel_owner(self.state)
             self._commit_messages()
             c.record_session_error(error)
             raise

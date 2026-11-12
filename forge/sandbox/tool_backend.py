@@ -48,6 +48,10 @@ class FileToolBackend:
         return snapshot
 
     async def execute(self, call, registry):
+        if call.name in {'job_output', 'job_kill'}:
+            from forge.tools.jobs import JobOutputTool, JobKillTool
+            if isinstance(registry.implementation(call.name), (JobOutputTool, JobKillTool)):
+                return await registry.execute(call.name, call.arguments)
         if call.name in FILE_TOOLS | PROCESS_TOOLS:
             validation = registry.validate(call.name, call.arguments)
             if validation is not None:
@@ -67,8 +71,10 @@ class FileToolBackend:
                 for target in targets:
                     if not any(target_path(path) == target for path in expected):
                         expected[str(target)] = None  # Unobserved targets may only be created, not overwritten.
+                from forge.process_output import process_output
+                output = process_output.get()
                 reply = await self.observer.request('tool', name=call.name, arguments=call.arguments,
-                    expected_hashes=expected)
+                    expected_hashes=expected, **({'on_output': output} if output is not None else {}))
                 raw = reply['result']
                 validate('file-worker.tool-result', raw)
                 error = ToolError(**raw['error']) if raw['error'] is not None else None

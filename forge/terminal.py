@@ -58,6 +58,7 @@ SLASH_COMMANDS = (
     SlashCommandSpec('/history', '/history', '查看当前会话历史'),
     SlashCommandSpec('/history all', '/history all', '显示完整对话'),
     SlashCommandSpec('/details', '/details', '展开最近一轮的思考、工具参数和结果'),
+    SlashCommandSpec('/jobs', '/jobs [id | stop id]', '查看后台命令、输出或停止作业'),
     SlashCommandSpec('/rename ', '/rename name', '重命名当前会话'),
     SlashCommandSpec('/branch ', '/branch [name]', '从当前上下文创建会话分支'),
     SlashCommandSpec('/clear', '/clear', '保存当前会话并开始空白会话'),

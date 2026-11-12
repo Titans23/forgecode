@@ -119,22 +119,27 @@ def test_close_rejects_queued_write_and_reaps_the_actual_active_helper(tmp_path)
     asyncio.run(run())
 
 
-def test_cancelled_close_waiter_does_not_reopen_a_queued_helper(tmp_path):
+def test_cancelled_close_waiter_does_not_reopen_a_queued_helper(tmp_path, monkeypatch):
     root, control, workspace, policy = fixture(tmp_path)
 
     async def run():
         client = FileWorkerClient(workspace, policy, local_control=control)
-        # Hold the existing admission mutex to place the real write request in
-        # the queue. No helper or native sandbox behavior is replaced.
-        await client._lock.acquire()
+        from forge.sandbox.process_owner import LocalProcessOwner
+        entered, release = asyncio.Event(), asyncio.Event()
+        original_start = LocalProcessOwner.start
+        async def pending_start(*args, **kwargs):
+            entered.set()
+            await release.wait()
+            return await original_start(*args, **kwargs)
+        monkeypatch.setattr(LocalProcessOwner, 'start', pending_start)
         request = asyncio.create_task(client.request('tool', name='write_file',
             arguments={'path': 'queued.txt', 'content': 'must not execute'}))
-        await asyncio.sleep(0)
+        await asyncio.wait_for(entered.wait(), 5)
         closer = asyncio.create_task(client.close())
         await asyncio.sleep(0)
         closer.cancel()
         await asyncio.gather(closer, return_exceptions=True)
-        client._lock.release()
+        release.set()
         result = await asyncio.gather(request, return_exceptions=True)
         assert isinstance(result[0], ContractError), result
         assert (await client.close())['state'] == 'clean'

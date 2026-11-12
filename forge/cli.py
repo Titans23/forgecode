@@ -397,6 +397,24 @@ async def _run_interactive_chat(
                 await resolved_terminal.show_details_async()
                 continue
 
+            if prompt.strip() == '/jobs' or prompt.startswith('/jobs '):
+                jobs = getattr(resolved_session, 'command_jobs', None)
+                parts = prompt.split()
+                if jobs is None:
+                    resolved_terminal.show_notice('后台命令', '当前会话没有后台命令管理器。')
+                elif len(parts) == 3 and parts[1] == 'stop':
+                    result = await jobs.cancel(parts[2])
+                    resolved_terminal.show_notice('后台命令', result.summary + '\n' + result.content)
+                elif len(parts) == 2:
+                    result = await jobs.output(parts[1])
+                    resolved_terminal.show_notice('后台命令', result.summary + '\n' + result.content)
+                elif len(parts) == 1:
+                    rows = [f'{job.id} · {job.state} · {job.command}' for job in jobs.jobs.values()]
+                    resolved_terminal.show_notice('后台命令', '\n'.join(rows) or '当前会话没有后台命令。')
+                else:
+                    resolved_terminal.show_notice('后台命令', '/jobs 查看列表；/jobs <id> 查看输出；/jobs stop <id> 停止。')
+                continue
+
             if prompt.strip() == '/context':
                 stats = getattr(resolved_session, 'context_stats', None)
                 if stats is None:

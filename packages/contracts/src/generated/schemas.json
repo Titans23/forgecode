@@ -8376,6 +8376,9 @@
         "schema_version": {
           "const": "forge.file-worker.request.v1"
         },
+        "stream_output": {
+          "type": "boolean"
+        },
         "workspace": {
           "additionalProperties": false,
           "properties": {

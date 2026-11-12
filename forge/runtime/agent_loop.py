@@ -230,6 +230,13 @@ class Conversation:
                 session_journal,
             )
         self.working_state = WorkingState()
+        from forge.runtime.jobs import CommandJobs
+        self.command_jobs = CommandJobs(limit=max_parallel_tools, journal=session_journal)
+        if registry is not None and getattr(registry.implementation('run_command'), 'supports_background', False):
+            from forge.tools.jobs import JobOutputTool, JobKillTool
+            for tool in (JobOutputTool(resolved_context_root, self.command_jobs), JobKillTool(resolved_context_root, self.command_jobs)):
+                if tool.name not in registry.names:
+                    registry.register(tool)
         if registry is not None and include_task_tools:
             for task_tool in create_task_tools(
                 resolved_context_root,
@@ -273,6 +280,7 @@ class Conversation:
                 ) if not getattr(tool_backend, 'observer', None) else lambda call: mutation_target_paths(call, maximum=None),
                 hook_context_sink=self._queue_hook_context,
                 backend=tool_backend,
+                jobs=self.command_jobs,
             )
             if registry is not None
             else None
@@ -678,6 +686,7 @@ class Conversation:
 
     async def session_resume_with_hooks(self, identifier: str) -> str:
         self._require_idle()
+        self.command_jobs.require_idle()
         state, _ = self._resume_target(identifier)
         previous_mode = self.permission_manager.execution_mode
         previous_journal = self.session_journal
@@ -701,6 +710,7 @@ class Conversation:
         name: str | None = None,
     ) -> str:
         self._require_idle()
+        self.command_jobs.require_idle()
         await self.session_end(reason='branch')
         notice = self.session_branch(name)
         if self.mcp_manager is not None:
@@ -710,6 +720,7 @@ class Conversation:
 
     async def session_clear_with_hooks(self) -> str:
         self._require_idle()
+        self.command_jobs.require_idle()
         previous_mode, previous_journal = self.permission_manager.execution_mode, self.session_journal
         default_mode = getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
         await self.session_end(reason='clear')
@@ -914,6 +925,10 @@ class Conversation:
         failures = []
         model_cleanup_error = None
         try:
+            await self.command_jobs.close()
+        except (Exception, asyncio.CancelledError) as error:
+            failures.append(type(error).__name__)
+        try:
             await self.session_end(reason=reason)
         except (Exception, asyncio.CancelledError) as error:
             failures.append(type(error).__name__)
@@ -974,6 +989,7 @@ class Conversation:
         mode: str = 'both',
     ) -> str:
         self._require_idle()
+        self.command_jobs.require_idle()
         if self.checkpoint_store is None:
             raise ValueError('File checkpoints are unavailable.')
         if mode not in {'code', 'conversation', 'both'}:
@@ -1086,6 +1102,7 @@ class Conversation:
         self._pending_hook_context.clear()
 
     def _bind_session(self, journal: SessionJournal) -> None:
+        self.command_jobs.bind(journal)
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
         if self.mcp_manager is not None:
@@ -1098,6 +1115,7 @@ class Conversation:
 
     def session_resume(self, identifier: str) -> str:
         self._require_idle()
+        self.command_jobs.require_idle()
         state, journal = self._resume_target(identifier)
         target_mode = state.sandbox_mode or getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
         if target_mode != self.permission_manager.execution_mode and hasattr(self, 'session_options'):
@@ -1152,6 +1170,7 @@ class Conversation:
 
     def session_branch(self, name: str | None = None) -> str:
         self._require_idle()
+        self.command_jobs.require_idle()
         if self.session_store is None or self.session_journal is None:
             raise ValueError('Session persistence is unavailable.')
         if self.session_journal.deferred:
@@ -1174,6 +1193,7 @@ class Conversation:
 
     def session_clear(self) -> str:
         self._require_idle()
+        self.command_jobs.require_idle()
         default_mode = getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
         if default_mode != self.permission_manager.execution_mode and hasattr(self, 'session_options'):
             raise ValueError('Use await session_clear_with_hooks() to restore the default sandbox mode')

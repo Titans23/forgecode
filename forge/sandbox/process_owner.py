@@ -33,17 +33,27 @@ class LocalProcessOwner:
         else:
             raise ValueError('Process ownership requires Windows Job or Linux subreaper')
         process = None
+        launch = asyncio.create_task(asyncio.create_subprocess_exec(*argv, **options))
         try:
-            process = await asyncio.create_subprocess_exec(*argv, **options)
+            process = await asyncio.shield(launch)
             if job:
                 job.assign(process.pid)
                 process.stdin.write(b'!')
                 await process.stdin.drain()
             return cls(process, job)
         except BaseException:
+            # Cancellation during launch must still obtain and reap the gated
+            # child; otherwise its pipes and process can outlive the request.
+            if process is None:
+                try:
+                    process = await asyncio.shield(launch)
+                except Exception:
+                    pass
             if job:
                 job.close()
             if process is not None:
+                if process.stdin is not None:
+                    process.stdin.close()
                 if process.returncode is None:
                     process.kill()  # Gated child has not executed the task.
                 await process.wait()
@@ -68,6 +78,8 @@ class LocalProcessOwner:
         except (OSError, TimeoutError) as error:
             report['reason'] = type(error).__name__
         finally:
+            if self.process.stdin is not None:
+                self.process.stdin.close()
             if self.job:
                 self.job.close()
             if self.process.returncode is None:

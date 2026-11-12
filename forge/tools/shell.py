@@ -135,10 +135,10 @@ async def _run_process(
             raise
 
     stdout_task = asyncio.create_task(
-        _read_bounded(process.stdout, max_output_bytes, artifact_root)
+        _read_bounded(process.stdout, max_output_bytes, artifact_root, stream_name='stdout')
     )
     stderr_task = asyncio.create_task(
-        _read_bounded(process.stderr, max_output_bytes, artifact_root)
+        _read_bounded(process.stderr, max_output_bytes, artifact_root, stream_name='stderr')
     )
     output_incomplete = False
     try:
@@ -218,6 +218,7 @@ async def _read_bounded(
     stream: asyncio.StreamReader | None,
     maximum: int,
     artifact_root: Path,
+    *, stream_name: str = 'stdout',
 ) -> tuple[bytes, int, bool, str | None]:
     if stream is None:
         return b'', 0, False, None
@@ -242,6 +243,10 @@ async def _read_bounded(
             total += len(chunk)
             remaining = maximum - len(kept)
             if remaining > 0:
+                from forge.process_output import process_output
+                sink = process_output.get()
+                if sink is not None:
+                    sink(stream_name, chunk[:remaining])
                 kept.extend(chunk[:remaining])
             tail.extend(chunk)
             if len(tail) > maximum // 2:
@@ -341,6 +346,8 @@ def render_process_output(result: ProcessResult) -> str:
 
 
 class RunCommandInput(SandboxInput):
+    run_in_background: bool = Field(default=False,
+        description='Start an owned background job and return its job_id. Use job_output to wait/read output and job_kill to cancel. Dependent commands must wait for completion.')
     command: str = Field(min_length=1)
     cwd: str = '.'
     timeout_seconds: float = Field(default=120.0, gt=0, allow_inf_nan=False)
@@ -348,6 +355,7 @@ class RunCommandInput(SandboxInput):
 
 
 class RunCommandTool(Tool[RunCommandInput]):
+    supports_background = True
     name = 'run_command'
     description = (
         'Run an executable command for exploration, diagnostics, '
@@ -396,6 +404,8 @@ class RunCommandTool(Tool[RunCommandInput]):
         return self.execution_profile.allow_command_file_writes
 
     async def execute(self, arguments: RunCommandInput) -> ToolResult:
+        if arguments.run_in_background:
+            return ToolResult.fail('background_unavailable', 'Background commands require an owned Harness session.')
         access = file_access_guard.get()
         policy_controls_access = getattr(getattr(access, 'policy', None), 'execution_mode', None) is not None
         if not policy_controls_access and not self.execution_profile.allow_command_file_writes:

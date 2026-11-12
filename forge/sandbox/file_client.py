@@ -15,6 +15,37 @@ def worker_argv():
     return [sys.executable, 'file-worker'] if getattr(sys, 'frozen', False) else [sys.executable, '-I', '-B', '-m', 'forge.engine', 'file-worker']
 
 
+class _OutputFrames:
+    '''Decode bounded helper output frames without mixing execution identities.'''
+    def __init__(self, identity, sink):
+        self.identity, self.sink = identity, sink
+        self.pending = bytearray()
+        self.result = None
+
+    def feed(self, chunk):
+        self.pending.extend(chunk)
+        while b'\n' in self.pending:
+            line, _, tail = self.pending.partition(b'\n')
+            self.pending = bytearray(tail)
+            value = strict_loads(bytes(line))
+            if not isinstance(value, dict):
+                raise ContractError('Helper output must be an object', kind='INDETERMINATE')
+            if self.result is not None:
+                raise ContractError('Helper emitted data after its result', kind='INDETERMINATE')
+            if value.get('type') == 'output':
+                if (set(value) != {'type', 'request_id', 'stream', 'data'}
+                        or value['request_id'] != self.identity or value['stream'] not in {'stdout', 'stderr'}):
+                    raise ContractError('Helper output binding differs', kind='INDETERMINATE')
+                self.sink(value['stream'], base64.b64decode(value['data'], validate=True))
+            else:
+                self.result = bytes(line)
+
+    def finish(self):
+        if self.pending or self.result is None:
+            raise ContractError('Helper output ended without a complete result', kind='INDETERMINATE')
+        return self.result
+
+
 class FileWorkerClient:
     def __init__(self, workspace, policy, *, native=None, local_control=None):
         if (native is None) == (local_control is None):
@@ -39,16 +70,26 @@ class FileWorkerClient:
 
     async def request(self, operation, **values):
         self._require_open()
-        task = asyncio.create_task(self._request(operation, **values))
+        admission = {'submitted': False}
+        task = asyncio.create_task(self._request(operation, admission, **values))
         self._requests.add(task)
         try:
             return await task
+        except asyncio.CancelledError:
+            if self._closing is not None and not admission['submitted']:
+                raise ContractError('File helper session closed before submission',
+                                    kind='SANDBOX_UNAVAILABLE', code=-32010) from None
+            raise
         finally:
             self._requests.discard(task)
 
-    async def _request(self, operation, **values):
+    async def _request(self, operation, admission, **values):
         self._require_open()
         request_id = 'exec-' + str(uuid4())
+        on_output = values.pop('on_output', None)
+        frames = _OutputFrames(request_id, on_output) if on_output is not None else None
+        if frames is not None:
+            values['stream_output'] = True
         request = {'schema_version': 'forge.file-worker.request.v1', 'request_id': request_id,
             'workspace': self.workspace, 'policy': self.policy, 'policy_hash': self.policy_hash,
             'operation': operation, **values}
@@ -58,7 +99,8 @@ class FileWorkerClient:
             raise ContractError('File helper request exceeds task stdin quota', kind='ARTIFACT_LIMIT', code=-32010)
         self._require_open()
         if self.native is not None:
-            output = await self._native_request(request_id, raw)
+            admission['submitted'] = True
+            output = await self._native_request(request_id, raw, on_chunk=frames.feed if frames else None)
         else:
             # Trusted file-policy operations or explicit full-access mode.
             # Never a native-failure fallback; makes no OS sandbox claim.
@@ -80,6 +122,7 @@ class FileWorkerClient:
                 self._require_open()  # Close may have started while the owned process was launching.
                 seconds = self._seconds(request)
                 async with asyncio.timeout(seconds + 5):
+                    admission['submitted'] = True
                     child.stdin.write(raw)
                     await child.stdin.drain()
                     child.stdin.close()
@@ -88,7 +131,10 @@ class FileWorkerClient:
                         size += len(chunk)
                         if size > MAX_FRAME_BYTES:
                             raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
-                        chunks.append(chunk)
+                        if frames is not None:
+                            frames.feed(chunk)
+                        else:
+                            chunks.append(chunk)
                     output = b''.join(chunks)
                     await child.wait()
             finally:
@@ -96,7 +142,7 @@ class FileWorkerClient:
                 self._owners.discard(owner)
             if child.returncode not in (0, 2):
                 raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010)
-        result = strict_loads(output)
+        result = strict_loads(frames.finish() if frames is not None else output)
         validate('file-worker.response', result)
         if result.get('schema_version') != 'forge.file-worker.response.v1' or result.get('request_id') != request_id or result.get('policy_hash') != self.policy_hash:
             raise ContractError('File helper response binding differs', kind='INDETERMINATE', code=-32010)
@@ -113,7 +159,7 @@ class FileWorkerClient:
         limit = self.policy['limits']['wall_time_seconds']
         return min(seconds, limit) if limit is not None else seconds
 
-    async def _native_request(self, execution_id, raw):
+    async def _native_request(self, execution_id, raw, *, on_chunk=None):
         native = self.native
         if native.policy_hash != self.policy_hash:
             raise ContractError('File helper requires its prepared native policy', kind='SANDBOX_UNAVAILABLE', code=-32010)
@@ -140,7 +186,10 @@ class FileWorkerClient:
                     size += len(chunk)
                     if size > MAX_FRAME_BYTES:
                         raise ContractError('File helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
-                    chunks.append(chunk)
+                    if on_chunk is not None:
+                        on_chunk(chunk)
+                    else:
+                        chunks.append(chunk)
                 if frame.get('final'):
                     closed_streams.add(frame['stream'])
                     if len(closed_streams) == 2:
