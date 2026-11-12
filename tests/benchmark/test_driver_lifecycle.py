@@ -17,6 +17,22 @@ def _bash():
             if sys.platform == 'win32' else shutil.which('bash'))
 
 
+def test_locked_installer_resolves_default_coding_dependencies():
+    import shlex
+    import subprocess
+    from benchmark.harbor.forgecode_agent import _locked_install_command
+
+    # Resolve the installer's actual extras against the lock: a test environment
+    # with all extras installed otherwise hides missing default-tool dependencies.
+    arguments = shlex.split(_locked_install_command('/fixture'))
+    extras = [arguments[index + 1] for index, value in enumerate(arguments) if value == '--extra']
+    exported = subprocess.check_output([
+        shutil.which('uv'), 'export', '--frozen', '--no-dev', '--no-emit-project', '--no-hashes',
+        *[value for extra in extras for value in ('--extra', extra)],
+    ], cwd=Path(__file__).resolve().parents[2], text=True, encoding='utf-8')
+    assert any(line.lower().startswith('pyyaml==') for line in exported.splitlines())
+
+
 @pytest.mark.parametrize('present', [(), ('curl',), ('git',), ('curl', 'git')])
 def test_minimal_task_tools_are_installed_only_when_missing(tmp_path, present):
     import subprocess

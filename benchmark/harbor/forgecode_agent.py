@@ -495,7 +495,7 @@ def _locked_install_command(source: str) -> str:
         f'UV_UNMANAGED_INSTALL={shlex.quote(_AGENT_ROOT+"/bin")} sh; '
         '"$UV_BIN" --version | grep -Eq "^uv 0[.]12[.]5( |$)"; '
         '"$UV_BIN" python install 3.12.13; '
-        f'"$UV_BIN" sync --frozen --no-dev --no-editable --extra anthropic --extra openai --extra gemini --extra validation --python 3.12.13 --project {shlex.quote(source)} '
+        f'"$UV_BIN" sync --frozen --no-dev --no-editable --extra coding --extra anthropic --extra openai --extra gemini --extra validation --python 3.12.13 --project {shlex.quote(source)} '
         f'--cache-dir {shlex.quote(_CACHE_DIR)}')
 
 
