@@ -338,7 +338,7 @@ class ToolRegistry:
 
     def mutation_paths(self, call) -> tuple[Path, ...]:
         tool = self._tools.get(call.name)
-        if tool is None or not tool.file_mutation or tool.effect != 'workspace_write':
+        if tool is None or getattr(tool, 'file_mutation', False) is not True or tool.effect != 'workspace_write':
             return ()
         from forge.tools.paths import mutation_target_paths
         return tuple(tool.root / path for path in mutation_target_paths(call, maximum=None))
