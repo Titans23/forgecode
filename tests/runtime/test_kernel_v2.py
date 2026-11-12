@@ -294,7 +294,7 @@ def test_read_batch_runs_in_order_continues_after_error_and_stops_on_cancel(tmp_
                 yield ModelResponseCompleted('tool_use' if self.calls == 1 else 'end_turn')
 
         conversation = Conversation(client=Model(), registry=ToolRegistry([tool]),
-            context_root=tmp_path, include_task_tools=False)
+            context_root=tmp_path, include_task_tools=False, max_parallel_tools=1)
 
         async def consume():
             async for _ in conversation.stream('Read the three files.'):

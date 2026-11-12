@@ -46,6 +46,13 @@ async def schedule_calls(calls, executor, prepare, *, limit, completed):
         completed[calls[index].id] = outcome
         return outcome
 
+    def unstarted(call):
+        reason = 'not_executed_after_failure' if stopped else 'not_executed_after_interruption'
+        if held is not None and call.id == held.call.id:
+            return executor.skip(held, reason)
+        return executor.record_result(call, ToolResult.fail(reason,
+            'This tool did not execute. Replan using the preceding results.'), status='cancelled')
+
     try:
         for call in calls:
             yield ToolExecutionQueued(call)
@@ -93,6 +100,12 @@ async def schedule_calls(calls, executor, prepare, *, limit, completed):
                 next_commit += 1
             if stopped and not slots:
                 break
+        # A normal denial still publishes terminal events for the skipped tail.
+        # Generator close/cancellation only persists these facts in finally.
+        for call in calls:
+            if call.id not in completed:
+                completed[call.id] = unstarted(call)
+                yield call, completed[call.id]
     finally:
         tasks = running()
         for task in tasks:
@@ -113,10 +126,6 @@ async def schedule_calls(calls, executor, prepare, *, limit, completed):
                         slot.dispatched = slot.task.result()
             if slot.dispatched is not None:
                 await settle(index, slot)
-        if held is not None:
-            completed[held.call.id] = executor.skip(held, 'not_executed_after_interruption')
         for call in calls:
             if call.id not in completed:
-                completed[call.id] = executor.record_result(call, ToolResult.fail(
-                    'not_executed_after_interruption' if not stopped else 'not_executed_after_failure',
-                    'This tool did not execute. Replan using the preceding results.'), status='cancelled')
+                completed[call.id] = unstarted(call)
