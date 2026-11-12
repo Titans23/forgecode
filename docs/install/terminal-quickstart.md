@@ -2,6 +2,8 @@
 
 ## Agent 组合与可信 Python 插件
 
+独立文件读取、搜索、图片与 Git 查询支持批内并行。Agent JSON 的 `max_parallel_tools` 默认为 10，设为 1 可顺序执行；这是同时运行数量，不是累计调用预算。终端显示各调用的排队、运行、待归档和完成状态，Ctrl+O 展开详情。插件通过 `ctx.register_tool(..., concurrency_safe=True)` 或参数分类函数显式加入并行组；默认独占，权限要求不变。
+
 定制、验收和复用入口（`check` 不调用模型）：
 
 ```sh

@@ -85,6 +85,31 @@ def test_trusted_helper_drains_large_checkpoint_without_truncating_or_blocking(t
     asyncio.run(run())
 
 
+def test_real_helper_requests_overlap_and_keep_their_output(tmp_path):
+    import asyncio
+    from forge.sandbox.file_client import FileWorkerClient
+    _, control, workspace, policy = fixture(tmp_path)
+    policy['execution_mode'] = 'full-access'
+    async def run():
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        try:
+            calls = [asyncio.create_task(client.request('tool', name='run_command', arguments={
+                'command': f'"{sys.executable}" -c "import time; time.sleep(2); print({value})"',
+                'timeout_seconds': 10})) for value in (12345, 67890)]
+            async with asyncio.timeout(10):
+                while len(client._owners) != 2:
+                    await asyncio.sleep(.01)
+            results = await asyncio.gather(*calls)
+            assert all(result['result']['success'] for result in results)
+            assert '12345' in results[0]['result']['content']
+            assert '67890' not in results[0]['result']['content']
+            assert '67890' in results[1]['result']['content']
+        finally:
+            assert (await client.close())['state'] == 'clean'
+            assert not client._owners and not client._requests
+    asyncio.run(run())
+
+
 def test_parent_file_worker_remains_usable_after_explore(tmp_path):
     import asyncio
     from forge.sandbox.file_client import FileWorkerClient

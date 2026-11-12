@@ -223,6 +223,9 @@ class _ReasoningTimelineBlock:
 class _ToolActivity:
     tool_call: ToolCall
     result: ToolResult | None = None
+    phase: str = 'running'
+    started_at: float | None = None
+    finished_at: float | None = None
 
 
 @dataclass(slots=True)
@@ -908,6 +911,30 @@ class StreamingResponseView:
         self.model_calls = model_calls
         self._refresh()
 
+    def queue_tool(self, tool_call: ToolCall) -> None:
+        if not self.timeline or not isinstance(self.timeline[-1], _ToolTimelineBlock):
+            self.timeline.append(_ToolTimelineBlock())
+        self.timeline[-1].activities.append(_ToolActivity(tool_call, phase='queued'))
+        self._tool_phase()
+
+    def _tool_phase(self) -> None:
+        activities = [item for block in self.timeline if isinstance(block, _ToolTimelineBlock)
+                      for item in block.activities]
+        running = sum(item.result is None and item.phase == 'running' for item in activities)
+        queued = sum(item.result is None and item.phase == 'queued' for item in activities)
+        settling = sum(item.result is None and item.phase == 'settling' for item in activities)
+        done = sum(item.result is not None for item in activities)
+        self.set_phase(f'工具 · 运行中 {running} · 排队 {queued} · 待归档 {settling} · 已完成 {done}')
+
+    def ready_tool(self, tool_call: ToolCall) -> None:
+        for block in self.timeline:
+            if isinstance(block, _ToolTimelineBlock):
+                for item in block.activities:
+                    if item.tool_call.id == tool_call.id:
+                        item.phase = 'settling'
+                        item.finished_at = monotonic()
+        self._tool_phase()
+
     def start_tool(self, tool_call: ToolCall) -> None:
         '''Show a model-requested tool while it is executing.'''
         self.waiting_model = False
@@ -920,11 +947,17 @@ class StreamingResponseView:
         else:
             group = _ToolTimelineBlock()
             self.timeline.append(group)
-        group.activities.append(_ToolActivity(tool_call=tool_call))
+        activity = next((item for item in group.activities if item.tool_call.id == tool_call.id), None)
+        if activity is None:
+            activity = _ToolActivity(tool_call=tool_call)
+            group.activities.append(activity)
+        activity.tool_call = tool_call
+        activity.phase = 'running'
+        activity.started_at = monotonic()
         if self.prompt is None:
             self._end_text()
             self.console.print(Text(f'Running {tool_call.name}...', style='dim'))
-        self.set_phase('正在运行 ' + tool_call.name)
+        self._tool_phase()
 
     def complete_tool(
         self,
@@ -938,9 +971,10 @@ class StreamingResponseView:
             for activity in reversed(block.activities):
                 if activity.tool_call.id == tool_call.id:
                     activity.result = result
+                    activity.finished_at = activity.finished_at or monotonic()
                     if self.prompt is None:
                         self.console.print(self._render_tool_group(_ToolTimelineBlock([activity]), limit=None))
-                    self.set_phase('正在处理工具结果')
+                    self._tool_phase()
                     return
         self._refresh()
 
@@ -1179,6 +1213,12 @@ class StreamingResponseView:
             if len(arguments) > 120:
                 arguments = f'{arguments[:117]}...'
             rendered.append(f' {arguments}', style='dim')
+            if activity.started_at is not None:
+                rendered.append(f' {(activity.finished_at or monotonic()) - activity.started_at:.1f}s', style='dim')
+            elif activity.result is None:
+                rendered.append(' 排队中', style='dim')
+            if activity.result is None and activity.phase == 'settling':
+                rendered.append(' 已执行，等待归档', style='dim')
             if result is not None:
                 rendered.append(f' — {result.summary}', style='dim')
                 diagnostic = result.content.strip()
@@ -1209,6 +1249,12 @@ class StreamingResponseView:
             rendered.append('▾ ' if self.expanded else '▸ ', style='dim')
             rendered.append(marker + ' ', style=('green' if result.success else 'red') if result else 'cyan')
             rendered.append(call.name, style='bold')
+            if activity.started_at is not None:
+                rendered.append(f' {(activity.finished_at or monotonic()) - activity.started_at:.1f}s', style='dim')
+            elif result is None:
+                rendered.append(' 排队中', style='dim')
+            if result is None and activity.phase == 'settling':
+                rendered.append(' 待归档', style='dim')
             if not self.expanded:
                 brief = ' '.join(target.split())
                 rendered.append('  ' + brief[:max(12, self.console.width - len(call.name) - 12)], style='dim')

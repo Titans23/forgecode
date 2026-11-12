@@ -29,6 +29,7 @@ class ListDirectoryInput(ToolInput):
 
 
 class ListDirectoryTool(Tool[ListDirectoryInput]):
+    concurrency_safe = True
     name = 'list_directory'
     description = (
         'List direct children of a filesystem directory. path accepts an absolute path or a path relative to the working directory. Use it to '
@@ -274,6 +275,7 @@ class ReadFileInput(ToolInput):
 
 
 class ReadFileTool(Tool[ReadFileInput]):
+    concurrency_safe = True
     name = 'read_file'
     description = (
         'Read at most 400 numbered lines from one UTF-8 filesystem file. path accepts absolute and working-directory-relative paths. '

@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class TurnRunner:
-    '''Orchestrate requests, sequential batches, evidence and one terminal path.
+    '''Orchestrate requests, bounded tool batches, evidence and one terminal path.
 
     No recovery phase owns a tool list or grants permission. Usage counters
     describe execution; they do not terminate a valid diagnostic strategy.
@@ -492,44 +492,41 @@ class TurnRunner:
         assert executor is not None
         results: list[tuple[ToolCall, ToolResult]] = []
         ordered = sorted(calls, key=lambda call: call.index)
-        batch_reason = None
+        from forge.runtime.tool_batch import schedule_calls
+        completed = {}
         mixed_finish = len(calls) > 1 and any(call.name == 'finish_task' for call in calls)
-        # 完成声明必须单独处理，防止同批后续工具改动产物后仍沿用旧验收结论。
-        if mixed_finish:
-            batch_reason = 'finish_must_be_alone'
         interrupted = False
         self.batch_active = True
+
+        async def prepare(call):
+            if mixed_finish:
+                return executor.record_result(call, ToolResult.fail(
+                    'finish_must_be_alone', 'finish_task must be submitted alone.'), status='cancelled')
+            if call.name == 'verify' and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id')):
+                from forge.runtime.check_contracts import inherit_check_arguments, resolve_stored_check
+                try:
+                    arguments = resolve_stored_check(call.arguments, self.state.evidence.verification)
+                    call = replace(call, arguments=inherit_check_arguments(arguments, self.state.evidence.verification)
+                                   if arguments.get('inherit_checks_from') else arguments)
+                except ValueError as error:
+                    return executor.record_result(call, ToolResult.fail('check_contract_conflict', str(error)), status='rejected')
+            token = parent_turn.set(self.state)
+            try:
+                return await executor.prepare(call, checkpoint_id=self.checkpoint_id,
+                    scope_checker=self._scope_error,
+                    result_transformer=(self._finish_declaration if call.name == 'finish_task'
+                                        else self._review_delivery if call.name == 'review_delivery' else None))
+            finally:
+                parent_turn.reset(token)
+
+        stream = schedule_calls(ordered, executor, prepare,
+                                limit=c.max_parallel_tools, completed=completed)
         try:
-            for call in ordered:
-                if batch_reason:
-                    outcome = executor.record_result(call, ToolResult.fail(
-                        batch_reason, 'This tool did not execute. Replan using the preceding results.',
-                    ), status='cancelled')
-                else:
-                    yield ToolExecutionStarted(call)
-                    if call.name == 'verify' and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id')):
-                        # 先展开已存检查，再交给统一执行器校验和授权；不能用引用绕过权限边界。
-                        from forge.runtime.check_contracts import inherit_check_arguments, resolve_stored_check
-                        try:
-                            arguments = resolve_stored_check(call.arguments, self.state.evidence.verification)
-                            call = replace(call, arguments=inherit_check_arguments(arguments, self.state.evidence.verification)
-                                           if arguments.get('inherit_checks_from') else arguments)
-                        except ValueError as error:
-                            outcome = executor.record_result(call, ToolResult.fail('check_contract_conflict', str(error)), status='rejected')
-                            results.append((call, outcome.result))
-                            self.state.record_execution(outcome.record)
-                            yield ToolExecutionCompleted(call, outcome.result)
-                            continue
-                    turn_token = parent_turn.set(self.state)
-                    try:
-                        outcome = await executor.execute(
-                            call, checkpoint_id=self.checkpoint_id,
-                            scope_checker=self._scope_error,
-                            result_transformer=(self._finish_declaration if call.name == 'finish_task'
-                                                else self._review_delivery if call.name == 'review_delivery' else None),
-                        )
-                    finally:
-                        parent_turn.reset(turn_token)
+            async for item in stream:
+                if not isinstance(item, tuple):
+                    yield item
+                    continue
+                call, outcome = item
                 effective = ToolCall(call.index, call.id, call.name, outcome.arguments)
                 results.append((effective, outcome.result))
                 self.state.record_execution(outcome.record)
@@ -585,12 +582,7 @@ class TurnRunner:
                     raise asyncio.CancelledError
                 if outcome.record.status == 'indeterminate':
                     interrupted = True
-                    batch_reason = 'not_executed_after_interruption'
                 elif not outcome.result.success:
-                    if batch_reason is None and outcome.result.error and outcome.result.error.code in {
-                        'permission_denied', 'outside_task_scope', 'read_only_intent', 'hook_denied', 'POLICY_DENIED',
-                    }:
-                        batch_reason = 'not_executed_after_failure'
                     self._diagnose(effective, outcome.result)
                     if (outcome.record.status == 'executed' and outcome.result.error
                             and outcome.result.error.code not in {'invalid_arguments', 'unknown_tool', 'unsupported_shell_syntax'}):
@@ -600,15 +592,14 @@ class TurnRunner:
             if mixed_finish:
                 self._protocol_feedback('finish_task must be submitted alone.')
         finally:
-            # Closing/cancelling an event stream must not leave a replayable tail.
+            await stream.aclose()
             done = {call.id for call, _ in results}
             for call in ordered:
                 if call.id not in done:
-                    outcome = executor.record_result(call, ToolResult.fail(
-                        'not_executed_after_interruption', 'The tool did not execute before the turn stopped.',
-                    ), status='cancelled')
+                    outcome = completed[call.id]
                     self.state.record_execution(outcome.record)
-                    results.append((call, outcome.result))
+                    results.append((ToolCall(call.index, call.id, call.name, outcome.arguments), outcome.result))
+            results.sort(key=lambda pair: pair[0].index)
             self._append_results(results)
             self.batch_active = False
             for feedback in self.pending_feedback:

@@ -28,9 +28,12 @@ class AgentDefinition:
     role_models: dict[str, str] = field(default_factory=dict)
     completion: Literal['normal', 'strict'] = 'normal'
     context_options: dict = field(default_factory=dict)
+    max_parallel_tools: int = 10
     sandbox_provider: str | None = 'auto'
 
     def __post_init__(self):
+        if type(self.max_parallel_tools) is not int or self.max_parallel_tools < 1:
+            raise ValueError('max_parallel_tools must be a positive integer')
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):
             raise ValueError('Agent name must be a simple identifier')
         if self.base not in {'coding', 'core'}:

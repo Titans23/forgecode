@@ -101,7 +101,7 @@ def test_consumers_preserve_one_durable_lifecycle(tmp_path, consumer, outcome):
         view = SimpleNamespace(append_text=ignore, update_usage=ignore, start_tool=ignore,
             complete_tool=tool_completed, complete=turn_completed, block_completion=ignore,
             model_started=ignore, set_phase=ignore, append_reasoning=ignore,
-            prepare_tool=ignore, append_tool_arguments=ignore)
+            prepare_tool=ignore, append_tool_arguments=ignore, queue_tool=ignore, ready_tool=ignore)
 
         async def consume():
             if consumer == 'cli':

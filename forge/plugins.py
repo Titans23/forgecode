@@ -60,7 +60,7 @@ def describe_plugin(spec: PluginSpec):
 
 class PluginTool:
     """Schema-validated trusted callback implementing the existing registry protocol."""
-    def __init__(self, owner, name, description, schema, callback, effect):
+    def __init__(self, owner, name, description, schema, callback, effect, concurrency_safe=False):
         if effect not in {'read_only', 'workspace_write', 'process'}:
             raise PluginError('Unsupported tool effect')
         if not callable(callback) or not isinstance(schema, dict) or schema.get('type') != 'object':
@@ -69,6 +69,12 @@ class PluginTool:
         self.owner, self.name, self.description = owner, name, description
         self.schema, self.callback, self.effect = deepcopy(schema), callback, effect
         self.validator = Draft202012Validator(self.schema)
+        if not isinstance(concurrency_safe, bool) and not callable(concurrency_safe):
+            raise PluginError('concurrency_safe must be a boolean or argument classifier')
+        self.concurrency_safe = concurrency_safe
+
+    def is_concurrency_safe(self, arguments):
+        return self.concurrency_safe(deepcopy(arguments)) if callable(self.concurrency_safe) else self.concurrency_safe
 
     @property
     def definition(self):
@@ -132,13 +138,13 @@ class PluginContext:
             raise PluginError('Effect disposer must be callable')
         self._host.cleanups.append(dispose)
 
-    def register_tool(self, name, description, schema, callback, *, effect='read_only'):
+    def register_tool(self, name, description, schema, callback, *, effect='read_only', concurrency_safe=False):
         self._require_active()
         if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]{0,79}', name):
             raise PluginError('Invalid tool name')
         if name in self._host.tools:
             raise PluginError(f'Duplicate plugin tool: {name}')
-        tool = PluginTool(self.plugin_id, name, description, schema, callback, effect)
+        tool = PluginTool(self.plugin_id, name, description, schema, callback, effect, concurrency_safe)
         self._host.tools[name] = tool
         def remove():
             self._host.tools.pop(name, None)

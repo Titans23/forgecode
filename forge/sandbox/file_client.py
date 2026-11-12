@@ -24,7 +24,11 @@ class FileWorkerClient:
         self.policy_hash = canonical_hash(self.policy)
         self.native = native
         self.local_control = Path(local_control) if local_control is not None else None
-        self._lock = asyncio.Lock()
+        self._requests = set()
+        self._routes = {}
+        self._retired = set()
+        self._router = None
+        self._router_error = None
         self._owners = set()
         self._cleanup_reports = []
         self._closing = None
@@ -35,6 +39,15 @@ class FileWorkerClient:
 
     async def request(self, operation, **values):
         self._require_open()
+        task = asyncio.create_task(self._request(operation, **values))
+        self._requests.add(task)
+        try:
+            return await task
+        finally:
+            self._requests.discard(task)
+
+    async def _request(self, operation, **values):
+        self._require_open()
         request_id = 'exec-' + str(uuid4())
         request = {'schema_version': 'forge.file-worker.request.v1', 'request_id': request_id,
             'workspace': self.workspace, 'policy': self.policy, 'policy_hash': self.policy_hash,
@@ -43,47 +56,46 @@ class FileWorkerClient:
         raw = json.dumps(request, ensure_ascii=False, separators=(',', ':')).encode()
         if len(raw) > 589824:
             raise ContractError('File helper request exceeds task stdin quota', kind='ARTIFACT_LIMIT', code=-32010)
-        async with self._lock:
-            self._require_open()
-            if self.native is not None:
-                output = await self._native_request(request_id, raw)
-            else:
-                # Trusted file-policy operations or explicit full-access mode.
-                # Never a native-failure fallback; makes no OS sandbox claim.
-                from forge.sandbox.process_owner import LocalProcessOwner
-                import os
-                import shutil
-                environment = bridge_environment(self.local_control)
-                directories = [str(Path(sys.executable).parent)]
-                for name in ('git', 'rg', 'node', 'pwsh'):
-                    executable = shutil.which(name)
-                    if executable:
-                        directories.append(str(Path(executable).resolve().parent))
-                environment['PATH'] = os.pathsep.join([*dict.fromkeys(directories), os.environ.get('PATH', environment['PATH'])])
-                owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
-                    environment=environment, output=True)
-                child = owner.process
-                self._owners.add(owner)
-                try:
-                    self._require_open()  # Close may have started while the owned process was launching.
-                    seconds = self._seconds(request)
-                    async with asyncio.timeout(seconds + 5):
-                        child.stdin.write(raw)
-                        await child.stdin.drain()
-                        child.stdin.close()
-                        chunks, size = [], 0
-                        while chunk := await child.stdout.read(65536):
-                            size += len(chunk)
-                            if size > MAX_FRAME_BYTES:
-                                raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
-                            chunks.append(chunk)
-                        output = b''.join(chunks)
-                        await child.wait()
-                finally:
-                    self._cleanup_reports.append(await owner.close())
-                    self._owners.discard(owner)
-                if child.returncode not in (0, 2):
-                    raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010)
+        self._require_open()
+        if self.native is not None:
+            output = await self._native_request(request_id, raw)
+        else:
+            # Trusted file-policy operations or explicit full-access mode.
+            # Never a native-failure fallback; makes no OS sandbox claim.
+            from forge.sandbox.process_owner import LocalProcessOwner
+            import os
+            import shutil
+            environment = bridge_environment(self.local_control)
+            directories = [str(Path(sys.executable).parent)]
+            for name in ('git', 'rg', 'node', 'pwsh'):
+                executable = shutil.which(name)
+                if executable:
+                    directories.append(str(Path(executable).resolve().parent))
+            environment['PATH'] = os.pathsep.join([*dict.fromkeys(directories), os.environ.get('PATH', environment['PATH'])])
+            owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
+                environment=environment, output=True)
+            child = owner.process
+            self._owners.add(owner)
+            try:
+                self._require_open()  # Close may have started while the owned process was launching.
+                seconds = self._seconds(request)
+                async with asyncio.timeout(seconds + 5):
+                    child.stdin.write(raw)
+                    await child.stdin.drain()
+                    child.stdin.close()
+                    chunks, size = [], 0
+                    while chunk := await child.stdout.read(65536):
+                        size += len(chunk)
+                        if size > MAX_FRAME_BYTES:
+                            raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
+                        chunks.append(chunk)
+                    output = b''.join(chunks)
+                    await child.wait()
+            finally:
+                self._cleanup_reports.append(await owner.close())
+                self._owners.discard(owner)
+            if child.returncode not in (0, 2):
+                raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010)
         result = strict_loads(output)
         validate('file-worker.response', result)
         if result.get('schema_version') != 'forge.file-worker.response.v1' or result.get('request_id') != request_id or result.get('policy_hash') != self.policy_hash:
@@ -110,13 +122,19 @@ class FileWorkerClient:
         command = {'mode': 'argv', 'argv': worker_argv(), 'cwd': self.workspace['canonical_path'],
             'environment': {}, 'deadline_utc': deadline, 'output_limit_bytes': min(MAX_FRAME_BYTES, self.policy['limits']['command_output_bytes']),
             'stdin_base64': base64.b64encode(raw).decode('ascii')}
+        if self._router_error is not None:
+            raise self._router_error
+        queue = asyncio.Queue(maxsize=8)
+        self._routes[execution_id] = queue
+        if self._router is None:
+            self._router = asyncio.create_task(self._route_outputs())
         chunks, finished, size, closed_streams = [], asyncio.Event(), 0, set()
         async def collect():
             nonlocal size
             while True:
-                frame = await native.outputs.get()
-                if frame['execution_id'] != execution_id:
-                    raise ContractError('Concurrent sandbox output has another owner', kind='INDETERMINATE', code=-32010)
+                frame = await queue.get()
+                if isinstance(frame, Exception):
+                    raise frame
                 if frame['stream'] == 'stdout':
                     chunk = base64.b64decode(frame['raw_base64'], validate=True)
                     size += len(chunk)
@@ -161,6 +179,26 @@ class FileWorkerClient:
         finally:
             collector.cancel()
             await asyncio.gather(collector, return_exceptions=True)
+            self._routes.pop(execution_id, None)
+            self._retired.add(execution_id)
+            while not queue.empty():
+                queue.get_nowait()
+
+    async def _route_outputs(self):
+        try:
+            while True:
+                frame = await self.native.outputs.get()
+                identity = frame.get('execution_id')
+                queue = self._routes.get(identity)
+                if queue is not None:
+                    await queue.put(frame)
+                elif identity not in self._retired:
+                    raise ContractError('Sandbox output has an unregistered owner', kind='INDETERMINATE', code=-32010)
+        except Exception as error:
+            self._router_error = error
+            for queue in tuple(self._routes.values()):
+                await queue.put(error)
+
 
     async def scan(self):
         return (await self.request('scan'))['result']
@@ -175,6 +213,10 @@ class FileWorkerClient:
         return json.loads(json.dumps(await asyncio.shield(self._closing)))
 
     async def _close(self):
+        requests = tuple(self._requests)
+        for task in requests:
+            task.cancel()
+        await asyncio.gather(*requests, return_exceptions=True)
         for owner in list(self._owners):
             self._cleanup_reports.append(await owner.close())
             self._owners.discard(owner)
@@ -183,10 +225,10 @@ class FileWorkerClient:
                 self._cleanup_reports.append(await self.native.close())
             finally:
                 await self.native.aclose()
-        # The accepted request owns its final cleanup record. Drain it and deny
-        # queued admissions before freezing the one session result.
-        async with self._lock:
-            states = {report['state'] for report in self._cleanup_reports}
-            return {'state': 'unknown' if 'unknown' in states else 'residual' if 'residual' in states else 'clean',
+        if self._router is not None:
+            self._router.cancel()
+            await asyncio.gather(self._router, return_exceptions=True)
+        states = {report['state'] for report in self._cleanup_reports}
+        return {'state': 'unknown' if 'unknown' in states else 'residual' if 'residual' in states else 'clean',
                 'scope': 'native-session' if self.native else 'local-trusted-process-tree',
                 'reports': list(self._cleanup_reports)}

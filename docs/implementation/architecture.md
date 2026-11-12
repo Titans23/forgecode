@@ -34,6 +34,10 @@ T01 已保留能力盘点、冻结任务、失败恢复和 CLI/API 演示证据�
 
 ## 1. 目录与调用链
 
+工具批次通过 `runtime/tool_batch.py` 在模型顺序上运行有界滚动池，默认最多 10 个执行体，`AgentDefinition.max_parallel_tools=1` 恢复串行。仅显式并发声明允许重叠，未声明、非法参数、分类器异常、单次提权均独占；Hook 改参后重新分类。Executor 通过同一 prepare/dispatch/finish 路径执行，授权、前置 Hook 与后置结算保持顺序，工作体并行；ContextVar 延续各调用自己的观测身份。正文响应完整校验后才派发工具。普通失败继续，拒绝/取消/不确定结果停止补充并收齐已启动调用。消费者关闭也保留真实已启动结果，不补造未执行事实。
+
+FileWorkerClient 的每个请求拥有独立 helper 和清理任务，原生输出按 execution_id 分流，关闭时先取消并收齐请求。CLI 分别显示排队、运行、执行完待归档和完成状态及单次耗时；给模型的结果仍按调用顺序。插件注册 `concurrency_safe=True` 或纯参数分类函数，只声明调度能力，不提升权限。当前默认开放文件/搜索/图片及 Git 查询的并行；修改和命令仍为独占屏障，后续后台作业与按文件编辑协调沿用此执行路径。
+
 | 目录 | 当前职责 |
 |---|---|
 | forge/cli.py、launch.py、api.py | 终端、入口组合和程序调用 |
@@ -196,7 +200,7 @@ EvalCase 可显式设置已有 max_delivery_repairs（默认 0，最多 2），N
 
 | 调用链 | 机制与取舍 | 代码和现有验证入口 |
 |---|---|---|
-| Agent Loop → 工具/Explore → 压缩 | TurnRunner 按索引顺序执行工具，普通失败继续后续调用；取消、拒绝和不确定清理记录未执行尾部。ContextVar 传入父 TurnState；支持请求观察协议的提供方按实际尝试记录用量，旧嵌入客户端按 stream 调用计数。子代理用量向父级累计，路由和摘要也计入。Explore 借用同一后端但不关闭它。压缩计算完整请求及输出预留，保存原始约束并成对保留 tool_use/result；这是用量与协议正确性，不是稳定提速结论。 | [TurnRunner._batch](../../forge/runtime/runner.py#L484)、[ObservedModelClient.stream](../../forge/runtime/model_observation.py#L101)、[TurnState](../../forge/runtime/turn_state.py#L138)、[Explore](../../forge/subagents/explore.py#L198)、[压缩阈值](../../forge/context/manager.py#L473)；[共享用量](../../tests/runtime/test_shared_usage.py#L10)、[实际读取/压缩夹具](../../tests/implementation/integration/test_harness_regressions.py#L94) |
+| Agent Loop → 工具/Explore → 压缩 | TurnRunner 有序准备/结算，可并行工具的执行体按滚动池重叠，独占调用形成屏障。普通失败继续；取消、拒绝和不确定清理收齐已启动调用并记录未执行尾部。ContextVar 传入父 TurnState；支持请求观察协议的提供方按实际尝试记录用量，旧嵌入客户端按 stream 调用计数。子代理用量向父级累计，路由和摘要也计入。Explore 借用同一后端但不关闭它。压缩计算完整请求及输出预留，保存原始约束并成对保留 tool_use/result；这是用量与协议正确性，不是稳定提速结论。 | [TurnRunner._batch](../../forge/runtime/runner.py#L489)、[ObservedModelClient.stream](../../forge/runtime/model_observation.py#L101)、[TurnState](../../forge/runtime/turn_state.py#L138)、[Explore](../../forge/subagents/explore.py#L198)、[压缩阈值](../../forge/context/manager.py#L473)；[共享用量](../../tests/runtime/test_shared_usage.py#L10)、[实际读取/压缩夹具](../../tests/implementation/integration/test_harness_regressions.py#L94) |
 | verify → check ledger → CompletionGate → 同回合反馈 | 文件 revision 与环境 epoch 同时匹配才是当前证据；普通进程执行保守地推进 epoch。检查按 ID 保存定义，修检查器必须继承原断言、需求和 cwd，不能改阈值冲掉失败。完成被拒后最多反馈两个不同缺口，仍在同一回合记录用量；行为检查和独立 grader 是不同层。 | [环境失效](../../forge/runtime/executor.py#L300)、[检查继承](../../forge/runtime/check_contracts.py#L62)、[完成门禁](../../forge/runtime/completion.py#L142)、[有界反馈](../../forge/runtime/runner.py#L768)；[不可削弱断言](../../tests/runtime/test_check_contracts.py#L57)、[公开原生演示](../../examples/harness_demo.py#L61) |
 | 规则激活 → 授权 → Journal intent → 执行/取消 → 状态重建 | 访问路径激活祖先规则；新规则尚未进入模型请求时，写入/进程先被拒绝，同批先读后写也不能绕过。统一执行器先授权；需要文件 checkpoint 时捕获 before image，intent fsync 后才执行。取消后的写入/进程结果可为 indeterminate。重建列出未匹配 intent，不自动重放；关闭只释放自己拥有的客户端和后端。 | [祖先规则](../../forge/context/repository.py#L191)、[请求边界](../../forge/runtime/runner.py#L622)、[授权/intent](../../forge/runtime/executor.py#L192)、[Journal fsync](../../forge/sessions/store.py#L381)、[重建未知工具](../../forge/sessions/store.py#L985)、[幂等关闭](../../forge/runtime/agent_loop.py#L795)；[未知副作用恢复](../../tests/implementation/integration/test_recovery.py#L55)、[Explore 后父后端仍可用](../../tests/implementation/integration/test_file_worker.py#L69) |
 

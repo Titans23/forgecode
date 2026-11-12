@@ -114,7 +114,11 @@ class Conversation:
         owns_tool_backend: bool = True,
         event_recorder: Any | None = None,
         turn_baseline_handler: Any | None = None,
+        max_parallel_tools: int = 10,
     ) -> None:
+        if type(max_parallel_tools) is not int or max_parallel_tools < 1:
+            raise ValueError('max_parallel_tools must be a positive integer')
+        self.max_parallel_tools = max_parallel_tools
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
         if task_relation not in {None, 'new', 'active'}:

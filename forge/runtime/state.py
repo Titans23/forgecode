@@ -334,6 +334,18 @@ class ToolExecutionStarted:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolExecutionQueued:
+    tool_call: ToolCall
+
+
+@dataclass(frozen=True, slots=True)
+class ToolExecutionReady:
+    '''The tool body settled; ordered hooks/state settlement may still be pending.'''
+
+    tool_call: ToolCall
+
+
+@dataclass(frozen=True, slots=True)
 class ToolExecutionCompleted:
     '''The runtime finished one tool request with a structured result.'''
 
@@ -390,6 +402,8 @@ type ConversationEvent = (
     | ModelCallFailed
     | ToolExecutionStarted
     | ToolExecutionCompleted
+    | ToolExecutionReady
+    | ToolExecutionQueued
     | WorkspaceChanged
     | VerificationCompleted
     | CompletionBlocked

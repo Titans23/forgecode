@@ -123,6 +123,7 @@ def create_runtime(
         checkpoint_store=checkpoint, session_store=store, hook_manager=hooks, mcp_manager=mcp,
         task_policy=task_policy, context_root=root, include_task_tools=coding,
         system_prompt=agent.system_prompt,
+        max_parallel_tools=agent.max_parallel_tools,
         context_config=CompactionConfig(**agent.context_options) if agent.context_options else None, **options)
     conversation.agent_definition = agent
     conversation.model_config = config

@@ -1,7 +1,7 @@
 '''Command-line entry point for ForgeCode.'''
 
 import asyncio
-from contextlib import suppress
+from contextlib import aclosing, suppress
 from datetime import datetime
 import os
 from pathlib import Path
@@ -44,6 +44,8 @@ from forge.runtime.state import (
     ModelUsageUpdate,
     ToolExecutionCompleted,
     ToolExecutionStarted,
+    ToolExecutionQueued,
+    ToolExecutionReady,
     TurnCompleted,
 )
 from forge.sessions.trajectory import TrajectoryRecorder
@@ -800,35 +802,40 @@ async def render_streamed_turn(
     if recorder is not None:
         recorder.record_user_message(prompt)
     try:
-        async for event in session.stream(prompt, **({'input_id': input_id} if input_id else {})):
-            if recorder is not None:
-                recorder.record_event(event)
-            if isinstance(event, ModelTextDelta):
-                response_view.append_text(event.text)
-            elif isinstance(event, ModelReasoningDelta):
-                response_view.append_reasoning(event.text)
-            elif isinstance(event, ModelCallStarted):
-                response_view.model_started()
-            elif isinstance(event, ModelRetryScheduled):
-                response_view.set_phase(f'正在重试 · {event.delay_seconds:g}s 后')
-            elif isinstance(event, ModelToolCallStarted):
-                response_view.prepare_tool(event.index, event.name)
-            elif isinstance(event, ModelToolCallArgumentsDelta):
-                response_view.append_tool_arguments(event.index, event.partial_json)
-            elif isinstance(event, ModelUsageUpdate):
-                response_view.update_usage(
-                    event.usage,
-                    request_usage=event.request_usage,
-                    model_calls=event.model_calls,
-                )
-            elif isinstance(event, ToolExecutionStarted):
-                response_view.start_tool(event.tool_call)
-            elif isinstance(event, ToolExecutionCompleted):
-                response_view.complete_tool(event.tool_call, event.result)
-            elif isinstance(event, CompletionBlocked):
-                response_view.block_completion(event.reasons)
-            elif isinstance(event, TurnCompleted):
-                response_view.complete(event.result)
+        async with aclosing(session.stream(prompt, **({'input_id': input_id} if input_id else {}))) as events:
+            async for event in events:
+                if recorder is not None:
+                    recorder.record_event(event)
+                if isinstance(event, ModelTextDelta):
+                    response_view.append_text(event.text)
+                elif isinstance(event, ModelReasoningDelta):
+                    response_view.append_reasoning(event.text)
+                elif isinstance(event, ModelCallStarted):
+                    response_view.model_started()
+                elif isinstance(event, ModelRetryScheduled):
+                    response_view.set_phase(f'正在重试 · {event.delay_seconds:g}s 后')
+                elif isinstance(event, ModelToolCallStarted):
+                    response_view.prepare_tool(event.index, event.name)
+                elif isinstance(event, ModelToolCallArgumentsDelta):
+                    response_view.append_tool_arguments(event.index, event.partial_json)
+                elif isinstance(event, ModelUsageUpdate):
+                    response_view.update_usage(
+                        event.usage,
+                        request_usage=event.request_usage,
+                        model_calls=event.model_calls,
+                    )
+                elif isinstance(event, ToolExecutionStarted):
+                    response_view.start_tool(event.tool_call)
+                elif isinstance(event, ToolExecutionQueued):
+                    response_view.queue_tool(event.tool_call)
+                elif isinstance(event, ToolExecutionReady):
+                    response_view.ready_tool(event.tool_call)
+                elif isinstance(event, ToolExecutionCompleted):
+                    response_view.complete_tool(event.tool_call, event.result)
+                elif isinstance(event, CompletionBlocked):
+                    response_view.block_completion(event.reasons)
+                elif isinstance(event, TurnCompleted):
+                    response_view.complete(event.result)
     except Exception as error:
         if recorder is not None:
             recorder.record_error(error)

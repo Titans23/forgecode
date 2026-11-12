@@ -27,6 +27,7 @@ class GitStatusInput(SandboxInput):
 
 
 class GitStatusTool(Tool[GitStatusInput]):
+    concurrency_safe = True
     name = 'git_status'
     description = (
         'Show the repository branch and concise working tree status. Use it '
@@ -63,6 +64,7 @@ class GitLogInput(SandboxInput):
 
 
 class GitLogTool(Tool[GitLogInput]):
+    concurrency_safe = True
     name = 'git_log'
     description = (
         'Show a concise recent commit history, optionally limited to one '
@@ -123,6 +125,7 @@ class GitDiffInput(SandboxInput):
 
 
 class GitDiffTool(Tool[GitDiffInput]):
+    concurrency_safe = True
     name = 'git_diff'
     description = (
         'Show unstaged or staged Git changes, optionally limited to one '

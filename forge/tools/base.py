@@ -193,6 +193,11 @@ class Tool(ABC, Generic[InputT]):
     description: ClassVar[str]
     input_model: ClassVar[type[ToolInput]]
     effect: ClassVar[ToolEffect] = 'read_only'
+    concurrency_safe: ClassVar[bool] = False
+
+    def is_concurrency_safe(self, arguments: Mapping[str, Any]) -> bool:
+        '''Opt in to overlapping tool bodies; this never grants permission.'''
+        return self.concurrency_safe
 
     def __init__(self, root: Path) -> None:
         resolved_root = root.resolve()
@@ -313,6 +318,16 @@ class ToolRegistry:
     def effect(self, name: str) -> ToolEffect | None:
         tool = self._tools.get(name)
         return None if tool is None else tool.effect
+
+    def is_concurrency_safe(self, name: str, arguments: Mapping[str, Any]) -> bool:
+        tool = self._tools.get(name)
+        classifier = getattr(tool, 'is_concurrency_safe', None)
+        if name in self._hidden_tools or not callable(classifier):
+            return False
+        try:
+            return self.validate(name, arguments) is None and classifier(arguments) is True
+        except Exception:
+            return False
 
     def implementation(self, name: str) -> Tool[Any] | None:
         '''Return one internal tool implementation without exposing new schema.'''

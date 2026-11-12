@@ -77,7 +77,7 @@ def test_pending_tool_reports_received_bytes_without_claiming_execution():
     view.append_tool_arguments(0, 'a' * 1024)
     assert 'write_file · 4.0 KB · 未执行' in view.phase
     view.start_tool(ToolCall(0, 'write', 'write_file', {'path': 'output.html', 'content': 'done'}))
-    assert view.phase == '正在运行 write_file'
+    assert '运行中 1' in view.phase and '排队 0' in view.phase
     view.model_started()
     view.prepare_tool(0, 'write_file')
     view.append_tool_arguments(0, 'a' * 1024)

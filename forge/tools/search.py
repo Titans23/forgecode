@@ -137,6 +137,7 @@ class FindFilesInput(ToolInput):
 
 
 class FindFilesTool(Tool[FindFilesInput]):
+    concurrency_safe = True
     name = 'find_files'
     description = (
         'Find filesystem files (never directories) by a glob pattern. '
@@ -213,6 +214,7 @@ class GrepInput(FindFilesInput):
 
 
 class GrepTool(Tool[GrepInput]):
+    concurrency_safe = True
     name = 'grep'
     description = (
         'Search UTF-8 filesystem files and return path, line number, and '
