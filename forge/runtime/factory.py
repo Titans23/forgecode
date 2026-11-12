@@ -9,19 +9,20 @@ from __future__ import annotations
 from dataclasses import replace
 import os
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, TYPE_CHECKING
 
 from forge.config import ForgeConfig, model_environment
 from forge.agents import AgentDefinition
 from forge.hooks import HookManager
 from forge.runtime.agent_loop import Conversation
-from forge.runtime.completion import TaskPolicy
 from forge.runtime.dependencies import RuntimeBindings
 from forge.runtime.profile import ExecutionProfile
 from forge.runtime.router import ModelIntentRouter
-from forge.sessions.checkpoint import CheckpointStore
 from forge.sessions.store import SessionJournal, SessionState, SessionStore
 from forge.tools import create_default_registry
+
+if TYPE_CHECKING:
+    from forge.runtime.completion import TaskPolicy
 
 
 def create_model_client(*args, **kwargs):
@@ -51,7 +52,9 @@ def create_runtime(
         raise ValueError('model_override requires fork_session=True.')
     agent = agent or AgentDefinition()
     coding = agent.base == 'coding'
+    features = agent.enabled_features
     if task_policy is None and agent.completion == 'strict':
+        from forge.runtime.completion import TaskPolicy
         task_policy = TaskPolicy(require_verification=True, require_positive_verification=True,
                                  max_delivery_repairs=2, forbidden_paths=())
     config = bindings.config if bindings and bindings.config else ForgeConfig.from_env(model_environment(root / '.env'))
@@ -99,17 +102,21 @@ def create_runtime(
     if state is None:
         journal = store.create(model=str(getattr(model, 'model', '')), provider=config.provider,
                                deferred=defer_new_session)
-    checkpoint = CheckpointStore.for_session(root, journal.path, journal.session_id) if coding else None
+    checkpoint = None
+    if 'checkpoints' in features:
+        from forge.sessions.checkpoint import CheckpointStore
+        checkpoint = CheckpointStore.for_session(root, journal.path, journal.session_id)
     from forge.tools.base import ToolRegistry
     registry = create_default_registry(root, execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
         model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
+        selected_tools=agent.tools, skills_enabled='skills' in features,
         **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {})) if coding else ToolRegistry()
     if bindings and bindings.plugin_host:
         bindings.plugin_host.bind_registry(registry)
-    hooks = HookManager.from_root(root) if extensions else None
+    hooks = HookManager.from_root(root) if extensions and 'hooks' in features else None
     mcp = None
-    if extensions:
+    if extensions and 'mcp' in features:
         from forge.mcp import MCPClientManager
         mcp = MCPClientManager(root, registry, load_runtime_mcp_servers(root))
     conversation_type = conversation_factory or Conversation
@@ -122,6 +129,7 @@ def create_runtime(
         active_task=state.active_task if state else None, session_journal=journal,
         checkpoint_store=checkpoint, session_store=store, hook_manager=hooks, mcp_manager=mcp,
         task_policy=task_policy, context_root=root, include_task_tools=coding,
+        coding=coding, features=features,
         system_prompt=agent.system_prompt,
         max_parallel_tools=agent.max_parallel_tools,
         context_config=CompactionConfig(**agent.context_options) if agent.context_options else None, **options)

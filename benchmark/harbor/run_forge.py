@@ -150,8 +150,7 @@ async def run_turn(
             error.plugin_cleanup = await runtime_bindings.plugin_host.close()
         raise
     if composition:
-        runtime_bindings.plugin_host.model_startup['active'] = False
-        runtime_bindings.plugin_host.model_startup['clients'].clear()
+        runtime_bindings.plugin_host.model_startup.release()
         from forge.api import SessionOptions, RunProfile
         conversation.session_options = SessionOptions(project, sandbox='full-access', data_root=runtime_bindings.data_root,
             config=runtime_bindings.config, agent=definition, models=composition['models'],

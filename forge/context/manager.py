@@ -7,7 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from forge.context.compactor import (
     CheapCompactionResult,
@@ -17,7 +17,8 @@ from forge.context.compactor import (
     summarize_history,
     atomic_message_units,
 )
-from forge.context.repository import MemoryRecord, RepositoryContext
+if TYPE_CHECKING:
+    from forge.context.repository import MemoryRecord
 from forge.runtime.state import TokenUsage
 from forge.runtime.turn_state import add_usage
 
@@ -200,6 +201,8 @@ class ContextManager:
         messages: list[dict[str, Any]],
         root: Path | None = None,
         config: CompactionConfig | None = None,
+        *,
+        repository_enabled: bool = True,
     ) -> None:
         self._messages = messages
         self.root = (root or Path.cwd()).resolve()
@@ -207,14 +210,18 @@ class ContextManager:
         self.last_compaction: CheapCompactionResult | None = None
         self.summary_failures = 0
         self.last_report: CompactionReport | None = None
-        self.repository = RepositoryContext(self.root)
+        self.repository = None
+        if repository_enabled:
+            from forge.context.repository import RepositoryContext
+            self.repository = RepositoryContext(self.root)
 
     def reset_history(self) -> None:
         '''Discard transient observations when committed history is replaced.'''
         self.summary_failures = 0
         self.last_compaction = None
         self.last_report = None
-        self.repository.reset_scopes()
+        if self.repository is not None:
+            self.repository.reset_scopes()
 
     @property
     def stats(self) -> ContextStats:
@@ -280,8 +287,14 @@ class ContextManager:
 
     def build_system_prompt(self, base: str, query: str) -> str:
         '''Inject stable rules and only query-relevant durable memories.'''
-        suffix = self.repository.system_suffix(query)
+        suffix = self.repository.system_suffix(query) if self.repository is not None else ''
         return base if not suffix else f'{base}\n\n{suffix}'
+
+    @property
+    def memory(self):
+        if self.repository is None:
+            raise ValueError('The repository feature is not enabled')
+        return self.repository.memory
 
     def remember(
         self,
@@ -291,7 +304,7 @@ class ContextManager:
         description: str = '',
         memory_type: str = 'project',
     ) -> MemoryRecord:
-        return self.repository.memory.remember(
+        return self.memory.remember(
             name,
             content,
             description=description,
@@ -305,7 +318,7 @@ class ContextManager:
             prompt,
             flags=re.IGNORECASE | re.DOTALL,
         )
-        if match is None:
+        if match is None or self.repository is None:
             return None
         content = match.group(1).strip()
         digest = hashlib.sha256(content.encode('utf-8')).hexdigest()[:10]

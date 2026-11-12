@@ -8,10 +8,8 @@ from dataclasses import asdict, replace
 from time import monotonic
 from typing import TYPE_CHECKING
 
-from forge.context.working import WorkingState
 from forge.hooks import HookEvent
 from forge.runtime.model_observation import ObservedModelClient
-from forge.runtime.completion import TaskPolicy
 from forge.runtime.state import ModelCallError, ModelOutputTruncatedError, ModelProtocolError
 from forge.runtime.state import (
     ModelResponseError, build_assistant_message, build_tool_result_message,
@@ -83,7 +81,8 @@ class TurnRunner:
                 async for event in stream:
                     yield event
         except (asyncio.CancelledError, GeneratorExit):
-            await c.command_jobs.cancel_owner(self.state)
+            if c.command_jobs is not None:
+                await c.command_jobs.cancel_owner(self.state)
             c.inbox.defer_steering()
             if self.journal is not None and not self.finished:
                 self._commit_messages()
@@ -92,7 +91,8 @@ class TurnRunner:
                 )
             raise
         except Exception as error:
-            await c.command_jobs.cancel_owner(self.state)
+            if c.command_jobs is not None:
+                await c.command_jobs.cancel_owner(self.state)
             self._commit_messages()
             c.record_session_error(error)
             raise
@@ -103,11 +103,11 @@ class TurnRunner:
         c = self.conversation
         if self.journal is not None:
             self.journal.commit()
-            self.journal.record_turn_started(prompt, c.task_manager.active)
+            self.journal.record_turn_started(prompt, c.active_task)
         user_message = {'role': 'user', 'content': prompt if content is None else content}
         self.messages.append(user_message)
         if self.journal is not None:
-            self.journal.record_user_message(user_message, c.task_manager.active, input_id=input_id)
+            self.journal.record_user_message(user_message, c.active_task, input_id=input_id)
         if input_id is not None:
             c.inbox.consumed(input_id)
         from forge.observability.events import current
@@ -122,9 +122,9 @@ class TurnRunner:
         c._persisted_event_keys.clear()
         decision = None
         router = c.intent_router
-        if c.task_relation is not None:
+        if c.task_relation is not None and c.task_manager is not None:
             from forge.runtime.router import TurnDecision
-            continuing = c.task_relation == 'active' and c.task_manager.active is not None
+            continuing = c.task_relation == 'active' and c.active_task is not None
             decision = TurnDecision(
                 intent='continue_task' if continuing else 'new_task',
                 task_relation='active' if continuing else 'new',
@@ -138,7 +138,7 @@ class TurnRunner:
             else:
                 self.state.record_model_request(stage='routing')
             try:
-                routed = await router.route(prompt, c.task_manager.active, self.messages[:-1])
+                routed = await router.route(prompt, c.active_task, self.messages[:-1])
             finally:
                 if original_client is not None:
                     router.client = original_client
@@ -151,7 +151,7 @@ class TurnRunner:
                     'raw_response': routed.raw_response[:4000],
                     'degraded_reason': routed.degraded_reason,
                 })
-        previous = c.task_manager.active
+        previous = c.active_task
         if decision is not None:
             self.read_only = decision.intent in {'read_only', 'conversation', 'task_query', 'ambiguous'}
             if not self.read_only:
@@ -161,7 +161,7 @@ class TurnRunner:
                     self.state.goal = previous.goal
                 else:
                     c.task_manager.start(prompt, requires_change=False)
-        task_id = c.task_manager.active.id if c.task_manager.active else ''
+        task_id = c.active_task.id if c.active_task else ''
         # A new turn is a new observation epoch. Old run IDs remain addressable
         # for checker inheritance, but numerical revision=0 never refreshes them.
         c.verification_history[:] = [replace(item, freshness='unknown')
@@ -176,9 +176,9 @@ class TurnRunner:
         if c.checkpoint_store is not None and c.completion_gate is not None:
             self.checkpoint_id = c.checkpoint_store.begin()
             if self.journal is not None:
-                self.journal.record_checkpoint_created(self.checkpoint_id, c.messages, c.task_manager.active)
-        if self.journal is not None:
-            self.journal.record_task_state(c.task_manager.active)
+                self.journal.record_checkpoint_created(self.checkpoint_id, c.messages, c.active_task)
+        if self.journal is not None and c.task_manager is not None:
+            self.journal.record_task_state(c.active_task)
         if self.tracker is not None:
             # Strict acceptance and actual extensions retain turn-start evidence.
             # Historical checks/paths and an empty HookManager do not require a
@@ -194,14 +194,16 @@ class TurnRunner:
             await self.tracker.begin_turn(deferred=not eager_baseline)
             if previous is not None and decision is not None and decision.intent == 'continue_task':
                 self.tracker.carry_existing_changes(previous.workspace_paths)
-        c.working_state = WorkingState()
+        if c.working_state is not None:
+            from forge.context.working import WorkingState
+            c.working_state = WorkingState()
         c._last_repository_context = c._repository_context(prompt)
         self._commit_messages()
 
     def _tools(self):
         c = self.conversation
         definitions = c._permission_filtered_tools(c._tool_definitions())
-        task = c.task_manager.active
+        task = c.active_task
         if definitions is not None and (task is None or not task.acceptance_criteria):
             definitions = [item for item in definitions if item['name'] != 'task_revise_requirement']
         if (self.read_only and c.permission_manager.execution_mode is None
@@ -214,6 +216,8 @@ class TurnRunner:
         return definitions
 
     def _system(self) -> str:
+        if not self.conversation.coding:
+            return self.conversation.system_prompt
         return '\n\n'.join((
             self.conversation._system_prompt_with_task(include_tool_availability=False, include_state=False),
             'A final answer or finish_task submits the same completion request. '
@@ -229,10 +233,11 @@ class TurnRunner:
         available = ', '.join(item['name'] for item in (self._tools() or ())) or 'none'
         return '\n\n'.join(part for part in (
             '[ForgeCode current context]',
-            c.task_manager.system_suffix(), c.working_state.system_suffix(), c._last_repository_context,
+            c.task_manager.system_suffix() if c.task_manager is not None else '',
+            c.working_state.system_suffix() if c.working_state is not None else '', c._last_repository_context,
             c._permission_system_context(),
             ('[Current turn contract]\n' + self.state.goal
-             if c.task_manager.active is None or c.task_manager.active.goal != self.state.goal else ''),
+             if c.active_task is None or c.active_task.goal != self.state.goal else ''),
             '[Runtime request tools]\nOnly the following tools are included in this model request: ' + available,
             self._evidence_context(),
             ('[Acceptance reconciliation]\nThe acceptance criteria above are source-anchored model interpretations, not independent proof or permissions. '
@@ -240,7 +245,7 @@ class TurnRunner:
             'falsifiable measurement. Report missing or uncertain checks with finish_task status=failed; '
             'replanning does not remove requirements.'
             if c.completion_gate and c.completion_gate.policy.require_acceptance_reconciliation
-            and c.task_manager.active is not None and c.task_manager.active.acceptance_criteria else ''),
+            and c.active_task is not None and c.active_task.acceptance_criteria else ''),
         ) if part)
 
     def _evidence_context(self) -> str:
@@ -478,13 +483,13 @@ class TurnRunner:
         while (item := c.inbox.peek('steering')) is not None:
             message = {'role': 'user', 'content': item['content']}
             if self.journal is not None:
-                self.journal.record_user_message(message, c.task_manager.active, input_id=item['id'])
+                self.journal.record_user_message(message, c.active_task, input_id=item['id'])
             c.inbox.consumed(item['id'])
             self.messages.append(message)
             directive = input_text(item['content'])
             self.state.goal += ('\n\nLater user adjustment (supersedes conflicting earlier '
                                 'user instructions; unchanged requirements still apply):\n' + directive)
-            if c.task_manager.active is not None:
+            if c.active_task is not None:
                 c.task_manager.continue_active(directive)
             self._commit_messages()
 
@@ -536,20 +541,22 @@ class TurnRunner:
                 self.state.observe_workspace(outcome.record.workspace_revision, outcome.record.environment_epoch)
                 if outcome.workspace_change is not None:
                     change = outcome.workspace_change
-                    c.task_manager.observe_mutation_paths(change.paths)
-                    c.working_state.advance_revision(change.revision, change.paths)
+                    if c.task_manager is not None:
+                        c.task_manager.observe_mutation_paths(change.paths)
+                    if c.working_state is not None:
+                        c.working_state.advance_revision(change.revision, change.paths)
                     yield WorkspaceChanged(change.revision, change.paths)
                 if c.registry.effect(call.name) == 'workspace_write':
                     self.mutation_attempted = True
                     self.mutation_failed = self.mutation_failed or not outcome.result.success
-                    if c.task_manager.active is None:
+                    if c.task_manager is not None and c.active_task is None:
                         c.task_manager.start(self.state.goal, requires_change=True)
                         self.owns_task = True
-                if c.registry.effect(call.name) != 'read_only':
+                if c.working_state is not None and c.registry.effect(call.name) != 'read_only':
                     c.working_state.invalidate_process_caches()
                 evidence = verification_from_result(outcome.result)
                 if evidence is not None and outcome.record.status == 'executed':
-                    task = c.task_manager.active
+                    task = c.active_task
                     evidence = replace(evidence, task_id=task.id if task else '',
                                        turn_id=self.journal.turn_id if self.journal else '')
                     c.verification_history.append(evidence)
@@ -577,7 +584,8 @@ class TurnRunner:
                     ))
                     c._queue_hook_context(hook)
                 # WorkingState is evidence for context only, never a preflight gate.
-                c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision)
+                if c.working_state is not None:
+                    c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision)
                 yield ToolExecutionCompleted(effective, outcome.result)
                 if (outcome.record.status == 'cancelled' and outcome.result.error
                         and outcome.result.error.code == 'execution_cancelled'):
@@ -617,7 +625,8 @@ class TurnRunner:
         observed = paths
         if isinstance(call.arguments.get('cwd'), str):
             observed = (*observed, call.arguments['cwd'])
-        c.context.repository.observe_paths(observed)
+        if c.context.repository is not None:
+            c.context.repository.observe_paths(observed)
         try:
             updated_context = c._repository_context(self.state.goal)
         except (OSError, ValueError) as error:
@@ -634,7 +643,7 @@ class TurnRunner:
             return ToolResult.fail('read_only_intent', 'The current user turn only authorizes inspection.')
         if c.registry.effect(call.name) != 'workspace_write':
             return None
-        if c.task_manager.outside_scope(paths):
+        if c.task_manager is not None and c.task_manager.outside_scope(paths):
             return ToolResult.fail('outside_task_scope', 'The operation targets paths outside the explicit user scope.')
         if c.completion_gate is not None:
             reasons = c.completion_gate._path_violations(paths)
@@ -670,14 +679,14 @@ class TurnRunner:
             self.tracker.revision, getattr(self.tracker, 'environment_epoch', 0),
         )
         evidence = tuple(self.state.evidence.verification)
-        task = c.task_manager.active
+        task = c.active_task
         retired = {item['id'] for item in task.acceptance_history} if task is not None else set()
         evidence = tuple(item for item in evidence if not item.requirement_ids
                          or not set(item.requirement_ids).issubset(retired))
         decision = await c.completion_gate.evaluate(
             self.tracker, evidence[-1] if evidence else None,
             verification_history=evidence, mutation_attempted=False,
-            acceptance_criteria=(c.task_manager.active.acceptance_criteria if c.task_manager.active is not None else ()),
+            acceptance_criteria=(c.active_task.acceptance_criteria if c.active_task is not None else ()),
         )
         return decision.reasons
 
@@ -701,7 +710,7 @@ class TurnRunner:
         content = report.summary()
         if reasons:
             content += '\nCurrent gaps:\n' + '\n'.join('- ' + reason[:700] for reason in reasons[:12])
-        task = self.conversation.task_manager.active
+        task = self.conversation.active_task
         observations = [requirement_observation(criterion, self.state.evidence.verification,
             self.tracker.revision if self.tracker else 0, getattr(self.tracker, 'environment_epoch', 0))
             for criterion in (task.acceptance_criteria if task else ())]
@@ -746,7 +755,7 @@ class TurnRunner:
             reasons = ('An inspection completion requires repository evidence from a read or search tool.',)
             observations.extend(reasons)
         if status == 'completed':
-            task = self.conversation.task_manager.active
+            task = self.conversation.active_task
             if metadata.get('acceptance_criteria') and task is not None and not task.acceptance_criteria:
                 try:
                     task = self.conversation.task_manager.register_acceptance(metadata['acceptance_criteria'])
@@ -856,7 +865,7 @@ class TurnRunner:
         self.conversation.context.persist_tool_result_message(message)
         self.messages.append(message)
         if self.journal is not None:
-            self.journal.record_tool_result_message(message, self.conversation.task_manager.active)
+            self.journal.record_tool_result_message(message, self.conversation.active_task)
         self._commit_messages()
 
     def _record_unexecuted(self, calls, reason: str) -> None:

@@ -17,15 +17,10 @@ from forge.context.manager import (
     ContextManager,
     ContextStats,
 )
-from forge.context.working import WorkingState
 from forge.messages import UserInput
 from forge.hooks import HookEvent, HookManager, HookOutcome
 from forge.permissions.policy import PermissionManager
 from forge.runtime.router import IntentRouter
-from forge.runtime.completion import (
-    CompletionGate,
-    TaskPolicy,
-)
 from forge.runtime.state import (
     ModelClient,
     ModelResponseError as ModelResponseError,
@@ -46,14 +41,13 @@ from forge.runtime.turn_state import (
 )
 from forge.runtime.executor import ToolExecutor
 from forge.runtime.workspace import WorkspaceTracker
-from forge.sessions.checkpoint import CheckpointStore
-from forge.skills import SkillManager
-from forge.tasks.manager import TaskManager
 from forge.tools.base import ToolRegistry, ToolResult
-from forge.tools.task import create_task_tools
 from forge.tools.context import ReadContextArtifactTool
 
 if TYPE_CHECKING:
+    from forge.runtime.completion import TaskPolicy
+    from forge.skills import SkillManager
+    from forge.sessions.checkpoint import CheckpointStore
     from forge.mcp.manager import MCPClientManager
     from forge.sessions.store import SessionJournal, SessionStore
     from forge.tasks.state import ActiveTask
@@ -109,11 +103,16 @@ class Conversation:
         event_recorder: Any | None = None,
         turn_baseline_handler: Any | None = None,
         max_parallel_tools: int = 10,
+        coding: bool = True,
+        features: frozenset[str] | None = None,
         **legacy_options,
     ) -> None:
         if type(max_parallel_tools) is not int or max_parallel_tools < 1:
             raise ValueError('max_parallel_tools must be a positive integer')
         self.max_parallel_tools = max_parallel_tools
+        self.coding = coding
+        from forge.agents import CODING_FEATURES
+        self.features = frozenset(CODING_FEATURES if features is None and coding else features or ())
         if tools is not None and registry is not None:
             raise ValueError('Pass tools or registry, not both.')
         if task_relation not in {None, 'new', 'active'}:
@@ -184,8 +183,14 @@ class Conversation:
             if tracker is not None
             else Path.cwd()
         )
-        self.task_manager = TaskManager(resolved_context_root)
-        self.task_manager.restore(active_task)
+        self.context_root = resolved_context_root
+        self.task_manager = None
+        if 'tasks' in self.features:
+            from forge.tasks.manager import TaskManager
+            self.task_manager = TaskManager(resolved_context_root)
+            self.task_manager.restore(active_task)
+        elif active_task is not None or task_policy is not None or intent_router is not None:
+            raise ValueError('Stored tasks, routing and task policies require the tasks feature')
         self.permission_manager = permission_manager or PermissionManager(
             resolved_context_root,
             journal=session_journal,
@@ -207,15 +212,20 @@ class Conversation:
                 self.permission_manager,
                 session_journal,
             )
-        self.working_state = WorkingState()
-        from forge.runtime.jobs import CommandJobs
-        self.command_jobs = CommandJobs(limit=max_parallel_tools, journal=session_journal)
+        self.working_state = None
+        if self.coding:
+            from forge.context.working import WorkingState
+            self.working_state = WorkingState()
+        self.command_jobs = None
         if registry is not None and getattr(registry.implementation('run_command'), 'supports_background', False):
+            from forge.runtime.jobs import CommandJobs
+            self.command_jobs = CommandJobs(limit=max_parallel_tools, journal=session_journal)
             from forge.tools.jobs import JobOutputTool, JobKillTool
             for tool in (JobOutputTool(resolved_context_root, self.command_jobs), JobKillTool(resolved_context_root, self.command_jobs)):
                 if tool.name not in registry.names:
                     registry.register(tool)
-        if registry is not None and include_task_tools:
+        if registry is not None and include_task_tools and self.task_manager is not None:
+            from forge.tools.task import create_task_tools
             for task_tool in create_task_tools(
                 resolved_context_root,
                 self.task_manager,
@@ -229,6 +239,7 @@ class Conversation:
             self.messages,
             resolved_context_root,
             context_config,
+            repository_enabled='repository' in self.features,
         )
         if (
             registry is not None
@@ -239,9 +250,10 @@ class Conversation:
         self.turn_state: TurnState | None = None
         # Task evidence outlives an individual TurnRunner. Recovery populates
         # this collection from durable observations, never from model summaries.
-        self.task_manager.evidence_provider = lambda: tuple(
-            item for item in self.verification_history
-            if item.task_id == (self.task_manager.active.id if self.task_manager.active else ''))
+        if self.task_manager is not None:
+            self.task_manager.evidence_provider = lambda: tuple(
+                item for item in self.verification_history
+                if item.task_id == (self.active_task.id if self.active_task else ''))
         self.tool_executor = (
             ToolExecutor(
                 registry,
@@ -263,6 +275,8 @@ class Conversation:
             if registry is not None
             else None
         )
+        if task_policy is not None:
+            from forge.runtime.completion import CompletionGate
         self.completion_gate = (
             CompletionGate(tracker.root, task_policy)
             if tracker is not None and task_policy is not None
@@ -275,6 +289,14 @@ class Conversation:
         self.max_tool_protocol_recoveries = max_tool_protocol_recoveries
         self.max_output_continuations = max_output_continuations
         self._last_repository_context = self._repository_context('')
+
+    @property
+    def active_task(self):
+        return self.task_manager.active if self.task_manager is not None else None
+
+    def _require_jobs_idle(self):
+        if self.command_jobs is not None:
+            self.command_jobs.require_idle()
 
     # Context and evidence consumers retain these lists across turn commits
     # and session switches, including assignments through the public API.
@@ -374,9 +396,9 @@ class Conversation:
             parent_turn.reset(token)
 
     def _repository_context(self, query: str) -> str:
-        if getattr(getattr(self, 'agent_definition', None), 'base', 'coding') == 'core':
+        if not self.coding:
             return ''
-        parts = [self.context.repository.system_suffix(query)]
+        parts = [self.context.repository.system_suffix(query) if self.context.repository is not None else '']
         if self.skill_manager is not None:
             self.skill_manager.refresh()
             parts.append(self.skill_manager.system_suffix(query))
@@ -393,6 +415,7 @@ class Conversation:
     def capabilities(self) -> dict:
         from dataclasses import asdict
         from forge.runtime.capabilities import capabilities_for
+        from forge.runtime.completion import TaskPolicy
         policy = self.completion_gate.policy if self.completion_gate else TaskPolicy()
         return {'model': asdict(capabilities_for(self.client)),
                 'input': {'text': True, 'image': capabilities_for(self.client).accepts_images,
@@ -442,7 +465,7 @@ class Conversation:
         from forge.runtime.runner import TurnRunner
         from forge.sessions.workspace_lock import workspace_execution
         runner = TurnRunner(self)
-        ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()
+        ownership = workspace_execution(self.context_root) if self.coding and self.registry is not None else nullcontext()
         from forge.observability.events import current
         from forge.observability.recorder import JournalRecorder
         inherited=current()
@@ -479,6 +502,8 @@ class Conversation:
         include_tool_availability: bool = True,
         include_state: bool = True,
     ) -> str:
+        if not self.coding:
+            return self.system_prompt
         parts = [self.system_prompt]
         git_available = (
             self.workspace_tracker is None
@@ -514,7 +539,8 @@ class Conversation:
             )
         if include_state:
             parts.extend(filter(None, (
-                self.task_manager.system_suffix(), self.working_state.system_suffix(),
+                self.task_manager.system_suffix() if self.task_manager is not None else '',
+                self.working_state.system_suffix() if self.working_state is not None else '',
             )))
         if self._tool_definitions() and include_tool_availability:
             parts.append(
@@ -611,13 +637,13 @@ class Conversation:
             self.client,
             force=True,
             scope_hints=(
-                self.task_manager.active.scope_hints
-                if self.task_manager.active is not None
+                self.active_task.scope_hints
+                if self.active_task is not None
                 else ()
             ),
             task_goal=(
-                self.task_manager.active.goal
-                if self.task_manager.active is not None
+                self.active_task.goal
+                if self.active_task is not None
                 else ''
             ),
         )
@@ -658,7 +684,7 @@ class Conversation:
 
     async def session_resume_with_hooks(self, identifier: str) -> str:
         self._require_idle()
-        self.command_jobs.require_idle()
+        self._require_jobs_idle()
         state, _ = self._resume_target(identifier)
         previous_mode = self.permission_manager.execution_mode
         previous_journal = self.session_journal
@@ -682,7 +708,7 @@ class Conversation:
         name: str | None = None,
     ) -> str:
         self._require_idle()
-        self.command_jobs.require_idle()
+        self._require_jobs_idle()
         await self.session_end(reason='branch')
         notice = self.session_branch(name)
         if self.mcp_manager is not None:
@@ -692,7 +718,7 @@ class Conversation:
 
     async def session_clear_with_hooks(self) -> str:
         self._require_idle()
-        self.command_jobs.require_idle()
+        self._require_jobs_idle()
         previous_mode, previous_journal = self.permission_manager.execution_mode, self.session_journal
         default_mode = getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
         await self.session_end(reason='clear')
@@ -803,7 +829,7 @@ class Conversation:
             self._persisted_turn_events.add(event_key)
             journal.record_turn_completed(
                 self.messages,
-                self.task_manager.active,
+                self.active_task,
                 event.result,
             )
 
@@ -816,7 +842,7 @@ class Conversation:
         return f'Remembered {record.name} in {record.path.as_posix()}'
 
     def memory_list(self) -> str:
-        records = self.context.repository.memory.list()
+        records = self.context.memory.list()
         if not records:
             return 'No repository memories.'
         return '\n'.join(
@@ -825,7 +851,7 @@ class Conversation:
         )
 
     def memory_show(self, name: str) -> str:
-        record = self.context.repository.memory.get(name)
+        record = self.context.memory.get(name)
         if record is None:
             return f'Memory not found: {name}'
         return (
@@ -834,24 +860,30 @@ class Conversation:
         )
 
     def memory_forget(self, name: str) -> str:
-        removed = self.context.repository.memory.forget(name)
+        removed = self.context.memory.forget(name)
         return f'Forgot {name}.' if removed else f'Memory not found: {name}'
 
     def memory_rebuild(self) -> str:
-        path = self.context.repository.memory.rebuild_index()
+        path = self.context.memory.rebuild_index()
         return f'Rebuilt memory index: {path.as_posix()}'
 
     def memory_consolidate(self) -> str:
-        removed = self.context.repository.memory.consolidate()
+        removed = self.context.memory.consolidate()
         return f'Consolidated memory; removed {removed} duplicate(s).'
 
     def task_show(self) -> str:
+        if self.task_manager is None:
+            raise ValueError('The tasks feature is not enabled')
         return self.task_manager.describe()
 
     def task_history(self) -> str:
+        if self.task_manager is None:
+            raise ValueError('The tasks feature is not enabled')
         return self.task_manager.history()
 
     def task_resume(self, task_id: str) -> str:
+        if self.task_manager is None:
+            raise ValueError('The tasks feature is not enabled')
         task = self.task_manager.resume(task_id)
         return f'Resumed {task.id}: {task.goal}'
 
@@ -897,7 +929,8 @@ class Conversation:
         failures = []
         model_cleanup_error = None
         try:
-            await self.command_jobs.close()
+            if self.command_jobs is not None:
+                await self.command_jobs.close()
         except (Exception, asyncio.CancelledError) as error:
             failures.append(type(error).__name__)
         try:
@@ -961,7 +994,7 @@ class Conversation:
         mode: str = 'both',
     ) -> str:
         self._require_idle()
-        self.command_jobs.require_idle()
+        self._require_jobs_idle()
         if self.checkpoint_store is None:
             raise ValueError('File checkpoints are unavailable.')
         if mode not in {'code', 'conversation', 'both'}:
@@ -994,7 +1027,8 @@ class Conversation:
             self.verification_history.clear()
             self.messages[:] = restored_messages
             self._reset_history_context()
-            self.task_manager.restore(restored_task)
+            if self.task_manager is not None:
+                self.task_manager.restore(restored_task)
             self.session_journal.append(
                 'conversation_rewound',
                 {
@@ -1015,7 +1049,7 @@ class Conversation:
     def session_status(self) -> str:
         if self.session_journal is None:
             return 'Session persistence is unavailable.'
-        task = self.task_manager.active
+        task = self.active_task
         checkpoint_count = (
             len(self.checkpoint_store.list())
             if self.checkpoint_store is not None
@@ -1070,24 +1104,26 @@ class Conversation:
     def _reset_history_context(self) -> None:
         self.context.reset_history()
         self._last_repository_context = ''
-        self.working_state = WorkingState()
+        self.working_state = None
+        if self.coding:
+            from forge.context.working import WorkingState
+            self.working_state = WorkingState()
         self._pending_hook_context.clear()
 
     def _bind_session(self, journal: SessionJournal) -> None:
-        self.command_jobs.bind(journal)
+        if self.command_jobs is not None:
+            self.command_jobs.bind(journal)
         self.session_journal = journal
         self.permission_manager.bind_session(journal)
         if self.mcp_manager is not None:
             self.mcp_manager.bind(self.permission_manager, journal)
-        self.checkpoint_store = CheckpointStore.for_session(
-            self.task_manager.root,
-            journal.path,
-            journal.session_id,
-        )
+        if 'checkpoints' in self.features:
+            from forge.sessions.checkpoint import CheckpointStore
+            self.checkpoint_store = CheckpointStore.for_session(self.context_root, journal.path, journal.session_id)
 
     def session_resume(self, identifier: str) -> str:
         self._require_idle()
-        self.command_jobs.require_idle()
+        self._require_jobs_idle()
         state, journal = self._resume_target(identifier)
         target_mode = state.sandbox_mode or getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
         if target_mode != self.permission_manager.execution_mode and hasattr(self, 'session_options'):
@@ -1117,7 +1153,8 @@ class Conversation:
         self._reset_history_context()
         self.inbox.restore(state.pending_inputs)
         self.verification_history[:] = state.verification_history
-        self.task_manager.restore(state.active_task)
+        if self.task_manager is not None:
+            self.task_manager.restore(state.active_task)
         if state.info.model and hasattr(self.client, 'model'):
             self.client.model = state.info.model
             if hasattr(self, 'model_config'):
@@ -1142,7 +1179,7 @@ class Conversation:
 
     def session_branch(self, name: str | None = None) -> str:
         self._require_idle()
-        self.command_jobs.require_idle()
+        self._require_jobs_idle()
         if self.session_store is None or self.session_journal is None:
             raise ValueError('Session persistence is unavailable.')
         if self.session_journal.deferred:
@@ -1152,7 +1189,7 @@ class Conversation:
         journal = self.session_store.fork(
             source,
             messages=self.messages,
-            task=self.task_manager.active,
+            task=self.active_task,
             model=model,
             name=name,
         )
@@ -1165,7 +1202,7 @@ class Conversation:
 
     def session_clear(self) -> str:
         self._require_idle()
-        self.command_jobs.require_idle()
+        self._require_jobs_idle()
         default_mode = getattr(self, 'default_sandbox_mode', self.permission_manager.execution_mode)
         if default_mode != self.permission_manager.execution_mode and hasattr(self, 'session_options'):
             raise ValueError('Use await session_clear_with_hooks() to restore the default sandbox mode')
@@ -1174,7 +1211,8 @@ class Conversation:
         if self.session_store is None or self.session_journal is None:
             self.messages.clear()
             self._reset_history_context()
-            self.task_manager.restore(None)
+            if self.task_manager is not None:
+                self.task_manager.restore(None)
             return 'Cleared conversation history.'
         previous_id = self.session_journal.session_id
         self.session_journal.record_stopped()
@@ -1192,7 +1230,8 @@ class Conversation:
             journal.append('permissions_changed', {'sandbox_mode': default_mode, 'approval_policy': self.permission_manager.mode})
         self.messages.clear()
         self._reset_history_context()
-        self.task_manager.restore(None)
+        if self.task_manager is not None:
+            self.task_manager.restore(None)
         return (
             f'Cleared conversation. Previous session: {previous_id}; '
             f'new session: {journal.session_id}.'

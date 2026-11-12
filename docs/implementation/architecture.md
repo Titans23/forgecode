@@ -57,7 +57,7 @@ FileWorkerClient 的每个请求拥有独立 helper 和清理任务，原生输�
 
 forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime，调用runtime.factory.create_runtime → Conversation.stream → TurnRunner → ToolExecutor → 原生工具。Journal记录会话副作用；Engine负责受理、调度与投影，不复制Journal事实。
 
-`create_runtime` 是唯一运行时装配函数，新建与恢复使用同一构造路径；项目模型配置读取传入的 root，不隐式读取其他工作目录。可选渠道/MCP 组合位于 `forge/integrations.py`。旧 `forge.application.models` 保留协议导入兼容。
+`create_runtime` 是唯一运行时装配函数，新建与恢复使用同一构造路径；项目模型配置读取传入的 root，不隐式读取其他工作目录。`AgentDefinition.features` 显式选择 coding 的 tasks/repository/skills/hooks/mcp/checkpoints，core 的这些组件为空，不获取工作区执行锁；通用消息窗口、权限、插件与 Journal 仍由同一循环持有。工具在构造前筛选，命令作业仅随支持后台执行的 run_command 创建。SDK、CLI 与评测复用 ModelStartup 处理构造失败时的模型资源；成功后所有权交给 Conversation。可选渠道/MCP 组合位于 `forge/integrations.py`。旧 `forge.application.models` 保留协议导入兼容。
 
 通用 `ModelClient` 协议与模型请求／流协议错误归属 `runtime.state`；健康状态、路由和 Runner 直接使用这些契约，不依赖 Anthropic 实现来获取类型。`model_client` 保留同对象导出兼容，负责实际 Anthropic 传输；健康状态不再反向导入它。
 

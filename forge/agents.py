@@ -3,6 +3,8 @@ from dataclasses import dataclass, field, asdict
 from typing import Literal
 import re
 
+CODING_FEATURES = frozenset({'tasks', 'repository', 'skills', 'hooks', 'mcp', 'checkpoints'})
+
 
 @dataclass(frozen=True, slots=True)
 class PluginSpec:
@@ -30,8 +32,17 @@ class AgentDefinition:
     context_options: dict = field(default_factory=dict)
     max_parallel_tools: int = 10
     sandbox_provider: str | None = 'auto'
+    features: tuple[str, ...] | None = None
 
     def __post_init__(self):
+        if self.features is not None:
+            if not isinstance(self.features, tuple) or not all(isinstance(item, str) for item in self.features):
+                raise ValueError('Features must be a tuple of names')
+            unknown = set(self.features) - CODING_FEATURES
+            if unknown or self.base == 'core' and self.features:
+                raise ValueError('Coding features require the coding base and known feature names')
+            if self.completion == 'strict' and not {'tasks', 'repository'}.issubset(self.features):
+                raise ValueError('Strict completion requires tasks and repository features')
         if type(self.max_parallel_tools) is not int or self.max_parallel_tools < 1:
             raise ValueError('max_parallel_tools must be a positive integer')
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):
@@ -61,6 +72,10 @@ class AgentDefinition:
     def as_dict(self):
         return asdict(self)
 
+    @property
+    def enabled_features(self) -> frozenset[str]:
+        return frozenset(self.features) if self.features is not None else CODING_FEATURES if self.base == 'coding' else frozenset()
+
     @classmethod
     def from_dict(cls, value):
         data = dict(value)
@@ -68,4 +83,6 @@ class AgentDefinition:
                                 for p in data.get('plugins', ()))
         if data.get('tools') is not None:
             data['tools'] = tuple(data['tools'])
+        if data.get('features') is not None:
+            data['features'] = tuple(data['features'])
         return cls(**data)

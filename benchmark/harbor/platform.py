@@ -182,25 +182,13 @@ async def prepare_runtime(composition, bindings, project):
     except BaseException:
         await host.close()
         raise
-    startup = {'active': True, 'clients': []}
+    from forge.runtime.startup import ModelStartup
+    startup = ModelStartup(bindings.model_client_factory or registry.create)
     host.model_startup = startup
-    factory = bindings.model_client_factory or registry.create
-    def create(*args, **kwargs):
-        client = factory(*args, **kwargs)
-        if startup['active']:
-            startup['clients'].append(client)
-        return client
     async def close_startup():
-        failures = []
-        for client in {id(c): c for c in startup['clients']}.values():
-            close = getattr(client, 'aclose', None)
-            if close:
-                try:
-                    await close()
-                except (Exception, asyncio.CancelledError) as error:
-                    failures.append(type(error).__name__)
+        failures = await startup.close()
         if failures:
             raise RuntimeError('Startup client cleanup: ' + ', '.join(failures))
     host.cleanups.append(close_startup)
     return agent, replace(bindings, plugin_host=host, model_aliases=composition['models'],
-        model_environment=dict(os.environ), model_client_factory=create)
+        model_environment=dict(os.environ), model_client_factory=startup.create)

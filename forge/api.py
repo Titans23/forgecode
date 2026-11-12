@@ -15,6 +15,7 @@ from forge.agents import AgentDefinition
 from forge.messages import UserInput
 from forge.permissions.policy import PermissionManager
 from forge.runtime.dependencies import RuntimeBindings
+from forge.runtime.startup import ModelStartup
 from forge.runtime.factory import create_runtime
 from forge.runtime.state import TurnCompleted, TurnResult
 from forge.runtime.model_registry import ProviderRegistry, ModelSelection, model_catalog
@@ -135,14 +136,8 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
         execution_mode=options.sandbox, authorized_write_roots=tuple(map(Path, policy['filesystem']['write_roots'])))
     from forge.runtime.factory import create_model_client
     client_factory = model_client_factory or create_model_client
-    startup_clients = []
-    constructing = True
-    def tracked_client_factory(*args, **kwargs):
-        client = client_factory(*args, **kwargs)
-        if constructing:
-            startup_clients.append(client)
-        return client
-    bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=tracked_client_factory,
+    startup = ModelStartup(client_factory)
+    bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=startup.create,
         permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
         intent_routing=options.profile.intent_routing,
         plugin_host=plugin_host,
@@ -172,17 +167,7 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
             'approval': permissions.mode, 'policy': policy})
         return conversation, journal, state, backend
     except BaseException as error:
-        failures, seen = [], set()
-        for client in startup_clients:
-            if id(client) in seen:
-                continue
-            seen.add(id(client))
-            try:
-                close = getattr(client, 'aclose', None)
-                if close is not None:
-                    await close()
-            except Exception as failure:
-                failures.append(type(failure).__name__)
+        failures = await startup.close()
         try:
             cleanup = await backend.close()
         except Exception as failure:
@@ -191,8 +176,7 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
             if failures else cleanup)
         raise
     finally:
-        constructing = False
-        startup_clients.clear()
+        startup.release()
 
 
 async def _open_core_runtime(options, approval_handler, client_factory, runtime_factory, resume, plugin_host=None):
@@ -203,16 +187,10 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
     scope = data / 'agents' / options.agent.name
     scope.mkdir(parents=True, exist_ok=True)
     config = options.config or ForgeConfig.from_env(model_environment())
-    clients = []
-    constructing = True
-    def create(*args, **kwargs):
-        client = (client_factory or create_model_client)(*args, **kwargs)
-        if constructing:
-            clients.append(client)
-        return client
+    startup = ModelStartup(client_factory or create_model_client)
     permissions = PermissionManager(scope, mode=options.approval, approval_handler=approval_handler,
                                     load_stored_rules=False, execution_mode=options.sandbox)
-    bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=create,
+    bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=startup.create,
         permission_manager=permissions, trusted_extensions=False, intent_routing=False,
         plugin_host=plugin_host,
         model_aliases=model_catalog(options),
@@ -227,15 +205,13 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
             journal.append('permission_mode_changed', {'mode': permissions.mode})
         journal.append('agent_configuration', {'name': options.agent.name, 'base': 'core', 'workspace': None})
         return conversation, journal, state, None
-    except BaseException:
-        for client in {id(c): c for c in clients}.values():
-            close = getattr(client, 'aclose', None)
-            if close:
-                await close()
+    except BaseException as error:
+        failures = await startup.close()
+        if failures:
+            error.cleanup_report = {'state': 'unknown', 'client_close_errors': failures}
         raise
     finally:
-        constructing = False
-        clients.clear()
+        startup.release()
 
 
 class HarnessSession:

@@ -9,14 +9,19 @@ import json
 import os
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from uuid import uuid4
 
 from forge.runtime.state import TurnResult, VerificationEvidence
-from forge.tasks.manager import task_path_matches
-from forge.tasks.state import ActiveTask
+if TYPE_CHECKING:
+    from forge.tasks.state import ActiveTask
 from forge.sessions.locking import exclusive_append
 from forge.storage_paths import private_storage_path
+
+
+def _decode_task(payload):
+    from forge.tasks.state import ActiveTask
+    return ActiveTask.from_dict(payload)
 
 
 SESSION_ID_PATTERN = re.compile(r'session-[0-9a-f]{24}')
@@ -615,7 +620,7 @@ class SessionStore:
                 )
             task_payload = payload.get('task')
             task = (
-                ActiveTask.from_dict(task_payload)
+                _decode_task(task_payload)
                 if isinstance(task_payload, dict)
                 else None
             )
@@ -937,7 +942,7 @@ class SessionStore:
             elif event_type == 'task_state':
                 task_payload = payload.get('task')
                 restored_task = (
-                    ActiveTask.from_dict(task_payload)
+                    _decode_task(task_payload)
                     if isinstance(task_payload, dict)
                     else None
                 )
@@ -988,7 +993,7 @@ class SessionStore:
                     pending_assistant = None
                 task_payload = payload.get('task')
                 task = (
-                    ActiveTask.from_dict(task_payload)
+                    _decode_task(task_payload)
                     if isinstance(task_payload, dict)
                     else None
                 )
@@ -1173,6 +1178,7 @@ def sanitize_task_workspace_paths(
     '''Keep persisted completion evidence inside the explicit task scope.'''
     if task is None or not task.scope_hints:
         return task
+    from forge.tasks.manager import task_path_matches
     filtered = tuple(
         path
         for path in task.workspace_paths

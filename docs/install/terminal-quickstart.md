@@ -4,6 +4,8 @@
 
 ## Agent 组合与可信 Python 插件
 
+`base: "core"` 使用模型循环、工具调度、权限与 Journal，不创建仓库上下文、任务管理、检查点或命令作业。`base: "coding"` 默认提供这些能力；可用 `features` 选择 `tasks`、`repository`（项目规则与记忆）、`skills`、`hooks`、`mcp`、`checkpoints`，空数组表示全部关闭。`tools` 进一步选择具体工具，未选工具不初始化；后台作业仅随支持它的命令工具创建。严格完成策略需要 `tasks` 和 `repository`。可信 Python 插件仍由统一 PluginHost 加载和关闭。
+
 独立文件读取、搜索、图片与 Git 查询支持批内并行。Agent JSON 的 `max_parallel_tools` 默认为 10，设为 1 可顺序执行；这是同时运行数量，不是累计调用预算。终端显示各调用的排队、运行、待归档和完成状态，Ctrl+O 展开详情。插件通过 `ctx.register_tool(..., concurrency_safe=True)` 或参数分类函数显式加入并行组；默认独占，权限要求不变。
 
 文件写入、文本替换、分块写入和补丁支持不同目标并行；同一文件、路径别名以及相交的多文件补丁排队到前一操作结算完成。读取组和修改组、目录操作、前台命令、验收之间保留顺序边界。并行不跳过原有授权、文件版本冲突或 checkpoint 检查。
