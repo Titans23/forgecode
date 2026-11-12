@@ -11,6 +11,7 @@ import time
 from typing import Any
 from uuid import uuid4
 
+from forge import __version__
 from forge.runtime.state import (
     CompletionBlocked,
     ConversationEvent,
@@ -409,9 +410,12 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
              extra={'request_id': key, 'incomplete': True, 'partial_tools': partial_tools.get(key, {})})
     if not steps:
         step('system', 'No conversation messages are available.', events[0])
+    versions = sorted({event['payload'].get('forge_version', 'unknown') for event in events
+                       if event['type'] in {'session_started', 'session_resumed'}})
     value = {'schema_version': 'ATIF-v1.7', 'session_id': events[0]['session_id'],
-             'agent': {'name': 'ForgeCode', 'version': '0.1.2'}, 'steps': steps,
+             'agent': {'name': 'ForgeCode', 'version': versions[0] if len(versions) == 1 else 'mixed'}, 'steps': steps,
              'extra': {'journal_sha256': sha256(path.read_bytes()).hexdigest(), 'completeness': complete,
+                       'exporter_version': __version__, 'recorded_agent_versions': versions,
                        'usage': 'diagnostic', 'redacted': True}}
     # Sharing projection only: raw Journal stays private and unmodified.
     shared = redact(sanitize(value), secrets)

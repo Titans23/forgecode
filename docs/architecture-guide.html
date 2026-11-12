@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="从全局架构、请求流程和真实源码，学习 ForgeCode 的 Python Agent Harness。">
   <meta name="color-scheme" content="light">
-  <title>ForgeCode 架构学习手册</title>
+  <title>ForgeCode 1.0.0 架构学习手册</title>
   <style>
     :root {
       --paper: #f3f6fa; --panel: #fff; --ink: #172b42; --muted: #566a80;
@@ -223,13 +223,13 @@
   <header class="topbar">
     <a class="brand" href="#overview"><span class="brand-mark" aria-hidden="true">F</span><span>ForgeCode</span></a>
     <span class="top-title">架构学习手册</span>
-    <div class="top-meta"><span class="pill">离线学习</span><a id="revision-link" target="_blank" rel="noopener noreferrer">代码版本 <span class="mono">6affff5</span></a></div>
+    <div class="top-meta"><span class="pill">离线学习</span><a id="revision-link" target="_blank" rel="noopener noreferrer">代码版本 <span class="mono">v1.0.0</span></a></div>
     <button class="button nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">目录</button>
   </header>
   <div class="shell">
     <aside class="sidebar" id="sidebar">
       <label class="search-label" for="module-search">查找模块或概念</label>
-      <input class="search" id="module-search" type="search" placeholder="预算 / MCP / Journal" autocomplete="off">
+      <input class="search" id="module-search" type="search" placeholder="工具 / MCP / Journal" autocomplete="off">
       <div class="search-count" id="search-count" aria-live="polite"></div>
       <nav class="nav-primary" aria-label="学习视图">
         <a class="nav-link" href="#overview" data-route="overview">全局架构</a>
@@ -243,8 +243,8 @@
   <noscript><p>这个学习手册使用浏览器 JavaScript 展示模块和流程。请启用 JavaScript 后重新打开。</p></noscript>
   <script id="guide-data" type="application/json">
 {
-  "revision": "6affff5715d606f0b0dbca1a98d58a640df7a9ac",
-  "date": "2026-11-10",
+  "revision": "v1.0.0",
+  "date": "2026-11-12",
   "modules": [
     {
       "id": "entry",
@@ -254,13 +254,13 @@
       "summary": "把一句请求接入可取消、可观测的会话。",
       "concept": "终端负责交互，SDK 提供可以嵌入其他程序的会话对象。两种入口都把配置交给同一装配路径，随后消费相同的事件。",
       "implementation": [
-        "forge.launch 根据启动 profile 选择终端或评测命令。SDK 的 HarnessSession.open 调用 open_runtime，取得 Conversation、Journal 和执行后端。",
-        "run 逐个消费 stream 的事件，直到收到 TurnCompleted。stream 会记录输入与轨迹，并检查会话是否关闭或已有回合运行。cancel 取消当前任务，close 等待资源释放。"
+        "forge.launch 选择终端或评测入口；HarnessSession.open 复用 open_runtime/create_runtime，统一创建会话和 Journal。",
+        "run 等待 TurnCompleted，stream 实时转发事件；默认不另写 trajectory。cancel/close 释放拥有的资源，Journal 保存失败与取消。"
       ],
       "steps": [
         [
           "打开会话",
-          "SessionOptions 带入能力、工作区、模型和预算。",
+          "SessionOptions 带入能力、工作区、模型和执行策略。",
           "session=open"
         ],
         [
@@ -304,14 +304,14 @@
           "symbol": "HarnessSession.open",
           "line": 236,
           "end": 240,
-          "code": "    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None, **resume):\n        conversation, journal, _, backend = await open_runtime(options,\n            approval_handler=approval_handler, model_client_factory=model_client_factory, **resume)\n        recorder = TrajectoryRecorder(journal.path.with_suffix('.trajectory.jsonl'))\n        return cls(conversation, journal, backend, recorder)",
+          "code": "    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None,\n                   trajectory_recorder: TrajectoryRecorder | None = None, **resume):\n        conversation, journal, _, backend = await open_runtime(options,\n            approval_handler=approval_handler, model_client_factory=model_client_factory, **resume)\n        return cls(conversation, journal, backend, trajectory_recorder)",
           "note": "跟踪 open_runtime 返回的四个对象。"
         },
         {
           "path": "forge/api.py",
           "symbol": "HarnessSession.run",
-          "line": 293,
-          "end": 300,
+          "line": 296,
+          "end": 303,
           "code": "    async def run(self, prompt: UserInput) -> TurnResult:\n        result = None\n        async for event in self.stream(prompt):\n            if isinstance(event, TurnCompleted):\n                result = event.result\n        if result is None:\n            raise RuntimeError('Harness ended without a terminal result')\n        return result",
           "note": "观察缺失终态时如何处理。"
         }
@@ -332,7 +332,7 @@
         "channels"
       ],
       "question": "为什么 run 不能直接拿最后一段文本当作成功结果？",
-      "answer": "文本片段只说明模型产生了内容。TurnCompleted 还带有停止原因、预算和验收结论，run 必须等到这类终态事件。"
+      "answer": "文本只说明模型产生了内容。TurnCompleted 还带有停止原因、用量和实际验收状态，run 必须等到明确终态。"
     },
     {
       "id": "composition",
@@ -342,9 +342,9 @@
       "summary": "把能力选择装配成一个实际运行时。",
       "concept": "AgentDefinition 描述需要什么能力，SessionOptions 描述这次运行的环境。create_runtime 将这些声明变成可执行对象。",
       "implementation": [
-        "core 使用通用循环和插件工具，可以没有工作区。coding 创建文件、命令、Git、任务验证及 Explore 等工具，sandbox_provider 默认解析为 native。显式选择 null 的 coding 组合默认使用宿主执行。",
-        "新建和恢复共用 create_runtime。它创建模型客户端、工具注册表和 Conversation，再绑定 Journal、完成策略、模型别名及插件作用域。strict 完成策略会要求验证并设置有界交付修复。",
-        "SessionOptions 未指定 sandbox 时，根据组合是否有执行提供方选择 workspace-write 或 full-access。受限执行模式必须有提供方，审批与预算仍单独配置。"
+        "core 不创建任务、仓库、检查点、工作状态或命令作业。coding 用 features 选择领域能力，用 tools 在构造前筛选工具。",
+        "新建和恢复共用 create_runtime；ModelStartup 在构造失败时关闭客户端，成功后转交 Conversation。strict 完成策略需要 tasks/repository。",
+        "普通 coding 默认 danger-full-access + never；显式写入范围、自定义提供方或受限模式继续遵循其选择。审批与用量独立。"
       ],
       "steps": [
         [
@@ -395,25 +395,25 @@
         {
           "path": "forge/agents.py",
           "symbol": "AgentDefinition",
-          "line": 22,
-          "end": 41,
-          "code": "class AgentDefinition:\n    name: str = 'coding'\n    base: Literal['coding', 'core'] = 'coding'\n    system_prompt: str | None = None\n    tools: tuple[str, ...] | None = None\n    plugins: tuple[PluginSpec, ...] = ()\n    role_models: dict[str, str] = field(default_factory=dict)\n    completion: Literal['normal', 'strict'] = 'normal'\n    context_options: dict = field(default_factory=dict)\n    sandbox_provider: str | None = 'auto'\n\n    def __post_init__(self):\n        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.name):\n            raise ValueError('Agent name must be a simple identifier')\n        if self.base not in {'coding', 'core'}:\n            raise ValueError('Agent base must be coding or core')\n        if self.sandbox_provider == 'auto':\n            object.__setattr__(self, 'sandbox_provider', 'native' if self.base == 'coding' else None)\n        if self.sandbox_provider is not None and (not isinstance(self.sandbox_provider, str)\n                or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', self.sandbox_provider)):",
+          "line": 24,
+          "end": 47,
+          "code": "class AgentDefinition:\n    name: str = 'coding'\n    base: Literal['coding', 'core'] = 'coding'\n    system_prompt: str | None = None\n    tools: tuple[str, ...] | None = None\n    plugins: tuple[PluginSpec, ...] = ()\n    role_models: dict[str, str] = field(default_factory=dict)\n    completion: Literal['normal', 'strict'] = 'normal'\n    context_options: dict = field(default_factory=dict)\n    max_parallel_tools: int = 10\n    sandbox_provider: str | None = 'auto'\n    features: tuple[str, ...] | None = None\n\n    def __post_init__(self):\n        if self.features is not None:\n            if not isinstance(self.features, tuple) or not all(isinstance(item, str) for item in self.features):\n                raise ValueError('Features must be a tuple of names')\n            unknown = set(self.features) - CODING_FEATURES\n            if unknown or self.base == 'core' and self.features:\n                raise ValueError('Coding features require the coding base and known feature names')\n            if self.completion == 'strict' and not {'tasks', 'repository'}.issubset(self.features):\n                raise ValueError('Strict completion requires tasks and repository features')\n        if type(self.max_parallel_tools) is not int or self.max_parallel_tools < 1:\n            raise ValueError('max_parallel_tools must be a positive integer')",
           "note": "先看声明字段，再看 __post_init__ 的组合约束。"
         },
         {
           "path": "forge/runtime/factory.py",
           "symbol": "create_runtime",
-          "line": 33,
-          "end": 52,
-          "code": "def create_runtime(\n    root: Path,\n    *,\n    continue_session: bool = False,\n    resume_identifier: str | None = None,\n    fork_session: bool = False,\n    model_override: str | None = None,\n    task_policy: TaskPolicy | None = None,\n    execution_profile: ExecutionProfile | None = None,\n    allow_container_writes: bool = False,\n    conversation_factory: Callable[..., Conversation] | None = None,\n    task_relation: str | None = None,\n    bindings: RuntimeBindings | None = None,\n    defer_new_session: bool = False,\n    agent: AgentDefinition | None = None,\n) -> tuple[Conversation, SessionJournal, SessionState | None]:\n    '''Assemble new and resumed sessions through the same construction path.'''\n    if model_override is not None and not fork_session:\n        raise ValueError('model_override requires fork_session=True.')\n    agent = agent or AgentDefinition()",
+          "line": 34,
+          "end": 57,
+          "code": "def create_runtime(\n    root: Path,\n    *,\n    continue_session: bool = False,\n    resume_identifier: str | None = None,\n    fork_session: bool = False,\n    model_override: str | None = None,\n    task_policy: TaskPolicy | None = None,\n    execution_profile: ExecutionProfile | None = None,\n    allow_container_writes: bool = False,\n    conversation_factory: Callable[..., Conversation] | None = None,\n    task_relation: str | None = None,\n    bindings: RuntimeBindings | None = None,\n    defer_new_session: bool = False,\n    agent: AgentDefinition | None = None,\n) -> tuple[Conversation, SessionJournal, SessionState | None]:\n    '''Assemble new and resumed sessions through the same construction path.'''\n    if model_override is not None and not fork_session:\n        raise ValueError('model_override requires fork_session=True.')\n    agent = agent or AgentDefinition()\n    coding = agent.base == 'coding'\n    features = agent.enabled_features\n    if task_policy is None and agent.completion == 'strict':\n        from forge.runtime.completion import TaskPolicy",
           "note": "沿 coding、task_policy 和 registry 三个变量往下读。"
         },
         {
           "path": "forge/execution.py",
           "symbol": "ExecutionRequest",
           "line": 10,
-          "end": 16,
-          "code": "class ExecutionRequest:\n    root: Path\n    data_root: Path\n    mode: str\n    read_roots: tuple[Path, ...]\n    write_roots: tuple[Path, ...] | None\n    wall_seconds: int",
+          "end": 15,
+          "code": "class ExecutionRequest:\n    root: Path\n    data_root: Path\n    mode: str\n    read_roots: tuple[Path, ...]\n    write_roots: tuple[Path, ...] | None",
           "note": "执行提供方接收工作区、模式和范围等运行参数。"
         }
       ],
@@ -421,8 +421,8 @@
         {
           "path": "tests/test_core_sdk.py",
           "symbol": "test_tool_selection_applies_to_task_tools_too",
-          "line": 99,
-          "end": 99,
+          "line": 113,
+          "end": 113,
           "code": "",
           "note": "显式工具集合也约束任务类工具。"
         }
@@ -500,8 +500,8 @@
           "path": "forge/messages.py",
           "symbol": "normalize_input",
           "line": 47,
-          "end": 62,
-          "code": "def normalize_input(value: UserInput) -> UserInput:\n    \"\"\"Validate and detach inputs before persisting or starting a model request.\"\"\"\n    if isinstance(value, str):\n        if not value.strip():\n            raise ValueError('prompt must not be empty; provide text or an image')\n        if len(value.encode('utf-8')) > MAX_TEXT_BYTES:\n            raise ValueError('Text input exceeds 256 KiB')\n        return value\n    if not isinstance(value, list) or not value or len(value) > 64:\n        raise ValueError('Input must be text or 1–64 text/image blocks')\n    size = text_size = image_count = 0\n    meaningful = False\n    for block in value:\n        if not isinstance(block, dict) or 'type' not in block:\n            raise ValueError('Invalid input block')\n        if block['type'] == 'text' and set(block) == {'type', 'text'} and isinstance(block['text'], str):",
+          "end": 70,
+          "code": "def normalize_input(value: UserInput) -> UserInput:\n    \"\"\"Validate and detach inputs before persisting or starting a model request.\"\"\"\n    if isinstance(value, str):\n        if not value.strip():\n            raise ValueError('prompt must not be empty; provide text or an image')\n        if len(value.encode('utf-8')) > MAX_TEXT_BYTES:\n            raise ValueError('Text input exceeds 256 KiB')\n        return value\n    if not isinstance(value, list) or not value or len(value) > 64:\n        raise ValueError('Input must be text or 1–64 text/image blocks')\n    size = text_size = image_count = 0\n    meaningful = False\n    for block in value:\n        if not isinstance(block, dict) or 'type' not in block:\n            raise ValueError('Invalid input block')\n        if block['type'] == 'text' and set(block) == {'type', 'text'} and isinstance(block['text'], str):\n            text_size += len(block['text'].encode('utf-8'))\n            meaningful |= bool(block['text'].strip())\n        elif block['type'] == 'image' and set(block) == {'type', 'source'}:\n            source = block['source']\n            if not isinstance(source, dict) or set(source) != {'type', 'media_type', 'data'} or source['type'] != 'base64':\n                raise ValueError('Invalid image source')\n            encoded = source['data']\n            if not isinstance(encoded, str) or len(encoded) > ((MAX_IMAGE_BYTES + 2) // 3) * 4:",
           "note": "读取输入形状判断与大小约束。"
         },
         {
@@ -511,6 +511,14 @@
           "end": 158,
           "code": "def validate(name: str, value):\n    _check_tree(value)\n    return _validate_contract(name, value)",
           "note": "从契约名称追到实际 schema 校验。"
+        },
+        {
+          "path": "forge/tool_types.py",
+          "symbol": "ToolContract",
+          "note": "公共工具接口不要求工作区路径。",
+          "line": 17,
+          "end": 38,
+          "code": "class ToolContract(Protocol):\n    \"\"\"Registry interface shared by built-ins and rootless trusted plugin tools.\n\n    Filesystem mutation metadata is an optional capability, not part of this\n    interface. Implementations retain their own validation and permission policy.\n    \"\"\"\n    @property\n    def name(self) -> str: ...\n\n    @property\n    def effect(self) -> Literal['read_only', 'workspace_write', 'process']: ...\n\n    @property\n    def definition(self) -> dict[str, Any]: ...\n\n    @property\n    def provenance(self) -> dict[str, Any]: ...\n\n    def permission_request(self, arguments: Mapping[str, Any]) -> Any: ...\n    def audit_arguments(self, arguments: Mapping[str, Any]) -> dict[str, Any]: ...\n    def validate(self, arguments: Mapping[str, Any]) -> ToolResult | None: ...\n    async def run(self, arguments: Mapping[str, Any]) -> ToolResult: ..."
         }
       ],
       "tests": [
@@ -529,7 +537,7 @@
         "tools"
       ],
       "question": "为什么工具返回 success=true 时仍可能不能完成任务？",
-      "answer": "工具成功说明单次调用完成。整个任务还需要通过预算终态和完成策略检查。"
+      "answer": "工具成功只说明这次操作的结果。回合完成、调用方验收和官方判分是不同结论。"
     },
     {
       "id": "conversation",
@@ -541,7 +549,7 @@
       "implementation": [
         "Conversation.stream 建立回合执行器，给它当前消息、任务和资源。提交后的消息归会话持有，回合中的临时响应归 TurnRunner 持有。",
         "runtime_close 用同一个关闭任务完成幂等释放。它结束 MCP 与模型传输，随后关闭自己拥有的执行后端，再逆序释放插件资源；借用的后端由其所有者释放。",
-        "会话关联 TaskManager，后者维护计划、需求解释与任务状态。计划完成情况和实际验证证据分别进入完成判断。"
+        "TaskManager 和 WorkingState 只属于所选 coding 能力；core 依然保留消息、权限、取消和 Journal。"
       ],
       "steps": [
         [
@@ -592,16 +600,16 @@
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.stream",
-          "line": 448,
-          "end": 467,
-          "code": "    async def stream(self, prompt: UserInput, *, input_id=None) -> AsyncIterator[ConversationEvent]:\n        '''Compatibility entry point delegated to the turn runner.'''\n        from forge.messages import normalize_input\n        from forge.runtime.capabilities import capabilities_for\n        prompt = normalize_input(prompt)\n        if self._running or self._close_task is not None:\n            raise RuntimeError('Conversation is closed or already running a turn')\n        if input_id is not None and not any(item['id'] == input_id and item['content'] == prompt\n                                           for item in self.inbox.pending):\n            raise ValueError('Queued input is missing or differs from the submitted content')\n        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):\n            if not capabilities_for(self.client).accepts_images:\n                raise ValueError('Configured model adapter does not support image input')\n        from forge.runtime.runner import TurnRunner\n        from forge.sessions.workspace_lock import workspace_execution\n        runner = TurnRunner(self)\n        ownership = workspace_execution(self.task_manager.root) if self.registry is not None else nullcontext()\n        from forge.observability.events import current\n        from forge.observability.recorder import JournalRecorder\n        inherited=current()",
+          "line": 452,
+          "end": 475,
+          "code": "    async def stream(self, prompt: UserInput, *, input_id=None) -> AsyncIterator[ConversationEvent]:\n        '''Compatibility entry point delegated to the turn runner.'''\n        from forge.messages import normalize_input\n        from forge.runtime.capabilities import capabilities_for\n        prompt = normalize_input(prompt)\n        if self._running or self._close_task is not None:\n            raise RuntimeError('Conversation is closed or already running a turn')\n        if input_id is not None and not any(item['id'] == input_id and item['content'] == prompt\n                                           for item in self.inbox.pending):\n            raise ValueError('Queued input is missing or differs from the submitted content')\n        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):\n            if not capabilities_for(self.client).accepts_images:\n                raise ValueError('Configured model adapter does not support image input')\n        from forge.runtime.runner import TurnRunner\n        from forge.sessions.workspace_lock import workspace_execution\n        runner = TurnRunner(self)\n        ownership = workspace_execution(self.context_root) if self.coding and self.registry is not None else nullcontext()\n        from forge.observability.events import current\n        from forge.observability.recorder import JournalRecorder\n        inherited=current()\n        recorder=(JournalRecorder(self.session_journal,scope=getattr(self.session_journal,'observation_scope',None),\n                  scope_sink=getattr(self.session_journal,'observation_scope_sink',None)) if self.session_journal else inherited)\n        with ownership, recorder.turn(nested=self.session_journal is None) if recorder else nullcontext():\n            self._running = True",
           "note": "观察何时创建 TurnRunner 和发布事件。"
         },
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.runtime_close",
-          "line": 870,
-          "end": 875,
+          "line": 919,
+          "end": 924,
           "code": "    async def runtime_close(self, *, reason: str = 'exit') -> dict | None:\n        \"\"\"Drain the owned resources once; children only close their own clients.\"\"\"\n        import asyncio\n        if self._close_task is None:\n            self._close_task = asyncio.create_task(self._close_runtime(reason=reason))\n        return await asyncio.shield(self._close_task)",
           "note": "看关闭任务如何被复用。"
         },
@@ -618,8 +626,8 @@
         {
           "path": "tests/test_core_sdk.py",
           "symbol": "test_core_cancellation_closes_client",
-          "line": 82,
-          "end": 82,
+          "line": 96,
+          "end": 96,
           "code": "",
           "note": "取消后模型客户端会被关闭。"
         }
@@ -640,8 +648,8 @@
       "summary": "决定下一步请求模型、执行工具还是结束回合。",
       "concept": "一轮 Agent 工作是一个反馈循环。模型看到当前上下文，提出工具调用，工具结果进入下一次请求，直到完成或触及停止条件。",
       "implementation": [
-        "run 建立回合时间边界并准备输入，_loop 构造请求、检查预算、消费模型流。完整工具调用交给 _batch 按索引顺序处理。",
-        "工具结果回填历史后继续循环。finish_task 经过完成检查再决定终态；预算耗尽、取消和协议错误各自进入相应的停止路径。"
+        "run 准备输入和观察状态，_loop 构造请求并消费模型流。整条响应完整校验后才派发调用，不检查累计 Harness 预算。",
+        "批次由有界调度器执行。授权和结算按顺序，显式安全的工具体可并发；结果按原索引回填，继续模型循环或形成终态。"
       ],
       "steps": [
         [
@@ -651,12 +659,12 @@
         ],
         [
           "调用模型",
-          "通过预算包装器消费流式事件。",
+          "消费真实流式事件并记录用量。",
           "model_calls += 1"
         ],
         [
           "处理工具",
-          "完整调用按顺序进入 ToolExecutor。",
+          "按序授权，安全工具体可并发，结果按原索引结算。",
           "tool results"
         ],
         [
@@ -683,23 +691,31 @@
         "模型请求读取文件 → 修改插件 → 执行测试 → finish_task",
         "每次工具结果都会成为后续模型请求的输入。"
       ],
-      "boundary": "同批工具出现失败或取消后，剩余调用被记录为未执行。部分产生副作用的调用需要保留不确定状态。",
+      "boundary": "普通工具错误继续反馈；拒绝、取消和不确定副作用停止补充，收齐已启动调用并保留真实结果。",
       "sources": [
         {
           "path": "forge/runtime/runner.py",
           "symbol": "TurnRunner.run",
-          "line": 77,
-          "end": 96,
-          "code": "    async def run(self, prompt: str, *, input_id=None):\n        from forge.messages import input_text, normalize_input\n        content = normalize_input(prompt)\n        prompt = input_text(content)\n        c = self.conversation\n        c.turn_state = self.state\n        c._kernel_owns_events = True\n        self.state.goal = prompt\n        self.messages = [*c.messages]\n        try:\n            async with asyncio.timeout(self.state.max_seconds):\n                await self._prepare_turn(prompt, content=content, input_id=input_id)\n                async with aclosing(self._loop()) as stream:\n                    async for event in stream:\n                        yield event\n        except BudgetExhausted as error:\n            yield await self._finish('failed', error.reason, error.reason, (error.reason,))\n        except TimeoutError:\n            yield await self._finish(\n                'failed', 'time_budget_exhausted',",
-          "note": "对照预算超时与外部取消的两个异常分支。"
+          "line": 69,
+          "end": 92,
+          "code": "    async def run(self, prompt: str, *, input_id=None):\n        from forge.messages import input_text, normalize_input\n        content = normalize_input(prompt)\n        prompt = input_text(content)\n        c = self.conversation\n        c.turn_state = self.state\n        c._kernel_owns_events = True\n        self.state.goal = prompt\n        self.messages = [*c.messages]\n        try:\n            await self._prepare_turn(prompt, content=content, input_id=input_id)\n            async with aclosing(self._loop()) as stream:\n                async for event in stream:\n                    yield event\n        except (asyncio.CancelledError, GeneratorExit):\n            if c.command_jobs is not None:\n                await c.command_jobs.cancel_owner(self.state)\n            c.inbox.defer_steering()\n            if self.journal is not None and not self.finished:\n                self._commit_messages()\n                self.journal.record_turn_cancelled(\n                    'Turn interrupted. Indeterminate operations require inspection, not replay.',\n                )\n            raise",
+          "note": "对照外部取消与执行错误的终态记录。"
         },
         {
           "path": "forge/runtime/runner.py",
           "symbol": "TurnRunner._batch",
-          "line": 487,
-          "end": 504,
-          "code": "    async def _batch(self, calls: list[ToolCall]):\n        c = self.conversation\n        executor = c.tool_executor\n        assert executor is not None\n        results: list[tuple[ToolCall, ToolResult]] = []\n        ordered = sorted(calls, key=lambda call: call.index)\n        batch_reason = None\n        if not self.state.can_request_tool_batch(0):\n            batch_reason = 'tool_budget_exhausted'\n            self.terminal = ('failed', batch_reason, batch_reason, (batch_reason,))\n        mixed_finish = len(calls) > 1 and any(call.name == 'finish_task' for call in calls)\n        # 完成声明必须单独处理，防止同批后续工具改动产物后仍沿用旧验收结论。\n        if mixed_finish:\n            batch_reason = 'finish_must_be_alone'\n        interrupted = False\n        self.batch_active = True\n        try:\n            for call in ordered:",
+          "line": 496,
+          "end": 519,
+          "code": "    async def _batch(self, calls: list[ToolCall]):\n        c = self.conversation\n        executor = c.tool_executor\n        assert executor is not None\n        results: list[tuple[ToolCall, ToolResult]] = []\n        ordered = sorted(calls, key=lambda call: call.index)\n        from forge.runtime.tool_batch import schedule_calls\n        completed = {}\n        mixed_finish = len(calls) > 1 and any(call.name == 'finish_task' for call in calls)\n        interrupted = False\n        self.batch_active = True\n\n        async def prepare(call):\n            if mixed_finish:\n                return executor.record_result(call, ToolResult.fail(\n                    'finish_must_be_alone', 'finish_task must be submitted alone.'), status='cancelled')\n            if call.name == 'verify' and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id')):\n                from forge.runtime.check_contracts import inherit_check_arguments, resolve_stored_check\n                try:\n                    arguments = resolve_stored_check(call.arguments, self.state.evidence.verification)\n                    call = replace(call, arguments=inherit_check_arguments(arguments, self.state.evidence.verification)\n                                   if arguments.get('inherit_checks_from') else arguments)\n                except ValueError as error:\n                    return executor.record_result(call, ToolResult.fail('check_contract_conflict', str(error)), status='rejected')",
           "note": "沿 batch_reason 观察失败如何阻止后续工具。"
+        },
+        {
+          "path": "forge/runtime/tool_batch.py",
+          "symbol": "schedule_calls",
+          "note": "查看滚动并发与有序结算。",
+          "line": 26,
+          "end": 49,
+          "code": "async def schedule_calls(calls, executor, prepare, *, limit, completed):\n    '''Only this task prepares/finalizes; child tasks own tool bodies and cleanup.\n\n    ``completed`` also receives drained outcomes when the consumer closes, so a\n    started operation is never replaced with a fabricated unexecuted result.\n    '''\n    slots: dict[int, Slot] = {}\n    next_start = next_commit = 0\n    stopped = False\n    held = None\n\n    def group(call):\n        if (limit > 1 and not call.arguments.get('sandbox_permissions')\n                and executor.registry.is_concurrency_safe(call.name, call.arguments)):\n            return executor.registry.effect(call.name)\n        return None\n\n    def overlaps(call):\n        kind = group(call)\n        return kind is not None and all(slot.prepared is not None\n            and group(slot.prepared.call) == kind for slot in slots.values())\n\n    def running():\n        return [slot.task for slot in slots.values() if slot.task is not None and slot.dispatched is None]"
         }
       ],
       "tests": [
@@ -713,12 +729,12 @@
         }
       ],
       "related": [
-        "budget",
+        "usage",
         "tools",
         "completion"
       ],
-      "question": "模型在一次回复里给出三个工具，第二个失败，第三个会怎样？",
-      "answer": "第三个不会执行。执行器会保留它因前序失败而跳过的记录，下一次请求可根据结果重新规划。"
+      "question": "同批第二个工具返回普通非零退出码，第三个独立调用会怎样？",
+      "answer": "普通失败不自动取消独立调用。若涉及拒绝、取消或不确定副作用，则停止后续派发；已启动结果仍会收齐。"
     },
     {
       "id": "context",
@@ -729,7 +745,7 @@
       "concept": "上下文既包括对话，也包括系统提示、工具定义、项目规则和工具输出。管理器要同时保留任务约束和完整的工具调用配对。",
       "implementation": [
         "请求前按实际可见内容估算窗口占用，并为输出预留空间。大工具结果按规则裁剪，原文进入归档。接近窗口阈值时摘要旧前缀，保留近期完整消息。",
-        "项目规则按访问路径激活。新发现的规则必须先进入模型请求，随后涉及该范围的写入或命令才能继续。摘要模型请求同样消耗共享预算。"
+        "仓库上下文是可选能力，按访问路径激活规则。新的规则先进入模型请求，再执行相关写入；摘要请求计入实际用量，不受累计预算限制。"
       ],
       "steps": [
         [
@@ -776,17 +792,17 @@
         {
           "path": "forge/context/manager.py",
           "symbol": "ContextManager.compaction_required",
-          "line": 480,
-          "end": 496,
-          "code": "    def compaction_required(\n        self,\n        messages: list[dict[str, Any]],\n        *,\n        system_prompt: str = '',\n        repository_context: str = '',\n        tools: list[dict[str, Any]] | None = None,\n        context_window_tokens: int | None = None,\n        reserved_output_tokens: int = 0,\n        scope_hints: tuple[str, ...] = (),\n    ) -> bool:\n        '''Return whether automatic compaction would run for this request.'''\n        prepared = self.prepare(messages, scope_hints=scope_hints)\n        stats = context_stats(\n            prepared,\n            stored_messages=messages,\n            system_prompt=system_prompt,",
+          "line": 498,
+          "end": 521,
+          "code": "    def compaction_required(\n        self,\n        messages: list[dict[str, Any]],\n        *,\n        system_prompt: str = '',\n        repository_context: str = '',\n        tools: list[dict[str, Any]] | None = None,\n        context_window_tokens: int | None = None,\n        reserved_output_tokens: int = 0,\n        scope_hints: tuple[str, ...] = (),\n    ) -> bool:\n        '''Return whether automatic compaction would run for this request.'''\n        prepared = self.prepare(messages, scope_hints=scope_hints)\n        stats = context_stats(\n            prepared,\n            stored_messages=messages,\n            system_prompt=system_prompt,\n            repository_context=repository_context,\n            tools=tools,\n            context_window_tokens=context_window_tokens,\n            reserved_output_tokens=reserved_output_tokens,\n        )\n        return self._threshold_reached(\n            stats,",
           "note": "检查触发压缩的输入统计。"
         },
         {
           "path": "forge/context/manager.py",
           "symbol": "ContextManager.compact_history",
-          "line": 315,
-          "end": 334,
-          "code": "    async def compact_history(\n        self,\n        messages: list[dict[str, Any]],\n        client: Any,\n        *,\n        force: bool = False,\n        system_prompt: str = '',\n        repository_context: str = '',\n        tools: list[dict[str, Any]] | None = None,\n        context_window_tokens: int | None = None,\n        reserved_output_tokens: int = 0,\n        scope_hints: tuple[str, ...] = (),\n        task_goal: str = '',\n    ) -> CompactionReport | None:\n        '''Replace long history with a structured summary when required.'''\n        prepared = self.prepare(messages, scope_hints=scope_hints)\n        before_stats = context_stats(\n            prepared,\n            stored_messages=messages,\n            system_prompt=system_prompt,",
+          "line": 335,
+          "end": 358,
+          "code": "    async def compact_history(\n        self,\n        messages: list[dict[str, Any]],\n        client: Any,\n        *,\n        force: bool = False,\n        system_prompt: str = '',\n        repository_context: str = '',\n        tools: list[dict[str, Any]] | None = None,\n        context_window_tokens: int | None = None,\n        reserved_output_tokens: int = 0,\n        scope_hints: tuple[str, ...] = (),\n        task_goal: str = '',\n    ) -> CompactionReport | None:\n        '''Replace long history with a structured summary when required.'''\n        prepared = self.prepare(messages, scope_hints=scope_hints)\n        before_stats = context_stats(\n            prepared,\n            stored_messages=messages,\n            system_prompt=system_prompt,\n            repository_context=repository_context,\n            tools=tools,\n            context_window_tokens=context_window_tokens,\n            reserved_output_tokens=reserved_output_tokens,",
           "note": "沿摘要范围与最近消息保留逻辑阅读。"
         }
       ],
@@ -803,7 +819,7 @@
       "related": [
         "hooks",
         "models",
-        "budget"
+        "usage"
       ],
       "question": "为什么真实 token 用量和上下文估算要同时保留？",
       "answer": "估算用于请求发出前的窗口决策，提供方返回的实际用量用于记录和费用核算。它们发生在不同时间。"
@@ -857,7 +873,7 @@
       ],
       "example": [
         "main 使用 deepseek-flash，worker 使用公司内部模型别名",
-        "受管子任务按 worker 选择创建客户端，仍共享父回合预算。"
+        "受管子任务按 worker 选择创建客户端，用量汇总到父回合。"
       ],
       "boundary": "带图像的历史要求目标显式支持图像。目标窗口不足或消息块不兼容时，切换会被拒绝。",
       "sources": [
@@ -866,15 +882,15 @@
           "symbol": "ProviderRegistry.create",
           "line": 23,
           "end": 41,
-          "code": "    def create(self, config, *, max_tokens=None, max_retries=2):\n        if type(max_retries) is not int or max_retries \u003c 0:\n            raise ValueError('max_retries must be a nonnegative integer')\n        try:\n            if config.provider in self._factories:\n                return self._factories[config.provider](config, max_tokens=max_tokens, max_retries=max_retries)\n            if config.provider == 'anthropic':\n                from forge.runtime.model_client import AnthropicModelClient\n                return AnthropicModelClient.from_config(config, max_tokens=max_tokens, max_retries=max_retries)\n            if config.provider in {'openai_responses', 'openai_chat', 'deepseek'}:\n                from forge.runtime.providers import NativeModelClient\n                return NativeModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)\n            if config.provider == 'gemini':\n                from forge.runtime.gemini import GeminiModelClient\n                return GeminiModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)\n        except ModuleNotFoundError as error:\n            extra = 'anthropic' if config.provider == 'anthropic' else 'gemini' if config.provider == 'gemini' else 'openai'\n            raise ConfigurationError(f'Missing provider dependency; install forge-code[{extra}]') from error\n        raise ConfigurationError(f'Provider is not registered: {config.provider}')",
+          "code": "    def create(self, config, *, max_tokens=None, max_retries=2):\n        if type(max_retries) is not int or max_retries < 0:\n            raise ValueError('max_retries must be a nonnegative integer')\n        try:\n            if config.provider in self._factories:\n                return self._factories[config.provider](config, max_tokens=max_tokens, max_retries=max_retries)\n            if config.provider == 'anthropic':\n                from forge.runtime.model_client import AnthropicModelClient\n                return AnthropicModelClient.from_config(config, max_tokens=max_tokens, max_retries=max_retries)\n            if config.provider in {'openai_responses', 'openai_chat', 'deepseek'}:\n                from forge.runtime.providers import NativeModelClient\n                return NativeModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)\n            if config.provider == 'gemini':\n                from forge.runtime.gemini import GeminiModelClient\n                return GeminiModelClient(config, max_tokens=max_tokens, max_attempts=max_retries + 1)\n        except ModuleNotFoundError as error:\n            extra = 'anthropic' if config.provider == 'anthropic' else 'gemini' if config.provider == 'gemini' else 'openai'\n            raise ConfigurationError(f'Missing provider dependency; install forge-code[{extra}]') from error\n        raise ConfigurationError(f'Provider is not registered: {config.provider}')",
           "note": "查看依赖延迟导入和工厂分派。"
         },
         {
           "path": "forge/runtime/model_registry.py",
           "symbol": "select_model",
           "line": 134,
-          "end": 153,
-          "code": "async def select_model(conversation, alias):\n    conversation._require_idle()\n    if conversation._close_task is not None:\n        raise RuntimeError('Session is closing')\n    config, selection = config_for_alias(conversation, alias)\n    if config == conversation.model_config and alias == conversation.model_alias:\n        return {'alias': alias, 'provider': config.provider, 'model': config.model_id, 'changed': False}\n    client = conversation.model_factory(config)\n    router_client = None\n    try:\n        if conversation.intent_router is not None:\n            router_client = conversation.model_factory(config, max_tokens=600)\n        from forge.runtime.capabilities import capabilities_for\n        from forge.context.manager import context_stats, request_output_tokens\n        history = portable_history(conversation.messages)\n        has_images = any(isinstance(m['content'], list) and any(p['type'] == 'image' for p in m['content']) for m in history)\n        if has_images and (not capabilities_for(client).accepts_images or not config.input_modalities or\n                           'image' not in config.input_modalities):\n            raise ValueError('Target must explicitly declare image input support for this history')\n        stats = context_stats(history, system_prompt=conversation.system_prompt,",
+          "end": 157,
+          "code": "async def select_model(conversation, alias):\n    conversation._require_idle()\n    if conversation._close_task is not None:\n        raise RuntimeError('Session is closing')\n    config, selection = config_for_alias(conversation, alias)\n    if config == conversation.model_config and alias == conversation.model_alias:\n        return {'alias': alias, 'provider': config.provider, 'model': config.model_id, 'changed': False}\n    client = conversation.model_factory(config)\n    router_client = None\n    try:\n        if conversation.intent_router is not None:\n            router_client = conversation.model_factory(config, max_tokens=600)\n        from forge.runtime.capabilities import capabilities_for\n        from forge.context.manager import context_stats, request_output_tokens\n        history = portable_history(conversation.messages)\n        has_images = any(isinstance(m['content'], list) and any(p['type'] == 'image' for p in m['content']) for m in history)\n        if has_images and (not capabilities_for(client).accepts_images or not config.input_modalities or\n                           'image' not in config.input_modalities):\n            raise ValueError('Target must explicitly declare image input support for this history')\n        stats = context_stats(history, system_prompt=conversation.system_prompt,\n            tools=conversation._tool_definitions(), context_window_tokens=config.context_window,\n            reserved_output_tokens=config.max_tokens)\n        if config.context_window is not None:\n            conversation.context.config.pressure_threshold(config.context_window)",
           "note": "跟踪校验完成后才写入的 model_selected。"
         }
       ],
@@ -890,94 +906,90 @@
       ],
       "related": [
         "contracts",
-        "budget",
+        "usage",
         "children"
       ],
       "question": "手动切换模型会立即产生一次模型请求吗？",
       "answer": "切换负责选择、能力检查和状态记录。下一次运行回合时才发送模型请求。"
     },
     {
-      "id": "budget",
+      "id": "usage",
       "group": "通用内核",
-      "title": "共享预算与停止原因",
-      "symbol": "TurnState · BudgetedModelClient",
-      "summary": "让主模型、摘要和子任务消耗同一份回合额度。",
-      "concept": "预算同时约束模型请求数、工具请求数和持续时间。每个请求在实际执行前检查额度，子任务向父状态累计使用量。",
+      "title": "用量、超时与取消",
+      "symbol": "TurnState · ObservedModelClient",
+      "summary": "记录每次尝试和父子任务用量，停止条件与累计计数分开。",
+      "concept": "用量是执行事实。单次操作超时、取消、模型容量和外部评测期限是独立控制，计数本身不终止 Harness。",
       "implementation": [
-        "TurnState.budget_reason 根据当前计数、截止时间及父状态判断停止原因。record_model_request 会增加自身与父级计数。",
-        "BudgetedModelClient 观察适配器发出的请求尝试，记录开始、结束和用量。提供方缺失最终用量时保留未知，避免将未知当成零。"
+        "TurnState.record_model_request 和 record_usage 累计自身及父回合的实际请求与 token，不再提供 budget_reason。",
+        "ObservedModelClient 按实际请求尝试保存输入、增量、重试和终态；缺少最终用量保持 unknown，不当成零。"
       ],
       "steps": [
         [
-          "读额度",
-          "取得当前与父回合剩余额度。",
-          "max_model_calls"
-        ],
-        [
-          "检查准入",
-          "额度耗尽则返回明确原因。",
-          "budget_reason"
-        ],
-        [
-          "记录请求",
-          "请求尝试扣除调用次数。",
+          "请求开始",
+          "记录一次实际模型尝试。",
           "model_calls += 1"
         ],
         [
-          "归集用量",
-          "主、子和摘要请求进入共享统计。",
-          "parent usage"
+          "记录用量",
+          "归一化输入、输出与缓存字段。",
+          "actual / unknown"
+        ],
+        [
+          "取消或超时",
+          "由调用方取消、网络或命令期限终止相应操作。",
+          "cancelled / failed"
+        ],
+        [
+          "保留事实",
+          "失败与取消也写入 Journal，不重放未知副作用。",
+          "Journal"
         ]
       ],
       "states": [
         [
           "model_calls",
-          "实际模型请求尝试的累计数"
+          "实际请求次数"
         ],
         [
-          "tool_calls",
-          "工具请求累计数"
+          "usage",
+          "已知 token 分量"
         ],
         [
-          "max_seconds",
-          "当前回合时间额度"
-        ],
-        [
-          "parent",
-          "需要共同受限的父回合"
+          "stop_reason",
+          "终止原因，不是剩余额度"
         ]
       ],
       "example": [
-        "上限 12 次，模型已完成 12 次请求",
-        "下一次请求被拒绝，回合停止原因记录为 model_budget_exhausted。"
+        "子任务发送模型请求",
+        "其请求与用量汇总到父回合，不存在共享累计请求上限。"
       ],
-      "boundary": "墙钟时间还有剩余也可能先耗尽调用次数。子任务通过公共接口不能把自己的预算扩得比父级更宽。",
+      "boundary": "Harness 累计预算已移除。普通命令默认 120 秒，可显式延长；评测器仍实施官方任务期限。",
       "sources": [
         {
           "path": "forge/runtime/turn_state.py",
-          "symbol": "TurnState.budget_reason",
-          "line": 138,
-          "end": 149,
-          "code": "    def budget_reason(self, *, include_model: bool = True) -> str | None:\n        if self.parent is not None:\n            inherited = self.parent.budget_reason(include_model=include_model)\n            if inherited:\n                return inherited\n        if self.max_seconds is not None and monotonic() - self.started_at >= self.max_seconds:\n            return 'time_budget_exhausted'\n        if self.max_input_tokens is not None and self.usage.total_input_tokens >= self.max_input_tokens:\n            return 'token_budget_exhausted'\n        if include_model and self.max_model_calls is not None and self.model_calls >= self.max_model_calls:\n            return 'model_budget_exhausted'\n        return None",
-          "note": "逐项读停止条件的优先顺序。"
+          "symbol": "TurnState.record_model_request",
+          "note": "统计向父状态汇总。",
+          "line": 131,
+          "end": 137,
+          "code": "    def record_model_request(self, usage: TokenUsage | None = None, *, stage: str = 'model') -> None:\n        if self.parent is not None:\n            self.parent.record_model_request(stage='subagent/' + stage)\n        self.model_calls += 1\n        self.request_counts[stage] = self.request_counts.get(stage, 0) + 1\n        if usage is not None:\n            self.record_usage(usage)"
         },
         {
-          "path": "forge/runtime/turn_state.py",
-          "symbol": "TurnState.record_model_request",
-          "line": 161,
-          "end": 167,
-          "code": "    def record_model_request(self, usage: TokenUsage | None = None, *, stage: str = 'model') -> None:\n        if self.parent is not None:\n            self.parent.record_model_request(stage='subagent/' + stage)\n        self.model_calls += 1\n        self.request_counts[stage] = self.request_counts.get(stage, 0) + 1\n        if usage is not None:\n            self.record_usage(usage)",
-          "note": "观察计数如何传播到 parent。"
+          "path": "forge/runtime/model_observation.py",
+          "symbol": "ObservedModelClient.stream",
+          "note": "记录真实请求与终态。",
+          "line": 51,
+          "end": 74,
+          "code": "    async def stream(self, messages, tools=None, system=None):\n        task = asyncio.current_task()\n        if task is not None and task.cancelling():\n            await asyncio.sleep(0)\n        # Handled cancellation counts can remain on a consumer reused for a new turn.\n        previous_cancellations = task.cancelling() if task is not None else 0\n        # 冻结本次输入，避免流式请求期间共享消息被修改而破坏轨迹复现。\n        snapshot = RequestSnapshot.capture(messages=messages, tools=tools, system=system, client=self.client)\n        frozen = snapshot.payload\n        invocation_id='invocation-'+str(uuid4())\n        attempt_no=0\n        if self.state.request_event_sink is not None:\n            self.state.request_event_sink('model_input_snapshot', {**snapshot.as_dict(),'invocation_id':invocation_id,'stage':self.stage})\n        usage = None\n        raw_usage = None\n        provider_request_id = returned_model = None\n        usage_is_final=None\n        from forge.observability.events import current\n        observation=current()\n        capture_text=bool(observation and observation.options.capture_mode=='controlled_debug')\n        debug_chunks=[]\n        debug_bytes=0\n        debug_truncated=False\n        retry_started_ns=None"
         }
       ],
       "tests": [
         {
-          "path": "tests/runtime/test_shared_budget.py",
-          "symbol": "test_children_compete_for_one_root_request_budget",
+          "path": "tests/runtime/test_shared_usage.py",
+          "symbol": "test_child_requests_and_usage_accumulate_without_a_shared_ceiling",
+          "note": "用量累计不会变成隐藏的执行额度。",
           "line": 10,
           "end": 10,
-          "code": "",
-          "note": "多个子任务竞争同一份父模型请求预算。"
+          "code": ""
         }
       ],
       "related": [
@@ -985,8 +997,8 @@
         "children",
         "observability"
       ],
-      "question": "主任务剩余 2 次调用，两个子任务各自声明还需要 2 次，合计能用 4 次吗？",
-      "answer": "不能。父回合仍只剩 2 次，子任务必须竞争同一份总额度。"
+      "question": "累计请求次数达到旧上限，会停止当前回合吗？",
+      "answer": "不会。旧累计预算已删除；仍需遵守取消、权限、操作超时和外部评测期限。"
     },
     {
       "id": "tools",
@@ -1044,18 +1056,18 @@
         {
           "path": "forge/tools/base.py",
           "symbol": "ToolRegistry.validate",
-          "line": 348,
-          "end": 362,
-          "code": "    def validate(\n        self,\n        name: str,\n        arguments: Mapping[str, Any],\n    ) -> ToolResult | None:\n        '''Validate a request without executing it.\n\n        The runtime uses this before hooks and authorization so a hook cannot\n        turn an invalid request into an opaque permission side effect.  The\n        concrete tool still validates again at its execution boundary.\n        '''\n        tool = self._tools.get(name)\n        if tool is None:\n            return ToolResult.fail(\n                'unknown_tool',",
+          "line": 382,
+          "end": 400,
+          "code": "    def validate(\n        self,\n        name: str,\n        arguments: Mapping[str, Any],\n    ) -> ToolResult | None:\n        '''Validate a request without executing it.\n\n        The runtime uses this before hooks and authorization so a hook cannot\n        turn an invalid request into an opaque permission side effect.  The\n        concrete tool still validates again at its execution boundary.\n        '''\n        tool = self._tools.get(name)\n        if tool is None:\n            return ToolResult.fail(\n                'unknown_tool',\n                f'Unknown tool: {name}',\n                details={'available_tools': list(self._tools)},\n            )\n        return tool.validate(arguments)",
           "note": "查看注册表如何委托给实际工具校验。"
         },
         {
           "path": "forge/runtime/executor.py",
-          "symbol": "ToolExecutor._execute",
-          "line": 87,
-          "end": 106,
-          "code": "    async def _execute(\n        self,\n        call: ToolCall,\n        *,\n        checkpoint_id: str | None = None,\n        scope_checker: ScopeChecker | None = None,\n        result_transformer: ResultTransformer | None = None,\n    ) -> ExecutionOutcome:\n        '''Validate, authorize, checkpoint, execute, observe, and persist.'''\n        started = monotonic()\n        arguments = dict(call.arguments)\n        effect = self.registry.effect(call.name)\n        revision, epoch = self._state()\n\n        validation = self.registry.validate(call.name, arguments)\n        if validation is not None:\n            return self._outcome(\n                call,\n                validation,\n                'rejected',",
-          "note": "沿 arguments、授权和后端分派读完整方法。"
+          "symbol": "ToolExecutor.prepare",
+          "line": 102,
+          "end": 107,
+          "code": "    async def prepare(self, call: ToolCall, **options) -> PreparedExecution | ExecutionOutcome:\n        from forge.observability.events import current\n        from contextlib import nullcontext\n        recorder = current()\n        with recorder.tool(call) if recorder else nullcontext():\n            return await self._prepare(call, **options)",
+          "note": "准备、授权和派发沿用同一 Executor。"
         }
       ],
       "tests": [
@@ -1074,7 +1086,7 @@
         "mcp"
       ],
       "question": "为什么注册插件工具以后，它仍要走 ToolExecutor？",
-      "answer": "这样模型驱动的调用仍能统一校验参数、请求授权、计预算并留下执行记录。"
+      "answer": "工具仍通过统一 Executor 做参数检查、授权、目标版本核验、用量记录和清理；它们不必继承带根目录的内置 Tool。"
     },
     {
       "id": "permissions",
@@ -1084,8 +1096,8 @@
       "summary": "根据实际调用判断是否允许执行。",
       "concept": "权限层接收工具名、能力、风险和目标路径。它将硬性拒绝、已有规则和当前审批模式组合成执行决策。",
       "implementation": [
-        "authorize 先处理 hard_deny 与只读约束，再匹配用户、项目和会话规则。匹配到拒绝规则时先拒绝。需要审批的调用交给 ApprovalHandler。",
-        "plan、supervised 和 auto 决定默认处理方式。auto 对低风险操作可直接放行，其他风险仍可能请求审批。审批选择的有效范围由具体操作约束。"
+        "现代模式按所选沙盒策略和显式规则授权，明确 deny 继续生效。普通 coding 默认 full-access + never，受限模式默认 ask。",
+        "/permission 同时选择沙盒和审批；单次扩大权限需要 allow_once 与理由，不保存记住规则，不改变会话模式。旧无 execution_mode 接口保留历史语义。"
       ],
       "steps": [
         [
@@ -1132,17 +1144,17 @@
         {
           "path": "forge/permissions/policy.py",
           "symbol": "PermissionManager.authorize",
-          "line": 145,
-          "end": 164,
-          "code": "    async def authorize(self, request: PermissionRequest) -> PermissionDecision:\n        if request.hard_deny:\n            return self._decision('deny', request, request.reason, 'hard_deny')\n\n        read_only = request.capability in {'file.read', 'repository.read', 'mcp.read'}\n        if not read_only and (self.execution_mode == 'read-only' or self.mode == 'plan'):\n            return self._decision('deny', request, 'Read-only policy forbids this operation.', 'read_only')\n\n        matching = [\n            rule\n            for rule in (\n                *self.user_rules,\n                *self.project_rules,\n                *self.session_rules,\n            )\n            if rule.matches(request)\n        ]\n        denied = [rule for rule in matching if rule.action == 'deny']\n        if denied:\n            return self._decision(",
+          "line": 151,
+          "end": 174,
+          "code": "    async def authorize(self, request: PermissionRequest) -> PermissionDecision:\n        if request.hard_deny:\n            return self._decision('deny', request, request.reason, 'hard_deny')\n\n        read_only = request.capability in {'file.read', 'repository.read', 'mcp.read'}\n        mutation = request.capability in {'file.write', 'file.delete'} and request.tool_name not in {'run_command', 'verify'}\n        if not read_only and (self.mode == 'plan' or (mutation and self.execution_mode == 'read-only' and not request.sandbox_mode)):\n            return self._decision('deny', request, 'Read-only policy forbids this operation.', 'read_only')\n\n        matching = [\n            rule\n            for rule in (\n                *self.user_rules,\n                *self.project_rules,\n                *self.session_rules,\n            )\n            if rule.matches(request)\n        ]\n        denied = [rule for rule in matching if rule.action == 'deny']\n        if denied:\n            return self._decision(\n                'deny', request, 'A matching deny rule applies.', 'rule'\n            )\n        if request.sandbox_mode:",
           "note": "按 hard_deny、模式、规则和默认动作依次阅读。"
         },
         {
           "path": "forge/permissions/policy.py",
           "symbol": "PermissionManager._mode_default",
-          "line": 203,
-          "end": 215,
-          "code": "    def _mode_default(self, request: PermissionRequest) -> PermissionAction:\n        read_only = request.capability in {\n            'file.read',\n            'repository.read',\n            'mcp.read',\n        }\n        if self.mode == 'plan':\n            return 'allow' if read_only else 'deny'\n        if self.mode == 'supervised':\n            return 'allow' if read_only else 'ask'\n        if request.risk == 'low':\n            return 'allow'\n        return 'ask'",
+          "line": 213,
+          "end": 227,
+          "code": "    def _mode_default(self, request: PermissionRequest) -> PermissionAction:\n        read_only = request.capability in {\n            'file.read',\n            'repository.read',\n            'mcp.read',\n        }\n        if self.mode == 'plan':\n            return 'allow' if read_only else 'deny'\n        if self.execution_mode is not None or self.mode in {'ask', 'never'}:\n            return 'allow'  # The selected sandbox governs ordinary tool access.\n        if self.mode == 'supervised':\n            return 'allow' if read_only else 'ask'\n        if request.risk == 'low':\n            return 'allow'\n        return 'ask'",
           "note": "关注 auto 只直接放行哪些风险。"
         }
       ],
@@ -1172,9 +1184,9 @@
       "summary": "由 Agent 选择执行提供方，再检查实际后端能力。",
       "concept": "执行提供方是一个异步工厂，接收工作区和执行约束，返回已准备的后端及策略。通用内核通过这份契约使用内置或插件提供的执行能力。",
       "implementation": [
-        "open_execution 在模型构造前完成选择。full-access 进入内置宿主路径，native 进入原生路径，其他名称从已加载插件的 sandbox_providers 中取得。ExecutionRequest 包含工作区、数据目录、模式、读写根和时限。",
-        "提供方返回 ExecutionSetup(backend, policy) 后，框架校验 sandbox-policy 并调用 backend.check_ready。检查失败时关闭已返回的后端，启动失败保持失败结果。创建中途的部分资源由提供方负责清理。",
-        "内置原生后端继续使用 Windows DSH ACL 或 Linux bubblewrap。原生模式审计整个工作区；显式 full-access 跳过递归准入，仍编译根目录及保护范围，文件工具继续逐路径拒绝链接。"
+        "open_execution 选择宿主、内置 native 或明确注册的插件提供方。ExecutionRequest 仅包含工作区、数据目录、模式与读写根。",
+        "返回的后端与策略通过检查后交给同一工具执行链；构造失败按资源所有权清理，不自动回退。",
+        "文件 helper 使用路径策略，进程在受限命令执行时才由 DSH 准备。普通启动不全盘扫描，也不因无关 Junction 拒绝；Windows 原生命令仍需要 DSH 的 ACL/WRITE_OWNER 条件。"
       ],
       "steps": [
         [
@@ -1221,25 +1233,25 @@
         {
           "path": "forge/execution.py",
           "symbol": "open_execution",
-          "line": 28,
-          "end": 47,
-          "code": "async def open_execution(request: ExecutionRequest, provider: str | None, *, plugins=None) -> ExecutionSetup:\n    \"\"\"Select once before model construction; a failed provider never falls back.\"\"\"\n    if request.mode == 'full-access':\n        from forge.sandbox.provider import open_host_execution\n        factory = open_host_execution\n    elif provider == 'native':\n        from forge.sandbox.provider import open_native_execution\n        factory = open_native_execution\n    elif plugins is not None and provider in plugins.sandbox_providers:\n        factory = plugins.sandbox_providers[provider]\n    else:\n        raise ValueError(f'Sandbox provider is not registered: {provider}')\n    setup = await factory(request)\n    if not isinstance(setup, ExecutionSetup):\n        raise TypeError('Sandbox provider must return ExecutionSetup')\n    try:\n        from forge.protocol import validate\n        validate('sandbox-policy', setup.policy)\n        setup.backend.check_ready(setup.policy,\n            required_mode='local-trusted' if request.mode == 'full-access' else request.mode)",
+          "line": 27,
+          "end": 50,
+          "code": "async def open_execution(request: ExecutionRequest, provider: str | None, *, plugins=None) -> ExecutionSetup:\n    \"\"\"Select once before model construction; a failed provider never falls back.\"\"\"\n    if request.mode == 'full-access':\n        from forge.sandbox.provider import open_host_execution\n        factory = open_host_execution\n    elif provider == 'native':\n        from forge.sandbox.provider import open_native_execution\n        factory = open_native_execution\n    elif plugins is not None and provider in plugins.sandbox_providers:\n        factory = plugins.sandbox_providers[provider]\n    else:\n        raise ValueError(f'Sandbox provider is not registered: {provider}')\n    setup = await factory(request)\n    if not isinstance(setup, ExecutionSetup):\n        raise TypeError('Sandbox provider must return ExecutionSetup')\n    try:\n        from forge.protocol import ContractError, validate\n        validate('sandbox-policy', setup.policy)\n        if setup.policy.get('execution_mode', request.mode) != request.mode:\n            raise ContractError('Prepared execution mode differs from the requested mode',\n                                kind='CAPABILITY_UNSATISFIED', code=-32010)\n        setup.backend.check_ready(setup.policy,\n            required_mode='local-trusted' if request.mode == 'full-access' else request.mode)\n    except BaseException as error:",
           "note": "先看工厂选择，再看策略校验、check_ready 和失败清理。"
         },
         {
           "path": "forge/sandbox/provider.py",
           "symbol": "open_native_execution",
-          "line": 40,
-          "end": 47,
-          "code": "async def open_native_execution(request: ExecutionRequest) -> ExecutionSetup:\n    from forge.sandbox.application_backend import NativeBackendFactory\n    factory = NativeBackendFactory(request.data_root, mode=request.mode)\n    workspace, policy, _, identity = _policy(request, factory)\n    owner = {'engine_epoch': 'epoch-' + str(uuid4()), 'sandbox_session_id': 'sandbox-' + str(uuid4()),\n        'execution_id': None}\n    backend = await factory.open(workspace, policy, owner, identity)\n    return ExecutionSetup(backend, policy)",
+          "line": 49,
+          "end": 72,
+          "code": "async def open_native_execution(request: ExecutionRequest) -> ExecutionSetup:\n    from forge.sandbox.application_backend import NativeBackendFactory\n    from forge.sandbox.policy_backend import PolicyToolBackend\n    factory = NativeBackendFactory(request.data_root, mode=request.mode)\n    workspace, policy, control, identity = _policy(request, factory)\n    temporary_roots = platform_temp_roots()\n    owner = {'engine_epoch': 'epoch-' + str(uuid4()), 'sandbox_session_id': 'sandbox-' + str(uuid4()),\n        'execution_id': None}\n    def process_policy(value):\n        native = deepcopy(value)\n        # DSH's file API permits platform temp roots. Windows native commands\n        # instead receive a private temp capability owned by the runner.\n        native['filesystem']['write_roots'] = [path for path in native['filesystem']['write_roots']\n                                              if Path(path).is_relative_to(request.root)]\n        return native\n    async def open_process():\n        return await factory.open(workspace, process_policy(policy), owner, identity)\n\n    def open_for_mode(mode):\n        # Retain the frozen workspace identity and limits; never mutate the standing policy.\n        temporary = deepcopy(policy)\n        temporary['policy_id'] = 'policy-' + str(uuid4())\n        temporary['execution_mode'] = mode\n        if mode == 'read-only':",
           "note": "查看内置 native 如何复用已有原生后端。"
         },
         {
           "path": "forge/sandbox/policy.py",
           "symbol": "compile_policy",
           "line": 43,
-          "end": 62,
-          "code": "def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), audit_workspace=True):\n    validate('sandbox-policy', policy)\n    value = json.loads(json.dumps(policy))\n    if value['workspace_id'] != workspace['id']:\n        denied('Policy is bound to another workspace')\n    root = inspect_path(workspace['canonical_path'], absolute=True)\n    identity = root.anchors[-1][1]\n    if identity is None or not root.path.is_dir() or f'{identity[0]}:{identity[1]}' != workspace['file_identity']:\n        raise ContractError('Workspace identity changed', kind='STALE_REVISION', code=-32010)\n    # Native admission audits the whole tree; explicit host execution still\n    # validates roots here and rejects unsafe paths on every file-tool access.\n    if audit_workspace:\n        audit_workspace_links(root.path)\n    filesystem = value['filesystem']\n    for name in ('read_roots', 'write_roots', 'protected_paths'):\n        filesystem[name] = sorted(set(str(inspect_path(path, absolute=True).path) for path in filesystem[name]))\n    trusted_temp = [inspect_path(path, absolute=True).path for path in temporary_roots]\n    for path in filesystem['read_roots']:\n        if not Path(path).is_dir():\n            denied('Read root must be an existing directory')",
+          "end": 66,
+          "code": "def compile_policy(policy, workspace, *, control_roots=(), temporary_roots=(), audit_workspace=True):\n    validate('sandbox-policy', policy)\n    value = json.loads(json.dumps(policy))\n    if value['workspace_id'] != workspace['id']:\n        denied('Policy is bound to another workspace')\n    root = inspect_path(workspace['canonical_path'], absolute=True)\n    identity = root.anchors[-1][1]\n    if identity is None or not root.path.is_dir() or f'{identity[0]}:{identity[1]}' != workspace['file_identity']:\n        raise ContractError('Workspace identity changed', kind='STALE_REVISION', code=-32010)\n    mode = value.get('execution_mode')\n    # Keep legacy strict policies intact. Explicit modes authorize each physical\n    # operation target; unrelated links do not prevent the workspace opening.\n    if mode is None and audit_workspace:\n        audit_workspace_links(root.path)\n    filesystem = value['filesystem']\n    for name in ('read_roots', 'write_roots', 'protected_paths'):\n        filesystem[name] = sorted(set(str(inspect_path(path, absolute=True).path) for path in filesystem[name]))\n    trusted_temp = [inspect_path(path, absolute=True).path for path in temporary_roots]\n    for path in filesystem['read_roots']:\n        if not Path(path).is_dir():\n            denied('Read root must be an existing directory')\n    for path in filesystem['write_roots']:\n        candidate = Path(path)\n        if mode != 'full-access' and not any(candidate == allowed or candidate.is_relative_to(allowed)",
           "note": "比较 audit_workspace 和始终执行的根目录及保护范围检查。"
         }
       ],
@@ -1266,8 +1278,8 @@
         "permissions",
         "sessions"
       ],
-      "question": "为什么提供方初始化失败时，模型回合还不能开始？",
-      "answer": "后续工具执行需要已准备且通过检查的后端。失败保持在装配阶段，已经创建的资源按所有权清理。"
+      "question": "CLI 能启动，是否说明原生命令沙盒一定可用？",
+      "answer": "不能。原生命令按需准备并检查；目录权限或 runner 不可用会拒绝该命令，既有会话仍可保留。"
     },
     {
       "id": "plugins",
@@ -1321,29 +1333,29 @@
         "插件创建 HTTP 客户端并注册内部查询工具",
         "通过 ctx.effect 或服务关闭函数登记释放，退出会话时统一关闭连接。"
       ],
-      "boundary": "可信 Python 插件具有宿主执行能力。公共扩展接口保持权限和预算约束，插件信任仍由用户显式决定。",
+      "boundary": "可信 Python 插件具有宿主执行能力。公共扩展接口保持权限和取消约束，插件信任仍由用户显式决定。",
       "sources": [
         {
           "path": "forge/plugins.py",
           "symbol": "PluginContext.register_tool",
-          "line": 135,
-          "end": 149,
-          "code": "    def register_tool(self, name, description, schema, callback, *, effect='read_only'):\n        self._require_active()\n        if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]{0,79}', name):\n            raise PluginError('Invalid tool name')\n        if name in self._host.tools:\n            raise PluginError(f'Duplicate plugin tool: {name}')\n        tool = PluginTool(self.plugin_id, name, description, schema, callback, effect)\n        self._host.tools[name] = tool\n        def remove():\n            self._host.tools.pop(name, None)\n            registry = self._host.registry\n            if registry is not None and registry.implementation(name) is tool:\n                registry.unregister(name)\n        self.effect(remove)\n        return tool",
+          "line": 141,
+          "end": 155,
+          "code": "    def register_tool(self, name, description, schema, callback, *, effect='read_only', concurrency_safe=False):\n        self._require_active()\n        if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_]{0,79}', name):\n            raise PluginError('Invalid tool name')\n        if name in self._host.tools:\n            raise PluginError(f'Duplicate plugin tool: {name}')\n        tool = PluginTool(self.plugin_id, name, description, schema, callback, effect, concurrency_safe)\n        self._host.tools[name] = tool\n        def remove():\n            self._host.tools.pop(name, None)\n            registry = self._host.registry\n            if registry is not None and registry.implementation(name) is tool:\n                registry.unregister(name)\n        self.effect(remove)\n        return tool",
           "note": "查看工具名、schema、回调和 effect 的注册。"
         },
         {
           "path": "forge/plugins.py",
           "symbol": "PluginHost.load",
-          "line": 225,
-          "end": 244,
-          "code": "    async def load(self, specifications):\n        try:\n            entries = {}\n            for spec in specifications:\n                manifest, entry = describe_plugin(spec)\n                name = manifest['id']\n                if name in entries:\n                    raise PluginError(f'Duplicate plugin: {name}')\n                entries[name] = (spec, manifest, entry)\n            ordered, visiting = [], set()\n            def visit(name):\n                if name in visiting:\n                    raise PluginError(f'Plugin dependency cycle: {name}')\n                if name in ordered:\n                    return\n                if name not in entries:\n                    raise PluginError(f'Missing plugin dependency: {name}')\n                visiting.add(name)\n                for dep in entries[name][1].get('requires', ()):\n                    visit(dep)",
+          "line": 231,
+          "end": 254,
+          "code": "    async def load(self, specifications):\n        try:\n            entries = {}\n            for spec in specifications:\n                manifest, entry = describe_plugin(spec)\n                name = manifest['id']\n                if name in entries:\n                    raise PluginError(f'Duplicate plugin: {name}')\n                entries[name] = (spec, manifest, entry)\n            ordered, visiting = [], set()\n            def visit(name):\n                if name in visiting:\n                    raise PluginError(f'Plugin dependency cycle: {name}')\n                if name in ordered:\n                    return\n                if name not in entries:\n                    raise PluginError(f'Missing plugin dependency: {name}')\n                visiting.add(name)\n                for dep in entries[name][1].get('requires', ()):\n                    visit(dep)\n                visiting.remove(name)\n                ordered.append(name)\n            for name in entries:\n                visit(name)",
           "note": "跟踪加载顺序与失败回滚。"
         },
         {
           "path": "forge/plugins.py",
           "symbol": "PluginContext.register_sandbox_provider",
-          "line": 172,
-          "end": 182,
+          "line": 178,
+          "end": 188,
           "code": "    def register_sandbox_provider(self, name: str, factory: SandboxProvider):\n        \"\"\"Register a trusted execution factory selected explicitly by an Agent.\"\"\"\n        self._require_active()\n        if not isinstance(name, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}', name):\n            raise PluginError('Invalid sandbox provider name')\n        if name in {'native', 'auto'} or name in self._host.sandbox_providers:\n            raise PluginError(f'Duplicate or reserved sandbox provider: {name}')\n        if self._host.conversation is not None or not callable(factory):\n            raise PluginError('Sandbox providers require callable factories during activation')\n        self._host.sandbox_providers[name] = factory\n        self.effect(lambda: self._host.sandbox_providers.pop(name, None))",
           "note": "查看保留名、激活阶段和资源撤销约束。"
         }
@@ -1423,16 +1435,16 @@
           "path": "forge/skills/manager.py",
           "symbol": "SkillManager.system_suffix",
           "line": 237,
-          "end": 255,
-          "code": "    def system_suffix(self, prompt: str) -> str:\n        '''Render metadata plus only explicitly requested skill bodies.'''\n        if not self._skills and not self.explicit_names(prompt):\n            return ''\n        lines = [\n            '[ForgeCode Skills]',\n            'Skills are reusable instructions with progressive disclosure.',\n            'Metadata below is always visible. When a skill clearly matches the '\n            'request, call load_skill before acting; use read_skill_resource only '\n            'for a resource named by the loaded skill. A $skill-name mention '\n            'is explicit activation and its instructions are already included.',\n            '',\n            'Available skills:',\n        ]\n        total = sum(len(line) + 1 for line in lines)\n        for record in self.skills:\n            line = f'- {record.name}: {record.description} [{record.source}]'\n            if total + len(line) + 1 > MAX_METADATA_CHARACTERS:\n                lines.append('- ... additional skill metadata omitted ...')",
+          "end": 260,
+          "code": "    def system_suffix(self, prompt: str) -> str:\n        '''Render metadata plus only explicitly requested skill bodies.'''\n        if not self._skills and not self.explicit_names(prompt):\n            return ''\n        lines = [\n            '[ForgeCode Skills]',\n            'Skills are reusable instructions with progressive disclosure.',\n            'Metadata below is always visible. When a skill clearly matches the '\n            'request, call load_skill before acting; use read_skill_resource only '\n            'for a resource named by the loaded skill. A $skill-name mention '\n            'is explicit activation and its instructions are already included.',\n            '',\n            'Available skills:',\n        ]\n        total = sum(len(line) + 1 for line in lines)\n        for record in self.skills:\n            line = f'- {record.name}: {record.description} [{record.source}]'\n            if total + len(line) + 1 > MAX_METADATA_CHARACTERS:\n                lines.append('- ... additional skill metadata omitted ...')\n                break\n            lines.append(line)\n            total += len(line) + 1\n\n        explicit = self.explicit_names(prompt)",
           "note": "查看技能目录和正文如何进入提示。"
         },
         {
           "path": "forge/hooks/manager.py",
           "symbol": "HookManager.emit",
           "line": 38,
-          "end": 57,
-          "code": "    async def emit(self, event: HookEvent) -> HookOutcome:\n        arguments = (\n            dict(event.arguments) if event.arguments is not None else None\n        )\n        contexts: list[str] = []\n        executions: list[HookExecution] = []\n        for spec in self.settings.hooks.get(event.name, ()):\n            current = HookEvent(\n                name=event.name,\n                session_id=event.session_id,\n                tool_name=event.tool_name,\n                tool_call_id=event.tool_call_id,\n                arguments=arguments,\n                paths=event.paths,\n                payload=event.payload,\n            )\n            if not spec.enabled or not _matches(spec, current):\n                continue\n            try:\n                result = await run_hook_command(self.root, spec, current)",
+          "end": 61,
+          "code": "    async def emit(self, event: HookEvent) -> HookOutcome:\n        arguments = (\n            dict(event.arguments) if event.arguments is not None else None\n        )\n        contexts: list[str] = []\n        executions: list[HookExecution] = []\n        for spec in self.settings.hooks.get(event.name, ()):\n            current = HookEvent(\n                name=event.name,\n                session_id=event.session_id,\n                tool_name=event.tool_name,\n                tool_call_id=event.tool_call_id,\n                arguments=arguments,\n                paths=event.paths,\n                payload=event.payload,\n            )\n            if not spec.enabled or not _matches(spec, current):\n                continue\n            try:\n                result = await run_hook_command(self.root, spec, current)\n            except (OSError, ValueError) as error:\n                decision = 'error'\n                reason = str(error)\n                duration = 0.0",
           "note": "跟踪事件匹配与执行结果聚合。"
         }
       ],
@@ -1519,16 +1531,16 @@
           "path": "forge/mcp/manager.py",
           "symbol": "MCPClientManager.refresh_tools",
           "line": 219,
-          "end": 237,
-          "code": "    async def refresh_tools(self, server_name: str) -> None:\n        '''Fetch every tools/list page and replace this server's adapters.'''\n        connection = self.connections[server_name]\n        session = connection.session\n        if session is None:\n            return\n        discovered: list[types.Tool] = []\n        cursor: str | None = None\n        try:\n            while True:\n                page = await session.list_tools(cursor)\n                discovered.extend(page.tools)\n                cursor = page.nextCursor\n                if not cursor:\n                    break\n            adapters = [\n                MCPToolAdapter(\n                    self.root,\n                    manager=self,",
+          "end": 242,
+          "code": "    async def refresh_tools(self, server_name: str) -> None:\n        '''Fetch every tools/list page and replace this server's adapters.'''\n        connection = self.connections[server_name]\n        session = connection.session\n        if session is None:\n            return\n        discovered: list[types.Tool] = []\n        cursor: str | None = None\n        try:\n            while True:\n                page = await session.list_tools(cursor)\n                discovered.extend(page.tools)\n                cursor = page.nextCursor\n                if not cursor:\n                    break\n            adapters = [\n                MCPToolAdapter(\n                    self.root,\n                    manager=self,\n                    server_name=server_name,\n                    remote_tool=tool,\n                    policy=connection.config.tool_policies.get(tool.name),\n                )\n                for tool in discovered",
           "note": "看远程工具如何进入本地注册表。"
         },
         {
           "path": "forge/mcp/manager.py",
           "symbol": "MCPClientManager.call_tool",
           "line": 282,
-          "end": 301,
-          "code": "    async def call_tool(\n        self,\n        server_name: str,\n        remote_name: str,\n        arguments: dict[str, Any],\n        *,\n        exposed_name: str,\n    ) -> ToolResult:\n        connection = self.connections.get(server_name)\n        if connection is None:\n            return ToolResult.fail(\n                'mcp_server_unknown',\n                f'Unknown MCP server: {server_name}',\n            )\n        if connection.session is None:\n            await self._connect(connection)\n        session = connection.session\n        if session is None:\n            return ToolResult.fail(\n                'mcp_unavailable',",
+          "end": 305,
+          "code": "    async def call_tool(\n        self,\n        server_name: str,\n        remote_name: str,\n        arguments: dict[str, Any],\n        *,\n        exposed_name: str,\n    ) -> ToolResult:\n        connection = self.connections.get(server_name)\n        if connection is None:\n            return ToolResult.fail(\n                'mcp_server_unknown',\n                f'Unknown MCP server: {server_name}',\n            )\n        if connection.session is None:\n            await self._connect(connection)\n        session = connection.session\n        if session is None:\n            return ToolResult.fail(\n                'mcp_unavailable',\n                f'MCP server {server_name} is unavailable.',\n                content=connection.last_error,\n                details={'server': server_name},\n                metadata={'source': 'mcp', 'server': server_name},",
           "note": "跟踪服务查找、请求和结果处理。"
         }
       ],
@@ -1555,11 +1567,11 @@
       "group": "通用内核",
       "title": "受管子 Agent 与 Explore",
       "symbol": "Conversation.run_child",
-      "summary": "把子任务的权限、预算和清理归入父回合。",
+      "summary": "把子任务的权限、用量和清理归入父回合。",
       "concept": "受管子任务适合把一个前台请求分成几个职责明确的小任务。Explore 则专门读取代码，返回受约束的探索结果。",
       "implementation": [
         "run_child 要求父回合正在运行。子 Agent 的插件和工具范围必须继承或收窄，coding 子任务必须继承父执行提供方，角色模型由父 Agent 的 role_models 选择。",
-        "通过 parent_budget 把子任务用量累计到父回合。权限规则传给子会话，结束后记录子会话结果并检查清理。Explore 使用固定只读注册表，借用父后端。"
+        "通过 parent_turn 汇总子任务用量，不存在累计父预算。子会话复制父权限并收集结果和清理状态；Explore 固定只读工具，借用父后端。"
       ],
       "steps": [
         [
@@ -1574,7 +1586,7 @@
         ],
         [
           "运行子会话",
-          "共享父预算并复制父权限规则。",
+          "向父回合汇总用量并复制父权限规则。",
           "child session"
         ],
         [
@@ -1585,8 +1597,8 @@
       ],
       "states": [
         [
-          "parent_budget",
-          "当前父回合的预算上下文"
+          "parent_turn",
+          "当前父回合的状态与用量上下文"
         ],
         [
           "role",
@@ -1599,24 +1611,24 @@
       ],
       "example": [
         "协调器对两条本地事件分别调用 worker",
-        "两个摘要结果交回父任务，所有模型请求都计入父任务额度。"
+        "两个摘要结果交回父任务，所有模型请求都计入父任务用量。"
       ],
       "boundary": "公共子任务接口在活动父回合内运行，权限不能扩张。清理未知时父任务收到明确失败。",
       "sources": [
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.run_child",
-          "line": 348,
-          "end": 367,
-          "code": "    async def run_child(self, prompt, definition, *, role='worker'):\n        \"\"\"A foreground child shares the active turn budget and cannot add capabilities.\"\"\"\n        from dataclasses import replace\n        from forge.api import HarnessSession\n        from forge.runtime.turn_state import parent_budget\n        from forge.runtime.model_registry import config_for_alias\n        if not self._running or self.turn_state is None:\n            raise RuntimeError('Managed children require an active parent turn')\n        if self.agent_definition.base == 'core' and definition.base != 'core':\n            raise ValueError('A core parent cannot grant coding capabilities')\n        if definition.base == 'coding' and definition.sandbox_provider != self.agent_definition.sandbox_provider:\n            raise ValueError('Child sandbox provider must be inherited from the parent')\n        parent_plugins = {p.source: p for p in self.agent_definition.plugins}\n        if any(parent_plugins.get(p.source) != p for p in definition.plugins):\n            raise ValueError('Child plugins must be inherited from the parent')\n        if self.agent_definition.tools is not None and (definition.tools is None or\n                not set(definition.tools).issubset(self.agent_definition.tools)):\n            raise ValueError('Child tools must be a subset of the parent tools')\n        alias = self.agent_definition.role_models.get(role)\n        config = config_for_alias(self, alias)[0] if alias else self.model_config",
-          "note": "先读能力继承检查，再追踪 parent_budget。"
+          "line": 351,
+          "end": 374,
+          "code": "    async def run_child(self, prompt, definition, *, role='worker'):\n        \"\"\"A foreground child shares the active turn usage accounting and cannot add capabilities.\"\"\"\n        from dataclasses import replace\n        from forge.api import HarnessSession\n        from forge.runtime.turn_state import parent_turn\n        from forge.runtime.model_registry import config_for_alias\n        if not self._running or self.turn_state is None:\n            raise RuntimeError('Managed children require an active parent turn')\n        if self.agent_definition.base == 'core' and definition.base != 'core':\n            raise ValueError('A core parent cannot grant coding capabilities')\n        if definition.base == 'coding' and definition.sandbox_provider != self.agent_definition.sandbox_provider:\n            raise ValueError('Child sandbox provider must be inherited from the parent')\n        parent_plugins = {p.source: p for p in self.agent_definition.plugins}\n        if any(parent_plugins.get(p.source) != p for p in definition.plugins):\n            raise ValueError('Child plugins must be inherited from the parent')\n        if self.agent_definition.tools is not None and (definition.tools is None or\n                not set(definition.tools).issubset(self.agent_definition.tools)):\n            raise ValueError('Child tools must be a subset of the parent tools')\n        alias = self.agent_definition.role_models.get(role)\n        config = config_for_alias(self, alias)[0] if alias else self.model_config\n        options = replace(self.session_options, agent=replace(definition, role_models={}), config=config,\n                          approval=self.permission_manager.mode, sandbox=self.permission_manager.execution_mode)\n        if definition.base == 'core':\n            options = replace(options, root=None, read_roots=(), write_roots=None)",
+          "note": "先读能力继承检查，再追踪 parent_turn。"
         },
         {
           "path": "forge/subagents/explore.py",
           "symbol": "ExploreRepositoryTool",
-          "line": 144,
-          "end": 160,
-          "code": "class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):\n    name = 'explore_repository'\n    description = (\n        'Delegate a broad, read-only repository investigation to an isolated '\n        'Explore Agent. Use it for cross-file discovery, call-path tracing, '\n        'or evidence-based root-cause analysis. The subagent cannot edit files '\n        'or run arbitrary commands; this tool returns only a compact structured '\n        'report, keeping raw exploration out of the main context.'\n    )\n    input_model = ExploreRepositoryInput\n\n    def __init__(\n        self,\n        root: Path,\n        *,\n        config: ExploreAgentConfig | None = None,\n        client_factory: Callable[[], ModelClient] | None = None,",
+          "line": 129,
+          "end": 152,
+          "code": "class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):\n    name = 'explore_repository'\n    description = (\n        'Delegate a broad, read-only repository investigation to an isolated '\n        'Explore Agent. Use it for cross-file discovery, call-path tracing, '\n        'or evidence-based root-cause analysis. The subagent cannot edit files '\n        'or run arbitrary commands; this tool returns only a compact structured '\n        'report, keeping raw exploration out of the main context.'\n    )\n    input_model = ExploreRepositoryInput\n\n    def __init__(\n        self,\n        root: Path,\n        *,\n        client_factory: Callable[[], ModelClient] | None = None,\n        tool_backend: Any | None = None,\n        event_recorder: Any | None = None,\n    ) -> None:\n        super().__init__(root)\n        self._client_factory = client_factory\n        self.tool_backend = tool_backend\n        self.event_recorder = event_recorder\n",
           "note": "查看固定只读探索工具的入口。"
         }
       ],
@@ -1624,8 +1636,8 @@
         {
           "path": "tests/test_model_selection.py",
           "symbol": "test_managed_child_inherits_parent_session_denials",
-          "line": 282,
-          "end": 282,
+          "line": 285,
+          "end": 285,
           "code": "",
           "note": "父会话拒绝规则传入受管子会话。"
         },
@@ -1639,7 +1651,7 @@
         }
       ],
       "related": [
-        "budget",
+        "usage",
         "models",
         "conversation"
       ],
@@ -1654,8 +1666,8 @@
       "summary": "保存发生过的操作，并为恢复和回退提供事实。",
       "concept": "Journal 是追加式执行记录，保存消息、工具意图、结果与停止原因。文件检查点保存修改前的文件状态，两者服务于不同的恢复需求。",
       "implementation": [
-        "执行意图在操作前落盘，结果在操作后追加。SessionStore 重建消息、任务和待处理输入，也能识别缺少确定结果的工具调用。",
-        "恢复会话读取最后有效模型选择与验证历史。CheckpointStore 支持受管文件修改的回退。CLI 恢复开启新的回合，回合预算由该次入口给定。"
+        "执行意图先于副作用持久化，结果随后追加。SessionStore 重建消息、可选任务与待办输入，标记未知工具结果。",
+        "恢复读取模型选择和权限，检查点仅在选用的 coding 组合中可用；不自动重放工具。新建/恢复事件记录产品版本，历史缺失字段保持未知。"
       ],
       "steps": [
         [
@@ -1702,17 +1714,17 @@
         {
           "path": "forge/sessions/store.py",
           "symbol": "SessionJournal.append",
-          "line": 369,
-          "end": 380,
+          "line": 380,
+          "end": 391,
           "code": "    def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:\n        if self.read_only:\n            raise SessionError('Legacy sessions are read-only. Fork this session to continue in the new format.')\n        if self._pending is not None:\n            if event_type != 'session_stopped':\n                self._pending.append((event_type, payload))\n            return {}\n        try:\n            with exclusive_append(self.path):\n                return self._append_locked(event_type, payload)\n        except BlockingIOError as error:\n            raise SessionError('Session is being written by another process.') from error",
           "note": "观察追加记录和锁的关系。"
         },
         {
           "path": "forge/sessions/store.py",
           "symbol": "SessionStore.open",
-          "line": 569,
-          "end": 586,
-          "code": "    def open(\n        self,\n        identifier: str | None = None,\n    ) -> tuple[SessionState, SessionJournal]:\n        state = (\n            self.latest()\n            if identifier is None\n            else self.load(identifier)\n        )\n        records = self._read_records(state.info.path)\n        last = records[-1]\n        journal = SessionJournal(\n            state.info.path,\n            session_id=state.info.session_id,\n            project_root=self.project_root,\n            sequence=int(last['sequence']),\n            parent_uuid=str(last['uuid']),\n        )",
+          "line": 587,
+          "end": 605,
+          "code": "    def open(\n        self,\n        identifier: str | None = None,\n    ) -> tuple[SessionState, SessionJournal]:\n        state = (\n            self.latest()\n            if identifier is None\n            else self.load(identifier)\n        )\n        records = self._read_records(state.info.path)\n        last = records[-1]\n        journal = SessionJournal(\n            state.info.path,\n            session_id=state.info.session_id,\n            project_root=self.project_root,\n            sequence=int(last['sequence']),\n            parent_uuid=str(last['uuid']),\n        )\n        return state, journal",
           "note": "跟踪读取状态和创建 Journal 的过程。"
         }
       ],
@@ -1732,18 +1744,18 @@
         "observability"
       ],
       "question": "恢复了历史会话，是否意味着继续使用上一进程剩余的模型额度？",
-      "answer": "历史和执行事实可以恢复。CLI 的恢复会开启新回合，新的回合预算由入口配置给出。"
+      "answer": "恢复历史和权限可以继续新回合；没有剩余额度机制，也不会自动恢复或重放中断的副作用。"
     },
     {
       "id": "application",
       "group": "事实与应用",
-      "title": "Application、Engine 与 SQLite",
+      "title": "旧 RPC 与历史兼容",
       "symbol": "ApplicationServices · TurnScheduler",
-      "summary": "为 RPC 提供任务受理、调度、审批和查询。",
-      "concept": "应用层管理请求的生命周期。Engine 把外部动作转换成持久化工作项，再调度到已有 Harness 执行。",
+      "summary": "为显式旧 RPC 接口保留受理、投影和历史读取。",
+      "concept": "普通 CLI、SDK 和 benchmark 已与旧控制面分离，旧 Engine 仍可作为显式兼容入口读取历史或服务旧客户端。",
       "implementation": [
-        "ApplicationServices 检查工作区、模型连接、策略与预算配置，受理会话动作。执行时创建 HarnessAdapter，把结构化输入交给 create_runtime 构造的会话。",
-        "SQLite 保存应用层受理和调度状态。JournalProjector 把 Harness 的新增事实投影成查询视图，供 RPC 客户端读取状态、消息与证据。"
+        "ApplicationServices/HarnessAdapter 只在旧 RPC 路径使用，同样委托已有运行时，不复制模型循环。",
+        "现代 worker 位于 forge.workers，共享 ID/JSON 和外部操作期限不依赖旧 Engine。旧 SQLite 投影和读者保留原格式。"
       ],
       "steps": [
         [
@@ -1788,28 +1800,28 @@
       "boundary": "应用控制路径必须满足其配置要求。当前严格原生能力不足时会拒绝准入。",
       "sources": [
         {
-          "path": "forge/application/harness_adapter.py",
-          "symbol": "HarnessAdapter.__init__",
-          "line": 31,
-          "end": 45,
-          "code": "    def __init__(self, root: Path, *, config, data_root, backend, budget,\n                 model_client_factory=None, recorder=None, approval_handler=None, task_relation=None,\n                 resume_identifier=None, fork_session=False, turn_baseline_handler=None, task_policy=None):\n        permissions = PermissionManager(root, mode='supervised', approval_handler=approval_handler,\n                                        load_stored_rules=False)\n        bindings = RuntimeBindings(config=config, data_root=data_root, backend=backend, recorder=recorder,\n            owns_tool_backend=False,\n            model_client_factory=model_client_factory, permission_manager=permissions, trusted_extensions=False,\n            task_relation=task_relation, max_model_calls=budget['max_model_calls'],\n            max_tool_calls=budget['max_tool_calls'], wall_seconds=budget['wall_seconds'],\n            turn_baseline_handler=turn_baseline_handler)\n        self.conversation, self.journal, _ = create_runtime(root, bindings=bindings,\n            task_policy=task_policy,\n            resume_identifier=resume_identifier, fork_session=fork_session,\n            model_override=config.model_id if fork_session else None)",
-          "note": "查看结构化应用参数如何变成 RuntimeBindings。"
+          "path": "forge/workers.py",
+          "symbol": "main",
+          "note": "现代 worker 的独立入口。",
+          "line": 7,
+          "end": 21,
+          "code": "def main(argv=None):\n    arguments = list(sys.argv[1:] if argv is None else argv)\n    if arguments and arguments[0] == 'file-worker':\n        from forge.sandbox.file_worker import main as worker_main\n        return worker_main(arguments[1:])\n    if arguments and arguments[0] in ('process-worker','external-worker'):\n        from forge.release.processes import main as process_main\n        return process_main(arguments[1:],gated=arguments[0]=='process-worker')\n    if arguments and arguments[0]=='doctor':\n        from forge.sandbox.doctor import main as doctor_main\n        return doctor_main(arguments[1:])\n    if arguments and arguments[0]=='office-mcp':\n        from forge.office.mcp_server import main as office_main\n        return office_main()\n    raise SystemExit('Expected one private worker role: ' + ', '.join(sorted(ROLES)))"
         },
         {
           "path": "forge/engine/journal_projection.py",
           "symbol": "JournalProjector.project_appends",
+          "note": "旧 RPC 的 Journal 投影。",
           "line": 28,
           "end": 41,
-          "code": "    def project_appends(self, journal, session_id, captured):\n        \"\"\"Project only records fsynced by the current owner; full recovery still validates disk.\"\"\"\n        if not captured:\n            return 0\n        records = list(captured)\n        self.current_event = None\n        try:\n            applied = self._project(journal.path, session_id, trusted=True, records=records)\n        except ContractError as error:\n            if error.kind == 'EVENT_CONFLICT' and self.current_event:\n                self.store.quarantine_event(*self.current_event)\n            raise\n        del captured[:len(records)]\n        return applied",
-          "note": "查看新增记录如何进入投影。"
+          "code": "    def project_appends(self, journal, session_id, captured):\n        \"\"\"Project only records fsynced by the current owner; full recovery still validates disk.\"\"\"\n        if not captured:\n            return 0\n        records = list(captured)\n        self.current_event = None\n        try:\n            applied = self._project(journal.path, session_id, trusted=True, records=records)\n        except ContractError as error:\n            if error.kind == 'EVENT_CONFLICT' and self.current_event:\n                self.store.quarantine_event(*self.current_event)\n            raise\n        del captured[:len(records)]\n        return applied"
         }
       ],
       "tests": [
         {
           "path": "tests/implementation/unit/test_architecture_boundaries.py",
           "symbol": "test_repository_dependencies_respect_boundaries",
-          "line": 47,
-          "end": 47,
+          "line": 52,
+          "end": 52,
           "code": "",
           "note": "公共内核的依赖方向由架构检查约束。"
         }
@@ -1820,7 +1832,7 @@
         "observability"
       ],
       "question": "为什么 SDK 的一个简单会话可以直接创建，而 RPC 还有工作项和调度状态？",
-      "answer": "SDK 调用方自己持有运行协程。RPC 需要在外部请求返回后持续管理任务、审批和查询，因此引入应用层状态。"
+      "answer": "普通 SDK 由调用方持有协程，不需要旧 RPC/SQLite 服务。旧客户端仍可显式选择兼容入口。"
     },
     {
       "id": "channels",
@@ -1879,8 +1891,8 @@
           "path": "forge/channels/gateway.py",
           "symbol": "ChannelGateway.handle_message",
           "line": 268,
-          "end": 287,
-          "code": "    async def handle_message(self, message: InboundMessage) -> None:\n        if not self.config.accepts(message):\n            self._report(\n                f'[Feishu] ignored unauthorized message={message.message_id or \"missing\"}'\n            )\n            return\n        if not message.message_id:\n            self._report('[Feishu] ignored message without message_id')\n            return\n        if not self.deduplicator.reserve(message):\n            self._report(f'[Feishu] ignored duplicate message={message.message_id}')\n            return\n        topic = message.thread_id or 'main'\n        self._report(\n            f'[Feishu] received message={message.message_id} '\n            f'chat={message.chat_id} topic={topic} sender={message.sender_id} '\n            f'text={_log_preview(message.text, limit=300)}'\n        )\n        key = message.session_key\n        lock = self._locks.setdefault(key, asyncio.Lock())",
+          "end": 291,
+          "code": "    async def handle_message(self, message: InboundMessage) -> None:\n        if not self.config.accepts(message):\n            self._report(\n                f'[Feishu] ignored unauthorized message={message.message_id or \"missing\"}'\n            )\n            return\n        if not message.message_id:\n            self._report('[Feishu] ignored message without message_id')\n            return\n        if not self.deduplicator.reserve(message):\n            self._report(f'[Feishu] ignored duplicate message={message.message_id}')\n            return\n        topic = message.thread_id or 'main'\n        self._report(\n            f'[Feishu] received message={message.message_id} '\n            f'chat={message.chat_id} topic={topic} sender={message.sender_id} '\n            f'text={_log_preview(message.text, limit=300)}'\n        )\n        key = message.session_key\n        lock = self._locks.setdefault(key, asyncio.Lock())\n        async with lock:\n            runtime = self._runtimes.get(key)\n            if runtime is None:\n                identifier = self.sessions.get(key)",
           "note": "从接收过滤读到会话锁和 runtime.stream。"
         }
       ],
@@ -1911,7 +1923,7 @@
       "concept": "观测数据把一次任务串成请求、工具、验证和终态。诊断时可以沿同一组关联 ID 查到耗时、错误和用量。",
       "implementation": [
         "模型请求记录提供方、请求身份、实际返回模型和原始用量。normalizer 把不同 API 的输入、输出和缓存统计拆成一致的分量。",
-        "Journal 与事件投影生成轨迹和查询视图。可选 PriceBook 根据冻结价格估算费用；缺失用量保留未知。评测比较保留全部尝试和失败。"
+        "Journal 是唯一默认事实源。ATIF/OpenAI messages 离线导出保留失败、取消和部分响应；可选 PriceBook 估算费用，缺失用量保持未知。"
       ],
       "steps": [
         [
@@ -1959,16 +1971,16 @@
           "path": "forge/observability/usage_ledger.py",
           "symbol": "normalize_usage",
           "line": 32,
-          "end": 51,
-          "code": "def normalize_usage(provider,raw):\n    if raw is None:\n        return None\n    component=raw.get('schema')=='forge.usage.components.v1'\n    cache_write=cache_read=0\n    if provider=='anthropic' or component:\n        ordinary=_count(raw['input_tokens'])\n        output=_count(raw['output_tokens'])\n        cache_write=_count(raw.get('cache_creation_input_tokens',0))\n        cache_read=_count(raw.get('cache_read_input_tokens',0))\n        total=_count(ordinary+cache_write+cache_read)\n    elif provider in ('openai_responses','openai','openai_chat','deepseek'):\n        chat='prompt_tokens' in raw\n        total=_count(raw['prompt_tokens' if chat else 'input_tokens'])\n        output=_count(raw['completion_tokens' if chat else 'output_tokens'])\n        details=raw.get('prompt_tokens_details' if chat else 'input_tokens_details') or {}\n        cache_read=_count(raw.get('prompt_cache_hit_tokens',details.get('cached_tokens',0)))\n        cache_write=_count(details.get('cache_write_tokens',0))\n        ordinary=_count(total-cache_read-cache_write)\n        if 'prompt_cache_miss_tokens' in raw and _count(raw['prompt_cache_miss_tokens'])!=ordinary+cache_write:",
+          "end": 55,
+          "code": "def normalize_usage(provider,raw):\n    if raw is None:\n        return None\n    component=raw.get('schema')=='forge.usage.components.v1'\n    cache_write=cache_read=0\n    if provider=='anthropic' or component:\n        ordinary=_count(raw['input_tokens'])\n        output=_count(raw['output_tokens'])\n        cache_write=_count(raw.get('cache_creation_input_tokens',0))\n        cache_read=_count(raw.get('cache_read_input_tokens',0))\n        total=_count(ordinary+cache_write+cache_read)\n    elif provider in ('openai_responses','openai','openai_chat','deepseek'):\n        chat='prompt_tokens' in raw\n        total=_count(raw['prompt_tokens' if chat else 'input_tokens'])\n        output=_count(raw['completion_tokens' if chat else 'output_tokens'])\n        details=raw.get('prompt_tokens_details' if chat else 'input_tokens_details') or {}\n        cache_read=_count(raw.get('prompt_cache_hit_tokens',details.get('cached_tokens',0)))\n        cache_write=_count(details.get('cache_write_tokens',0))\n        ordinary=_count(total-cache_read-cache_write)\n        if 'prompt_cache_miss_tokens' in raw and _count(raw['prompt_cache_miss_tokens'])!=ordinary+cache_write:\n            raise ValueError('Cache hit/miss counts disagree with input total')\n    elif provider == 'gemini':\n        total = _count(raw['promptTokenCount'])\n        output = _count(raw['candidatesTokenCount']) + _count(raw.get('thoughtsTokenCount', 0))",
           "note": "关注 prompt_tokens 和缓存命中如何拆分。"
         },
         {
           "path": "evals/runner.py",
           "symbol": "observed_requests",
-          "line": 458,
-          "end": 477,
-          "code": "def observed_requests(journal):\n    \"\"\"Read existing all-role observations; old root-only logs remain explicit.\"\"\"\n    records = SessionStore._read_records(journal)\n    direct, observations, terminal_counts = [], [], []\n    tool_ids = set()\n    from forge.observability.usage_ledger import token_usage\n    for record in records:\n        kind = record.get('type')\n        if kind not in {'observation', 'model_request_started', 'model_request_finished', 'tool_started', 'turn_completed'}:\n            continue\n        payload = SessionStore._payload(record, journal)\n        if kind == 'turn_completed':\n            count = (payload.get('statistics') or {}).get('model_requests')\n            if count is not None:\n                terminal_counts.append(count)\n        elif kind != 'observation':\n            direct.append((kind, payload))\n        else:\n            event = payload['event']\n            attributes = event['attributes']",
+          "line": 459,
+          "end": 482,
+          "code": "def observed_requests(journal):\n    \"\"\"Read existing all-role observations; old root-only logs remain explicit.\"\"\"\n    records = SessionStore._read_records(journal)\n    direct, observations, terminal_counts = [], [], []\n    tool_ids = set()\n    from forge.observability.usage_ledger import token_usage\n    for record in records:\n        kind = record.get('type')\n        if kind not in {'observation', 'model_request_started', 'model_request_finished', 'tool_started', 'turn_completed'}:\n            continue\n        payload = SessionStore._payload(record, journal)\n        if kind == 'turn_completed':\n            count = (payload.get('statistics') or {}).get('model_requests')\n            if count is not None:\n                terminal_counts.append(count)\n        elif kind != 'observation':\n            direct.append((kind, payload))\n        else:\n            event = payload['event']\n            attributes = event['attributes']\n            if event['event_type'] == 'tool.intent':\n                tool_ids.add(attributes['execution_id'])\n            elif event['event_type'] == 'model.request.started':\n                observations.append(('model_request_started', {",
           "note": "查看请求覆盖和未知用量的汇总。"
         }
       ],
@@ -1976,15 +1988,15 @@
         {
           "path": "tests/benchmark/test_platform_plan.py",
           "symbol": "test_unknown_request_usage_and_frozen_costs",
-          "line": 119,
-          "end": 119,
+          "line": 120,
+          "end": 120,
           "code": "",
           "note": "未知用量与冻结价格在比较中被保留。"
         }
       ],
       "related": [
         "sessions",
-        "budget",
+        "usage",
         "evaluation"
       ],
       "question": "提供方缺失一个请求的最终 usage 时，总 token 数能直接用零补齐吗？",
@@ -1999,7 +2011,7 @@
       "concept": "模型可以提出完成，系统按选定策略判断是否接受。verify 记录检查的结果以及运行时所处的代码和环境版本。",
       "implementation": [
         "VerifyTool 执行验证命令并产生 VerificationEvidence。WorkspaceTracker 提供代码修订，环境变化通过 environment_epoch 标识，旧证据据此失效。",
-        "finish_task 调用完成检查。CompletionGate 按 TaskPolicy 检查当前证据，追加 completion_checks 执行业务验收。缺口可以触发本回合内有界修复，仍计入原预算。"
+        "普通 coding 没有 CompletionGate；显式 strict/TaskPolicy 才按实际证据验收。插件完成检查可追加，不能撤销调用方条件。修复在同一回合进行，不属于累计预算。"
       ],
       "steps": [
         [
@@ -2046,8 +2058,8 @@
         {
           "path": "forge/runtime/runner.py",
           "symbol": "TurnRunner._completion_reasons",
-          "line": 656,
-          "end": 669,
+          "line": 654,
+          "end": 667,
           "code": "    async def _completion_reasons(self) -> tuple[str, ...]:\n        import inspect\n        reasons = list(await self._workspace_completion_reasons())\n        for name, callback in self.conversation.completion_checks.items():\n            try:\n                result = callback()\n                if inspect.isawaitable(result):\n                    result = await asyncio.wait_for(result, 120)\n                if not isinstance(result, (list, tuple)) or not all(isinstance(x, str) for x in result):\n                    raise ValueError('Completion check must return a sequence of reasons')\n                reasons.extend(f'{name}: {item}' for item in result)\n            except Exception as error:\n                reasons.append(f'{name}: check failed ({type(error).__name__})')\n        return tuple(reasons)",
           "note": "看内建完成检查如何与附加回调组合。"
         },
@@ -2055,8 +2067,8 @@
           "path": "forge/runtime/completion.py",
           "symbol": "CompletionGate.evaluate",
           "line": 90,
-          "end": 109,
-          "code": "    async def evaluate(\n        self,\n        tracker: WorkspaceTracker,\n        verification: VerificationEvidence | None,\n        *,\n        verification_history: tuple[VerificationEvidence, ...] = (),\n        mutation_attempted: bool,\n        require_verification: bool = False,\n        acceptance_criteria: tuple[dict[str, str], ...] = (),\n    ) -> CompletionDecision:\n        changed_paths = tracker.changed_paths\n        verification_required = (\n            self.policy.require_verification\n            or self.policy.require_task_verification\n            or self.policy.require_verification_coverage\n            or bool(self.policy.required_verification_commands)\n            or bool(self.policy.required_coverage)\n            or require_verification\n            or self.policy.require_acceptance_reconciliation\n        )",
+          "end": 113,
+          "code": "    async def evaluate(\n        self,\n        tracker: WorkspaceTracker,\n        verification: VerificationEvidence | None,\n        *,\n        verification_history: tuple[VerificationEvidence, ...] = (),\n        mutation_attempted: bool,\n        require_verification: bool = False,\n        acceptance_criteria: tuple[dict[str, str], ...] = (),\n    ) -> CompletionDecision:\n        changed_paths = tracker.changed_paths\n        verification_required = (\n            self.policy.require_verification\n            or self.policy.require_task_verification\n            or self.policy.require_verification_coverage\n            or bool(self.policy.required_verification_commands)\n            or bool(self.policy.required_coverage)\n            or require_verification\n            or self.policy.require_acceptance_reconciliation\n        )\n        code_task = (\n            mutation_attempted\n            or self.policy.require_changes\n            or verification_required",
           "note": "沿 policy 和 evidence 读取实际判定。"
         }
       ],
@@ -2072,7 +2084,7 @@
       ],
       "related": [
         "customization",
-        "budget",
+        "usage",
         "sessions"
       ],
       "question": "为什么测试通过之后再改一行实现，也可能使 finish_task 被拒绝？",
@@ -2086,7 +2098,7 @@
       "summary": "从固定验收开始开发插件，并由控制器独立判分。",
       "concept": "调用方先提供期望行为和固定样例。开发 Agent 可以生成实现、测试和 Agent 配置，控制器持有最终用于判分的预期副本。",
       "implementation": [
-        "develop_plugin 使用严格 coding 会话，并通过 add_completion_check 加入 independent-business 检查。失败反馈留在同一回合和原预算内。",
+        "develop_plugin 复用严格 coding，追加 independent-business 检查；固定预期由控制器持有，失败反馈在同一回合修复，不自动启用产物。",
         "check_agent 把声明的源码复制到私有目录，先执行插件自测，再启动独立探针进程。预期值留在父控制器，子进程只取得输入，结束后再比较输出并核对代码是否变化。"
       ],
       "steps": [
@@ -2135,16 +2147,16 @@
           "path": "forge/development.py",
           "symbol": "develop_plugin",
           "line": 12,
-          "end": 31,
-          "code": "async def develop_plugin(request, directory, acceptance, *, execute=False, max_model_calls=40,\n                         config=None, model_client_factory=None, sandbox='workspace-write', data_root=None):\n    directory = Path(directory).resolve()\n    acceptance = validate_acceptance(acceptance)  # Controller's private copy, outside candidate scope.\n    if not acceptance['cases']:\n        raise ValueError('Development requires frozen independent acceptance cases')\n    if not directory.exists():\n        from forge.plugin_cli import initialize\n        initialize(directory, name=directory.name)\n    candidate = AgentDefinition(name='candidate', base='core', plugins=(PluginSpec(str(directory), trusted=True),))\n    definition_path = directory / 'agent.json'\n    if not definition_path.exists():\n        definition_path.write_text(json.dumps({'name': directory.name, 'base': 'core',\n            'plugins': [{'source': '.', 'trusted': False}]}, indent=2), encoding='utf-8')\n    if not execute:\n        return {'status': 'planned', 'directory': str(directory), 'model_api_calls': 0,\n                'case_ids': [c['id'] for c in acceptance['cases']], 'next': 'Repeat with --execute to use the configured model budget'}\n    latest = None\n    async def independent_check():\n        nonlocal latest, candidate",
+          "end": 35,
+          "code": "async def develop_plugin(request, directory, acceptance, *, execute=False,\n                         config=None, model_client_factory=None, sandbox='workspace-write', data_root=None):\n    directory = Path(directory).resolve()\n    acceptance = validate_acceptance(acceptance)  # Controller's private copy, outside candidate scope.\n    if not acceptance['cases']:\n        raise ValueError('Development requires frozen independent acceptance cases')\n    if not directory.exists():\n        from forge.plugin_cli import initialize\n        initialize(directory, name=directory.name)\n    candidate = AgentDefinition(name='candidate', base='core', plugins=(PluginSpec(str(directory), trusted=True),))\n    definition_path = directory / 'agent.json'\n    if not definition_path.exists():\n        definition_path.write_text(json.dumps({'name': directory.name, 'base': 'core',\n            'plugins': [{'source': '.', 'trusted': False}]}, indent=2), encoding='utf-8')\n    if not execute:\n        return {'status': 'planned', 'directory': str(directory), 'model_api_calls': 0,\n                'case_ids': [c['id'] for c in acceptance['cases']], 'next': 'Repeat with --execute to use the configured model'}\n    latest = None\n    async def independent_check():\n        nonlocal latest, candidate\n        candidate = load_definition(definition_path, trust=True)\n        if candidate.base != 'core' or len(candidate.plugins) != 1 or Path(candidate.plugins[0].source).resolve() != directory:\n            return ('Development acceptance permits only the candidate plugin in this directory and a core composition.',)\n        latest = await check_agent(candidate, acceptance)",
           "note": "追踪固定 acceptance、独立回调和严格会话。"
         },
         {
           "path": "forge/validation.py",
           "symbol": "check_agent",
           "line": 190,
-          "end": 209,
-          "code": "async def check_agent(definition, acceptance, *, work_dir=None, timeout=60):\n    if any(not spec.trusted for spec in definition.plugins):\n        raise ValueError('Validation executes plugin code and self-tests; explicit trust is required')\n    acceptance = validate_acceptance(acceptance)\n    before = bindings(definition, acceptance)\n    parent = Path(work_dir).resolve() if work_dir else None\n    if parent:\n        parent.mkdir(parents=True, exist_ok=True)\n    scratch = Path(tempfile.mkdtemp(prefix='forge-check-', dir=parent)).resolve()\n    retained = True\n    environment = {k: v for k, v in os.environ.items() if k.upper() in {\n        'PATH', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATHEXT', 'SYSTEMDRIVE', 'LANG'}}\n    environment.update(TEMP=str(scratch), TMP=str(scratch), HOME=str(scratch), USERPROFILE=str(scratch),\n                       FORGE_DATA_DIR=str(scratch / 'settings'), PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1')\n    specs, self_tests, copied = [], [], {}\n    try:\n        for i, spec in enumerate(definition.plugins):\n            if spec.source.startswith('entrypoint:'):\n                specs.append(spec)\n                self_tests.append({'plugin': spec.source, 'status': 'unverified', 'reason': 'installed package has no source test directory'})",
+          "end": 213,
+          "code": "async def check_agent(definition, acceptance, *, work_dir=None, timeout=60):\n    if any(not spec.trusted for spec in definition.plugins):\n        raise ValueError('Validation executes plugin code and self-tests; explicit trust is required')\n    acceptance = validate_acceptance(acceptance)\n    before = bindings(definition, acceptance)\n    parent = Path(work_dir).resolve() if work_dir else None\n    if parent:\n        parent.mkdir(parents=True, exist_ok=True)\n    scratch = Path(tempfile.mkdtemp(prefix='forge-check-', dir=parent)).resolve()\n    retained = True\n    environment = {k: v for k, v in os.environ.items() if k.upper() in {\n        'PATH', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATHEXT', 'SYSTEMDRIVE', 'LANG'}}\n    environment.update(TEMP=str(scratch), TMP=str(scratch), HOME=str(scratch), USERPROFILE=str(scratch),\n                       FORGE_DATA_DIR=str(scratch / 'settings'), PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1')\n    specs, self_tests, copied = [], [], {}\n    try:\n        for i, spec in enumerate(definition.plugins):\n            if spec.source.startswith('entrypoint:'):\n                specs.append(spec)\n                self_tests.append({'plugin': spec.source, 'status': 'unverified', 'reason': 'installed package has no source test directory'})\n                continue\n            root = scratch / f'plugin-{i}'\n            for name, raw in plugin_files(spec.source).items():\n                target = root.joinpath(*PurePosixPath(name).parts)",
           "note": "从复制源码读到自测和探针进程。"
         }
       ],
@@ -2223,16 +2235,16 @@
           "path": "forge/validation.py",
           "symbol": "bindings",
           "line": 98,
-          "end": 117,
-          "code": "def bindings(definition, acceptance):\n    plugins = []\n    for spec in definition.plugins:\n        if spec.source.startswith('entrypoint:'):\n            entry = next(iter(metadata.entry_points(group='forge.plugins.v1', name=spec.source.split(':', 1)[1])), None)\n            if entry is None or entry.dist is None:\n                raise ValueError('Installed plugin is unavailable')\n            files = {str(f): sha256(entry.dist.locate_file(f).read_bytes()).hexdigest()\n                     for f in entry.dist.files or () if str(f).endswith(('.py', '.json', '.toml'))}\n        else:\n            files = {name: sha256(raw).hexdigest() for name, raw in plugin_files(spec.source).items()}\n        plugins.append({'code': files, 'config': spec.config, 'requires': spec.requires})\n    sdk = Path(__file__).parent\n    sdk_hash = digest({p.relative_to(sdk).as_posix(): sha256(p.read_bytes()).hexdigest()\n                       for p in sorted(sdk.rglob('*')) if p.is_file() and p.suffix in {'.py', '.md', '.json', '.sql'}\n                       and '_sandbox' not in p.parts and '__pycache__' not in p.parts})\n    versions = dependency_versions(definition)\n    interface = digest({'plugins': [{k: v for k, v in p.items() if k != 'config'} for p in plugins],\n                        'sdk': sdk_hash, 'dependencies': versions})\n    composition = definition.as_dict()",
+          "end": 121,
+          "code": "def bindings(definition, acceptance):\n    plugins = []\n    for spec in definition.plugins:\n        if spec.source.startswith('entrypoint:'):\n            entry = next(iter(metadata.entry_points(group='forge.plugins.v1', name=spec.source.split(':', 1)[1])), None)\n            if entry is None or entry.dist is None:\n                raise ValueError('Installed plugin is unavailable')\n            files = {str(f): sha256(entry.dist.locate_file(f).read_bytes()).hexdigest()\n                     for f in entry.dist.files or () if str(f).endswith(('.py', '.json', '.toml'))}\n        else:\n            files = {name: sha256(raw).hexdigest() for name, raw in plugin_files(spec.source).items()}\n        plugins.append({'code': files, 'config': spec.config, 'requires': spec.requires})\n    sdk = Path(__file__).parent\n    sdk_hash = digest({p.relative_to(sdk).as_posix(): sha256(p.read_bytes()).hexdigest()\n                       for p in sorted(sdk.rglob('*')) if p.is_file() and p.suffix in {'.py', '.md', '.json', '.sql'}\n                       and '_sandbox' not in p.parts and '__pycache__' not in p.parts})\n    versions = dependency_versions(definition)\n    interface = digest({'plugins': [{k: v for k, v in p.items() if k != 'config'} for p in plugins],\n                        'sdk': sdk_hash, 'dependencies': versions})\n    composition = definition.as_dict()\n    composition.pop('role_models')  # Deterministic checks never exercise model selection.\n    composition['plugins'] = plugins\n    return {'interface': interface, 'business': digest({'interface': interface, 'agent': composition, 'cases': acceptance}),\n            'sdk': sdk_hash, 'dependencies': versions}",
           "note": "观察 role_models 从确定性业务绑定中被剥离。"
         },
         {
           "path": "forge/delivery.py",
           "symbol": "export_agent",
           "line": 42,
-          "end": 61,
-          "code": "def export_agent(definition, acceptance, destination, *, receipt=None, models=None, sdk_wheel=None):\n    acceptance = validate_acceptance(acceptance)\n    portable(definition.as_dict())\n    portable(models or {})\n    portable(acceptance)\n    current = bindings(definition, acceptance)\n    files, specs = {}, []\n    for index, spec in enumerate(definition.plugins):\n        if spec.source.startswith('entrypoint:'):\n            specs.append(replace(spec, trusted=False))\n            continue\n        root = f'plugins/{index}'\n        for name, raw in plugin_files(spec.source).items():\n            # Selected source is public delivery material; common embedded key forms are rejected.\n            if re.search(rb'(?:api[_-]?key|password|secret|access[_-]?token)\\s*[=:]\\s*[\\x22\\x27][^\\x22\\x27\\r\\n]{4,}', raw, re.I):\n                raise ValueError(f'Possible embedded credential in {name}; use environment references')\n            files[f'{root}/{name}'] = raw\n        specs.append(replace(spec, source=root, trusted=False))\n    agent = replace(definition, plugins=tuple(specs))\n    delivery_dependencies = dependency_versions(definition, sdk_extras=('cli', 'validation') if sdk_wheel else ())",
+          "end": 65,
+          "code": "def export_agent(definition, acceptance, destination, *, receipt=None, models=None, sdk_wheel=None):\n    acceptance = validate_acceptance(acceptance)\n    portable(definition.as_dict())\n    portable(models or {})\n    portable(acceptance)\n    current = bindings(definition, acceptance)\n    files, specs = {}, []\n    for index, spec in enumerate(definition.plugins):\n        if spec.source.startswith('entrypoint:'):\n            specs.append(replace(spec, trusted=False))\n            continue\n        root = f'plugins/{index}'\n        for name, raw in plugin_files(spec.source).items():\n            # Selected source is public delivery material; common embedded key forms are rejected.\n            if re.search(rb'(?:api[_-]?key|password|secret|access[_-]?token)\\s*[=:]\\s*[\\x22\\x27][^\\x22\\x27\\r\\n]{4,}', raw, re.I):\n                raise ValueError(f'Possible embedded credential in {name}; use environment references')\n            files[f'{root}/{name}'] = raw\n        specs.append(replace(spec, source=root, trusted=False))\n    agent = replace(definition, plugins=tuple(specs))\n    delivery_dependencies = dependency_versions(definition, sdk_extras=('cli', 'validation') if sdk_wheel else ())\n    requirements = ''.join(f'{name}=={version}\\n' for name, version in delivery_dependencies.items())\n    if sdk_wheel:\n        sdk_wheel = Path(sdk_wheel)\n        if sdk_wheel.suffix != '.whl':",
           "note": "跟踪源码、wheel、依赖和清单的组织。"
         }
       ],
@@ -2260,16 +2272,16 @@
       "title": "本地评测与公共 Benchmark",
       "symbol": "eval plan / run / compare",
       "summary": "固定条件后执行任务，再用独立判分比较结果。",
-      "concept": "评测需要同时约束任务、模型、Harness、依赖和预算。统一入口把这些条件冻结，再委托已有执行设施和 grader。",
+      "concept": "评测需要冻结任务、模型、Harness、依赖和官方期限。统一入口保存这些条件，再委托已有执行设施和 grader。",
       "implementation": [
         "本地 evals.runner 通过 HarnessSession 执行任务与独立验证。公共评测复用 Harbor 和官方任务镜像，容器内仍使用 create_runtime 构造同一 Python 内核。",
         "plan 固定源码、任务版本、模型与组合；run 使用冻结条件；compare 分别比较模型、插件或 Harness 改动。所有尝试、基础设施失败和未知用量都会保留。",
-        "后训练导出接口位于 extensions，可把 Journal 投影为训练记录，并检查轨迹闭合、成功验收和来源条件。数据集与训练效果需要各自的验收证据。"
+        "轨迹仅从 Journal 离线投影为 ATIF/OpenAI messages JSONL，失败和取消不丢弃；蒸馏、SFT/DPO 和训练框架已删除。"
       ],
       "steps": [
         [
           "冻结计划",
-          "固定任务、源码、配置与预算。",
+          "固定任务、源码、配置与官方期限。",
           "plan"
         ],
         [
@@ -2311,34 +2323,34 @@
         {
           "path": "benchmark/harbor/platform.py",
           "symbol": "make_plan",
-          "line": 46,
-          "end": 65,
-          "code": "def make_plan(config_path, destination):\n    config_path, destination = Path(config_path).resolve(), Path(destination).resolve()\n    config = json.loads(config_path.read_text(encoding='utf-8'))\n    allowed = {'benchmark', 'model', 'models', 'agent', 'budget', 'tasks', 'dataset_ref', 'taskset_directory',\n               'source_directory', 'harness', 'pricing'}\n    if set(config) - allowed:\n        raise ValueError('Unknown plan configuration fields: ' + ', '.join(sorted(set(config) - allowed)))\n    portable(config)\n    spec = get_benchmark(config['benchmark'])\n    if spec.status != 'ready' or not spec.dataset:\n        raise ValueError('Choose a registered ready official benchmark')\n    definition = load_definition(config_path.parent / config['agent']) if config.get('agent') else AgentDefinition()\n    if definition.base != 'coding':\n        raise ValueError('These official code-task benchmarks require a coding composition')\n    from forge.context.compactor import CompactionConfig\n    CompactionConfig(**definition.context_options)\n    models = config.get('models', {})\n    if 'default' in models:\n        raise ValueError('default is reserved for the primary model')\n    for selection in models.values():",
+          "line": 45,
+          "end": 68,
+          "code": "def make_plan(config_path, destination):\n    config_path, destination = Path(config_path).resolve(), Path(destination).resolve()\n    config = json.loads(config_path.read_text(encoding='utf-8'))\n    allowed = {'benchmark', 'model', 'models', 'agent', 'tasks', 'dataset_ref', 'taskset_directory',\n               'source_directory', 'harness', 'pricing'}\n    if set(config) - allowed:\n        raise ValueError('Unknown plan configuration fields: ' + ', '.join(sorted(set(config) - allowed)))\n    portable(config)\n    spec = get_benchmark(config['benchmark'])\n    if spec.status != 'ready' or not spec.dataset:\n        raise ValueError('Choose a registered ready official benchmark')\n    definition = load_definition(config_path.parent / config['agent']) if config.get('agent') else AgentDefinition()\n    if definition.base != 'coding':\n        raise ValueError('These official code-task benchmarks require a coding composition')\n    from forge.context.compactor import CompactionConfig\n    CompactionConfig(**definition.context_options)\n    models = config.get('models', {})\n    if 'default' in models:\n        raise ValueError('default is reserved for the primary model')\n    for selection in models.values():\n        ModelSelection(**selection).resolve({credential_name(selection): 'unused-planning'})\n    for alias in definition.role_models.values():\n        if alias != 'default' and alias not in models:\n            raise ValueError(f'Unconfigured role model: {alias}')",
           "note": "观察被冻结的条件和凭据引用。"
         },
         {
           "path": "benchmark/harbor/run_forge.py",
           "symbol": "run_turn",
           "line": 86,
-          "end": 103,
-          "code": "async def run_turn(\n    project: Path,\n    message: str,\n    *,\n    resume: bool,\n    max_model_calls: int | None,\n    max_tool_calls: int | None,\n    max_turn_seconds: float = 1800,\n    frozen_configuration: dict | None = None,\n    runtime_bindings=None,\n    result_path: Path | None = None,\n) -> TurnResult:\n    policy=BENCHMARK_TASK_POLICY\n    bound_plan=None\n    if frozen_configuration:\n        from forge.application.models import validate\n        from forge.config import ForgeConfig\n        from forge.permissions.policy import PermissionManager",
+          "end": 109,
+          "code": "async def run_turn(\n    project: Path,\n    message: str,\n    *,\n    resume: bool,\n    frozen_configuration: dict | None = None,\n    runtime_bindings=None,\n    result_path: Path | None = None,\n    completion_policy: str = 'normal',\n) -> TurnResult:\n    # Absent fields in frozen historical runs retain their original strict gate.\n    selected_policy = frozen_configuration.get('completion_policy', 'strict') if frozen_configuration else completion_policy\n    if selected_policy not in {'normal', 'strict'}:\n        raise ValueError('Completion policy must be normal or strict')\n    policy = BENCHMARK_TASK_POLICY if selected_policy == 'strict' else None\n    bound_plan=None\n    if frozen_configuration:\n        from forge.protocol import validate\n        from forge.config import ForgeConfig\n        from forge.permissions.policy import PermissionManager\n        from forge.runtime.dependencies import RuntimeBindings\n        parameters=validate('model-parameters',frozen_configuration['parameters'])\n        harness=validate('harness-config',frozen_configuration['harness'])\n        if 'plan' in frozen_configuration:",
           "note": "找到容器内 create_runtime 的装配调用。"
         },
         {
-          "path": "extensions/qwen_tool_distillation.py",
-          "symbol": "journal_training_records",
-          "line": 1312,
-          "end": 1329,
-          "code": "def journal_training_records(path: Path, *, source: dict, outcome: dict) -> list[dict]:\n    '''Project existing Journal facts in memory into the Qwen exporter contract.'''\n    from forge.sessions.trajectory import journal_events, journal_completeness\n    events = journal_events(path)\n    completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\\n'))\n    if not completeness['record_closed'] or not completeness['responses_complete']:\n        raise TraceRejected(['Journal is incomplete: ' + ', '.join(completeness['problems'])])\n    records, snapshots, texts, calls = [], {}, {}, {}\n    def append(kind, payload):\n        records.append({'sequence': len(records), 'episode_id': events[0]['session_id'],\n                        'record_type': kind, 'payload': payload})\n    append('episode_started', source)\n    for event in events:\n        kind, payload = event['type'], event['payload']\n        if kind == 'model_input_snapshot': snapshots[payload['sha256']] = payload['request']\n        elif kind == 'model_request_started':\n            request = snapshots[payload['input_sha256']]\n            append('model_request', {**request, 'request_id': payload['request_id'],",
-          "note": "先看轨迹完整性检查，再追踪模型、工具和结果的投影。"
+          "path": "forge/sessions/trajectory.py",
+          "symbol": "journal_to_openai",
+          "note": "观察成功、失败、取消和未完成尝试的导出。",
+          "line": 293,
+          "end": 316,
+          "code": "def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:\n    \"\"\"OpenAI messages JSONL rows, one per attempt, including partial failures.\n\n    Messages contain the observed input and response. Diagnostics, partial tool\n    arguments and full execution results remain in metadata, never invented as\n    valid assistant tool calls. This is an export, not a replay or training gate.\n    \"\"\"\n    from hashlib import sha256\n    from forge.runtime.chat_stream import chat_messages\n    from forge.observability.export_queue import redact\n    events = journal_events(path)\n    completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\\n'))\n    snapshots, requests, finishes, text, reasoning, partial, results, states = {}, [], {}, {}, {}, {}, {}, {}\n    turns, terminals = {}, {}\n    for event in events:\n        kind, payload, turn = event['type'], event['payload'], event.get('turn_id')\n        key = payload.get('request_id')\n        if kind == 'turn_started': turns[turn] = payload\n        elif kind in {'turn_completed', 'turn_error', 'turn_cancelled'}: terminals[turn] = {'type': kind, **payload}\n        elif kind == 'model_input_snapshot': snapshots[payload['sha256']] = payload['request']\n        elif kind == 'model_request_started': requests.append(event)\n        elif kind == 'model_request_finished': finishes[key] = payload\n        elif kind == 'model_request_chunk': text.setdefault(key, []).append(payload['text'])\n        elif kind == 'model_reasoning_chunk': reasoning.setdefault(key, []).append(payload['text'])"
         }
       ],
       "tests": [
         {
           "path": "tests/benchmark/test_platform_plan.py",
           "symbol": "test_plan_cannot_silently_override_model_or_source",
-          "line": 79,
-          "end": 79,
+          "line": 80,
+          "end": 80,
           "code": "",
           "note": "冻结后的模型和源码条件不能被静默覆盖。"
         }
@@ -2349,7 +2361,7 @@
         "completion"
       ],
       "question": "两次任务分数不同，能否立即归因于模型更强？",
-      "answer": "要先核对任务、Harness、插件、预算、依赖和环境条件。实验分数反映它们在冻结条件下的联合表现。"
+      "answer": "先核对任务、模型、插件、完成策略、依赖和环境。公开历史成绩保留原版本和分母，不属于 1.0.0 的成绩。"
     },
     {
       "id": "release",
@@ -2359,7 +2371,7 @@
       "summary": "把最小 SDK、可选能力和跨平台验证组织起来。",
       "concept": "项目把 Python 核心和可选能力分层。依赖、原生桥、公共契约与 CI 各自有明确的构建和验证入口。",
       "implementation": [
-        "pyproject 的基础依赖支持通用 SDK，模型、CLI、MCP、coding、validation 和 evaluation 通过 extras 选择。Node 与原生桥用于相应的执行路径。",
+        "基础 SDK 无 Node/YAML/模型 SDK 依赖。coding、CLI、模型、验证和评测按 extras 安装；发布统一产品版本，但保留独立协议格式版本。",
         "build_bridge 构建和打包可信运行时清单。contracts/v1 维护跨边界协议，检查脚本核对生成内容与依赖方向。CI 分别运行便携回归、SDK 定制安装和依赖安全检查。"
       ],
       "steps": [
@@ -2407,17 +2419,17 @@
         {
           "path": "scripts/build_bridge.py",
           "symbol": "main",
-          "line": 49,
-          "end": 68,
-          "code": "def main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument('--check', action='store_true')\n    parser.add_argument('--no-build', action='store_true')\n    parser.add_argument('--bundle-python', action='store_true', help='Include verified sandbox assets in a Python wheel')\n    args = parser.parse_args()\n    if not args.no_build:\n        node = shutil.which('node')\n        if node is None:\n            raise RuntimeError('Development compiler runtime is unavailable')\n        for project in ('packages/contracts', 'sandbox_bridge'):\n            # Retired sources must not survive as executable build outputs.\n            directory = ROOT / project / 'dist'\n            for compiled in directory.rglob('*.js'):\n                if not (ROOT / project / 'src' / compiled.relative_to(directory).with_suffix('.ts')).is_file():\n                    compiled.unlink()\n                    compiled.with_suffix('.d.ts').unlink(missing_ok=True)\n            subprocess.run([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / project / 'tsconfig.json')], cwd=ROOT, check=True)\n    package_lock = json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))\n    files = {'package.json', 'sandbox_bridge/package.json', 'packages/contracts/package.json'}",
+          "line": 50,
+          "end": 73,
+          "code": "def main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument('--check', action='store_true')\n    parser.add_argument('--no-build', action='store_true')\n    parser.add_argument('--bundle-python', action='store_true', help='Include verified sandbox assets in a Python wheel')\n    args = parser.parse_args()\n    if not args.no_build:\n        node = shutil.which('node')\n        if node is None:\n            raise RuntimeError('Development compiler runtime is unavailable')\n        for project in ('packages/contracts', 'sandbox_bridge'):\n            # Retired sources must not survive as executable build outputs.\n            directory = ROOT / project / 'dist'\n            for compiled in directory.rglob('*.js'):\n                if not (ROOT / project / 'src' / compiled.relative_to(directory).with_suffix('.ts')).is_file():\n                    compiled.unlink()\n                    compiled.with_suffix('.d.ts').unlink(missing_ok=True)\n            subprocess.run([node, str(ROOT / 'node_modules/typescript/bin/tsc'), '-p', str(ROOT / project / 'tsconfig.json')], cwd=ROOT, check=True)\n    package_lock = json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))\n    files = {'package.json', 'sandbox_bridge/package.json', 'packages/contracts/package.json'}\n    for directory in (*dependency_paths(package_lock), 'sandbox_bridge/dist', 'packages/contracts/dist'):\n        for path in (ROOT / directory).rglob('*'):\n            if path.is_file():\n                if not path.resolve().is_relative_to(ROOT):",
           "note": "查看锁文件依赖、构建和清单生成。"
         },
         {
           "path": "scripts/check_sdk_install.py",
           "symbol": "main",
           "line": 14,
-          "end": 31,
-          "code": "def main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument('--output', type=Path, required=True)\n    args = parser.parse_args()\n    output = args.output.resolve()\n    output.mkdir(parents=True, exist_ok=False)\n    uv = shutil.which('uv')\n    if not uv:\n        raise ValueError('uv is required to build and install the standard wheel')\n    def run(command, *, cwd=output, environment=None):\n        result = subprocess.run([str(x) for x in command], cwd=cwd, env=environment,\n                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=180)\n        with (output / 'commands.log').open('a', encoding='utf-8') as stream:\n            stream.write(json.dumps([str(x) for x in command]) + '\\n' + result.stdout + result.stderr + '\\n')\n        if result.returncode:\n            raise RuntimeError(f'Command failed ({result.returncode}); see {output / \"commands.log\"}')\n        return result.stdout\n    run([uv, 'build', '--wheel', '--out-dir', output / 'wheels',",
+          "end": 37,
+          "code": "def main():\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument('--output', type=Path, required=True)\n    args = parser.parse_args()\n    output = args.output.resolve()\n    output.mkdir(parents=True, exist_ok=False)\n    uv = shutil.which('uv')\n    if not uv:\n        raise ValueError('uv is required to build and install the standard wheel')\n    def run(command, *, cwd=output, environment=None):\n        result = subprocess.run([str(x) for x in command], cwd=cwd, env=environment,\n                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=180)\n        with (output / 'commands.log').open('a', encoding='utf-8') as stream:\n            stream.write(json.dumps([str(x) for x in command]) + '\\n' + result.stdout + result.stderr + '\\n')\n        if result.returncode:\n            raise RuntimeError(f'Command failed ({result.returncode}); see {output / \"commands.log\"}')\n        return result.stdout\n    run([uv, 'build', '--wheel', '--out-dir', output / 'wheels',\n         '--config-setting=--global-option=build', '--config-setting=--global-option=--build-base=' + str(output / 'build')], cwd=ROOT)\n    wheel, = (output / 'wheels').glob('*.whl')\n    run([uv, 'venv', '--python', sys.executable, output / 'first'])\n    def executable(directory, name):\n        return output / directory / ('Scripts' if os.name == 'nt' else 'bin') / (name + '.exe' if os.name == 'nt' else name)\n    first = executable('first', 'python')",
           "note": "跟踪两个干净环境中的安装与复验。"
         }
       ],
@@ -2425,8 +2437,8 @@
         {
           "path": "tests/test_core_sdk.py",
           "symbol": "test_core_import_and_turn_without_optional_modules",
-          "line": 52,
-          "end": 52,
+          "line": 57,
+          "end": 57,
           "code": "",
           "note": "未启用可选模块时，核心会话可以独立运行。"
         }
@@ -2437,15 +2449,15 @@
         "contracts"
       ],
       "question": "为什么纯 SDK 可运行，还不能说明本机原生文件边界已经准备好？",
-      "answer": "SDK 核心和原生执行后端属于不同的安装及验证范围，原生 coding 还要经过自己的启动和能力检查。"
+      "answer": "Core 无需原生后端。普通 coding 默认宿主执行；显式受限命令另受平台、目录权限和 DSH runner 条件约束。"
     }
   ],
   "flows": [
     {
       "id": "coding",
-      "title": "一次 coding 请求",
+      "title": "显式验收的 coding 请求",
       "subtitle": "从“修改库存逻辑”到接受完成",
-      "description": "按状态变化走一遍正常回合。数值是用于解释实现的固定示例。",
+      "description": "教学示例显式启用验证策略；普通 coding 不强制测试、全盘盘点或完成门禁。",
       "steps": [
         [
           "entry",
@@ -2510,7 +2522,7 @@
         [
           "tools",
           "应用修改",
-          "编辑成功，工作区版本推进；检查点和执行记录描述这次变化。",
+          "编辑成功，工作区版本推进；执行记录描述这次变化；检查点由调用方选择。",
           "替换请求",
           "workspace_revision=1",
           2,
@@ -2573,7 +2585,7 @@
       "id": "plugin",
       "title": "插件开发与独立验收",
       "subtitle": "看预期值如何留在控制器",
-      "description": "开发回合与验收探针各自使用已有运行时。交付由调用方显式发起。",
+      "description": "自然语言开发复用严格 coding 与控制器持有的固定验收，不自动启用插件，也不配置累计 Harness 预算。",
       "steps": [
         [
           "customization",
@@ -2590,7 +2602,7 @@
         [
           "composition",
           "建立开发会话",
-          "创建插件模板，选择 strict coding 和本回合预算。",
+          "创建插件模板，选择 strict coding 和本回合用量记录。",
           "自然语言需求与固定契约",
           "开发工作区和 completion check 已注册。",
           0,
@@ -2662,77 +2674,77 @@
       ]
     },
     {
-      "id": "budget",
-      "title": "调用次数先耗尽",
-      "subtitle": "为什么还剩时间也会结束",
-      "description": "用库存任务的停止机制说明预算判断。这里显示的是固定教学状态。",
+      "id": "cancellation",
+      "title": "长请求与取消",
+      "subtitle": "等待状态与模型用量独立",
+      "description": "调用方可取消正在等待的请求。取消保存部分响应和真实停止原因，不由累计请求次数推断完成。",
       "steps": [
         [
-          "budget",
-          "只剩一次模型额度",
-          "任务已用 11 次请求，上限为 12，墙钟仍有剩余。",
-          "model_calls=11 / 12",
-          "允许最后一次模型请求。",
-          11,
-          14,
-          1,
-          "待验证",
+          "entry",
+          "提交请求",
+          "会话接收输入，立即显示等待状态。",
+          "一个长任务",
+          "开始请求",
+          0,
+          0,
+          0,
+          "未配置",
           "running"
         ],
         [
           "models",
-          "第十二次请求",
-          "模型生成一次新的文件替换调用。",
-          "请求 #12",
-          "模型调用额度达到上限。",
-          12,
-          14,
+          "收到部分流",
+          "真实思考和文本立即显示，Journal 批量记录诊断片段。",
+          "模型尝试 #1",
+          "部分响应",
           1,
-          "待验证",
+          0,
+          0,
+          "未配置",
           "running"
         ],
         [
-          "tools",
-          "完成这次文件替换",
-          "有效工具调用执行成功，形成新版本的代码产物。",
-          "replace_text",
-          "workspace_revision=2",
-          12,
-          15,
-          2,
-          "待验证",
-          "running"
+          "usage",
+          "用户取消",
+          "取消沿同一协程传播，停止补充新工具。",
+          "Ctrl+C",
+          "cancel requested",
+          1,
+          0,
+          0,
+          "未配置",
+          "cancelling"
         ],
         [
-          "budget",
-          "下一轮检查额度",
-          "循环准备下一次请求时检查父回合预算。",
-          "请求更多模型工作",
-          "model_budget_exhausted",
-          12,
-          15,
-          2,
-          "待验证",
-          "failed"
+          "sessions",
+          "保存事实",
+          "排空缓冲，记录 cancelled，不伪造完整回答或重放工具。",
+          "部分响应",
+          "Journal cancelled",
+          1,
+          0,
+          0,
+          "未配置",
+          "cancelled"
         ],
         [
-          "observability",
-          "保存失败终态",
-          "记录停止原因、已用次数、产物和清理结果。",
-          "failed / model_budget_exhausted",
-          "保留轨迹供后续诊断。",
-          12,
-          15,
-          2,
-          "待验证",
-          "failed"
+          "conversation",
+          "关闭所属资源",
+          "等待模型传输与所属进程清理，保留历史与草稿。",
+          "close owned resources",
+          "可继续新回合",
+          1,
+          0,
+          0,
+          "未配置",
+          "idle"
         ]
       ]
     },
     {
       "id": "switch",
       "title": "回合间切换模型",
-      "subtitle": "历史、模型选择与预算怎样配合",
+      "subtitle": "历史、模型选择与用量怎样配合",
       "description": "这条推演跟踪一次成功的空闲会话模型切换。",
       "steps": [
         [
@@ -2801,7 +2813,7 @@
   "glossary": [
     [
       "Harness",
-      "围绕模型的执行环境。负责循环、工具、上下文、权限、预算、记录和关闭。",
+      "围绕模型的执行环境。负责循环、工具、上下文、权限、用量、记录和关闭。",
       "runner"
     ],
     [
@@ -2811,7 +2823,7 @@
     ],
     [
       "回合 Turn",
-      "一次输入驱动的有界工作过程，可以包含多次模型请求和工具调用。",
+      "一次输入驱动的可取消的工作过程，可以包含多次模型请求和工具调用。",
       "conversation"
     ],
     [
@@ -2856,7 +2868,7 @@
     ],
     [
       "受管子任务",
-      "继承父权限、共享父预算并有明确关闭流程的子会话。",
+      "继承父权限、向父回合汇总用量并有明确关闭流程的子会话。",
       "children"
     ],
     [
@@ -2886,7 +2898,7 @@
     ],
     [
       "ContextVar",
-      "跟随异步执行上下文传递状态。父预算通过它被受管子任务取得。",
+      "跟随异步执行上下文传递状态。父回合状态通过它传给受管子任务。",
       "children"
     ],
     [
@@ -2927,9 +2939,9 @@
     },
     {
       "title": "理解为什么通过或失败",
-      "text": "沿预算、验证证据和独立判分找依据。",
+      "text": "沿用量、验证证据和独立判分找依据。",
       "ids": [
-        "budget",
+        "usage",
         "completion",
         "customization",
         "delivery",
@@ -3014,7 +3026,7 @@
       document.querySelectorAll('.map-layer').forEach(function (group) {
         group.hidden = !Array.from(group.querySelectorAll('.map-node')).some(function (node) { return !node.hidden; });
       });
-      document.getElementById('search-count').textContent = query ? matches + ' 个匹配模块' : guide.modules.length + ' 个模块 · 6 个职责分区';
+      document.getElementById('search-count').textContent = query ? matches + ' 个匹配模块' : guide.modules.length + ' 个模块 · ' + groups.length + ' 个职责分区';
       const empty = document.getElementById('map-empty');
       if (empty) empty.hidden = matches > 0;
     }
@@ -3061,7 +3073,7 @@
         guide.modules.filter(function (module) { return module.group === group; }).forEach(function (module) {
           const link = anchor('', '#module/' + module.id, 'map-node');
           link.dataset.module = module.id;
-          if (['conversation', 'runner', 'budget'].includes(module.id)) link.dataset.core = 'true';
+          if (['conversation', 'runner', 'usage'].includes(module.id)) link.dataset.core = 'true';
           link.append(element('strong', '', module.title), element('small', '', module.symbol));
           nodes.append(link);
         });
@@ -3338,7 +3350,7 @@
       document.body.classList.remove('nav-open');
       document.getElementById('nav-toggle').setAttribute('aria-expanded', 'false');
       applySearch();
-      document.title = (page === 'module' && modules.has(parts[1]) ? modules.get(parts[1]).title + ' · ' : '') + 'ForgeCode 架构学习手册';
+      document.title = (page === 'module' && modules.has(parts[1]) ? modules.get(parts[1]).title + ' · ' : '') + 'ForgeCode 1.0.0 架构学习手册';
       window.scrollTo({top: 0, behavior: 'instant'});
     }
     document.getElementById('revision-link').href = 'https://github.com/Titans23/forgecode/tree/' + guide.revision;

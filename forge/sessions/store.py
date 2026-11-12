@@ -12,6 +12,7 @@ import re
 from typing import Any, TYPE_CHECKING
 from uuid import uuid4
 
+from forge import __version__
 from forge.runtime.state import TurnResult, VerificationEvidence
 if TYPE_CHECKING:
     from forge.tasks.state import ActiveTask
@@ -330,7 +331,7 @@ class SessionJournal:
         )
 
     def record_resumed(self) -> None:
-        self.append('session_resumed', {'cwd': str(self.project_root)})
+        self.append('session_resumed', {'cwd': str(self.project_root), 'forge_version': __version__})
 
     def record_checkpoint_created(
         self,
@@ -543,6 +544,7 @@ class SessionStore:
                 'cwd': str(self.project_root),
                 'model': model,
                 'provider': provider,
+                'forge_version': __version__,
                 'name': clean_session_name(name),
                 'project_key': self.project_key,
             },

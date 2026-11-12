@@ -1,11 +1,13 @@
 # 离线实验分析工具
 
-此目录放实验分析工具，不属于 agent 产品运行时。保留原始实验输入和历史报告，以便核对结论。
+本目录用于已有实验的诊断，不是 Agent 的第二套运行时。分析时保留原始输入、判分、源码与模型条件；脚本输出放在忽略目录，不把历史结果改标为当前版本。
 
-- `audit_core_run.py`、`audit_artifact_failures.py`：轨迹和失败产物审计。
-- `compare_audited_runs.py`：已审计运行的对照。
-- `summarize_experiment_history.py`：历史实验与最终题目结果整理；目前含特定实验路径，运行前检查配置。
-- `probe_journal_cost.py`、`probe_unseen20_runtime.py`：专项诊断探针。
-- `prefetch_dataset_images.py`：数据集镜像预下载工具，会下载镜像。
+| 工具 | 用途 |
+|---|---|
+| `audit_core_run.py`、`audit_artifact_failures.py` | 轨迹与失败产物审计 |
+| `compare_audited_runs.py` | 已审计运行的比较 |
+| `summarize_experiment_history.py` | 历史运行与最终题目结果整理；先检查特定实验路径 |
+| `probe_journal_cost.py`、`probe_unseen20_runtime.py` | 特定问题的诊断探针，先检查输入与副作用 |
+| `prefetch_dataset_images.py` | 下载任务镜像，执行前确认所选数据集和引擎 |
 
-原 `probe_framework_faults_20260917.py` 断言旧 bug 必须存在，已随修复移除。旧复现输出保存在 `docs/reviews/2026-09-17-framework-fault-probes.json`，当前修复回归位于 `tests/runtime/test_framework_repairs.py`。
+常规导出优先使用 `forge eval report/export/compare`，见 [benchmark 指南](../README.md)。旧故障探针从 Git 历史读取；当前修复覆盖在 `tests/runtime/test_framework_repairs.py`。分析脚本不能自动重跑付费任务或修改冻结证据。

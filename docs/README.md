@@ -1,10 +1,16 @@
-# ForgeCode 文档
+# ForgeCode 1.0.0 文档
 
-- [安装与使用](install/terminal-quickstart.md)：安装、更新、CLI、Python API 和沙盒要求。
-- [当前架构](implementation/architecture.md)：模块职责、调用链和能力边界。
-- [交互式架构学习手册](architecture-guide.html)：离线打开 HTML，逐步查看模块实现、请求流程、源码节选和行为测试。
-- [当前工作](implementation/progress.json)：功能状态和待办；开发约定见根目录 [AGENTS.md](../AGENTS.md)。
+| 文档 | 用途 |
+|---|---|
+| [项目首页](../README.md) | 定位、安装与主要入口 |
+| [使用指南](install/terminal-quickstart.md) | 配置、会话、权限、SDK、插件与升级 |
+| [当前架构](implementation/architecture.md) | 内核、可选能力、数据流和生命周期 |
+| [交互式学习手册](architecture-guide.html) | 1.0.0 源码节选、模块导航与流程推演 |
+| [公共基准](../benchmark/README.md) | 官方镜像、冻结计划、独立判分和导出 |
+| [Harbor 适配说明](../benchmark/harbor/README.md) | 容器接入与历史 Aider 协议 |
+| [共享契约](../contracts/v1/README.md) | JSON Schema、TypeScript 和旧 RPC 接口 |
+| [当前进展](implementation/progress.json) | 已实施能力、最近验证和未完成范围 |
 
-implementation 下的任务卡、依赖表和测试映射由开发检查脚本使用，不记录逐次执行过程。
-测试日志和机器报告写入已忽略的 `.local/implementation`，CI 使用短期构建产物保存。
-不为单次安装、测试或清理另建文档，历史改动从 Git 查看。
+开发约定在 [AGENTS.md](../AGENTS.md)。任务卡只描述范围和依赖，逐次改动从 Git 查看；自动日志和报告放在忽略目录 `.local/implementation` 或 CI artifacts。
+
+历史成绩、冻结任务、许可文本和测试输入保留原始版本及字节。发布版本 `1.0.0` 不改变插件 API、Journal、ATIF 或 RPC 的独立格式版本，也不把历史验证升级为当前版本验收。

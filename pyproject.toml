@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'forge-code'
-version = '0.1.2'
+version = '1.0.0'
 description = 'A lightweight extensible Python Agent Harness with optional coding and terminal applications.'
 readme = 'README.md'
 license = 'MIT'

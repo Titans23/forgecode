@@ -1,5 +1,7 @@
 # 冻结评测输入
 
+这些是历史协议输入，不随 ForgeCode 1.0.0 或文档改版重新生成。
+
 这里仅保留 `experiments/delivery-repair.json` 仍引用并校验内容的两个固定输入：
 
 - `F20-20261006T223459Z-harbor-report.json`：冻结任务集的来源。

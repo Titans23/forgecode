@@ -1,6 +1,6 @@
 {
   "schema_version": "forge.bridge.runtime.v1",
-  "package_lock_sha256": "8556ea8195f154fcc3cc8dacefae81e809e56294d3af4b3326e7c5ad1c208a6f",
+  "package_lock_sha256": "06c0d58a6c0b22b8ea7bbd63ae1c8bd95e6e8334989c26caeb75ba573d2a2ef9",
   "files": [
     {
       "path": "node_modules/@deepseek-ai/cordis/LICENSE",
@@ -9240,7 +9240,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "e8ed7a714717b45147d409a037e53acbe4790c1a749b5db4b2607d0d70c021d6"
+      "sha256": "c513f1d33b1977562c23ca56d218cb1942d7f3e35a55e13b8e94ad1bdd0ec4fe"
     },
     {
       "path": "packages/contracts/dist/core.d.ts",
@@ -9272,7 +9272,7 @@
     },
     {
       "path": "packages/contracts/package.json",
-      "sha256": "2a02171947404df76c61d1891dfed8758c57b939f23553fc331a2c76f7f0bff8"
+      "sha256": "02f7ce2aad408daf1aa45854207efd9a8da1229794e41f237d8df53b7068d55f"
     },
     {
       "path": "sandbox_bridge/dist/dispatcher.js",
@@ -9292,7 +9292,7 @@
     },
     {
       "path": "sandbox_bridge/package.json",
-      "sha256": "00874afc4735ecef88779bfa0788c25526c2d5bcf049eb8e86ecf329854f8041"
+      "sha256": "82c350a7855a16ce1b35a77773a1a5cae04d6be12bb0ef55855cd81210930925"
     }
   ]
 }

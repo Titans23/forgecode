@@ -1,6 +1,6 @@
 {
   "name": "@forgecode/sandbox-bridge",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@forgecode/contracts": "0.1.2"
+    "@forgecode/contracts": "1.0.0"
   }
 }

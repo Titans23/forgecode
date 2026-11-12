@@ -15,8 +15,9 @@ plugin development, reusable Agent configurations and reproducible evaluations.
 Preserve T01's historical evidence and contribution boundaries. Full native OS isolation is an
 unfinished extension outside this critical path; do not let an older persistent
 goal automatically restart unbounded sandbox work unless the user reprioritizes.
-Keep Docker out of ordinary installation/execution. Preserve current permission,
-budget and cleanup boundaries; never relabel partial isolation as strict.
+Keep Docker out of ordinary installation/execution. Preserve permission,
+usage accounting, operation timeouts and cleanup boundaries; cumulative Harness
+budgets have been removed. Never relabel partial isolation as strict.
 
 For public benchmark evaluations, follow benchmark/README.md: use official task
 images directly. Do not use --prepare-only, --prepared-images or --force-build,

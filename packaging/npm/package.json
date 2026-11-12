@@ -1,6 +1,6 @@
 {
   "name": "@titans23/forgecode",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "description": "ForgeCode terminal Harness for Windows and Ubuntu",
   "license": "MIT",
   "type": "module",

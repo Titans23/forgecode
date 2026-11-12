@@ -1,6 +1,6 @@
 {
   "name": "forgecode-workspaces",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "private": true,
   "workspaces": [
     "packages/contracts",

@@ -296,7 +296,7 @@ def test_welcome_card_fits_a_narrow_terminal(monkeypatch):
     terminal = TerminalUI(Console(file=output, force_terminal=False, width=48))
     terminal.show_welcome('deepseek-v4-flash')
     rendered = output.getvalue()
-    assert 'ForgeCode v0.1.2' in rendered and 'deepseek-v4-flash' in rendered
+    assert 'ForgeCode v1.0.0' in rendered and 'deepseek-v4-flash' in rendered
     assert '工作区' in rendered and '/resume' in rendered
     assert all(cell_len(line) <= 48 for line in rendered.splitlines())
 
@@ -534,7 +534,7 @@ def test_redirected_terminal_streams_markdown_source_once() -> None:
     terminal.show_goodbye()
 
     rendered = output.getvalue()
-    assert 'ForgeCode v0.1.2' in rendered
+    assert 'ForgeCode v1.0.0' in rendered
     assert 'test-model' in rendered
     assert 'Ctrl+C 取消/退出' in rendered
     assert rendered.count('**Hello** from ForgeCode') == 1

@@ -1,160 +1,24 @@
-# ForgeCode Harbor evaluation
+# Harbor adapter · ForgeCode 1.0.0
 
-This integration evaluates the current ForgeCode checkout as an installed
-Harbor agent. The adapter uses this workflow:
+当前公共基准的安装、官方镜像、冻结计划、运行、取消、比较和导出统一见 [benchmark 指南](../README.md)。本页说明适配器职责及旧 Aider 协议，避免复制当前操作步骤。
 
-- stage only the package source needed to run the agent;
-- initialize an isolated Git baseline without exposing verifier files;
-- run one non-interactive ForgeCode turn in the task workspace;
-- let Harbor's independent verifier assign the reward;
-- for Aider Polyglot only, allow one same-session repair turn after a real
-  verifier failure, matching Aider's two-attempt protocol.
+适配器将冻结的包源码装入官方任务容器，建立独立 Git 基线，通过 `--message-file` 提交完整任务，执行同一 Forge 模型/工具循环，归档结果和候选补丁，再由 Harbor 的官方 verifier 判分。测试与参考答案不注入 Agent 上下文。
 
-The same installed agent can also be run on the other registered Harbor
-datasets that match ForgeCode's terminal interface:
+Terminal-Bench 2 和 SWE-bench Verified 使用 Harbor 0.18.0；默认一次尝试、零任务级自动重试、无累计 Harness 预算、normal 完成策略。官方任务时限保持独立。模型参数与源码在主机冻结，容器不能悄悄改写；请求、工具、失败、取消和未知用量进入 Journal。
 
-| Benchmark | Dataset | Runner | Repair protocol |
-| --- | --- | --- | --- |
-| Aider Polyglot | `aider-polyglot` | `python -m benchmark.harbor.run_aider` | one Aider feedback repair |
-| SWE-bench Verified | `swe-bench/swe-bench-verified` | `python -m benchmark.harbor.run_swebench` | single attempt |
-| Terminal-Bench 2 | `terminal-bench/terminal-bench-2` | `python -m benchmark.harbor.run_terminal` | single attempt |
+默认直接使用官方预构建镜像。`--prepare-only`、`--prepared-images`、`--force-build` 属于调用方明确选择的独立模式，不能作为安装失败后的自动回退。原生进程清理和容器资源清理仅作用于拥有记录的资源。
 
-Use [`../README.md`](../README.md) for the capability matrix and the required
-report fields. The generic Dataset runner deliberately does not install the
-Aider feedback plugin for SWE-bench or Terminal-Bench.
+## Aider 兼容协议
 
-## Frozen public benchmark runs
+`benchmark.harbor.run_aider` 保留 Aider 的独立旧入口：官方 verifier 失败后允许一次同会话反馈修复，并区分 pass@1 与 pass@2。`--no-feedback` 选择单次尝试变体；任务级基础设施重试与模型传输重试是不同条件。完整 225 题、重试、镜像构建及外部反馈均须显式确认运行范围。
 
-Use the [direct official-image workflow](../README.md#terminal-bench-20直接使用官方镜像)
-for Terminal-Bench runs. Do not pass `--prepare-only`, `--prepared-images` or
-`--force-build` unless the user explicitly requests that mode. The default
-installs ForgeCode inside each official task container without creating warmup
-images. The Aider-specific build examples below are not this workflow.
+统一 `forge eval plan` 的无外部反馈协议与此入口不同，不能混报。SWE-bench/Terminal-Bench 不加载 Aider feedback plugin。用于历史实验的源码和输入应按原版本恢复，不能将 1.0.0 的默认配置当作原条件。
 
-Terminal-Bench 2.0 and SWE-bench Verified use Harbor **0.18.0** on Linux/WSL
-with Docker. Choose exactly one scope: repeated `--task` IDs, `--n-tasks N`,
-or `--all`. There is no implicit model or task subset. Defaults are concurrency
-1, one attempt, zero task retries, 120 model requests, 240 tool calls and 1800
-agent seconds per task; the official task deadline remains an upper bound.
-Model settings use `ForgeConfig`: explicit options > process > project `.env`
-> user `~/.forge/.env`. Unset context/output limits use the shared defaults
-of 262144/65536 tokens; `--context-window` and `--max-output-tokens` override them. `--dry-run` shows effective settings
-and prerequisites without downloading tasks or calling a model.
+## 历史 Aider 评测
 
-Runs and cache default to `~/.local/share/forgecode/evaluation/` (or XDG data
-home). `--output-dir` selects a new run directory. `experiment.json` records
-the resolved dataset digest, selected task checksums, source and lock hashes,
-model settings, Harness budget and official verifier identity. `harbor.json`
-launches those local frozen tasks; credentials remain environment templates.
-The locked install, structured result and pre-verifier patch paths are enabled.
-`--agent oracle` runs official reference solutions without a model; successful
-offline tests alone do not establish native or live-model acceptance.
+下文保留历史发布报告的数值和限制。它们不证明当前版本通过，也不授权重新运行实验。
 
-`forge --profile evaluation status <run-dir>` reads the owning controller;
-`cancel` writes an idempotent request for that controller to stop its process
-group and reconcile only resources with a matching Docker ownership receipt.
-Ctrl+C uses the same stop path. Unconfirmed cleanup remains `unknown`, without
-restarting paid tasks. `report` retains the raw official job result and task
-rewards, alongside execution/grading/termination axes, nine outcome categories,
-valid grading rate, elapsed time and tokens. All frozen tasks remain in the
-denominator, including tasks that never started. A recovered provider error or
-an ordinary nonzero tool exit does not replace the final terminal outcome.
-
-The Journal now retains visible text chunks, incomplete tool arguments and
-actual request snapshots, per-attempt retry/terminal metadata, and tool timing
-and exit codes. `report` indexes private Journals, external payloads, patches,
-verifier results and logs with hashes. Record closure and response completeness
-are independent; missing response markers, inputs or tool results remain
-incomplete even after a turn end. `export <run-dir> --format atif` validates
-offline ATIF v1.7 using Harbor 0.18.0, writes a redacted sharing projection under
-`exports/atif` (or a new `--output-dir`), and preserves original private records.
-Public benchmark trajectories remain `evaluation-only`.
-
-The generic dataset runner freezes package bytes once under
-`<output-dir>/.source-snapshots/candidate-*/source` before starting Harbor.
-The adjacent manifest records the Git revision and per-file/content hashes;
-every trial and retry receives the same `source_dir`. Do not edit that snapshot.
-A dirty worktree is identified by its content hash, not by the commit alone.
-The kernel enforces the configured task deadline. The outer watchdog allows
-15 seconds only for cancellation and journal cleanup, then forces termination
-after a further 10 seconds if cleanup itself hangs.
-
-`summarize` preserves official values in `raw_rewards` while separating valid
-scored trials, observed timeouts, verifier bootstrap failures, and unfinished
-trials. `job_finished=false` is not proof of a live Agent: inspect processes and
-timestamp freshness before reporting a stalled job as running. A partial or
-verifier-invalid job cannot qualify as either final acceptance round.
-
-## Prerequisites
-
-```powershell
-uv sync
-docker version
-uv run harbor --version
-uv run harbor dataset download aider-polyglot --cache
-```
-
-The public benchmark runner merges user, project and process model settings. When the configured provider is
-on host `localhost`, it automatically rewrites the container endpoint to
-`host.docker.internal` without changing `.env`.
-
-## Smoke or stratified run
-
-```powershell
-uv run python -m benchmark.harbor.run_aider `
-  --task polyglot_python_proverb `
-  --task polyglot_javascript_space-age `
-  --concurrency 2 `
-  --output-dir benchmark/runs/harbor/stratified
-```
-
-Omit all `--task` arguments for the complete 225-task suite. Use
-`--no-feedback` only when measuring a strict single-attempt variant.
-Infrastructure exceptions are retried once by default; set `--max-retries 0`
-to disable that behavior.
-
-On Windows/Docker Desktop, use `--force-build` when a cached task image has a
-stale language toolchain layer (the Aider Rust images can otherwise retain a
-failed `rustc` PATH layer):
-
-```powershell
-uv run python -m benchmark.harbor.run_aider `
-  --force-build `
-  --concurrency 2 `
-  --max-retries 1 `
-  --ubuntu-mirror https://mirrors.aliyun.com/ubuntu `
-  --output-dir benchmark/runs/harbor/full-225-luna-fixed
-```
-
-The ForgeCode Harbor adapter uploads the task prompt into the container and
-passes `--message-file` to ForgeCode. This avoids Windows' command-line length
-limit for long Polyglot prompts. Scope inference also treats the benchmark's
-`supplied files:` declaration as authoritative, so prose such as “within a
-grade” cannot create a fake `a/**` write scope.
-
-If the official Ubuntu archive is unreliable from the current network, pass an
-HTTPS package mirror, for example `--ubuntu-mirror
-https://mirrors.aliyun.com/ubuntu`. This only changes where task images download
-the same pinned Ubuntu packages; it does not modify exercise sources, tests, or
-verifiers. Record the mirror in the run notes when using this option.
-
-## Metrics
-
-```powershell
-uv run python -m benchmark.harbor.summarize `
-  benchmark/runs/harbor/stratified/<job-timestamp> `
-  --output benchmark/runs/harbor/stratified/summary.json
-```
-
-The summary separates infrastructure failures from scored trials and reports
-pass@1, pass@2, successful repairs, ForgeCode internal statuses, model/tool
-calls, and provider-reported token totals. A task that only passes after test
-feedback counts in pass@2 but not pass@1.
-
-Do not use the Aider feedback plugin with benchmarks whose official protocol
-does not allow a verifier-feedback repair turn.
-
-## Full 225-task run (2026-08-11/12)
+### Full 225-task run (2026-08-11/12)
 
 The following sections preserve historical release-report values, not current
 acceptance. Their provenance is the v0.1.1 report at Git commit
@@ -189,7 +53,7 @@ The recorded rerun below used the adjusted setup/retry options. It is a
 historical result, not a pending experiment; no additional paid run is scheduled.
 Keep the all-task denominator as well as the separately labelled scored subset.
 
-## Full 225-task run (2026-08-12/13, GPT-5.6 Luna)
+### Full 225-task run (2026-08-12/13, GPT-5.6 Luna)
 
 Run directory: `benchmark/runs/harbor/full-225-luna-rerun/2026-08-12__11-53-03`.
 The run used Harbor 0.18.0, Docker 29.7.2, dataset commit

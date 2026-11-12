@@ -60,6 +60,9 @@ def test_journal_atif_resolves_payloads_and_distinguishes_closure_from_completen
     atif = journal_to_atif(journal.path)
     Trajectory.model_validate(atif)
     assert atif['schema_version'] == 'ATIF-v1.7' and 'fixture-secret' not in json.dumps(atif)
+    from forge import __version__
+    assert atif['agent']['version'] == __version__
+    assert atif['extra']['exporter_version'] == __version__
     agent = next(step for step in atif['steps'] if step['source'] == 'agent')
     assert agent['message'] == 'Visible response'
     assert agent['observation']['results'][0]['extra']['duration_seconds'] == .2

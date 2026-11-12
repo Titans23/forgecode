@@ -369,7 +369,7 @@ def test_cli_starts_an_interactive_conversation(
     result = runner.invoke(app, input='first\nsecond\n')
 
     assert result.exit_code == 0
-    assert 'ForgeCode v0.1.2' in result.output
+    assert 'ForgeCode v1.0.0' in result.output
     assert 'Ctrl+C 取消/退出' in result.output
     assert '输入问题或描述任务，Enter 开始。' in result.output
     assert 'Hello' in result.output
@@ -825,7 +825,7 @@ def test_cli_version() -> None:
     result = runner.invoke(app, ['--version'])
 
     assert result.exit_code == 0
-    assert 'ForgeCode 0.1.2' in result.stdout
+    assert 'ForgeCode 1.0.0' in result.stdout
 
 
 def test_cli_rejects_removed_prompt_option() -> None:
