@@ -385,7 +385,7 @@ async def run_case(
                     model_client_factory=(lambda *args, **kwargs: client) if client is not None else model_client_factory)
                 outcome.session_id = session.session_id
                 outcome.journal = str(session.journal.path)
-                outcome.trajectory = str(session.recorder.path)
+                outcome.trajectory = str(session.journal.path)
                 async with session:
                     # Evaluations require command execution; prove it before
                     # spending model requests, unlike an interactive session.

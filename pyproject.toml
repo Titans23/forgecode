@@ -34,7 +34,7 @@ channels = ['lark-channel-sdk>=1.2,<2']
 evaluation = ['harbor==0.18.0']
 
 [tool.setuptools.packages.find]
-include = ['forge*', 'evals*', 'benchmark*', 'extensions*']
+include = ['forge*', 'evals*', 'benchmark*']
 exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'update_implementation_pack*', 'benchmark.runs*', 'benchmark..cache*', 'benchmark.comparison.node_modules*']
 
 [tool.setuptools.package-data]

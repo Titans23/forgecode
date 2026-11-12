@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from contextvars import Context, copy_context
 from hashlib import sha256
 from time import monotonic
@@ -642,6 +642,7 @@ class ToolExecutor:
                 environment_epoch=record.environment_epoch,
                 duration_seconds=record.duration_seconds,
                 exit_code=result.metadata.get('exit_code'),
+                result=asdict(result),
             )
         from forge.observability.events import current
         recorder=current()

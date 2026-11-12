@@ -132,7 +132,7 @@ uv run --no-sync python examples/harness_demo.py --output .local/implementation/
 
 ## 评测、后训练与验证
 
-保留 `evals.runner`、`benchmark` 的官方协议适配、RunSpec/ResultBundle、独立 grader 与可复现信息。后训练复用 `extensions.qwen_tool_distillation` 的模型/工具轨迹、rollout、反馈与奖励、版本化 SFT/DPO 导出及数据检查；训练框架只由显式功能加载。
+保留 `evals.runner`、`benchmark` 的官方协议适配、RunSpec/ResultBundle、独立 grader 与可复现信息。Journal 保存完整运行轨迹，可离线导出 Harbor ATIF 和 OpenAI messages JSONL，失败与取消结果同样保留。训练和蒸馏由外部工具负责。
 
 本地 `evals.runner` 与 CLI/API 共用 HarnessSession、模型配置、用量统计、权限和资源关闭，Agent 与独立判分默认走原生 workspace-write，不可用时不会回退。`python -m evals.runner --list` 只列任务、不调用模型；实际运行读取用户模型配置。Harness 不设置累计模型次数、工具次数、token 或回合总时长预算，旧预算参数已移除；模型上下文容量、单次网络/命令超时和评测器的独立截止时间仍生效。每个 run_id 保留结果及 Journal/trajectory，只有 `passed=true` 算完整成功，latest 文件不重复计数。现有三个自建夹具用于工程回归，不是实际开源仓库 Coding Agent 能力分数。
 

@@ -77,11 +77,11 @@
       }
     },
     {
-      "id": "T-TRAIN",
+      "id": "T-TRACE",
       "owner_task": "T01",
       "release_required": true,
       "implementation_test_refs": [
-        "tests/extensions/test_qwen_tool_distillation.py"
+        "tests/sessions/test_exports.py"
       ],
       "required_platforms": [
         "portable"

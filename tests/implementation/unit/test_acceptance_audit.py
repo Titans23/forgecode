@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[3]
 def cases():
     return [{'id':identity,'implementation_test_refs':['scripts/acceptance_audit.py'],
         'required_platforms':['windows'],'platform_verification':{}} for identity in
-        ('T-API','T-CLI','T-SANDBOX','T-EVAL','T-TRAIN')]
+        ('T-API','T-CLI','T-SANDBOX','T-EVAL','T-TRACE')]
 
 def test_complete_mapping_preserves_missing_native_proof():
     result=audit_mapping(ROOT,cases())

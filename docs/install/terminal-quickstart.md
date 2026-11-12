@@ -254,7 +254,7 @@ forge --profile evaluation cancel <run-dir>
 forge --profile evaluation report <run-dir>
 forge --profile evaluation export <run-dir> --format atif
 forge --profile evaluation compare <baseline> <candidate> --change harness
-forge --profile evaluation export <qualified-training-run> --format sft --tokenizer-dir <local-tokenizer>
+forge eval export <run-dir> --format openai
 ```
 
 `terminal = core + terminal`，`evaluation = core + evaluation`；启动器只导入选中入口。需要 Harbor 时安装 `forge-code[evaluation]`；飞书兼容命令使用可选 `forge-code[channels]`。默认安装没有 Electron、React 或运行 Web 的入口。后续客户端/SDK 使用 Python API；本轮没有发布新的 GUI、HTTP 服务或 SDK 服务器。
@@ -327,15 +327,13 @@ uv run --no-sync --with pyarrow==19.0.1 python -m evals.native_swe_campaign --re
 
 补丁采集在模型启动前记录 Git 基线，空目录也创建空提交；最终差异以这个固定提交为准，包含模型途中提交的代码。采集错误保留返回码及简短 stderr，不用空补丁代替失败。
 
-后训练复用 `extensions.qwen_tool_distillation`：`TraceRecorder/RecordingModelClient` 记录实际模型请求及工具事件，`RecordedConversation` 接收独立 outcome validator，`ForgeCodeRolloutEnvironment` 提供 reset/step 和注入式执行/完成门禁，`RewardEvidence` 保存奖励组成。`clean_episode`、`build_sft_rows`、`build_dpo_row` 和 split manifest 保留版本、来源、许可、脱敏与数据划分检查。采集与导出需要显式调用，不加载 transformers/ms-swift、不启动训练集群或付费实验。
+运行默认只写 Journal。`forge eval export <run-dir> --format atif` 导出 Harbor ATIF；`--format openai` 导出 OpenAI messages JSONL（每次模型请求一行，工具 schema 与执行诊断放在同一行）。SDK 可直接调用 `forge.sessions.trajectory.journal_to_atif(path)` 或 `journal_to_openai(path)`。失败、取消、无模型请求和未结束的尝试均保留真实状态，导出脱敏但不改写源 Journal；源 Journal 仍是完整私有记录。公开 benchmark 输出标记 evaluation-only。SDK 如需旧精简格式，可显式传入 `HarnessSession.open(..., trajectory_recorder=...)`。
 
 `compare` 必须声明 `--change harness|model`，逐题展示原始判分变化，并检查任务内容、预算、协议、判分器、依赖和实际 Docker 镜像及资源限制。缺少环境证据或存在额外变化时不视为受控比较；单次比较不提供统计显著性结论。旧运行缺少的证据不会自动补造。
 
 当前评测入口不接受 Harness 累计预算参数；官方任务期限仍由 Harbor 执行。任务 ID 使用注册表完整名称，如 `terminal-bench/make-mips-interpreter`。`--taskset-dir <已冻结任务目录>` 复用已经下载的官方任务，重新核验内容与任务校验和后复制到新运行，避免重复网络下载；必须匹配数据集及显式指定的版本，未指定版本时采用该目录的冻结版本。WSL 读取 Git 差异超时会明确记入源码清单，实际冻结文件仍逐一进行哈希校验。判分器复用已有 uv 缓存，并采用 120 秒下载等待；这些设置进入冻结配置，官方判分期限保持原值。
 
-Terminal-Bench、SWE-bench Verified 的任务永久为 `evaluation-only`，修改 `usage/split` 不能用于训练导出；可用 ATIF 作脱敏诊断。SFT 从已有 Journal 离线转换为 Qwen/ms-swift 格式，保留上下文 loss mask，不新增执行日志。当前只验收导出接口及合成夹具，没有接入真实训练任务集。
-
-训练输入契约在 `experiment.json.training` 中：`sources` 用 Journal SHA-256 关联 `EpisodeSource`，`tokenizer` 包含 `id/revision/files_sha256`。来源 metadata 必须绑定 `task_content_sha256` 和 `overlap_check`（`status=passed`、方法、包含训练/保留集的 assignments，以及该列表排序键 JSON 的 SHA-256 `reference_sha256`）；导出重新检查仓库、任务和内容跨划分重叠。来源须公开且许可获准，独立判分必须成功，轨迹和工具执行证明必须完整；缺少证据一律拒绝。只从显式本地目录加载目标 tokenizer，校验其字节摘要，不自动下载。旧扩展的 `build-sft` 同样要求本地 tokenizer 和这些来源约束。
+当前不提供蒸馏、SFT/DPO、tokenizer 或训练执行代码。轨迹可交给外部分析和后训练工具，导出本身不证明数据适合训练。
 
 ## 验证
 

@@ -638,8 +638,14 @@ def evaluation_trace_index(run_dir: Path) -> dict:
 
 
 def export_atif(run_dir: Path, destination: Path) -> dict:
-    from forge.sessions.trajectory import journal_to_atif
+    return export_trajectories(run_dir, destination, format='atif')
+
+
+def export_trajectories(run_dir: Path, destination: Path, *, format: str) -> dict:
+    from forge.sessions.trajectory import journal_to_atif, journal_to_openai
     from forge.config import model_environment
+    if format not in {'atif', 'openai'}:
+        raise ValueError('Unsupported diagnostic trajectory format')
     experiment = _read_object(run_dir / 'experiment.json')
     index = evaluation_trace_index(run_dir)
     if not index['journals']:
@@ -648,15 +654,25 @@ def export_atif(run_dir: Path, destination: Path) -> dict:
     secrets = tuple(value for key, value in values.items() if any(part in key.upper() for part in ('KEY', 'SECRET', 'PASSWORD', 'TOKEN')))
     trajectories = []
     for journal in index['journals']:
-        trajectory = journal_to_atif(run_dir / journal['path'], secrets=secrets)
-        trajectory['extra'].update(run_id=experiment['run_id'], dataset=experiment['dataset'], usage='evaluation-only')
+        if format == 'atif':
+            trajectory = journal_to_atif(run_dir / journal['path'], secrets=secrets)
+            trajectory['extra'].update(run_id=experiment['run_id'], dataset=experiment['dataset'], usage='evaluation-only')
+        else:
+            trajectory = journal_to_openai(run_dir / journal['path'], secrets=secrets)
+            trial = Path(journal['path']).parts[1]
+            for row in trajectory:
+                row['metadata'].update(usage='evaluation-only', run_id=experiment['run_id'],
+                                       dataset=experiment['dataset'], trial=trial)
         trajectories.append(trajectory)
     destination.mkdir(parents=True, exist_ok=False)
+    suffix = 'json' if format == 'atif' else 'jsonl'
     for i, trajectory in enumerate(trajectories):
-        (destination / f'trajectory-{i + 1}.json').write_text(json.dumps(trajectory, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        content = (json.dumps(trajectory, ensure_ascii=False, indent=2) + '\n' if format == 'atif' else
+                   ''.join(json.dumps(row, ensure_ascii=False) + '\n' for row in trajectory))
+        (destination / f'trajectory-{i + 1}.{suffix}').write_text(content, encoding='utf-8')
     # The share index is deliberately limited to hashes and file associations.
-    share_index = {'schema_version': 'forge.evaluation.atif-export.v1', 'run_id': experiment['run_id'],
-        'usage': 'evaluation-only', 'files': [f'trajectory-{i + 1}.json' for i in range(len(trajectories))],
+    share_index = {'schema_version': f'forge.evaluation.{format}-export.v1', 'run_id': experiment['run_id'],
+        'usage': 'evaluation-only', 'files': [f'trajectory-{i + 1}.{suffix}' for i in range(len(trajectories))],
         'source_journals': index['journals']}
     (destination / 'index.json').write_text(json.dumps(share_index, indent=2) + '\n', encoding='utf-8')
     return share_index
@@ -737,58 +753,6 @@ def compare_runs(baseline: Path, candidate: Path, *, change: str) -> dict:
         'interpretation': 'Descriptive per-task changes only; no statistical significance or causal improvement claim.'}
 
 
-def export_sft(run_dir: Path, destination: Path, *, tokenizer_dir: Path | None) -> dict:
-    """Offline export contract for qualified training inputs; public tests never qualify."""
-    from hashlib import sha256
-    from extensions.qwen_tool_distillation import (evaluation_only_source, TraceRejected,
-        journal_training_records, clean_episode, validate_training_episode, tokenizer_identity,
-        qwen_token_counter, build_sft_rows, write_sft_jsonl)
-    experiment = _read_object(run_dir / 'experiment.json')
-    taskset_path = run_dir / 'tasks/taskset.json'
-    taskset = _read_object(taskset_path) if taskset_path.is_file() else experiment.get('taskset', {})
-    if evaluation_only_source({key: experiment.get(key) for key in ('dataset', 'usage', 'taskset')}) or evaluation_only_source(taskset):
-        raise TraceRejected(['Terminal-Bench and SWE-bench test inputs are permanently evaluation-only.'])
-    training = experiment.get('training') or {}
-    expected_tokenizer = training.get('tokenizer') or {}
-    if not training.get('sources') or not expected_tokenizer or tokenizer_dir is None:
-        raise TraceRejected(['Training source, overlap evidence and a local target tokenizer are required.'])
-    identity = tokenizer_identity(tokenizer_dir, model_id=expected_tokenizer.get('id', ''), revision=expected_tokenizer.get('revision', ''))
-    if identity != expected_tokenizer:
-        raise TraceRejected(['Target tokenizer bytes differ from the declared snapshot.'])
-    report = evaluation_report(run_dir)
-    index = evaluation_trace_index(run_dir)
-    if not index['journals']: raise TraceRejected(['No Journal is available for training export.'])
-    episodes = []
-    for journal in index['journals']:
-        source = training['sources'].get(journal['sha256'])
-        if not source: raise TraceRejected(['Journal is not bound to training provenance.'])
-        frozen_task = taskset.get('tasks', {}).get(source.get('task_id'), {})
-        if not frozen_task.get('content_sha256') or frozen_task['content_sha256'] != (source.get('metadata') or {}).get('task_content_sha256'):
-            raise TraceRejected(['Training source does not match frozen task content.'])
-        task = report['tasks'].get(source.get('task_id'), {})
-        if task.get('category') != 'passed' or len(task.get('attempts', [])) != 1:
-            raise TraceRejected(['Training requires one independently successful task attempt.'])
-        trial = Path(journal['path']).parts[1]
-        if trial != task.get('trial'):
-            raise TraceRejected(['Journal and independent acceptance belong to different trials.'])
-        evidence = run_dir / task['official_result']
-        outcome = {'success': True, 'validated': True, 'completion_gate_accepted': True,
-                   'validator': experiment.get('grader'), 'evidence_sha256': sha256(evidence.read_bytes()).hexdigest()}
-        records = clean_episode(journal_training_records(run_dir / journal['path'], source=source, outcome=outcome))
-        validate_training_episode(records, target_tokenizer=identity)
-        episodes.append(records)
-    # Validate every episode before loading optional libraries or creating output.
-    counter = qwen_token_counter(str(tokenizer_dir))
-    rows = [row for records in episodes for row in build_sft_rows(records, token_counter=counter, target_tokenizer=identity)]
-    if not rows: raise TraceRejected(['No complete training targets were produced.'])
-    destination.mkdir(parents=True, exist_ok=False)
-    write_sft_jsonl(destination / 'samples.jsonl', rows)
-    manifest = {'schema_version': 'forge.training.export.v1', 'rows': len(rows), 'tokenizer': identity,
-                'source_journals': [{**item, 'training_eligible': True,
-                    'training_reason': 'Source, split, overlap, acceptance and tokenizer qualified at export.'} for item in index['journals']],
-                'run_id': experiment['run_id']}
-    (destination / 'index.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-    return manifest
 
 
 def main(argv: list[str] | None = None) -> int:

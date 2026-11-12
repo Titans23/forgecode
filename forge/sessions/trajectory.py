@@ -247,6 +247,8 @@ def journal_events(path: Path) -> list[dict]:
             for record in SessionStore._read_records(path)]
 
 
+
+
 def journal_completeness(events, *, truncated_tail=False) -> dict:
     turns, ended, requests, finishes, inputs, tools, tool_ends = set(), set(), {}, {}, {}, set(), set()
     chunks, results = {}, set()
@@ -261,12 +263,12 @@ def journal_completeness(events, *, truncated_tail=False) -> dict:
         elif kind == 'model_request_chunk':
             key = payload['request_id']
             chunks[key] = chunks.get(key, 0) + len(payload.get('text', ''))
-        elif kind == 'tool_started': tools.add(payload['tool_call_id'])
-        elif kind == 'tool_completed': tool_ends.add(payload['tool_call_id'])
+        elif kind == 'tool_started': tools.add((turn, payload['tool_call_id']))
+        elif kind == 'tool_completed': tool_ends.add((turn, payload['tool_call_id']))
         elif kind == 'tool_result_message':
             for block in payload.get('message', {}).get('content', []):
                 if isinstance(block, dict) and block.get('type') == 'tool_result':
-                    results.add(block['tool_use_id'])
+                    results.add((turn, block['tool_use_id']))
     closed = bool(turns) and turns <= ended and requests.keys() <= finishes.keys() and tools <= tool_ends and not truncated_tail
     problems = []
     if not closed: problems.append('open_lifecycle')
@@ -284,8 +286,68 @@ def journal_completeness(events, *, truncated_tail=False) -> dict:
         if finish.get('text_characters', 0) != chunks.get(key, 0):
             problems.append('missing_response_text')
     return {'record_closed': closed, 'responses_complete': not problems,
-            'training_eligible': False, 'training_reason': 'Provenance and independent acceptance must be checked by training export.',
             'problems': sorted(set(problems)), 'model_requests': len(requests)}
+
+
+def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:
+    """OpenAI messages JSONL rows, one per attempt, including partial failures.
+
+    Messages contain the observed input and response. Diagnostics, partial tool
+    arguments and full execution results remain in metadata, never invented as
+    valid assistant tool calls. This is an export, not a replay or training gate.
+    """
+    from hashlib import sha256
+    from forge.runtime.chat_stream import chat_messages
+    from forge.observability.export_queue import redact
+    events = journal_events(path)
+    completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\n'))
+    snapshots, requests, finishes, text, reasoning, partial, results, states = {}, [], {}, {}, {}, {}, {}, {}
+    turns, terminals = {}, {}
+    for event in events:
+        kind, payload, turn = event['type'], event['payload'], event.get('turn_id')
+        key = payload.get('request_id')
+        if kind == 'turn_started': turns[turn] = payload
+        elif kind in {'turn_completed', 'turn_error', 'turn_cancelled'}: terminals[turn] = {'type': kind, **payload}
+        elif kind == 'model_input_snapshot': snapshots[payload['sha256']] = payload['request']
+        elif kind == 'model_request_started': requests.append(event)
+        elif kind == 'model_request_finished': finishes[key] = payload
+        elif kind == 'model_request_chunk': text.setdefault(key, []).append(payload['text'])
+        elif kind == 'model_reasoning_chunk': reasoning.setdefault(key, []).append(payload['text'])
+        elif kind == 'model_tool_chunk': partial.setdefault(key, []).append(payload)
+        elif kind == 'model_provider_state': states[key] = payload
+        elif kind == 'tool_completed': results[(turn, payload['tool_call_id'])] = payload
+    rows, represented = [], set()
+    digest = sha256(path.read_bytes()).hexdigest()
+    for event in requests:
+        start, turn = event['payload'], event.get('turn_id')
+        represented.add(turn)
+        key = start['request_id']
+        request = snapshots.get(start.get('input_sha256'), {})
+        finish = finishes.get(key, {})
+        blocks = list((finish.get('tool_blocks') or {}).values())
+        calls = [{'id': block['id'], 'type': 'function', 'function': {'name': block['name'],
+                    'arguments': json.dumps(block['arguments'], ensure_ascii=False)}}
+                 for block in blocks if block.get('complete') and 'arguments' in block]
+        messages = chat_messages(request.get('messages', []), request.get('system'), deepseek=False)
+        content = ''.join(text.get(key, []))
+        if content or calls:
+            messages.append({'role': 'assistant', 'content': content, **({'tool_calls': calls} if calls else {})})
+        tools = [{'type': 'function', 'function': {'name': tool['name'],
+                  'description': tool.get('description', ''), 'parameters': tool['input_schema']}}
+                 for tool in request.get('tools') or ()]
+        rows.append({'messages': messages, 'tools': tools, 'metadata': {
+            'journal_sha256': digest, 'session_id': event['session_id'], 'turn_id': turn,
+            'request_id': key, 'input_sha256': start.get('input_sha256'),
+            'status': finish.get('outcome', 'incomplete'), 'request': {**start, **finish},
+            'reasoning': ''.join(reasoning.get(key, [])), 'partial_tools': partial.get(key, []),
+            'provider_state': states.get(key), 'turn_outcome': terminals.get(turn),
+            'tool_results': [results[(turn, call['id'])] for call in calls if (turn, call['id']) in results],
+            'completeness': completeness}})
+    for turn in turns.keys() - represented:
+        rows.append({'messages': [{'role': 'user', 'content': turns[turn]['prompt']}], 'tools': [],
+            'metadata': {'journal_sha256': digest, 'turn_id': turn, 'request_id': None,
+                         'status': 'no_model_request', 'turn_outcome': terminals.get(turn), 'completeness': completeness}})
+    return redact(sanitize(rows), secrets)
 
 
 def journal_to_atif(path: Path, *, secrets=()) -> dict:
@@ -304,7 +366,7 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
             message = event['payload'].get('message', event['payload'])
             for block in message.get('content', []):
                 if isinstance(block, dict) and block.get('type') == 'tool_result':
-                    tool_results[block['tool_use_id']] = block
+                    tool_results[(event.get('turn_id'), block['tool_use_id'])] = block
     def step(source, message, event, **fields):
         value = {'step_id': len(steps) + 1, 'source': source, 'message': message,
                  'timestamp': event.get('timestamp'), 'extra': {'journal_event_uuid': event['uuid'], **fields.pop('extra', {})}, **fields}
@@ -331,16 +393,16 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
                 model_name=payload.get('returned_model') or payload.get('requested_model'), llm_call_count=1,
                 tool_calls=calls or None, extra={'request': payload, 'actual_model_input': snapshot.get('request'),
                     'partial_tools': partial_tools.get(key, {}), 'incomplete': payload.get('response_complete') is not True})
-            for call in calls: tool_steps[call['tool_call_id']] = value
+            for call in calls: tool_steps[(event.get('turn_id'), call['tool_call_id'])] = value
             starts.pop(key, None)
         elif kind == 'tool_completed':
-            value = tool_steps.get(payload['tool_call_id'])
+            value = tool_steps.get((event.get('turn_id'), payload['tool_call_id']))
             if value:
-                block = tool_results.get(payload['tool_call_id'], {})
+                block = tool_results.get((event.get('turn_id'), payload['tool_call_id']), {})
                 value.setdefault('observation', {'results': []})['results'].append({
                     'source_call_id': payload['tool_call_id'],
-                    'content': json.dumps(block.get('content'), ensure_ascii=False), 'extra': payload})
-        elif kind in {'context_compacted', 'session_resumed', 'session_forked', 'conversation_rewound'}:
+                    'content': json.dumps(payload.get('result', {}).get('content', block.get('content')), ensure_ascii=False), 'extra': payload})
+        elif kind in {'context_compacted', 'session_resumed', 'session_forked', 'conversation_rewound', 'turn_error', 'turn_cancelled'}:
             step('system', kind, event, extra={'relationship': payload})
     for key, event in starts.items():
         step('agent', ''.join(texts.get(key, [])), event, llm_call_count=1,

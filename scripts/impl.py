@@ -59,7 +59,7 @@ CASE_TESTS = {
     'T-API': ['tests/test_api.py'], 'T-CLI': ['tests/test_cli.py'],
     'T-SANDBOX': ['tests/native/verify_terminal_native.py'],
     'T-EVAL': ['tests/evals/test_runner.py', 'tests/benchmark/test_catalog.py'],
-    'T-TRAIN': ['tests/extensions/test_qwen_tool_distillation.py'],
+    'T-TRACE': ['tests/sessions/test_exports.py'],
 }
 
 class Parser(argparse.ArgumentParser):

@@ -77,6 +77,13 @@ def test_atif_export_is_offline_private_source_preserving_and_refuses_overwrite(
     assert json.loads((output / 'trajectory-1.json').read_text())['extra']['usage'] == 'evaluation-only'
     assert journal.path.read_bytes() == original
     with pytest.raises(FileExistsError): export_atif(tmp_path, output)
+    from benchmark.harbor.summarize import export_trajectories
+    export_dir = tmp_path / 'openai-export'
+    manifest = export_trajectories(tmp_path, export_dir, format='openai')
+    row = json.loads((export_dir / manifest['files'][0]).read_text(encoding='utf-8'))
+    assert row['metadata']['usage'] == 'evaluation-only'
+    assert row['metadata']['turn_outcome']['type'] == 'turn_cancelled'
+    assert journal.path.read_bytes() == original
 
 
 def test_comparison_lists_uncontrolled_changes_and_preserves_each_task(tmp_path, capsys):
@@ -120,78 +127,6 @@ def test_comparison_lists_uncontrolled_changes_and_preserves_each_task(tmp_path,
     assert json.loads(capsys.readouterr().out)['tasks']['a']['candidate_reward'] == '1'
 
 
-def test_sft_export_public_test_isolation_and_qualified_synthetic_fixture(tmp_path, monkeypatch):
-    from hashlib import sha256
-    from types import SimpleNamespace
-    from forge.runtime.request_snapshot import RequestSnapshot
-    from forge.sessions.store import SessionStore
-    from benchmark.harbor.summarize import export_sft
-    from extensions import qwen_tool_distillation as training
-    from benchmark.cli import main
-    output = tmp_path / 'export'
-    for dataset in ('terminal-bench/terminal-bench-2', 'swe-bench/swe-bench-verified'):
-        (tmp_path / 'experiment.json').write_text(json.dumps({'dataset': dataset, 'usage': 'train'}))
-        with pytest.raises(SystemExit, match='evaluation-only'):
-            main(['export', str(tmp_path), '--format', 'sft'])
-    # Deliberately synthetic: verifies export plumbing, not training-data results.
-    path = trial(tmp_path / 'job', reward=1)
-    (path / 'config.json').write_text(json.dumps({'task': {'path': '/tasks/a'}}))
-    journal = SessionStore(tmp_path, data_root=path / 'agent/state').create(model='synthetic-fixture')
-    journal.record_turn_started('synthetic fixture prompt', None)
-    snapshot = RequestSnapshot.capture(messages=[{'role': 'user', 'content': 'synthetic fixture prompt'}],
-        tools=[], system='fixture system', client=SimpleNamespace(model='fixture'))
-    journal.append('model_input_snapshot', snapshot.as_dict())
-    journal.append('model_request_started', {'request_id': 'r', 'input_sha256': snapshot.sha256})
-    journal.append('model_request_chunk', {'request_id': 'r', 'text': 'fixture answer'})
-    journal.append('model_request_finished', {'request_id': 'r', 'input_sha256': snapshot.sha256, 'outcome': 'completed',
-        'response_complete': True, 'text_characters': 14, 'stop_reason': 'end_turn'})
-    journal.append('turn_completed', {'status': 'completed'})
-    tokenizer = tmp_path / 'tokenizer'; tokenizer.mkdir()
-    (tokenizer / 'tokenizer_config.json').write_text('{"fixture":true}')
-    identity = training.tokenizer_identity(tokenizer, model_id='synthetic-character-counter-fixture', revision='fixture-v1')
-    digest = sha256(journal.path.read_bytes()).hexdigest()
-    source = {'task_id': 'a', 'repository': 'synthetic-fixture/repository', 'source_revision': 'a' * 40,
-        'task_template': 'synthetic-export-contract', 'split': 'train', 'license_id': 'MIT', 'source_is_public': True,
-        'metadata': {'fixture': True, 'overlap_check': {'status': 'passed', 'method': 'fixture exact identities',
-            'reference_sha256': 'b' * 64, 'assignments': [{'task_id': 'a', 'repository': 'synthetic-fixture/repository', 'split': 'train'}]}}}
-    source['metadata']['task_content_sha256'] = 'c' * 64
-    overlap = source['metadata']['overlap_check']
-    overlap['assignments'].append({'task_id': 'holdout', 'repository': 'synthetic-fixture/holdout', 'split': 'test', 'content_sha256': 'd' * 64})
-    overlap['reference_sha256'] = sha256(json.dumps(overlap['assignments'], sort_keys=True).encode()).hexdigest()
-    experiment = {'run_id': 'synthetic-fixture', 'dataset': 'synthetic-export-contract', 'usage': 'training',
-        'grader': {'id': 'synthetic-fixture-validator'}, 'taskset': {'tasks': {'a': {'directory': 'a', 'content_sha256': 'c' * 64}}},
-        'training': {'tokenizer': identity, 'sources': {digest: source}}}
-    (tmp_path / 'experiment.json').write_text(json.dumps(experiment))
-    monkeypatch.setattr(training, 'qwen_token_counter', lambda directory: len)
-    assert export_sft(tmp_path, output, tokenizer_dir=tokenizer)['rows'] == 1
-    row = json.loads((output / 'samples.jsonl').read_text())
-    assert row['metadata']['source_metadata']['fixture'] is True
-    assert row['messages'][-1] == {'role': 'assistant', 'content': 'fixture answer', 'loss': True}
-    assert all(not message['loss'] for message in row['messages'][:-1])
-    assert sha256(journal.path.read_bytes()).hexdigest() == digest
-    with pytest.raises(FileExistsError): export_sft(tmp_path, output, tokenizer_dir=tokenizer)
-    result_path = path / 'result.json'
-    result = json.loads(result_path.read_text())
-    result['verifier_result']['rewards']['reward'] = 0
-    result_path.write_text(json.dumps(result))
-    with pytest.raises(training.TraceRejected, match='independently successful'): export_sft(tmp_path, tmp_path / 'failed', tokenizer_dir=tokenizer)
-    result['verifier_result']['rewards']['reward'] = 1
-    result_path.write_text(json.dumps(result))
-    complete_bytes = journal.path.read_bytes()
-    journal.record_turn_started('cancelled synthetic fixture', None)
-    journal.record_turn_cancelled('synthetic cancellation')
-    with pytest.raises(training.TraceRejected, match='Cancelled'):
-        training.journal_training_records(journal.path, source=source, outcome={})
-    journal.path.write_bytes(complete_bytes)
-    journal.path.write_bytes(complete_bytes + b'{"partial"')
-    with pytest.raises(training.TraceRejected): export_sft(tmp_path, tmp_path / 'incomplete', tokenizer_dir=tokenizer)
-    journal.path.write_bytes(complete_bytes)
-    (tokenizer / 'tokenizer_config.json').write_text('{"fixture":"changed"}')
-    with pytest.raises(training.TraceRejected, match='tokenizer bytes'): export_sft(tmp_path, tmp_path / 'rejected', tokenizer_dir=tokenizer)
-    assert not (tmp_path / 'rejected').exists()
-    (tmp_path / 'tasks').mkdir()
-    (tmp_path / 'tasks/taskset.json').write_text(json.dumps({'dataset': 'swe-bench/swe-bench-verified', 'usage': 'train'}))
-    with pytest.raises(training.TraceRejected, match='evaluation-only'): export_sft(tmp_path, tmp_path / 'relabelled', tokenizer_dir=tokenizer)
 
 
 def test_missing_official_result_keeps_kernel_usage_and_timeout(tmp_path):

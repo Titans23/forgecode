@@ -233,11 +233,11 @@ class HarnessSession:
         return self.conversation.session_journal or self._journal
 
     @classmethod
-    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None, **resume):
+    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None,
+                   trajectory_recorder: TrajectoryRecorder | None = None, **resume):
         conversation, journal, _, backend = await open_runtime(options,
             approval_handler=approval_handler, model_client_factory=model_client_factory, **resume)
-        recorder = TrajectoryRecorder(journal.path.with_suffix('.trajectory.jsonl'))
-        return cls(conversation, journal, backend, recorder)
+        return cls(conversation, journal, backend, trajectory_recorder)
 
     @property
     def session_id(self):
@@ -275,17 +275,20 @@ class HarnessSession:
         prompt = normalize_input(prompt)
         self._task = asyncio.current_task()
         try:
-            self.recorder.record_user_message(prompt)
+            if self.recorder is not None:
+                self.recorder.record_user_message(prompt)
             async with aclosing(self.conversation.stream(prompt, **({'input_id': input_id} if input_id else {}))) as stream:
                 async for event in stream:
-                    self.recorder.record_event(event)
+                    if self.recorder is not None:
+                        self.recorder.record_event(event)
                     yield event
                     if self._task.cancelling():
                         # Deliver a pending cancel once, before closing streams.
                         # A caught cancellation may leave cancelling() nonzero.
                         await asyncio.sleep(0)
         except Exception as error:
-            self.recorder.record_error(error)
+            if self.recorder is not None:
+                self.recorder.record_error(error)
             raise
         finally:
             self._task = None

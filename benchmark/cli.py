@@ -41,9 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
         child.add_argument('run_dir', type=Path)
     export = subparsers.add_parser('export', help='export offline diagnostic trajectories')
     export.add_argument('run_dir', type=Path)
-    export.add_argument('--format', choices=['atif', 'sft'], required=True)
+    export.add_argument('--format', choices=['atif', 'openai'], required=True)
     export.add_argument('--output-dir', type=Path)
-    export.add_argument('--tokenizer-dir', type=Path, help='Already downloaded target tokenizer; SFT only.')
     compare = subparsers.add_parser('compare', help='compare frozen runs and list uncontrolled differences')
     compare.add_argument('baseline', type=Path)
     compare.add_argument('candidate', type=Path)
@@ -65,11 +64,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(compare_runs(args.baseline, args.candidate, change=args.change), ensure_ascii=True, indent=2))
         return 0
     if args.command == 'export':
-        from benchmark.harbor.summarize import export_atif, export_sft
+        from benchmark.harbor.summarize import export_trajectories
         output = args.output_dir or args.run_dir / 'exports' / args.format
         try:
-            value = (export_atif(args.run_dir, output) if args.format == 'atif' else
-                     export_sft(args.run_dir, output, tokenizer_dir=args.tokenizer_dir))
+            value = export_trajectories(args.run_dir, output, format=args.format)
         except ValueError as error:
             raise SystemExit(str(error)) from error
         print(json.dumps(value, ensure_ascii=True, indent=2))

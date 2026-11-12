@@ -85,6 +85,15 @@ def test_deepseek_stream_reassembles_arguments_and_preserves_reasoning():
     assert requests[0]['tools'][0]['function']['name'] == 'read'
 
 
+def test_chat_decoder_reassembles_fragmented_names_for_native_provider():
+    events, _ = run_stream('openai_chat', [
+        chat_chunk({'tool_calls': [{'index': 0, 'id': 'call-1', 'function': {'name': 're', 'arguments': '{'}}]}),
+        chat_chunk({'tool_calls': [{'index': 0, 'function': {'name': 'ad', 'arguments': '}'}}]}, 'tool_calls'),
+    ])
+    calls = [event.tool_call for event in events if isinstance(event, ModelToolCallCompleted)]
+    assert [(call.id, call.name, call.arguments) for call in calls] == [('call-1', 'read', {})]
+
+
 @pytest.mark.parametrize('chunks', [
     [chat_chunk({'content': 'partial'})],
     [chat_chunk({'tool_calls': [{'index': 0, 'id': 'call-1', 'function': {

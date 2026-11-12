@@ -34,50 +34,7 @@ def _text(value):
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
-def chat_messages(messages, system=None, *, deepseek=True):
-    output = [{'role': 'system', 'content': system}] if system else []
-    for message in messages:
-        content, calls, results, images = [], [], [], []
-        for part in _parts(message):
-            kind = part.get('type')
-            if kind == 'text':
-                content.append(part.get('text', ''))
-            elif kind == 'image' and not deepseek:
-                source = part['source']
-                images.append({'type': 'image_url', 'image_url': {'url':
-                    'data:' + source['media_type'] + ';base64,' + source['data']}})
-            elif kind == 'tool_use':
-                calls.append({'id': part['id'], 'type': 'function', 'function': {
-                    'name': part['name'], 'arguments': json.dumps(part['input'], ensure_ascii=False)}})
-            elif kind == 'tool_result':
-                if isinstance(part.get('content'), list) and any(p.get('type') == 'image' for p in part['content']):
-                    if deepseek:
-                        raise ModelProtocolError('This DeepSeek adapter does not support image input.')
-                    for block in part['content']:
-                        if block['type'] == 'image':
-                            source = block['source']
-                            images.append({'type': 'image_url', 'image_url': {'url':
-                                'data:' + source['media_type'] + ';base64,' + source['data']}})
-                    part = {**part, 'content': [b for b in part['content'] if b['type'] != 'image']}
-                results.append({'role': 'tool', 'tool_call_id': part['tool_use_id'],
-                                'content': _text(part.get('content', ''))})
-            else:
-                raise ModelProtocolError(f'Unsupported message part for DeepSeek: {kind}')
-        if content or calls or images and not results:
-            item = {'role': message['role'], 'content': '\n'.join(content)}
-            if images and not results:
-                item['content'] = [{'type': 'text', 'text': '\n'.join(content)}, *images]
-            if calls:
-                item['tool_calls'] = calls
-            if message['role'] == 'assistant' and deepseek:
-                state = message.get('provider_state', {})
-                item['reasoning_content'] = (state.get('data', {}).get('reasoning_content', '')
-                                             if state.get('provider') == 'deepseek' else '')
-            output.append(item)
-        output.extend(results)
-        if images and results:
-            output.append({'role': 'user', 'content': images})
-    return output
+from forge.runtime.chat_stream import chat_messages as chat_messages
 
 
 def responses_input(messages):
@@ -231,52 +188,11 @@ class NativeModelClient:
                 self.health.probe_inflight = False
 
     async def _chat(self, arguments):
-        pending, reasoning, finish, usage = {}, [], None, None
-        stream = await self._client.chat.completions.create(**arguments)
-        try:
-            async for chunk in stream:
-                if chunk.usage is not None:
-                    usage = chunk.usage
-                    from forge.observability.usage_ledger import usage_dict,token_usage
-                    raw=usage_dict(usage)
-                    yield ModelUsageUpdate(token_usage(self.provider,raw),raw_usage=raw,
-                        provider_request_id=getattr(chunk,'id',None),returned_model=getattr(chunk,'model',None),
-                        usage_is_final=not chunk.choices or any(c.finish_reason for c in chunk.choices))
-                for choice in chunk.choices:
-                    if choice.index != 0:
-                        raise ModelProtocolError('Only one completion choice is supported')
-                    delta = choice.delta
-                    if getattr(delta, 'reasoning_content', None):
-                        reasoning.append(delta.reasoning_content)
-                        yield ModelReasoningDelta(delta.reasoning_content)
-                    if delta.content:
-                        yield ModelTextDelta(delta.content)
-                    for part in delta.tool_calls or ():
-                        item = pending.setdefault(part.index, {'id': '', 'name': '', 'arguments': ''})
-                        if part.id:
-                            item['id'] = part.id
-                        if part.function:
-                            if part.function.name:
-                                item['name'] = part.function.name
-                                yield ModelToolCallStarted(part.index, item['id'], item['name'])
-                            if part.function.arguments:
-                                item['arguments'] += part.function.arguments
-                                yield ModelToolCallArgumentsDelta(part.index, part.function.arguments)
-                    if choice.finish_reason:
-                        finish = choice.finish_reason
-        finally:
-            await stream.close()
-        if finish == 'length':
-            raise ModelOutputTruncatedError(tuple(item['name'] for item in pending.values()))
-        if finish not in {'stop', 'tool_calls'} or (pending and finish != 'tool_calls'):
-            raise ModelProtocolError('Missing successful stream terminal', reason='stream_termination_missing')
-        calls = [_call(index, item['id'], item['name'], item['arguments']) for index, item in sorted(pending.items())]
-        if len({call.id for call in calls}) != len(calls):
-            raise ModelProtocolError('Duplicate tool call identity')
-        yield ModelProviderState(self.provider, {'reasoning_content': ''.join(reasoning)})
-        for call in calls:
-            yield ModelToolCallCompleted(call)
-        yield ModelResponseCompleted('tool_use' if calls else 'end_turn')
+        from forge.runtime.chat_stream import chat_response
+        from contextlib import aclosing
+        async with aclosing(chat_response(self._client, arguments, provider=self.provider)) as stream:
+            async for event in stream:
+                yield event
 
     async def _responses(self, arguments):
         final = None

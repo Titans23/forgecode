@@ -256,6 +256,7 @@ class SessionJournal:
         environment_epoch: int | None = None,
         duration_seconds: float | None = None,
         exit_code: int | None = None,
+        result: dict[str, Any] | None = None,
     ) -> None:
         if tool_call_id in self._tool_completed_ids:
             return
@@ -273,6 +274,8 @@ class SessionJournal:
             execution['workspace_revision'] = workspace_revision
         if environment_epoch is not None:
             execution['environment_epoch'] = environment_epoch
+        if result is not None:
+            execution['result'] = result
         self.append(
             'tool_completed',
             execution,

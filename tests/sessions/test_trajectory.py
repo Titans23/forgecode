@@ -56,7 +56,6 @@ def test_journal_atif_resolves_payloads_and_distinguishes_closure_from_completen
     events = journal_events(journal.path)
     assert journal_completeness(events)['record_closed']
     assert journal_completeness(events)['responses_complete']
-    assert not journal_completeness(events)['training_eligible']
     before = journal.path.read_bytes()
     atif = journal_to_atif(journal.path)
     Trajectory.model_validate(atif)

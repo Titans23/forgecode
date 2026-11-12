@@ -12,7 +12,7 @@ from dataclasses import asdict
 from hashlib import sha256
 import asyncio
 
-from forge.runtime.state import (ModelUsageUpdate, ModelRetryScheduled, ModelTextDelta,
+from forge.runtime.state import (ModelUsageUpdate, ModelRetryScheduled, ModelTextDelta, ModelReasoningDelta, ModelProviderState,
     ModelToolCallStarted, ModelToolCallArgumentsDelta, ModelToolCallCompleted, ModelResponseCompleted)
 from forge.runtime.turn_state import TurnState
 from forge.runtime.request_snapshot import RequestSnapshot
@@ -206,6 +206,13 @@ class ObservedModelClient:
                             request['tool_blocks'][str(event.index)] = {'id': event.id, 'name': event.name, 'argument_characters': 0, 'complete': False}
                             emit('model_tool_chunk', {'request_id': request['request_id'], 'index': event.index,
                                 'id': event.id, 'name': event.name})
+                        elif isinstance(event, ModelReasoningDelta):
+                            emit_chunk('model_reasoning_chunk', {'request_id': request['request_id'],
+                                'index': event.index, 'text': event.text})
+                        elif isinstance(event, ModelProviderState):
+                            flush_chunks()
+                            emit('model_provider_state', {'request_id': request['request_id'],
+                                'provider': event.provider, 'data': event.data})
                         elif isinstance(event, ModelToolCallArgumentsDelta):
                             block = request['tool_blocks'].setdefault(str(event.index), {'complete': False, 'argument_characters': 0})
                             block['argument_characters'] += len(event.partial_json)

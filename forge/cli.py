@@ -709,8 +709,6 @@ async def _run_interactive_chat(
                 continue
 
             try:
-                if resolved_recorder is None:
-                    resolved_recorder = create_trajectory_recorder(Path.cwd())
                 with resolved_terminal.stream_response() as response_view:
                     active_response_view = response_view
                     try:
@@ -861,7 +859,7 @@ async def render_streamed_turn(
 
 
 def create_trajectory_recorder(root: Path) -> TrajectoryRecorder:
-    '''Create the default append-only recorder for one CLI session.'''
+    '''Explicit legacy recorder; normal sessions use their Journal.'''
     return TrajectoryRecorder.create(root)
 
 

@@ -9,7 +9,7 @@ sys.path.insert(0,str(ROOT))
 from scripts.evidence_gate import load_evidence,check_evidence,windows_acceptance_evidence
 
 def audit_mapping(root,cases):
-    expected={'T-API','T-CLI','T-SANDBOX','T-EVAL','T-TRAIN'}
+    expected={'T-API','T-CLI','T-SANDBOX','T-EVAL','T-TRACE'}
     if {c['id'] for c in cases}!=expected or len(cases)!=len(expected):
         raise ValueError('The terminal acceptance set changed')
     result=[]
