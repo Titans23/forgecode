@@ -550,6 +550,12 @@ class TerminalUI:
                 return await prompt_async(self._prompt_message)
             running = self._response_view is not None and not self._response_view.completed
             self.prompt_session.app.erase_when_done = running
+            app = self.prompt_session.app
+            original_screen = app.full_screen, app.renderer.full_screen
+            if running:
+                # Live previews must never become scrollback when the terminal
+                # reflows. The ordinary transcript is restored on pause/exit.
+                app.full_screen = app.renderer.full_screen = True
             try:
                 text = await prompt_async(self._prompt_message, key_bindings=self._bindings,
                     refresh_interval=0.12 if running else 0, default=self._draft)
@@ -560,6 +566,8 @@ class TerminalUI:
             except asyncio.CancelledError:
                 self._draft = self.prompt_session.default_buffer.text
                 raise
+            finally:
+                app.full_screen, app.renderer.full_screen = original_screen
         return await asyncio.to_thread(self.read_prompt)
 
     def _prompt_message(self):
@@ -776,7 +784,8 @@ class StreamingResponseView:
         height = max(1, min(size.rows, self.console.height) - max(6, menu_rows + 2, draft_rows + 2))
         # Measure wrapped terminal rows (including wide Chinese characters),
         # not source newlines, so the draft never scrolls into saved output.
-        rows = self.console.render_lines(self._render(), self.console.options.update(width=width), pad=False)
+        preview = Group(Text('● ForgeCode', style='bold bright_cyan'), self._render())
+        rows = self.console.render_lines(preview, self.console.options.update(width=width), pad=False)
         fragments = []
         for row in rows[-height:]:
             for segment in row:

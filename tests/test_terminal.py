@@ -3,6 +3,7 @@
 from io import StringIO
 import asyncio
 from pathlib import Path
+import pytest
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import create_app_session
@@ -862,6 +863,97 @@ def test_dumb_terminal_streams_without_cursor_renderer(monkeypatch):
         assert 'Already visible' in output.getvalue()
         view.complete(TurnResult(text='Already visible', usage=TokenUsage(10, 2)))
     assert output.getvalue().count('Already visible') == 1
+
+
+@pytest.mark.parametrize('native_cursor_report', [True, False])
+@pytest.mark.parametrize('draft', ['中文 draft', '中文 draft ' * 12])
+def test_live_resize_keeps_previews_out_of_main_screen_and_preserves_draft(native_cursor_report, draft):
+    from prompt_toolkit.data_structures import Size
+
+    class ResizeOutput(DummyOutput):
+        size = Size(rows=32, columns=80)
+        def __init__(self):
+            self.events = []
+            self.alternate = False
+        def get_size(self):
+            return self.size
+        def erase_down(self):
+            self.events.append('erase')
+        def enter_alternate_screen(self):
+            self.events.append('enter')
+            self.alternate = True
+        def quit_alternate_screen(self):
+            self.events.append('leave')
+            self.alternate = False
+        def get_rows_below_cursor_position(self):
+            self.events.append('measure')
+            if not native_cursor_report:
+                raise NotImplementedError
+            return self.size.rows - 4
+        def write(self, text):
+            if text.strip():
+                self.events.append('paint')
+        def erase_screen(self):
+            pytest.fail('Resizing the live prompt must preserve the surrounding transcript')
+
+    async def run():
+        output = ResizeOutput()
+        transcript = StringIO()
+        with create_pipe_input() as pipe:
+            prompt = PromptSession(input=pipe, output=output)
+            # Resizes may happen between polling ticks. Only the temporary
+            # screen may contain live previews, with or without cursor reports.
+            prompt.app.terminal_size_polling_interval = None
+            terminal = TerminalUI(Console(file=transcript, force_terminal=True, width=80, height=32),
+                                  prompt_session=prompt)
+            async def until(predicate):
+                async with asyncio.timeout(5):
+                    while not predicate():
+                        await asyncio.sleep(.01)
+            with terminal.stream_response() as view:
+                view.append_reasoning('early reasoning\nlatest reasoning')
+                view.expanded = True
+                reader = asyncio.create_task(terminal.read_prompt_async())
+                try:
+                    await until(lambda: prompt.app.is_running and prompt.app.render_counter > 0)
+                    assert output.alternate and output.events.count('enter') == 1
+                    pipe.send_text(draft + '\x1b[D')
+                    await until(lambda: prompt.default_buffer.text == draft
+                                and prompt.default_buffer.cursor_position == len(draft) - 1)
+                    for size in (Size(18, 80), Size(18, 48), Size(32, 80)):
+                        frame = prompt.app.render_counter
+                        output.size = size
+                        prompt.app.invalidate()
+                        await until(lambda: prompt.app.render_counter > frame)
+                        assert output.alternate and output.events.count('enter') == 1
+                        assert prompt.app.renderer._last_screen.height == size.rows
+                        assert prompt.default_buffer.text == draft
+                        assert prompt.default_buffer.cursor_position == len(draft) - 1
+                    frame = prompt.app.render_counter
+                    pipe.send_text('\x0f')
+                    await until(lambda: not view.expanded and prompt.app.render_counter > frame)
+                    assert 'early reasoning' not in ''.join(text for _, text in view.prompt_fragments())
+                    assert output.alternate and output.events.count('enter') == 1
+                    view.append_text('Finished answer')
+                    view.complete(TurnResult(text='Finished answer', usage=TokenUsage(1, 1)))
+                finally:
+                    reader.cancel()
+                    await asyncio.gather(reader, return_exceptions=True)
+            assert transcript.getvalue().count('Finished answer') == 1
+            assert terminal._draft == draft
+            assert not output.alternate and output.events.count('leave') == 1
+            assert not prompt.app.full_screen and not prompt.app.renderer.full_screen
+            next_reader = asyncio.create_task(terminal.read_prompt_async())
+            try:
+                await until(lambda: prompt.app.is_running and prompt.default_buffer.text == draft)
+                assert not output.alternate and output.events.count('enter') == 1
+                pipe.send_text('\r')
+                assert await asyncio.wait_for(next_reader, 5) == draft
+            finally:
+                if not next_reader.done():
+                    next_reader.cancel()
+                    await asyncio.gather(next_reader, return_exceptions=True)
+    asyncio.run(run())
 
 
 def test_long_tool_history_keeps_wait_animation_visible_with_completion_menu():
