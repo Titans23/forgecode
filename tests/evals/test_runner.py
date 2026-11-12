@@ -215,6 +215,7 @@ def test_run_case_passes_with_fake_agent_and_independent_hidden_test(
         tool_response(verify),
         final_response(),
     )
+    client.provider = 'deepseek'
     output_dir = tmp_path / 'out'
 
     outcome = asyncio.run(
@@ -242,6 +243,10 @@ def test_run_case_passes_with_fake_agent_and_independent_hidden_test(
     assert report['passed'] is True
     assert client.closed and outcome.cleanup['state'] == 'clean'
     assert Path(outcome.journal).is_file()
+    assert outcome.run_configuration['provider'] == 'deepseek'
+    records = [json.loads(line) for line in Path(outcome.journal).read_text(encoding='utf-8').splitlines()]
+    assert records[0]['payload']['provider'] == 'deepseek'
+    assert outcome.trajectory == outcome.journal
 
 
 def successful_client(case, *, path='value.txt', content='new\n', verification=None):
@@ -382,16 +387,6 @@ def test_provider_configuration_uses_shared_resolver_and_factory(tmp_path, monke
     assert result.run_configuration['provider'] == 'deepseek' and client.closed
 
 
-def test_explicit_client_keeps_its_provider_in_session_metadata(tmp_path):
-    case = make_case(initialize_project(tmp_path))
-    client = successful_client(case)
-    client.provider = 'deepseek'
-    result = asyncio.run(run_case(case, project_root=tmp_path, output_dir=tmp_path / 'out',
-        client=client, sandbox='full-access'))
-    assert result.passed and client.closed
-    assert result.run_configuration['provider'] == 'deepseek'
-    records = [json.loads(line) for line in Path(result.journal).read_text(encoding='utf-8').splitlines()]
-    assert records[0]['payload']['provider'] == 'deepseek'
 
 
 def test_default_native_failure_never_falls_back_or_requests_model(tmp_path, monkeypatch):

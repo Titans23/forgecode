@@ -6,7 +6,7 @@
 
 Harness 累计预算配置与检查已移除，包括主回合、路由、摘要和受管子任务的模型次数、工具次数、累计 token 与回合总时长。`RunProfile` 只描述入口和可选路由；`TurnState` / `ObservedModelClient` 记录真实请求与用量，不决定是否继续。单次命令默认 120 秒，可显式延长；模型容量、网络超时、取消、权限及外部评测截止时间独立保留。RPC 不再创建预算配置；旧数据库表和 `budget.consumed` 事件格式仅为历史兼容和用量投影保留，新的 remaining 字段为空，不产生 reserved/limit_reached 事件。RunSpec 为只读归档保留两个可选历史计数字段，执行计划拒绝它们，归档原值、摘要和分数不改写。历史冻结的有预算实验需使用当时的源码，不能由本版本忽略其限制后重放。
 
-当前实施 T03：通用 Python SDK、可组合 coding 能力、可信插件、多模型与可复验交付。旧 T01 结果保留为历史证据。`AgentDefinition.core()` 通过同一 Conversation/TurnRunner/Journal 运行，无需工作区；内部私有存储作用域不是文件工具授权，不启动原生执行器。模型、CLI、MCP 和原生依赖为选装项，完整旧终端安装使用 `[terminal]`。
+当前实施 T03：通用 Python SDK、可组合 coding 能力、可信插件、多模型与可复验交付。旧 T01 结果保留为历史证据。`AgentDefinition.core()` 通过同一 Conversation/TurnRunner/Journal 运行，无需工作区；内部私有存储作用域不是文件工具授权，不启动原生执行器。模型、CLI、MCP、skill YAML 解析和原生依赖为选装项，完整终端安装使用 `[terminal]`。保留单仓库和单 Python 分发包，依赖与运行时按能力选择，不为每个内置能力再创建独立发布链。
 
 `PluginHost` 在显式信任后按依赖顺序加载，`PluginContext` 的注册和资源由该会话持有；错误撤销、逆序关闭与既有 runtime_close 共用关闭路径。工具仍通过 ToolExecutor 的参数检查、权限和 Journal 执行。可信插件工具在宿主运行并明确标注不受原生边界覆盖；原生文件工具的标签与限制不变。组合通过 `--agent` 选择，原启动 `--profile` 含义不变。
 

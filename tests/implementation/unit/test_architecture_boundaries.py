@@ -32,6 +32,11 @@ from scripts.check_architecture import violations
     ('runtime/completion.py', 'from forge.runtime.delivery import requirement_observation', False),
     ('messages.py', 'from forge.runtime.state import ToolCall', True),
     ('sandbox/backend.py', 'from forge.runtime.agent_loop import Conversation', True),
+    ('runtime/agent_loop.py', 'from forge.tasks.manager import TaskManager', True),
+    ('runtime/agent_loop.py', 'def coding():\n    from forge.tasks.manager import TaskManager', False),
+    ('runtime/runner.py', 'from forge.context.repository import RepositoryContext', True),
+    ('sandbox/backend.py', 'from forge.application.harness_adapter import LocalTrustedBackend', True),
+    ('workers.py', 'from forge.engine.bootstrap import create_application', True),
 ])
 def test_dependency_direction(tmp_path, path, source, forbidden):
     target = tmp_path / 'forge' / path

@@ -1,7 +1,8 @@
 """Provider-neutral tool results; no runtime, permission or SDK imports."""
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal, Protocol
+from collections.abc import Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,6 +12,30 @@ class ToolError:
     code: str
     message: str
     details: dict[str, Any] = field(default_factory=dict)
+
+
+class ToolContract(Protocol):
+    """Registry interface shared by built-ins and rootless trusted plugin tools.
+
+    Filesystem mutation metadata is an optional capability, not part of this
+    interface. Implementations retain their own validation and permission policy.
+    """
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def effect(self) -> Literal['read_only', 'workspace_write', 'process']: ...
+
+    @property
+    def definition(self) -> dict[str, Any]: ...
+
+    @property
+    def provenance(self) -> dict[str, Any]: ...
+
+    def permission_request(self, arguments: Mapping[str, Any]) -> Any: ...
+    def audit_arguments(self, arguments: Mapping[str, Any]) -> dict[str, Any]: ...
+    def validate(self, arguments: Mapping[str, Any]) -> ToolResult | None: ...
+    async def run(self, arguments: Mapping[str, Any]) -> ToolResult: ...
 
 
 @dataclass(frozen=True, slots=True)

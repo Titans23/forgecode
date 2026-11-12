@@ -54,11 +54,14 @@ def create_default_registry(
     from forge.tools.verify import VerifyTool
     from forge.tools.image import ViewImageTool
     from forge.runtime.workspace import WorkspaceTracker
-    from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
 
     tracker = WorkspaceTracker(root, observer=getattr(tool_backend, 'observer', None))
-    skill_manager = (SkillManager(root) if skills_enabled and (selected_tools is None
-        or {'load_skill', 'read_skill_resource'} & set(selected_tools)) else None)
+    skill_tools = ()
+    if skills_enabled and (selected_tools is None or {'load_skill', 'read_skill_resource'} & set(selected_tools)):
+        from forge.skills import LoadSkillTool, ReadSkillResourceTool, SkillManager
+        skill_manager = SkillManager(root)
+        skill_tools = ((LoadSkillTool, lambda: LoadSkillTool(root, skill_manager)),
+                       (ReadSkillResourceTool, lambda: ReadSkillResourceTool(root, skill_manager)))
     registry = ToolRegistry(
         [create() for kind, create in (
             (ListDirectoryTool, lambda: ListDirectoryTool(root)),
@@ -66,8 +69,7 @@ def create_default_registry(
             (ReadFileTool, lambda: ReadFileTool(root)),
             (ViewImageTool, lambda: ViewImageTool(root)),
             (GrepTool, lambda: GrepTool(root)),
-            (LoadSkillTool, lambda: LoadSkillTool(root, skill_manager)),
-            (ReadSkillResourceTool, lambda: ReadSkillResourceTool(root, skill_manager)),
+            *skill_tools,
             (CreateDirectoryTool, lambda: CreateDirectoryTool(root)),
             (RemoveDirectoryTool, lambda: RemoveDirectoryTool(root)),
             (WriteFileTool, lambda: WriteFileTool(root)),
@@ -86,8 +88,7 @@ def create_default_registry(
                                   tool_backend=tool_backend, event_recorder=event_recorder)),
             (FinishTaskTool, lambda: FinishTaskTool(root)),
             (ReviewDeliveryTool, lambda: ReviewDeliveryTool(root))
-        ) if (selected_tools is None or kind.name in selected_tools)
-          and (skill_manager is not None or kind not in (LoadSkillTool, ReadSkillResourceTool))],
+        ) if selected_tools is None or kind.name in selected_tools],
         workspace_tracker=tracker,
         # Chunked writes remain an internal compatibility primitive. Normal
         # model calls can use write_file or apply_patch for large text edits.

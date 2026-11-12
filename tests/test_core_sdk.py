@@ -60,7 +60,7 @@ def test_core_import_and_turn_without_optional_modules(tmp_path):
         from pathlib import Path
         class Reject(importlib.abc.MetaPathFinder):
             def find_spec(self, fullname, *args):
-                if fullname.split('.')[0] in {'anthropic', 'openai', 'mcp', 'typer', 'rich', 'prompt_toolkit', 'win32api', 'httpx'}:
+                if fullname.split('.')[0] in {'anthropic', 'openai', 'mcp', 'typer', 'rich', 'prompt_toolkit', 'win32api', 'httpx', 'yaml'}:
                     raise ImportError('Optional dependency loaded: ' + fullname)
                 if fullname.startswith(('forge.sandbox', 'forge.tasks', 'forge.skills',
                                         'forge.context.repository', 'forge.context.working', 'forge.runtime.jobs')):

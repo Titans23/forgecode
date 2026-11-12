@@ -53,7 +53,12 @@ def linked_workspace(tmp_path):
 
 
 @pytest.mark.parametrize('sandbox', ['full-access', 'danger-full-access'])
-def test_host_linked_workspace_reads_and_writes_physical_targets(linked_workspace, sandbox):
+def test_host_mode_alias_selects_the_same_execution_and_approval(tmp_path, sandbox):
+    selected = SessionOptions(tmp_path, sandbox=sandbox)
+    assert selected.sandbox == 'full-access' and selected.approval == 'never'
+
+
+def test_host_linked_workspace_reads_and_writes_physical_targets(linked_workspace):
     from dataclasses import replace
     settings, link, outside = linked_workspace
     clients, approvals = [], []
@@ -67,7 +72,7 @@ def test_host_linked_workspace_reads_and_writes_physical_targets(linked_workspac
         return ApprovalResponse('deny')
 
     async def run():
-        selected = replace(settings, sandbox=sandbox)
+        selected = replace(settings, sandbox='full-access')
         assert selected.sandbox == 'full-access'
         async with await HarnessSession.open(selected, model_client_factory=model_factory,
                 approval_handler=deny) as session:
@@ -103,7 +108,7 @@ def test_host_linked_workspace_reads_and_writes_physical_targets(linked_workspac
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('sandbox', [None, 'full-access', 'danger-full-access'])
+@pytest.mark.parametrize('sandbox', [None, 'danger-full-access'])
 def test_real_cli_linked_workspace_startup_without_model_requests(linked_workspace, sandbox):
     import os
     settings, link, _ = linked_workspace

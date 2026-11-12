@@ -16,13 +16,28 @@ def runtime_nodes(node):
         yield from runtime_nodes(child)
 
 
+def eager_nodes(node):
+    """Domain implementations may be selected inside factories, never on core import."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return
+    if isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id == 'TYPE_CHECKING':
+        return
+    yield node
+    for child in ast.iter_child_nodes(node):
+        yield from eager_nodes(child)
+
+
 def violations(root=ROOT):
     failures = []
     independent = {'messages.py', 'tool_types.py', 'protocol.py'}
-    for path in (root / 'forge').rglob('*.py'):
-        relative = path.relative_to(root / 'forge')
+    paths = list((root / 'forge').rglob('*.py'))
+    for directory in ('', 'adapters', 'core', 'harbor', 'comparison'):
+        paths.extend((root / 'benchmark' / directory).glob('*.py'))
+    for path in paths:
+        relative = path.relative_to(root / 'forge') if path.is_relative_to(root / 'forge') else path.relative_to(root)
         tree = ast.parse(path.read_text(encoding='utf-8-sig'))
         executable = set(runtime_nodes(tree)) if relative.as_posix() == 'runtime/runner.py' else set()
+        eager = set(eager_nodes(tree))
         for node in ast.walk(tree):
             imports = [node.module] if isinstance(node, ast.ImportFrom) and node.module else (
                 [name.name for name in node.names] if isinstance(node, ast.Import) else [])
@@ -30,6 +45,12 @@ def violations(root=ROOT):
                 if not module.startswith('forge.'):
                     continue
                 forbidden = (relative.as_posix() in independent or
+                    (relative.parts[0] in {'runtime', 'context', 'tools', 'sandbox', 'sessions', 'observability', 'release', 'benchmark'}
+                     or relative.as_posix() in {'api.py', 'workers.py', 'identifiers.py'})
+                    and module.startswith(('forge.engine', 'forge.application')) or
+                    relative.as_posix() in {'runtime/agent_loop.py', 'runtime/factory.py', 'runtime/runner.py',
+                                           'context/manager.py', 'sessions/store.py'}
+                    and node in eager and module.startswith(('forge.tasks', 'forge.skills', 'forge.context.repository', 'forge.runtime.jobs')) or
                     relative.parts[0] in {'runtime', 'context', 'tools', 'sandbox', 'sessions'}
                     and module.startswith(('forge.cli', 'forge.application.models')) or
                     relative.parts[0] == 'sandbox' and module == 'forge.runtime.agent_loop' or

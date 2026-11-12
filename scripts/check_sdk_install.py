@@ -45,7 +45,7 @@ from pathlib import Path
 from forge.api import AgentDefinition, HarnessSession, SessionOptions
 from forge.config import ForgeConfig
 from forge.runtime.state import ModelTextDelta, ModelResponseCompleted
-assert all(importlib.util.find_spec(x) is None for x in ('anthropic','openai','httpx','mcp','openpyxl'))
+assert all(importlib.util.find_spec(x) is None for x in ('anthropic','openai','httpx','mcp','openpyxl','yaml'))
 class Model:
  model = 'offline'
  async def stream(self, **kwargs):
@@ -55,7 +55,11 @@ async def main():
  async with await HarnessSession.open(SessionOptions(agent=AgentDefinition.core(), data_root=Path(sys.argv[1]),
   config=ForgeConfig(api_key='unused', model_id='offline')), model_client_factory=lambda *a, **k: Model()) as session:
   assert session.backend is None and (await session.run('hello')).text == 'ok'
- assert not any(x.startswith('forge.sandbox') for x in sys.modules)
+ from forge.sessions.trajectory import journal_to_openai
+ rows = journal_to_openai(session.journal.path)
+ assert rows[0]['messages'][-1]['content'] == 'ok'
+ assert not any(x.startswith(('forge.sandbox', 'forge.tasks', 'forge.skills', 'forge.context.repository',
+                              'forge.runtime.jobs', 'forge.engine', 'forge.application')) for x in sys.modules)
 asyncio.run(main())
 '''
     run([first, '-I', '-c', probe, output / 'core-data'], environment=environment)

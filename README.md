@@ -2,7 +2,7 @@
 
 ForgeCode 是一个轻量、可扩展的 Python Agent Harness 基座，用于构建、运行、验证和复用 Coding、Personal、Robot 等领域的 Agent。核心复用同一模型/工具循环、权限、会话和取消机制；领域能力按需组合。自然语言插件开发、主流 benchmark 评测和完整运行轨迹是主要能力，轨迹可导出供后训练使用。Coding Agent 与终端 CLI 是默认应用；各领域适配的实际验证状态见 [progress.json](docs/implementation/progress.json)。
 
-纯 SDK 使用 `SessionOptions(agent=AgentDefinition.core(), data_root=...)`，可在没有工作区和 Node 的环境运行。按需安装 `forge-code[anthropic]` 或 `forge-code[openai]`；完整终端环境为 `forge-code[terminal]`。源码开发继续使用锁文件及全部 extras。
+纯 SDK 使用 `SessionOptions(agent=AgentDefinition.core(), data_root=...)`，可在没有工作区、Node、YAML 解析器和模型 SDK 的环境运行。按需安装 `forge-code[anthropic]` 或 `forge-code[openai]`；coding 依赖为 `forge-code[coding]`，完整终端环境为 `forge-code[terminal]`。源码开发继续使用锁文件及全部 extras。
 
 `forge plugin init/develop/check`、`forge agent check/export/import` 的用法见 [定制指南](docs/install/terminal-quickstart.md)；
 `forge eval plan/run/compare` 与 pi 确定性对照见 [评测说明](benchmark/README.md)。插件必须显式信任/启用；检查不默认调用付费模型，
@@ -10,7 +10,7 @@ ForgeCode 是一个轻量、可扩展的 Python Agent Harness 基座，用于构
 
 ForgeCode 自有代码采用 [MIT](LICENSE)；[第三方声明](THIRD_PARTY_NOTICES.md) 保留依赖、参考项目和基准的原有权利。
 
-当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
+当前 `main` 提供通用 Python Harness，coding Agent 和持续对话终端是默认应用。启动 Profile 选择入口，AgentDefinition 选择能力；Python API 提供结构化事件、结果和取消。插件、原生执行隔离和 benchmark 按需使用，轨迹可导出给外部分析工具。
 
 运行主线是模型调用 → 授权工具执行 → Journal 记录与状态重建；验证和完成检查按所选组合启用。评测用独立 grader 判分，并用冻结任务报告完成率、失败类型、耗时和 token。共享用量统计、验证证据与副作用生命周期的调用链见 [当前架构](docs/implementation/architecture.md#4-核心调用链与证明边界)，历史证据及范围见 [T01](docs/implementation/tasks/T01.md) 和 [当前进展](docs/implementation/progress.json)。
 

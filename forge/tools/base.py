@@ -44,7 +44,7 @@ class SandboxInput(ToolInput):
         return self
 
 
-from forge.tool_types import ToolError, ToolResult, ToolExecutionError
+from forge.tool_types import ToolError, ToolResult, ToolExecutionError, ToolContract
 
 InputT = TypeVar('InputT', bound=ToolInput)
 
@@ -279,12 +279,12 @@ class ToolRegistry:
 
     def __init__(
         self,
-        tools: Iterable[Tool[Any]] = (),
+        tools: Iterable[ToolContract] = (),
         *,
         workspace_tracker: Any | None = None,
         hidden_tools: Iterable[str] = (),
     ) -> None:
-        self._tools: dict[str, Tool[Any]] = {}
+        self._tools: dict[str, ToolContract] = {}
         self._hidden_tools = frozenset(hidden_tools)
         self.workspace_tracker = workspace_tracker
         from forge.file_mutations import FileMutationLocks
@@ -292,7 +292,7 @@ class ToolRegistry:
         for tool in tools:
             self.register(tool)
 
-    def register(self, tool: Tool[Any]) -> None:
+    def register(self, tool: ToolContract) -> None:
         if tool.name in self._tools:
             raise ValueError(f'Duplicate tool name: {tool.name}')
         self._tools[tool.name] = tool
@@ -332,7 +332,7 @@ class ToolRegistry:
         except Exception:
             return False
 
-    def implementation(self, name: str) -> Tool[Any] | None:
+    def implementation(self, name: str) -> ToolContract | None:
         '''Return one internal tool implementation without exposing new schema.'''
         return self._tools.get(name)
 
@@ -341,7 +341,7 @@ class ToolRegistry:
         if tool is None or getattr(tool, 'file_mutation', False) is not True or tool.effect != 'workspace_write':
             return ()
         from forge.tools.paths import mutation_target_paths
-        return tuple(tool.root / path for path in mutation_target_paths(call, maximum=None))
+        return tuple(getattr(tool, 'root') / path for path in mutation_target_paths(call, maximum=None))
 
     def provenance(self, name: str) -> dict[str, Any]:
         tool = self._tools.get(name)

@@ -442,6 +442,7 @@ def build_tool_result_message(
 
     content: list[dict[str, Any]] = []
     for tool_call, result in tool_results:
+        body: str | list[Any]
         blocks = result.metadata.get('content_blocks') or ([result.metadata['image']] if 'image' in result.metadata else [])
         if blocks:
             description = replace(result, metadata={k: v for k, v in result.metadata.items() if k not in {'image', 'content_blocks'}})
