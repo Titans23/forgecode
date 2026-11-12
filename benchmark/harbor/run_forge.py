@@ -95,7 +95,7 @@ async def run_turn(
     policy=BENCHMARK_TASK_POLICY
     bound_plan=None
     if frozen_configuration:
-        from forge.application.models import validate
+        from forge.protocol import validate
         from forge.config import ForgeConfig
         from forge.permissions.policy import PermissionManager
         from forge.runtime.dependencies import RuntimeBindings
@@ -103,7 +103,7 @@ async def run_turn(
         harness=validate('harness-config',frozen_configuration['harness'])
         if 'plan' in frozen_configuration:
             from benchmark.adapters.harbor import export_runspec
-            from forge.application.models import canonical_hash
+            from forge.protocol import canonical_hash
             bound_plan=frozen_configuration['plan']
             checked=export_runspec(bound_plan['spec'],bound_plan['resolved_snapshots'])
             if (bound_plan['spec_hash']!=checked['spec_hash'] or bound_plan.get('read_only_plan') is not True

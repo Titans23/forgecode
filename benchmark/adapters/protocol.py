@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import stat
 
-from forge.application.models import ContractError, canonical_hash, strict_loads
+from forge.protocol import ContractError, canonical_hash, strict_loads
 
 
 NORMALIZATION_VERSION = 'forge.harbor.normalization.v1'

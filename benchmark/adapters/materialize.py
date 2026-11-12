@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from benchmark.catalog import get_benchmark
 from benchmark.adapters.protocol import capture_tree, content_hash, file_bytes
-from forge.application.models import ContractError, strict_loads
+from forge.protocol import ContractError, strict_loads
 
 
 def reuse_taskset(source, *, dataset, ref, task_names, n_tasks, destination):

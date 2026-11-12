@@ -8,7 +8,7 @@ from benchmark.adapters.diagnostics import doctor
 from benchmark.adapters.harbor import HarborAdapter, export_runspec
 from benchmark.adapters.materialize import materialize_registry
 from benchmark.adapters.protocol import file_bytes
-from forge.application.models import ContractError, strict_loads, validate
+from forge.protocol import ContractError, strict_loads, validate
 
 
 def main(argv=None):

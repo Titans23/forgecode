@@ -12,7 +12,7 @@ from benchmark.adapters.materialize import resolve_task
 from benchmark.adapters.process import run_process
 from benchmark.adapters.protocol import (collect_harbor, file_bytes, grader_cache_key, normalize,
     NORMALIZATION_VERSION)
-from forge.application.models import ContractError, canonical_hash, strict_loads
+from forge.protocol import ContractError, canonical_hash, strict_loads
 from forge.engine.persistence import new_id
 from benchmark.core.spec import freeze_spec, validate_resolved_spec
 from benchmark.harbor.snapshot import verify_frozen_source

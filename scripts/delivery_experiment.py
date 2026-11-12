@@ -8,7 +8,7 @@ from pathlib import Path,PurePosixPath
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from forge.application.models import canonical_hash,strict_loads
+from forge.protocol import canonical_hash,strict_loads
 from benchmark.core.repair_comparison import interleaved_schedule,report_from_bundle
 
 

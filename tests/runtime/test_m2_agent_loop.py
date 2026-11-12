@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 from typing import Any
 from unittest.mock import AsyncMock
+import pytest
 
 from forge.permissions.approval import StaticApprovalHandler
 from forge.permissions.policy import PermissionManager
@@ -1434,10 +1435,14 @@ def test_explicit_verification_request_does_not_interrupt_implementation(
 
 
 
-def test_completion_decision_default_is_bounded() -> None:
-    conversation = Conversation(client=FakeModelClient(text_response('done')))
-
-    assert conversation.completion_decision_limit == 3
+def test_retired_loop_options_are_ignored_without_hidden_validation() -> None:
+    retired = dict(repeated_tool_limit=0, stagnation_warning=0, stagnation_limit=0,
+                   change_exploration_limit=0, completion_decision_limit=0, mutation_recovery_limit=0)
+    with pytest.warns(DeprecationWarning, match='deprecated and ignored'):
+        conversation = Conversation(client=FakeModelClient(text_response('done')), **retired)
+    assert all(not hasattr(conversation, name) for name in retired)
+    with pytest.raises(TypeError, match='Unexpected Conversation options: misspelled_option'):
+        Conversation(client=FakeModelClient(text_response('done')), misspelled_option=1)
 
 
 def test_inferred_task_scope_does_not_create_a_hard_write_boundary(

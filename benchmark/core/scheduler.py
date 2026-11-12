@@ -5,7 +5,7 @@ import json
 from time import monotonic_ns
 from uuid import uuid4
 
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.engine.persistence import new_id, utc_now
 from benchmark.core.spec import INFRASTRUCTURE_ERRORS, freeze_spec
 

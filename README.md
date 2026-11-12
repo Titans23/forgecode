@@ -1,6 +1,6 @@
 # ForgeCode
 
-ForgeCode 是一个 Python Agent Harness：复用同一代理循环，负责模型与工具调用、权限、上下文、预算、验证、会话恢复和进程清理。首版扩展流程连接自然语言插件开发、独立验收、模型/配置对照和可复验交付；当前验证状态见 [progress.json](docs/implementation/progress.json)。
+ForgeCode 是一个轻量、可扩展的 Python Agent Harness 基座，用于构建、运行、验证和复用 Coding、Personal、Robot 等领域的 Agent。核心复用同一模型/工具循环、权限、会话和取消机制；领域能力按需组合。自然语言插件开发、主流 benchmark 评测和完整运行轨迹是主要能力，轨迹可导出供后训练使用。Coding Agent 与终端 CLI 是默认应用；各领域适配的实际验证状态见 [progress.json](docs/implementation/progress.json)。
 
 纯 SDK 使用 `SessionOptions(agent=AgentDefinition.core(), data_root=...)`，可在没有工作区和 Node 的环境运行。按需安装 `forge-code[anthropic]` 或 `forge-code[openai]`；完整终端环境为 `forge-code[terminal]`。源码开发继续使用锁文件及全部 extras。
 
@@ -12,7 +12,7 @@ ForgeCode 自有代码采用 [MIT](LICENSE)；[第三方声明](THIRD_PARTY_NOTI
 
 当前 `main` 提供持续对话终端和真实轻量沙盒，后续开发以此版本为基线。启动 Profile 选择入口组合，Python API 为后续客户端和 SDK 提供结构化事件、结果和取消。评测与后训练接口按需使用。
 
-当前展示主线是可运行、可验证的 Harness：模型调用 → 授权工具执行 → 验证门禁 → Journal 状态重建；评测另用独立 grader 判分，并用冻结任务报告完成率、失败类型、耗时和 token。共享用量统计、验证证据与副作用生命周期的调用链见 [当前架构](docs/implementation/architecture.md#4-核心调用链与证明边界)，现有证据及范围见 [T01](docs/implementation/tasks/T01.md) 和 [当前进展](docs/implementation/progress.json)。
+运行主线是模型调用 → 授权工具执行 → Journal 记录与状态重建；验证和完成检查按所选组合启用。评测用独立 grader 判分，并用冻结任务报告完成率、失败类型、耗时和 token。共享用量统计、验证证据与副作用生命周期的调用链见 [当前架构](docs/implementation/architecture.md#4-核心调用链与证明边界)，历史证据及范围见 [T01](docs/implementation/tasks/T01.md) 和 [当前进展](docs/implementation/progress.json)。
 
 Windows/Linux 底层写限制及子进程范围复用 DSH 发布的 sandbox-local/subprocess-local；Linux 由 DSH 选择 bubblewrap 或 Landlock。ForgeCode 负责工具协议、会话、用量统计和验证。当前 OS 读取、网络和硬资源隔离尚不完整，能力为 partial，不能表述为自研完整 OS 沙盒；日常运行无 Docker 依赖。
 
@@ -24,7 +24,7 @@ Windows/Linux 底层写限制及子进程范围复用 DSH 发布的 sandbox-loca
 
 输入后立即显示动态等待状态和用时；模型提供的思考默认折叠为一行，工具调用显示紧凑摘要。运行中按 `Ctrl+O` 展开/收起预览，完成后按 `Ctrl+O` 或输入 `/details` 查看最近一轮的完整思考、工具参数和输出，支持滚动与搜索。`/resume` 会标记当前会话，包括尚未提交首条消息的新会话。
 
-权限统一从 `/permission` 选择：默认“工作区”，需要扩大权限时逐次确认；“只读”默认禁止修改；“完全访问”在本会话使用宿主权限。一次批准不会切换会话模式。Windows 原生沙盒仍受目录权限约束，失败不会自动降级为宿主执行。
+权限统一从 `/permission` 选择：新建 coding 会话默认“完全访问”；“工作区”需要扩大权限时逐次确认；“只读”默认禁止修改。一次批准不会切换会话模式。Windows 原生沙盒仍受目录权限约束，失败不会自动降级为宿主执行。
 
 ### 1. 拉取源码，一条命令构建并安装
 
@@ -120,7 +120,7 @@ forge --sandbox full-access --approval supervised
 
 `forge.api.HarnessSession` 提供 `open/stream/run/cancel/close`，沿用原 `ConversationEvent` 和 `TurnResult`；`event_dict` 输出版本化 JSON。会话事实来自 Journal，活动执行事实来自 Conversation/TurnState。核心不依赖终端文本解析。
 
-npm 终端安装包含内置原生沙盒提供方，默认 coding Agent 使用它；通用 core Agent 不加载沙盒，其他组合可显式设置 `sandbox_provider: null` 使用宿主执行。可信插件可注册自己的提供方。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。当前版本移除了 Electron、React、Vite 和运行中的 Web 客户端。
+npm 终端安装包含可选原生沙盒提供方，coding 会话显式选择受限模式时使用；通用 core Agent 不加载沙盒。可信插件可注册自己的提供方。Harbor 使用 `forge-code[evaluation]`，飞书兼容命令使用 `forge-code[channels]`。当前版本移除了 Electron、React、Vite 和运行中的 Web 客户端。
 
 源码开发环境准备好后，可用公开示例演示真实原生工具、验证过期、同回合修复和 Journal 只读重建，无需模型密钥：
 

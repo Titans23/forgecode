@@ -3,7 +3,7 @@ from copy import deepcopy
 from decimal import Decimal
 import json
 
-from forge.application.models import ContractError, canonical_hash, validate
+from forge.protocol import ContractError, canonical_hash, validate
 
 
 INFRASTRUCTURE_ERRORS = ('runner_unavailable', 'runner_crash', 'environment_setup', 'provider_unavailable', 'grader_infrastructure')

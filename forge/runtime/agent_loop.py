@@ -92,12 +92,6 @@ class Conversation:
         max_protocol_recoveries: int = 2,
         max_tool_protocol_recoveries: int = 6,
         max_output_continuations: int = 2,
-        repeated_tool_limit: int = 2,
-        stagnation_warning: int = 4,
-        stagnation_limit: int = 8,
-        change_exploration_limit: int = 8,
-        completion_decision_limit: int = 3,
-        mutation_recovery_limit: int = 4,
         initial_messages: list[dict[str, Any]] | None = None,
         active_task: ActiveTask | None = None,
         session_journal: SessionJournal | None = None,
@@ -115,6 +109,7 @@ class Conversation:
         event_recorder: Any | None = None,
         turn_baseline_handler: Any | None = None,
         max_parallel_tools: int = 10,
+        **legacy_options,
     ) -> None:
         if type(max_parallel_tools) is not int or max_parallel_tools < 1:
             raise ValueError('max_parallel_tools must be a positive integer')
@@ -125,17 +120,14 @@ class Conversation:
             raise ValueError('Explicit task_relation must be new or active.')
         self.task_relation = task_relation
         import warnings
-        for name, value, previous_default in (
-            ('repeated_tool_limit', repeated_tool_limit, 2),
-            ('stagnation_warning', stagnation_warning, 4),
-            ('stagnation_limit', stagnation_limit, 8),
-            ('change_exploration_limit', change_exploration_limit, 8),
-            ('completion_decision_limit', completion_decision_limit, 3),
-            ('mutation_recovery_limit', mutation_recovery_limit, 4),
-        ):
-            if value != previous_default:
-                warnings.warn(f'{name} is deprecated and has no effect.',
-                              DeprecationWarning, stacklevel=2)
+        retired = {'repeated_tool_limit', 'stagnation_warning', 'stagnation_limit',
+                   'change_exploration_limit', 'completion_decision_limit', 'mutation_recovery_limit'}
+        unknown = legacy_options.keys() - retired
+        if unknown:
+            raise TypeError('Unexpected Conversation options: ' + ', '.join(sorted(unknown)))
+        for name in legacy_options:
+            warnings.warn(f'{name} is deprecated and ignored; remove it from the caller.',
+                          DeprecationWarning, stacklevel=2)
         self.event_recorder = event_recorder
         self.owns_tool_backend = owns_tool_backend
         self._close_task = None
@@ -148,20 +140,6 @@ class Conversation:
             )
         if max_output_continuations < 0:
             raise ValueError('max_output_continuations must not be negative')
-        if repeated_tool_limit < 1:
-            raise ValueError('repeated_tool_limit must be positive')
-        if stagnation_warning < 1:
-            raise ValueError('stagnation_warning must be positive')
-        if stagnation_limit <= stagnation_warning:
-            raise ValueError(
-                'stagnation_limit must be greater than stagnation_warning'
-            )
-        if change_exploration_limit < 1:
-            raise ValueError('change_exploration_limit must be positive')
-        if completion_decision_limit < 1:
-            raise ValueError('completion_decision_limit must be positive')
-        if mutation_recovery_limit < 1:
-            raise ValueError('mutation_recovery_limit must be positive')
         if client is None:
             from forge.runtime.factory import create_model_client
             client = create_model_client()
@@ -296,12 +274,6 @@ class Conversation:
         self.max_protocol_recoveries = max_protocol_recoveries
         self.max_tool_protocol_recoveries = max_tool_protocol_recoveries
         self.max_output_continuations = max_output_continuations
-        self.repeated_tool_limit = repeated_tool_limit
-        self.stagnation_warning = stagnation_warning
-        self.stagnation_limit = stagnation_limit
-        self.change_exploration_limit = change_exploration_limit
-        self.completion_decision_limit = completion_decision_limit
-        self.mutation_recovery_limit = mutation_recovery_limit
         self._last_repository_context = self._repository_context('')
 
     # Context and evidence consumers retain these lists across turn commits

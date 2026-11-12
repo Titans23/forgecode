@@ -9,7 +9,7 @@ import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from benchmark.adapters.protocol import capture_tree, content_hash
-from forge.application.models import strict_loads
+from forge.protocol import strict_loads
 from scripts.delivery_experiment import check_configuration
 
 async def materialize(configuration,destination):

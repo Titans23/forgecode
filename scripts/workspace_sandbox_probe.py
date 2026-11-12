@@ -15,7 +15,7 @@ from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from forge.application.models import ContractError
+from forge.protocol import ContractError
 from forge.engine.persistence import new_id
 from forge.sandbox.file_client import FileWorkerClient
 from forge.sandbox.workspace_backend import WorkspaceWriteBackend

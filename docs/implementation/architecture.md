@@ -115,7 +115,7 @@ Hooks 保留匹配、JSON 协议及 stdout/stderr 合计 1 MB 硬限额，进程
 
 大工具结果采用 [DSH pruner 的字符规则](https://github.com/deepseek-ai/deepseek-harness/blob/f3803c96974ad4a94195fb97e5c637e9c2a3afe3/packages/compaction/compaction-tool-result-pruner/src/config.ts)：每个结果的文本超过 8,192 个 Unicode 码点时保留头 4,096、尾 1,024 和中部裁剪标记，跨文本块累计，图片块保持原位；不再按结果年龄二次缩短，也不按所有工具结果的字符总量裁剪。沿用 ForgeCode 的结果归档和受限读取句柄，因此可见结果额外包含少量归档元数据。用户原话、摘要和工具配对继续受保护，完整原文保存在现有 artifact／Journal／压缩前 transcript；不移植 DSH 的插件体系。手动压缩和溢出恢复保留最新完整消息单元，不采用自动压缩的 20,000 tokens 尾部预算。
 
-`scripts/check_architecture.py` 防止公共契约反向依赖产品模块、核心依赖 CLI/旧应用协议模块、沙盒导入 Conversation 实现、会话视图反向依赖事件传输层，以及验证值／报告／规则反向依赖完成门禁。工具路径解析独立于循环。兼容参数 repeated_tool_limit/stagnation 等已无运行时效果，自定义值会发出弃用警告；回合累计预算也已移除。
+`scripts/check_architecture.py` 防止公共契约反向依赖产品模块、核心依赖 CLI/旧应用协议模块、沙盒导入 Conversation 实现、会话视图反向依赖事件传输层，以及验证值／报告／规则反向依赖完成门禁。工具路径解析独立于循环。六个旧循环参数 repeated_tool_limit、stagnation_warning、stagnation_limit、change_exploration_limit、completion_decision_limit、mutation_recovery_limit 仅由兼容入口接收并发出弃用警告，不生成状态或校验值；未知参数仍报错。回合累计预算已移除，协议恢复次数独立保留。当前评测与脚本直接引用 forge.protocol，forge.application.models 只保留旧导入兼容。
 
 ## 2. 保留接口与能力边界
 

@@ -2,7 +2,7 @@
 from copy import deepcopy
 from decimal import Decimal,localcontext
 import random
-from forge.application.models import canonical_hash,validate
+from forge.protocol import canonical_hash,validate
 from benchmark.core.spec import REFERENCES
 
 def differences(a,b,path=''):
