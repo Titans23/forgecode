@@ -54,6 +54,7 @@ def test_plan_freezes_all_three_without_credentials_or_model_calls(tmp_path, ben
     path = fixture_config(tmp_path, benchmark)
     plan = platform.make_plan(path, tmp_path / 'plan')
     assert plan['model_api_calls'] == 0 and plan['protocol']['official_task_images']
+    assert plan['completion_policy'] == 'normal'
     assert platform.run_plan(tmp_path / 'plan')['status'] == 'planned'
     bundle = tmp_path / 'plan/agent.zip'
     bundle.write_bytes(bundle.read_bytes() + b'changed')
@@ -134,7 +135,8 @@ def test_unknown_request_usage_and_frozen_costs(tmp_path):
     assert request_accounting(tmp_path, pricing)['cost']['value'] == '0.00012'
 
 
-def test_frozen_composition_flows_through_existing_benchmark_loop(tmp_path):
+@pytest.mark.parametrize('completion', [None, 'normal'])
+def test_frozen_composition_flows_through_existing_benchmark_loop(tmp_path, completion):
     import base64
     from uuid import uuid4
     from benchmark.harbor.run_forge import run_turn
@@ -169,6 +171,8 @@ def test_frozen_composition_flows_through_existing_benchmark_loop(tmp_path):
         async def aclose(self):
             self.closed = True
     model = Model()
+    if completion is not None:
+        frozen['completion_policy'] = completion
     project = tmp_path / 'project'
     project.mkdir()
     result = asyncio.run(run_turn(project, 'Apply the fixture tool', resume=False,
@@ -176,6 +180,7 @@ def test_frozen_composition_flows_through_existing_benchmark_loop(tmp_path):
         runtime_bindings=RuntimeBindings(config=configuration, model_client_factory=lambda *a, **k: model,
             data_root=tmp_path / 'data', permission_manager=PermissionManager(project), intent_routing=False, trusted_extensions=False)))
     assert result.tool_calls[0].name == 'summarize_expenses' and model.closed
+    assert (result.completion_report.acceptance_status != 'not_configured') == (completion is None)
     assert json.loads((tmp_path / 'result.json').read_text())['cleanup']['state'] == 'clean'
 
 

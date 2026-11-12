@@ -47,7 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument('baseline', type=Path)
     compare.add_argument('candidate', type=Path)
     compare.add_argument('--change', choices=['harness', 'model', 'plugin'], required=True)
-    plan = subparsers.add_parser('plan', help='freeze exact tasks, source, composition, models and budget without model calls')
+    plan = subparsers.add_parser('plan', help='freeze tasks, source, composition, models and execution conditions without model calls')
     plan.add_argument('configuration', type=Path)
     plan.add_argument('--output', type=Path, required=True)
     return parser

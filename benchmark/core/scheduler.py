@@ -6,7 +6,7 @@ from time import monotonic_ns
 from uuid import uuid4
 
 from forge.protocol import ContractError
-from forge.engine.persistence import new_id, utc_now
+from forge.identifiers import new_id, utc_now
 from benchmark.core.spec import INFRASTRUCTURE_ERRORS, freeze_spec
 
 
@@ -198,7 +198,7 @@ class EvaluationScheduler:
         # Trusted executor owns actual runner termination, artifacts and grader; no RPC-supplied command or grade.
         task = asyncio.create_task(executor.execute(work, self))
         self.active[work['id']] = task
-        from forge.engine.lifecycle import Deadline
+        from forge.runtime.deadline import Deadline
         from time import monotonic
         deadline = Deadline(work['duration_seconds'],monotonic(),datetime.fromisoformat(work['deadline'].replace('Z','+00:00')))
         try:

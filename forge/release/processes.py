@@ -34,7 +34,7 @@ _worker_environment=dict(os.environ)
 
 def worker_argv(command, *, shell=False, cleanup=False, gated=True):
     role='process-worker' if gated or sys.platform.startswith('linux') else 'external-worker'
-    base=[sys.executable,role] if getattr(sys,'frozen',False) else [sys.executable,'-I','-B','-m','forge.engine',role]
+    base=[sys.executable,role] if getattr(sys,'frozen',False) else [sys.executable,'-I','-B','-m','forge.workers',role]
     return base+[json.dumps(command), '1' if shell else '0']+(['--cleanup-on-exit'] if cleanup else [])
 
 def external_argv(command):

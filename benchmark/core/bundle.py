@@ -11,7 +11,7 @@ import zipfile
 
 from forge.protocol import ContractError, strict_loads, validate
 from forge.file_selection import file_identity, selected_file
-from forge.engine.persistence import encoded, new_id, utc_now
+from forge.identifiers import encoded, new_id, utc_now
 
 MAX_TOTAL=1073741824
 MAX_FILE=104857600

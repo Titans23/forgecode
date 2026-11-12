@@ -40,7 +40,7 @@ class FileToolBackend:
             if self.observer.native.policy_hash != self.observer.policy_hash:
                 raise ContractError('Restricted helper requires a prepared native session', kind='SANDBOX_UNAVAILABLE', code=-32010)
         else:
-            from forge.application.harness_adapter import LocalTrustedBackend
+            from forge.runtime.local_backend import LocalTrustedBackend
             LocalTrustedBackend().check_ready(policy, required_mode=required_mode)
 
     async def snapshot(self, paths, *, recursive=False):

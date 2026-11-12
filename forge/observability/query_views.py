@@ -6,7 +6,7 @@ from pathlib import Path
 
 from forge.file_selection import selected_file
 from forge.protocol import ContractError, strict_loads
-from forge.engine.persistence import encoded
+from forge.identifiers import encoded
 from forge.observability.export_queue import redact
 from forge.sessions.store import SessionStore
 from forge.storage_paths import private_storage_path

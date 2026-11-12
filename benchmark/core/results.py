@@ -9,7 +9,7 @@ from benchmark.core.bundle import staged_bundle
 from benchmark.core.metrics import compute_metrics
 from benchmark.core.spec import INFRASTRUCTURE_ERRORS
 from forge.protocol import ContractError, canonical_hash, strict_loads, validate, validate_event
-from forge.engine.persistence import encoded
+from forge.identifiers import encoded
 
 IDS=re.compile(r'^(run|trial|attempt|grade|request|art|annotation)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
 CATEGORIES={'model_reasoning','tool_usage','context','verification','sandbox','environment','provider','grader','unknown'}

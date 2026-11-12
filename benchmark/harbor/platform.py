@@ -96,6 +96,7 @@ def make_plan(config_path, destination):
         'taskset': taskset, 'source': source.relative_to(destination).as_posix(),
         'source_manifest': json.loads((source.parent / 'manifest.json').read_text()),
         'model': model, 'models': models, 'harness_budgets': False, 'harness': harness, 'pricing': config.get('pricing'),
+        'completion_policy': definition.completion,
         'composition': {'definition': delivered_definition, 'files': bundle_manifest['files'], 'dependencies': dependencies},
         'bundle': 'agent.zip', 'bundle_sha256': sha256(bundle.read_bytes()).hexdigest(),
         'credential_references': sorted(references), 'protocol': {'feedback': 'none', 'attempts': 1, 'task_retries': 0,

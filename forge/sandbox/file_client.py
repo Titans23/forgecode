@@ -12,7 +12,7 @@ from forge.sandbox.launcher import ROOT, bridge_environment
 
 
 def worker_argv():
-    return [sys.executable, 'file-worker'] if getattr(sys, 'frozen', False) else [sys.executable, '-I', '-B', '-m', 'forge.engine', 'file-worker']
+    return [sys.executable, 'file-worker'] if getattr(sys, 'frozen', False) else [sys.executable, '-I', '-B', '-m', 'forge.workers', 'file-worker']
 
 
 class _OutputFrames:

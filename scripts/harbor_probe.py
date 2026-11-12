@@ -14,7 +14,7 @@ from benchmark.adapters.diagnostics import doctor
 from benchmark.adapters.harbor import HarborAdapter
 from benchmark.adapters.materialize import resolve_task
 from benchmark.harbor.snapshot import freeze_source
-from forge.engine.persistence import new_id
+from forge.identifiers import new_id
 
 
 def main():

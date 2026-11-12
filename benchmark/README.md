@@ -3,6 +3,7 @@
 ## 冻结 Agent / 插件 / 模型的统一入口
 
 `forge eval plan config.json --output <新目录>` 冻结源码、依赖、精确任务、Agent 组合、插件产物与模型。Harness 累计预算已移除；官方任务截止时间和外部评测准入规则保持独立。
+新计划使用 Agent 的 `completion`，默认 `normal`，官方 grader 独立判断结果；需要 Forge 严格验收时选择 `completion: "strict"`。直接运行数据集可传 `--completion-policy strict`。选择会写入冻结配置和比较条件，旧冻结配置缺少字段时保持其原来的严格策略。
 规划不调用模型；未给 `taskset_directory` 时会下载官方任务元数据和输入，需要 `[evaluation]`。
 配置示例（路径相对 config.json，任务 ID 使用官方精确值）：
 

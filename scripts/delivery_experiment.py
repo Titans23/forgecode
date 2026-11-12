@@ -21,7 +21,7 @@ def freeze_plans(base_plan):
     """
     from benchmark.adapters.harbor import export_runspec
     from benchmark.core.repair_comparison import compare_repairs
-    from forge.engine.persistence import new_id
+    from forge.identifiers import new_id
     if (not isinstance(base_plan, dict) or base_plan.get('schema_version') != 'forge.eval.plan-export.v1'
             or base_plan.get('read_only_plan') is not True
             or base_plan.get('spec_hash') != canonical_hash(base_plan['spec'])):

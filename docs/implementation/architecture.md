@@ -50,12 +50,13 @@ FileWorkerClient 的每个请求拥有独立 helper 和清理任务，原生输�
 | forge/protocol.py、tool_types.py、messages.py | 无产品层依赖的协议、结果和文字/图片输入契约 |
 | forge/runtime、context、tools、sessions | Harness、上下文、工具和Journal事实 |
 | forge/sandbox、permissions、sandbox_bridge | 授权及Windows DSH/Linux bubblewrap执行 |
-| forge/application、engine | CLI、RPC和评测实际使用的服务与状态投影 |
+| forge/application、engine | 旧 RPC、SQLite 服务和历史读取兼容；普通 CLI/SDK/评测不依赖 |
+| forge/workers.py、identifiers.py | 独立 worker 入口及共享数据辅助函数 |
 | benchmark、evals、extensions | 评测适配、任务和后训练导出 |
 | contracts、packages/contracts | 维护源与TS契约校验器 |
 | scripts、tests、docs | 构建、真实验证和当前说明 |
 
-forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime，调用runtime.factory.create_runtime → Conversation.stream → TurnRunner → ToolExecutor → 原生工具。Journal记录会话副作用；Engine负责受理、调度与投影，不复制Journal事实。
+forge.launch选择forge.cli或benchmark.cli。CLI和forge.api共用open_runtime，调用runtime.factory.create_runtime → Conversation.stream → TurnRunner → ToolExecutor → 所选工具。Journal记录会话副作用。旧 Engine 仅服务显式 RPC/历史接口；共享执行后端、worker 和操作期限不再从旧控制面导入。旧 Engine worker 子命令委托给 forge.workers，保留历史调用兼容。
 
 `create_runtime` 是唯一运行时装配函数，新建与恢复使用同一构造路径；项目模型配置读取传入的 root，不隐式读取其他工作目录。`AgentDefinition.features` 显式选择 coding 的 tasks/repository/skills/hooks/mcp/checkpoints，core 的这些组件为空，不获取工作区执行锁；通用消息窗口、权限、插件与 Journal 仍由同一循环持有。工具在构造前筛选，命令作业仅随支持后台执行的 run_command 创建。SDK、CLI 与评测复用 ModelStartup 处理构造失败时的模型资源；成功后所有权交给 Conversation。可选渠道/MCP 组合位于 `forge/integrations.py`。旧 `forge.application.models` 保留协议导入兼容。
 

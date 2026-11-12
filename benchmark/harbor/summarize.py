@@ -712,6 +712,7 @@ def comparison_conditions(run_dir: Path) -> dict:
                    'dependencies': composition.get('dependencies', '')},
         'pricing': {'snapshot': composition.get('pricing')},
         'harness': {'agent': experiment.get('agent'), 'configuration': experiment.get('harness'), 'files': harness_files,
+                    'completion_policy': experiment.get('completion_policy', 'strict'),
                     'composition': {k: v for k, v in definition.items() if k not in ('plugins', 'role_models')}}}
 
 

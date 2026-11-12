@@ -15,13 +15,14 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from forge.application.harness_adapter import LocalTrustedBackend
+from forge.runtime.local_backend import LocalTrustedBackend
 from forge.protocol import strict_loads, validate
 from forge.application.services import ApplicationServices
 from forge.application.sessions import turn_view
 from forge.config import ForgeConfig
 from forge.engine.methods import manifest_hash
-from forge.engine.persistence import Store, new_id
+from forge.identifiers import new_id
+from forge.engine.persistence import Store
 from forge.engine.test_profile import scripted_profile
 from forge.sessions.store import SessionStore
 

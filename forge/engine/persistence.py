@@ -1,6 +1,5 @@
 """Single-writer SQLite store. Acceptance never starts model or tool execution."""
 from contextlib import closing, contextmanager
-from datetime import datetime, timezone
 from hashlib import sha256
 import json
 import os
@@ -14,16 +13,7 @@ from uuid import uuid4
 from forge.protocol import ContractError, canonical_hash, validate, validate_event
 
 
-def new_id(prefix):
-    return f'{prefix}-{uuid4()}'
-
-
-def utc_now():
-    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-
-
-def encoded(value):
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False)
+from forge.identifiers import new_id as new_id, utc_now as utc_now, encoded as encoded
 
 
 def migration_checksum(path):

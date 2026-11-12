@@ -21,10 +21,10 @@ from benchmark.adapters.materialize import resolve_task
 from benchmark.adapters.protocol import file_bytes, content_hash
 from benchmark.core.metrics import compute_metrics
 from benchmark.core.repair_comparison import paired_report
-from forge.application.harness_adapter import LocalTrustedBackend
+from forge.runtime.local_backend import LocalTrustedBackend
 from forge.protocol import canonical_hash,strict_loads
 from forge.config import ForgeConfig
-from forge.engine.persistence import new_id
+from forge.identifiers import new_id
 from forge.permissions.policy import PermissionManager
 from forge.runtime.completion import TaskPolicy
 from forge.runtime.dependencies import RuntimeBindings

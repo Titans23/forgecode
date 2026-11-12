@@ -93,6 +93,8 @@ def build_parser(
     parser.add_argument('--provider', choices=['anthropic', 'openai_responses', 'openai_chat', 'deepseek', 'gemini'])
     parser.add_argument('--launch-plan', type=Path, help='Frozen CLI launch plan; the V4 scheduler is unchanged.')
     parser.add_argument('--trust-plugins', action='store_true')
+    parser.add_argument('--completion-policy', choices=('normal', 'strict'), default=None,
+                        help='Optional Forge verification gate; official grading is always separate.')
     parser.add_argument('--base-url')
     parser.add_argument('--max-output-tokens', type=int)
     parser.add_argument('--context-window', type=int)
@@ -172,7 +174,8 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         'dataset_ref': args.dataset_ref, 'selection': {'tasks': args.task, 'n_tasks': args.n_tasks, 'all': args.all},
         'harbor_version': '0.18.0', 'usage': 'evaluation-only', 'model': model,
         'agent': args.agent, 'concurrency': args.concurrency, 'attempts': 1, 'task_retries': args.max_retries,
-        'harness_budgets': False, 'timeout_multiplier': args.timeout_multiplier or 1,
+        'harness_budgets': False, 'completion_policy': args.completion_policy or 'normal',
+        'timeout_multiplier': args.timeout_multiplier or 1,
         'agent_setup_timeout_multiplier': args.agent_setup_timeout_multiplier,
         'grader': {'harbor_version': '0.18.0', 'protocol': 'official-task-verifier',
                    'env': {'UV_HTTP_TIMEOUT': '120', 'UV_CACHE_DIR': '/opt/forgecode-cache',
@@ -189,6 +192,10 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
         if args.max_retries != 0 or args.concurrency != 1 or args.timeout_multiplier not in (None, 1) or args.agent_setup_timeout_multiplier != 12:
             raise ValueError('Launch protocol differs from frozen plan')
         manifest['harness'].update(launch_plan['harness'])
+        completion = launch_plan.get('completion_policy', 'strict')
+        if args.completion_policy is not None and args.completion_policy != completion:
+            raise ValueError('Completion policy differs from frozen plan')
+        manifest['completion_policy'] = completion
         manifest['composition'] = runtime_bundle(args.launch_plan)
     return config, manifest
 
@@ -200,6 +207,7 @@ def frozen_job(args, manifest, taskset, source, output):
     from harbor.models.trial.config import AgentConfig, EnvironmentConfig, TaskConfig, VerifierConfig
     from benchmark.adapters.materialize import resolve_task
     frozen = {key: manifest[key] for key in ('run_id', 'parameters', 'harness', 'source_manifest', 'model')}
+    frozen['completion_policy'] = manifest.get('completion_policy', 'strict')
     if manifest.get('composition'):
         frozen['composition'] = json.loads(json.dumps(manifest['composition']))
         for selection in frozen['composition']['models'].values():

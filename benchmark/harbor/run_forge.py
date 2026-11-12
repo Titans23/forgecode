@@ -91,8 +91,13 @@ async def run_turn(
     frozen_configuration: dict | None = None,
     runtime_bindings=None,
     result_path: Path | None = None,
+    completion_policy: str = 'normal',
 ) -> TurnResult:
-    policy=BENCHMARK_TASK_POLICY
+    # Absent fields in frozen historical runs retain their original strict gate.
+    selected_policy = frozen_configuration.get('completion_policy', 'strict') if frozen_configuration else completion_policy
+    if selected_policy not in {'normal', 'strict'}:
+        raise ValueError('Completion policy must be normal or strict')
+    policy = BENCHMARK_TASK_POLICY if selected_policy == 'strict' else None
     bound_plan=None
     if frozen_configuration:
         from forge.protocol import validate
@@ -114,7 +119,8 @@ async def run_turn(
             raise ValueError('Unsupported Harness protocol')
         if parameters['temperature'] is not None or parameters['top_p'] is not None:
             raise ValueError('Unsupported sampling parameter must not be silently ignored')
-        policy=replace(policy,max_delivery_repairs=harness['max_delivery_repairs'])
+        if policy is not None:
+            policy=replace(policy,max_delivery_repairs=harness['max_delivery_repairs'])
         if runtime_bindings is None:
             config=replace(ForgeConfig.from_env(environ=os.environ),max_tokens=parameters['max_output_tokens'],
                 context_window=harness['max_context_tokens'],reasoning_effort=parameters['reasoning_effort'],
@@ -139,6 +145,9 @@ async def run_turn(
     if composition:
         from benchmark.harbor.platform import prepare_runtime
         definition, runtime_bindings = await prepare_runtime(composition, runtime_bindings, project)
+        if selected_policy == 'normal' and definition.completion == 'strict':
+            await runtime_bindings.plugin_host.close()
+            raise ValueError('Normal evaluation cannot disable the selected agent strict completion contract')
     try:
         conversation, journal, _ = create_runtime(
             project, continue_session=resume, task_policy=policy,
