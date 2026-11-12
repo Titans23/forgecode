@@ -50,6 +50,8 @@ class _EnvelopeError(ValueError):
 
 
 class ApplyPatchTool(Tool[ApplyPatchInput]):
+    concurrency_safe = True
+    file_mutation = True
     name = 'apply_patch'
     description = (
         'Create, modify, or delete repository text files with one focused '

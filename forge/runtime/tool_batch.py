@@ -34,9 +34,16 @@ async def schedule_calls(calls, executor, prepare, *, limit, completed):
     stopped = False
     held = None
 
-    def safe(call):
-        return (limit > 1 and not call.arguments.get('sandbox_permissions')
-                and executor.registry.is_concurrency_safe(call.name, call.arguments))
+    def group(call):
+        if (limit > 1 and not call.arguments.get('sandbox_permissions')
+                and executor.registry.is_concurrency_safe(call.name, call.arguments)):
+            return executor.registry.effect(call.name)
+        return None
+
+    def overlaps(call):
+        kind = group(call)
+        return kind is not None and all(slot.prepared is not None
+            and group(slot.prepared.call) == kind for slot in slots.values())
 
     def running():
         return [slot.task for slot in slots.values() if slot.task is not None and slot.dispatched is None]
@@ -60,7 +67,7 @@ async def schedule_calls(calls, executor, prepare, *, limit, completed):
             # Reclassify after each ordered commit, including hook/registry changes.
             while not stopped and next_start < len(calls) and len(running()) < limit:
                 call = calls[next_start]
-                if slots and not safe(call):
+                if slots and not overlaps(call):
                     break
                 prepared = held if held is not None else await prepare(call)
                 held = None
@@ -69,14 +76,14 @@ async def schedule_calls(calls, executor, prepare, *, limit, completed):
                     next_start += 1
                     stopped = stops_batch(prepared.result)
                     break
-                if slots and not safe(prepared.call):
+                if slots and not overlaps(prepared.call):
                     held = prepared
                     break
                 task = asyncio.create_task(executor.dispatch(prepared))
                 slots[next_start] = Slot(prepared=prepared, task=task)
                 next_start += 1
                 yield ToolExecutionStarted(prepared.call)
-                if not safe(prepared.call):
+                if group(prepared.call) is None:
                     break
 
             if stopped:

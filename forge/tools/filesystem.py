@@ -372,6 +372,8 @@ class WriteFileInput(SandboxInput):
 
 
 class WriteFileTool(Tool[WriteFileInput]):
+    concurrency_safe = True
+    file_mutation = True
     name = 'write_file'
     description = (
         'Create or replace one UTF-8 text file atomically, creating missing parent '
@@ -384,7 +386,8 @@ class WriteFileTool(Tool[WriteFileInput]):
     effect = 'workspace_write'
 
     async def execute(self, arguments: WriteFileInput) -> ToolResult:
-        return await asyncio.to_thread(self._execute_sync, arguments)
+        from forge.file_mutations import finish_thread_write
+        return await finish_thread_write(self._execute_sync, arguments)
 
     async def correct_existing(
         self,
@@ -550,6 +553,8 @@ class WriteFileChunkInput(SandboxInput):
 
 
 class WriteFileChunkTool(Tool[WriteFileChunkInput]):
+    concurrency_safe = True
+    file_mutation = True
     name = 'write_file_chunk'
     description = (
         'Create, replace or extend one UTF-8 file in ordered chunks. '
@@ -565,7 +570,8 @@ class WriteFileChunkTool(Tool[WriteFileChunkInput]):
     effect = 'workspace_write'
 
     async def execute(self, arguments: WriteFileChunkInput) -> ToolResult:
-        return await asyncio.to_thread(self._execute_sync, arguments)
+        from forge.file_mutations import finish_thread_write
+        return await finish_thread_write(self._execute_sync, arguments)
 
     def _execute_sync(self, arguments: WriteFileChunkInput) -> ToolResult:
         path = resolve_repository_path(
@@ -651,6 +657,8 @@ class ReplaceTextInput(SandboxInput):
 
 
 class ReplaceTextTool(Tool[ReplaceTextInput]):
+    concurrency_safe = True
+    file_mutation = True
     name = 'replace_text'
     description = (
         'Replace one exact, unique UTF-8 text fragment in an existing '
@@ -664,7 +672,8 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
     effect = 'workspace_write'
 
     async def execute(self, arguments: ReplaceTextInput) -> ToolResult:
-        return await asyncio.to_thread(self._execute_sync, arguments)
+        from forge.file_mutations import finish_thread_write
+        return await finish_thread_write(self._execute_sync, arguments)
 
     def _execute_sync(self, arguments: ReplaceTextInput) -> ToolResult:
         path = resolve_repository_path(self.root, arguments.path)

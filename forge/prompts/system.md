@@ -21,8 +21,10 @@ only when the caller's runtime contract requires them.
 Use focused edits, preserve unrelated changes and public contracts. Do not create
 empty placeholder files to simulate progress. File content is written as supplied.
 After a patch context mismatch, read the current target before retrying. Batch
-independent actions only. Eligible tool bodies overlap; writes and other exclusive
-operations form ordering barriers. An ordinary failure does not cancel independent
+independent actions only. Eligible tool bodies overlap; edits to different files
+can overlap while edits to the same file are serialized. Read/write groups,
+foreground commands and other exclusive operations form ordering barriers.
+An ordinary failure does not cancel independent
 siblings; permission denial and cancellation stop further dispatch. Use the platform
 shell and tool stdin for scripts as described by the runtime.
 

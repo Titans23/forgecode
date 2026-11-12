@@ -194,6 +194,7 @@ class Tool(ABC, Generic[InputT]):
     input_model: ClassVar[type[ToolInput]]
     effect: ClassVar[ToolEffect] = 'read_only'
     concurrency_safe: ClassVar[bool] = False
+    file_mutation: ClassVar[bool] = False
 
     def is_concurrency_safe(self, arguments: Mapping[str, Any]) -> bool:
         '''Opt in to overlapping tool bodies; this never grants permission.'''
@@ -286,6 +287,8 @@ class ToolRegistry:
         self._tools: dict[str, Tool[Any]] = {}
         self._hidden_tools = frozenset(hidden_tools)
         self.workspace_tracker = workspace_tracker
+        from forge.file_mutations import FileMutationLocks
+        self.file_mutations = FileMutationLocks()
         for tool in tools:
             self.register(tool)
 
@@ -332,6 +335,13 @@ class ToolRegistry:
     def implementation(self, name: str) -> Tool[Any] | None:
         '''Return one internal tool implementation without exposing new schema.'''
         return self._tools.get(name)
+
+    def mutation_paths(self, call) -> tuple[Path, ...]:
+        tool = self._tools.get(call.name)
+        if tool is None or not tool.file_mutation or tool.effect != 'workspace_write':
+            return ()
+        from forge.tools.paths import mutation_target_paths
+        return tuple(tool.root / path for path in mutation_target_paths(call, maximum=None))
 
     def provenance(self, name: str) -> dict[str, Any]:
         tool = self._tools.get(name)

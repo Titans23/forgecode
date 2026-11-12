@@ -4,6 +4,8 @@
 
 独立文件读取、搜索、图片与 Git 查询支持批内并行。Agent JSON 的 `max_parallel_tools` 默认为 10，设为 1 可顺序执行；这是同时运行数量，不是累计调用预算。终端显示各调用的排队、运行、待归档和完成状态，Ctrl+O 展开详情。插件通过 `ctx.register_tool(..., concurrency_safe=True)` 或参数分类函数显式加入并行组；默认独占，权限要求不变。
 
+文件写入、文本替换、分块写入和补丁支持不同目标并行；同一文件、路径别名以及相交的多文件补丁排队到前一操作结算完成。读取组和修改组、目录操作、前台命令、验收之间保留顺序边界。并行不跳过原有授权、文件版本冲突或 checkpoint 检查。
+
 长命令可用 `run_command(..., run_in_background=true, timeout_seconds=3600)` 启动作业，收到 `job_id` 表示已受理。用 `job_output(job_id, after=上次的 next_cursor, wait_seconds=30)` 获取新输出并等待；退出码成功后才执行依赖步骤。`job_kill` 取消作业。单次超时仍有效，等待输出超时不会终止命令。
 
 终端空闲时输入 `/jobs` 查看本会话作业，`/jobs <id>` 查看输出，`/jobs stop <id>` 停止；这些本地命令不调用模型。退出会话会清理所属作业，恢复历史不会重新启动旧命令。有作业运行时，先等待或停止它，再切换权限/会话历史或进行最终验证。不要让后台命令同时修改同一文件或同一个包管理器状态。
@@ -274,7 +276,7 @@ asyncio.run(main())
 
 API 同时接受 `[{'type': 'text', 'text': '分析图片'}, image_block(png_bytes)]`，`image_block` 从 `forge.messages` 导入。执行中使用 `session.queue_input('追加约束')`；`follow_up=True` 排队新任务。`session.pending_inputs` 返回待办，`await session.run_next()` 明确执行下一项。同一会话不能并发启动多个回合。
 
-`RunProfile.intent_routing` 默认 False；旧调用方可显式设 True 使用兼容路由，它会增加模型请求。工具批次按顺序执行，`max_parallel_reads` 参数已移除。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
+`RunProfile.intent_routing` 默认 False；旧调用方可显式设 True 使用兼容路由，它会增加模型请求。工具批次按顺序授权和结算，可并行执行体受 `max_parallel_tools` 控制；旧 `max_parallel_reads` 参数已移除。`session.conversation.capabilities` 区分适配器图片传输能力与未知的具体模型模态。运行完成、验证结果与调用方验收是独立字段，未配置验收不会显示为已验收。
 
 Harness 不再接受 `max_model_calls`、`max_tool_calls`、`max_iterations`、`max_turn_input_tokens`、`max_turn_seconds` 或 Profile 的 `wall_seconds`。回合持续到完成、明确失败或取消，模型/工具次数、token 与耗时仍记录。`run_command` 和 `verify` 的 `timeout_seconds` 默认 120 秒，可显式设为 7200 等更长的正有限值，不再截断到 600 秒或回合预算；Ctrl+C 仍取消并清理所属进程。工具传输容量和模型上下文容量保持独立。
 

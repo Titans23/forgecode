@@ -17,17 +17,24 @@ def mutation_target_paths(
     paths: list[str] = []
     direct_path = tool_call.arguments.get('path')
     if isinstance(direct_path, str) and direct_path.strip():
-        direct_path = direct_path.strip().replace('\\', '/')
         paths.append(direct_path)
     patch = tool_call.arguments.get('patch')
     if isinstance(patch, str):
+        from forge.tools.patch import is_codex_envelope, unified_patch_paths
+        if not is_codex_envelope(patch):
+            try:
+                headers = unified_patch_paths(patch)
+            except ValueError:
+                headers = ()  # Invalid patches are rejected before mutation.
+            paths.extend(path[2:] if path.startswith(('a/', 'b/')) else path
+                         for path in headers if path != '/dev/null')
+            unique = tuple(dict.fromkeys(paths))
+            return unique if maximum is None else unique[:maximum]
         prefixes = (
             '*** Update File:',
             '*** Add File:',
             '*** Delete File:',
             '*** Move to:',
-            '+++ b/',
-            '--- a/',
         )
         for line in patch.splitlines():
             stripped = line.strip()

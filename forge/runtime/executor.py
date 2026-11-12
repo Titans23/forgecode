@@ -469,7 +469,38 @@ class ToolExecutor:
 
         async def dispatch():
             if not background:
-                return await operation()
+                paths = self.registry.mutation_paths(effective_call)
+                if not paths:
+                    return await operation()
+                coordinator = getattr(self.backend, 'file_mutations', self.registry.file_mutations)
+                try:
+                    release = await coordinator.acquire(paths)
+                except asyncio.CancelledError:
+                    return skip('not_executed_after_interruption')
+                try:
+                    dispatched = await operation()
+                except BaseException:
+                    release()
+                    raise
+                if isinstance(dispatched, ExecutionOutcome):
+                    release()
+                    return dispatched
+                async def finish_mutation():
+                    try:
+                        return await dispatched.finish()
+                    finally:
+                        release()
+                def abort_mutation():
+                    try:
+                        return dispatched.abort()
+                    finally:
+                        release()
+                def fail_mutation(error):
+                    try:
+                        return dispatched.failed(error)
+                    finally:
+                        release()
+                return replace(dispatched, finish=finish_mutation, abort=abort_mutation, failed=fail_mutation)
             from forge.runtime.turn_state import parent_turn
             await self._journal_started(effective_call)
             if self.workspace_tracker is not None:

@@ -30,6 +30,8 @@ class FileToolBackend:
         self.observer = client
         self.mode = client.native.mode if client.native is not None else 'local-trusted'
         self._observed = {}
+        from forge.file_mutations import FileMutationLocks
+        self.file_mutations = FileMutationLocks()
 
     def check_ready(self, policy, *, required_mode):
         if self.mode != required_mode or canonical_hash(policy) != self.observer.policy_hash:
