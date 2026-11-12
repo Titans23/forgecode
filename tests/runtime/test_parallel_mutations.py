@@ -165,9 +165,9 @@ def test_aliases_share_a_lease_and_cancelled_waiters_release_entries(tmp_path, a
         alias = tmp_path / 'other.txt'
         os.link(path, alias)
     elif alias_kind == 'case':
-        if os.name != 'nt':
-            pytest.skip('Case-insensitive Windows path contract')
         alias = tmp_path / 'TARGET.TXT'
+        if os.name != 'nt':
+            alias.write_text('distinct POSIX file')
     else:
         alias = tmp_path / '.' / 'target.txt'
     async def run():
@@ -175,6 +175,13 @@ def test_aliases_share_a_lease_and_cancelled_waiters_release_entries(tmp_path, a
         release = await locks.acquire([path])
         waiter = asyncio.create_task(locks.acquire([alias]))
         await asyncio.sleep(0)
+        if alias_kind == 'case' and os.name != 'nt':
+            # POSIX case variants are distinct targets and should overlap.
+            release_alias = await asyncio.wait_for(waiter, 2)
+            release_alias()
+            release()
+            assert not locks._entries
+            return
         assert not waiter.done()
         unrelated = await locks.acquire([tmp_path / 'independent'])
         unrelated()
