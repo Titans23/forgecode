@@ -343,14 +343,25 @@ def test_cli_and_service_share_workspace_execution_lock(tmp_path):
         store.close()
 
 
-def test_cancelled_process_does_not_replan_or_claim_confirmed_cleanup(tmp_path, monkeypatch):
+def test_cancelled_process_records_cleanup_evidence_without_replanning(tmp_path, monkeypatch):
     import shlex
     import subprocess
     import sys
     from forge.permissions.policy import ApprovalResponse
+    from forge.tool_types import ToolExecutionCancelled
+    from forge.tools import shell
     started = asyncio.Event()
     processes = []
+    cleanup_reports = []
     real_spawn = asyncio.create_subprocess_exec
+    real_run = shell.run_process
+
+    async def observe_cleanup(*args, **kwargs):
+        try:
+            return await real_run(*args, **kwargs)
+        except ToolExecutionCancelled as error:
+            cleanup_reports.append(error.cleanup)
+            raise
 
     async def observe_spawn(*args, **kwargs):
         process = await real_spawn(*args, **kwargs)
@@ -360,6 +371,7 @@ def test_cancelled_process_does_not_replan_or_claim_confirmed_cleanup(tmp_path, 
         return process
 
     monkeypatch.setattr(asyncio, 'create_subprocess_exec', observe_spawn)
+    monkeypatch.setattr(shell, 'run_process', observe_cleanup)
     argv = [sys.executable, '-c', "import time; time.sleep(30)"]
     command = subprocess.list2cmdline(argv) if sys.platform == 'win32' else shlex.join(argv)
     clients = []
@@ -395,6 +407,8 @@ def test_cancelled_process_does_not_replan_or_claim_confirmed_cleanup(tmp_path, 
         asyncio.run(run())
         assert processes and processes[0].pid > 0
         assert len(clients[0].calls) == 1
-        assert service.get_snapshot(turn['session_id'])['turns'][0]['outcome'] == 'indeterminate'
+        assert cleanup_reports and processes[0].returncode is not None
+        expected = 'cancelled' if cleanup_reports[-1]['state'] == 'clean' else 'indeterminate'
+        assert service.get_snapshot(turn['session_id'])['turns'][0]['outcome'] == expected
     finally:
         store.close()
