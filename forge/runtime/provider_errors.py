@@ -10,7 +10,12 @@ def provider_failure(error, reason, message, *, retryable, api_key=None):
     response = getattr(error, 'response', None)
     status = getattr(error, 'status_code', None) or getattr(response, 'status_code', None)
     headers = getattr(response, 'headers', {})
-    request = getattr(error, 'request', None)
+    try:
+        request = getattr(error, 'request', None)
+    except RuntimeError:
+        # Raw HTTPX transport errors may precede a bound request. Diagnostics
+        # must not replace the original connection failure with this accessor error.
+        request = None
     secrets = [api_key] if isinstance(api_key, str) and api_key else []
     for key in ('authorization', 'x-api-key', 'x-goog-api-key', 'api-key'):
         value = getattr(request, 'headers', {}).get(key)

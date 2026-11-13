@@ -117,3 +117,11 @@ def test_failed_http_request_keeps_bounded_redacted_diagnostics(provider):
     assert len(requests) == 1
     failure = next(payload for kind,payload in records if kind == 'model_request_finished')
     assert failure['outcome'] == 'failed' and failure['error']['request_id'] == 'request-fixture'
+
+
+def test_transport_failure_without_a_request_keeps_its_original_reason():
+    from forge.runtime.provider_errors import provider_failure
+    error = provider_failure(httpx.RemoteProtocolError('Disconnected before a response'),
+        'connection_error', 'Model request failed: connection_error.', retryable=True)
+    assert error.reason == 'connection_error' and error.retryable
+    assert error.diagnostics == {}
