@@ -1,9 +1,9 @@
 {
   "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
-  "tool_definitions_review": "Reviewed existing tools add only the optional run_command.run_in_background boolean. Actual Windows and WSL POSIX definitions were measured; removing that single property reproduces both prior reviewed hashes. Required arguments, existing tool names/order, timeout defaults and one-call permission fields are unchanged. Live Harness sessions additionally register owned job_output and job_kill tools; they do not appear in the unbound base registry.",
+  "tool_definitions_review": "Reviewed run_command adds optional lifetime=command|session and permits timeout_seconds=null only for an explicitly managed session service. The finite command default remains 120 seconds; required arguments, existing tool names/order and one-call permission fields remain. POSIX shell guidance now names /bin/sh. Actual Windows and WSL POSIX definitions were measured. Live Harness sessions additionally register job_output with output/completion waits and job_kill; those tools are absent from the unbound base registry.",
   "tool_definitions_sha256_by_os": {
-    "nt": "b29f47b54aa176979cc7c818061d1088d18d026995709fa5d52d577d3ee39c4c",
-    "posix": "2eb3290af4d10322befb4cb7ac2ef4058cdc2031ed865937d6c09659b0686d40"
+    "nt": "0bed8eab8df58c718126dbf768ae1e9d3947ab451d2e741c5835df76ecf9142f",
+    "posix": "1f535a2805fb373e00895c921446b60c37a19a49032cf4ac1d8e1a635b810e27"
   },
   "tools": [
     "list_directory",

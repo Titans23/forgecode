@@ -384,7 +384,7 @@ class RunCommandTool(Tool[RunCommandInput]):
             'Commands run through Windows cmd.exe, which does not support '
             'the POSIX << heredoc syntax.'
             if os.name == 'nt'
-            else 'Commands run through the platform default shell.'
+            else 'Commands run through /bin/sh (POSIX, not necessarily Bash). Invoke bash explicitly for Bash-only syntax.'
         )
     )
     input_model = RunCommandInput
