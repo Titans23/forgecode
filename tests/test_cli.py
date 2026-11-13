@@ -384,11 +384,13 @@ def test_cli_starts_an_interactive_conversation(
     assert conversation.prompts == ['first', 'second']
 
 
-def test_jobs_commands_show_output_and_cancel_without_calling_model(monkeypatch):
+@pytest.mark.parametrize('lifetime', ['command', 'session'])
+def test_jobs_commands_show_output_and_cancel_without_calling_model(monkeypatch, lifetime):
+    from forge.runtime.jobs import CommandJob
     conversation = FakeConversation()
     actions = []
     class Jobs:
-        jobs = {'job-fixture': SimpleNamespace(id='job-fixture', state='running', command='echo owned')}
+        jobs = {'job-fixture': CommandJob('job-fixture', 'call', None, 'echo owned', lifetime=lifetime, state='running')}
         async def output(self, identity):
             actions.append(('output', identity))
             return ToolResult.ok('running', content='incremental-output')
@@ -400,6 +402,7 @@ def test_jobs_commands_show_output_and_cancel_without_calling_model(monkeypatch)
     result = runner.invoke(app, input='/jobs\n/jobs job-fixture\n/jobs stop job-fixture\n')
     assert result.exit_code == 0
     assert 'echo owned' in result.output and 'incremental-output' in result.output
+    assert ('会话服务' if lifetime == 'session' else '命令') in result.output
     assert 'owned job stopped' in result.output
     assert conversation.prompts == []
     assert actions == [('output', 'job-fixture'), ('cancel', 'job-fixture')]
