@@ -49,8 +49,13 @@ class SessionOptions:
     agent: AgentDefinition = AgentDefinition()
     models: dict[str, dict] = field(default_factory=dict)
     service_handoff_dir: Path | None = None
+    caller_deadline: float | None = None
 
     def __post_init__(self):
+        if self.caller_deadline is not None:
+            import math
+            if isinstance(self.caller_deadline, bool) or not math.isfinite(self.caller_deadline):
+                raise ValueError('caller_deadline must be a finite monotonic timestamp')
         if self.sandbox is None:
             scoped = self.write_roots is not None or self.agent.sandbox_provider not in (None, 'native')
             object.__setattr__(self, 'sandbox', 'workspace-write' if scoped else 'full-access')
@@ -151,7 +156,7 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
         permission_manager=permissions, backend=backend,
         trusted_extensions=options.sandbox == 'full-access' and options.profile.name != 'evaluation',
         intent_routing=options.profile.intent_routing,
-        plugin_host=plugin_host,
+        plugin_host=plugin_host, caller_deadline=options.caller_deadline,
         model_aliases=model_catalog(options),
         model_environment=model_environment(root / '.env', normalize_aliases=False))
     try:
@@ -203,7 +208,7 @@ async def _open_core_runtime(options, approval_handler, client_factory, runtime_
                                     load_stored_rules=False, execution_mode=options.sandbox)
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=startup.create,
         permission_manager=permissions, trusted_extensions=False, intent_routing=False,
-        plugin_host=plugin_host,
+        plugin_host=plugin_host, caller_deadline=options.caller_deadline,
         model_aliases=model_catalog(options),
         model_environment=model_environment(normalize_aliases=False))
     try:

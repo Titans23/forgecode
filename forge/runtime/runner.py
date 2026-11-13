@@ -57,6 +57,12 @@ class TurnRunner:
         self.consecutive_tool_protocol_errors = 0
         self.declared_status: str | None = None
         self.delivery_repair_reasons: set[tuple[str, ...]] = set()
+        self.deadline_warning_sent = False
+        self.resource_context = ''
+        if conversation.coding:
+            import json
+            from forge.runtime.environment import resource_facts
+            self.resource_context = '[Execution resources]\n' + json.dumps(resource_facts(), ensure_ascii=False)
 
     @property
     def tracker(self):
@@ -236,6 +242,8 @@ class TurnRunner:
             c.task_manager.system_suffix() if c.task_manager is not None else '',
             c.working_state.system_suffix() if c.working_state is not None else '', c._last_repository_context,
             c._permission_system_context(),
+            self.resource_context,
+            self._deadline_context(),
             ('[Current turn contract]\n' + self.state.goal
              if c.active_task is None or c.active_task.goal != self.state.goal else ''),
             '[Runtime request tools]\nOnly the following tools are included in this model request: ' + available,
@@ -247,6 +255,20 @@ class TurnRunner:
             if c.completion_gate and c.completion_gate.policy.require_acceptance_reconciliation
             and c.active_task is not None and c.active_task.acceptance_criteria else ''),
         ) if part)
+
+    def _deadline_context(self):
+        deadline = self.conversation.caller_deadline
+        if deadline is None:
+            return ''
+        remaining = max(0, deadline - monotonic())
+        warning = ''
+        if remaining <= 120 and not self.deadline_warning_sent:
+            self.deadline_warning_sent = True
+            warning = ' Time is nearly exhausted: prioritize the requested artifact and a focused final check; avoid optional repeated checks.'
+            if self.journal is not None:
+                self.journal.append('caller_deadline_warning', {'remaining_seconds': remaining})
+        return (f'[Caller deadline]\nApproximately {remaining:.0f} seconds remain until the caller cutoff. '
+                'This is an external deadline, not a Harness budget. Command lifetime and job wait are separate.' + warning)
 
     def _evidence_context(self) -> str:
         '''Deterministic projection survives model summaries and context trimming.'''

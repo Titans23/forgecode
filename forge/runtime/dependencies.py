@@ -39,11 +39,13 @@ class RuntimeBindings:
     plugin_host: Any | None = None
     model_aliases: dict = field(default_factory=dict)
     model_environment: dict = field(default_factory=dict)
+    caller_deadline: float | None = None
 
     def conversation_options(self):
         options = {'tool_backend': self.backend, 'event_recorder': self.recorder,
                    'owns_tool_backend': self.owns_tool_backend,
-                   'turn_baseline_handler': self.turn_baseline_handler}
+                   'turn_baseline_handler': self.turn_baseline_handler,
+                   'caller_deadline': self.caller_deadline}
         if self.permission_manager is not None:
             options['permission_manager'] = self.permission_manager
         if self.task_relation is not None:

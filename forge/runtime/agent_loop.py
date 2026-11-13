@@ -103,6 +103,7 @@ class Conversation:
         event_recorder: Any | None = None,
         turn_baseline_handler: Any | None = None,
         max_parallel_tools: int = 10,
+        caller_deadline: float | None = None,
         coding: bool = True,
         features: frozenset[str] | None = None,
         **legacy_options,
@@ -110,6 +111,7 @@ class Conversation:
         if type(max_parallel_tools) is not int or max_parallel_tools < 1:
             raise ValueError('max_parallel_tools must be a positive integer')
         self.max_parallel_tools = max_parallel_tools
+        self.caller_deadline = caller_deadline
         self.coding = coding
         from forge.agents import CODING_FEATURES
         self.features = frozenset(CODING_FEATURES if features is None and coding else features or ())
@@ -219,7 +221,8 @@ class Conversation:
         self.command_jobs = None
         if registry is not None and getattr(registry.implementation('run_command'), 'supports_background', False):
             from forge.runtime.jobs import CommandJobs
-            self.command_jobs = CommandJobs(limit=max_parallel_tools, journal=session_journal)
+            self.command_jobs = CommandJobs(limit=max_parallel_tools, journal=session_journal,
+                                            caller_deadline=caller_deadline)
             from forge.tools.jobs import JobOutputTool, JobKillTool
             for tool in (JobOutputTool(resolved_context_root, self.command_jobs), JobKillTool(resolved_context_root, self.command_jobs)):
                 if tool.name not in registry.names:
@@ -533,7 +536,8 @@ class Conversation:
             parts.append(
                 '[Runtime Environment]\n'
                 '- platform: POSIX\n'
-                '- process shell: platform default shell\n'
+                '- process shell for command strings: /bin/sh (POSIX, not necessarily Bash); '
+                'invoke bash explicitly for Bash-only syntax\n'
                 '- repository inspection: prefer dedicated repository tools\n'
                 f'- verification: use {verification_hint}'
             )

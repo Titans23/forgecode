@@ -42,7 +42,12 @@ def supervise(argv, *, preserve_on_success=False, timeout_seconds=None, service_
     timed_out = False
     deadline = time.monotonic() + timeout_seconds if timeout_seconds is not None else None
     try:
-        process = subprocess.Popen(argv, start_new_session=True)
+        environment = dict(os.environ)
+        if deadline is not None:
+            environment['FORGE_AGENT_DEADLINE_MONOTONIC'] = str(deadline)
+        else:
+            environment.pop('FORGE_AGENT_DEADLINE_MONOTONIC', None)
+        process = subprocess.Popen(argv, start_new_session=True, env=environment)
         while process.poll() is None and not interrupted:
             if deadline is not None and time.monotonic() >= deadline:
                 timed_out = True

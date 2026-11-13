@@ -1,5 +1,6 @@
 '''Queries and cancellation address only jobs owned by this live session.'''
 from pydantic import Field
+from typing import Literal
 
 from forge.permissions.policy import PermissionRequest
 from forge.tools.base import Tool, ToolInput
@@ -11,8 +12,10 @@ class JobInput(ToolInput):
 
 class JobOutputInput(JobInput):
     after: int = Field(default=0, ge=0, description='Use next_cursor from the previous result for incremental output.')
-    wait_seconds: float = Field(default=0, ge=0, le=60, allow_inf_nan=False,
-        description='Wait for output or completion, up to 60 seconds. Does not stop the command.')
+    wait_for: Literal['output', 'completion'] = Field(default='output',
+        description='completion waits for termination even if previous output exists. output returns on new output.')
+    wait_seconds: float = Field(default=0, ge=0, le=3600, allow_inf_nan=False,
+        description='Wait up to this many seconds, bounded by the caller deadline. Does not stop the command.')
 
 
 class JobOutputTool(Tool[JobOutputInput]):
@@ -29,7 +32,8 @@ class JobOutputTool(Tool[JobOutputInput]):
         return PermissionRequest(self.name, 'repository.read', 'low', reason='Read an owned command job')
 
     async def execute(self, arguments):
-        return await self.jobs.output(arguments.job_id, after=arguments.after, wait_seconds=arguments.wait_seconds)
+        return await self.jobs.output(arguments.job_id, after=arguments.after,
+            wait_seconds=arguments.wait_seconds, wait_for=arguments.wait_for)
 
 
 class JobKillTool(Tool[JobInput]):

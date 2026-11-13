@@ -53,9 +53,10 @@ class CommandJob:
 
 
 class CommandJobs:
-    def __init__(self, *, limit=10, journal=None):
+    def __init__(self, *, limit=10, journal=None, caller_deadline=None):
         self.jobs = {}
         self.journal = journal
+        self.caller_deadline = caller_deadline
         self._slots = asyncio.Semaphore(limit)
         self._closing = None
 
@@ -139,22 +140,38 @@ class CommandJobs:
             job.changed.set()
             self._finished(job)
 
-    async def output(self, identity, *, after=0, wait_seconds=0):
+    async def output(self, identity, *, after=0, wait_seconds=0, wait_for='output'):
         job = self.jobs.get(identity)
         if job is None:
             return ToolResult.fail('unknown_job', 'This job is not owned by the live session. Jobs are not replayed on resume.')
         if after > job.cursor:
             return ToolResult.fail('invalid_cursor', 'Output cursor is beyond the recorded job output.')
-        if job.state in {'queued', 'running'} and after == job.cursor and wait_seconds:
+        if wait_for not in {'output', 'completion'}:
+            return ToolResult.fail('invalid_arguments', 'wait_for must be output or completion.')
+        started = monotonic()
+        deadline = started + wait_seconds
+        if self.caller_deadline is not None:
+            deadline = min(deadline, self.caller_deadline)
+        wait_expired = False
+        while job.state in {'queued', 'running'} and (wait_for == 'completion' or after == job.cursor):
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                wait_expired = True
+                break
             job.changed.clear()
             try:
-                await asyncio.wait_for(job.changed.wait(), wait_seconds)
+                await asyncio.wait_for(job.changed.wait(), remaining)
             except TimeoutError:
-                pass
+                wait_expired = True
+                break
         chunks = [chunk for chunk in job.chunks if chunk['cursor'] > after]
         text = ''.join(f"[{chunk['stream']}] {chunk['text']}" for chunk in chunks)
         truncated = job.discarded_characters > 0
         metadata = {'job_id': job.id, 'state': job.state, 'lifetime': job.lifetime, 'next_cursor': job.cursor,
+                    'waited_seconds': monotonic() - started,
+                    'wait_reason': ('completed' if job.state not in {'queued', 'running'} else
+                        'caller_deadline' if wait_expired and deadline == self.caller_deadline else
+                        'output' if wait_for == 'output' and job.cursor > after else 'wait_timeout'),
                     'output_truncated': truncated, 'elapsed_seconds': (job.finished_at or monotonic()) - job.started_at,
                     'exit_code': job.result.metadata.get('exit_code') if job.result else None}
         if job.result is not None:

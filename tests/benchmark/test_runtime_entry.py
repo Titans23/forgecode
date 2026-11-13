@@ -56,6 +56,22 @@ def test_entries_share_policy_git_and_outside_file_edits(tmp_path, entry):
     assert state.sandbox_mode == 'full-access' and state.approval_policy == 'never'
 
 
+def test_benchmark_forwards_the_supervisor_deadline(tmp_path, monkeypatch):
+    monkeypatch.setenv('FORGE_AGENT_DEADLINE_MONOTONIC', '123456789')
+    (tmp_path/'project').mkdir()
+    class Model:
+        model = 'offline'
+        async def stream(self, messages, **kwargs):
+            assert '[Caller deadline]' in messages[-1]['content']
+            yield ModelTextDelta('Done')
+            yield ModelResponseCompleted('end_turn')
+        async def aclose(self): pass
+    result = asyncio.run(run_turn(tmp_path/'project', 'Answer only.', resume=False,
+        runtime_bindings=RuntimeBindings(config=ForgeConfig(api_key='offline', model_id='offline'),
+            data_root=tmp_path/'private', model_client_factory=lambda *a, **kw: Model())))
+    assert result.status == 'completed'
+
+
 def test_evaluation_does_not_load_unfrozen_local_permissions(tmp_path):
     from forge.api import RunProfile
     project = tmp_path / 'project'

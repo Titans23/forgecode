@@ -160,7 +160,9 @@ async def run_turn(
     options = SessionOptions(project, sandbox=EVALUATION_EXECUTION['sandbox'], approval=EVALUATION_EXECUTION['approval'],
         data_root=runtime_bindings.data_root, config=runtime_bindings.config, agent=definition,
         models=runtime_bindings.model_aliases, profile=RunProfile.evaluation(),
-        service_handoff_dir=Path(os.environ['FORGE_SERVICE_HANDOFF_DIR']) if os.environ.get('FORGE_SERVICE_HANDOFF_DIR') else None)
+        service_handoff_dir=Path(os.environ['FORGE_SERVICE_HANDOFF_DIR']) if os.environ.get('FORGE_SERVICE_HANDOFF_DIR') else None,
+        caller_deadline=(float(os.environ['FORGE_AGENT_DEADLINE_MONOTONIC'])
+            if os.environ.get('FORGE_AGENT_DEADLINE_MONOTONIC') else runtime_bindings.caller_deadline))
     conversation, journal, _, _ = await open_runtime(options,
         model_client_factory=runtime_bindings.model_client_factory, runtime_factory=assemble,
         continue_session=resume)

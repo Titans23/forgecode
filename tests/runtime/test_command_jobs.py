@@ -48,7 +48,15 @@ def test_background_command_streams_before_completion_and_preserves_one_tool_lif
                         break
             assert early.metadata['state'] == 'running' and 'last' not in early.content
             cursor = early.metadata['next_cursor']
-            await asyncio.wait_for(conversation.command_jobs.jobs[identity].task, 15)
+            # Replaying old output must not turn completion waits into a busy loop.
+            waiting = asyncio.create_task(conversation.command_jobs.output(identity, wait_for='completion', wait_seconds=15))
+            await asyncio.sleep(.05)
+            assert not waiting.done()
+            waiting.cancel()
+            with pytest.raises(asyncio.CancelledError): await waiting
+            assert conversation.command_jobs.jobs[identity].state == 'running'
+            completed = await conversation.command_jobs.output(identity, wait_for='completion', wait_seconds=15)
+            assert completed.metadata['state'] == 'completed' and completed.metadata['wait_reason'] == 'completed'
             final = await conversation.tool_executor.execute(ToolCall(1, 'read-output', 'job_output', {
                 'job_id': identity, 'after': cursor}))
             assert final.result.metadata['state'] == 'completed'
@@ -293,6 +301,21 @@ def test_streamed_output_caps_and_cursor_validation():
         assert job.characters <= 65536 and result.metadata['output_truncated']
         assert '\u4e2d' in result.content
         assert (await jobs.output(job.id, after=job.cursor + 1)).error.code == 'invalid_cursor'
+    asyncio.run(run())
+
+
+def test_completion_wait_respects_caller_deadline_without_stopping_job():
+    from forge.runtime.jobs import CommandJob, CommandJobs
+    from time import monotonic
+    async def run():
+        jobs = CommandJobs(caller_deadline=monotonic() + .05)
+        job = CommandJob('owned', 'call', None, 'pending', state='running')
+        jobs.jobs[job.id] = job
+        job.feed('stdout', b'old output')
+        result = await asyncio.wait_for(jobs.output(job.id, wait_for='completion', wait_seconds=3600), 1)
+        assert result.metadata['wait_reason'] == 'caller_deadline'
+        assert result.metadata['state'] == 'running' and 'old output' in result.content
+        assert (await jobs.output(job.id, after=result.metadata['next_cursor'])).content == ''
     asyncio.run(run())
 
 

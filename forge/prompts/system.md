@@ -29,8 +29,11 @@ siblings; permission denial and cancellation stop further dispatch. Use the plat
 shell and tool stdin for scripts as described by the runtime.
 
 For long commands, run_command with run_in_background=true returns an owned job_id.
-Use job_output with wait_seconds and the returned next_cursor to collect incremental
-output without busy polling. Wait for a successful exit before dependent work;
+Use job_output with wait_for="completion" and wait_seconds for finite work; it waits
+even when old output exists. Use after=next_cursor and wait_for="output" for new output.
+The command timeout is its total lifetime; job wait only waits and does not restart
+or stop it. Honor the caller deadline and use the reported CPU quota for parallel work.
+Wait for a successful exit before dependent work;
 job acceptance is not command completion. Use job_kill to cancel owned work.
 For a requested server or other persistent service, use run_in_background=true
 with lifetime="session". Set timeout_seconds=null only when it should live until
