@@ -90,7 +90,6 @@ def test_harbor_materialize_refuses_inconsistent_plan_before_writing_job(tmp_pat
 @pytest.mark.parametrize('drift', ['model', 'parameters', 'prompt', 'tools', 'launch', 'plan_hash'])
 def test_bound_runner_rejects_drift_before_any_model_request(tmp_path, drift):
     from benchmark.harbor.run_forge import run_turn
-    from forge.application.harness_adapter import LocalTrustedBackend
     from forge.config import ForgeConfig
     from forge.engine.persistence import new_id
     from forge.engine.test_profile import ScriptedModelClient
@@ -129,7 +128,7 @@ def test_bound_runner_rejects_drift_before_any_model_request(tmp_path, drift):
         project = tmp_path / 'project'
         project.mkdir()
         bindings = RuntimeBindings(config=config, model_client_factory=factory,
-            data_root=tmp_path / 'harness', backend=LocalTrustedBackend(), trusted_extensions=False)
+            data_root=tmp_path / 'harness', trusted_extensions=False)
         with pytest.raises(ValueError, match='differ(?:s)? from'):
             asyncio.run(run_turn(project, 'No request may start.', resume=False,
 

@@ -174,10 +174,8 @@ def test_frozen_harbor_harness_runs_real_tools_and_tests_without_extra_repair_bu
     import shlex
     import shutil
     from benchmark.harbor.run_forge import run_turn
-    from forge.application.harness_adapter import LocalTrustedBackend
     from forge.config import ForgeConfig
     from forge.engine.test_profile import scripted_profile
-    from forge.permissions.policy import PermissionManager
     from forge.runtime.dependencies import RuntimeBindings
     from forge.engine.persistence import new_id
     methods,spec=make_evaluation(tmp_path)
@@ -198,7 +196,7 @@ def test_frozen_harbor_harness_runs_real_tools_and_tests_without_extra_repair_bu
             client=profile.model_client_factory(config,**kwargs);clients.append(client);return client
         bindings=RuntimeBindings(config=ForgeConfig(api_key='explicit-scripted-only',model_id='synthetic-fixture',
             context_window=128000,max_tokens=1024),model_client_factory=factory,data_root=tmp_path/'harness',
-            permission_manager=PermissionManager(project,load_stored_rules=False),backend=LocalTrustedBackend(),trusted_extensions=False)
+            trusted_extensions=False)
         config={'parameters':values['model_parameters'],'harness':values['harness'],
             'scope':{'trace_id':'1'*32,'span_id':'2'*16,'run_id':new_id('run'),'trial_id':new_id('trial')},
             'attempt_id':new_id('attempt')}
@@ -207,11 +205,14 @@ def test_frozen_harbor_harness_runs_real_tools_and_tests_without_extra_repair_bu
         # request, then bind the positive scripted run to that exact RunSpec.
         from dataclasses import replace
         from benchmark.harbor.run_forge import BENCHMARK_TASK_POLICY
+        from forge.api import SessionOptions, RunProfile, open_runtime
         from forge.runtime.factory import create_runtime
-        from forge.runtime.profile import ExecutionProfile
-        probe,probe_journal,_=create_runtime(project,bindings=replace(bindings,data_root=tmp_path/'probe'),
-            execution_profile=ExecutionProfile.sandbox(),task_relation='new',
-            task_policy=replace(BENCHMARK_TASK_POLICY,max_delivery_repairs=0))
+        async def open_probe():
+            return await open_runtime(SessionOptions(project, config=bindings.config, data_root=tmp_path/'probe',
+                profile=RunProfile.evaluation()), model_client_factory=factory,
+                runtime_factory=lambda *a, **k: create_runtime(*a, **k, task_relation='new',
+                    task_policy=replace(BENCHMARK_TASK_POLICY,max_delivery_repairs=0)))
+        probe,probe_journal,_,_=asyncio.run(open_probe())
         spec['harness']['prompt_sha256']=sha256(probe.system_prompt.encode('utf-8')).hexdigest()
         spec['harness']['tool_schema_sha256']=canonical_hash(probe._tool_definitions())
         asyncio.run(probe.runtime_close());probe_journal.record_stopped()
