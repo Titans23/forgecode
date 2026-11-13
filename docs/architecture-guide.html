@@ -55,8 +55,8 @@
     pre code { font-size: inherit; background: transparent; color: inherit; padding: 0; }
     .skip { position: absolute; left: 14px; top: -100px; z-index: 30; padding: 10px; background: var(--panel); }
     .skip:focus { top: 8px; }
-    .topbar { height: 64px; display: flex; align-items: center; gap: 24px; padding: 0 max(0px, calc((100vw - 1440px) / 2)); border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 15; }
-    .brand { display: flex; align-items: center; gap: 8px; height: 64px; flex: 0 0 272px; padding: 0 32px; background: var(--sidebar); color: var(--ink); font-weight: 600; font-size: 20px; }
+    .topbar { height: 64px; display: flex; align-items: center; gap: 24px; padding: 0 max(0px, calc((100% - 1440px) / 2)); border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 15; }
+    .brand { display: flex; align-items: center; gap: 8px; height: 100%; flex: 0 0 272px; padding: 0 32px; background: var(--sidebar); color: var(--ink); font-weight: 600; font-size: 20px; }
     .brand:hover { text-decoration: none; }
     .brand-mark { width: 24px; height: 24px; display: grid; place-items: center; background: var(--button-blue); border-radius: 6px; color: white; font: 600 16px Consolas, monospace; }
     .brand-tag { color: var(--blue); font-size: 11px; font-weight: 500; line-height: 19px; border: 1px solid var(--line); border-radius: 10px; padding: 0 7px; margin-left: 3px; }
@@ -101,6 +101,13 @@
     .infobox dl { display: grid; grid-template-columns: 88px 1fr; gap: 8px 14px; margin: 0; font-size: .86rem; }
     .infobox dt { color: var(--muted); }
     .infobox dd { margin: 0; }
+    .infobox summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+    .infobox[open] dl { margin-top: 16px; }
+    .tour-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+    .tour-stop { border: 1px solid var(--line); border-radius: 6px; padding: 12px; color: var(--ink); }
+    .tour-stop:hover { text-decoration: none; border-color: var(--blue); background: var(--paper); }
+    .tour-stop strong { display: block; font-size: 14px; }
+    .tour-stop small { display: block; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; margin-top: 5px; }
     .actions, .related { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
     .button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border: 1px solid var(--border); background: var(--panel); color: var(--blue); padding: 6px 12px; border-radius: 6px; font-size: .8rem; }
     .button:hover { background: var(--blue-soft); text-decoration: none; }
@@ -185,6 +192,7 @@
     .source-note { padding: 0 16px 13px; font-size: .84rem; color: var(--muted); }
     .source pre { margin: 0; background: var(--code); padding: 16px; overflow-x: auto; font-size: .76rem; line-height: 1.75; tab-size: 4; }
     .code-line { display: grid; grid-template-columns: 38px max-content; }
+    .code-line.is-highlighted { background: var(--blue-soft); box-shadow: -3px 0 var(--blue); }
     .line-number { color: var(--muted); user-select: none; }
     .code-text { white-space: pre; }
     .source-footer { padding: 11px 16px; display: flex; gap: 14px; flex-wrap: wrap; font-size: .77rem; }
@@ -218,6 +226,23 @@
     .metric strong { display: block; font-size: .85rem; font-family: Consolas, monospace; margin-top: 5px; color: var(--blue); overflow-wrap: anywhere; }
     .flow-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
     .flow-position { color: var(--muted); font-size: .78rem; margin-left: auto; }
+    .code-flow { display: block; }
+    .code-flow .flow-timeline { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 24px; }
+    .code-flow .flow-stop { border: 1px solid var(--line); border-radius: 6px; align-items: flex-start; }
+    .code-flow .flow-controls { position: sticky; top: 64px; z-index: 3; background: var(--panel); margin: 0 0 20px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .code-flow .flow-stage { scroll-margin-top: 82px; }
+    .content .implementation-panel { scroll-margin-top: 144px; }
+    .implementation-panel h2 { margin: 16px 0; }
+    .call-chain { font: 13px/24px ui-monospace, Consolas, monospace; color: var(--blue); overflow-wrap: anywhere; margin: 16px 0; }
+    .code-points { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 12px; }
+    .code-points button { font-size: 13px; padding: 6px 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; color: var(--muted); }
+    .code-points button[aria-pressed="true"] { color: var(--blue); border-color: var(--blue); background: var(--blue-soft); }
+    .reading-explanation { min-height: 48px; color: var(--ink); font-size: 14px; line-height: 24px; }
+    .implementation-panel .related a { min-width: 0; max-width: 100%; overflow-wrap: anywhere; font: 12px/22px ui-monospace, Consolas, monospace; }
+    .trace-facts { margin: 20px 0; font-size: 14px; }
+    .trace-facts summary { cursor: pointer; font-weight: 600; }
+    .trace-facts p { margin: 12px 0; }
+    .trace-input-output { margin: 16px 0; padding-left: 16px; border-left: 2px solid var(--line); font-size: 14px; color: var(--muted); }
     .glossary { margin-top: 25px; }
     .glossary .card { border: 0; border-bottom: 1px solid var(--line); padding: 18px 0; }
     .glossary dt { font-weight: 600; color: var(--blue); font-size: 1rem; }
@@ -261,6 +286,7 @@
       .theme-toggle[aria-pressed="true"] span { transform: translateX(14px); }
       h1 { font-size: 28px; line-height: 36px; }
       .module-grid, .map-layer, .flow-layout, .io-grid { grid-template-columns: 1fr; }
+      .tour-map, .code-flow .flow-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .blueprint { padding: 8px 12px; }
       .map-layer { gap: 8px; }
       .layer-name { padding: 0; }
@@ -312,7 +338,7 @@
       <div id="browse-nav">
       <nav class="nav-primary" aria-label="通用导航">
         <a class="nav-link" href="#overview" data-route="overview">Wiki 首页</a>
-        <a class="nav-link" href="#flow/coding" data-route="flow">请求流程推演</a>
+        <a class="nav-link" href="#flow/runtime" data-route="flow">跟着源码走一次请求</a>
         <a class="nav-link" href="#glossary" data-route="glossary">术语与状态</a>
       </nav>
       <div class="nav-heading">主题条目</div>
@@ -484,6 +510,12 @@
             "create_runtime",
             "Conversation",
             "TurnRunner"
+          ],
+          "links": [
+            [
+              "交互式源码导览：逐步查看实现",
+              "#flow/runtime"
+            ]
           ]
         },
         {
@@ -3798,6 +3830,664 @@
   ],
   "flows": [
     {
+      "id": "runtime",
+      "title": "跟着源码走一次请求",
+      "subtitle": "从读取 README 到最终答案，逐步查看真实调用、关键行和失败分支。",
+      "description": "教学场景：已配置模型，打开普通 coding 会话，要求“读取 README.md 并概括项目用途”。选择一个阶段，再切换该阶段的代码阅读点。输入输出是说明性示例，代码节选直接来自标注提交；页面不发模型请求、不执行工具。",
+      "steps": [
+        [
+          "entry",
+          "打开会话",
+          "先决定 Agent 组合与运行条件，再创建会话。打开会话本身不会替你发送这条用户请求。",
+          "SessionOptions(root=项目路径, agent=AgentDefinition())",
+          "HarnessSession 持有 Conversation、Journal 和执行后端。",
+          0,
+          0,
+          0,
+          "普通 coding / 无强制验收",
+          "HarnessSession.open → open_runtime → _open_runtime"
+        ],
+        [
+          "composition",
+          "装配能力",
+          "create_runtime 创建模型、Journal 和工具注册表，并把它们交给同一个 Conversation。插件工具接入这个注册表。",
+          "AgentDefinition + RuntimeBindings + 可选恢复历史",
+          "一个包含 client、registry、context、journal 的 Conversation。",
+          0,
+          0,
+          0,
+          "普通 coding / 无强制验收",
+          "create_runtime → ToolRegistry → Conversation"
+        ],
+        [
+          "conversation",
+          "接收这一轮输入",
+          "用户现在提交“读取 README.md 并概括项目用途”。Conversation 确保同一会话只运行一个回合，再交给新的 TurnRunner。",
+          "用户消息：读取 README.md 并概括项目用途。",
+          "TurnRunner 获得本轮消息副本、TurnState 和用户目标。",
+          0,
+          0,
+          0,
+          "普通 coding / 无强制验收",
+          "HarnessSession.stream → Conversation.stream → TurnRunner.run"
+        ],
+        [
+          "runner",
+          "构造模型请求",
+          "循环整理工具定义、系统提示和当前上下文；需要时压缩历史，随后开始一条真实模型请求。",
+          "历史消息 + 稳定系统提示 + 当前可用工具与运行事实",
+          "发送给 ModelClient.stream 的 messages、tools、system。",
+          1,
+          0,
+          0,
+          "普通 coding / 无强制验收",
+          "TurnRunner._loop → ContextManager.prepare → ObservedModelClient.stream"
+        ],
+        [
+          "models",
+          "流式响应先暂存",
+          "正文和思考片段可以立刻显示；完整工具调用先收集到 calls 中。只有响应完整且协议有效，才进入工具执行。",
+          "示例：ModelToolCallCompleted(name=\"read_file\", arguments={\"path\":\"README.md\"})",
+          "完整 assistant 消息与待执行的 ToolCall；半段 JSON 只用于进度显示。",
+          1,
+          0,
+          0,
+          "普通 coding / 无强制验收",
+          "提供方适配器 → ModelStreamEvent → TurnRunner._loop"
+        ],
+        [
+          "tools",
+          "工具准入与执行",
+          "read_file 的参数先校验，再处理 Hook 与权限。获准后，调度器才启动执行体；执行后端将调用交给实际工具。",
+          "ToolCall(index=0, name=\"read_file\", arguments={\"path\":\"README.md\"})",
+          "ToolResult：读取到的带行号文本，或明确的错误；同时产生执行记录。",
+          1,
+          1,
+          0,
+          "普通 coding / 无强制验收",
+          "TurnRunner._batch → schedule_calls → ToolExecutor → 执行后端 / ToolRegistry"
+        ],
+        [
+          "runner",
+          "结果回到下一轮模型请求",
+          "工具完成后按原调用顺序拼接结果消息。真实结果先持久化，再加入历史；外层循环带着这份新证据继续请求模型。",
+          "read_file 的实际结果与原始 call.id / index",
+          "messages 增加 tool_result；模型据此生成项目用途说明。",
+          2,
+          1,
+          0,
+          "普通 coding / 无强制验收",
+          "schedule_calls 结算 → TurnRunner._append_results → _loop 下一次请求"
+        ],
+        [
+          "completion",
+          "返回答案并保留轨迹",
+          "模型给出最终说明。普通 coding 按正常完成路径返回；显式完成检查或未结束的有限作业才会阻止直接结束。",
+          "最终文本 + 实际用量 + 工具记录 + 可选检查结果",
+          "TurnCompleted(TurnResult(...))；会话仍可接收下一轮。",
+          2,
+          1,
+          0,
+          "普通 coding / 无强制验收",
+          "TurnRunner._completion_reasons → _finish → Conversation.record_session_event → CLI / SDK"
+        ]
+      ],
+      "implementation": [
+        {
+          "chain": "HarnessSession.open → open_runtime → _open_runtime",
+          "owner": "调用方持有 HarnessSession，并负责 async with / close；SessionOptions 是本次打开的配置。",
+          "state": [
+            [
+              "agent.base",
+              "coding：加载开发能力；core：通用组合。"
+            ],
+            [
+              "sandbox / approval",
+              "普通 coding 默认 full-access / never；显式范围会影响默认选择。"
+            ]
+          ],
+          "failure": "工作区和数据目录重叠时拒绝打开；初始化中失败的客户端或后端需要关闭，不能遗留半个会话。",
+          "readings": [
+            {
+              "title": "公共入口只做装配转交",
+              "explanation": "这五行是阅读起点：等待 open_runtime 返回现成组件，再包装为一个会话对象。它没有自己复制模型循环。",
+              "source": {
+                "path": "forge/api.py",
+                "symbol": "HarnessSession.open",
+                "definition_line": 252,
+                "line": 252,
+                "end": 256,
+                "code": "    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None,\n                   trajectory_recorder: TrajectoryRecorder | None = None, **resume):\n        conversation, journal, _, backend = await open_runtime(options,\n            approval_handler=approval_handler, model_client_factory=model_client_factory, **resume)\n        return cls(conversation, journal, backend, trajectory_recorder)",
+                "note": "这五行是阅读起点：等待 open_runtime 返回现成组件，再包装为一个会话对象。它没有自己复制模型循环。",
+                "highlights": [
+                  254,
+                  256
+                ]
+              }
+            },
+            {
+              "title": "默认权限在这里归一化",
+              "explanation": "注意 full-access、workspace-write 和 approval 的条件。Agent 的能力选择与执行权限是两个字段。",
+              "source": {
+                "path": "forge/api.py",
+                "symbol": "SessionOptions.__post_init__",
+                "definition_line": 54,
+                "line": 54,
+                "end": 72,
+                "code": "    def __post_init__(self):\n        if self.caller_deadline is not None:\n            import math\n            if isinstance(self.caller_deadline, bool) or not math.isfinite(self.caller_deadline):\n                raise ValueError('caller_deadline must be a finite monotonic timestamp')\n        if self.sandbox is None:\n            scoped = self.write_roots is not None or self.agent.sandbox_provider not in (None, 'native')\n            object.__setattr__(self, 'sandbox', 'workspace-write' if scoped else 'full-access')\n        if self.sandbox == 'danger-full-access':\n            object.__setattr__(self, 'sandbox', 'full-access')\n        if self.sandbox not in ('read-only', 'workspace-write', 'full-access'):\n            raise ValueError('Sandbox must be read-only, workspace-write or full-access')\n        if self.approval is None:\n            object.__setattr__(self, 'approval', 'never' if self.sandbox == 'full-access' else 'ask')\n        if self.approval not in ('ask', 'never', 'plan', 'supervised', 'auto'):\n            raise ValueError('Approval must be ask or never (legacy: plan, supervised, auto)')\n        if self.agent.base == 'coding' and self.root is None:\n            raise ValueError('The coding agent requires a workspace')\n        if self.agent.base == 'coding' and self.sandbox != 'full-access' and self.agent.sandbox_provider is None:",
+                "note": "注意 full-access、workspace-write 和 approval 的条件。Agent 的能力选择与执行权限是两个字段。",
+                "highlights": [
+                  59,
+                  61,
+                  62,
+                  64,
+                  65,
+                  66
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "chain": "create_runtime → ToolRegistry → Conversation",
+          "owner": "Conversation 持有跨回合资源；PluginHost 持有插件注册和清理。",
+          "state": [
+            [
+              "registry",
+              "coding 使用筛选后的内置工具；core 从空注册表开始。"
+            ],
+            [
+              "features",
+              "决定是否加载 hooks、MCP、检查点等能力。"
+            ]
+          ],
+          "failure": "工具名称配置错误会显式报错；strict 完成策略与普通 coding 的组合不同，不能凭同一个 CLI 外观推断加载了相同组件。",
+          "readings": [
+            {
+              "title": "先建立注册表",
+              "explanation": "看 coding 的条件分支与 bind_registry：业务插件和内置工具最终由同一注册表提供接口。",
+              "source": {
+                "path": "forge/runtime/factory.py",
+                "symbol": "create_runtime",
+                "definition_line": 34,
+                "line": 101,
+                "end": 118,
+                "code": "    model = client_factory(config)\n    if state is None:\n        journal = store.create(model=str(getattr(model, 'model', '')), provider=config.provider,\n                               deferred=defer_new_session)\n    checkpoint = None\n    if 'checkpoints' in features:\n        from forge.sessions.checkpoint import CheckpointStore\n        checkpoint = CheckpointStore.for_session(root, journal.path, journal.session_id)\n    from forge.tools.base import ToolRegistry\n    registry = create_default_registry(root, execution_profile=execution_profile,\n        allow_container_writes=allow_container_writes,\n        model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),\n        selected_tools=agent.tools, skills_enabled='skills' in features,\n        **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {})) if coding else ToolRegistry()\n    if bindings and bindings.plugin_host:\n        bindings.plugin_host.bind_registry(registry)\n    hooks = HookManager.from_root(root) if extensions and 'hooks' in features else None\n    mcp = None",
+                "note": "看 coding 的条件分支与 bind_registry：业务插件和内置工具最终由同一注册表提供接口。",
+                "highlights": [
+                  103,
+                  110,
+                  114,
+                  116
+                ]
+              }
+            },
+            {
+              "title": "再构造 Conversation",
+              "explanation": "把刚创建的对象显式传入 Conversation。intent_router 只有配置启用才创建，并不是每轮必经的模型调用。",
+              "source": {
+                "path": "forge/runtime/factory.py",
+                "symbol": "create_runtime",
+                "definition_line": 34,
+                "line": 124,
+                "end": 136,
+                "code": "    conversation = conversation_type(\n        client=model, intent_router=(ModelIntentRouter(client_factory(config, max_tokens=600))\n            if coding and task_relation is None and bindings is not None\n            and bindings.intent_routing and bindings.task_relation is None else None),\n        registry=registry, initial_messages=list(state.messages) if state else None,\n        active_task=state.active_task if state else None, session_journal=journal,\n        checkpoint_store=checkpoint, session_store=store, hook_manager=hooks, mcp_manager=mcp,\n        task_policy=task_policy, context_root=root, include_task_tools=coding,\n        coding=coding, features=features,\n        system_prompt=agent.system_prompt,\n        max_parallel_tools=agent.max_parallel_tools,\n        context_config=CompactionConfig(**agent.context_options) if agent.context_options else None, **options)\n    conversation.agent_definition = agent",
+                "note": "把刚创建的对象显式传入 Conversation。intent_router 只有配置启用才创建，并不是每轮必经的模型调用。",
+                "highlights": [
+                  125,
+                  127,
+                  128,
+                  129,
+                  134
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "chain": "HarnessSession.stream → Conversation.stream → TurnRunner.run",
+          "owner": "Conversation 的历史跨回合保留；TurnRunner.state、临时消息和终态属于这一轮。",
+          "state": [
+            [
+              "Conversation._running",
+              "防止同时启动两个回合；finally 恢复空闲。"
+            ],
+            [
+              "TurnRunner.messages",
+              "以会话历史为起点，逐步追加用户、模型和工具结果。"
+            ]
+          ],
+          "failure": "会话已关闭或正运行时直接拒绝新的并发回合；取消沿流传播，并记录已发生的事实，不重放工具。",
+          "readings": [
+            {
+              "title": "先检查，再创建 Runner",
+              "explanation": "入口检查位于真正运行之前。TurnRunner(self) 说明它复用现有会话资源，而不是另开一套客户端。",
+              "source": {
+                "path": "forge/runtime/agent_loop.py",
+                "symbol": "Conversation.stream",
+                "definition_line": 455,
+                "line": 455,
+                "end": 478,
+                "code": "    async def stream(self, prompt: UserInput, *, input_id=None) -> AsyncIterator[ConversationEvent]:\n        '''Compatibility entry point delegated to the turn runner.'''\n        from forge.messages import normalize_input\n        from forge.runtime.capabilities import capabilities_for\n        prompt = normalize_input(prompt)\n        if self._running or self._close_task is not None:\n            raise RuntimeError('Conversation is closed or already running a turn')\n        if input_id is not None and not any(item['id'] == input_id and item['content'] == prompt\n                                           for item in self.inbox.pending):\n            raise ValueError('Queued input is missing or differs from the submitted content')\n        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):\n            if not capabilities_for(self.client).accepts_images:\n                raise ValueError('Configured model adapter does not support image input')\n        from forge.runtime.runner import TurnRunner\n        from forge.sessions.workspace_lock import workspace_execution\n        runner = TurnRunner(self)\n        ownership = workspace_execution(self.context_root) if self.coding and self.registry is not None else nullcontext()\n        from forge.observability.events import current\n        from forge.observability.recorder import JournalRecorder\n        inherited=current()\n        recorder=(JournalRecorder(self.session_journal,scope=getattr(self.session_journal,'observation_scope',None),\n                  scope_sink=getattr(self.session_journal,'observation_scope_sink',None)) if self.session_journal else inherited)\n        with ownership, recorder.turn(nested=self.session_journal is None) if recorder else nullcontext():\n            self._running = True",
+                "note": "入口检查位于真正运行之前。TurnRunner(self) 说明它复用现有会话资源，而不是另开一套客户端。",
+                "highlights": [
+                  460,
+                  470,
+                  471
+                ]
+              }
+            },
+            {
+              "title": "用户输入先写入 Journal",
+              "explanation": "记录 turn_started 和 user_message，然后绑定本轮观测与工具日志。日志不是等最终答案出现才开始保存。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._prepare_turn",
+                "definition_line": 108,
+                "line": 108,
+                "end": 127,
+                "code": "    async def _prepare_turn(self, prompt: str, *, content=None, input_id=None) -> None:\n        c = self.conversation\n        if self.journal is not None:\n            self.journal.commit()\n            self.journal.record_turn_started(prompt, c.active_task)\n        user_message = {'role': 'user', 'content': prompt if content is None else content}\n        self.messages.append(user_message)\n        if self.journal is not None:\n            self.journal.record_user_message(user_message, c.active_task, input_id=input_id)\n        if input_id is not None:\n            c.inbox.consumed(input_id)\n        from forge.observability.events import current\n        recorder=current()\n        if self.journal is not None or c.event_recorder is not None or recorder:\n            self.state.request_event_sink = c.record_model_request\n        if c.tool_executor is not None:\n            c.tool_executor.session_journal = self.journal\n            c.tool_executor.checkpoint_store = c.checkpoint_store\n        c.permission_manager.bind_session(self.journal, reset_rules=False)\n        await c.session_start(source='stream')",
+                "note": "记录 turn_started 和 user_message，然后绑定本轮观测与工具日志。日志不是等最终答案出现才开始保存。",
+                "highlights": [
+                  112,
+                  114,
+                  116,
+                  122
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "chain": "TurnRunner._loop → ContextManager.prepare → ObservedModelClient.stream",
+          "owner": "TurnRunner 组织本次请求；ContextManager 管理窗口；ObservedModelClient 记录实际请求尝试。",
+          "state": [
+            [
+              "system",
+              "稳定规则，尽量避免无关变化破坏前缀。"
+            ],
+            [
+              "request_messages",
+              "准备后的历史加上当前上下文；不是另一条用户任务。"
+            ]
+          ],
+          "failure": "压缩失败或 BeforeModelCall Hook 拒绝会明确结束当前尝试。首字慢需要区分“请求尚未发出”和“已在等待提供方”。",
+          "readings": [
+            {
+              "title": "循环开始时做什么",
+              "explanation": "while True 是重复请求的外层。每次都重新读取实际状态，但不会无条件把整个仓库塞进消息。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._loop",
+                "definition_line": 337,
+                "line": 337,
+                "end": 353,
+                "code": "    async def _loop(self):\n        c = self.conversation\n        while True:\n            self._admit_steering()\n            tools = self._tools()\n            self.request_repository_context = c._last_repository_context\n            system = self._system()\n            context = self._request_context()\n            # Account for the request-only context without persisting obsolete\n            # runtime/evidence copies in conversation history.\n            compaction_error = await self._compact(system + '\\n\\n' + context, tools)\n            if compaction_error:\n                yield await self._finish('failed', 'context_compaction_failed', compaction_error, (compaction_error,))\n                return\n            hook = await c._emit_hook(HookEvent(\n                name='BeforeModelCall', session_id=c._session_id(),\n                payload={'iteration': self.state.model_calls + 1, 'message_count': len(self.messages)},",
+                "note": "while True 是重复请求的外层。每次都重新读取实际状态，但不会无条件把整个仓库塞进消息。",
+                "highlights": [
+                  339,
+                  341,
+                  342,
+                  344,
+                  347,
+                  348
+                ]
+              }
+            },
+            {
+              "title": "真正发起请求的位置",
+              "explanation": "prepare 处理历史，append 加入本次运行上下文，然后调用 client.stream。界面需要消费后续事件才能持续更新。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._loop",
+                "definition_line": 337,
+                "line": 372,
+                "end": 379,
+                "code": "                client = ObservedModelClient(c.client, self.state)\n                request_messages = c.context.prepare(self.messages)\n                request_messages.append({'role': 'user', 'content': context})\n                async with aclosing(client.stream(request_messages, tools=tools, system=system)) as stream:\n                    async for event in stream:\n                        if isinstance(event, ModelProviderState):\n                            provider_state = {'provider': event.provider, 'data': event.data}\n                            continue",
+                "note": "prepare 处理历史，append 加入本次运行上下文，然后调用 client.stream。界面需要消费后续事件才能持续更新。",
+                "highlights": [
+                  373,
+                  374,
+                  375
+                ]
+              }
+            },
+            {
+              "title": "保存实际输入快照",
+              "explanation": "RequestSnapshot.capture 冻结这次输入。它用于之后核对模型到底看到了什么，不是根据最终聊天文本猜测请求。",
+              "source": {
+                "path": "forge/runtime/model_observation.py",
+                "symbol": "ObservedModelClient.stream",
+                "definition_line": 51,
+                "line": 58,
+                "end": 66,
+                "code": "        snapshot = RequestSnapshot.capture(messages=messages, tools=tools, system=system, client=self.client)\n        frozen = snapshot.payload\n        invocation_id='invocation-'+str(uuid4())\n        attempt_no=0\n        if self.state.request_event_sink is not None:\n            self.state.request_event_sink('model_input_snapshot', {**snapshot.as_dict(),'invocation_id':invocation_id,'stage':self.stage})\n        usage = None\n        raw_usage = None\n        provider_request_id = returned_model = None",
+                "note": "RequestSnapshot.capture 冻结这次输入。它用于之后核对模型到底看到了什么，不是根据最终聊天文本猜测请求。",
+                "highlights": [
+                  58,
+                  63
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "chain": "提供方适配器 → ModelStreamEvent → TurnRunner._loop",
+          "owner": "适配器负责协议完整性；Runner 暂存文本、调用和续传状态；CLI 只是事件消费者。",
+          "state": [
+            [
+              "parts / calls",
+              "本次响应的正文与完整调用，尚不表示操作已执行。"
+            ],
+            [
+              "yield event",
+              "把增量交给 CLI / SDK；参数生成和执行是两个时段。"
+            ]
+          ],
+          "failure": "响应中断时，已收集但未执行的调用被记录为未执行；显式协议修复属于新请求，不能偷偷执行或重放半个工具调用。",
+          "readings": [
+            {
+              "title": "一边累积，一边发给界面",
+              "explanation": "高亮 calls.append 与 yield event：前者暂存完整调用，后者让界面及时看到增量。这里还没有调用 Executor。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._loop",
+                "definition_line": 337,
+                "line": 376,
+                "end": 397,
+                "code": "                    async for event in stream:\n                        if isinstance(event, ModelProviderState):\n                            provider_state = {'provider': event.provider, 'data': event.data}\n                            continue\n                        if isinstance(event, ModelResponseCompleted):\n                            provider_completed = True\n                        if isinstance(event, ModelTextDelta):\n                            parts.append(event.text)\n                        elif isinstance(event, ModelReasoningDelta):\n                            visible_reasoning = visible_reasoning or bool(event.text)\n                        elif isinstance(event, ModelToolCallCompleted):\n                            calls.append(event.tool_call)\n                            self.calls.append(event.tool_call)\n                            self.state.record_tool_request()\n                        elif isinstance(event, ModelUsageUpdate):\n                            usage = event.request_usage or event.usage\n                            yield ModelUsageUpdate(add_usage(self.state.usage, usage), usage, self.state.model_calls)\n                            continue\n                        elif isinstance(event, (ModelToolCallStarted, ModelToolCallArgumentsDelta)):\n                            partial_tools = True\n                        yield event\n            except (ModelProtocolError, ModelCallError) as error:",
+                "note": "高亮 calls.append 与 yield event：前者暂存完整调用，后者让界面及时看到增量。这里还没有调用 Executor。",
+                "highlights": [
+                  383,
+                  387,
+                  388,
+                  395,
+                  396
+                ]
+              }
+            },
+            {
+              "title": "协议异常如何留下事实",
+              "explanation": "即使已经出现过一个工具调用，只要整条响应不完整，这里也只记录未执行结果。真正派发发生在后面的成功路径。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._loop",
+                "definition_line": 337,
+                "line": 397,
+                "end": 406,
+                "code": "            except (ModelProtocolError, ModelCallError) as error:\n                yield ModelCallFailed(iteration, str(error), isinstance(error, ModelProtocolError))\n                partial = ''.join(parts)\n                if calls:\n                    self._append_assistant(build_assistant_message(partial, calls))\n                    self._record_unexecuted(calls, 'incomplete_model_response')\n                elif partial.strip():\n                    self._append_assistant(build_assistant_message(partial, []))\n                if isinstance(error, ModelOutputTruncatedError) and partial.strip() and not calls and not error.tool_names:\n                    if self.output_continuations < c.max_output_continuations:",
+                "note": "即使已经出现过一个工具调用，只要整条响应不完整，这里也只记录未执行结果。真正派发发生在后面的成功路径。",
+                "highlights": [
+                  398,
+                  401,
+                  402,
+                  404
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "chain": "TurnRunner._batch → schedule_calls → ToolExecutor → 执行后端 / ToolRegistry",
+          "owner": "调度器拥有执行任务；Executor 负责准入与结算；后端和具体工具负责实际 I/O。",
+          "state": [
+            [
+              "prepare / dispatch / finish",
+              "先准入，后执行，最后记录结果；不是三个互相绕过的入口。"
+            ],
+            [
+              "max_parallel_tools",
+              "默认 10；只让显式声明安全且相容的工具体重叠。"
+            ]
+          ],
+          "failure": "schema 错误、Hook 拒绝或权限拒绝发生在副作用之前。普通工具错误可返回给模型继续处理；拒绝、取消和不确定副作用会停止补充批次并收齐已开始的调用。",
+          "readings": [
+            {
+              "title": "参数不合法就返回",
+              "explanation": "registry.validate 先于实际工具调用；失败会形成 rejected 的执行结果，不会尝试“猜测正确参数”。",
+              "source": {
+                "path": "forge/runtime/executor.py",
+                "symbol": "ToolExecutor._prepare",
+                "definition_line": 125,
+                "line": 139,
+                "end": 150,
+                "code": "        validation = self.registry.validate(call.name, arguments)\n        if validation is not None:\n            return self._outcome(\n                call,\n                validation,\n                'rejected',\n                started,\n                arguments,\n                revision,\n                epoch,\n            )\n",
+                "note": "registry.validate 先于实际工具调用；失败会形成 rejected 的执行结果，不会尝试“猜测正确参数”。",
+                "highlights": [
+                  139,
+                  140,
+                  141
+                ]
+              }
+            },
+            {
+              "title": "授权是执行条件",
+              "explanation": "authorize 返回真实决策。模型文字中的“已经获得权限”无法替代这里的 allow / deny。",
+              "source": {
+                "path": "forge/runtime/executor.py",
+                "symbol": "ToolExecutor._prepare",
+                "definition_line": 125,
+                "line": 283,
+                "end": 301,
+                "code": "        token = tool_approval_context.set(ToolApprovalContext(execution_id, effective_call, self.workspace_tracker))\n        try:\n            decision = await self.permission_manager.authorize(request)\n        finally:\n            tool_approval_context.reset(token)\n        if decision.action == 'deny':\n            result = ToolResult.fail(\n                'permission_denied',\n                decision.reason,\n                details={\n                    'tool': call.name,\n                    'capability': request.capability,\n                    'risk': request.risk,\n                    'targets': list(request.targets),\n                    'source': decision.source,\n                },\n            )\n            return self._outcome(\n                call, result, 'rejected', started, arguments, revision, epoch",
+                "note": "authorize 返回真实决策。模型文字中的“已经获得权限”无法替代这里的 allow / deny。",
+                "highlights": [
+                  285,
+                  288,
+                  290
+                ]
+              }
+            },
+            {
+              "title": "只启动已准入的执行体",
+              "explanation": "有界循环控制在运行的数量；create_task 启动工具体。调度器仍按原始顺序结算结果，避免模型看到错乱的调用配对。",
+              "source": {
+                "path": "forge/runtime/tool_batch.py",
+                "symbol": "schedule_calls",
+                "definition_line": 26,
+                "line": 68,
+                "end": 86,
+                "code": "            while not stopped and next_start < len(calls) and len(running()) < limit:\n                call = calls[next_start]\n                if slots and not overlaps(call):\n                    break\n                prepared = held if held is not None else await prepare(call)\n                held = None\n                if isinstance(prepared, ExecutionOutcome):\n                    slots[next_start] = Slot(dispatched=prepared)\n                    next_start += 1\n                    stopped = stops_batch(prepared.result)\n                    break\n                if slots and not overlaps(prepared.call):\n                    held = prepared\n                    break\n                task = asyncio.create_task(executor.dispatch(prepared))\n                slots[next_start] = Slot(prepared=prepared, task=task)\n                next_start += 1\n                yield ToolExecutionStarted(prepared.call)\n                if group(prepared.call) is None:",
+                "note": "有界循环控制在运行的数量；create_task 启动工具体。调度器仍按原始顺序结算结果，避免模型看到错乱的调用配对。",
+                "highlights": [
+                  68,
+                  72,
+                  82,
+                  85
+                ]
+              }
+            },
+            {
+              "title": "实际 I/O 的入口",
+              "explanation": "先记录开始，再选择已配置的执行后端或注册表。受限后端失败不能被解释为宿主命令已成功运行。",
+              "source": {
+                "path": "forge/runtime/executor.py",
+                "symbol": "ToolExecutor._prepare",
+                "definition_line": 125,
+                "line": 342,
+                "end": 350,
+                "code": "                if not background:\n                    await self._journal_started(effective_call)\n                execution_started = True\n                if execution_backend is not None:\n                    result = await execution_backend.execute(execution_call, self.registry)\n                else:\n                    result = await self.registry.execute(call.name, execution_call.arguments)\n                if checkpoint_id is not None and checkpoint_paths:\n                    if execution_backend is not None and hasattr(execution_backend, 'snapshot'):",
+                "note": "先记录开始，再选择已配置的执行后端或注册表。受限后端失败不能被解释为宿主命令已成功运行。",
+                "highlights": [
+                  343,
+                  346,
+                  348
+                ]
+              }
+            },
+            {
+              "title": "最后到达读文件实现",
+              "explanation": "路径解析与类型检查之后，read_text_preserving_newlines 才实际读取内容；后续代码按行范围组织 ToolResult。",
+              "source": {
+                "path": "forge/tools/filesystem.py",
+                "symbol": "ReadFileTool._execute_sync",
+                "definition_line": 291,
+                "line": 291,
+                "end": 312,
+                "code": "    def _execute_sync(self, arguments: ReadFileInput) -> ToolResult:\n        path = resolve_repository_path(self.root, arguments.path)\n        if not path.is_file():\n            raise ToolExecutionError(\n                'not_a_file',\n                f'Path is not a file: {arguments.path}',\n                details={\n                    'path': arguments.path,\n                    'recommended_tool': 'list_directory',\n                    'recovery': (\n                        'Use list_directory to inspect this path. If the task '\n                        'is to delete or clear the directory, call '\n                        'remove_directory instead of read_file.'\n                    ),\n                },\n            )\n        try:\n            content = read_text_preserving_newlines(path)\n        except UnicodeDecodeError as error:\n            raise ToolExecutionError(\n                'not_utf8_text',\n                f'File is not valid UTF-8 text: {arguments.path}',",
+                "note": "路径解析与类型检查之后，read_text_preserving_newlines 才实际读取内容；后续代码按行范围组织 ToolResult。",
+                "highlights": [
+                  292,
+                  293,
+                  308
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "chain": "schedule_calls 结算 → TurnRunner._append_results → _loop 下一次请求",
+          "owner": "Runner 维护消息配对与顺序；Journal 保存完整结果；ContextManager 决定下一次给模型显示多少内容。",
+          "state": [
+            [
+              "results.sort",
+              "按模型调用 index 排序，不按网络或磁盘完成先后拼接。"
+            ],
+            [
+              "persist_tool_result_message",
+              "在上下文裁剪之前保存可追踪的完整工具结果。"
+            ]
+          ],
+          "failure": "一个文件不存在会成为工具失败结果，模型可以改查目录；它不应被伪装成空文件或自动重复执行整个批次。",
+          "readings": [
+            {
+              "title": "完成和取消都要收齐结果",
+              "explanation": "finally 收齐已启动调用，排序，再写入消息。这样取消不会把实际执行过的操作改成“未执行”。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._batch",
+                "definition_line": 524,
+                "line": 633,
+                "end": 646,
+                "code": "            await stream.aclose()\n            done = {call.id for call, _ in results}\n            for call in ordered:\n                if call.id not in done:\n                    outcome = completed[call.id]\n                    self.state.record_execution(outcome.record)\n                    results.append((ToolCall(call.index, call.id, call.name, outcome.arguments), outcome.result))\n            results.sort(key=lambda pair: pair[0].index)\n            self._append_results(results)\n            self.batch_active = False\n            for feedback in self.pending_feedback:\n                self._feedback(feedback)\n            self.pending_feedback.clear()\n        if interrupted:",
+                "note": "finally 收齐已启动调用，排序，再写入消息。这样取消不会把实际执行过的操作改成“未执行”。",
+                "highlights": [
+                  637,
+                  640,
+                  641
+                ]
+              }
+            },
+            {
+              "title": "把工具结果变成可继续对话的消息",
+              "explanation": "build_tool_result_message 保留调用配对，persist_tool_result_message 先保存，messages.append 再交给下一次请求。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._append_results",
+                "definition_line": 901,
+                "line": 901,
+                "end": 907,
+                "code": "    def _append_results(self, results) -> None:\n        message = build_tool_result_message(results)\n        self.conversation.context.persist_tool_result_message(message)\n        self.messages.append(message)\n        if self.journal is not None:\n            self.journal.record_tool_result_message(message, self.conversation.active_task)\n        self._commit_messages()",
+                "note": "build_tool_result_message 保留调用配对，persist_tool_result_message 先保存，messages.append 再交给下一次请求。",
+                "highlights": [
+                  902,
+                  903,
+                  904,
+                  906
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "chain": "TurnRunner._completion_reasons → _finish → Conversation.record_session_event → CLI / SDK",
+          "owner": "TurnResult 是本轮结果；Conversation 持有后续会话；Journal 是已发生事实的来源。",
+          "state": [
+            [
+              "completed",
+              "表示本轮正常结束；独立验收或 benchmark reward 另算。"
+            ],
+            [
+              "record_session_event → return event",
+              "最终记录先持久化，再让界面看到终态。"
+            ]
+          ],
+          "failure": "有限作业未结束会提示先等待；明确的 session 服务可跨回答保留。退出会话仍要清理资源。失败、取消和未知用量也进入轨迹导出。",
+          "readings": [
+            {
+              "title": "为什么普通回答不必额外验收",
+              "explanation": "检查未结束命令与明确完成条件；没有阻止条件就正常完成，不凭空增加全盘扫描和测试。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._loop",
+                "definition_line": 337,
+                "line": 494,
+                "end": 506,
+                "code": "            pending = self._pending_command_reason()\n            if pending:\n                self._feedback(pending)\n                continue\n            reasons = await self._completion_reasons()\n            if reasons:\n                self.declared_status = 'completed'\n                if self._offer_delivery_repair(reasons):\n                    continue\n                yield await self._finish('partial', 'acceptance_unmet', self.continued_text + text, reasons)\n                return\n            yield await self._finish('completed', 'completed', self.continued_text + text, ())\n            return",
+                "note": "检查未结束命令与明确完成条件；没有阻止条件就正常完成，不凭空增加全盘扫描和测试。",
+                "highlights": [
+                  495,
+                  498,
+                  499,
+                  505
+                ]
+              }
+            },
+            {
+              "title": "先形成完整结果，再交给消费者",
+              "explanation": "TurnResult 聚合文本、用量、调用与证据；record_session_event 位于 return 之前，保证返回的终态有对应记录。",
+              "source": {
+                "path": "forge/runtime/runner.py",
+                "symbol": "TurnRunner._finish",
+                "definition_line": 924,
+                "line": 960,
+                "end": 972,
+                "code": "        event = TurnCompleted(TurnResult(\n            text=text, status=status, stop_reason=reason,\n            usage=self.state.usage, last_request_usage=self.state.last_request_usage,\n            model_calls=self.state.model_calls, tool_calls=tuple(self.calls),\n            changed_paths=self.tracker.changed_paths if self.tracker is not None else (),\n            verification=evidence[-1] if evidence else None, verification_history=evidence,\n            completion_reasons=reasons, statistics=self.state.statistics(),\n            completion_report=report,\n        ))\n        # Persist the fully populated result before a CLI/channel sees it.\n        c.record_session_event(event)\n        self.finished = True\n        return event",
+                "note": "TurnResult 聚合文本、用量、调用与证据；record_session_event 位于 return 之前，保证返回的终态有对应记录。",
+                "highlights": [
+                  960,
+                  962,
+                  963,
+                  970,
+                  972
+                ]
+              }
+            },
+            {
+              "title": "Journal 怎样保护追加",
+              "explanation": "先处理只读和延迟写入状态；正常追加持有 exclusive_append 锁，再由 _append_locked 检查并写入。其他进程正在写入时会明确报错。",
+              "source": {
+                "path": "forge/sessions/store.py",
+                "symbol": "SessionJournal.append",
+                "definition_line": 380,
+                "line": 380,
+                "end": 391,
+                "code": "    def append(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:\n        if self.read_only:\n            raise SessionError('Legacy sessions are read-only. Fork this session to continue in the new format.')\n        if self._pending is not None:\n            if event_type != 'session_stopped':\n                self._pending.append((event_type, payload))\n            return {}\n        try:\n            with exclusive_append(self.path):\n                return self._append_locked(event_type, payload)\n        except BlockingIOError as error:\n            raise SessionError('Session is being written by another process.') from error",
+                "note": "先处理只读和延迟写入状态；正常追加持有 exclusive_append 锁，再由 _append_locked 检查并写入。其他进程正在写入时会明确报错。",
+                "highlights": [
+                  381,
+                  383,
+                  385,
+                  388,
+                  389
+                ]
+              }
+            },
+            {
+              "title": "真正写入日志文件",
+              "explanation": "已编码的记录追加到文件后 flush / fsync，再推进 parent_uuid。大载荷可另存 artifact，正文或参数增量还有独立的批量排空机制。",
+              "source": {
+                "path": "forge/sessions/store.py",
+                "symbol": "SessionJournal._append_locked",
+                "definition_line": 393,
+                "line": 430,
+                "end": 438,
+                "code": "        with private_storage_path(self.path).open('a', encoding='utf-8', newline='\\n') as file:\n            file.write(serialized)\n            file.write('\\n')\n            file.flush()\n            os.fsync(file.fileno())\n        self.parent_uuid = event_uuid\n        if self._append_capture is not None:\n            self._append_capture.append(json.loads(serialized))\n        return record",
+                "note": "已编码的记录追加到文件后 flush / fsync，再推进 parent_uuid。大载荷可另存 artifact，正文或参数增量还有独立的批量排空机制。",
+                "highlights": [
+                  431,
+                  432,
+                  433,
+                  434,
+                  435
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "coding",
       "title": "显式验收的 coding 请求",
       "subtitle": "从“修改库存逻辑”到接受完成",
@@ -4263,7 +4953,9 @@
     const guide = JSON.parse(document.getElementById('guide-data').textContent);
     const articles = new Map(guide.articles.map(function (article) { return [article.id, article]; }));
     const searchPages = guide.articles.map(function (article) { return {title: article.title, route: '#article/' + article.id, text: JSON.stringify(article).toLowerCase(), sections: article.sections}; })
-      .concat(guide.modules.map(function (module) { return {title: module.title, route: '#module/' + module.id, text: JSON.stringify(module).toLowerCase()}; }));
+      .concat(guide.modules.map(function (module) { return {title: module.title, route: '#module/' + module.id, text: JSON.stringify(module).toLowerCase()}; }))
+      .concat(guide.flows.map(function (flow) { return {title: flow.title, route: '#flow/' + flow.id, text: JSON.stringify(flow).toLowerCase(),
+        sections: flow.implementation && flow.implementation.map(function (item, index) { return {...item, id: String(index), title: flow.steps[index][1]}; })}; }));
     const modules = new Map(guide.modules.map(function (module) { return [module.id, module]; }));
     const groups = Array.from(new Set(guide.modules.map(function (module) { return module.group; })));
     const content = document.getElementById('content');
@@ -4273,6 +4965,8 @@
     const sourceBase = 'https://github.com/Titans23/forgecode/blob/' + guide.revision + '/';
     let playback = null;
     let renderedRoute = '';
+    let tocEntries = [];
+    let scrollFrame = null;
 
     function element(tag, className, text) {
       const result = document.createElement(tag);
@@ -4389,8 +5083,20 @@
     }
     function renderOverview() {
       articleHeader('ForgeCode 架构 Wiki', '首页', 'ForgeCode 是轻量、可扩展的 Python Agent Harness，用来构建、运行、验证和复用 Agent。Coding Agent 与终端 CLI 是默认应用；业务系统可以在同一内核上组合自己的工具、模型与插件。');
-      const facts = element('aside', 'infobox');
+      const tour = guide.flows.find(function (flow) { return flow.id === 'runtime'; });
+      const walkthrough = section('先沿一次请求看实现', '示例：读取 README.md 并概括项目用途。每个阶段都有真实源码、关键行解释和失败分支。');
+      walkthrough.id = 'walk-code';
+      const steps = element('div', 'tour-map');
+      tour.steps.forEach(function (step, index) {
+        const link = anchor('', '#flow/runtime/' + index, 'tour-stop');
+        link.append(element('strong', '', (index + 1) + '. ' + step[1]), element('small', '', tour.implementation[index].chain.split(' → ')[0]));
+        steps.append(link);
+      });
+      walkthrough.append(steps, element('p', 'muted-box', '读法：先看这一阶段接收和返回什么，再点“代码阅读点”看高亮行；展开状态与失败分支，确认谁负责保存、取消和清理。会话跨多轮存在，TurnRunner 每轮新建，Journal 贯穿整个过程。'));
+      content.append(walkthrough);
+      const facts = element('details', 'infobox');
       facts.setAttribute('aria-label', '项目速览');
+      facts.append(element('summary', '', '项目定位、扩展能力与边界'));
       const dl = element('dl');
       [
         ['内核', 'Python 会话、模型循环、工具执行、上下文与事实记录。'],
@@ -4402,7 +5108,7 @@
       facts.append(dl);
       content.append(facts);
 
-      const start = section('从这里开始', '先理解职责，再沿源码追踪；没有阅读顺序要求。');
+      const start = section('按主题深入', '需要背景、设计原因或选型判断时，再查阅这些条目。');
       start.id = 'start';
       const readings = element('ul', 'reading-list');
       guide.articles.forEach(function (article) {
@@ -4411,7 +5117,6 @@
         readings.append(item);
       });
       start.append(readings);
-      content.append(start);
 
       const architecture = section('源码地图', '点击模块，查看职责、例子、状态、真实源码与行为测试。');
       architecture.id = 'architecture';
@@ -4430,7 +5135,7 @@
         map.append(layer);
       });
       architecture.append(map, element('p', 'muted-box', '阅读方向：入口装配共享内核；模型请求与工具结果交替推进；Journal 持续记录事实。插件、coding 能力与执行提供方按需组合，严格验收只在相应工作流中启用。'));
-      content.append(architecture);
+      content.append(architecture, start);
 
       const simulations = section('交互式流程', '点击步骤观察输入与输出；这些是教学示例，不会执行模型或命令。');
       simulations.id = 'flows';
@@ -4526,18 +5231,19 @@
       });
       content.append(footer());
     }
-    function renderSource(source, index) {
+    function renderSource(source, index, showNote = true) {
       const block = element('details', 'source');
       block.open = index === 0;
       const summary = element('summary', '', source.path);
       summary.append(element('small', '', 'L' + source.line + ' · ' + source.symbol));
       block.append(summary);
-      block.append(element('p', 'source-note', source.note));
+      if (showNote) block.append(element('p', 'source-note', source.note));
       const pre = element('pre');
       pre.tabIndex = 0;
       const code = element('code');
       source.code.split('\n').forEach(function (line, offset) {
         const row = element('span', 'code-line');
+        if (source.highlights && source.highlights.includes(source.line + offset)) row.classList.add('is-highlighted');
         const number = element('span', 'line-number', String(source.line + offset));
         number.setAttribute('aria-hidden', 'true');
         row.append(number, element('span', 'code-text', line || ' '));
@@ -4562,6 +5268,13 @@
       title.append(element('p', 'eyebrow', module.group), element('h1', '', module.title), element('p', 'symbol', module.symbol));
       heading.append(title);
       content.append(heading, element('p', 'lead', module.summary));
+      const tour = guide.flows.find(function (flow) { return flow.id === 'runtime'; });
+      const stage = tour.steps.findIndex(function (step) { return step[0] === module.id; });
+      if (stage >= 0) {
+        const location = element('div', 'actions');
+        location.append(anchor('在一次实际调用链中看这个模块 →', '#flow/runtime/' + stage));
+        content.append(location);
+      }
 
       const intro = element('div', 'section explain-grid');
       const description = element('article', 'card prose');
@@ -4666,9 +5379,58 @@
       if (['sessions', 'observability', 'delivery'].includes(id)) return '记录';
       return '运行时';
     }
-    function renderFlow(flow, initialStep) {
+    function renderImplementation(container, flow, position, initialPoint, selectPoint) {
+      container.replaceChildren();
+      const item = flow.implementation[position];
+      const step = flow.steps[position];
+      container.append(element('p', 'caption', '源码导览 · 第 ' + (position + 1) + ' / ' + flow.steps.length + ' 阶段'),
+        element('h2', '', step[1]), element('p', '', step[2]), element('p', 'call-chain', item.chain));
+      const io = element('div', 'trace-input-output');
+      io.append(element('p', '', '输入：' + step[3]), element('p', '', '输出：' + step[4]));
+      container.append(io);
+      const points = element('div', 'code-points');
+      points.setAttribute('role', 'group');
+      points.setAttribute('aria-label', '代码阅读点');
+      const explanation = element('p', 'reading-explanation');
+      explanation.setAttribute('aria-live', 'polite');
+      const source = element('div', 'reading-source');
+      function show(index) {
+        const reading = item.readings[index];
+        points.querySelectorAll('button').forEach(function (button, i) { button.setAttribute('aria-pressed', String(i === index)); });
+        explanation.textContent = reading.explanation;
+        source.replaceChildren(renderSource(reading.source, 0, false));
+        selectPoint(index);
+      }
+      item.readings.forEach(function (reading, index) {
+        const button = element('button', '', (index + 1) + '. ' + reading.title);
+        button.type = 'button';
+        button.addEventListener('click', function () { show(index); });
+        points.append(button);
+      });
+      container.append(element('p', 'caption', '选择代码阅读点；高亮行是这一段的关键，节选保留原文件行号。'), points, explanation, source);
+      show(Math.max(0, Math.min(item.readings.length - 1, initialPoint)));
+      const facts = element('details', 'trace-facts');
+      facts.append(element('summary', '', '状态归属与失败处理（展开）'), element('p', '', item.owner));
+      const table = element('table', 'state-table');
+      const body = element('tbody');
+      item.state.forEach(function (state) {
+        const row = element('tr');
+        const key = element('th', '', state[0]); key.scope = 'row';
+        row.append(key, element('td', '', state[1])); body.append(row);
+      });
+      table.append(body);
+      facts.append(table, element('p', '', '失败分支：' + item.failure));
+      container.append(facts);
+      const checks = element('div', 'related');
+      checks.append(element('span', 'caption', '相关行为测试：'));
+      modules.get(step[0]).tests.slice(0, 2).forEach(function (test) { checks.append(sourceLink(test, test.symbol)); });
+      container.append(checks);
+    }
+    function renderFlow(flow, initialStep, initialPoint) {
       let position = Math.max(0, Math.min(flow.steps.length - 1, Number(initialStep) || 0));
-      content.append(element('p', 'eyebrow', '本地流程推演'), element('h1', '', flow.title), element('p', 'lead', flow.description));
+      let point = Number(initialPoint) || 0;
+      let previousPosition = position;
+      content.append(element('p', 'eyebrow', flow.implementation ? '沿真实调用链阅读' : '本地流程推演'), element('h1', '', flow.title), element('p', 'lead', flow.description));
       const menu = element('div', 'flow-menu');
       guide.flows.forEach(function (item) {
         const link = anchor(item.title, '#flow/' + item.id, 'button');
@@ -4677,9 +5439,10 @@
       });
       content.append(menu);
       const layout = element('div', 'flow-layout');
+      if (flow.implementation) layout.classList.add('code-flow');
       const timeline = element('div', 'flow-timeline');
       timeline.setAttribute('aria-label', '流程步骤');
-      const stage = element('div');
+      const stage = element('div', 'flow-stage');
       const scene = element('div', 'flow-scene');
       const sceneHead = element('div');
       const sceneNumber = element('p', 'caption');
@@ -4715,12 +5478,18 @@
       const positionText = element('span', 'flow-position');
       controls.append(previous, play, next, positionText);
       const currentModule = element('div', 'actions');
+      const implementation = element('div', 'implementation-panel');
+      if (flow.implementation) implementation.id = 'source-reading';
+      implementation.hidden = !flow.implementation;
+      if (flow.implementation) { scene.hidden = true; io.hidden = true; metrics.hidden = true; play.hidden = true; }
       const live = element('p', 'sr-only');
       live.setAttribute('aria-live', 'polite');
-      stage.append(scene, io, metrics, controls, currentModule, live);
+      stage.append(scene, io, metrics, controls, implementation, currentModule, live);
       layout.append(timeline, stage);
       content.append(layout);
       function update() {
+        if (previousPosition !== position) point = 0;
+        previousPosition = position;
         const step = flow.steps[position];
         timeline.querySelectorAll('button').forEach(function (button, i) {
           if (i === position) button.setAttribute('aria-current', 'step');
@@ -4738,18 +5507,27 @@
         positionText.textContent = (position + 1) + ' / ' + flow.steps.length;
         currentModule.replaceChildren(moduleLink(step[0], 'button'));
         live.textContent = '步骤 ' + (position + 1) + '，' + step[1] + '，' + step[8];
-        history.replaceState(null, '', '#flow/' + flow.id + '/' + position);
+        if (flow.implementation) {
+          renderImplementation(implementation, flow, position, point, function (index) {
+            point = index;
+            history.replaceState(null, '', '#flow/' + flow.id + '/' + position + '/' + point);
+          });
+        } else history.replaceState(null, '', '#flow/' + flow.id + '/' + position);
         if (position === flow.steps.length - 1) stopPlayback();
+      }
+      function selectStep(index) {
+        stopPlayback(); position = index; update();
+        if (flow.implementation) stage.scrollIntoView({block: 'start', behavior: 'instant'});
       }
       flow.steps.forEach(function (step, i) {
         const button = element('button', 'flow-stop');
         button.type = 'button';
         button.append(element('span', 'step-dot', String(i + 1)), element('span', '', step[1]));
-        button.addEventListener('click', function () { stopPlayback(); position = i; update(); });
+        button.addEventListener('click', function () { selectStep(i); });
         timeline.append(button);
       });
-      previous.addEventListener('click', function () { stopPlayback(); position--; update(); });
-      next.addEventListener('click', function () { stopPlayback(); position++; update(); });
+      previous.addEventListener('click', function () { selectStep(position - 1); });
+      next.addEventListener('click', function () { selectStep(position + 1); });
       play.addEventListener('click', function () {
         if (playback !== null) { stopPlayback(); return; }
         if (position === flow.steps.length - 1) position = 0;
@@ -4759,7 +5537,9 @@
         playback = setInterval(function () { position++; update(); }, 2300);
       });
       update();
-      content.append(element('p', 'muted-box', '这是按当前实现规则编排的教学步骤。界面中的状态值用于说明数据流，真实执行证据见 Journal、验证报告和官方判分。'), footer());
+      content.append(element('p', 'muted-box', flow.implementation
+        ? '这是一条普通 coding 调用链的源码阅读路线。Journal 在多个阶段持续记录；模型可能多次调用工具，所以“请求 → 工具 → 结果”会循环。实际次数与成败必须查看真实运行记录。'
+        : '这是按当前实现规则编排的教学步骤。界面中的状态值用于说明数据流，真实执行证据见 Journal、验证报告和官方判分。'), footer());
     }
     function renderGlossary() {
       content.append(element('p', 'eyebrow', '把名称对应到行为'), element('h1', '', '术语与状态'),
@@ -4775,13 +5555,16 @@
     function buildContents(route) {
       const toc = document.getElementById('toc-links');
       toc.replaceChildren();
+      tocEntries = [];
       if (route.startsWith('#flow')) { document.getElementById('page-toc').hidden = true; return; }
       content.querySelectorAll('h2').forEach(function (heading, index) {
         const block = heading.closest('section') || heading.parentElement;
         const id = block.id || 'section-' + (index + 1);
         block.id = id;
         const href = route + '/' + id;
-        toc.append(anchor(heading.textContent, href, 'toc-link'));
+        const link = anchor(heading.textContent, href, 'toc-link');
+        toc.append(link);
+        tocEntries.push({link: link, block: block});
         const permalink = anchor('§', href, 'permalink');
         permalink.setAttribute('aria-label', '链接到：' + heading.textContent);
         heading.append(permalink);
@@ -4798,6 +5581,17 @@
         else link.removeAttribute('aria-current');
       });
     }
+    function updateContentsPosition() {
+      scrollFrame = null;
+      if (!tocEntries.length) return;
+      let current = tocEntries[0];
+      tocEntries.forEach(function (entry) { if (entry.block.getBoundingClientRect().top <= 115) current = entry; });
+      if (scrollY > 0 && scrollY + innerHeight >= document.documentElement.scrollHeight - 2) current = tocEntries[tocEntries.length - 1];
+      tocEntries.forEach(function (entry) {
+        if (entry === current) entry.link.setAttribute('aria-current', 'location');
+        else entry.link.removeAttribute('aria-current');
+      });
+    }
     function render() {
       const parts = location.hash.replace(/^#/, '').split('/');
       const page = parts[0] || 'overview';
@@ -4811,7 +5605,7 @@
       if (page === 'module' && modules.has(parts[1])) renderModule(modules.get(parts[1]));
       else if (page === 'article' && articles.has(parts[1])) renderArticle(articles.get(parts[1]));
       else if (page === 'flow' && guide.flows.some(function (flow) { return flow.id === parts[1]; })) {
-        renderFlow(guide.flows.find(function (flow) { return flow.id === parts[1]; }), parts[2]);
+        renderFlow(guide.flows.find(function (flow) { return flow.id === parts[1]; }), parts[2], parts[3]);
       } else if (page === 'glossary') renderGlossary();
       else {
         if (page !== 'overview' && page !== 'main') content.append(element('p', 'empty', '这个地址没有对应条目，可以从首页或搜索继续。'));
@@ -4826,7 +5620,7 @@
       applySearch();
       document.title = content.querySelector('h1').textContent + ' · ForgeCode ' + guide.version;
       buildContents(route);
-      scrollToSection(page === 'flow' ? null : sectionId);
+      scrollToSection(page === 'flow' ? (parts[3] && document.getElementById('source-reading') ? 'source-reading' : null) : sectionId);
     }
     const revisionLink = document.getElementById('revision-link');
     revisionLink.href = 'https://github.com/Titans23/forgecode/tree/' + guide.revision;
@@ -4886,6 +5680,9 @@
       main.scrollIntoView({block: 'start', behavior: 'instant'});
     });
     window.addEventListener('hashchange', function () { render(); main.focus({preventScroll: true}); });
+    window.addEventListener('scroll', function () {
+      if (scrollFrame === null) scrollFrame = requestAnimationFrame(updateContentsPosition);
+    }, {passive: true});
     document.addEventListener('visibilitychange', function () { if (document.hidden) stopPlayback(); });
     buildNavigation();
     render();
