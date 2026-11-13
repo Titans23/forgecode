@@ -167,7 +167,11 @@ class CommandJobs:
             job.result = ToolResult.fail('execution_cancelled', 'Job cancelled before dispatch.')
             job.changed.set()
             self._finished(job)
-        return await self.output(identity)
+        result = await self.output(identity)
+        if job.state == 'cancelled':
+            return ToolResult.ok('Background command cancelled; partial effects may remain.',
+                                 content=result.content, metadata=result.metadata)
+        return result
 
     async def cancel_owner(self, owner):
         await asyncio.gather(*(self.cancel(job.id) for job in self.jobs.values()

@@ -103,8 +103,7 @@ def run(command, shell, *, cleanup_normal=False):
                 os.write(2, b'FORGECODE_COMMAND_CLEANUP_INCOMPLETE\n')
             except OSError:
                 pass
-            if cleanup_normal:
-                raise SystemExit(125)
+            raise SystemExit(125)
         if process is not None:
             for stream in (process.stdout, process.stderr):
                 stream.close()

@@ -165,8 +165,15 @@ async def _run_process(
     except asyncio.CancelledError:
         # A stopped ForgeCode turn must not leave a compiler, test runner, or
         # shell child alive after the caller has already moved on.
-        await _stop_and_collect(process, process_job, stdout_task, stderr_task)
-        raise
+        from forge.tool_types import ToolExecutionCancelled
+        incomplete = await _stop_and_collect(process, process_job, stdout_task, stderr_task)
+        confirmed = not incomplete and process.returncode is not None
+        if sys.platform.startswith('linux'):
+            confirmed = confirmed and 0 <= process.returncode < 256 and process.returncode != 125
+        if process_job is not None:
+            confirmed = confirmed and process_job.active_processes() == 0
+        raise ToolExecutionCancelled({'state': 'clean' if confirmed else 'unknown',
+                                      'scope': 'owned-process-tree'}) from None
     stdout_bytes, stdout_total, stdout_truncated, stdout_artifact = await stdout_task
     stderr_bytes, stderr_total, stderr_truncated, stderr_artifact = await stderr_task
     return ProcessResult(
@@ -268,7 +275,9 @@ async def _read_bounded(
 
 async def _terminate_process_tree(process: asyncio.subprocess.Process, process_job=None) -> None:
     if process_job is not None:
-        process_job.close()
+        process_job.terminate()
+        while process_job.active_processes():
+            await asyncio.sleep(0.01)
         return
     if os.name == 'nt':
         if process.returncode is not None:

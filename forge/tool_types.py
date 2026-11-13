@@ -1,5 +1,7 @@
 """Provider-neutral tool results; no runtime, permission or SDK imports."""
 from __future__ import annotations
+
+import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 from collections.abc import Mapping
@@ -106,5 +108,13 @@ class ToolExecutionError(RuntimeError):
         super().__init__(message)
         self.code = code
         self.details = details or {}
+
+
+class ToolExecutionCancelled(asyncio.CancelledError):
+    """Cancellation with per-operation process cleanup evidence, not rollback."""
+
+    def __init__(self, cleanup: dict[str, Any]) -> None:
+        super().__init__('Tool execution cancelled')
+        self.cleanup = cleanup
 
 

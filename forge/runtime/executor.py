@@ -312,6 +312,7 @@ class ToolExecutor:
             execution_backend = self.backend
             temporary_backend = None
             cleanup = None
+            cancellation = None
             try:
                 if wider_mode is not None:
                     temporary_backend = self.backend.open_approved(wider_mode)
@@ -341,22 +342,8 @@ class ToolExecutor:
                         self.checkpoint_store.record_observations(checkpoint_id, observed['files'])
                     else:
                         self.checkpoint_store.record_after(checkpoint_id, checkpoint_paths)
-            except asyncio.CancelledError:
-                result = ToolResult.fail(
-                    'execution_cancelled',
-                    'Tool execution was cancelled before a determinate result was recorded.',
-                )
-                status: ExecutionStatus = (
-                    'indeterminate' if effect in {'workspace_write', 'process'} else 'cancelled'
-                )
-                return operation_outcome(
-                    call,
-                    result,
-                    status,
-                    started,
-                    arguments,
-                    *self._state(),
-                )
+            except asyncio.CancelledError as error:
+                cancellation = error
             except CheckpointError as error:
                 result = ToolResult.fail(
                     'checkpoint_failed',
@@ -390,6 +377,22 @@ class ToolExecutor:
             finally:
                 if temporary_backend is not None:
                     cleanup = await self.backend.close_approved(temporary_backend)
+
+            if cancellation is not None:
+                report = getattr(cancellation, 'cleanup', {'state': 'unknown'})
+                if not execution_started:
+                    report = {'state': 'clean', 'reason': 'not_started'}
+                if temporary_backend is not None and cleanup.get('state') != 'clean':
+                    report = cleanup
+                # A stopped process can leave partial files. This is cancellation,
+                # not rollback, and does not make its entire caller indeterminate.
+                confirmed = report.get('state') == 'clean'
+                result = ToolResult.fail('execution_cancelled',
+                    'Operation cancelled; partial effects may remain. Inspect before retrying.',
+                    metadata={'cleanup': report, 'effects_may_remain': execution_started})
+                return operation_outcome(call, result,
+                    'cancelled' if not execution_started or effect == 'read_only' or effect == 'process' and confirmed
+                    else 'indeterminate', started, arguments, *self._state())
 
             if temporary_backend is not None:
                 result = replace(result, metadata={**result.metadata, 'execution_mode': wider_mode,

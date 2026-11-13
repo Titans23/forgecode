@@ -75,11 +75,12 @@ class FileWorkerClient:
         self._requests.add(task)
         try:
             return await task
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as error:
             if self._closing is not None and not admission['submitted']:
                 raise ContractError('File helper session closed before submission',
                                     kind='SANDBOX_UNAVAILABLE', code=-32010) from None
-            raise
+            from forge.tool_types import ToolExecutionCancelled
+            raise ToolExecutionCancelled(admission.get('cleanup', {'state': 'unknown'})) from error
         finally:
             self._requests.discard(task)
 
@@ -100,7 +101,8 @@ class FileWorkerClient:
         self._require_open()
         if self.native is not None:
             admission['submitted'] = True
-            output = await self._native_request(request_id, raw, on_chunk=frames.feed if frames else None)
+            output = await self._native_request(request_id, raw, on_chunk=frames.feed if frames else None,
+                                                admission=admission)
         else:
             # Trusted file-policy operations or explicit full-access mode.
             # Never a native-failure fallback; makes no OS sandbox claim.
@@ -138,7 +140,8 @@ class FileWorkerClient:
                     output = b''.join(chunks)
                     await child.wait()
             finally:
-                self._cleanup_reports.append(await owner.close())
+                admission['cleanup'] = await owner.close()
+                self._cleanup_reports.append(admission['cleanup'])
                 self._owners.discard(owner)
             if child.returncode not in (0, 2):
                 raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010)
@@ -159,7 +162,7 @@ class FileWorkerClient:
         limit = self.policy['limits']['wall_time_seconds']
         return min(seconds, limit) if limit is not None else seconds
 
-    async def _native_request(self, execution_id, raw, *, on_chunk=None):
+    async def _native_request(self, execution_id, raw, *, on_chunk=None, admission=None):
         native = self.native
         if native.policy_hash != self.policy_hash:
             raise ContractError('File helper requires its prepared native policy', kind='SANDBOX_UNAVAILABLE', code=-32010)
@@ -220,10 +223,13 @@ class FileWorkerClient:
             cleanup_deadline = (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat().replace('+00:00', 'Z')
             try:
                 report = await asyncio.wait_for(native.cancel(execution_id, 'Helper interrupted', cleanup_deadline), 3)
-                self._cleanup_reports.append({'state': 'clean' if report.get('confirmed') is True and
-                    report.get('cleanup', {}).get('state') == 'clean' else 'unknown', 'native_cancel': report})
+                cleanup = {'state': 'clean' if report.get('confirmed') is True and
+                    report.get('cleanup', {}).get('state') == 'clean' else 'unknown', 'native_cancel': report}
             except Exception as error:
-                self._cleanup_reports.append({'state': 'unknown', 'reason': type(error).__name__})
+                cleanup = {'state': 'unknown', 'reason': type(error).__name__}
+            self._cleanup_reports.append(cleanup)
+            if admission is not None:
+                admission['cleanup'] = cleanup
             raise
         finally:
             collector.cancel()

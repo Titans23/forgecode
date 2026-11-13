@@ -80,7 +80,7 @@ def test_owned_job_cancel_prevents_late_write_and_blocks_permission_switch(tmp_p
             with pytest.raises(RuntimeError, match='command jobs'):
                 await conversation.select_permissions('read-only')
             killed = await conversation.tool_executor.execute(ToolCall(1, 'kill', 'job_kill', {'job_id': identity}))
-            assert killed.result.metadata['state'] in {'cancelled', 'indeterminate'}
+            assert killed.result.success and killed.result.metadata['state'] == 'cancelled'
             assert not conversation.command_jobs.running
             assert not (tmp_path / 'project' / 'late.txt').exists()
             assert not conversation.tool_executor.backend.observer._owners
@@ -89,6 +89,77 @@ def test_owned_job_cancel_prevents_late_write_and_blocks_permission_switch(tmp_p
         finally:
             await handle.close()
         assert handle.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
+def test_cancelling_one_job_allows_the_model_to_continue(tmp_path):
+    from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted, ModelTextDelta
+    async def run():
+        class Model(NoModel):
+            calls = 0
+            async def stream(self, *args, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    yield ModelToolCallCompleted(ToolCall(0, 'background', 'run_command', {
+                        'command': command("import time; print('ready', flush=True); time.sleep(30)"),
+                        'run_in_background': True, 'timeout_seconds': 40}))
+                elif self.calls == 2:
+                    jobs = handle.conversation.command_jobs
+                    identity = next(iter(jobs.jobs))
+                    async with asyncio.timeout(10):
+                        cursor = 0
+                        while True:
+                            output = await jobs.output(identity, after=cursor, wait_seconds=1)
+                            if 'ready' in output.content:
+                                break
+                            assert output.metadata['state'] in {'queued', 'running'}
+                            cursor = output.metadata['next_cursor']
+                    yield ModelToolCallCompleted(ToolCall(0, 'stop', 'job_kill', {'job_id': identity}))
+                elif self.calls == 3:
+                    yield ModelToolCallCompleted(ToolCall(0, 'next', 'run_command', {
+                        'command': command("print('continued')")}))
+                else:
+                    yield ModelTextDelta('Continued after cancelling only the job.')
+                yield ModelResponseCompleted('end_turn' if self.calls == 4 else 'tool_use')
+        model = Model()
+        handle = await session(tmp_path, model)
+        try:
+            result = await asyncio.wait_for(handle.run('Start, cancel, then run another command.'), 25)
+            assert result.status == 'completed' and model.calls == 4
+            jobs = handle.conversation.command_jobs
+            assert not jobs.running and next(iter(jobs.jobs.values())).state == 'cancelled'
+            rows = handle.conversation.session_store.load(handle.conversation.session_journal.session_id)
+            assert not rows.pending_inputs
+        finally:
+            await handle.close()
+        assert handle.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
+def test_job_cancellation_with_unconfirmed_cleanup_remains_indeterminate(tmp_path):
+    from forge.permissions.policy import PermissionManager
+    from forge.runtime.agent_loop import Conversation
+    from forge.tools.base import ToolRegistry
+    from forge.tools.shell import RunCommandTool
+    from forge.tool_types import ToolExecutionCancelled
+    async def run():
+        entered = asyncio.Event()
+        class Backend:
+            async def execute(self, call, registry):
+                entered.set()
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError:
+                    raise ToolExecutionCancelled({'state': 'unknown'}) from None
+        c = Conversation(client=NoModel(), registry=ToolRegistry([RunCommandTool(tmp_path)]),
+            context_root=tmp_path, include_task_tools=False, tool_backend=Backend(),
+            permission_manager=PermissionManager(tmp_path, mode='never', execution_mode='full-access', load_stored_rules=False))
+        outcome = await c.tool_executor.execute(ToolCall(0, 'start', 'run_command', {
+            'command': 'unexecuted-fixture', 'run_in_background': True}))
+        await asyncio.wait_for(entered.wait(), 2)
+        stopped = await c.command_jobs.cancel(outcome.result.metadata['job_id'])
+        assert not stopped.success and stopped.error.code == 'INDETERMINATE'
+        await c.command_jobs.close()
     asyncio.run(run())
 
 

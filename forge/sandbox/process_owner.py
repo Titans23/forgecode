@@ -89,6 +89,13 @@ class LocalProcessOwner:
                     await asyncio.wait_for(self.process.wait(), 1)
                 except TimeoutError:
                     pass
+            # A cancelled reader does not drain the Proactor pipe transports.
+            # The owned process has settled (or cleanup is explicitly unknown);
+            # close its local descriptors before the event loop can disappear.
+            transport = getattr(self.process, '_transport', None)
+            if transport is not None:
+                transport.close()
+                await asyncio.sleep(0)
         return report
 
     async def close(self):
