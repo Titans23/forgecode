@@ -61,6 +61,9 @@ class FileWorkerClient:
         self._router = None
         self._router_error = None
         self._owners = set()
+        self._services = {}
+        self.service_handoff_dir = None
+        self._transferred_services = []
         self._cleanup_reports = []
         self._closing = None
 
@@ -80,7 +83,7 @@ class FileWorkerClient:
                 raise ContractError('File helper session closed before submission',
                                     kind='SANDBOX_UNAVAILABLE', code=-32010) from None
             from forge.tool_types import ToolExecutionCancelled
-            raise ToolExecutionCancelled(admission.get('cleanup', {'state': 'unknown'})) from error
+            raise ToolExecutionCancelled(admission.get('cleanup', getattr(error, 'cleanup', {'state': 'unknown'}))) from error
         finally:
             self._requests.discard(task)
 
@@ -116,32 +119,68 @@ class FileWorkerClient:
                 if executable:
                     directories.append(str(Path(executable).resolve().parent))
             environment['PATH'] = os.pathsep.join([*dict.fromkeys(directories), os.environ.get('PATH', environment['PATH'])])
+            service = request.get('name') == 'run_command' and request['arguments'].get('lifetime') == 'session'
+            output_path = input_path = None
+            if service:
+                if self.policy.get('execution_mode') != 'full-access':
+                    raise ContractError('Session services require a supporting full-access provider', kind='CAPABILITY_UNSATISFIED')
+                directory = self.local_control / 'services'
+                directory.mkdir(parents=True, exist_ok=True)
+                output_path = directory / (request_id + '.jsonl')
+                if sys.platform.startswith('linux'):
+                    input_path = directory / (request_id + '.request.json')
+                    input_path.write_bytes(raw)
             owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
-                environment=environment, output=True)
+                environment=environment, output=True, output_path=output_path, input_path=input_path)
             child = owner.process
             self._owners.add(owner)
+            if service:
+                self._services[owner] = request_id
             try:
+                if service:
+                    self._service_receipt(owner, request_id, 'running')
                 self._require_open()  # Close may have started while the owned process was launching.
                 seconds = self._seconds(request)
-                async with asyncio.timeout(seconds + 5):
+                async with asyncio.timeout(seconds + 5 if seconds is not None else None):
                     admission['submitted'] = True
-                    child.stdin.write(raw)
-                    await child.stdin.drain()
-                    child.stdin.close()
+                    if child.stdin is not None:
+                        child.stdin.write(raw)
+                        await child.stdin.drain()
+                        child.stdin.close()
                     chunks, size = [], 0
-                    while chunk := await child.stdout.read(65536):
-                        size += len(chunk)
-                        if size > MAX_FRAME_BYTES:
-                            raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
-                        if frames is not None:
-                            frames.feed(chunk)
-                        else:
-                            chunks.append(chunk)
+                    reader = output_path.open('rb') if service else None
+                    try:
+                        while True:
+                            chunk = reader.read(65536) if reader is not None else await child.stdout.read(65536)
+                            if not chunk:
+                                if reader is not None and child.returncode is None:
+                                    await asyncio.sleep(0.05)
+                                    continue
+                                chunk = reader.read(65536) if reader is not None else b''
+                                if not chunk:
+                                    break
+                            size += len(chunk)
+                            if size > MAX_FRAME_BYTES:
+                                raise ContractError('Helper output exceeds quota', kind='ARTIFACT_LIMIT', code=-32010)
+                            if frames is not None:
+                                frames.feed(chunk)
+                            else:
+                                chunks.append(chunk)
+                    finally:
+                        if reader is not None:
+                            reader.close()
                     output = b''.join(chunks)
                     await child.wait()
             finally:
                 admission['cleanup'] = await owner.close()
-                self._cleanup_reports.append(admission['cleanup'])
+                if owner.transferred:
+                    self._transferred_services.append({'request_id': request_id, 'pid': child.pid,
+                                                       'receiver': 'evaluation-environment'})
+                else:
+                    self._cleanup_reports.append(admission['cleanup'])
+                    if service:
+                        self._service_receipt(owner, request_id, 'closed')
+                self._services.pop(owner, None)
                 self._owners.discard(owner)
             if child.returncode not in (0, 2):
                 raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010)
@@ -158,9 +197,36 @@ class FileWorkerClient:
     def _seconds(self, request):
         seconds = 30
         if request.get('name') in ('run_command', 'verify'):
-            seconds = request['arguments'].get('timeout_seconds', 120) + 5
+            timeout = request['arguments'].get('timeout_seconds', 120)
+            if timeout is None:
+                if request['arguments'].get('lifetime') != 'session' or self.native is not None:
+                    raise ContractError('Only a managed host service may omit its lifetime limit', kind='CAPABILITY_UNSATISFIED')
+                seconds = None
+            else:
+                seconds = timeout + 5
         limit = self.policy['limits']['wall_time_seconds']
-        return min(seconds, limit) if limit is not None else seconds
+        return min(seconds, limit) if limit is not None and seconds is not None else limit if limit is not None else seconds
+
+    def _service_receipt(self, owner, identity, state):
+        if self.service_handoff_dir is None:
+            return
+        from forge.sandbox.process_owner import linux_process_identity
+        directory = self.service_handoff_dir
+        directory.mkdir(parents=True, exist_ok=True)
+        value = {'service_id': identity, 'pid': owner.process.pid, 'state': state,
+                 'start_time': linux_process_identity(owner.process.pid), 'receiver': 'evaluation-environment'}
+        target = directory / (identity + '.json')
+        temporary = target.with_suffix('.tmp')
+        temporary.write_text(json.dumps(value), encoding='utf-8')
+        temporary.replace(target)
+
+    def transfer_services(self):
+        if self.service_handoff_dir is None:
+            return
+        for owner, identity in tuple(self._services.items()):
+            if owner.process.returncode is None:
+                self._service_receipt(owner, identity, 'transferred')
+                owner.transfer()
 
     async def _native_request(self, execution_id, raw, *, on_chunk=None, admission=None):
         native = self.native
@@ -286,4 +352,4 @@ class FileWorkerClient:
         states = {report['state'] for report in self._cleanup_reports}
         return {'state': 'unknown' if 'unknown' in states else 'residual' if 'residual' in states else 'clean',
                 'scope': 'native-session' if self.native else 'local-trusted-process-tree',
-                'reports': list(self._cleanup_reports)}
+                'reports': list(self._cleanup_reports), 'transferred_services': list(self._transferred_services)}

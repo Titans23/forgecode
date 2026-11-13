@@ -42,7 +42,7 @@ def cleanup():
     return not children()
 
 
-def run(command, shell, *, cleanup_normal=False):
+def run(command, shell, *, cleanup_normal=False, ready_fd=None):
     libc = ctypes.CDLL(None, use_errno=True)
     if libc.prctl(36, 1, 0, 0, 0):  # PR_SET_CHILD_SUBREAPER
         raise OSError(ctypes.get_errno(), 'Cannot establish command ownership')
@@ -54,6 +54,9 @@ def run(command, shell, *, cleanup_normal=False):
 
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, stop)
+    if ready_fd is not None:
+        os.write(ready_fd, b'!')
+        os.close(ready_fd)
     normal_exit = False
     # 正常完成的命令可留下已重定向输出的服务；取消时只回收本命令拥有的子树。
     process = None

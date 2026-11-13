@@ -409,7 +409,8 @@ async def _run_interactive_chat(
                     result = await jobs.output(parts[1])
                     resolved_terminal.show_notice('后台命令', result.summary + '\n' + result.content)
                 elif len(parts) == 1:
-                    rows = [f'{job.id} · {job.state} · {job.command}' for job in jobs.jobs.values()]
+                    rows = [f'{job.id} · {job.state} · {"会话服务" if job.lifetime == "session" else "命令"} · {job.command}'
+                            for job in jobs.jobs.values()]
                     resolved_terminal.show_notice('后台命令', '\n'.join(rows) or '当前会话没有后台命令。')
                 else:
                     resolved_terminal.show_notice('后台命令', '/jobs 查看列表；/jobs <id> 查看输出；/jobs stop <id> 停止。')

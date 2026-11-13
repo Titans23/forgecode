@@ -334,6 +334,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             # 两层 Python 都隔离导入路径，任务中的 benchmark.py 不得遮蔽已安装包。
             f'{baseline}'
             'export FORGE_DATA_DIR=/logs/agent/forgecode-state; '
+            'export FORGE_SERVICE_HANDOFF_DIR=/logs/agent/forge-services; '
             'export ANTHROPIC_API_KEY="${FORGECODE_API_KEY}"; '
             'export FORGE_API_KEY="${FORGECODE_API_KEY}"; '
             'export FORGE_PROVIDER="${FORGECODE_PROVIDER:-anthropic}"; '
@@ -344,8 +345,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             'export FORGE_BASE_URL="${FORGECODE_BASE_URL}"; '
             f'export MODEL_MAX_TOKENS="${{FORGECODE_MODEL_MAX_TOKENS:-{DEFAULT_MODEL_MAX_TOKENS}}}"; '
             f'export MODEL_CONTEXT_WINDOW="${{FORGECODE_CONTEXT_WINDOW:-{DEFAULT_MODEL_CONTEXT_WINDOW}}}"; '
-            f'timeout --kill-after=10s {shlex.quote(watchdog_timeout)} '
-            f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.process_supervisor --preserve-on-success -- '
+            f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.process_supervisor '
+            f'--timeout-seconds {shlex.quote(watchdog_timeout)} --service-receipts /logs/agent/forge-services -- '
             f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.run_forge '
             '--project . '
             + ('--frozen-configuration /installed-agent/forgecode-harness.json --result-file /logs/agent/forgecode-result.json ' if self._frozen_configuration else '')

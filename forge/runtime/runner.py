@@ -467,6 +467,10 @@ class TurnRunner:
                 continue
             if c.inbox.peek('steering'):
                 continue
+            pending = self._pending_command_reason()
+            if pending:
+                self._feedback(pending)
+                continue
             reasons = await self._completion_reasons()
             if reasons:
                 self.declared_status = 'completed'
@@ -666,6 +670,13 @@ class TurnRunner:
                 reasons.append(f'{name}: check failed ({type(error).__name__})')
         return tuple(reasons)
 
+    def _pending_command_reason(self):
+        jobs = self.conversation.command_jobs
+        if jobs is not None and jobs.pending_commands:
+            return ('Finite command jobs are still running. Wait with job_output or stop them with job_kill '
+                    'before declaring completion. Explicit session services may remain running.')
+        return None
+
     async def _workspace_completion_reasons(self) -> tuple[str, ...]:
         c = self.conversation
         if self.tracker is None or c.completion_gate is None or c.permission_manager.mode == 'plan':
@@ -743,6 +754,9 @@ class TurnRunner:
             return result
         metadata = result.metadata
         status = metadata['status']
+        pending = self._pending_command_reason() if status == 'completed' else None
+        if pending:
+            return ToolResult.fail('background_jobs_running', pending)
         self.declared_status = status
         observations: list[str] = []
         task_kind = metadata.get('task_kind')
@@ -887,6 +901,8 @@ class TurnRunner:
         from dataclasses import fields
         from forge.runtime.delivery import completion_report
         c = self.conversation
+        if c.command_jobs is not None and status == 'completed':
+            c.command_jobs.retain_services(self.state)
         self.state.stop_reason = reason
         if self.owns_task:
             if status == 'completed':

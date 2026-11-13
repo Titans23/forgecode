@@ -35,6 +35,12 @@ class BasicAccounting(ctypes.Structure):
         ('active_processes', wintypes.DWORD), ('terminated_processes', wintypes.DWORD)]
 
 
+class ThreadEntry(ctypes.Structure):
+    _fields_ = [('size', wintypes.DWORD), ('usage', wintypes.DWORD),
+        ('id', wintypes.DWORD), ('owner', wintypes.DWORD),
+        ('priority', wintypes.LONG), ('delta', wintypes.LONG), ('flags', wintypes.DWORD)]
+
+
 class WindowsJob:
     def __init__(self):
         self.api = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -46,6 +52,11 @@ class WindowsJob:
             'TerminateJobObject': ([wintypes.HANDLE, wintypes.UINT], wintypes.BOOL),
             'QueryInformationJobObject': ([wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p], wintypes.BOOL),
             'CloseHandle': ([wintypes.HANDLE], wintypes.BOOL),
+            'CreateToolhelp32Snapshot': ([wintypes.DWORD, wintypes.DWORD], wintypes.HANDLE),
+            'Thread32First': ([wintypes.HANDLE, ctypes.POINTER(ThreadEntry)], wintypes.BOOL),
+            'Thread32Next': ([wintypes.HANDLE, ctypes.POINTER(ThreadEntry)], wintypes.BOOL),
+            'OpenThread': ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
+            'ResumeThread': ([wintypes.HANDLE], wintypes.DWORD),
         }
         for name, (args, result) in signatures.items():
             function = getattr(self.api, name)
@@ -69,6 +80,35 @@ class WindowsJob:
                 raise ctypes.WinError(ctypes.get_last_error())
         finally:
             self.api.CloseHandle(process)
+
+    def resume(self, pid: int):
+        """Resume the primary thread of our assigned CREATE_SUSPENDED child.
+
+        Gating Python stdin alone is too late: a venv redirector may spawn the
+        interpreter before Job assignment. Popen closes the primary thread
+        handle, so retrieve it while this owned process is still suspended.
+        """
+        snapshot = self.api.CreateToolhelp32Snapshot(0x4, 0)  # TH32CS_SNAPTHREAD
+        if snapshot == ctypes.c_void_p(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            entry = ThreadEntry(size=ctypes.sizeof(ThreadEntry))
+            present = self.api.Thread32First(snapshot, ctypes.byref(entry))
+            while present:
+                if entry.owner == pid:
+                    thread = self.api.OpenThread(0x2, False, entry.id)  # THREAD_SUSPEND_RESUME
+                    if not thread:
+                        raise ctypes.WinError(ctypes.get_last_error())
+                    try:
+                        if self.api.ResumeThread(thread) != 1:
+                            raise OSError('Owned process primary thread was not suspended once')
+                    finally:
+                        self.api.CloseHandle(thread)
+                    return
+                present = self.api.Thread32Next(snapshot, ctypes.byref(entry))
+            raise OSError('Owned suspended process has no primary thread')
+        finally:
+            self.api.CloseHandle(snapshot)
 
     def terminate(self):
         if not self.handle or not self.api.TerminateJobObject(self.handle, 125):

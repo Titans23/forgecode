@@ -218,9 +218,9 @@ class ToolExecutor:
                 )
 
         request = self.registry.permission_request(call.name, arguments)
-        if self.jobs is not None and self.jobs.running and call.name in {'verify', 'finish_task'}:
+        if self.jobs is not None and self.jobs.pending_commands and call.name == 'verify':
             return self._outcome(call, ToolResult.fail('background_jobs_running',
-                'Wait for command jobs with job_output, or stop them with job_kill, before verifying or declaring completion.'),
+                'Wait for finite command jobs with job_output, or stop them with job_kill, before verifying. Session services may remain running.'),
                 'rejected', started, arguments, revision, epoch)
         if request is None:
             request = classify_tool_call(effective_call, effect)
@@ -234,6 +234,16 @@ class ToolExecutor:
         from forge.tools.base import SandboxInput
         implementation = self.registry.implementation(call.name)
         background = bool(getattr(implementation, 'supports_background', False) and arguments.get('run_in_background'))
+        if call.name == 'run_command' and arguments.get('lifetime') == 'session':
+            if not background:
+                return self._outcome(call, ToolResult.fail('invalid_arguments',
+                    'Session services require run_in_background=true.'), 'rejected', started, arguments, revision, epoch)
+            if (self.permission_manager.execution_mode != 'full-access'
+                    or getattr(self.backend, 'mode', None) != 'local-trusted'
+                    or not hasattr(getattr(self.backend, 'observer', None), 'transfer_services')):
+                return self._outcome(call, ToolResult.fail('CAPABILITY_UNSATISFIED',
+                    'This provider cannot own session services. A supporting full-access session is required; no fallback was used.'),
+                    'rejected', started, arguments, revision, epoch)
         if background and (self.jobs is None or 'job_output' not in self.registry.names or 'job_kill' not in self.registry.names):
             return self._outcome(call, ToolResult.fail('background_unavailable',
                 'This runtime has no owned command job tools. Run in the foreground.'),
@@ -386,7 +396,10 @@ class ToolExecutor:
                     report = cleanup
                 # A stopped process can leave partial files. This is cancellation,
                 # not rollback, and does not make its entire caller indeterminate.
-                confirmed = report.get('state') == 'clean'
+                if effect == 'process' and report.get('state') == 'transferred':
+                    return operation_outcome(call, ToolResult.ok('Service ownership transferred; the process has not exited.',
+                        metadata={'cleanup': report}), 'executed', started, arguments, *self._state())
+                confirmed = report.get('state') in {'clean', 'transferred'}
                 result = ToolResult.fail('execution_cancelled',
                     'Operation cancelled; partial effects may remain. Inspect before retrying.',
                     metadata={'cleanup': report, 'effects_may_remain': execution_started})

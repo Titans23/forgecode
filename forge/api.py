@@ -48,6 +48,7 @@ class SessionOptions:
     profile: RunProfile = RunProfile()
     agent: AgentDefinition = AgentDefinition()
     models: dict[str, dict] = field(default_factory=dict)
+    service_handoff_dir: Path | None = None
 
     def __post_init__(self):
         if self.sandbox is None:
@@ -67,6 +68,8 @@ class SessionOptions:
             raise ValueError('A confined mode requires a sandbox provider; select full-access for host execution')
         if self.agent.base == 'core' and (self.read_roots or self.write_roots):
             raise ValueError('Core agents do not grant filesystem roots; select coding for file tools')
+        if self.service_handoff_dir is not None and (self.profile.name != 'evaluation' or self.sandbox != 'full-access'):
+            raise ValueError('Service handoff requires an explicit full-access evaluation environment owner')
 
 
 def event_dict(event):
@@ -131,6 +134,12 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
         options.read_roots, options.write_roots),
         options.agent.sandbox_provider, plugins=plugin_host)
     backend, policy = execution.backend, execution.policy
+    if options.service_handoff_dir is not None:
+        import sys
+        if not sys.platform.startswith('linux'):
+            await backend.close()
+            raise ValueError('Evaluation service handoff currently requires Linux')
+        backend.observer.service_handoff_dir = Path(options.service_handoff_dir)
     writes = tuple(map(Path, policy['filesystem']['write_roots']))
     permissions = PermissionManager(root, mode=options.approval, approval_handler=approval_handler,
         execution_mode=options.sandbox, authorized_write_roots=tuple(map(Path, policy['filesystem']['write_roots'])),

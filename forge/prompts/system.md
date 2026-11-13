@@ -32,6 +32,11 @@ For long commands, run_command with run_in_background=true returns an owned job_
 Use job_output with wait_seconds and the returned next_cursor to collect incremental
 output without busy polling. Wait for a successful exit before dependent work;
 job acceptance is not command completion. Use job_kill to cancel owned work.
+For a requested server or other persistent service, use run_in_background=true
+with lifetime="session". Set timeout_seconds=null only when it should live until
+session shutdown. Check readiness separately; a running process is not proof that
+the service is ready. Session services may remain running while verifying and
+after the final answer; finite command jobs must finish or be cancelled first.
 
 When verification is useful or requested, use verify for the relevant test or program execution. State what
 it exercises in covers and what remains untested in limitations. A build, syntax

@@ -4,44 +4,110 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
+
+
+def linux_process_identity(pid):
+    """Start ticks disambiguate a current owned process from a reused PID."""
+    try:
+        return Path(f'/proc/{int(pid)}/stat').read_text().rsplit(') ', 1)[1].split()[19]
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+class _DetachedProcess:
+    """File-backed Linux child; no asyncio pipe transport can kill a handed-off service."""
+    stdin = None
+
+    def __init__(self, process):
+        self.process, self.pid = process, process.pid
+
+    @property
+    def returncode(self):
+        return self.process.poll()
+
+    async def wait(self):
+        while self.returncode is None:
+            await asyncio.sleep(0.02)
+        return self.returncode
+
+    def terminate(self):
+        self.process.terminate()
+
+    def kill(self):
+        self.process.kill()
 
 
 class LocalProcessOwner:
     def __init__(self, process, job):
         self.process, self.job = process, job
         self._closing = None
+        self.transferred = False
 
     @classmethod
-    async def start(cls, argv, *, cwd, environment, output=False, capture_stderr=False):
+    async def start(cls, argv, *, cwd, environment, output=False, capture_stderr=False,
+                    output_path=None, input_path=None):
         if not isinstance(argv, list) or not argv or not all(isinstance(x, str) for x in argv):
             raise ValueError('Owned launch requires an explicit argument list')
         job = None
+        ready_read = ready_write = None
         options = {'cwd': cwd, 'env': environment, 'stdin': asyncio.subprocess.PIPE,
             'stdout': asyncio.subprocess.PIPE if output else asyncio.subprocess.DEVNULL,
             'stderr': asyncio.subprocess.PIPE if capture_stderr else asyncio.subprocess.DEVNULL}
         if os.name == 'nt':
-            import subprocess
             from forge.tools.windows_job import WindowsJob
             from forge.release.processes import worker_argv
             job = WindowsJob()
             argv = worker_argv(argv)
-            options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW | 0x4  # CREATE_SUSPENDED
         elif sys.platform.startswith('linux'):
             from forge.release.processes import worker_argv
-            argv = worker_argv(argv,cleanup=True)
+            ready_read, ready_write = os.pipe()
+            os.set_blocking(ready_read, False)
+            argv = worker_argv(argv,cleanup=True,ready_fd=ready_write)
             options['start_new_session'] = True
+            options['pass_fds'] = (ready_write,)
         else:
             raise ValueError('Process ownership requires Windows Job or Linux subreaper')
         process = None
-        launch = asyncio.create_task(asyncio.create_subprocess_exec(*argv, **options))
+        async def launch_child():
+            if input_path is not None:
+                if not sys.platform.startswith('linux') or output_path is None:
+                    raise ValueError('File-backed service handoff requires Linux')
+                def spawn():
+                    with Path(input_path).open('rb') as source, Path(output_path).open('wb') as destination:
+                        return _DetachedProcess(subprocess.Popen(argv, **{**options,
+                            'stdin': source, 'stdout': destination}))
+                return await asyncio.to_thread(spawn)
+            if output_path is not None:
+                with Path(output_path).open('wb') as destination:
+                    return await asyncio.create_subprocess_exec(*argv, **{**options, 'stdout': destination})
+            return await asyncio.create_subprocess_exec(*argv, **options)
+        launch = asyncio.create_task(launch_child())
+        ready = None
+        async def wait_ready():
+            async with asyncio.timeout(5):
+                while True:
+                    try:
+                        value = os.read(ready_read, 1)
+                    except BlockingIOError:
+                        await asyncio.sleep(.01)
+                        continue
+                    if value != b'!':
+                        raise OSError('Owned worker exited before establishing cleanup')
+                    return
         try:
             process = await asyncio.shield(launch)
+            if ready_read is not None:
+                ready = asyncio.create_task(wait_ready())
+                await asyncio.shield(ready)
             if job:
                 job.assign(process.pid)
+                job.resume(process.pid)
                 process.stdin.write(b'!')
                 await process.stdin.drain()
             return cls(process, job)
-        except BaseException:
+        except BaseException as error:
             # Cancellation during launch must still obtain and reap the gated
             # child; otherwise its pipes and process can outlive the request.
             if process is None:
@@ -49,15 +115,31 @@ class LocalProcessOwner:
                     process = await asyncio.shield(launch)
                 except Exception:
                     pass
-            if job:
-                job.close()
             if process is not None:
+                if ready_read is not None:
+                    # A cancel during Python startup must not kill the worker
+                    # before its subreaper and signal handlers own cleanup.
+                    try:
+                        if ready is None:
+                            ready = asyncio.create_task(wait_ready())
+                        await asyncio.shield(ready)
+                    except (OSError, TimeoutError):
+                        pass
                 if process.stdin is not None:
                     process.stdin.close()
-                if process.returncode is None:
-                    process.kill()  # Gated child has not executed the task.
-                await process.wait()
+                cleanup = await cls(process, job).close()
+            else:
+                if job:
+                    job.close()
+                cleanup = {'state': 'clean', 'reason': 'launch_did_not_create_process'}
+            if isinstance(error, asyncio.CancelledError):
+                from forge.tool_types import ToolExecutionCancelled
+                raise ToolExecutionCancelled(cleanup) from error
             raise
+        finally:
+            for descriptor in (ready_read, ready_write):
+                if descriptor is not None:
+                    os.close(descriptor)
 
     async def _close(self):
         report = {'state': 'unknown', 'scope': 'owned-process-tree'}
@@ -99,6 +181,13 @@ class LocalProcessOwner:
         return report
 
     async def close(self):
+        if self.transferred:
+            return {'state': 'transferred', 'scope': 'owned-process-tree', 'pid': self.process.pid}
         if self._closing is None:
             self._closing = asyncio.create_task(self._close())
         return await asyncio.shield(self._closing)
+
+    def transfer(self):
+        if not isinstance(self.process, _DetachedProcess) or self._closing is not None:
+            raise ValueError('Only a live file-backed Linux service can be transferred')
+        self.transferred = True

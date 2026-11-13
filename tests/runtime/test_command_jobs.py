@@ -294,3 +294,104 @@ def test_streamed_output_caps_and_cursor_validation():
         assert '\u4e2d' in result.content
         assert (await jobs.output(job.id, after=job.cursor + 1)).error.code == 'invalid_cursor'
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('structured_finish', [False, True])
+def test_session_service_survives_answer_and_verification_but_not_session_close(tmp_path, structured_finish):
+    import socket
+    from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted, ModelTextDelta
+    with socket.socket() as listener:
+        listener.bind(('127.0.0.1', 0))
+        port = listener.getsockname()[1]
+    server = command(f"import socket,time; s=socket.socket(); s.bind(('127.0.0.1',{port})); s.listen(); print('READY',flush=True); time.sleep(60)")
+    async def run():
+        class Model(NoModel):
+            calls = 0
+            async def stream(self, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    yield ModelToolCallCompleted(ToolCall(0, 'service', 'run_command', {
+                        'command': server, 'run_in_background': True, 'lifetime': 'session', 'timeout_seconds': None}))
+                elif self.calls == 2:
+                    jobs = handle.conversation.command_jobs
+                    identity = next(iter(jobs.jobs))
+                    async with asyncio.timeout(10):
+                        cursor = 0
+                        while True:
+                            output = await jobs.output(identity, after=cursor, wait_seconds=1)
+                            if 'READY' in output.content:
+                                break
+                            assert output.metadata['state'] in {'queued', 'running'}, output
+                            cursor = output.metadata['next_cursor']
+                    yield ModelToolCallCompleted(ToolCall(0, 'ready', 'verify', {
+                        'command': command(f"import socket; s=socket.create_connection(('127.0.0.1',{port}),timeout=2); s.close()"),
+                        'covers': ['The fixture service accepts a local connection.']}))
+                elif self.calls == 3 and structured_finish:
+                    yield ModelToolCallCompleted(ToolCall(0, 'finish', 'finish_task', {
+                        'task_kind': 'answer', 'status': 'completed', 'summary': 'Service is ready.'}))
+                else:
+                    yield ModelTextDelta('Service is ready.')
+                yield ModelResponseCompleted('tool_use' if self.calls < 3 or self.calls == 3 and structured_finish else 'end_turn')
+        handle = await session(tmp_path, Model())
+        try:
+            result = await asyncio.wait_for(handle.run('Run the requested service until this session closes.'), 25)
+            assert result.status == 'completed' and result.verification.success
+            jobs = handle.conversation.command_jobs
+            assert jobs.running and not jobs.pending_commands
+            with socket.create_connection(('127.0.0.1', port), timeout=2):
+                pass
+            assert (await handle.run('Confirm the already running service.')).status == 'completed'
+            with pytest.raises(RuntimeError, match='command jobs'):
+                await handle.set_permissions('read-only')
+        finally:
+            await handle.close()
+        assert handle.cleanup['state'] == 'clean' and not jobs.running
+        # Windows may finish TCP socket rundown just after the last owned PID exits.
+        async with asyncio.timeout(3):
+            while True:
+                try:
+                    probe = socket.create_connection(('127.0.0.1', port), timeout=.2)
+                except OSError:
+                    break
+                probe.close()
+                await asyncio.sleep(.05)
+        records = handle.conversation.session_store._read_records(handle.conversation.session_journal.path)
+        assert any(r['type'] == 'job_retained' for r in records)
+        ended = [handle.conversation.session_store._payload(r, handle.conversation.session_journal.path)
+                 for r in records if r['type'] == 'job_finished']
+        assert ended[-1]['state'] == 'cancelled' and ended[-1]['lifetime'] == 'session'
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('structured_finish', [False, True])
+def test_both_completion_paths_wait_for_finite_jobs(tmp_path, structured_finish):
+    from forge.runtime.state import ModelToolCallCompleted, ModelResponseCompleted, ModelTextDelta
+    async def run():
+        class Model(NoModel):
+            calls = 0
+            async def stream(self, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    yield ModelToolCallCompleted(ToolCall(0, 'finite', 'run_command', {
+                        'command': command("import time; time.sleep(30)"), 'run_in_background': True, 'timeout_seconds': 40}))
+                elif self.calls == 2:
+                    if structured_finish:
+                        yield ModelToolCallCompleted(ToolCall(0, 'early', 'finish_task', {
+                            'task_kind': 'answer', 'status': 'completed', 'summary': 'Premature answer.'}))
+                    else:
+                        yield ModelTextDelta('Premature answer.')
+                elif self.calls == 3:
+                    assert 'Finite command jobs' in str(kwargs['messages'])
+                    yield ModelToolCallCompleted(ToolCall(0, 'stop', 'job_kill', {
+                        'job_id': next(iter(handle.conversation.command_jobs.jobs))}))
+                else:
+                    yield ModelTextDelta('Finite work stopped.')
+                yield ModelResponseCompleted('end_turn' if self.calls >= 4 or self.calls == 2 and not structured_finish else 'tool_use')
+        model = Model()
+        handle = await session(tmp_path, model)
+        try:
+            result = await asyncio.wait_for(handle.run('Exercise the finite job completion boundary.'), 25)
+            assert result.status == 'completed' and result.text == 'Finite work stopped.' and model.calls == 4
+        finally:
+            await handle.close()
+    asyncio.run(run())

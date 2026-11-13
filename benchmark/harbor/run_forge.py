@@ -159,7 +159,8 @@ async def run_turn(
                               task_relation='active' if resume else 'new', **kwargs)
     options = SessionOptions(project, sandbox=EVALUATION_EXECUTION['sandbox'], approval=EVALUATION_EXECUTION['approval'],
         data_root=runtime_bindings.data_root, config=runtime_bindings.config, agent=definition,
-        models=runtime_bindings.model_aliases, profile=RunProfile.evaluation())
+        models=runtime_bindings.model_aliases, profile=RunProfile.evaluation(),
+        service_handoff_dir=Path(os.environ['FORGE_SERVICE_HANDOFF_DIR']) if os.environ.get('FORGE_SERVICE_HANDOFF_DIR') else None)
     conversation, journal, _, _ = await open_runtime(options,
         model_client_factory=runtime_bindings.model_client_factory, runtime_factory=assemble,
         continue_session=resume)
@@ -213,6 +214,8 @@ async def run_turn(
         try:
             close=getattr(conversation,'runtime_close',None)
             cleanup = None
+            if final is not None and options.service_handoff_dir is not None:
+                conversation.tool_executor.backend.observer.transfer_services()
             if close is not None:
                 cleanup = await close()
         finally:

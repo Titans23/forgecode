@@ -12,6 +12,7 @@ import tempfile
 import sys
 import json
 from time import perf_counter
+from typing import Literal
 
 from pydantic import Field
 
@@ -52,7 +53,7 @@ async def run_process(
     command: list[str] | str,
     *,
     cwd: Path,
-    timeout_seconds: float,
+    timeout_seconds: float | None,
     input_text: str | None = None,
     shell: bool = False,
     max_output_bytes: int = MAX_PROCESS_OUTPUT_BYTES,
@@ -65,7 +66,7 @@ async def run_process(
     if access is not None:
         limit = access.limits['wall_time_seconds']
         if limit is not None:
-            timeout_seconds = min(timeout_seconds, limit)
+            timeout_seconds = min(timeout_seconds, limit) if timeout_seconds is not None else limit
         # Two streams plus JSON escaping must fit the one-frame helper response.
         max_output_bytes = min(max_output_bytes, access.limits['command_output_bytes'] // 2, 65536)
     job = None
@@ -100,7 +101,7 @@ async def _run_process(
         from forge.release.processes import worker_argv
         if (shell and not isinstance(command, str)) or (not shell and isinstance(command, str)):
             raise TypeError('Shell commands must be strings; executable commands must be lists.')
-        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | (0 if windows_acl else subprocess.CREATE_NO_WINDOW)
+        process_options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP | 0x4 | (0 if windows_acl else subprocess.CREATE_NO_WINDOW)  # CREATE_SUSPENDED
         process_options['stdin'] = asyncio.subprocess.PIPE
         command = worker_argv(command,shell=shell)
         shell = False
@@ -129,6 +130,7 @@ async def _run_process(
     if process_job is not None:
         try:
             process_job.assign(process.pid)
+            process_job.resume(process.pid)
         except BaseException:
             process.kill()  # Only the gated worker exists; no command has run.
             await process.communicate()
@@ -359,7 +361,12 @@ class RunCommandInput(SandboxInput):
         description='Start an owned background job and return its job_id. Use job_output to wait/read output and job_kill to cancel. Dependent commands must wait for completion.')
     command: str = Field(min_length=1)
     cwd: str = '.'
-    timeout_seconds: float = Field(default=120.0, gt=0, allow_inf_nan=False)
+    lifetime: Literal['command', 'session'] = Field(default='command',
+        description='Use session only for an explicitly requested persistent service, with run_in_background=true. '
+        'It stays owned by this session after a completed answer and is stopped when the session closes.')
+    timeout_seconds: float | None = Field(default=120.0, gt=0, allow_inf_nan=False,
+        description='Total command lifetime, also in background mode. Increase for long commands. '
+        'Only session services may use null to run until session shutdown.')
     stdin: str | None = Field(default=None, max_length=8_000)
 
 
@@ -415,6 +422,8 @@ class RunCommandTool(Tool[RunCommandInput]):
     async def execute(self, arguments: RunCommandInput) -> ToolResult:
         if arguments.run_in_background:
             return ToolResult.fail('background_unavailable', 'Background commands require an owned Harness session.')
+        if arguments.timeout_seconds is None and arguments.lifetime != 'session':
+            return ToolResult.fail('invalid_arguments', 'A finite command requires timeout_seconds.')
         access = file_access_guard.get()
         policy_controls_access = getattr(getattr(access, 'policy', None), 'execution_mode', None) is not None
         if not policy_controls_access and not self.execution_profile.allow_command_file_writes:

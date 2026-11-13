@@ -32,10 +32,11 @@ def reset_foreign_loader():
 # Capture the bootloader's original loader values before any worker cleanup.
 _worker_environment=dict(os.environ)
 
-def worker_argv(command, *, shell=False, cleanup=False, gated=True):
+def worker_argv(command, *, shell=False, cleanup=False, gated=True, ready_fd=None):
     role='process-worker' if gated or sys.platform.startswith('linux') else 'external-worker'
     base=[sys.executable,role] if getattr(sys,'frozen',False) else [sys.executable,'-I','-B','-m','forge.workers',role]
-    return base+[json.dumps(command), '1' if shell else '0']+(['--cleanup-on-exit'] if cleanup else [])
+    return base+[json.dumps(command), '1' if shell else '0']+(['--cleanup-on-exit'] if cleanup else [])+(
+        [f'--ready-fd={ready_fd}'] if ready_fd is not None else [])
 
 def external_argv(command):
     return worker_argv(command,gated=False) if getattr(sys,'frozen',False) else list(command)
@@ -44,6 +45,10 @@ def external_options():
     return {'creationflags':subprocess.CREATE_NO_WINDOW} if sys.platform=='win32' else {}
 
 def main(arguments, *, gated=True):
+    ready_fd = None
+    if arguments and arguments[-1].startswith('--ready-fd='):
+        ready_fd = int(arguments[-1].split('=', 1)[1])
+        arguments = arguments[:-1]
     if len(arguments) not in (2,3) or arguments[1] not in ('0','1') or len(arguments)==3 and arguments[2]!='--cleanup-on-exit':
         return 125
     command=json.loads(arguments[0]);shell=arguments[1]=='1'
@@ -53,7 +58,7 @@ def main(arguments, *, gated=True):
     reset_foreign_loader()
     if sys.platform.startswith('linux'):
         from forge.tools.linux_process_worker import run
-        return run(command,shell,cleanup_normal=len(arguments)==3)
+        return run(command,shell,cleanup_normal=len(arguments)==3,ready_fd=ready_fd)
     if sys.platform!='win32': return 125
     if gated and os.read(0,1)!=b'!': return 125
     if not gated:

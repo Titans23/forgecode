@@ -18,6 +18,7 @@ class CommandJob:
     call_id: str
     owner: object
     command: str
+    lifetime: str = 'command'
     origin_turn_id: str | None = None
     state: str = 'queued'
     task: asyncio.Task | None = None
@@ -62,6 +63,17 @@ class CommandJobs:
     def running(self):
         return any(job.state in {'queued', 'running'} for job in self.jobs.values())
 
+    @property
+    def pending_commands(self):
+        return any(job.lifetime == 'command' and job.state in {'queued', 'running'} for job in self.jobs.values())
+
+    def retain_services(self, owner):
+        for job in self.jobs.values():
+            if job.owner is owner and job.lifetime == 'session' and job.state in {'queued', 'running'}:
+                job.owner = self
+                self._record('job_retained', {'job_id': job.id, 'tool_call_id': job.call_id,
+                    'lifetime': job.lifetime, 'origin_turn_id': job.origin_turn_id})
+
     def _record(self, kind, payload):
         if self.journal is not None:
             self.journal.append(kind, payload)
@@ -80,9 +92,11 @@ class CommandJobs:
         if self._closing is not None:
             raise RuntimeError('Command jobs are closing')
         job = CommandJob('job-' + uuid4().hex, call.id, owner, call.arguments['command'],
+                         lifetime=call.arguments.get('lifetime', 'command'),
                          origin_turn_id=getattr(self.journal, 'turn_id', None))
         self._record('job_started', {'job_id': job.id, 'tool_call_id': call.id,
-                                    'command': job.command, 'state': 'queued', 'origin_turn_id': job.origin_turn_id})
+                                    'command': job.command, 'state': 'queued', 'origin_turn_id': job.origin_turn_id,
+                                    'lifetime': job.lifetime})
         self.jobs[job.id] = job
         job.task = asyncio.create_task(self._run(job, operation))
         return job.id
@@ -91,7 +105,7 @@ class CommandJobs:
         try:
             self._record('job_finished', {'job_id': job.id, 'tool_call_id': job.call_id,
                 'origin_turn_id': job.origin_turn_id,
-                'state': job.state, 'elapsed_seconds': job.finished_at - job.started_at,
+                'state': job.state, 'lifetime': job.lifetime, 'elapsed_seconds': job.finished_at - job.started_at,
                 'result': asdict(job.result), 'output': list(job.chunks), 'next_cursor': job.cursor,
                 'output_truncated': job.discarded_characters > 0})
         except Exception as error:
@@ -107,7 +121,8 @@ class CommandJobs:
                 job.changed.set()
                 outcome = await operation()
                 job.result = outcome.result
-                job.state = ('indeterminate' if outcome.record.status == 'indeterminate' else
+                job.state = ('handed_off' if job.result.metadata.get('cleanup', {}).get('state') == 'transferred' else
+                             'indeterminate' if outcome.record.status == 'indeterminate' else
                              'cancelled' if outcome.record.status == 'cancelled' else
                              'completed' if job.result.success else 'failed')
         except asyncio.CancelledError:
@@ -139,7 +154,7 @@ class CommandJobs:
         chunks = [chunk for chunk in job.chunks if chunk['cursor'] > after]
         text = ''.join(f"[{chunk['stream']}] {chunk['text']}" for chunk in chunks)
         truncated = job.discarded_characters > 0
-        metadata = {'job_id': job.id, 'state': job.state, 'next_cursor': job.cursor,
+        metadata = {'job_id': job.id, 'state': job.state, 'lifetime': job.lifetime, 'next_cursor': job.cursor,
                     'output_truncated': truncated, 'elapsed_seconds': (job.finished_at or monotonic()) - job.started_at,
                     'exit_code': job.result.metadata.get('exit_code') if job.result else None}
         if job.result is not None:

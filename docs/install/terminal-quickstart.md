@@ -111,6 +111,8 @@ forge --sandbox danger-full-access --approval supervised
 
 普通命令默认超时 120 秒，可为长任务显式设置更大的正有限时长。后台任务通过 `run_in_background` 启动，`job_output` 按游标读取，`job_kill` 取消；取消/退出仍清理本会话拥有的进程。Harness 无累计请求、工具、token 或回合时长限制。
 
+需要持续运行的开发服务器可使用 `run_in_background=true, lifetime="session"`；明确设置 `timeout_seconds=null` 表示运行到会话退出，也可设置最大运行秒数。服务启动后仍需检查就绪状态，回答结束后保留服务，`/jobs` 可以停止它。退出会话时清理；运行服务期间不能切换权限或历史。该能力目前用于 Windows/Linux 的 full-access 会话，受限提供方不支持时明确报错。
+
 ## SDK 与能力组合
 
 最小 SDK 示例见 [README](../../README.md#python-api-与-agent-组合)。`HarnessSession` 提供 `open/stream/run/cancel/close`、队列输入、模型切换和插件服务，流事件与最终 `TurnResult` 独立于终端。

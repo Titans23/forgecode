@@ -50,7 +50,7 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path, monkeypatch) ->
     assert '--max-model-calls' not in command
     assert '--max-tool-calls' not in command
     assert '--max-turn-seconds' not in command
-    assert 'timeout --kill-after=10s 1800 ' in command
+    assert '--timeout-seconds 1800 ' in command
     assert 'FORGECODE_API_KEY' in command
     assert 'ANTHROPIC_API_KEY=' in command
     assert '${FORGECODE_MODEL_MAX_TOKENS:-65536}' in command
@@ -59,7 +59,7 @@ def test_adapter_builds_quoted_resumable_command(tmp_path: Path, monkeypatch) ->
     assert '/logs/agent/forgecode-repair.txt' in command
     assert '/logs/agent/forgecode-status.json' in command
     assert 'export FORGE_DATA_DIR=/logs/agent/forgecode-state' in command
-    assert 'process_supervisor --preserve-on-success --' in command
+    assert '--service-receipts /logs/agent/forge-services --' in command
     assert '-exec cp {} /logs/agent/' in command
     assert 'git commit --quiet -m "Harbor evaluation baseline"' not in command
 
