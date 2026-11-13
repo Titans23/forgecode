@@ -1,6 +1,6 @@
 # ForgeCode 1.0.0 架构
 
-本页说明当前实现；操作步骤见[使用指南](../install/terminal-quickstart.md)，源码节选和交互流程见[学习手册](../architecture-guide.html)。当前工作和最近验证在 [progress.json](progress.json)，历史记录从 Git 和冻结证据读取。
+本页说明当前实现；操作步骤见[使用指南](../install/terminal-quickstart.md)，概念、实例、源码追踪和同类产品对比见[架构 Wiki](../architecture-guide.html)。当前工作和最近验证在 [progress.json](progress.json)，历史记录从 Git 和冻结证据读取。
 
 ## 0. 定位与组合
 

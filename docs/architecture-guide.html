@@ -3,248 +3,1438 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="从全局架构、请求流程和真实源码，学习 ForgeCode 的 Python Agent Harness。">
+  <meta name="description" content="ForgeCode 架构 Wiki：概念、请求流程、插件、执行、评测与轨迹，附源码讲解及 Codex、Claude Code、DSH、pi 对比。">
   <meta name="color-scheme" content="light">
-  <title>ForgeCode 1.0.0 架构学习手册</title>
+  <title>ForgeCode 1.0.0 架构 Wiki</title>
   <style>
     :root {
-      --paper: #f3f6fa; --panel: #fff; --ink: #172b42; --muted: #566a80;
-      --nav: #14263b; --nav-text: #d1deed; --line: #dce5ee; --teal: #086b72;
-      --teal-soft: #e5f3f2; --blue: #335ed0; --blue-soft: #eef2fe;
-      --amber: #885210; --amber-soft: #fff3dc; --code: #142439; --radius: 16px;
-      --shadow: 0 12px 36px rgba(27, 51, 78, .06);
+      --paper: #f8f9fa; --panel: #fff; --ink: #20272f; --muted: #5b6572;
+      --line: #dce0e5; --blue: #2456a6; --blue-soft: #eef4fc;
+      --teal: #2456a6; --teal-soft: #eef4fc; --amber: #725210;
+      --amber-soft: #fffaec; --code: #f6f8fa;
       font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
-      color: var(--ink); background: var(--paper); line-height: 1.7;
+      color: var(--ink); background: var(--panel); line-height: 1.85;
     }
     * { box-sizing: border-box; }
     body { margin: 0; }
     button, input { font: inherit; }
-    a { color: var(--teal); text-decoration: none; }
+    a { color: var(--blue); text-decoration: none; }
     a:hover { text-decoration: underline; }
     button { cursor: pointer; }
     button:disabled { cursor: default; opacity: .45; }
-    :focus-visible { outline: 3px solid #dc8b26; outline-offset: 4px; }
+    :focus-visible { outline: 3px solid #b7781a; outline-offset: 3px; }
     [hidden] { display: none !important; }
     h1, h2, h3, p { margin: 0; }
-    h1 { font-size: clamp(1.8rem, 3.3vw, 2.65rem); line-height: 1.25; letter-spacing: -.04em; }
-    h2 { font-size: 1.38rem; line-height: 1.4; letter-spacing: -.02em; }
-    h3 { font-size: 1.04rem; line-height: 1.5; }
-    p + p { margin-top: 12px; }
+    h1 { font-size: clamp(1.7rem, 2.8vw, 2.2rem); line-height: 1.4; font-weight: 650; letter-spacing: -.025em; }
+    h2 { font-size: 1.35rem; line-height: 1.55; font-weight: 600; }
+    h3 { font-size: 1.04rem; line-height: 1.6; }
+    p + p { margin-top: 14px; }
     code, pre, .mono { font-family: "Cascadia Code", Consolas, monospace; }
-    code { overflow-wrap: anywhere; }
+    code { overflow-wrap: anywhere; font-size: .91em; background: var(--paper); padding: 1px 4px; border: 1px solid #eaecf0; border-radius: 3px; }
+    pre code { font-size: inherit; background: transparent; border: 0; padding: 0; }
     .skip { position: absolute; left: 14px; top: -100px; z-index: 30; padding: 10px; background: #fff; }
     .skip:focus { top: 8px; }
-    .topbar { height: 70px; display: flex; align-items: center; gap: 18px; padding: 0 28px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 15; }
-    .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); font-weight: 700; letter-spacing: -.03em; font-size: 1.1rem; }
+    .topbar { height: 64px; display: flex; align-items: center; gap: 20px; padding: 0 26px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 15; }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 700; font-size: 1.15rem; }
     .brand:hover { text-decoration: none; }
-    .brand-mark { width: 33px; height: 33px; display: grid; place-items: center; background: var(--teal); border-radius: 9px; color: white; font-family: Consolas, monospace; }
-    .top-title { color: var(--muted); font-size: .85rem; border-left: 1px solid var(--line); padding-left: 18px; }
+    .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; background: var(--blue); color: white; font-family: Consolas, monospace; }
+    .top-title { color: var(--muted); font-size: .9rem; border-left: 1px solid var(--line); padding-left: 20px; }
     .top-meta { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: .78rem; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 3px 10px; background: var(--teal-soft); color: var(--teal); font-size: .76rem; font-weight: 600; }
+    .pill { color: var(--muted); }
     .topbar .nav-toggle { display: none; }
-    .shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: calc(100vh - 70px); max-width: 1600px; margin: auto; }
-    .sidebar { background: var(--nav); color: var(--nav-text); padding: 24px 17px; position: sticky; top: 70px; height: calc(100vh - 70px); overflow-y: auto; }
-    .sidebar a { color: var(--nav-text); }
-    .search-label { display: block; color: #b0c5db; font-size: .77rem; margin: 0 7px 6px; }
-    .search { width: 100%; min-height: 42px; border: 1px solid #49617a; color: #f3f8ff; background: #20374f; border-radius: 9px; padding: 9px 11px; }
-    .search::placeholder { color: #b0c5db; }
-    .search-count { font-size: .74rem; color: #b0c5db; min-height: 25px; margin: 4px 7px 13px; }
-    .nav-primary { display: grid; gap: 3px; padding-bottom: 16px; border-bottom: 1px solid #344a63; }
-    .nav-link { display: block; padding: 8px 10px; border-radius: 7px; font-size: .84rem; }
-    .nav-link:hover { background: #203a55; text-decoration: none; }
-    .nav-link[aria-current="page"] { background: #265268; color: #fff; }
-    .nav-heading { margin: 20px 10px 6px; font-size: .7rem; letter-spacing: .09em; color: #95aec7; }
-    .nav-module { font-size: .79rem; padding: 6px 10px; }
-    main { min-width: 0; padding: 32px 38px 72px; scroll-margin-top: 82px; }
-    .content { max-width: 1130px; margin: auto; }
-    .eyebrow { color: var(--teal); font-size: .72rem; letter-spacing: .15em; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; }
-    .lead { color: var(--muted); max-width: 760px; margin-top: 16px; font-size: .99rem; }
-    .hero { background: radial-gradient(ellipse at 90% 0%, #224d64, #14283e 65%); color: #f7fbff; border-radius: 22px; padding: 34px; overflow: hidden; position: relative; }
-    .hero .eyebrow { color: #a2ded5; }
-    .hero .lead { color: #c3d5e6; max-width: 680px; }
-    .hero-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 30px; }
-    .hero-line a { color: #d9f7f3; border: 1px solid #476d7f; padding: 8px 13px; border-radius: 9px; background: #1c3b51; font-size: .86rem; }
-    .hero-line a:hover { background: #28596a; text-decoration: none; }
-    .hero-line span { color: #8caebf; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 23px; }
-    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 8px 14px; border-radius: 9px; font-size: .84rem; font-weight: 600; }
+    .shell { display: grid; grid-template-columns: 244px minmax(0, 1fr) 208px; grid-template-areas: "nav main toc"; min-height: calc(100vh - 64px); max-width: 1700px; margin: auto; }
+    .sidebar { grid-area: nav; background: var(--paper); border-right: 1px solid var(--line); padding: 23px 16px; position: sticky; top: 64px; height: calc(100vh - 64px); overflow-y: auto; }
+    .search-label { display: block; color: var(--muted); font-size: .78rem; margin-bottom: 7px; }
+    .search { width: 100%; min-height: 39px; border: 1px solid #a2a9b1; color: var(--ink); background: #fff; border-radius: 3px; padding: 7px 9px; font-size: .84rem; }
+    .search::placeholder { color: #727a83; }
+    .search-count { font-size: .73rem; color: var(--muted); min-height: 24px; margin: 5px 0 12px; }
+    .nav-primary { padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+    .nav-link { display: block; padding: 6px 9px; font-size: .84rem; line-height: 1.65; border-left: 2px solid transparent; }
+    .nav-link:hover { background: #edf0f4; text-decoration: none; }
+    .nav-link[aria-current="page"] { background: #e8eef8; border-left-color: var(--blue); font-weight: 600; }
+    .nav-heading { margin: 19px 9px 6px; font-size: .74rem; font-weight: 600; color: var(--muted); }
+    .nav-module { font-size: .79rem; padding: 5px 9px; }
+    .search-match { display: block; color: var(--muted); font-size: .72rem; margin-top: 4px; }
+    main { grid-area: main; min-width: 0; padding: 30px 40px 60px; scroll-margin-top: 80px; }
+    .content { max-width: 960px; margin: auto; }
+    .page-toc { grid-area: toc; min-width: 0; align-self: start; position: sticky; top: 64px; max-height: calc(100vh - 64px); overflow-y: auto; padding: 30px 19px 24px 4px; font-size: .78rem; }
+    .page-toc summary { font-weight: 600; cursor: pointer; padding-bottom: 10px; }
+    .page-toc nav { border-left: 1px solid var(--line); padding-left: 12px; }
+    .toc-link { display: block; color: var(--muted); margin: 10px 0; line-height: 1.65; }
+    .toc-link[aria-current="location"] { color: var(--blue); font-weight: 600; }
+    .eyebrow { color: var(--muted); font-size: .75rem; margin-bottom: 8px; letter-spacing: .03em; }
+    .lead { color: #424c58; margin-top: 16px; font-size: 1rem; }
+    .article-head { border-bottom: 1px solid var(--line); padding-bottom: 15px; }
+    .page-meta { display: flex; gap: 10px 18px; flex-wrap: wrap; color: var(--muted); font-size: .76rem; margin-top: 10px; }
+    .infobox { border: 1px solid var(--line); background: var(--paper); margin-top: 22px; padding: 17px 20px; }
+    .infobox dl { display: grid; grid-template-columns: 88px 1fr; gap: 8px 14px; margin: 0; font-size: .86rem; }
+    .infobox dt { color: var(--muted); }
+    .infobox dd { margin: 0; }
+    .actions, .related { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border: 1px solid #aab3bf; background: var(--panel); color: var(--blue); padding: 6px 12px; border-radius: 3px; font-size: .8rem; }
     .button:hover { background: var(--blue-soft); text-decoration: none; }
-    .button.primary { color: white; background: var(--teal); border-color: var(--teal); }
-    .button.primary:hover { background: #09575d; }
-    .hero .button.primary { color: #12363c; background: #a6e7dc; border-color: #a6e7dc; }
-    .hero .button.secondary { background: transparent; color: #e1edf8; border-color: #627b92; }
-    .section { margin-top: 32px; }
-    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
-    .caption { color: var(--muted); font-size: .8rem; }
-    .three-grid, .module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-    .card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 21px; box-shadow: var(--shadow); }
-    .route-card { display: block; color: var(--ink); transition: transform .15s, border-color .15s; }
-    .route-card:hover { border-color: #65a5ad; transform: translateY(-2px); text-decoration: none; }
-    .route-card p { color: var(--muted); font-size: .83rem; margin-top: 9px; }
-    .route-number { color: var(--teal); background: var(--teal-soft); display: inline-grid; place-items: center; width: 29px; height: 29px; border-radius: 8px; font-size: .77rem; font-weight: 700; margin-bottom: 13px; }
-    .route-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-    .route-chips a { font-size: .72rem; padding: 3px 7px; background: var(--paper); border-radius: 5px; }
-    .blueprint { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 25px; box-shadow: var(--shadow); }
-    .map-layer { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 14px; align-items: start; padding: 16px 0; border-bottom: 1px dashed var(--line); }
-    .map-layer:last-child { border-bottom: 0; }
-    .layer-name { font-size: .76rem; color: var(--muted); padding-top: 10px; }
-    .map-nodes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
-    .map-node { display: block; color: var(--ink); padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; background: #fafcfe; transition: border-color .15s, background .15s; min-width: 0; }
-    .map-node:hover { background: var(--teal-soft); border-color: #82b2b4; text-decoration: none; }
+    .button.primary { color: white; background: var(--blue); border-color: var(--blue); }
+    .section { margin-top: 32px; scroll-margin-top: 82px; }
+    .content [id] { scroll-margin-top: 82px; }
+    .section-head { border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 16px; }
+    .section-head .caption { margin-top: 5px; }
+    .caption { color: var(--muted); font-size: .79rem; }
+    .permalink { font-weight: 400; margin-left: 9px; font-size: .8em; color: #6e819b; }
+    .wiki-section { font-size: .94rem; }
+    .wiki-section > p { margin: 14px 0; }
+    .wiki-section li { margin: 8px 0; }
+    .citation { white-space: nowrap; font-size: .73rem; margin-left: 3px; vertical-align: super; line-height: 0; }
+    .wiki-table-wrap { overflow-x: auto; margin: 18px 0; border: 1px solid var(--line); }
+    .wiki-table { border-collapse: collapse; width: 100%; font-size: .85rem; line-height: 1.8; min-width: 540px; }
+    .wiki-table th, .wiki-table td { text-align: left; vertical-align: top; padding: 12px 14px; border: 1px solid var(--line); overflow-wrap: anywhere; }
+    .wiki-table th { background: #eef1f5; font-weight: 600; }
+    .wiki-table tr:nth-child(even) td { background: #fafbfc; }
+    .wiki-table tr > :first-child { min-width: 108px; }
+    .code-example { margin: 18px 0; border: 1px solid var(--line); background: var(--code); }
+    .code-example figcaption { border-bottom: 1px solid var(--line); padding: 9px 14px; color: var(--muted); font-size: .76rem; }
+    .code-example pre { margin: 0; padding: 16px; font-size: .8rem; line-height: 1.75; overflow-x: auto; tab-size: 4; }
+    .callout, .muted-box { border-left: 3px solid #6b89b1; background: var(--blue-soft); padding: 14px 18px; margin: 18px 0; font-size: .88rem; }
+    .callout h3 { margin-bottom: 6px; }
+    .diagram { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 0; list-style: none; margin: 20px 0; font-size: .8rem; }
+    .diagram li { margin: 0; display: flex; align-items: center; gap: 8px; }
+    .diagram li + li::before { content: "→"; color: var(--muted); }
+    .diagram span { border: 1px solid #b9c9df; background: #f4f7fb; padding: 8px 12px; }
+    .reading-list { padding: 0; margin: 0; list-style: none; }
+    .reading-list li { padding: 13px 0; border-bottom: 1px solid #e9ecf0; }
+    .reading-list a { font-weight: 600; }
+    .reading-list p { color: var(--muted); margin-top: 5px; font-size: .86rem; }
+    .reference-list { padding-left: 23px; font-size: .84rem; }
+    .reference-list li { padding: 4px 0; overflow-wrap: anywhere; }
+    .reference-list small { color: var(--muted); margin-left: 10px; }
+    .module-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 19px; }
+    .route-card { display: block; color: var(--ink); }
+    .route-card:hover { background: var(--paper); text-decoration: none; }
+    .route-card h3 { color: var(--blue); }
+    .route-card p { color: var(--muted); font-size: .84rem; margin-top: 7px; }
+    .blueprint { border: 1px solid var(--line); padding: 10px 19px; }
+    .map-layer { display: grid; grid-template-columns: 95px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .map-layer:last-of-type { border-bottom: 0; }
+    .layer-name { font-size: .76rem; color: var(--muted); padding-top: 8px; }
+    .map-nodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .map-node { display: block; padding: 9px 11px; border: 1px solid var(--line); background: var(--paper); min-width: 0; }
+    .map-node:hover { background: var(--blue-soft); text-decoration: none; }
     .map-node strong { display: block; font-size: .79rem; }
-    .map-node small { display: block; font-family: Consolas, monospace; font-size: .68rem; color: var(--muted); overflow-wrap: anywhere; margin-top: 4px; }
-    .map-node[data-core="true"] { background: #edf5fa; border-color: #b7cedf; }
-    .muted-box { padding: 14px 17px; border-radius: 10px; background: var(--blue-soft); color: #344d7b; font-size: .82rem; margin-top: 16px; }
-    .breadcrumbs { display: flex; gap: 9px; flex-wrap: wrap; color: var(--muted); font-size: .78rem; margin-bottom: 24px; }
-    .module-heading { display: flex; align-items: flex-start; gap: 18px; }
-    .chapter-index { display: grid; place-items: center; flex: 0 0 54px; height: 54px; background: var(--teal-soft); color: var(--teal); font-family: Consolas, monospace; font-weight: 700; font-size: 1.4rem; border-radius: 15px; }
-    .module-heading .eyebrow { margin: 0 0 7px; }
-    .module-heading h1 { font-size: clamp(1.6rem, 3vw, 2.25rem); }
-    .symbol { font-family: Consolas, monospace; color: var(--muted); font-size: .83rem; margin-top: 11px; overflow-wrap: anywhere; }
-    .explain-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 17px; }
-    .prose { color: #324a62; font-size: .9rem; }
-    .prose h2 { color: var(--ink); margin-bottom: 13px; }
-    .example { background: #eaf4f3; border-color: #c4dedb; }
-    .example-label { font-size: .7rem; font-weight: 700; color: #245d60; margin-bottom: 7px; letter-spacing: .07em; }
-    .example-value { font-size: .85rem; color: #244a52; overflow-wrap: anywhere; }
-    .example-arrow { padding: 10px 0; color: #488f91; font-size: 1.3rem; }
-    .step-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-bottom: 14px; }
-    .step-button { padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); text-align: left; min-width: 0; color: var(--ink); }
-    .step-button span { display: block; font-family: Consolas, monospace; font-size: .71rem; color: var(--muted); margin-bottom: 5px; }
-    .step-button strong { font-size: .81rem; }
-    .step-button[aria-pressed="true"] { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
-    .step-detail { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; min-height: 135px; background: var(--nav); color: #e5eef8; padding: 22px; border-radius: 13px; }
-    .step-detail p { font-size: .86rem; color: #c5d6e8; margin-top: 6px; }
-    .state-code { color: #b5e8dd; font-size: .81rem; font-family: Consolas, monospace; overflow-wrap: anywhere; align-self: center; padding-left: 20px; border-left: 1px solid #456075; }
-    .state-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-    .state-table th, .state-table td { text-align: left; vertical-align: top; padding: 11px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
-    .state-table th { width: 34%; color: var(--teal); font-weight: 600; }
-    .boundary { background: var(--amber-soft); color: #744814; border: 1px solid #f0d9ae; padding: 16px 19px; border-radius: 12px; font-size: .85rem; margin-top: 16px; }
-    .boundary strong { display: block; font-size: .77rem; margin-bottom: 5px; }
-    .source { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
-    .source summary { cursor: pointer; padding: 15px 18px; font-size: .85rem; overflow-wrap: anywhere; }
-    .source summary small { display: inline; color: var(--muted); margin-left: 10px; }
-    .source-note { padding: 0 18px 13px; font-size: .83rem; color: var(--muted); }
-    .source pre { margin: 0; background: var(--code); color: #d7e7f5; padding: 17px 16px; overflow-x: auto; font-size: .76rem; line-height: 1.7; tab-size: 4; }
+    .map-node small { display: block; font-family: Consolas, monospace; font-size: .7rem; color: var(--muted); overflow-wrap: anywhere; }
+    .map-node[data-core="true"] { background: var(--blue-soft); border-color: #bdcde3; }
+    .breadcrumbs { display: flex; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: .77rem; margin-bottom: 20px; }
+    .module-heading { display: flex; align-items: flex-start; gap: 15px; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+    .chapter-index { flex: 0 0 42px; padding-top: 4px; color: var(--muted); font-family: Consolas, monospace; font-size: 1.5rem; }
+    .module-heading .eyebrow { margin-bottom: 3px; }
+    .symbol { font-family: Consolas, monospace; color: var(--muted); font-size: .8rem; margin-top: 8px; overflow-wrap: anywhere; }
+    .explain-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+    .prose { font-size: .91rem; }
+    .prose h2 { font-size: 1.15rem; margin-bottom: 14px; }
+    .example { background: #f5f8fd; }
+    .example-label { font-size: .73rem; font-weight: 600; color: var(--blue); margin-bottom: 7px; }
+    .example-value { font-size: .84rem; overflow-wrap: anywhere; }
+    .example-arrow { padding: 9px 0; color: var(--blue); font-size: 1.2rem; }
+    .step-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .step-button { padding: 11px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); text-align: left; min-width: 0; color: var(--ink); }
+    .step-button span { display: block; font-size: .72rem; color: var(--muted); }
+    .step-button strong { font-size: .8rem; }
+    .step-button[aria-pressed="true"] { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+    .step-detail { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; min-height: 140px; background: var(--paper); padding: 20px; border: 1px solid var(--line); }
+    .step-detail p { font-size: .86rem; margin-top: 6px; }
+    .state-code { color: var(--blue); font-size: .8rem; font-family: Consolas, monospace; overflow-wrap: anywhere; align-self: center; padding-left: 18px; border-left: 1px solid var(--line); }
+    .state-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .state-table th, .state-table td { text-align: left; vertical-align: top; padding: 11px 9px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+    .state-table th { width: 34%; font-weight: 600; }
+    .boundary { background: var(--amber-soft); border-left: 3px solid #c8a95a; padding: 15px 18px; font-size: .87rem; margin-top: 17px; }
+    .boundary strong { display: block; font-size: .8rem; margin-bottom: 5px; }
+    .source { margin-top: 12px; border: 1px solid var(--line); background: var(--panel); overflow: hidden; }
+    .source summary { cursor: pointer; padding: 13px 16px; font-size: .84rem; overflow-wrap: anywhere; }
+    .source summary small { color: var(--muted); margin-left: 10px; }
+    .source-note { padding: 0 16px 13px; font-size: .84rem; color: var(--muted); }
+    .source pre { margin: 0; background: var(--code); padding: 16px; overflow-x: auto; font-size: .76rem; line-height: 1.75; tab-size: 4; }
     .code-line { display: grid; grid-template-columns: 38px max-content; }
-    .line-number { color: #8ea6bf; user-select: none; }
+    .line-number { color: #707985; user-select: none; }
     .code-text { white-space: pre; }
-    .source-footer { padding: 12px 18px; display: flex; gap: 14px; flex-wrap: wrap; font-size: .76rem; }
-    .test-list { display: grid; gap: 11px; }
-    .test-entry { padding: 16px 19px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid #5d9e98; border-radius: 10px; min-width: 0; }
+    .source-footer { padding: 11px 16px; display: flex; gap: 14px; flex-wrap: wrap; font-size: .77rem; }
+    .test-list { display: grid; gap: 10px; }
+    .test-entry { padding: 14px 16px; border-left: 2px solid #a0b5d2; background: var(--paper); min-width: 0; }
     .test-entry a { font-size: .81rem; overflow-wrap: anywhere; }
-    .test-entry p { font-size: .82rem; color: var(--muted); margin-top: 5px; }
-    .question { border: 1px solid #c5d6e8; border-radius: 12px; background: #eef4fa; padding: 16px 19px; }
-    .question summary { cursor: pointer; color: #244969; font-size: .88rem; }
-    .question p { color: #3e5971; font-size: .87rem; padding-top: 13px; }
-    .related { display: flex; flex-wrap: wrap; gap: 9px; }
-    .flow-menu { display: flex; flex-wrap: wrap; gap: 9px; margin: 22px 0; }
-    .flow-menu a[aria-current="page"] { background: var(--teal); color: white; border-color: var(--teal); }
-    .flow-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; }
-    .flow-timeline { display: grid; align-content: start; gap: 6px; }
-    .flow-stop { display: flex; gap: 10px; align-items: center; width: 100%; border: 0; border-radius: 8px; background: transparent; color: var(--muted); text-align: left; padding: 10px 9px; font-size: .8rem; }
-    .flow-stop .step-dot { display: grid; place-items: center; width: 25px; height: 25px; flex-shrink: 0; background: #dce6ef; color: #4a637d; border-radius: 50%; font-size: .69rem; }
-    .flow-stop[aria-current="step"] { background: var(--teal-soft); color: var(--teal); font-weight: 600; }
-    .flow-stop[aria-current="step"] .step-dot { background: var(--teal); color: white; }
-    .flow-scene { background: var(--nav); border-radius: 16px; padding: 24px; color: #edf6ff; min-height: 200px; display: flex; flex-direction: column; justify-content: space-between; }
-    .scene-title { font-size: 1.16rem; }
-    .flow-lanes { display: flex; gap: 8px; justify-content: space-between; margin-top: 21px; }
-    .flow-lane { padding: 10px 8px; border: 1px solid #52687e; border-radius: 8px; text-align: center; flex: 1; font-size: .74rem; color: #adc4d9; }
-    .flow-lane.active { border-color: #a6e5d9; background: #2b5a65; color: #e7fff9; box-shadow: 0 0 0 3px rgba(146, 224, 211, .08); }
-    .flow-scene .caption { color: #b3ccdf; margin-top: 15px; }
+    .test-entry p { font-size: .83rem; color: var(--muted); margin-top: 5px; }
+    .question { border: 1px solid var(--line); padding: 15px 18px; }
+    .question summary { cursor: pointer; color: var(--blue); font-size: .88rem; }
+    .question p { font-size: .88rem; padding-top: 12px; }
+    .flow-menu { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0; }
+    .flow-menu a[aria-current="page"] { background: var(--blue); color: white; border-color: var(--blue); }
+    .flow-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 18px; }
+    .flow-timeline { display: grid; align-content: start; gap: 5px; }
+    .flow-stop { display: flex; gap: 9px; align-items: center; width: 100%; border: 0; background: transparent; color: var(--muted); text-align: left; padding: 9px 7px; font-size: .8rem; }
+    .step-dot { display: grid; place-items: center; width: 25px; height: 25px; flex-shrink: 0; background: #e9edf3; font-size: .7rem; border-radius: 50%; }
+    .flow-stop[aria-current="step"] { background: var(--blue-soft); color: var(--blue); font-weight: 600; }
+    .flow-stop[aria-current="step"] .step-dot { background: var(--blue); color: white; }
+    .flow-scene { background: #f2f6fc; border: 1px solid #b9c9df; padding: 22px; min-height: 210px; display: flex; flex-direction: column; justify-content: space-between; }
+    .scene-title { font-size: 1.15rem; }
+    .flow-lanes { display: flex; gap: 6px; margin-top: 20px; }
+    .flow-lane { padding: 8px 5px; border: 1px solid #bbc7d8; text-align: center; flex: 1; font-size: .73rem; color: var(--muted); }
+    .flow-lane.active { border-color: var(--blue); background: #e0eafa; color: var(--blue); }
+    .flow-scene .caption { margin-top: 14px; }
     .io-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-    .io-label { color: var(--teal); font-size: .74rem; font-weight: 700; margin-bottom: 7px; }
-    .io-text { font-size: .85rem; color: #3f5870; overflow-wrap: anywhere; }
-    .metric-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-    .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
-    .metric small { display: block; color: var(--muted); font-size: .69rem; }
-    .metric strong { display: block; font-size: .85rem; font-family: Consolas, monospace; margin-top: 6px; color: var(--teal); overflow-wrap: anywhere; }
+    .io-label { color: var(--blue); font-size: .74rem; font-weight: 600; margin-bottom: 7px; }
+    .io-text { font-size: .85rem; overflow-wrap: anywhere; }
+    .metric-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .metric { border: 1px solid var(--line); padding: 11px; min-width: 0; }
+    .metric small { display: block; color: var(--muted); font-size: .71rem; }
+    .metric strong { display: block; font-size: .85rem; font-family: Consolas, monospace; margin-top: 5px; color: var(--blue); overflow-wrap: anywhere; }
     .flow-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
     .flow-position { color: var(--muted); font-size: .78rem; margin-left: auto; }
-    .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 26px; }
-    .glossary dt { font-weight: 700; color: var(--teal); font-size: .92rem; }
-    .glossary dd { margin: 8px 0 12px; font-size: .86rem; color: var(--muted); }
-    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: .76rem; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .empty { padding: 22px; background: var(--amber-soft); border-radius: 12px; color: var(--amber); }
+    .glossary { margin-top: 25px; }
+    .glossary .card { border: 0; border-bottom: 1px solid var(--line); padding: 18px 0; }
+    .glossary dt { font-weight: 600; color: var(--blue); font-size: 1rem; }
+    .glossary dd { margin: 8px 0; font-size: .92rem; }
+    .footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .76rem; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .empty { padding: 18px; background: var(--amber-soft); color: var(--amber); font-size: .9rem; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    @media (max-width: 1200px) {
-      .shell { grid-template-columns: 218px minmax(0, 1fr); }
-      main { padding: 27px 25px 60px; }
-      .three-grid { grid-template-columns: 1fr; }
-      .route-card { padding: 18px 21px; }
-      .route-number { float: left; margin: 1px 14px 8px 0; }
-      .route-chips { clear: both; }
-      .flow-layout { grid-template-columns: 210px minmax(0, 1fr); }
-    }
-    @media (max-width: 980px) {
-      .topbar { padding: 0 18px; }
-      .top-title, .top-meta .pill { display: none; }
-      .topbar .nav-toggle { display: inline-flex; margin-left: 8px; }
-      .shell { grid-template-columns: 1fr; }
-      .sidebar { display: none; position: static; height: auto; max-height: 65vh; }
-      body.nav-open .sidebar { display: block; }
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: 224px minmax(0, 1fr); grid-template-areas: "nav toc" "nav main"; }
+      .sidebar { align-self: start; }
+      .page-toc { position: static; max-height: none; padding: 16px 28px 0; }
+      .page-toc details { border-bottom: 1px solid var(--line); }
+      .page-toc nav { margin-bottom: 14px; }
+      main { padding: 22px 28px 55px; }
       .explain-grid { grid-template-columns: 1fr; }
-      .flow-layout { grid-template-columns: 190px minmax(0, 1fr); }
     }
-    @media (max-width: 650px) {
-      main { padding: 22px 15px 45px; }
-      .hero { padding: 24px 22px; }
-      .hero-line { gap: 7px; }
-      .hero-line a { padding: 6px 10px; }
-      .top-meta > a { display: none; }
-      .section-head { align-items: flex-start; flex-direction: column; gap: 5px; }
-      .blueprint { padding: 14px; }
-      .map-layer { grid-template-columns: 1fr; gap: 8px; padding: 13px 0; }
+    @media (max-width: 800px) {
+      .topbar { padding: 0 16px; gap: 10px; }
+      .top-title, .top-meta .pill { display: none; }
+      .topbar .nav-toggle { display: inline-flex; }
+      .shell { display: flex; flex-direction: column; }
+      .sidebar { display: none; position: static; height: auto; max-height: 68vh; width: 100%; border-bottom: 1px solid var(--line); order: 1; }
+      body.nav-open .sidebar { display: block; }
+      .page-toc { order: 2; width: 100%; padding: 14px 20px 0; }
+      main { order: 3; width: 100%; padding: 22px 20px 44px; }
+    }
+    @media (max-width: 560px) {
+      .top-meta { font-size: .72rem; }
+      .module-grid, .map-layer, .flow-layout, .io-grid { grid-template-columns: 1fr; }
+      .blueprint { padding: 8px 12px; }
+      .map-layer { gap: 8px; }
       .layer-name { padding: 0; }
-      .map-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .module-grid { grid-template-columns: 1fr; }
       .step-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .step-detail { grid-template-columns: 1fr; min-height: 180px; }
-      .state-code { padding: 10px 0 0; border-left: 0; border-top: 1px solid #456075; }
-      .flow-layout { grid-template-columns: 1fr; }
+      .state-code { padding: 10px 0 0; border-left: 0; border-top: 1px solid var(--line); }
       .flow-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
-      .flow-stop { font-size: .73rem; }
-      .flow-scene { padding: 19px; }
-      .flow-lanes { gap: 5px; }
-      .flow-lane { padding: 9px 4px; }
-      .io-grid, .glossary { grid-template-columns: 1fr; }
-      .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .card { padding: 18px; }
-      .module-heading { gap: 12px; }
-      .chapter-index { width: 44px; flex-basis: 44px; height: 44px; }
-      .state-table th { width: 40%; }
+      .flow-stop { font-size: .74rem; }
+      .flow-scene { padding: 16px; }
+      .card { padding: 16px; }
+      .chapter-index { display: none; }
+      .wiki-table { min-width: 510px; }
+      .infobox { padding: 14px; }
+      .infobox dl { grid-template-columns: 65px 1fr; gap: 8px; }
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
-    @media print { .sidebar, .topbar, .nav-toggle, .flow-controls { display: none; } .shell { display: block; } main { padding: 0; } .card, .source { box-shadow: none; break-inside: avoid; } }
+    @media print {
+      .sidebar, .topbar, .page-toc, .flow-controls, .permalink, .skip { display: none; }
+      .shell { display: block; } main { padding: 0; } .content { max-width: none; }
+      .card, .callout { break-inside: avoid; } .wiki-table-wrap, .code-example pre, .source pre { overflow: visible; }
+      .wiki-table { min-width: 0; font-size: 9pt; } .code-example pre { white-space: pre-wrap; }
+      a { color: inherit; } h2, h3 { break-after: avoid; }
+    }
   </style>
 </head>
 <body>
   <a class="skip" href="#main">跳转到正文</a>
   <header class="topbar">
     <a class="brand" href="#overview"><span class="brand-mark" aria-hidden="true">F</span><span>ForgeCode</span></a>
-    <span class="top-title">架构学习手册</span>
-    <div class="top-meta"><span class="pill">离线学习</span><a id="revision-link" target="_blank" rel="noopener noreferrer">代码版本 <span class="mono">v1.0.0</span></a></div>
+    <span class="top-title">架构 Wiki</span>
+    <div class="top-meta"><span class="pill">单文件 · 离线可读</span><a id="revision-link" target="_blank" rel="noopener noreferrer">代码版本 <span class="mono">v1.0.0</span></a></div>
     <button class="button nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">目录</button>
   </header>
   <div class="shell">
     <aside class="sidebar" id="sidebar">
-      <label class="search-label" for="module-search">查找模块或概念</label>
-      <input class="search" id="module-search" type="search" placeholder="工具 / MCP / Journal" autocomplete="off">
+      <label class="search-label" for="module-search">全文搜索 <span aria-hidden="true">/</span></label>
+      <input class="search" id="module-search" type="search" placeholder="后台作业 / 插件 / Codex" autocomplete="off">
       <div class="search-count" id="search-count" aria-live="polite"></div>
-      <nav class="nav-primary" aria-label="学习视图">
-        <a class="nav-link" href="#overview" data-route="overview">全局架构</a>
+      <nav id="search-results" aria-label="搜索结果" hidden></nav>
+      <div id="browse-nav">
+      <nav class="nav-primary" aria-label="通用导航">
+        <a class="nav-link" href="#overview" data-route="overview">Wiki 首页</a>
         <a class="nav-link" href="#flow/coding" data-route="flow">请求流程推演</a>
         <a class="nav-link" href="#glossary" data-route="glossary">术语与状态</a>
       </nav>
-      <nav id="module-nav" aria-label="模块目录"></nav>
+      <div class="nav-heading">主题条目</div>
+      <nav id="article-nav" aria-label="主题条目"></nav>
+      <nav id="module-nav" aria-label="源码模块目录"></nav>
+      </div>
     </aside>
     <main id="main" tabindex="-1"><div class="content" id="content"></div></main>
+    <aside class="page-toc" id="page-toc" aria-label="本页目录"><details id="toc-details" open><summary>本页目录</summary><nav id="toc-links"></nav></details></aside>
   </div>
-  <noscript><p>这个学习手册使用浏览器 JavaScript 展示模块和流程。请启用 JavaScript 后重新打开。</p></noscript>
+  <noscript><p>此 Wiki 使用本地 JavaScript 展示条目，不需要联网。也可阅读 <a href="./implementation/architecture.md">Markdown 架构说明</a>。</p></noscript>
+  <!-- Maintain article prose and source references in guide-data. Source excerpts must match revision.
+       Rendering uses text nodes; this file has no external scripts or model calls. -->
   <script id="guide-data" type="application/json">
 {
-  "revision": "v1.0.0",
+  "revision": "7de5974204d74cdddbbcea93a189880081112b10",
+  "version": "1.0.0",
   "date": "2026-11-13",
+  "articles": [
+    {
+      "id": "concepts",
+      "title": "先理解 Model、Agent 与 Harness",
+      "summary": "从“模型会回答”到“程序会行动”，中间需要哪些东西？本条目用同一个例子区分模型能力、运行机制和产品体验。",
+      "sections": [
+        {
+          "id": "layers",
+          "title": "四个名称分别指什么",
+          "paragraphs": [
+            "模型接收消息并生成输出；Agent 结合目标、模型和工具选择下一步；Harness 负责把这些步骤真正运行起来；CLI、聊天界面或机器人控制台是用户接触它的入口。把这四层分开，才能判断一个问题发生在哪里。"
+          ],
+          "table": {
+            "headers": [
+              "层次",
+              "回答的问题",
+              "ForgeCode 中的对应"
+            ],
+            "rows": [
+              [
+                "Model（模型）",
+                "下一步说什么、选择哪个工具？",
+                "由 ModelClient 适配提供方；不是 ForgeCode 自己训练的模型。"
+              ],
+              [
+                "Agent（智能体配置）",
+                "围绕什么任务，使用哪些能力？",
+                "AgentDefinition 选择 core/coding、工具、插件、角色模型与完成策略。"
+              ],
+              [
+                "Harness（运行底座）",
+                "请求怎样发送，工具怎样执行，状态怎样保存？",
+                "Conversation、TurnRunner、ToolExecutor、ContextManager 与 Journal。"
+              ],
+              [
+                "应用入口",
+                "人或其他程序怎样提交任务、接收结果？",
+                "终端 CLI、Python SDK、插件渠道与 benchmark adapter。"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "example",
+          "title": "例子：同一句“创建一个动画网页”",
+          "paragraphs": [
+            "只调用模型 API 时，你可能得到一段 HTML 字符串。要真正创建文件，还需要程序接收工具调用、检查参数、确定写入位置、执行写入，再把结果告诉模型。要在终端边生成边显示，还需要流式事件和终端渲染。",
+            "如果接着要求“启动本地服务器并保持运行”，还要有人管理进程：启动结果不等于服务器已就绪，回答结束不等于服务应结束，退出会话则应清理自己启动的服务。这些都是 Harness 的责任，不是让模型多写一句提示词就能可靠解决的问题。[[jobs]]"
+          ],
+          "items": [
+            "用户目标：创建动画网页，并提供可访问的地址。",
+            "模型决策：调用 write_file，再启动服务。",
+            "Harness 行为：授权、派发、等待工具结果、记录过程、管理服务。",
+            "独立判断：实际打开页面或执行适当检查，确认产物满足要求。"
+          ]
+        },
+        {
+          "id": "core-coding",
+          "title": "core 与 coding 是两种组合",
+          "paragraphs": [
+            "core 提供通用模型/工具循环和会话能力，不自动加载仓库上下文、任务管理、文件工具、检查点或命令作业。coding 在相同内核上组合这些开发能力。没有编程需求的 Personal Harness 不必先创建一个 Git 仓库。[[composition]]",
+            "例如报销助手可使用 core 加一个处理报销表格的插件；代码修复助手使用 coding；机器人实验控制器可以从 core 开始，通过插件连接仿真或设备接口。机器人领域的控制频率、限位与急停仍由设备系统负责，仓库中的通用组合能力不代表硬件控制已验收。"
+          ],
+          "code": {
+            "language": "python",
+            "caption": "选择能力，而不是创建第二套 Agent 循环",
+            "text": "from forge.agents import AgentDefinition\n\nnotes = AgentDefinition.core(\n    name=\"notes\", system_prompt=\"帮助整理用户提供的笔记。\"\n)\nreader = AgentDefinition(\n    name=\"reader\", base=\"coding\",\n    tools=(\"read_file\", \"list_directory\", \"grep\"),\n    features=(\"repository\",),\n)\n# tools 是能力选择；真正的权限与执行边界由 SessionOptions 决定。"
+          }
+        },
+        {
+          "id": "minimal",
+          "title": "“轻量”具体指什么",
+          "paragraphs": [
+            "这里的轻量指：通用内核不强制携带某个领域的工作流，组件按需要加载，多个入口复用同一套执行逻辑。它不等于整个仓库只有几百行，也不表示移除取消、权限和持久化边界。普通 SDK/CLI 运行不要求 Docker；公共基准的任务环境是另一层。[[architecture]]",
+            "模型 SDK、CLI、coding、MCP、评测等通过可选依赖安装。自然语言开发、严格验收和交付包是可选择的能力，普通 coding 不自动扫描全部文件、不做独立意图路由，也不强制调用完成验收协议。"
+          ]
+        },
+        {
+          "id": "success",
+          "title": "三种“成功”不要混为一谈",
+          "paragraphs": [],
+          "table": {
+            "headers": [
+              "观察到的状态",
+              "可以说明什么",
+              "不能据此断言什么"
+            ],
+            "rows": [
+              [
+                "工具 success=true",
+                "本次工具按它的契约返回成功。",
+                "用户的全部目标已经满足。"
+              ],
+              [
+                "回合 status=completed",
+                "Agent 正常提交了本轮结果。",
+                "代码正确，或官方 benchmark 一定给满分。"
+              ],
+              [
+                "独立检查 / 官方 reward 通过",
+                "在该检查和环境下达到了对应条件。",
+                "换模型、换环境或换任务仍然成立。"
+              ]
+            ]
+          },
+          "note": "阅读评测结果时，分别看 Agent 的执行状态、独立判分状态和原始 reward。一个 Agent 可以超时，但留下能通过 grader 的产物。"
+        },
+        {
+          "id": "reading",
+          "title": "推荐怎样阅读这份 Wiki",
+          "paragraphs": [
+            "初次接触先读本条目和“请求怎样执行”；接入业务时读“插件开发与交付”；排查卡顿或超时读“执行、权限与后台作业”；分析失败任务读“评测与轨迹”。模块条目保留源码节选和测试入口，适合进一步逐行追踪。"
+          ],
+          "links": [
+            [
+              "请求怎样执行",
+              "#article/request"
+            ],
+            [
+              "插件开发与交付",
+              "#article/extensions"
+            ],
+            [
+              "执行与后台作业",
+              "#article/execution"
+            ],
+            [
+              "与其他方案比较",
+              "#article/comparison"
+            ]
+          ]
+        }
+      ],
+      "navTitle": "基本概念与定位"
+    },
+    {
+      "id": "request",
+      "title": "一次请求怎样经过 ForgeCode",
+      "summary": "以“修改一个函数并检查结果”为例，从入口装配、模型流、工具派发，到完成与恢复逐步说明真实调用链。",
+      "sections": [
+        {
+          "id": "assembly",
+          "title": "1. 入口先把运行条件确定下来",
+          "paragraphs": [
+            "CLI、SDK 和公共评测最终使用 open_runtime 装配运行时。SessionOptions 决定工作区、数据目录、沙盒/审批、Agent 配置和可选调用方截止时间；AgentDefinition 决定装入哪些能力。create_runtime 随后组装会话、模型客户端、工具注册表和所选组件。[[api]] [[bench-entry]]",
+            "评测使用明确的 full-access / never 执行配置，并关闭未冻结的项目 Hooks、MCP 和本地权限规则。显式冻结、受信任的插件仍通过公共 PluginHost 加载。这样既共享工具执行路径，也避免个人目录中的配置悄悄改变一个实验。"
+          ],
+          "diagram": [
+            "CLI / SDK / benchmark",
+            "open_runtime",
+            "create_runtime",
+            "Conversation",
+            "TurnRunner"
+          ]
+        },
+        {
+          "id": "request-context",
+          "title": "2. 准备一条模型请求",
+          "paragraphs": [
+            "Conversation 持有跨回合状态，TurnRunner 负责当前回合。用户消息先进入 Journal；本次模型输入还会生成可核验的快照。系统提示承担稳定规则，当前任务、可用工具、权限、仓库相关内容和运行事实放在请求末尾。[[runner]] [[observation]]",
+            "这有利于保持前缀稳定，但并不保证提供方一定命中缓存。缓存还取决于模型、服务端规则、消息变化及工具定义变化。判断 token 成本要看实际 usage，不能只凭终端显示的总 token 推断缓存失效。",
+            "当前上下文过大时才压缩历史；压缩保留任务目标、近期材料和工具调用/结果关系。大工具输出可在模型上下文中裁剪，但完整结果仍保留在 Journal 或受限 artifact 中。[[context]]"
+          ]
+        },
+        {
+          "id": "stream",
+          "title": "3. 显示流，与执行工具，是两个时点",
+          "paragraphs": [
+            "文本、提供方公开的思考片段和工具参数增量到达后，立即交给事件消费者显示。与此同时，适配器继续拼接并验证响应。模型只生成了半段 write_file JSON 时，工具还没有开始写文件。[[runner]]",
+            "例如模型要一次生成一个很大的 HTML 文件，终端可能长时间显示“正在准备工具调用”。如果 model_tool_chunk 持续增加，时间花在参数生成；如果已出现 tool_started 后没有结果，才应优先排查文件操作、进程或工具后端。思考展示仅限模型提供方实际返回的内容，不能补造未返回的思考。"
+          ],
+          "table": {
+            "headers": [
+              "事件 / 记录",
+              "所在阶段",
+              "诊断用途"
+            ],
+            "rows": [
+              [
+                "model_request_started",
+                "开始模型尝试",
+                "定位请求开始时间与输入快照。"
+              ],
+              [
+                "model_request_chunk / model_reasoning_chunk / model_tool_chunk",
+                "模型输出中",
+                "区分正文、思考与工具参数生成。"
+              ],
+              [
+                "tool_started / tool_completed",
+                "实际工具生命周期",
+                "判断请求是否进入工具执行以及结果。"
+              ],
+              [
+                "job_started / job_finished",
+                "后台作业生命周期",
+                "启动受理与进程终态分开记录。"
+              ],
+              [
+                "turn_completed / turn_error / turn_cancelled",
+                "本轮终态",
+                "说明本轮如何结束，而不是替代 grader。"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "dispatch",
+          "title": "4. 工具先准入，再执行，再结算",
+          "paragraphs": [
+            "ToolExecutor 统一处理参数校验、权限与 Hook、实际执行，以及结果和观察记录。内置工具、插件工具和 MCP 工具都进入同一执行协调层；具体能力仍由实现与执行提供方决定。对已有文件的版本核验、目标协调和单次授权不会由模型文字自行取消。[[batch]] [[plugins]]",
+            "独立且明确声明安全的工具体可并行，默认最大并行数为 10。准入与结算保持可解释的顺序；读取组、写入组和独占命令之间有屏障。同一文件或别名目标的编辑串行，不同文件的合格编辑可重叠。任意 shell 脚本内部怎样写文件，不能仅靠这些文件工具的租约保证。"
+          ],
+          "example": {
+            "title": "一次批次里有三个读取",
+            "text": "读取 README、读取 pyproject.toml、搜索某个符号可以重叠。某个文件不存在只返回该调用的失败结果，其他独立调用可以完成。权限拒绝或无法确认的副作用则停止继续派发，并收齐已启动的调用。模型最终按原始调用顺序得到结果。"
+          }
+        },
+        {
+          "id": "continue",
+          "title": "5. 把实际结果交回模型",
+          "paragraphs": [
+            "工具结果回到消息历史后，模型才能决定继续修改、重新检查，还是给出答案。参数不合法、文件上下文不匹配和命令非零退出是可诊断事实，不必把每一种失败都升级成整个 Harness 崩溃。",
+            "网络重试与工具重试要分开：前者只能在允许的传输边界发生；后者可能有副作用，不能透明重放。取消写入后即使工作进程已经停止，也不表示文件操作已回滚。清理不确定时会留下 indeterminate，供后续检查。[[retry]]"
+          ]
+        },
+        {
+          "id": "finish",
+          "title": "6. 完成、验证与会话退出",
+          "paragraphs": [
+            "最终文本和 finish_task 提交同一完成请求。普通 coding 不强制全量验收；显式 strict 或插件注册的完成检查才增加对应条件。有限后台命令必须结束或被停止；显式会话服务可以在完成回答后保留。[[jobs]]",
+            "关闭会话时会关闭客户端、插件资源和本会话拥有的进程；恢复会话只恢复已记录的历史与状态，不自动重跑过去的命令。检查点也是显式能力，恢复文件仍要检查权限与版本。"
+          ]
+        },
+        {
+          "id": "sdk-example",
+          "title": "Python 中怎样调用同一条路径",
+          "paragraphs": [
+            "下面是正常会调用已配置模型的 SDK 示例；网页只展示代码，不执行它。工作区和会话数据目录彼此分开，async with 确保退出时关闭会话资源。若只需要完整结果，可直接使用 session.run；需要边生成边消费时使用 session.stream。[[api]]"
+          ],
+          "code": {
+            "language": "python",
+            "caption": "流式调用；需要已配置的模型凭据",
+            "text": "import asyncio\nfrom pathlib import Path\nfrom forge.api import HarnessSession, SessionOptions\nfrom forge.runtime.state import ModelTextDelta, TurnCompleted\n\nasync def main():\n    workspace = Path(\"demo-workspace\").resolve()\n    workspace.mkdir(exist_ok=True)\n    options = SessionOptions(\n        root=workspace, data_root=Path(\"demo-state\").resolve()\n    )\n    async with await HarnessSession.open(options) as session:\n        async for event in session.stream(\"解释这个项目的入口函数\"):\n            if isinstance(event, ModelTextDelta):\n                print(event.text, end=\"\", flush=True)\n            elif isinstance(event, TurnCompleted):\n                print(\"\\n状态:\", event.result.status)\n\nasyncio.run(main())"
+          }
+        }
+      ],
+      "navTitle": "一次请求的执行流程"
+    },
+    {
+      "id": "extensions",
+      "title": "插件：从一个工具到可复用 Agent",
+      "summary": "插件扩展的价值不只在于“能加工具”，还在于把能力、配置、资源生命周期、独立验收和交付来源放到一条清楚的路径中。",
+      "sections": [
+        {
+          "id": "which-extension",
+          "title": "先判断你需要扩展什么",
+          "paragraphs": [],
+          "table": {
+            "headers": [
+              "需求",
+              "适合的入口",
+              "例子"
+            ],
+            "rows": [
+              [
+                "告诉 Agent 一套做事方法",
+                "Skill / 仓库指令",
+                "按团队规范写变更说明；不自动授予文件访问权。"
+              ],
+              [
+                "增加一个可执行业务能力",
+                "Python 插件工具",
+                "解析报销 CSV，返回批准总额与拒绝条数。"
+              ],
+              [
+                "连接独立外部工具服务",
+                "MCP",
+                "调用另一个进程或远程服务公开的工具。"
+              ],
+              [
+                "在生命周期中做处理",
+                "Hook / 完成检查",
+                "工具前检查参数；完成前核对固定业务条件。"
+              ],
+              [
+                "长期保持连接或资源",
+                "插件服务",
+                "消息渠道连接、设备连接或受管 HTTP 服务。"
+              ],
+              [
+                "替换模型或执行环境",
+                "模型 / 执行提供方",
+                "接入兼容适配器；把受控操作交给自定义执行器。"
+              ]
+            ]
+          },
+          "paragraphs_extra": "这些入口可以组合，但不应该为每个插件重写一套 Agent 循环。[[plugins]]"
+        },
+        {
+          "id": "minimal-plugin",
+          "title": "一个插件的最小接口",
+          "paragraphs": [
+            "forge-plugin.json 声明插件身份、入口和需要交付的文件。activate(ctx, config) 注册工具或服务；PluginHost 负责依赖顺序、启动失败撤销和逆序清理。插件不需要继承一个强制持有工作区的基类。[[plugins]]"
+          ],
+          "code": {
+            "language": "python",
+            "caption": "plugin.py：不访问文件的问候工具",
+            "text": "def activate(ctx, config):\n    prefix = config.get(\"prefix\", \"你好\")\n    ctx.register_tool(\n        \"greet\", \"问候一个人\",\n        {\"type\": \"object\",\n         \"properties\": {\"name\": {\"type\": \"string\"}},\n         \"required\": [\"name\"], \"additionalProperties\": False},\n        lambda args: prefix + \"，\" + args[\"name\"] + \"！\",\n        effect=\"read_only\", concurrency_safe=True,\n    )"
+          },
+          "note": "Python 插件是显式受信任的宿主代码。effect 和 concurrency_safe 是作者作出的执行声明，不是恶意代码隔离边界。插件绕过受管工具直接调用 Python I/O 时，不能宣称它被原生沙盒覆盖。"
+        },
+        {
+          "id": "compose",
+          "title": "配置插件不等于复制 Agent",
+          "paragraphs": [
+            "把相同插件放入不同 AgentDefinition，并改变业务参数，就可以复用实现。base=\"core\" 适合不需要仓库工具的业务助手；coding 可保留选定开发能力。角色模型别名、工具选择和插件配置属于组合，不必改内核。[[composition]]"
+          ],
+          "code": {
+            "language": "python",
+            "caption": "把同一插件装配为一个业务 Agent",
+            "text": "from forge.agents import AgentDefinition, PluginSpec\n\nassistant = AgentDefinition(\n    name=\"greeter\", base=\"core\",\n    plugins=(PluginSpec(\n        source=\"./greeter-plugin\", trusted=True,\n        config={\"prefix\": \"欢迎\"},\n    ),),\n)\n# 将 assistant 交给 SessionOptions(agent=assistant)。"
+          }
+        },
+        {
+          "id": "acceptance",
+          "title": "用实际报销示例理解独立验收",
+          "paragraphs": [
+            "仓库内的 expenses 插件按单笔上限、类别和金额规则计算报销。固定输入包含 50.25、25.75、100.01、酒类 10、负数 -1；在单笔上限 100 的配置下，预期总额是 76.00，拒绝 3 条。预期先由需求确定，不从候选插件运行结果反推。[[expenses]] [[expenses-cases]]",
+            "候选插件的自测有用，但不能取代调用方控制的业务检查。例如模型把总额写成 75.00，再把自己的测试也改成 75.00，自测仍可能通过；外部固定预期会拒绝这份交付。这里区分接口能否加载、自测能否通过、业务输出是否正确。[[validation]]"
+          ],
+          "example": {
+            "title": "“测试通过”为什么还可能不合格",
+            "text": "接口检查只说明工具名称和 schema 可用；业务检查比较 total=76.00 与 rejected=3；模型运行检查还要看它是否能在真实对话中选对工具。三个结论不能相互替代。"
+          }
+        },
+        {
+          "id": "natural-language",
+          "title": "自然语言开发如何接到这条路径",
+          "paragraphs": [
+            "plugin develop 接收需求和固定验收，复用严格 coding 会话生成、修改并检查候选插件。它不是把自然语言直接当作可信可执行配置：仍需产生插件代码、明确文件清单和 Agent 配置。完成检查由控制器调用，完成后不自动启用。[[development]]"
+          ],
+          "code": {
+            "language": "shell",
+            "caption": "先准备，再显式允许真实模型开发；本页不运行这些命令",
+            "text": "forge plugin develop \"开发一个问候工具\" --directory ./greeter --cases ./acceptance.json\n# 确认需求、验收、模型配置与执行环境后：\nforge plugin develop \"开发一个问候工具\" --directory ./greeter --cases ./acceptance.json --execute\nforge plugin check ./greeter --cases ./acceptance.json --trust"
+          },
+          "note": "普通 coding 的默认宿主模式，与自然语言插件开发默认的严格 coding / workspace-write 组合不同。开发命令的严格业务验收也不表示它具有完整 OS 强隔离。"
+        },
+        {
+          "id": "delivery",
+          "title": "交付包解决的是“换台机器还能核对”",
+          "paragraphs": [
+            "交付绑定插件源码、AgentDefinition、依赖 pins、SDK wheel 和验收材料。一个旧的 passed 回执只能证明当时那一组输入与环境的结果；源码、配置或环境改变后不能继续冒充当前有效回执。导入不自动安装、执行或信任插件，新环境需要重新 check。[[delivery]]"
+          ],
+          "items": [
+            "开发：得到候选代码与配置。",
+            "检查：用固定外部预期验证接口和业务结果。",
+            "导出：绑定源码、依赖与 SDK 来源。",
+            "导入：保存材料，不自动启用。",
+            "复验：在目标环境安装对应依赖后重新检查。"
+          ],
+          "links": [
+            [
+              "完整插件命令与交付步骤",
+              "./install/terminal-quickstart.md#插件开发与交付"
+            ],
+            [
+              "源码模块：版本绑定与交付",
+              "#module/delivery"
+            ]
+          ]
+        },
+        {
+          "id": "domain",
+          "title": "Personal / Robot Harness 可以复用什么",
+          "paragraphs": [
+            "Personal Harness 可把提醒、笔记或业务查询做成工具/服务，复用权限请求、会话、用量和轨迹。Robot Harness 可把模型产生的高层目标交给仿真或设备控制工具，复用同样的执行与记录路径。",
+            "领域特定的能力仍要自己建设：可靠日程服务、设备实时控制、安全联锁、故障降级和硬件验收不是通用内核自动提供的。一个“move_to”工具返回成功，最多说明该工具契约的结果，不能代替设备状态的独立确认。"
+          ]
+        }
+      ],
+      "navTitle": "插件开发与交付"
+    },
+    {
+      "id": "execution",
+      "title": "执行、权限与后台作业",
+      "summary": "把“是否允许”“在哪里执行”“运行多久”“谁负责清理”分开，才能理解沙盒报错、后台任务以及会话服务。",
+      "sections": [
+        {
+          "id": "boundaries",
+          "title": "四个问题，四种控制",
+          "paragraphs": [],
+          "table": {
+            "headers": [
+              "问题",
+              "负责机制",
+              "例子"
+            ],
+            "rows": [
+              [
+                "是否允许这次操作？",
+                "PermissionManager 与显式规则",
+                "要求一次授权；已有 deny 仍然阻止。"
+              ],
+              [
+                "操作在哪个边界执行？",
+                "执行提供方 / 沙盒模式",
+                "宿主 full-access，或显式原生 workspace-write。"
+              ],
+              [
+                "最多运行或等待多久？",
+                "操作超时、单次等待、调用方截止",
+                "命令可运行 1800 秒，但当前只等待 300 秒。"
+              ],
+              [
+                "谁拥有并释放资源？",
+                "会话、CommandJobs、进程树所有者",
+                "取消一个编译作业；退出时清理会话服务器。"
+              ]
+            ]
+          },
+          "paragraphs_extra": "一次批准不是把后续操作永久改成 full-access；Job 对象或 Linux 子进程所有权也不等于文件/网络沙盒。[[provider]] [[jobs]]"
+        },
+        {
+          "id": "defaults",
+          "title": "当前默认模式与可选受限模式",
+          "paragraphs": [
+            "普通 coding 默认 danger-full-access（内部规范名 full-access）加 never，使用启动 Forge 的用户权限，不在启动时初始化原生沙盒。这样能避免仅仅打开一个宽工作区就因为某个链接或 ACL 条件而退出。默认模式的含义是使用宿主权限，不是“已经安全隔离”。[[api]]",
+            "需要限制执行时显式选择 read-only 或 workspace-write 及相应提供方；受限操作失败不会静默改到宿主运行。会话内 /permission 同时切换执行与审批预设，但活跃作业必须先结束，避免它们在权限切换后失去明确的所有者。[[quickstart]]"
+          ],
+          "example": {
+            "title": "一次授权与模式切换的区别",
+            "text": "受限命令遇到已确认的原生初始化失败，可以申请这一次更宽的执行权限。批准只覆盖本次操作，完成后临时后端关闭。只有显式会话模式切换才改变后续调用的默认策略。"
+          }
+        },
+        {
+          "id": "dsh",
+          "title": "DSH 复用到哪一层",
+          "paragraphs": [
+            "ForgeCode 内置受限执行提供方复用了 DSH sandbox-local、subprocess-local 等组件，当前仓库锁定相关包为 0.2.1-alpha.1。Forge 的 Python 会话、工具、日志、完成策略和评测装配仍由本仓库实现。复用底层组件不等于两个产品的完整默认行为和扩展系统完全相同。[[dependencies]]",
+            "Windows 原生 workspace-write 需要 DSH 设置 ACL 与完整性标签所需的条件，例如 WRITE_OWNER。普通的文件读写权限不等于调整这些安全描述符的权限。提示 SANDBOX_UNAVAILABLE 表示命令在该边界下没有启动，应区分初始化失败和已运行命令的非零退出。"
+          ],
+          "note": "目前原生能力仍有 partial 边界，完整读取、网络和硬资源隔离未全部验收；不能把 full-access、进程清理或 partial 后端写成 strict 强隔离。"
+        },
+        {
+          "id": "three-clocks",
+          "title": "长任务涉及三个不同的时间",
+          "paragraphs": [],
+          "table": {
+            "headers": [
+              "时间",
+              "设置位置",
+              "到期后的意义"
+            ],
+            "rows": [
+              [
+                "命令总寿命",
+                "run_command.timeout_seconds，普通命令默认 120 秒",
+                "终止该命令并尝试清理所属子树。后台执行也不会重新计算寿命。"
+              ],
+              [
+                "本次查询等待",
+                "job_output.wait_seconds，最多 3600 秒",
+                "结束这一次等待并返回当前状态；不会因此停止命令。"
+              ],
+              [
+                "调用方截止时间",
+                "SessionOptions.caller_deadline / 官方评测期限",
+                "限制单次等待并提示模型；官方评测所有者负责最终截止与清理预留。"
+              ]
+            ]
+          },
+          "paragraphs_extra": "Harness 没有累计模型请求数、工具数、token 或回合时长预算。这里保留的是外部操作的生命周期边界。比如编译预计 20 分钟，可以显式给命令 1800 秒寿命，用 300 秒的完成等待分段观察，不能把“后台”理解为自动无限运行。"
+        },
+        {
+          "id": "finite",
+          "title": "有限命令：等到结果，再开始依赖它的操作",
+          "paragraphs": [
+            "run_in_background=true 返回 job_id，只表示作业被受理。job_output 的 completion 模式会等待终态，即使已有旧输出也不会马上返回；output 模式配合 after=next_cursor 等待新内容。等待被取消不会自动把作业误报成成功。[[jobs]]"
+          ],
+          "code": {
+            "language": "json",
+            "caption": "模型工具参数示例；第二次调用使用第一次实际返回的 job_id",
+            "text": "{\"command\":\"python train.py\",\"run_in_background\":true,\"timeout_seconds\":1800}\n\n{\"job_id\":\"<实际返回的 job_id>\",\"wait_for\":\"completion\",\"wait_seconds\":300}\n\n{\"job_id\":\"<实际返回的 job_id>\",\"wait_for\":\"output\",\"after\":12,\"wait_seconds\":30}"
+          },
+          "paragraphs_extra": "依赖编译结果的测试必须等编译成功退出；看到“开始编译”日志不是成功证据。有限作业尚未结束时，验证和完成声明会要求先等待或停止。"
+        },
+        {
+          "id": "services",
+          "title": "会话服务：回答结束后仍可以运行",
+          "paragraphs": [
+            "开发服务器属于另一种生命周期：显式 lifetime=\"session\" 且 run_in_background=true，可在回答结束后保留。timeout_seconds=null 表示不设置命令自身的寿命上限，由会话退出清理；也可以为服务设置有限寿命。当前支持 Windows/Linux 的 full-access 提供方。[[jobs]]"
+          ],
+          "code": {
+            "language": "json",
+            "caption": "启动服务仍需单独检查端口或健康接口",
+            "text": "{\"command\":\"python -m http.server 8000\",\n \"run_in_background\":true,\n \"lifetime\":\"session\",\n \"timeout_seconds\":null}"
+          },
+          "paragraphs_extra": "CLI 中服务由同一会话持有，/jobs 可查看或停止。Linux 公共评测可把明确登记、身份匹配的服务交给环境所有者，让 verifier 在 Agent 结束或官方期限到达后检查；用户取消评测则清理，最终由容器销毁回收。移交不等于进程已经退出。"
+        },
+        {
+          "id": "cancellation",
+          "title": "取消作业、取消回合与关闭会话",
+          "paragraphs": [
+            "job_kill 停止当前会话的指定作业。确认进程清理完成后，模型可继续处理后续工作；如果无法确认清理，仍保留 indeterminate。取消整个回合会收齐并清理该回合仍拥有的活动工作；关闭会话还要关闭此前保留的服务。",
+            "Windows 使用 Job 对象管理进程树，并在恢复执行前先完成归属；Linux 使用受管子进程与 subreaper 回收脱离原进程组的后代。这些机制只负责自己拥有的进程，不应按宽泛进程名称杀掉用户的其他程序。"
+          ],
+          "note": "停止进程不是撤销文件：编译产生的部分文件、已写入的数据或外部系统副作用可能仍然存在。后续操作应根据实际结果检查，不能盲目重放。"
+        },
+        {
+          "id": "resources",
+          "title": "为什么不能仅依据 nproc 决定并发",
+          "paragraphs": [
+            "容器可能看见宿主机 64 个逻辑 CPU，但 cpu.max 只给了 1 个 CPU 的计算额度。开 64 个重编译线程不会得到 64 倍资源，反而可能增加调度与内存压力。ForgeCode 将 affinity 与 cgroup v1/v2 的实际配额作为运行事实提供给模型；未知上限保持 null，不假装无限资源。[[environment]]",
+            "这只是准确的环境提示，不是 Forge 额外提高或降低容器配额。命令字符串在 POSIX 上交给 /bin/sh；Bash 专属语法需要显式调用 bash。Windows 字符串命令使用 cmd.exe，相应脚本语法必须匹配。"
+          ]
+        }
+      ],
+      "navTitle": "执行、权限与后台作业"
+    },
+    {
+      "id": "evaluation",
+      "title": "评测、故障归因与完整轨迹",
+      "summary": "可复现的评测需要固定条件、独立判分与可追溯事实。轨迹让你解释一次运行发生了什么，而不是只保存最终答案。",
+      "sections": [
+        {
+          "id": "fixed",
+          "title": "一个成绩对应哪些条件",
+          "paragraphs": [
+            "相同题目换了模型、工具定义、系统提示、插件、依赖或容器资源，都可能改变结果。公共评测先冻结任务集、源码、模型和组合配置，再由 Harbor 在官方任务环境中执行。当前 ready 入口包括 Terminal-Bench 2、SWE-bench Verified 与 Aider Polyglot。[[benchmark]]",
+            "默认直接使用任务声明的官方预构建镜像，在容器可写层安装 Harness；不自动构造预热镜像，不把缺失环境伪装成模型失败。日常 CLI/SDK 不因此需要 Docker。历史 Aider 反馈修复协议与新的单次尝试协议要分开描述。"
+          ],
+          "table": {
+            "headers": [
+              "需要固定或记录",
+              "为什么"
+            ],
+            "rows": [
+              [
+                "任务 ID、版本与官方输入",
+                "避免比较实际不同的题目。"
+              ],
+              [
+                "模型、参数与提供方",
+                "输出能力、协议和服务行为都可能改变。"
+              ],
+              [
+                "源码、提示词、工具 schema、插件",
+                "这些决定模型看到的接口与执行语义。"
+              ],
+              [
+                "镜像、资源、依赖与期限",
+                "防止把环境差异当成 Harness 优势。"
+              ],
+              [
+                "尝试次数、反馈与重跑条件",
+                "一次尝试与多次修复后的成功率不可直接混合。"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "two-entries",
+          "title": "两类评测入口的用途",
+          "paragraphs": [
+            "forge eval plan 面向冻结配置与可复用计划；当前该入口固定并发 1、一次尝试、零任务自动重试。需要指定一批任务和更高并发时，使用 benchmark 数据集运行入口。两者都要保留实验条件，不能因为命令相近就假设并发或反馈协议相同。[[benchmark]]"
+          ],
+          "code": {
+            "language": "shell",
+            "caption": "先查看能力与计划；真正执行需配置模型和任务环境",
+            "text": "forge eval list --json\nforge eval plan ./evaluation.json --output ./frozen-plan\nforge eval run --plan ./frozen-plan\n# 显式执行计划：\nforge eval run --plan ./frozen-plan --execute --output ./run\nforge eval report ./run\nforge eval export ./run --format atif\nforge eval export ./run --format openai"
+          },
+          "paragraphs_extra": "plan 不调用模型，但未提供已冻结 taskset 时可能获取官方任务元数据；--dry-run 与真正的模型和安装验收也要分开。本文的命令只是说明，页面不会运行评测。"
+        },
+        {
+          "id": "grades",
+          "title": "为什么“Agent 超时”与“通过”可以同时出现",
+          "paragraphs": [
+            "Agent 可能已经生成正确文件，却在继续探索或重复检查时耗尽官方期限。独立 verifier 随后检查现有产物仍可能给 reward=1。相反，Agent 自己说 completed，grader 也可能给 reward=0。两个轴都应保留。"
+          ],
+          "table": {
+            "headers": [
+              "场景",
+              "执行状态",
+              "判分状态",
+              "应该怎样解读"
+            ],
+            "rows": [
+              [
+                "完成回答，官方检查通过",
+                "completed",
+                "reward=1",
+                "该次联合系统在这些条件下通过。"
+              ],
+              [
+                "Agent 超时，但产物通过",
+                "timed_out",
+                "reward=1",
+                "交付有效，但执行策略或效率仍有问题。"
+              ],
+              [
+                "模型服务失败，产物被检查",
+                "failed / model failure",
+                "可能是 0，也可能是 1",
+                "保留官方分数，同时保留服务故障。"
+              ],
+              [
+                "Agent 超时，verifier 下载依赖也失败",
+                "timed_out",
+                "grader error / unscored",
+                "同时存在执行与判分环境问题，不能只留一个异常。"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "attribution",
+          "title": "模型、Harness 与环境怎样区分",
+          "paragraphs": [
+            "不要仅凭最终“失败”标签归因。先确认失败阶段：环境安装是否成功、模型是否返回有效协议、工具是否被派发、运行结果是否及时反馈、产物是否已完成、verifier 是否真正运行。阶段日志和请求/工具身份能连接这些证据。[[phase]] [[observation]]"
+          ],
+          "items": [
+            "模型侧例子：在有效上下文与工具结果下仍选择错误算法，或反复重复未必要的检查。",
+            "Harness 侧例子：已有后台输出让等待立即返回；一次 job_kill 被误报成整轮取消；SDK 与评测使用不同权限装配。",
+            "环境侧例子：APT 镜像同步失败、任务所需二进制缺失、verifier 依赖下载超时。",
+            "交互影响：模型做法与接口提示会共同影响时间，单次运行常不足以确定因果。"
+          ],
+          "paragraphs_extra": "修复 Harness 后仍需在相同模型、镜像、条件下做受控复测，才能判断成绩和耗时是否改善。工程回归通过证明修复行为符合契约，不自动证明 benchmark 分数提升。"
+        },
+        {
+          "id": "journal",
+          "title": "Journal 是事实记录，不是聊天转录的另一个名字",
+          "paragraphs": [
+            "Journal 保存用户输入、实际模型输入快照、请求尝试、增量、工具参数与结果、授权、验证、后台作业和终态。大的载荷可外置并以摘要核验。默认不再平行写第二份 trajectory 作为另一套事实源。[[journal]] [[exports]]",
+            "因此你能区分“模型生成了一个工具调用”“工具被受理”“后台进程真正结束”。仅保存最终答案，无法回答命令有没有执行、服务是否被清理、错误发生在哪次请求等问题。"
+          ],
+          "diagram": [
+            "用户 / 模型输入快照",
+            "请求与流式片段",
+            "工具与后台作业事实",
+            "回合终态",
+            "离线导出"
+          ]
+        },
+        {
+          "id": "exports",
+          "title": "ATIF 与 OpenAI messages 导出保留什么",
+          "paragraphs": [
+            "ATIF v1.7 适合跨工具分析轨迹；OpenAI messages JSONL 以每次模型尝试为单位保留输入和观察到的响应，诊断信息放在 metadata。两者都保留失败、取消、部分响应和未知用量，并做脱敏；原 Journal 不修改。[[exports]]",
+            "后台服务可能在下一轮才退出。导出按 origin_turn_id 把生命周期关联回原始启动调用，不把下一轮的事件误认成下一轮启动的服务。有活动作业时 record_closed 为 false；明确移交的服务单列 transferred_jobs，不能写成“已退出”。"
+          ],
+          "table": {
+            "headers": [
+              "字段 / 概念",
+              "正确理解"
+            ],
+            "rows": [
+              [
+                "record_closed",
+                "相关生命周期是否有已记录的终态；不等于任务正确。"
+              ],
+              [
+                "responses_complete",
+                "模型响应与必要记录是否完整；失败尝试也应保留。"
+              ],
+              [
+                "usage unknown",
+                "提供方没有给出完整用量；不能补成 0。"
+              ],
+              [
+                "provider request ID",
+                "用于关联服务端诊断，不是一次工具调用的 ID。"
+              ],
+              [
+                "origin_turn_id",
+                "后台作业的来源回合，可能不同于终态记录所在回合。"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "rl",
+          "title": "与 Agentic RL 后训练的关系",
+          "paragraphs": [
+            "ForgeCode 当前负责保存与导出可分析的执行事实，便于外部评估或后训练系统接入；它不包含蒸馏、SFT/DPO、tokenizer 或训练执行。导出格式兼容也不表示轨迹已经成为合格训练样本。",
+            "外部使用者还需要处理授权、隐私、奖励定义、失败样本标签、数据质量和训练/评测污染。公共 benchmark 轨迹保持 evaluation-only；不能一边把官方评测题当训练材料，一边继续把同一成绩当作独立泛化证据。"
+          ]
+        },
+        {
+          "id": "comparison",
+          "title": "一个可解释的对照实验",
+          "paragraphs": [
+            "假设只想评估“等待后台完成”的改动，保留同一模型、任务镜像、源码之外的配置、任务期限和尝试数。对比总耗时、job_output 调用次数、工具失败、官方 reward 与缺失用量。即使成绩相同，减少无效轮询仍是可观察的工程改进。",
+            "仓库内的 pi 确定性对照使用固定业务规则与独立预期，验证 SDK 工作流与跨环境交付，不是两个模型系统的通用编程能力排行榜。[[pi-comparison]]"
+          ]
+        }
+      ],
+      "navTitle": "评测与完整轨迹"
+    },
+    {
+      "id": "comparison",
+      "title": "ForgeCode 与 Codex、Claude Code、DSH、pi",
+      "summary": "这是面向选型的定位比较：说明各自擅长的工作方式，以及 ForgeCode 的设计在哪些需求下更合适。它不是模型能力或 benchmark 成绩排行榜。",
+      "sections": [
+        {
+          "id": "scope",
+          "title": "比较范围与证据口径",
+          "paragraphs": [
+            "本条目中的 Codex 指 OpenAI 的编程 Agent 产品及其 SDK；Claude 指 Claude Code 与 Claude Agent SDK，而不是把 Claude 基础模型直接当作 Harness。DSH 指 DeepSeek Harness，pi 指 earendil-works/pi。模型本身的知识、推理和价格不在本表中评判。",
+            "外部能力按 2026-11-13 查阅的官方文档与项目源码描述，链接随条目提供。ForgeCode 的实现以本页固定提交为准。关于“更适合”的说法是基于架构的选型判断；没有相同模型、任务和环境下的证据时，不写“更强、更快或更省 token”。"
+          ]
+        },
+        {
+          "id": "map",
+          "title": "先看各自的重心",
+          "paragraphs": [],
+          "table": {
+            "headers": [
+              "方案",
+              "主要定位",
+              "扩展与嵌入",
+              "更直接的选择理由"
+            ],
+            "rows": [
+              [
+                "ForgeCode",
+                "Python Agent Harness；coding 与 CLI 是默认应用。",
+                "Python 内核、AgentDefinition、可信插件；连接固定验收、交付、公共基准与轨迹导出。[[architecture]]",
+                "希望直接控制 Python 运行机制，同时维护自己的领域 Agent 与实验流程。"
+              ],
+              [
+                "Codex",
+                "面向编程工作的 Agent 产品与开发者集成。",
+                "提供 TypeScript 和 Python SDK；Python SDK 控制本地 app-server。[[codex-sdk]]",
+                "希望在既有 Codex 工作流上做自动化或应用集成。"
+              ],
+              [
+                "Claude Code",
+                "面向代码库与开发工具的编程 Agent。",
+                "Agent SDK 提供 Python/TypeScript 接入；插件可组合 skills、agents、hooks、MCP 等。[[claude-overview]] [[claude-sdk]] [[claude-plugins]]",
+                "希望复用 Claude Code 的工具、上下文与产品工作流。"
+              ],
+              [
+                "DSH",
+                "基于 Cordis 的一切皆插件 Harness。",
+                "模型、工具、日志和循环都可由插件组成；支持 profile/patch 与 Python SDK 客户端。[[dsh-architecture]]",
+                "需要围绕可替换插件树与多种应用 profile 进行深度组装。"
+              ],
+              [
+                "pi",
+                "极简、可扩展的 Agent 工具包与 coding CLI。",
+                "TypeScript SDK、extensions、skills、RPC 与会话资源。[[pi-agent]] [[pi-sdk]]",
+                "偏好 TypeScript/Node 生态中的小内核和高度定制工作流。"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "codex",
+          "title": "与 Codex：集成本地 Agent 与装配 Python 内核",
+          "paragraphs": [
+            "Codex 不是只能手工使用的终端：官方 SDK 支持程序化启动、继续和恢复线程；Python SDK 通过 JSON-RPC 控制本地 Codex app-server。官方文档也明确区分沙盒边界和审批策略。[[codex-sdk]] [[codex-sandbox]]",
+            "Codex CLI 本身也开源，可以阅读和修改其实现；公开仓库包含 codex-rs 等运行组件。因此，开源或能改内核并非 ForgeCode 独有。这里有意义的差异是开发语言、嵌入边界，以及要复用哪一套运行机制。[[codex-source]]",
+            "ForgeCode 的 Python 应用直接装配本仓库的会话、模型循环和工具执行组件。若研究目标是修改如何组织上下文、怎样处理一批工具失败、或怎样把新的执行事实写进导出，可以在同一个 Python 项目中检查和修改这些边界。",
+            "选型判断：需要使用现成 Codex 工作流并添加自动化时，先考虑其官方接口；需要以 Python 修改 Harness、或让 Python 业务插件参与独立验收时，ForgeCode 的内核语言与组合方式更贴近该需求。这个判断不意味着 ForgeCode 的编程成功率高于 Codex。"
+          ]
+        },
+        {
+          "id": "claude",
+          "title": "与 Claude Code：两者都有 Python 接入，运行主体不同",
+          "paragraphs": [
+            "Claude Agent SDK 将 Claude Code 的循环、上下文和内置工具提供给 Python 与 TypeScript 应用，SDK 运行 Claude Code binary。Claude Code 还具备插件体系和 allow/ask/deny 权限规则。因此不能用“对方没有 SDK、插件或权限”来说明 ForgeCode 的优势。[[claude-sdk]] [[claude-plugins]] [[claude-permissions]]",
+            "ForgeCode 更强调由使用者控制 Python 内核，以及同一 Agent 配置沿开发、固定外部验收、打包、目标环境复验、评测和轨迹导出的连续路径。自然语言生成插件只是入口，源码与验收绑定才是这里要保留的工程约束。",
+            "选型判断：需要复用 Claude Code 能力时，Agent SDK 是直接路径；需要替换和研究自己的提供方适配、执行策略及数据记录协议时，ForgeCode 的公开 Python 组件更便于放进既有 Python 代码库。"
+          ]
+        },
+        {
+          "id": "dsh",
+          "title": "与 DSH：复用执行组件，不复制整个产品架构",
+          "paragraphs": [
+            "DSH 的组装单位是 Cordis 插件树，连 Agent loop 与会话日志也由插件提供。其 Python SDK 客户端启动打包的 DSH runtime/profile，而不是把核心循环改写为 Python。DSH 还有 Web、headless、SDK 等应用组合。[[dsh-architecture]] [[dsh-overview]]",
+            "ForgeCode 保留一条明确的 Python 主循环，让插件扩展工具、服务、模型和执行提供方，而没有把每个内部状态机都变成可替换插件。好处是研究和排错时调用链较固定；代价是它不提供 DSH 那样广泛的整棵插件树替换方式。",
+            "ForgeCode 当前 DSH 沙盒相关依赖是 0.2.1-alpha.1，不应把它与最新 DSH 的所有行为混同。底层沙盒能力的来源要归于 DSH；Forge 的差异主要体现在 Python 编排、授权接线、服务所有权、验证与评测记录。复用组件不是原生隔离能力更强的证据。[[dependencies]]"
+          ]
+        },
+        {
+          "id": "pi",
+          "title": "与 pi：理念接近，语言与内置工作流的选择不同",
+          "paragraphs": [
+            "pi 同样强调极简可扩展，支持 TypeScript SDK、会话、工具和自定义资源；扩展、skills、模板和主题可以打包分享。它不是只能进行简单聊天的 CLI。[[pi-agent]] [[pi-sdk]]",
+            "pi 官方仓库明确说明默认使用启动进程的权限，未内置限制文件、进程、网络、凭据访问的权限系统；需要更强边界时使用外部隔离方案。ForgeCode 也默认使用宿主权限，但提供显式授权与执行提供方，并把 partial 边界如实保留。两者都不能因为有插件或进程管理就自动视为强沙盒。[[pi-overview]]",
+            "选型判断：TypeScript 团队可直接在 pi 的原生 SDK 与扩展体系中工作；Python 团队若需要复用现有业务逻辑，并把固定验收、交付与 Harbor 评测纳入同一仓库，ForgeCode 的集成路径更直接。本仓库对 pi 的固定业务夹具对照只证明相应流程被执行，不证明普遍性能领先。[[pi-comparison]]"
+          ]
+        },
+        {
+          "id": "advantages",
+          "title": "ForgeCode 值得强调的五个优势，以及前提",
+          "paragraphs": [],
+          "table": {
+            "headers": [
+              "优势",
+              "为什么有用",
+              "成立的前提与限制"
+            ],
+            "rows": [
+              [
+                "直接控制 Python Harness",
+                "业务工具、模型适配和运行策略可在同一语言中阅读、修改与验证。",
+                "其他产品也可能有 Python SDK；这里强调的是内核运行与代码控制，而不是接口语言独占。"
+              ],
+              [
+                "core / coding 能力可组合",
+                "业务 Agent 不被强制带上仓库扫描、文件工具或终端。",
+                "领域能力仍由插件提供，Personal/Robot 不是已经完备的现成产品。"
+              ],
+              [
+                "生成后有固定独立验收",
+                "自然语言扩展可以与调用方控制的业务预期对照，避免仅凭候选自测宣告成功。",
+                "验收质量取决于固定用例与独立预期；检查通过不代表恶意代码隔离。"
+              ],
+              [
+                "可重复的实验入口",
+                "任务、源码、模型、插件、依赖和官方判分可一起记录和比较。",
+                "真实效果需要受控实验；与其他项目的评测基础设施差异不能直接等同于能力差异。"
+              ],
+              [
+                "完整失败事实可以带走",
+                "Journal 以及 ATIF/OpenAI 导出保留部分失败、未知用量和后台作业关系。",
+                "外部分析/后训练系统仍须处理数据授权、质量与污染；仓库不执行训练。"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "choose",
+          "title": "按你要完成的事选择，而不是只看功能勾选",
+          "paragraphs": [],
+          "table": {
+            "headers": [
+              "需求",
+              "建议优先检查"
+            ],
+            "rows": [
+              [
+                "马上开展交互式编码，尽量少维护自己的 Harness",
+                "Codex 或 Claude Code 的现成工作流；根据团队模型与环境实际试用。"
+              ],
+              [
+                "深度替换插件组合、应用形态和基础服务",
+                "DSH 的 profile 与 Cordis 机制。"
+              ],
+              [
+                "用 TypeScript 嵌入一个可裁剪的编码 Agent",
+                "pi SDK 与 extensions。"
+              ],
+              [
+                "在 Python 业务系统中组装 Agent，并亲自修改运行内核",
+                "ForgeCode 的 core/coding、PluginContext 与模型适配边界。"
+              ],
+              [
+                "研究工具调度、失败恢复、评测归因与轨迹数据",
+                "ForgeCode 的同入口执行、固定验收和离线导出；设计受控对照后再判断收益。"
+              ]
+            ]
+          },
+          "note": "这些选择可以并存。例如用 Codex 或 Claude Code 开发 ForgeCode 插件，再由 ForgeCode 的固定验收与实验流程检查交付。没有必要把不同层次的工具视为只能二选一。"
+        },
+        {
+          "id": "limits",
+          "title": "目前不应宣称的优势",
+          "paragraphs": [],
+          "items": [
+            "没有共同条件下的直接对照，不能宣称比 Codex、Claude Code、DSH 或 pi 编程更强。",
+            "没有真实成本与延迟测量，不能宣称 token 更省、缓存命中更高或首字更快。",
+            "ForgeCode 的原生读取、网络和硬资源隔离仍有未完成边界，不能宣称更安全或 strict 全隔离。",
+            "保留轨迹和导出格式，不等于拥有已经验证的 Agentic RL 训练框架。",
+            "文档中未核实某个对手的能力，不等于该能力不存在。"
+          ]
+        },
+        {
+          "id": "sources",
+          "title": "外部资料与维护口径",
+          "paragraphs": [
+            "外部链接为查阅日的官方资料，不代表冻结了对方所有未来版本。再次更新本页时，应重新核对 SDK、插件、权限和部署形态；不要仅根据旧博客或终端外观判断架构。ForgeCode 的源码节选则绑定本页标注的提交。"
+          ],
+          "references": [
+            "codex-sdk",
+            "codex-sandbox",
+            "codex-source",
+            "claude-overview",
+            "claude-sdk",
+            "claude-plugins",
+            "claude-permissions",
+            "dsh-overview",
+            "dsh-architecture",
+            "pi-overview",
+            "pi-agent",
+            "pi-sdk"
+          ]
+        }
+      ],
+      "navTitle": "与 Codex / Claude / DSH / pi 对比"
+    },
+    {
+      "id": "faq",
+      "title": "常见问题与排查路径",
+      "summary": "先判断卡在哪个边界，再读对应记录。以下例子解释常见现象，不把所有错误都归为模型能力问题。",
+      "sections": [
+        {
+          "id": "first-token",
+          "title": "为什么输入后要等很久才看到正文",
+          "paragraphs": [
+            "先区分首次网络事件、思考输出、正文首字和最终工具结果。模型可能先返回思考，或正在生成一个长工具参数；终端如果只显示摘要，看起来就像没有进展。查看请求开始和各类 chunk 时间，再判断是模型/网络等待、长参数生成，还是 UI 没有刷新。[[observation]]",
+            "完整日志的序列化和持久化也有成本，但不能未经测量就断言它造成了全部首字延迟。应离线测量 Harness 开销，再用明确授权的真实模型实验判断服务侧部分。页面本身不调用模型。"
+          ]
+        },
+        {
+          "id": "write-file",
+          "title": "为什么一直显示“正在准备 write_file”",
+          "paragraphs": [
+            "write_file 的文件内容是工具参数的一部分。完整 JSON 尚未生成时，Harness 不会执行半个写入操作。长 HTML、代码或大文本会拉长这段时间；检查 model_tool_chunk 是否持续到达，以及是否已经出现 tool_started。",
+            "如果参数已完整但没有工具开始事件，检查协议校验和准入；如果工具已开始，检查权限、执行后端与文件观察。不要把参数生成时间直接记成磁盘写入耗时。"
+          ]
+        },
+        {
+          "id": "sandbox-unavailable",
+          "title": "SANDBOX_UNAVAILABLE 与 WRITE_OWNER 表示什么",
+          "paragraphs": [
+            "它表示请求的原生边界没有成功准备，命令并未开始。Windows 的 WRITE_OWNER 是安全描述符相关权限条件，不是普通文本文件的可写标志。此时可以检查所选模式或申请一次更宽授权，但不能在未授权时自动换宿主执行。",
+            "默认普通 coding 已使用 full-access，不应因为启动时扫描整个工作区的 Junction 而失败。显式 workspace-write 仍受 DSH 后端与当前目录条件影响；它与默认启动的边界不同。[[quickstart]]"
+          ]
+        },
+        {
+          "id": "timeout",
+          "title": "没有 Harness 预算，为什么仍会超时",
+          "paragraphs": [
+            "删除累计预算，不意味着网络请求、单条命令、清理过程和官方任务都失去时限。检查到底是谁到期：命令 timeout_seconds、job_output 的本次等待、提供方请求超时，还是 Harbor 官方 Agent / verifier 阶段期限。",
+            "例如 job_output 等待 300 秒到期，只会返回仍在运行；run_command 的 1800 秒寿命到期会停止进程；官方任务到期由评测所有者截断 Agent。三者不应使用同一个笼统“卡死”标签。"
+          ],
+          "links": [
+            [
+              "三个时间的具体区别",
+              "#article/execution/three-clocks"
+            ]
+          ]
+        },
+        {
+          "id": "retries",
+          "title": "失败会不会自动反复执行",
+          "paragraphs": [
+            "传输默认最多两次重试，SDK 自带重试关闭，Retry-After 等待优先。只有尚未发布语义输出时才自动重试可恢复的传输故障；已经输出正文、思考或工具调用后，不透明重放。协议格式修复则是另一次明确模型请求。[[retry]]",
+            "工具操作可能已经产生副作用，不能套用网络重试逻辑。权限拒绝、不确定写入和清理未知要保留原事实。新的诊断会提供脱敏且有长度上限的 HTTP 状态、请求 ID 与错误摘要，便于区分服务拒绝和 Harness 错误。"
+          ]
+        },
+        {
+          "id": "tokens",
+          "title": "为什么 token 很多，怎样判断缓存与重复工作",
+          "paragraphs": [
+            "同时看每次请求和整轮累计值，并区分普通输入、缓存读取、缓存写入与输出字段。调用次数增加、长工具结果、反复请求同样上下文，以及不必要的检查，都可能增加消耗。缺少最终 usage 的请求应标为 unknown。",
+            "先通过轨迹找出多余请求和重放内容，再考虑提示词或裁剪策略。稳定系统前缀只是缓存友好的组织方式，不是缓存命中承诺；不同提供方的计费和缓存语义也不能混用。"
+          ]
+        },
+        {
+          "id": "resume",
+          "title": "/resume 能恢复运行中的服务器吗",
+          "paragraphs": [
+            "会话恢复用于重建消息、任务与已记录状态，不会自动重放过去的工具或复活后台进程。服务能跨回答继续运行，是同一个仍然打开的会话在持有它；进程退出后的恢复是另一回事。[[journal]] [[jobs]]"
+          ]
+        },
+        {
+          "id": "failed-traces",
+          "title": "失败轨迹是否应该丢掉",
+          "paragraphs": [
+            "不应该。部分响应、模型协议异常、命令失败、取消与未知结果正是故障分析需要的材料。ATIF/OpenAI 导出保留这些尝试，并明确完整性；它不会把半段参数伪造成一个已执行的合法工具调用。[[exports]]"
+          ]
+        },
+        {
+          "id": "maintenance",
+          "title": "这份 Wiki 怎样保持可信",
+          "paragraphs": [
+            "实现发生变化时，先更新架构说明与使用指南，再刷新本页的解释、源码节选和相关测试入口。源码链接固定到提交，外部产品对比标注查阅日期；真实验收状态以对应提交的 CI 和实验记录为准。",
+            "教学流程中的请求数、修订号和状态是说明性示例，不是新运行的统计。页面不下载模型、不运行 shell、不启动评测；示例代码复制后是否执行，由使用者在自己的环境决定。"
+          ]
+        }
+      ],
+      "navTitle": "常见问题与排查"
+    }
+  ],
+  "references": {
+    "architecture": {
+      "label": "ForgeCode 当前架构",
+      "path": "docs/implementation/architecture.md"
+    },
+    "api": {
+      "label": "会话公共 API",
+      "path": "forge/api.py",
+      "symbol": "SessionOptions",
+      "line": 40
+    },
+    "composition": {
+      "label": "AgentDefinition",
+      "path": "forge/agents.py",
+      "symbol": "AgentDefinition",
+      "line": 24
+    },
+    "runner": {
+      "label": "TurnRunner",
+      "path": "forge/runtime/runner.py",
+      "symbol": "TurnRunner",
+      "line": 30
+    },
+    "batch": {
+      "label": "工具批次调度",
+      "path": "forge/runtime/tool_batch.py",
+      "symbol": "schedule_calls",
+      "line": 26
+    },
+    "jobs": {
+      "label": "CommandJobs",
+      "path": "forge/runtime/jobs.py",
+      "symbol": "CommandJobs",
+      "line": 55
+    },
+    "provider": {
+      "label": "执行提供方",
+      "path": "forge/execution.py"
+    },
+    "plugins": {
+      "label": "PluginContext",
+      "path": "forge/plugins.py",
+      "symbol": "PluginContext",
+      "line": 117
+    },
+    "development": {
+      "label": "自然语言插件开发",
+      "path": "forge/development.py",
+      "symbol": "develop_plugin",
+      "line": 12
+    },
+    "validation": {
+      "label": "独立验收",
+      "path": "forge/validation.py",
+      "symbol": "check_agent",
+      "line": 190
+    },
+    "delivery": {
+      "label": "Agent 交付",
+      "path": "forge/delivery.py"
+    },
+    "journal": {
+      "label": "Journal 与恢复",
+      "path": "forge/sessions/store.py"
+    },
+    "exports": {
+      "label": "轨迹导出",
+      "path": "forge/sessions/trajectory.py",
+      "symbol": "journal_to_openai",
+      "line": 299
+    },
+    "context": {
+      "label": "上下文压缩",
+      "path": "forge/context/manager.py"
+    },
+    "observation": {
+      "label": "模型请求观测",
+      "path": "forge/runtime/model_observation.py"
+    },
+    "retry": {
+      "label": "传输重试策略",
+      "path": "forge/runtime/retry.py"
+    },
+    "environment": {
+      "label": "实际资源信息",
+      "path": "forge/runtime/environment.py"
+    },
+    "benchmark": {
+      "label": "公共基准运行说明",
+      "path": "benchmark/README.md"
+    },
+    "bench-entry": {
+      "label": "评测公共运行入口",
+      "path": "benchmark/harbor/run_forge.py",
+      "symbol": "run_turn",
+      "line": 89
+    },
+    "phase": {
+      "label": "评测阶段诊断",
+      "path": "benchmark/harbor/deadline_plugin.py"
+    },
+    "expenses": {
+      "label": "报销插件真实示例",
+      "path": "examples/agents/expenses/plugin.py"
+    },
+    "expenses-cases": {
+      "label": "报销插件固定预期",
+      "path": "examples/agents/expenses/acceptance.json"
+    },
+    "quickstart": {
+      "label": "安装与使用指南",
+      "path": "docs/install/terminal-quickstart.md"
+    },
+    "pi-comparison": {
+      "label": "仓库内 pi 确定性对照",
+      "path": "benchmark/comparison/workflow.py"
+    },
+    "dependencies": {
+      "label": "ForgeCode 锁定的 DSH 依赖",
+      "path": "package.json"
+    },
+    "codex-sdk": {
+      "label": "OpenAI：Codex SDK",
+      "url": "https://learn.chatgpt.com/docs/codex-sdk"
+    },
+    "codex-sandbox": {
+      "label": "OpenAI：Sandbox",
+      "url": "https://learn.chatgpt.com/docs/sandboxing"
+    },
+    "claude-overview": {
+      "label": "Anthropic：Claude Code 概览",
+      "url": "https://code.claude.com/docs/en/overview"
+    },
+    "claude-sdk": {
+      "label": "Anthropic：Agent SDK",
+      "url": "https://code.claude.com/docs/en/agent-sdk/overview"
+    },
+    "claude-plugins": {
+      "label": "Anthropic：插件",
+      "url": "https://code.claude.com/docs/en/plugins"
+    },
+    "claude-permissions": {
+      "label": "Anthropic：权限规则",
+      "url": "https://code.claude.com/docs/en/permissions"
+    },
+    "dsh-architecture": {
+      "label": "DeepSeek Harness：架构",
+      "url": "https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md"
+    },
+    "dsh-overview": {
+      "label": "DeepSeek Harness：官方仓库",
+      "url": "https://github.com/deepseek-ai/deepseek-harness"
+    },
+    "pi-overview": {
+      "label": "pi：官方仓库与权限边界",
+      "url": "https://github.com/earendil-works/pi"
+    },
+    "pi-sdk": {
+      "label": "pi：TypeScript SDK",
+      "url": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md"
+    },
+    "pi-agent": {
+      "label": "pi：Coding Agent",
+      "url": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/README.md"
+    },
+    "codex-source": {
+      "label": "OpenAI：Codex CLI 开源仓库",
+      "url": "https://github.com/openai/codex"
+    }
+  },
   "modules": [
     {
       "id": "entry",
@@ -332,7 +1522,11 @@
         "channels"
       ],
       "question": "为什么 run 不能直接拿最后一段文本当作成功结果？",
-      "answer": "文本只说明模型产生了内容。TurnCompleted 还带有停止原因、用量和实际验收状态，run 必须等到明确终态。"
+      "answer": "文本只说明模型产生了内容。TurnCompleted 还带有停止原因、用量和实际验收状态，run 必须等到明确终态。",
+      "explanation": [
+        "入口负责把用户意图转换成运行条件，不应自己再实现一套工具循环。CLI 消费事件绘制终端，SDK 把同样的事件交给调用者，benchmark 再把同样的结果交给独立判分流程。",
+        "例如在 SDK 中只需要结果时调用 run，需要处理流式正文时调用 stream；两种方式都应在结束后关闭会话。数据目录与工作区分开，便于区分运行记录和用户产物。"
+      ]
     },
     {
       "id": "composition",
@@ -433,7 +1627,11 @@
         "models"
       ],
       "question": "只改系统提示，能否给 core Agent 增加文件写入权限？",
-      "answer": "不能。能力来自组合与工具注册，文件授权还由 SessionOptions 和执行后端检查。"
+      "answer": "不能。能力来自组合与工具注册，文件授权还由 SessionOptions 和执行后端检查。",
+      "explanation": [
+        "AgentDefinition 回答“装哪些能力”，SessionOptions 回答“本次在什么环境和权限下运行”。把两者分开后，同一业务插件可以用于交互 CLI 或评测，而不把某台机器的路径和审批选择写死在插件中。",
+        "例子：报销 Agent 选择 core 和业务插件；仓库阅读 Agent 选择 coding，但只暴露读文件、目录与搜索工具。选择工具并不能替代实际的权限判断。"
+      ]
     },
     {
       "id": "contracts",
@@ -537,7 +1735,11 @@
         "tools"
       ],
       "question": "为什么工具返回 success=true 时仍可能不能完成任务？",
-      "answer": "工具成功只说明这次操作的结果。回合完成、调用方验收和官方判分是不同结论。"
+      "answer": "工具成功只说明这次操作的结果。回合完成、调用方验收和官方判分是不同结论。",
+      "explanation": [
+        "公共契约是入口、模型和工具之间可核对的边界。不同提供方把不同流格式转换成相同事件，工具返回结构化结果；消费者不必知道某个 SDK 的内部对象。",
+        "例子：一个工具调用只有半段 JSON 时，不把它包装成一次有效执行。失败记录可以保存已观察到的片段，但不能编造完整参数或用量。"
+      ]
     },
     {
       "id": "conversation",
@@ -638,7 +1840,11 @@
         "children"
       ],
       "question": "Explore 借用了父会话后端，子任务结束时由谁关闭后端？",
-      "answer": "父会话仍然是后端所有者。Explore 只关闭自己拥有的客户端，保留父后端供后续工具使用。"
+      "answer": "父会话仍然是后端所有者。Explore 只关闭自己拥有的客户端，保留父后端供后续工具使用。",
+      "explanation": [
+        "Conversation 持有多轮共享的历史、客户端、插件和作业；每一轮交给新的 TurnRunner。区分会话寿命和回合寿命，是服务器跨回答运行、后续取消仍可定位所有者的基础。",
+        "例子：第一轮启动网站，第二轮修改文案，服务可以一直由会话持有。退出会话则需要清理服务；仅仅恢复历史不能重新创建那个进程。"
+      ]
     },
     {
       "id": "runner",
@@ -734,7 +1940,11 @@
         "completion"
       ],
       "question": "同批第二个工具返回普通非零退出码，第三个独立调用会怎样？",
-      "answer": "普通失败不自动取消独立调用。若涉及拒绝、取消或不确定副作用，则停止后续派发；已启动结果仍会收齐。"
+      "answer": "普通失败不自动取消独立调用。若涉及拒绝、取消或不确定副作用，则停止后续派发；已启动结果仍会收齐。",
+      "explanation": [
+        "TurnRunner 把输入、模型流、工具批次、反馈和完成串起来。模型决定下一步使用什么能力，循环负责在有效协议和明确执行结果之间推进；它不把“模型想执行”当作“系统已经执行”。",
+        "例如两个独立读取中一个失败，模型仍可看到另一个结果并继续诊断；若清理未知或副作用不确定，则要先保留状态，而不是偷偷重跑。"
+      ]
     },
     {
       "id": "context",
@@ -822,7 +2032,11 @@
         "usage"
       ],
       "question": "为什么真实 token 用量和上下文估算要同时保留？",
-      "answer": "估算用于请求发出前的窗口决策，提供方返回的实际用量用于记录和费用核算。它们发生在不同时间。"
+      "answer": "估算用于请求发出前的窗口决策，提供方返回的实际用量用于记录和费用核算。它们发生在不同时间。",
+      "explanation": [
+        "上下文管理的目标是让本次请求既能放入模型窗口，又保留解决问题所需的信息。规则加载、历史压缩和大输出归档解决不同问题，不应混成一种无条件“删历史”策略。",
+        "例子：测试输出很长，可以给模型头尾摘要并保留完整 artifact；工具调用与结果的配对必须仍然成立。摘要也不能被当成新获得的权限。"
+      ]
     },
     {
       "id": "models",
@@ -910,7 +2124,11 @@
         "children"
       ],
       "question": "手动切换模型会立即产生一次模型请求吗？",
-      "answer": "切换负责选择、能力检查和状态记录。下一次运行回合时才发送模型请求。"
+      "answer": "切换负责选择、能力检查和状态记录。下一次运行回合时才发送模型请求。",
+      "explanation": [
+        "模型适配层负责协议转换与响应有效性。更换提供方不仅是替换 URL：工具参数、用量字段、图片输入和可续传状态都可能不同，需要通过各自适配器处理。",
+        "Anthropic 的 thinking/signature 属于实际提供方状态。只有完整、有效、同模型/提供方的状态才能续传；发生协议错误或切换模型时，不能把不兼容内容原样塞给下一个提供方。"
+      ]
     },
     {
       "id": "usage",
@@ -999,7 +2217,11 @@
         "observability"
       ],
       "question": "累计请求次数达到旧上限，会停止当前回合吗？",
-      "answer": "不会。旧累计预算已删除；仍需遵守取消、权限、操作超时和外部评测期限。"
+      "answer": "不会。旧累计预算已删除；仍需遵守取消、权限、操作超时和外部评测期限。",
+      "explanation": [
+        "用量是计数事实，不是当前 Harness 的累计停止预算。命令寿命、请求超时、清理期限与外部评测时限仍然存在，各自拥有明确的控制者。",
+        "例如把命令放后台以后，它原来的总寿命仍生效；等待查询到期则只结束查询。官方剩余时间与 cgroup 配额进入请求上下文，帮助模型安排工作。"
+      ]
     },
     {
       "id": "tools",
@@ -1088,7 +2310,11 @@
         "mcp"
       ],
       "question": "为什么注册插件工具以后，它仍要走 ToolExecutor？",
-      "answer": "工具仍通过统一 Executor 做参数检查、授权、目标版本核验、用量记录和清理；它们不必继承带根目录的内置 Tool。"
+      "answer": "工具仍通过统一 Executor 做参数检查、授权、目标版本核验、用量记录和清理；它们不必继承带根目录的内置 Tool。",
+      "explanation": [
+        "注册工具只声明可用接口，真正执行还要经过准入与结算。并行能力由工具的作用类型与明确声明决定，不能仅凭模型说“并行执行”就让任意两个操作同时修改共享状态。",
+        "后台工具启动时返回作业身份，最终输出和清理状态由作业生命周期补齐。有限命令与会话服务的完成规则不同，详细例子见执行条目。"
+      ]
     },
     {
       "id": "permissions",
@@ -1176,7 +2402,11 @@
         "plugins"
       ],
       "question": "把 approval 设为 auto，会自动获得 full-access 吗？",
-      "answer": "不会。approval 控制审批流程，sandbox 单独决定执行边界，两份配置各自生效。"
+      "answer": "不会。approval 控制审批流程，sandbox 单独决定执行边界，两份配置各自生效。",
+      "explanation": [
+        "审批规则判断这一次动作是否允许，执行提供方决定技术边界。即使是 never，也不意味着可以忽略显式 deny 或目标约束；模型输出中的“已获授权”不能覆盖真实策略。",
+        "一次更宽授权只对该操作生效。模式切换还需确认会话空闲和旧资源清理，不能把仍在运行的服务留在一个已被替换、无人负责的执行边界中。"
+      ]
     },
     {
       "id": "sandbox",
@@ -1281,7 +2511,11 @@
         "sessions"
       ],
       "question": "CLI 能启动，是否说明原生命令沙盒一定可用？",
-      "answer": "不能。原生命令按需准备并检查；目录权限或 runner 不可用会拒绝该命令，既有会话仍可保留。"
+      "answer": "不能。原生命令按需准备并检查；目录权限或 runner 不可用会拒绝该命令，既有会话仍可保留。",
+      "explanation": [
+        "原生 runner、文件路径策略与进程所有权需要分开理解。进程树能被清理，不代表它此前无法读取或联网；部分原生限制也不能被称为完整隔离。",
+        "当前内置受限执行复用 DSH 组件。Windows 的 WRITE_OWNER 条件仍与 ACL 设置有关；默认宿主模式避免在普通启动时触发这一过程，但代价是使用宿主权限。"
+      ]
     },
     {
       "id": "plugins",
@@ -1378,7 +2612,11 @@
         "hooks"
       ],
       "question": "为什么把笔记列表存在模块全局变量里会有问题？",
-      "answer": "模块可能被多个会话复用。把可变状态放入 activate 的闭包能让每个插件实例拥有独立状态。"
+      "answer": "模块可能被多个会话复用。把可变状态放入 activate 的闭包能让每个插件实例拥有独立状态。",
+      "explanation": [
+        "插件提供能力，PluginHost 提供明确的生命周期。依赖顺序决定启动次序，effect/close 回调决定失败撤销和退出时怎样释放资源；工具、服务和提供方应由同一宿主持有。",
+        "例如插件启动一个连接后注册服务，卸载时应关闭连接并撤销注册。返回一个业务对象不需要了解 CLI；同一插件可以由 core 会话调用。"
+      ]
     },
     {
       "id": "hooks",
@@ -1474,7 +2712,11 @@
         "tools"
       ],
       "question": "Skill 文件里写了允许访问某目录，会自动改变文件权限吗？",
-      "answer": "Skill 提供模型指引。真实工具访问仍需要通过 PermissionManager 和执行后端。"
+      "answer": "Skill 提供模型指引。真实工具访问仍需要通过 PermissionManager 和执行后端。",
+      "explanation": [
+        "Skill 主要提供操作知识，Hook 在约定时点执行处理。前者的文本不自动赋予执行权，后者可能真的运行外部程序，因此需要所有权、输出和超时边界。",
+        "例如提交前检查是 Hook 或完成检查的工作；如何组织测试步骤可以写成 Skill。插件作者不能用提示词内容替代执行层的权限校验。"
+      ]
     },
     {
       "id": "mcp",
@@ -1562,7 +2804,11 @@
         "plugins"
       ],
       "question": "MCP 服务新增一个工具，为什么需要刷新工具定义？",
-      "answer": "模型可见的工具清单和本地参数校验都依赖已注册的 schema，刷新后才能使用最新定义。"
+      "answer": "模型可见的工具清单和本地参数校验都依赖已注册的 schema，刷新后才能使用最新定义。",
+      "explanation": [
+        "MCP 是与外部工具服务协作的接口，不等于一套新的模型循环。连接、发现工具与调用结果被接到现有注册表和会话；本地 MCP 子进程仍需要在会话结束时关闭。",
+        "服务器报告的工具描述属于外部信息。它说明能力的输入输出，却不能修改上层系统规则，也不能让一个受限子任务扩大自己的访问范围。"
+      ]
     },
     {
       "id": "children",
@@ -1658,7 +2904,11 @@
         "conversation"
       ],
       "question": "为什么 Explore 结束后父 Agent 仍能继续调用文件工具？",
-      "answer": "Explore 借用后端并标记自己不拥有它，父会话继续负责后端生命周期。"
+      "answer": "Explore 借用后端并标记自己不拥有它，父会话继续负责后端生命周期。",
+      "explanation": [
+        "子 Agent 适合边界清楚的子任务，例如收集一个目录的实现线索。父任务负责整合结果，子任务的资源与权限应受父范围约束，不能借助新会话换一个更宽执行提供方。",
+        "委派并不自动提高质量。两个子任务若同时修改同一文件，仍需要协调；子任务给出的结论也应携带可检查的来源和未验证部分。"
+      ]
     },
     {
       "id": "sessions",
@@ -1746,7 +2996,11 @@
         "observability"
       ],
       "question": "恢复了历史会话，是否意味着继续使用上一进程剩余的模型额度？",
-      "answer": "恢复历史和权限可以继续新回合；没有剩余额度机制，也不会自动恢复或重放中断的副作用。"
+      "answer": "恢复历史和权限可以继续新回合；没有剩余额度机制，也不会自动恢复或重放中断的副作用。",
+      "explanation": [
+        "Journal 记录发生过的事实，恢复过程根据记录重建会话。检查点负责显式文件恢复，它与恢复聊天历史不是同一件事。恢复不会自动重放有副作用的工具调用。",
+        "例如一次写入被取消，历史能告诉你调用曾开始、结果未确定；它不能仅凭恢复操作就把文件变回旧版。恢复检查点仍要核对目标权限与版本。"
+      ]
     },
     {
       "id": "application",
@@ -1834,7 +3088,11 @@
         "observability"
       ],
       "question": "为什么 SDK 的一个简单会话可以直接创建，而 RPC 还有工作项和调度状态？",
-      "answer": "普通 SDK 由调用方持有协程，不需要旧 RPC/SQLite 服务。旧客户端仍可显式选择兼容入口。"
+      "answer": "普通 SDK 由调用方持有协程，不需要旧 RPC/SQLite 服务。旧客户端仍可显式选择兼容入口。",
+      "explanation": [
+        "这一部分用于已有 RPC、SQLite 数据和旧客户端的兼容，不是现代 CLI/SDK 的必经路径。理解它可以帮助读取历史资料，但不应让旧控制面重新扩散进通用模型循环。",
+        "若要新增一个业务 Agent，优先使用公共 API 与插件；不要为了沿用旧接口而复制新的会话事实源。历史证据仍按其原版本和协议保存。"
+      ]
     },
     {
       "id": "channels",
@@ -1914,7 +3172,11 @@
         "plugins"
       ],
       "question": "为什么仅靠模型提示“别串群”不足以隔离两个群聊？",
-      "answer": "会话历史必须按实际聊天和话题键隔离，由 Gateway 的索引和会话管理实现。"
+      "answer": "会话历史必须按实际聊天和话题键隔离，由 Gateway 的索引和会话管理实现。",
+      "explanation": [
+        "渠道适配器把消息来源接到会话，而不是另写一套业务 Agent。它负责连接、身份与输入输出转接，模型循环、权限和记录仍复用内核。",
+        "例如同一报销插件可以接终端或受管消息渠道。连接成功不代表所有渠道操作已授权，也不证明某个办公应用具有仓库尚未提供的集成能力。"
+      ]
     },
     {
       "id": "observability",
@@ -2002,7 +3264,11 @@
         "evaluation"
       ],
       "question": "提供方缺失一个请求的最终 usage 时，总 token 数能直接用零补齐吗？",
-      "answer": "不能。应保留已知小计和未知请求，完整总量保持未知。"
+      "answer": "不能。应保留已知小计和未知请求，完整总量保持未知。",
+      "explanation": [
+        "观察记录把一次模型请求与工具执行拆成可关联的事实。请求 ID、调用 ID、回合 ID 与后台作业 ID 各有作用，不应只根据相同工具名称拼接日志。",
+        "如果服务在下一轮退出，origin_turn_id 仍指向启动它的那一轮。导出必须保留这种关系以及失败/未知状态，避免把一次异步作业当成另一次成功执行。"
+      ]
     },
     {
       "id": "completion",
@@ -2090,7 +3356,11 @@
         "sessions"
       ],
       "question": "为什么测试通过之后再改一行实现，也可能使 finish_task 被拒绝？",
-      "answer": "测试结果绑定旧代码修订。当前代码需要新的验证证据，才能满足严格完成要求。"
+      "answer": "测试结果绑定旧代码修订。当前代码需要新的验证证据，才能满足严格完成要求。",
+      "explanation": [
+        "完成策略决定是否还有调用方明确要求的条件未满足；它不能把模型自述转成独立验证。普通 coding 允许按实际需要回答，strict 才启用对应完成门禁。",
+        "检查的 freshness 变化只是一个时效事实。在普通模式下，不会仅因为环境 epoch 改变就自动要求重跑昂贵检查；应根据相关改动或失败决定是否重测。"
+      ]
     },
     {
       "id": "customization",
@@ -2178,7 +3448,11 @@
         "delivery"
       ],
       "question": "候选插件把自己的测试改成 assert True，能否因此改变独立业务判分？",
-      "answer": "父控制器仍使用原来固定的预期结果比较真实输出。自测和业务验收分别记录。"
+      "answer": "父控制器仍使用原来固定的预期结果比较真实输出。自测和业务验收分别记录。",
+      "explanation": [
+        "自然语言开发把需求交给现有 coding Harness，产物仍是可检查的插件代码和配置。独立验收先由调用方固定，避免候选代码通过改写预期来自证正确。",
+        "报销示例的 total=76.00、rejected=3 来自业务规则。自测通过但结果不符合这个预期时，完成检查仍应拒绝；生成后也不会自动启用可信宿主代码。"
+      ]
     },
     {
       "id": "delivery",
@@ -2266,7 +3540,11 @@
         "evaluation"
       ],
       "question": "换了模型，为什么某些插件验收无需重跑，而模型成功率需要重新测？",
-      "answer": "确定性工具验收只验证固定输入下的行为。真实模型能否正确使用工具属于另一层实验条件。"
+      "answer": "确定性工具验收只验证固定输入下的行为。真实模型能否正确使用工具属于另一层实验条件。",
+      "explanation": [
+        "交付包的作用是让接收方知道检查的是哪份代码、哪组依赖和哪个 SDK。回执绑定具体内容，修改一个业务参数也可能改变有效性。",
+        "导入只是保存材料；接收方安装匹配依赖并重新检查后，才能在自己的环境判断结果。旧机器的通过记录不能代替新环境验收。"
+      ]
     },
     {
       "id": "evaluation",
@@ -2364,7 +3642,11 @@
         "completion"
       ],
       "question": "两次任务分数不同，能否立即归因于模型更强？",
-      "answer": "先核对任务、模型、插件、完成策略、依赖和环境。公开历史成绩保留原版本和分母，不属于 1.0.0 的成绩。"
+      "answer": "先核对任务、模型、插件、完成策略、依赖和环境。公开历史成绩保留原版本和分母，不属于 1.0.0 的成绩。",
+      "explanation": [
+        "公共评测的独立 grader 与 Agent 自己的完成判断分开。环境准备、Agent 执行、判分和清理也分别记录，后续错误不应该吞掉前面的错误。",
+        "例子：Agent 超时且 verifier 下载失败，是两个已观察到的问题；Agent 超时但 reward=1，则说明该产物通过了官方检查，仍值得分析为什么未及时结束。"
+      ]
     },
     {
       "id": "release",
@@ -2452,7 +3734,11 @@
         "contracts"
       ],
       "question": "为什么纯 SDK 可运行，还不能说明本机原生文件边界已经准备好？",
-      "answer": "Core 无需原生后端。普通 coding 默认宿主执行；显式受限命令另受平台、目录权限和 DSH runner 条件约束。"
+      "answer": "Core 无需原生后端。普通 coding 默认宿主执行；显式受限命令另受平台、目录权限和 DSH runner 条件约束。",
+      "explanation": [
+        "普通使用者的 CLI 安装、开发者的源码检查和公共评测的镜像安装是不同入口。Docker 只属于需要它的评测环境，不应成为普通 Python Harness 的必需条件。",
+        "一次 CI 通过只认证对应提交与检查范围。真实模型表现、原生平台能力与安装包行为需要分别给出证据，不能用历史测试数替代当前版本验证。"
+      ]
     }
   ],
   "flows": [
@@ -2914,50 +4200,15 @@
       "由 Agent 选择的异步工厂。接收 ExecutionRequest，返回后端和策略组成的 ExecutionSetup。",
       "sandbox"
     ]
-  ],
-  "paths": [
-    {
-      "title": "先理解一次请求",
-      "text": "从入口到执行，再看结果如何持久化。",
-      "ids": [
-        "entry",
-        "composition",
-        "conversation",
-        "runner",
-        "tools",
-        "sessions"
-      ]
-    },
-    {
-      "title": "组装一个新的 Agent",
-      "text": "用公共接口接入模型、插件和子任务。",
-      "ids": [
-        "plugins",
-        "models",
-        "permissions",
-        "children",
-        "mcp",
-        "channels"
-      ]
-    },
-    {
-      "title": "理解为什么通过或失败",
-      "text": "沿用量、验证证据和独立判分找依据。",
-      "ids": [
-        "usage",
-        "completion",
-        "customization",
-        "delivery",
-        "evaluation",
-        "observability"
-      ]
-    }
   ]
 }
   </script>
   <script>
     'use strict';
     const guide = JSON.parse(document.getElementById('guide-data').textContent);
+    const articles = new Map(guide.articles.map(function (article) { return [article.id, article]; }));
+    const searchPages = guide.articles.map(function (article) { return {title: article.title, route: '#article/' + article.id, text: JSON.stringify(article).toLowerCase(), sections: article.sections}; })
+      .concat(guide.modules.map(function (module) { return {title: module.title, route: '#module/' + module.id, text: JSON.stringify(module).toLowerCase()}; }));
     const modules = new Map(guide.modules.map(function (module) { return [module.id, module]; }));
     const groups = Array.from(new Set(guide.modules.map(function (module) { return module.group; })));
     const content = document.getElementById('content');
@@ -2966,6 +4217,7 @@
     const main = document.getElementById('main');
     const sourceBase = 'https://github.com/Titans23/forgecode/blob/' + guide.revision + '/';
     let playback = null;
+    let renderedRoute = '';
 
     function element(tag, className, text) {
       const result = document.createElement(tag);
@@ -3001,10 +4253,50 @@
     function moduleLink(id, className) {
       return anchor(modules.get(id).title, '#module/' + id, className);
     }
+    // Article prose supports inline code and citations, never executable HTML.
+    function inline(node, text) {
+      const pattern = /`([^`]+)`|\[\[([\w-]+)\]\]/g;
+      let offset = 0;
+      for (const match of text.matchAll(pattern)) {
+        node.append(document.createTextNode(text.slice(offset, match.index)));
+        if (match[1]) node.append(element('code', '', match[1]));
+        else {
+          const source = guide.references[match[2]];
+          const number = Object.keys(guide.references).indexOf(match[2]) + 1;
+          const link = referenceLink(source, '[' + number + ']');
+          link.className = 'citation';
+          link.title = source.label;
+          link.setAttribute('aria-label', '来源 ' + number + '：' + source.label);
+          node.append(link);
+        }
+        offset = match.index + match[0].length;
+      }
+      node.append(document.createTextNode(text.slice(offset)));
+      return node;
+    }
+    function referenceLink(source, label) {
+      const link = anchor(label || source.label, source.url || sourceBase + source.path + (source.line ? '#L' + source.line : ''));
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      return link;
+    }
+    function articleHeader(title, kind, summary) {
+      const head = element('header', 'article-head');
+      head.append(element('p', 'eyebrow', 'ForgeCode Wiki / ' + kind), element('h1', '', title));
+      const meta = element('div', 'page-meta');
+      meta.append(element('span', '', '版本 ' + guide.version), element('span', '', '更新于 ' + guide.date),
+        anchor('源码 ' + guide.revision.slice(0, 7), 'https://github.com/Titans23/forgecode/tree/' + guide.revision));
+      head.append(meta);
+      content.append(head, element('p', 'lead', summary));
+    }
     function buildNavigation() {
+      guide.articles.forEach(function (article) {
+        const link = anchor(article.navTitle || article.title, '#article/' + article.id, 'nav-link');
+        link.dataset.article = article.id;
+        document.getElementById('article-nav').append(link);
+      });
       groups.forEach(function (group) {
         const block = element('div', 'nav-group');
-        block.dataset.group = group;
         block.append(element('div', 'nav-heading', group));
         guide.modules.filter(function (module) { return module.group === group; }).forEach(function (module) {
           const link = moduleLink(module.id, 'nav-link nav-module');
@@ -3016,66 +4308,65 @@
     }
     function applySearch() {
       const query = search.value.trim().toLowerCase();
-      let matches = 0;
-      guide.modules.forEach(function (module) {
-        const text = [module.title, module.symbol, module.summary, module.group, module.id].join(' ').toLowerCase();
-        const visible = !query || text.includes(query);
-        if (visible) matches++;
-        document.querySelectorAll('[data-module="' + module.id + '"]').forEach(function (node) { node.hidden = !visible; });
-      });
-      nav.querySelectorAll('.nav-group').forEach(function (group) {
-        group.hidden = !Array.from(group.querySelectorAll('.nav-module')).some(function (node) { return !node.hidden; });
-      });
-      document.querySelectorAll('.map-layer').forEach(function (group) {
-        group.hidden = !Array.from(group.querySelectorAll('.map-node')).some(function (node) { return !node.hidden; });
-      });
-      document.getElementById('search-count').textContent = query ? matches + ' 个匹配模块' : guide.modules.length + ' 个模块 · ' + groups.length + ' 个职责分区';
-      const empty = document.getElementById('map-empty');
-      if (empty) empty.hidden = matches > 0;
+      const results = document.getElementById('search-results');
+      results.replaceChildren();
+      results.hidden = !query;
+      document.getElementById('browse-nav').hidden = Boolean(query);
+      if (query) {
+        searchPages.forEach(function (page) {
+          if (!page.text.includes(query)) return;
+          const link = anchor('', page.route, 'nav-link search-result');
+          link.append(element('span', '', page.title));
+          if (page.sections) {
+            const match = page.sections.find(function (item) { return JSON.stringify(item).toLowerCase().includes(query); });
+            if (match) {
+              link.href = page.route + '/' + match.id;
+              link.append(element('small', 'search-match', match.title));
+            }
+          }
+          results.append(link);
+        });
+      }
+      const count = results.children.length;
+      document.getElementById('search-count').textContent = query
+        ? (count ? count + ' 个匹配条目 · 搜索正文与源码' : '没有匹配条目，试试“后台”“缓存”或“插件”。')
+        : guide.articles.length + ' 篇主题 · ' + guide.modules.length + ' 个源码模块';
     }
     function renderOverview() {
-      const hero = element('section', 'hero');
-      hero.append(element('p', 'eyebrow', 'A guide to the running system'));
-      hero.append(element('h1', '', '走进一次 Agent 请求'));
-      hero.append(element('p', 'lead', '从一句需求，到模型与工具的协作，再到验收和交付。点开模块，看输入经过哪些判断、状态如何变化，以及源码里真正发生了什么。'));
-      const actions = element('div', 'actions');
-      actions.append(anchor('跟随一次请求 →', '#flow/coding', 'button primary'));
-      actions.append(anchor('进入核心循环', '#module/runner', 'button secondary'));
-      hero.append(actions);
-      const chain = element('div', 'hero-line');
-      const chainIds = ['entry', 'composition', 'runner', 'tools', 'completion', 'sessions'];
-      const chainNames = ['输入', '装配', '模型循环', '工具', '验收', '记录'];
-      chainIds.forEach(function (id, index) {
-        if (index) chain.append(element('span', '', '→'));
-        chain.append(anchor(chainNames[index], '#module/' + id));
-      });
-      hero.append(chain);
-      content.append(hero);
+      articleHeader('ForgeCode 架构 Wiki', '首页', 'ForgeCode 是轻量、可扩展的 Python Agent Harness，用来构建、运行、验证和复用 Agent。Coding Agent 与终端 CLI 是默认应用；业务系统可以在同一内核上组合自己的工具、模型与插件。');
+      const facts = element('aside', 'infobox');
+      facts.setAttribute('aria-label', '项目速览');
+      const dl = element('dl');
+      [
+        ['内核', 'Python 会话、模型循环、工具执行、上下文与事实记录。'],
+        ['扩展', '自然语言插件开发；可信 Python 插件、Skills、Hooks、MCP 与可选执行提供方。'],
+        ['评测', '固定输入、官方任务环境和独立判分；普通 CLI / SDK 无需 Docker。'],
+        ['轨迹', 'Journal 保存过程与失败事实，支持 ATIF / OpenAI messages 导出。'],
+        ['边界', 'Personal / Robot Harness 的可复用基座；领域控制与完整原生隔离仍需专门建设。']
+      ].forEach(function (row) { dl.append(element('dt', '', row[0]), element('dd', '', row[1])); });
+      facts.append(dl);
+      content.append(facts);
 
-      const journeys = section('选择一条学习路径', '从熟悉的行为进入具体实现');
-      const cards = element('div', 'three-grid');
-      guide.paths.forEach(function (path, index) {
-        const card = element('article', 'card route-card');
-        card.append(element('span', 'route-number', String(index + 1).padStart(2, '0')));
-        card.append(element('h3', '', path.title));
-        card.append(element('p', '', path.text));
-        const chips = element('div', 'route-chips');
-        path.ids.forEach(function (id) { chips.append(moduleLink(id)); });
-        card.append(chips);
-        cards.append(card);
+      const start = section('从这里开始', '先理解职责，再沿源码追踪；没有阅读顺序要求。');
+      start.id = 'start';
+      const readings = element('ul', 'reading-list');
+      guide.articles.forEach(function (article) {
+        const item = element('li');
+        item.append(anchor(article.title, '#article/' + article.id), element('p', '', article.summary));
+        readings.append(item);
       });
-      journeys.append(cards);
-      content.append(journeys);
+      start.append(readings);
+      content.append(start);
 
-      const architecture = section('全局架构', '每个方块都能进入实现讲解');
+      const architecture = section('源码地图', '点击模块，查看职责、例子、状态、真实源码与行为测试。');
+      architecture.id = 'architecture';
       const map = element('div', 'blueprint');
-      groups.forEach(function (group, index) {
+      groups.forEach(function (group) {
         const layer = element('div', 'map-layer');
-        layer.append(element('div', 'layer-name', String(index + 1).padStart(2, '0') + ' / ' + group));
+        layer.append(element('div', 'layer-name', group));
         const nodes = element('div', 'map-nodes');
         guide.modules.filter(function (module) { return module.group === group; }).forEach(function (module) {
           const link = anchor('', '#module/' + module.id, 'map-node');
-          link.dataset.module = module.id;
           if (['conversation', 'runner', 'usage'].includes(module.id)) link.dataset.core = 'true';
           link.append(element('strong', '', module.title), element('small', '', module.symbol));
           nodes.append(link);
@@ -3083,23 +4374,102 @@
         layer.append(nodes);
         map.append(layer);
       });
-      const empty = element('p', 'empty', '没有匹配的模块。可以试试工具、权限或模型。');
-      empty.id = 'map-empty';
-      empty.hidden = true;
-      map.append(empty);
-      architecture.append(map);
-      architecture.append(element('p', 'muted-box', '阅读方向 · 入口装配共享内核，工具经过授权后进入相应执行边界；Journal 持续记录各阶段事实，完成检查和独立 grader 按各自范围判分。'));
+      architecture.append(map, element('p', 'muted-box', '阅读方向：入口装配共享内核；模型请求与工具结果交替推进；Journal 持续记录事实。插件、coding 能力与执行提供方按需组合，严格验收只在相应工作流中启用。'));
       content.append(architecture);
 
-      const simulations = section('把结构变成过程', '点击步骤，观察输入、输出和状态');
-      const simulationsGrid = element('div', 'module-grid');
+      const simulations = section('交互式流程', '点击步骤观察输入与输出；这些是教学示例，不会执行模型或命令。');
+      simulations.id = 'flows';
+      const flowList = element('div', 'module-grid');
       guide.flows.forEach(function (flow) {
         const card = anchor('', '#flow/' + flow.id, 'card route-card');
         card.append(element('h3', '', flow.title), element('p', '', flow.subtitle));
-        simulationsGrid.append(card);
+        flowList.append(card);
       });
-      simulations.append(simulationsGrid);
-      content.append(simulations, footer());
+      simulations.append(flowList);
+      content.append(simulations);
+
+      const maintenance = section('版本、资料与维护');
+      maintenance.id = 'maintenance';
+      maintenance.append(element('p', '', '本页解释固定源码提交，外部产品对比标注查阅日期。源码节选用于理解行为；测试入口说明验证什么，是否通过要看相应提交的实际 CI。示例请求数与状态不能作为新的实验结果。'));
+      const links = element('div', 'related');
+      links.append(anchor('安装与使用', './install/terminal-quickstart.md'), anchor('当前架构说明', './implementation/architecture.md'),
+        anchor('公共 benchmark', '../benchmark/README.md'), anchor('术语索引', '#glossary'));
+      maintenance.append(links);
+      content.append(maintenance, footer());
+    }
+    function renderArticle(article) {
+      articleHeader(article.title, '主题条目', article.summary);
+      article.sections.forEach(function (item) {
+        const block = section(item.title);
+        block.id = item.id;
+        block.classList.add('wiki-section');
+        item.paragraphs.forEach(function (text) { block.append(inline(element('p'), text)); });
+        if (item.table) {
+          const wrap = element('div', 'wiki-table-wrap');
+          wrap.tabIndex = 0;
+          wrap.setAttribute('role', 'region');
+          wrap.setAttribute('aria-label', item.title + '：对照表，可横向滚动');
+          const table = element('table', 'wiki-table');
+          const head = element('thead');
+          const row = element('tr');
+          item.table.headers.forEach(function (label) { const cell = element('th', '', label); cell.scope = 'col'; row.append(cell); });
+          head.append(row);
+          const body = element('tbody');
+          item.table.rows.forEach(function (cells) {
+            const row = element('tr');
+            cells.forEach(function (text) { row.append(inline(element('td'), text)); });
+            body.append(row);
+          });
+          table.append(element('caption', 'sr-only', item.title), head, body);
+          wrap.append(table);
+          block.append(wrap);
+        }
+        if (item.items) {
+          const list = element('ul');
+          item.items.forEach(function (text) { list.append(inline(element('li'), text)); });
+          block.append(list);
+        }
+        if (item.diagram) {
+          const chain = element('ol', 'diagram');
+          chain.setAttribute('aria-label', '流程顺序');
+          item.diagram.forEach(function (text) { const node = element('li'); node.append(element('span', '', text)); chain.append(node); });
+          block.append(chain);
+        }
+        if (item.code) {
+          const figure = element('figure', 'code-example');
+          figure.append(element('figcaption', '', item.code.language + ' · ' + item.code.caption));
+          const pre = element('pre');
+          pre.tabIndex = 0;
+          pre.append(element('code', '', item.code.text));
+          figure.append(pre);
+          block.append(figure);
+        }
+        if (item.paragraphs_extra) block.append(inline(element('p'), item.paragraphs_extra));
+        if (item.example) {
+          const example = element('aside', 'callout');
+          example.append(element('h3', '', item.example.title), inline(element('p'), item.example.text));
+          block.append(example);
+        }
+        if (item.note) block.append(inline(element('aside', 'callout'), item.note));
+        if (item.links) {
+          const links = element('div', 'related');
+          item.links.forEach(function (link) { links.append(anchor(link[0], link[1])); });
+          block.append(links);
+        }
+        if (item.references) {
+          const list = element('ol', 'reference-list');
+          item.references.forEach(function (id) {
+            const source = guide.references[id];
+            const row = element('li');
+            row.value = Object.keys(guide.references).indexOf(id) + 1;
+            row.append(referenceLink(source), element('small', '', '查阅：' + guide.date));
+            list.append(row);
+          });
+          block.append(list);
+        }
+        content.append(block);
+      });
+      content.append(footer());
     }
     function renderSource(source, index) {
       const block = element('details', 'source');
@@ -3109,6 +4479,7 @@
       block.append(summary);
       block.append(element('p', 'source-note', source.note));
       const pre = element('pre');
+      pre.tabIndex = 0;
       const code = element('code');
       source.code.split('\n').forEach(function (line, offset) {
         const row = element('span', 'code-line');
@@ -3139,6 +4510,7 @@
 
       const intro = element('div', 'section explain-grid');
       const description = element('article', 'card prose');
+      description.id = 'responsibility';
       description.append(element('h2', '', '这个模块负责什么'), element('p', '', module.concept));
       module.implementation.forEach(function (paragraph) { description.append(element('p', '', paragraph)); });
       const example = element('aside', 'card example');
@@ -3147,7 +4519,14 @@
       intro.append(description, example);
       content.append(intro);
 
+      const explanation = section('设计原因与实际例子');
+      explanation.id = 'examples';
+      explanation.classList.add('wiki-section');
+      module.explanation.forEach(function (text) { explanation.append(element('p', '', text)); });
+      content.append(explanation);
+
       const process = section('实现怎样一步步发生', '选择一个步骤，跟踪当前状态');
+      process.id = 'process';
       const strip = element('div', 'step-strip');
       const detail = element('div', 'step-detail');
       detail.setAttribute('aria-live', 'polite');
@@ -3170,6 +4549,7 @@
       content.append(process);
 
       const states = section('跟踪哪些状态', '读代码时，留意这些值的所有者和变化');
+      states.id = 'states';
       const table = element('table', 'state-table');
       const body = element('tbody');
       module.states.forEach(function (state) {
@@ -3187,10 +4567,12 @@
       content.append(states);
 
       const sources = section('沿真实源码阅读', '先跟踪标出的变量和条件，再展开完整方法');
+      sources.id = 'source';
       module.sources.forEach(function (source, i) { sources.append(renderSource(source, i)); });
       content.append(sources);
 
       const tests = section('对应的行为测试', '测试入口说明它验证哪一个行为，执行状态以实际运行记录为准');
+      tests.id = 'tests';
       const list = element('div', 'test-list');
       module.tests.forEach(function (test) {
         const row = element('article', 'test-entry');
@@ -3201,12 +4583,14 @@
       content.append(tests);
 
       const check = section('试着解释一次');
+      check.id = 'question';
       const question = element('details', 'question');
       question.append(element('summary', '', module.question), element('p', '', module.answer));
       check.append(question);
       content.append(check);
 
       const next = section('继续沿调用关系阅读');
+      next.id = 'related';
       const related = element('div', 'related');
       module.related.forEach(function (id) { related.append(moduleLink(id, 'button')); });
       related.append(anchor('回到全局架构', '#overview', 'button'));
@@ -3333,35 +4717,95 @@
       });
       content.append(list, footer());
     }
+    function buildContents(route) {
+      const toc = document.getElementById('toc-links');
+      toc.replaceChildren();
+      if (route.startsWith('#flow')) { document.getElementById('page-toc').hidden = true; return; }
+      content.querySelectorAll('h2').forEach(function (heading, index) {
+        const block = heading.closest('section') || heading.parentElement;
+        const id = block.id || 'section-' + (index + 1);
+        block.id = id;
+        const href = route + '/' + id;
+        toc.append(anchor(heading.textContent, href, 'toc-link'));
+        const permalink = anchor('§', href, 'permalink');
+        permalink.setAttribute('aria-label', '链接到：' + heading.textContent);
+        heading.append(permalink);
+      });
+      document.getElementById('page-toc').hidden = !toc.children.length || route.startsWith('#flow');
+      document.getElementById('toc-details').open = window.matchMedia('(min-width: 1181px)').matches;
+    }
+    function scrollToSection(id) {
+      const target = id ? document.getElementById(id) : null;
+      if (target && content.contains(target)) target.scrollIntoView({block: 'start', behavior: 'instant'});
+      else window.scrollTo({top: 0, behavior: 'instant'});
+      document.querySelectorAll('.toc-link').forEach(function (link) {
+        if (id && link.hash.endsWith('/' + id)) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+    }
     function render() {
-      stopPlayback();
       const parts = location.hash.replace(/^#/, '').split('/');
       const page = parts[0] || 'overview';
+      const route = '#' + (['module', 'article', 'flow'].includes(page) ? page + '/' + parts[1] : page);
+      const sectionId = ['module', 'article'].includes(page) ? parts[2] : parts[1];
+      document.body.classList.remove('nav-open');
+      document.getElementById('nav-toggle').setAttribute('aria-expanded', 'false');
+      if (renderedRoute === route && page !== 'flow') { scrollToSection(sectionId); return; }
+      stopPlayback();
       content.replaceChildren();
       if (page === 'module' && modules.has(parts[1])) renderModule(modules.get(parts[1]));
+      else if (page === 'article' && articles.has(parts[1])) renderArticle(articles.get(parts[1]));
       else if (page === 'flow' && guide.flows.some(function (flow) { return flow.id === parts[1]; })) {
         renderFlow(guide.flows.find(function (flow) { return flow.id === parts[1]; }), parts[2]);
       } else if (page === 'glossary') renderGlossary();
       else {
-        if (page !== 'overview' && page !== 'main') content.append(element('p', 'empty', '这个地址没有对应内容，下面是项目全局架构。'));
+        if (page !== 'overview' && page !== 'main') content.append(element('p', 'empty', '这个地址没有对应条目，可以从首页或搜索继续。'));
         renderOverview();
       }
+      renderedRoute = route;
       document.querySelectorAll('.nav-link').forEach(function (link) {
-        const active = link.dataset.module ? page === 'module' && link.dataset.module === parts[1] : link.dataset.route === page;
+        const active = link.dataset.module ? page === 'module' && link.dataset.module === parts[1]
+          : link.dataset.article ? page === 'article' && link.dataset.article === parts[1] : link.dataset.route === page;
         if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
       });
-      document.body.classList.remove('nav-open');
-      document.getElementById('nav-toggle').setAttribute('aria-expanded', 'false');
       applySearch();
-      document.title = (page === 'module' && modules.has(parts[1]) ? modules.get(parts[1]).title + ' · ' : '') + 'ForgeCode 1.0.0 架构学习手册';
-      window.scrollTo({top: 0, behavior: 'instant'});
+      document.title = content.querySelector('h1').textContent + ' · ForgeCode ' + guide.version;
+      buildContents(route);
+      scrollToSection(page === 'flow' ? null : sectionId);
     }
-    document.getElementById('revision-link').href = 'https://github.com/Titans23/forgecode/tree/' + guide.revision;
+    const revisionLink = document.getElementById('revision-link');
+    revisionLink.href = 'https://github.com/Titans23/forgecode/tree/' + guide.revision;
+    revisionLink.textContent = 'v' + guide.version + ' · ' + guide.revision.slice(0, 7);
     document.getElementById('nav-toggle').addEventListener('click', function () {
       const open = document.body.classList.toggle('nav-open');
       this.setAttribute('aria-expanded', String(open));
+      if (open) search.focus();
     });
     search.addEventListener('input', applySearch);
+    document.addEventListener('click', function (event) {
+      const link = event.target.closest('a[href^="#"]');
+      if (link && link.hash === location.hash) {
+        event.preventDefault();
+        render();
+        main.focus({preventScroll: true});
+      }
+    });
+    search.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') { search.value = ''; applySearch(); }
+      if (event.key === 'Enter') {
+        const first = document.querySelector('.search-result');
+        if (first) { event.preventDefault(); first.click(); }
+      }
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === '/' && !event.ctrlKey && !event.altKey && !event.metaKey
+          && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        event.preventDefault();
+        document.body.classList.add('nav-open');
+        document.getElementById('nav-toggle').setAttribute('aria-expanded', 'true');
+        search.focus();
+      }
+    });
     document.querySelector('.skip').addEventListener('click', function (event) {
       event.preventDefault();
       main.focus({preventScroll: true});

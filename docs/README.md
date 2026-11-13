@@ -5,7 +5,7 @@
 | [项目首页](../README.md) | 定位、安装与主要入口 |
 | [使用指南](install/terminal-quickstart.md) | 配置、会话、权限、SDK、插件与升级 |
 | [当前架构](implementation/architecture.md) | 内核、可选能力、数据流和生命周期 |
-| [交互式学习手册](architecture-guide.html) | 1.0.0 源码节选、模块导航与流程推演 |
+| [架构 Wiki](architecture-guide.html) | 概念与实例、插件和评测、源码追踪，以及 Codex / Claude Code / DSH / pi 对比；可离线打开 |
 | [公共基准](../benchmark/README.md) | 官方镜像、冻结计划、独立判分和导出 |
 | [Harbor 适配说明](../benchmark/harbor/README.md) | 容器接入与历史 Aider 协议 |
 | [共享契约](../contracts/v1/README.md) | JSON Schema、TypeScript 和旧 RPC 接口 |

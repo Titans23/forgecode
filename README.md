@@ -97,7 +97,7 @@ Journal 是默认执行事实源，记录实际模型请求、思考、工具结
 
 - [安装、配置、CLI、SDK 与插件](docs/install/terminal-quickstart.md)
 - [内核与扩展架构](docs/implementation/architecture.md)
-- [交互式源码学习手册](docs/architecture-guide.html)
+- [架构 Wiki：概念、源码、流程与同类产品对比](docs/architecture-guide.html)
 - [benchmark 运行与历史成绩](benchmark/README.md)
 - [当前工作和验证范围](docs/implementation/progress.json)
 - [开发约定](AGENTS.md)与[文档索引](docs/README.md)
