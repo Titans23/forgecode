@@ -17,11 +17,11 @@
     "legacy": "Old RPC/SQLite and history readers remain opt-in; modern worker/runtime/benchmark code does not import the old control plane."
   },
   "last_verified_baseline": {
-    "commit": "377d2575f457fe2e57638053384a66162eb697e9",
+    "commit": "a7a08cc047cdb5e3eb715dc9ef38f540fab6df49",
     "product_version": "1.0.0",
     "ci": "success",
-    "url": "https://github.com/Titans23/forgecode/actions/runs/43367836609",
-    "scope": "All six CI jobs passed for operation-local cancellation and public benchmark runtime assembly. Later service, waiting, diagnostics and export changes require their own exact-commit CI. Previous release evidence remains in historical_work. No paid model calls or existing project ACL changes."
+    "url": "https://github.com/Titans23/forgecode/actions/runs/43392376822",
+    "scope": "All six CI jobs passed for this exact commit: Windows and Ubuntu portable regression, SDK/plugin delivery, and dependency checks. Native isolation acceptance and live model experiments remain separate."
   },
   "release_validation": {
     "status": "offline_checks_passed_ci_per_commit",
@@ -30,30 +30,9 @@
     "scope": "CI acceptance belongs to the exact commit/tag workflow run. Historical baseline checks do not certify new source; local checks do not imply remote CI passed."
   },
   "historical_release_evidence": {
+    "source": "benchmark/harbor/README.md#历史-aider-评测",
     "report_commit": "a9f290f3b00270ef787f6ed4a9b2ed87dc1722bb",
-    "archived_report": "EVALUATION_SUMMARY_20260813.md at report_commit; historical protocol also remains in benchmark/harbor/README.md",
-    "aider_polyglot": {
-      "record_type": "historical_release_report_not_current_source_acceptance",
-      "reported_model": "gpt-5.6-luna",
-      "reported_model_execution": "live provider via local proxy according to contemporaneous report; raw trial records not found in current checkout",
-      "reported_environment": "Harbor 0.18.0 / Docker 29.7.2",
-      "reported_dataset_commit": "f30b14415dd733c83627204bad0af69a89ceb46f",
-      "reported_raw_result": "211/225 = 93.78% final verifier reward, including one infrastructure error in denominator",
-      "reported_scored_result": "211/224 = 94.20%; strict first attempt 97/224 = 43.30%; 114 feedback repairs",
-      "reported_protocol": "One permitted same-session verifier-feedback repair; concurrency one, Harbor infrastructure max_retries three, setup timeout multiplier twelve and installation retries eight. Not single-attempt pass@1.",
-      "execution_source_commit": null,
-      "raw_results_found_in_current_checkout": false,
-      "missing_evidence": "Historical summary.json, job result.json, 225 trial/verifier/trajectory records and per-trial staged source or immutable source manifest. Release a9f290f includes post-run fixes and is not proof of the code bytes used during evaluation.",
-      "use": "May cite as explicitly attributed historical v0.1.1 report under its two-attempt protocol. Do not present as reproduced/current accuracy, current native task completion rate, or a measured improvement without original evidence."
-    },
-    "regression_448": {
-      "record_type": "historical_post_run_local_regression_statement",
-      "reported_passed": 448,
-      "source": "Contemporaneous v0.1.1 report records 448 passed and uv lock --check after post-run fixes",
-      "exact_tested_worktree_and_command_log": null,
-      "raw_junit_or_stdout_found": false,
-      "use": "Historical reported count only; not current-source acceptance, model API validation or proof of the 225-task result. Current acceptance is identified by CI commit/run and scoped native evidence."
-    }
+    "boundary": "Historical v0.1.1 reported scores, feedback protocol, missing raw-trial evidence and the 448-test statement are maintained together in the linked record. They are not current-source acceptance."
   },
   "historical_work": {
     "snapshot_commit": "880826c",
@@ -68,7 +47,7 @@
     "T03": {
       "implementation_status": "implemented",
       "verification": {
-        "baseline_ci": "success_43367836609",
+        "baseline_ci": "success_43392376822",
         "release_checks": "per_commit",
         "live_models": "not_run_for_harness_repair",
         "public_benchmark_rerun": "not_run_for_harness_repair"

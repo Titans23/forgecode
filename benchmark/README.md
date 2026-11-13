@@ -58,6 +58,14 @@ docker image inspect '<task.toml 中的完整镜像名:标签>'
 
 Docker Desktop 下应确认 Windows 和 WSL 使用同一引擎，并核对实际任务镜像 ID。系统配置变更需要授权。
 
+若已准备 Harbor 的冻结 catalog 和本地任务包，可单独预取其中声明的官方镜像：
+
+```sh
+uv run --no-sync python scripts/prefetch_dataset_images.py --catalog ./catalog.json --output .local/implementation/image-prefetch --concurrency 3
+```
+
+catalog 须包含 `name`、`version` 和 `task_ids`；任务包应已存在于 `~/.cache/harbor/tasks/packages/<org>/<name>/<ref摘要>/task.toml`。该工具核对已有镜像，仅对缺失镜像执行 `docker pull`，不构建派生镜像、不启动模型或评测。它是显式运维入口，不属于 Forge 日常安装。
+
 ## 冻结 Agent、插件与模型
 
 `forge eval plan config.json --output <新目录>` 不调用模型；未提供已冻结 taskset 时会下载官方任务元数据。配置路径相对 config.json：

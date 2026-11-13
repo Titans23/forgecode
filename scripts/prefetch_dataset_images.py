@@ -1,4 +1,4 @@
-"""Cache a pinned Harbor dataset's prebuilt images without running evaluations."""
+"""Explicitly prefetch a pinned Harbor catalog's official images; never build or evaluate."""
 from __future__ import annotations
 
 import argparse

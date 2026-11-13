@@ -9,8 +9,10 @@ import zipfile
 def check(path):
     with zipfile.ZipFile(path) as archive:
         names = set(archive.namelist())
-        if any(name.startswith('extensions/') or name == 'forge/training.py' for name in names):
-            raise ValueError('Retired distillation/training code must not be shipped')
+        if any(name.startswith(('extensions/', 'benchmark/analysis/')) or name in {
+                'forge/training.py', 'forge/runtime/model_budget.py',
+                'forge/sandbox/windows_python_compat.py'} for name in names):
+            raise ValueError('Retired development or training code must not be shipped')
         prefix = 'forge/_sandbox/'
         manifest = json.loads(archive.read(prefix + 'sandbox_bridge/runtime-manifest.json'))
         if manifest['schema_version'] != 'forge.bridge.runtime.v1' or not manifest['files']:

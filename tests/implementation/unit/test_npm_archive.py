@@ -38,8 +38,16 @@ def test_runtime_payload_is_required(tmp_path):
         check_archive(output, 'missing.whl')
 
 
-@pytest.mark.parametrize('extra', [False, True])
-def test_wheel_rejects_uninventoried_retired_runner(tmp_path, extra):
+@pytest.mark.parametrize(('extra', 'reason'), [
+    (None, None),
+    ('forge/_sandbox/sandbox_bridge/dist/workspace-runner.js', 'outside its verified inventory'),
+    ('extensions/qwen_tool_distillation.py', 'Retired'),
+    ('forge/training.py', 'Retired'),
+    ('forge/runtime/model_budget.py', 'Retired'),
+    ('forge/sandbox/windows_python_compat.py', 'Retired'),
+    ('benchmark/analysis/probe_journal_cost.py', 'Retired'),
+])
+def test_wheel_rejects_retired_source_and_uninventoried_assets(tmp_path, extra, reason):
     from scripts.check_wheel import check
     output = tmp_path / 'fixture.whl'
     prefix = 'forge/_sandbox/'
@@ -51,9 +59,9 @@ def test_wheel_rejects_uninventoried_retired_runner(tmp_path, extra):
         archive.writestr(prefix + 'sandbox_bridge/runtime-manifest.json', json.dumps(manifest))
         archive.writestr(prefix + 'sandbox_bridge/dist/native-session.js', payload)
         if extra:
-            archive.writestr(prefix + 'sandbox_bridge/dist/workspace-runner.js', b'retired code')
+            archive.writestr(extra, b'retired code')
     if extra:
-        with pytest.raises(ValueError, match='outside its verified inventory'):
+        with pytest.raises(ValueError, match=reason):
             check(output)
     else:
         assert check(output)['status'] == 'pass'

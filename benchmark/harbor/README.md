@@ -1,6 +1,13 @@
-# Harbor adapter · ForgeCode 1.0.0
+# Harbor 适配与历史记录
 
 当前公共基准的安装、官方镜像、冻结计划、运行、取消、比较和导出统一见 [benchmark 指南](../README.md)。本页说明适配器职责及旧 Aider 协议，避免复制当前操作步骤。
+
+- [适配器职责](#适配器职责)
+- [Aider 兼容协议](#aider-兼容协议)
+- [历史 Aider 评测](#历史-aider-评测)
+- [T01 历史实验与冻结输入](#t01-历史实验与冻结输入)
+
+## 适配器职责
 
 适配器将冻结的包源码装入官方任务容器，建立独立 Git 基线，通过 `--message-file` 提交完整任务，执行同一 Forge 模型/工具循环，归档结果和候选补丁，再由 Harbor 的官方 verifier 判分。测试与参考答案不注入 Agent 上下文。
 
@@ -91,4 +98,25 @@ here. That count is not current-source acceptance or model evaluation evidence.
 The 211/225 result includes the allowed feedback repair (97/224 first-attempt
 passes and 114 repairs) and must be labelled as a historical reported result,
 not current accuracy or a measured improvement. Current CI and separately
-sealed native task conditions are tracked in `docs/implementation/progress.json`.
+sealed native task conditions are tracked in [the current progress](../../docs/implementation/progress.json).
+
+The contemporaneous report attributes live model execution to a local provider
+proxy. The configured model name and reported usage do not independently verify
+upstream model identity or billing. Missing raw trial records also prevent
+reconstructing the exact executed source or revalidating the historical `448 passed` statement.
+
+## T01 历史实验与冻结输入
+
+下表保留原实验的结果与分母；来源是 [880826c 进展快照](https://github.com/Titans23/forgecode/blob/880826c/docs/implementation/progress.json)，不能转作当前源码或当前模型的成绩。
+
+| 原协议范围 | 结果 | 已记录请求数 |
+|---|---|---|
+| 原始真实仓库 12 槽实验 | 0/12 | 129 |
+| 后续两个已见任务 | 0/2 | 34 |
+| 再次同题验证 | 0/2 | 28 |
+
+原始 216 请求授权不是当前可复用额度。原源码、预算、续跑限制、失败结果、缺失清理证据和未完成 OS 能力按原协议解释；删除当前 Harness 的累计预算不改变历史条件。
+
+`experiments/delivery-repair.json` 仍引用并校验[两个冻结输入](../../docs/implementation/evidence/README.md)。配置、任务清单、测试映射及原始输入用于读取和核对历史，不能自行重新生成或据旧授权发起模型调用。真实任务、参考补丁和隐藏判分属于评测器侧，不进入 Agent 输入。
+
+旧实验的代码和一次性诊断工具可从 [Git 历史快照](https://github.com/Titans23/forgecode/tree/a7a08cc047cdb5e3eb715dc9ef38f540fab6df49)读取。当前用户流程使用公共 CLI/SDK；仓库保留的 RPC 演示、冻结计划核验和原生验收入口服务于兼容测试与明确选择的验证，不属于日常安装步骤。

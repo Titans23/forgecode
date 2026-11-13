@@ -1,5 +1,7 @@
 # ForgeCode 1.0.0 使用指南
 
+按需阅读：[安装](#安装与升级) · [模型配置](#模型配置) · [终端会话](#终端与会话) · [权限与执行](#权限与执行) · [SDK](#sdk-与能力组合) · [插件与交付](#插件开发与交付) · [评测与轨迹](#评测与轨迹) · [开发验证](#开发与验证)。源码讲解和历史资料从[文档导航](../README.md)进入。
+
 ## 安装与升级
 
 需要 Python 3.12+；源码一键安装会准备 Python 和 uv，但要求已安装 Git、Node.js 22.13+。Windows x64/NTFS 与 Linux x64 在本机构建：
@@ -195,6 +197,19 @@ uv run --no-sync python scripts/impl.py audit
 ```
 
 修改时运行相关行为测试；稳定后运行对应回归与质量/契约检查，提交推送并核对 CI。文档变更检查引用、示例和一致性。日志写入 `.local/implementation`，历史 test count 不证明当前版本通过。
+
+常用维护入口如下；一次性复现和性能测量脚本放在忽略的 `.local/implementation`，有长期用途后再纳入仓库。
+
+| 工作 | 维护入口 |
+|---|---|
+| 准备桥、打包本机 CLI | `scripts/build_bridge.py`、`scripts/package_cli.py` |
+| 检查当前仓库和任务依赖 | `scripts/impl.py audit`、`scripts/quality.py` |
+| 同步并核对公共 schema | `scripts/check_contracts.py` |
+| 检查内核依赖边界 | `scripts/check_architecture.py` |
+| 验证最小 SDK、插件和第二环境交付 | `scripts/check_sdk_install.py` |
+| 运行与 CI 一致的检查 | `scripts/ci_checks.py`、`scripts/ci_run.py` |
+
+`tests/implementation` 的 RPC 演示及冻结实验检查用于兼容性回归；`tests/native` 与相应原生探针需要专门的平台条件。保留这些入口不代表日常使用必须执行它们。旧实验范围、结果和原始输入见 [Harbor 历史记录](../../benchmark/harbor/README.md#t01-历史实验与冻结输入)。
 
 ```sh
 uv run --no-sync python scripts/ci_checks.py --suite quality --output .local/implementation/quality.json

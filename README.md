@@ -95,12 +95,13 @@ Journal 是默认执行事实源，记录实际模型请求、思考、工具结
 
 ## 文档与验证
 
-- [安装、配置、CLI、SDK 与插件](docs/install/terminal-quickstart.md)
-- [内核与扩展架构](docs/implementation/architecture.md)
-- [架构 Wiki：概念、源码、流程与同类产品对比](docs/architecture-guide.html)
-- [benchmark 运行与历史成绩](benchmark/README.md)
-- [当前工作和验证范围](docs/implementation/progress.json)
-- [开发约定](AGENTS.md)与[文档索引](docs/README.md)
+| 目标 | 入口 |
+|---|---|
+| 使用 CLI、配置模型、开发插件和交付 Agent | [使用指南](docs/install/terminal-quickstart.md) |
+| 理解内部调用、阅读源码和比较同类方案 | [架构 Wiki](docs/architecture-guide.html) |
+| 运行 benchmark、查看成绩和导出轨迹 | [评测指南](benchmark/README.md) |
+| 维护内核与接口 | [当前架构](docs/implementation/architecture.md)、[开发约定](AGENTS.md) |
+| 查找维护文档与已验证范围 | [文档导航](docs/README.md)、[当前进展](docs/implementation/progress.json) |
 
 CI 分别运行契约、质量、跨平台回归、最小 SDK/插件交付和依赖检查。确定性测试、原生隔离验收与真实模型实验分开报告；完整原生隔离和新模型评测仍需单独验证。
 
