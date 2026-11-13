@@ -86,3 +86,34 @@ def test_cancellation_interrupts_real_backoff_without_another_request(provider):
             await stream.aclose()
     asyncio.run(run())
     assert len(requests) == 1
+
+
+@pytest.mark.parametrize('provider', ['anthropic', 'deepseek', 'openai_responses', 'gemini'])
+def test_failed_http_request_keeps_bounded_redacted_diagnostics(provider):
+    from forge.runtime.model_observation import ObservedModelClient
+    from forge.runtime.turn_state import TurnState
+    requests, records = [], []
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(400, headers={'x-request-id':'request-fixture'}, json={'error':{
+            'type':'invalid_request_error', 'code':'unsupported_parameter', 'param':'thinking',
+            'message':'Unsupported thinking; api_key=offline Bearer sk-sensitive ' + 'x'*2000,
+            'request':{'prompt':'PRIVATE_PROMPT', 'authorization':'PRIVATE_HEADER'}}})
+    state = TurnState()
+    state.request_event_sink = lambda kind, payload: records.append((kind, payload))
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            adapter = client_for(provider, http)
+            with pytest.raises(ModelCallError) as caught:
+                async for _ in ObservedModelClient(adapter, state).stream([{'role':'user','content':'fixture'}]): pass
+            error = caught.value
+            assert error.diagnostics['http_status'] == 400
+            assert error.diagnostics['request_id'] == 'request-fixture'
+            assert error.diagnostics['code'] == 'unsupported_parameter'
+            assert error.diagnostics['param'] == 'thinking' and not error.retryable
+            assert len(error.diagnostics['message']) <= 1024
+            assert all(secret not in str(error) for secret in ('offline', 'sk-sensitive', 'PRIVATE_PROMPT', 'PRIVATE_HEADER'))
+    asyncio.run(run())
+    assert len(requests) == 1
+    failure = next(payload for kind,payload in records if kind == 'model_request_finished')
+    assert failure['outcome'] == 'failed' and failure['error']['request_id'] == 'request-fixture'

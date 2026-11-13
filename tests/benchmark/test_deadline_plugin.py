@@ -68,3 +68,32 @@ def test_deadline_adapter_rejects_duplicate_installation(monkeypatch):
             await first.on_job_end(None)
         assert Trial._run_agent_phase is original
     asyncio.run(run())
+
+
+def test_phase_journal_preserves_both_exceptions_without_changing_harbor_result(tmp_path, monkeypatch):
+    import json
+    from harbor.trial.trial import Trial
+    from harbor.trial.errors import AgentTimeoutError
+    original_first = []
+    def first_only(trial, exc):
+        if not original_first: original_first.append(type(exc).__name__)
+    monkeypatch.setattr(Trial, '_record_exception', first_only)
+    trial = SimpleNamespace(agent=ForgeCodeHarborAgent(logs_dir=tmp_path/'agent'),
+                            paths=SimpleNamespace(trial_dir=tmp_path))
+    def _run_agent_phase(): raise AgentTimeoutError('fixture agent deadline')
+    def _run_shared_verifier(): raise RuntimeError('fixture verifier dependency; token=private-token')
+    async def run():
+        plugin = ForgeCodeDeadlinePlugin()
+        await plugin.on_job_start(SimpleNamespace(config=SimpleNamespace(tasks=[]), _metrics={}))
+        try:
+            for phase in (_run_agent_phase, _run_shared_verifier):
+                try: phase()
+                except Exception as error: Trial._record_exception(trial, error)
+        finally:
+            await plugin.on_job_end(None)
+    asyncio.run(run())
+    assert Trial._record_exception is first_only and original_first == ['AgentTimeoutError']
+    content = (tmp_path/'forgecode-phase-failures.jsonl').read_text()
+    records = [json.loads(line) for line in content.splitlines()]
+    assert [r['phase'] for r in records] == ['agent_execution','verifier']
+    assert 'private-token' not in content

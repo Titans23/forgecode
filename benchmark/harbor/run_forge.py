@@ -269,7 +269,7 @@ def main(argv: list[str] | None = None) -> int:
             ) from exc
     if not instruction:
         raise SystemExit('The benchmark instruction must not be empty.')
-    asyncio.run(
+    result = asyncio.run(
         run_turn(
             args.project.resolve(),
             instruction,
@@ -279,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
             **({'result_path':args.result_file} if args.result_file else {}),
         )
     )
-    return 0
+    return 0 if result.status == 'completed' else 1
 
 
 if __name__ == '__main__':

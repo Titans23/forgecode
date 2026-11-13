@@ -111,7 +111,9 @@ class GeminiModelClient:
                     yield ModelRetryScheduled(attempt + 1, reason, delay)
                     await asyncio.sleep(delay)
                     continue
-                raise ModelCallError(reason, f'Gemini transport failed ({status or reason})', retryable=retryable and not emitted) from error
+                from forge.runtime.provider_errors import provider_failure
+                raise provider_failure(error, reason, f'Gemini transport failed ({status or reason})',
+                    retryable=retryable and not emitted, api_key=self._key) from error
 
     async def _stream(self, arguments):
         from forge.observability.usage_ledger import token_usage
@@ -120,7 +122,14 @@ class GeminiModelClient:
         url = self.base_url + '/models/' + quote(self.model.removeprefix('models/'), safe='-._') + ':streamGenerateContent'
         async with self._client.stream('POST', url, params={'alt': 'sse'},
                 headers={'x-goog-api-key': self._key}, json=arguments) as response:
-            response.raise_for_status()
+            if response.is_error:
+                from forge.runtime.provider_errors import read_error_body
+                body = await read_error_body(response)
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as error:
+                    error.body = body
+                    raise
             async for line in response.aiter_lines():
                 if not line.startswith('data:'):
                     continue

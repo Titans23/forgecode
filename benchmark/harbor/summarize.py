@@ -297,6 +297,7 @@ class TrialAssessment:
     evaluation_eligible: bool
     failure_type: str = ''
     observed_faults: tuple[str, ...] = ()
+    phase_failures: tuple[dict, ...] = ()
 
 
 def _valid_reward(value: object) -> bool:
@@ -349,12 +350,21 @@ def _trial_payloads(trial_dir: Path) -> tuple[dict[str, Any], ...]:
     return tuple(turns.values())
 
 
+def _phase_failures(trial_dir):
+    from benchmark.adapters.protocol import phase_failures_from_jsonl
+    path = trial_dir / 'forgecode-phase-failures.jsonl'
+    if not path.is_file():
+        return ()
+    return phase_failures_from_jsonl(path.read_text(encoding='utf-8'))
+
+
 def assess_trial(trial_dir: Path, result: dict[str, Any], payloads: tuple[dict[str, Any], ...]) -> TrialAssessment:
     from benchmark.adapters.protocol import classify_result
     terminal = payloads[-1] if payloads else {}
     if _missing_result_type(trial_dir) == 'AgentTimeout':
         terminal = {**terminal, 'status': 'timed_out'}
-    classified = classify_result(result, terminal, verifier_fault=_verifier_environment_failure(trial_dir))
+    classified = classify_result(result, terminal, verifier_fault=_verifier_environment_failure(trial_dir),
+                                 phase_failures=_phase_failures(trial_dir))
     legacy = {'passed': 'pass', 'acceptance_failed': 'agent_failure',
               'model_failure': 'model_protocol_failure', 'budget_exhausted': 'agent_timeout',
               'grader_failure': 'verifier_environment_failure',
@@ -364,7 +374,7 @@ def assess_trial(trial_dir: Path, result: dict[str, Any], payloads: tuple[dict[s
     eligible = classified['grading_state'] == 'graded' and classified['category'] in {'passed', 'acceptance_failed', 'budget_exhausted'}
     return TrialAssessment(legacy[classified['category']], verifier, eligible,
         classified['termination_reason'] if classified['category'] not in {'passed', 'acceptance_failed'} else '',
-        tuple(classified['observed_faults']))
+        tuple(classified['observed_faults']), tuple(classified['phase_failures']))
 
 
 def _empty_language_stats() -> dict[str, int | float]:
@@ -511,7 +521,8 @@ def evaluation_report(run_dir: Path) -> dict:
         if _missing_result_type(directory) == 'AgentTimeout':
             terminal = {**terminal, 'status': 'timed_out'}
         classification = classify_result(result, terminal, verifier_fault=_verifier_environment_failure(directory),
-            cancelled=controller['status'] == 'cancelled' and not result.get('finished_at'))
+            cancelled=controller['status'] == 'cancelled' and not result.get('finished_at'),
+            phase_failures=_phase_failures(directory))
         trials.setdefault(matches[0], []).append({**classification, 'trial': directory.name,
             'official_result': str((directory / 'result.json').relative_to(run_dir)),
             'evidence': {'exception': result.get('exception_info'), 'agent_terminal': terminal}})

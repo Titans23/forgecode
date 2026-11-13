@@ -96,3 +96,12 @@ def test_frozen_execution_cannot_be_silently_overridden(tmp_path):
     with pytest.raises(ValueError, match='Frozen evaluation execution'):
         asyncio.run(run_turn(tmp_path, 'No model call', resume=False,
             frozen_configuration={'execution': {'sandbox': 'read-only', 'approval': 'never', 'profile': 'evaluation'}}))
+
+
+@pytest.mark.parametrize('status, exit_code', [('completed',0), ('failed',1), ('partial',1), ('blocked',1)])
+def test_benchmark_exit_status_matches_internal_terminal_result(monkeypatch, status, exit_code):
+    from types import SimpleNamespace
+    from benchmark.harbor import run_forge
+    async def run(*a, **kw): return SimpleNamespace(status=status)
+    monkeypatch.setattr(run_forge, 'run_turn', run)
+    assert run_forge.main(['--message','offline fixture']) == exit_code

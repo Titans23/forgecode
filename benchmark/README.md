@@ -40,11 +40,15 @@ uv run --no-sync python -m benchmark run terminal-bench-2 "${eval_args[@]}"
 
 Harness 没有累计请求、工具、token 或回合总时长预算。官方任务期限、单次操作超时和取消独立保留。`--max-retries` 是任务级重试，模型传输重试另有策略。新运行默认 `--completion-policy normal`，官方 grader 决定成绩；显式 strict 才启用 Forge 完成门禁。旧冻结配置缺少该字段时保留原 strict 语义。
 
+评测与 CLI/SDK 通过同一公共运行入口装配权限、工具和插件。官方剩余时间进入请求上下文，保留清理与日志导出时间；容器 CPU/内存配额用于提示实际可用资源。有限后台命令需完成或停止，显式会话服务可以移交 verifier，最终由任务容器销毁回收。
+
 ## Terminal-Bench 2.0：直接使用官方镜像
 
 默认直接使用每道任务 `task.toml` 声明的官方预构建镜像。Harbor 在容器可写层安装 ForgeCode，不提交派生镜像。普通 uv 缓存不等于预热镜像。
 
 不使用 `--prepare-only`、`--prepared-images`、`--force-build`，不运行额外 docker build/commit，除非调用方明确选择该模式。缺少预构建镜像时保持未验证；安装/联网失败应诊断原原因，不能自动换到预热路径。
+
+默认安装只对 APT 镜像同步/临时网络失败增加最多两次重试；权限、签名或配置错误直接失败。curl/uv 下载重试同样有上限，均受 Harbor 安装阶段期限约束；不改官方镜像或 verifier。
 
 ```bash
 docker context show
@@ -92,6 +96,8 @@ forge eval compare ./baseline ./candidate --change model
 `--change` 可为 model、plugin、harness。比较列出任务、模型、源码、依赖、完成策略和环境差异；缺少镜像/资源证据时不称为受控比较。一次比较不提供统计显著性或因果优势结论。
 
 结果保留所有尝试、未启动题、未判分题和基础设施错误。缺少终态/用量时完整总量为 unknown，已知小计另列；价格表只能产生估算费用。Ctrl+C 与 cancel 通知所属控制器清理进程组及有所有权凭据的容器，不自动重跑付费任务。
+
+内部未完成/失败结果返回非零退出码，官方 reward 仍独立保存。`forgecode-phase-failures.jsonl` 保留 Harbor 后续错误：Agent 超时和 verifier 故障可以同时出现，汇总分别保留执行与判分状态，不用前一个异常覆盖后一个。
 
 Journal 是完整私有事实源；ATIF v1.7 和 OpenAI messages JSONL 是离线脱敏导出，失败、取消和部分响应也会保留。输出目录不可覆盖，原记录保持不变，公共基准输出标记 evaluation-only。产品不提供训练/蒸馏导出。
 

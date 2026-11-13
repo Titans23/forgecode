@@ -182,8 +182,10 @@ class NativeModelClient:
                     yield ModelRetryScheduled(attempt + 1, reason, delay)
                     await asyncio.sleep(delay)
                     continue
-                raise ModelCallError(reason, f'{self.provider} request failed ({status or reason})',
-                                     retryable=bool(retryable) and not semantic_output) from error
+                from forge.runtime.provider_errors import provider_failure
+                raise provider_failure(error, reason, f'{self.provider} request failed ({status or reason})',
+                    retryable=bool(retryable) and not semantic_output,
+                    api_key=getattr(self._client, 'api_key', None)) from error
             finally:
                 self.health.probe_inflight = False
 

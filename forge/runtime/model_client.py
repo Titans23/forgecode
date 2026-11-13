@@ -254,10 +254,12 @@ class AnthropicModelClient:
                 if not can_retry:
                     if response_started and retryable:
                         reason = 'stream_interrupted'
-                    raise ModelCallError(
+                    from forge.runtime.provider_errors import provider_failure
+                    raise provider_failure(error,
                         reason,
                         model_error_message(reason, response_started),
                         retryable=retryable and not response_started,
+                        api_key=getattr(self._client, 'api_key', None),
                     ) from error
 
                 yield ModelRetryScheduled(

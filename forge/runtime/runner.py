@@ -286,9 +286,11 @@ class TurnRunner:
                          'command': item.command[:160], 'observed_success': item.success,
                          'freshness': 'current' if current else 'unknown',
                          'requirements': item.requirement_ids})
-        return ('[Executed check state]\nHistorical success is not current proof. '
-                'Use verify.check_id to rerun a definition; task_get contains full history.\n'
-                + json.dumps(rows, ensure_ascii=False))
+        guidance = ('Historical success is not current proof. Use verify.check_id to rerun a definition.'
+            if self.conversation.completion_gate is not None else
+            'Recorded results describe what ran. A freshness change alone is not a request to rerun; '
+            'rerun only if a relevant change, failure or user requirement justifies it.')
+        return '[Executed check state]\n' + guidance + ' task_get contains full history.\n' + json.dumps(rows, ensure_ascii=False)
 
     async def _compact(self, system: str, tools, *, force: bool = False) -> str | None:
         c = self.conversation

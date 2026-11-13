@@ -15,6 +15,8 @@ MODEL_FAILURE_REASONS = {
     'authentication_error', 'invalid_model_protocol', 'conflicting_model_content',
     'provider_protocol_error', 'model_protocol_error', 'overloaded', 'provider_error',
     'http_401', 'http_403', 'http_429',
+    'request_rejected', 'context_overflow', 'context_length_exceeded', 'invalid_response_json',
+    'response_failed', 'output_continuation_exhausted',
 }
 CATEGORIES = ('passed', 'acceptance_failed', 'model_failure', 'harness_failure',
               'environment_failure', 'grader_failure', 'budget_exhausted',
@@ -87,30 +89,37 @@ def reward_result(value):
     return text or '0', 'pass' if reward == 1 else 'fail'
 
 
-def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled=False):
+def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled=False, phase_failures=()):
     """Classify terminal evidence; recovered errors never replace the final outcome."""
     result, agent_status = result or {}, agent_status or {}
     exception = result.get('exception_info') or {}
     error = exception.get('exception_type', '')
     reason = agent_status.get('stop_reason') or ''
     status = agent_status.get('status', 'indeterminate')
-    failure_stage = next((phase for phase in ('verifier', 'agent_execution', 'agent_setup', 'environment_setup')
-                          if error and result.get(phase)), None)
+    failure_stage = next((item['phase'] for item in phase_failures if item.get('exception_type') == error), None)
+    if failure_stage is None:
+        failure_stage = ('agent_execution' if error == 'AgentTimeoutError' else
+            'agent_setup' if error.startswith('AgentSetup') else 'environment_setup' if error.startswith('Environment') else
+            'verifier' if error.startswith(('Verifier', 'RewardFile')) else
+            next((phase for phase in ('verifier', 'agent_execution', 'agent_setup', 'environment_setup')
+                  if error and result.get(phase)), None))
     rewards = (result.get('verifier_result') or {}).get('rewards') or {}
     reward, grade = reward_result(rewards.get('reward'))
     grader_failure = bool(verifier_fault or error.startswith(('Verifier', 'RewardFile'))
-                          or error in {'GraderError', 'InvalidRewardError'} or failure_stage == 'verifier')
+                          or error in {'GraderError', 'InvalidRewardError'} or failure_stage == 'verifier'
+                          or any(item.get('phase') == 'verifier' for item in phase_failures))
     grading = 'grader_error' if grader_failure else 'graded' if reward is not None else 'unscored'
     # Raw reward remains evidence even when the grader itself failed.
     verdict = grade if grading == 'graded' else 'unknown'
-    terminal_faults = [value for value in (reason, error, verifier_fault) if value]
-    if reason.endswith('_budget_exhausted') or error == 'AgentTimeoutError' or status in {'timed_out', 'budget_exhausted'}:
+    terminal_faults = list(dict.fromkeys(value for value in
+        (reason, error, verifier_fault, *(item.get('exception_type') for item in phase_failures)) if value))
+    if reason.endswith('_budget_exhausted') or 'AgentTimeoutError' in terminal_faults or status in {'timed_out', 'budget_exhausted'}:
         category, execution, termination = 'budget_exhausted', 'finished', reason or 'agent_deadline'
     elif cancelled or status == 'cancelled' or reason == 'cancelled':
         category, execution, termination = 'cancelled_or_incomplete', 'cancelled', 'cancelled'
     elif grader_failure:
         category, execution, termination = 'grader_failure', 'finished', verifier_fault or error
-    elif reason in MODEL_FAILURE_REASONS or error.startswith(('Api', 'API', 'Anthropic', 'Provider', 'ModelCall', 'ModelProtocol', 'RateLimit', 'Authentication')):
+    elif reason in MODEL_FAILURE_REASONS or reason.startswith('http_') or error.startswith(('Api', 'API', 'Anthropic', 'Provider', 'ModelCall', 'ModelProtocol', 'RateLimit', 'Authentication')):
         category, execution, termination = 'model_failure', 'error', reason or error
     elif error.startswith(('Environment', 'AgentSetup', 'Docker', 'ImageBuild')) or failure_stage in {'environment_setup', 'agent_setup'}:
         category, execution, termination = 'environment_failure', 'error', error
@@ -127,12 +136,12 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
     return {'category': category, 'execution_state': execution, 'grading_state': grading,
             'grade_result': verdict, 'termination_reason': termination, 'agent_outcome': status,
             'raw_reward_decimal': reward, 'official_rewards': rewards, 'observed_faults': terminal_faults,
-            'failure_stage': failure_stage}
+            'failure_stage': failure_stage, 'phase_failures': list(phase_failures)}
 
 
-def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner'):
+def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner', phase_failures=()):
     """Shell exit, internal completion and authoritative verifier reward are separate."""
-    classified = classify_result(result, agent_status)
+    classified = classify_result(result, agent_status, phase_failures=phase_failures)
     exception = (result or {}).get('exception_info') or {}
     error_type = exception.get('exception_type', '')
     rewards = classified['official_rewards']
@@ -157,7 +166,20 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
         'reason':'missing_or_invalid_reward' if grade_state=='unscored' else error_type or None,
         'execution_label':'official-environment','provenance':provenance,
         'official_rewards':rewards, 'category': classified['category'],
-        'termination_reason': classified['termination_reason'], 'observed_faults': classified['observed_faults']}
+        'termination_reason': classified['termination_reason'], 'observed_faults': classified['observed_faults'],
+        'phase_failures': classified['phase_failures']}
+
+
+def phase_failures_from_jsonl(raw):
+    records = []
+    for line in raw.splitlines():
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(record, dict) and isinstance(record.get('phase'), str) and isinstance(record.get('exception_type'), str):
+            records.append(record)
+    return tuple(records)
 
 
 def collect_harbor(root, *, task_name, task_checksum, runner_exit):
@@ -166,7 +188,7 @@ def collect_harbor(root, *, task_name, task_checksum, runner_exit):
     candidates = [name for name in captured if name.count('/')==1 and name.endswith('/result.json')]
     if len(candidates) > 1:
         raise ContractError('Multiple Harbor trials for a single attempt', kind='EVENT_CONFLICT', code=-32010)
-    result, agent_status = None, None
+    result, agent_status, phase_failures = None, None, ()
     if candidates:
         name = candidates[0]
         from harbor.models.trial.result import TrialResult
@@ -178,7 +200,9 @@ def collect_harbor(root, *, task_name, task_checksum, runner_exit):
         status_file = name.rsplit('/',1)[0] + '/agent/forgecode-result.json'
         if status_file in captured:
             agent_status = strict_loads(captured[status_file])
+        phase_failures = phase_failures_from_jsonl(captured.get(
+            name.rsplit('/',1)[0] + '/forgecode-phase-failures.jsonl', b''))
     artifact_bytes = {k.split('/',1)[1]:v for k,v in captured.items() if '/artifacts/' in k or k.endswith('/agent/forgecode-pregrade.patch')}
-    return {'files':captured,'result':result,'agent_status':agent_status,'runner_exit':runner_exit,
+    return {'files':captured,'result':result,'agent_status':agent_status,'runner_exit':runner_exit, 'phase_failures':phase_failures,
         'collection_hash':content_hash(captured),'artifact_hash':content_hash(artifact_bytes),
         'artifact_present':bool(artifact_bytes)}

@@ -47,10 +47,11 @@ class ModelOutputTruncatedError(ModelProtocolError):
 class ModelCallError(RuntimeError):
     '''Provider-neutral model request failure exposed to the runtime.'''
 
-    def __init__(self, reason: str, message: str, *, retryable: bool) -> None:
+    def __init__(self, reason: str, message: str, *, retryable: bool, diagnostics: dict | None = None) -> None:
         super().__init__(message)
         self.reason = reason
         self.retryable = retryable
+        self.diagnostics = diagnostics or {}
 
 
 @runtime_checkable

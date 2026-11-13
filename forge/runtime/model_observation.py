@@ -124,7 +124,7 @@ class ObservedModelClient:
             if chunk_bytes >= 16_384 or monotonic() - last_chunk_flush >= 1:
                 flush_chunks()
 
-        def end_request(outcome, reason=''):
+        def end_request(outcome, reason='', diagnostics=None):
             nonlocal request
             if request is not None:
                 flush_chunks()
@@ -132,6 +132,7 @@ class ObservedModelClient:
                     self.state.record_unknown_usage()
                 emit('model_request_finished', {
                     **request, 'outcome': outcome, 'reason': reason,
+                    **({'error': diagnostics} if diagnostics else {}),
                     'duration_seconds': monotonic() - request_started,
                     'usage': asdict(usage) if usage is not None else None,
                     'raw_usage': raw_usage, 'provider_request_id': provider_request_id, 'returned_model': returned_model,
@@ -235,7 +236,7 @@ class ObservedModelClient:
             end_request('cancelled', 'request_cancelled')
             raise
         except BaseException as error:
-            end_request('failed', getattr(error, 'reason', type(error).__name__))
+            end_request('failed', getattr(error, 'reason', type(error).__name__), getattr(error, 'diagnostics', None))
             raise
         finally:
             end_request('indeterminate', 'stream_closed')

@@ -164,7 +164,7 @@ class HarborAdapter:
             environment_hash=spec['grader']['environment']['sha256'],task_revision=spec['dataset']['task_revisions'][task_id],
             artifact_hash=collected['artifact_hash'])
         return {'cache_key':identity,**normalize(runner_exit=collected['runner_exit'],result=collected['result'],
-            agent_status=collected['agent_status'])}
+            agent_status=collected['agent_status'], phase_failures=collected.get('phase_failures', ())) }
 
 
 class HarborExecutor:

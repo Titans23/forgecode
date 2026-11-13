@@ -35,6 +35,31 @@ def test_recovered_errors_and_nonzero_tool_exit_do_not_replace_final_success():
     assert classify_result({'verifier_result': {'rewards': {'reward': 1}}}, status)['category'] == 'passed'
 
 
+def test_agent_timeout_does_not_relabel_a_successful_verifier_as_broken():
+    from benchmark.adapters.protocol import classify_result
+    result = {'exception_info':{'exception_type':'AgentTimeoutError'},
+              'agent_execution':{'started_at':'before'}, 'verifier':{'started_at':'after'},
+              'verifier_result':{'rewards':{'reward':1}}}
+    classified = classify_result(result)
+    assert classified['category'] == 'budget_exhausted'
+    assert classified['grading_state'] == 'graded' and classified['grade_result'] == 'pass'
+
+
+def test_later_verifier_failure_and_earlier_timeout_both_survive_summary(tmp_path):
+    path = trial(tmp_path, reward=None, reason='agent_deadline')
+    official = json.loads((path/'result.json').read_text())
+    official['exception_info'] = {'exception_type':'AgentTimeoutError'}
+    (path/'result.json').write_text(json.dumps(official))
+    faults = [{'phase':'agent_execution','exception_type':'AgentTimeoutError'},
+              {'phase':'verifier','exception_type':'RewardFileNotFoundError'}]
+    (path/'forgecode-phase-failures.jsonl').write_text('\n'.join(json.dumps(f) for f in faults)+'\n')
+    before = (path/'result.json').read_bytes()
+    assessment = summarize_run(tmp_path).trial_assessments[path.name]
+    assert assessment['primary_outcome'] == 'agent_timeout' and assessment['verifier_state'] == 'environment_failed'
+    assert set(assessment['observed_faults']) >= {'AgentTimeoutError','RewardFileNotFoundError'}
+    assert list(assessment['phase_failures']) == faults and (path/'result.json').read_bytes() == before
+
+
 @pytest.mark.parametrize('stage,category', [('environment_setup', 'environment_failure'),
     ('agent_setup', 'environment_failure'), ('agent_execution', 'harness_failure'), ('verifier', 'grader_failure')])
 def test_generic_official_exception_uses_structured_phase(stage, category):

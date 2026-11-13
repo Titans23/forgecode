@@ -33,7 +33,9 @@ build supplied source, install dependencies and generate output files or dataset
 Preserve supplied inputs, simulators and tests unless the task permits changes.
 Create the requested artifacts at the exact paths.
 
-Use verify to run the strongest available behavioral check on the final artifact.
+Choose a focused behavioral check appropriate to the task and remaining time.
+After it passes, repeat or broaden checks only for a relevant change or unresolved
+failure. Do not spend the remaining task time repeating unchanged expensive checks.
 A test entrypoint must actually execute its tests, not merely import definitions.
 Assert required thresholds against the specification or independent reference;
 do not mask failures or weaken expectations. Missing executables may need building.
@@ -190,32 +192,42 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
                 if result.return_code != 0 or not re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', baseline):
                     raise RuntimeError('Pre-agent Git baseline unavailable: ' + str(getattr(result, 'stderr', '') or result.stdout)[-4096:])
                 baseline_file.write_text(baseline + '\n', encoding='utf-8')
-        await self.exec_as_agent(
-            environment,
-            command=self._run_command(
-                resume=resume,
-                message_file=_INSTRUCTION_PATH,
-            ),
-            env={'FORGECODE_DISABLE_GLOBAL_SKILLS': '1'},
-        )
+        execution_error = None
+        try:
+            await self.exec_as_agent(environment,
+                command=self._run_command(resume=resume, message_file=_INSTRUCTION_PATH),
+                env={'FORGECODE_DISABLE_GLOBAL_SKILLS': '1'})
+        except Exception as error:
+            execution_error = error
         if self._frozen_configuration:
-            # Include new deliverable files without committing or changing their bytes.
-            result=await environment.exec(command=_patch_capture_command(baseline))
-            patch = (result.stdout or '').encode()
-            omitted = re.fullmatch(rb'FORGECODE_PATCH_BYTES ([0-9]+)\s*', patch) if result.return_code == 0 else None
-            diagnostic = {'baseline': baseline, 'return_code': result.return_code,
-                          'patch_bytes': int(omitted[1]) if omitted else len(patch),
-                          'status': 'failed' if result.return_code else 'omitted_size_limit' if omitted else 'captured',
-                          'stderr': (getattr(result, 'stderr', '') or '')[-4096:],
-                          'error_output': (result.stdout or '')[-4096:] if result.return_code else ''}
-            (self.logs_dir / 'forgecode-patch-capture.json').write_text(json.dumps(diagnostic), encoding='utf-8')
-            if result.return_code!=0:
-                raise RuntimeError('Pre-grader tracked patch capture unavailable: ' + json.dumps(diagnostic))
-            patch_path = self.logs_dir / 'forgecode-pregrade.patch'
-            if omitted:
-                patch_path.unlink(missing_ok=True)
-            else:
-                patch_path.write_bytes(patch)
+            try:
+                await self._capture_patch(environment, baseline)
+            except Exception as error:
+                if execution_error is not None:
+                    execution_error.add_note(str(error))
+                    raise execution_error from error
+                raise
+        if execution_error is not None:
+            raise execution_error
+
+    async def _capture_patch(self, environment, baseline):
+        # Include new deliverables even after agent failure, without changing their bytes.
+        result = await environment.exec(command=_patch_capture_command(baseline))
+        patch = (result.stdout or '').encode()
+        omitted = re.fullmatch(rb'FORGECODE_PATCH_BYTES ([0-9]+)\s*', patch) if result.return_code == 0 else None
+        diagnostic = {'baseline':baseline, 'return_code':result.return_code,
+            'patch_bytes':int(omitted[1]) if omitted else len(patch),
+            'status':'failed' if result.return_code else 'omitted_size_limit' if omitted else 'captured',
+            'stderr':(getattr(result, 'stderr', '') or '')[-4096:],
+            'error_output':(result.stdout or '')[-4096:] if result.return_code else ''}
+        (self.logs_dir/'forgecode-patch-capture.json').write_text(json.dumps(diagnostic), encoding='utf-8')
+        if result.return_code != 0:
+            raise RuntimeError('Pre-grader tracked patch capture unavailable: ' + json.dumps(diagnostic))
+        patch_path = self.logs_dir/'forgecode-pregrade.patch'
+        if omitted:
+            patch_path.unlink(missing_ok=True)
+        else:
+            patch_path.write_bytes(patch)
 
     async def _prepare_install_spec(self, environment: BaseEnvironment) -> str:
         if self._package is not None:
@@ -482,8 +494,18 @@ def _prerequisite_install_command() -> str:
     # curl bootstraps pinned uv; git captures the baseline and final patch.
     return ('if ! command -v curl >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then '
         + bullseye_security_archive() +
-        'apt-get -o Acquire::Retries=2 -o APT::Update::Error-Mode=any update; '
-        'DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends ca-certificates curl git; '
+        'forge_apt() { local attempt=1 output code; while true; do '
+        'if output=$(apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 '
+        '-o Acquire::http::No-Cache=true -o Acquire::https::No-Cache=true -o Acquire::PDiffs=false "$@" 2>&1); '
+        'then printf "%s\\n" "$output"; return 0; else code=$?; fi; printf "%s\\n" "$output"; '
+        'case "$output" in *"Hash Sum mismatch"*|*"File has unexpected size"*|*"Temporary failure resolving"*|'
+        '*"Could not connect"*|*"Connection failed"*|*"Connection timed out"*|*"502 Bad Gateway"*|*"503 Service"*) ;; '
+        '*) return "$code";; esac; '
+        'if [ "$attempt" -ge 3 ]; then return "$code"; fi; '
+        'printf "ForgeCode prerequisite retry %s/2\\n" "$attempt"; sleep "$((attempt * 2))"; '
+        'attempt="$((attempt + 1))"; done; }; '
+        'forge_apt -o APT::Update::Error-Mode=any update; '
+        'DEBIAN_FRONTEND=noninteractive forge_apt install -y --no-install-recommends ca-certificates curl git; '
         'fi; ')
 
 
@@ -492,7 +514,9 @@ def _locked_install_command(source: str) -> str:
         f'export UV_PROJECT_ENVIRONMENT={shlex.quote(_AGENT_ROOT+"/.venv")}; '
         f'export UV_PYTHON_INSTALL_DIR={shlex.quote(_CACHE_DIR+"/python")}; '
         f'UV_BIN={shlex.quote(_AGENT_ROOT+"/bin/uv")}; '
-        'curl --proto "=https" --tlsv1.2 -LsSf https://astral.sh/uv/0.12.5/install.sh | '
+        'export UV_HTTP_RETRIES=2 UV_HTTP_TIMEOUT=60; '
+        'curl --proto "=https" --tlsv1.2 --retry 2 --retry-delay 2 --retry-connrefused '
+        '--connect-timeout 15 --max-time 60 -LsSf https://astral.sh/uv/0.12.5/install.sh | '
         f'UV_UNMANAGED_INSTALL={shlex.quote(_AGENT_ROOT+"/bin")} sh; '
         '"$UV_BIN" --version | grep -Eq "^uv 0[.]12[.]5( |$)"; '
         '"$UV_BIN" python install 3.12.13; '

@@ -50,9 +50,36 @@ def test_minimal_task_tools_are_installed_only_when_missing(tmp_path, present):
     command = 'cd "$FIXTURE_PATH"; export PATH="$PWD"; ' + _prerequisite_install_command()
     subprocess.run([str(_bash()), '--noprofile', '--norc', '-e', '-c', command],
         env={**os.environ, 'FIXTURE_PATH': commands.as_posix(), 'CALL_LOG': log.as_posix()}, check=True)
+    common = ('-o Acquire::Retries=0 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 '
+              '-o Acquire::http::No-Cache=true -o Acquire::https::No-Cache=true -o Acquire::PDiffs=false ')
     assert (log.read_text().splitlines() if log.exists() else []) == ([] if len(present) == 2 else [
-        '-o Acquire::Retries=2 -o APT::Update::Error-Mode=any update',
-        '-o Acquire::Retries=2 install -y --no-install-recommends ca-certificates curl git'])
+        common + '-o APT::Update::Error-Mode=any update',
+        common + 'install -y --no-install-recommends ca-certificates curl git'])
+
+
+@pytest.mark.parametrize('error, succeeds, expected_calls', [
+    ('Hash Sum mismatch',True,4), ('503 Service Unavailable',False,3), ('Permission denied',False,1)])
+def test_prerequisite_retry_is_bounded_and_only_for_transient_failures(tmp_path, error, succeeds, expected_calls):
+    import subprocess
+    from benchmark.harbor.forgecode_agent import _prerequisite_install_command
+    commands = tmp_path/'bin'
+    commands.mkdir()
+    apt = commands/'apt-get'
+    apt.write_text('#!/bin/sh\nn=0; if [ -f "$CALL_LOG" ]; then read -r n < "$CALL_LOG"; fi\n'
+        'n=$((n+1)); printf "%s\\n" "$n" > "$CALL_LOG"\n'
+        'if [ "$RECOVER" = yes ] && [ "$n" -ge 3 ]; then exit 0; fi\n'
+        'printf "%s\\n" "$FAILURE"; exit 100\n', newline='\n')
+    apt.chmod(0o755)
+    sleep = commands/'sleep'
+    sleep.write_text('#!/bin/sh\nexit 0\n', newline='\n')
+    sleep.chmod(0o755)
+    log = tmp_path/'calls'
+    command = 'cd "$FIXTURE_PATH"; export PATH="$PWD"; ' + _prerequisite_install_command()
+    result = subprocess.run([str(_bash()), '--noprofile','--norc','-e','-c',command], capture_output=True,
+        env={**os.environ, 'FIXTURE_PATH':commands.as_posix(), 'CALL_LOG':log.as_posix(),
+             'FAILURE':error, 'RECOVER':'yes' if succeeds else 'no'})
+    assert result.returncode == (0 if succeeds else 100), result.stderr
+    assert int(log.read_text()) == expected_calls
 
 
 def test_bullseye_security_archive_preserves_transport_and_other_sources(tmp_path):
@@ -144,6 +171,15 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     with pytest.raises(RuntimeError, match='synthetic missing Git object'):
         asyncio.run(agent.run('failed capture', SimpleNamespace(upload_file=upload, exec=failed_diff), AgentContext()))
     assert json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())['return_code'] == 128
+    async def agent_failed(*args, **kwargs):
+        raise RuntimeError('Internal model failure returned exit 1')
+    monkeypatch.setattr(agent, 'exec_as_agent', agent_failed)
+    with pytest.raises(RuntimeError, match='Internal model failure'):
+        asyncio.run(agent.run('agent failed', SimpleNamespace(upload_file=upload, exec=empty_diff), AgentContext()))
+    assert (tmp_path / 'forgecode-pregrade.patch').read_bytes() == b''
+    with pytest.raises(RuntimeError, match='Internal model failure') as caught:
+        asyncio.run(agent.run('two failures', SimpleNamespace(upload_file=upload, exec=failed_diff), AgentContext()))
+    assert 'synthetic missing Git object' in str(caught.value.__cause__)
 
 
 def test_prepared_agent_checks_installation_without_download_or_upload(tmp_path, monkeypatch):
