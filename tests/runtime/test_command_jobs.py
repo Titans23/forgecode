@@ -364,6 +364,10 @@ def test_session_service_survives_answer_and_verification_but_not_session_close(
             with socket.create_connection(('127.0.0.1', port), timeout=2):
                 pass
             assert (await handle.run('Confirm the already running service.')).status == 'completed'
+            from forge.sessions.trajectory import journal_to_openai
+            live = journal_to_openai(handle.journal.path)
+            assert live[0]['metadata']['completeness']['active_jobs']
+            assert not live[0]['metadata']['completeness']['record_closed']
             with pytest.raises(RuntimeError, match='command jobs'):
                 await handle.set_permissions('read-only')
         finally:
@@ -383,6 +387,18 @@ def test_session_service_survives_answer_and_verification_but_not_session_close(
         ended = [handle.conversation.session_store._payload(r, handle.conversation.session_journal.path)
                  for r in records if r['type'] == 'job_finished']
         assert ended[-1]['state'] == 'cancelled' and ended[-1]['lifetime'] == 'session'
+        from forge.sessions.trajectory import journal_to_atif, journal_to_openai
+        rows = journal_to_openai(handle.journal.path)
+        job_events = rows[0]['metadata']['command_jobs']
+        assert [r['type'] for r in job_events] == ['job_started','job_retained','job_finished']
+        assert job_events[-1]['payload']['state'] == 'cancelled'
+        assert job_events[-1]['payload']['origin_turn_id'] == rows[0]['metadata']['turn_id']
+        assert job_events[-1]['recorded_turn_id'] != rows[0]['metadata']['turn_id']
+        assert rows[0]['metadata']['completeness']['record_closed']
+        assert not rows[-1]['metadata']['command_jobs']
+        atif = journal_to_atif(handle.journal.path)
+        service_end = [s for s in atif['steps'] if s['message'] == 'job_finished']
+        assert service_end[-1]['extra']['command_job']['state'] == 'cancelled'
     asyncio.run(run())
 
 

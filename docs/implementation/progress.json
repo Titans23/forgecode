@@ -9,51 +9,24 @@
   "scope": "Lightweight extensible Python Agent Harness; coding and CLI are default applications. Natural-language plugins, frozen benchmarks and complete failed/cancelled trajectories remain; distillation and training code are removed.",
   "capabilities": {
     "core": "One model/tool loop, permission checks, context, cancellation and Journal; no workspace, coding components, Node, YAML or model SDK required on import.",
-    "coding": "Optional tasks/repository/skills/hooks/mcp/checkpoints; selected tool construction, bounded parallel batches, background commands and file mutation reservations.",
+    "coding": "Optional tasks/repository/skills/hooks/mcp/checkpoints; bounded parallel batches, cancellable finite jobs and full-access session services. Confirmed job cancellation stays local; session exit reaps owned services.",
     "defaults": "Host full-access + never. No independent intent routing, full inventory, automatic checkpoints, mandatory completion gate or cumulative Harness budget.",
     "plugins": "Explicit trusted PluginHost; tools, services, providers, hooks, children and completion checks. Fixed independent acceptance and portable delivery require rechecking in the new environment.",
-    "evaluation": "Official task images, frozen conditions, independent grader. New normal/strict policy is explicit; missing historical field retains strict.",
-    "trajectories": "Journal-only default; complete model/tool facts and partial failures. Offline ATIF/OpenAI messages exports; no training or distillation framework.",
+    "evaluation": "Official task images and frozen conditions use public open_runtime; caller deadlines, real cgroup resource facts and explicit service handoff preserve the independent grader. Phase failures and raw rewards remain separate. Normal/strict is explicit; missing historical field retains strict.",
+    "trajectories": "Journal-only default; complete model/tool facts, bounded redacted provider diagnostics, failed/cancelled attempts and background job lifecycle. Offline ATIF/OpenAI exports preserve origin turns and active/transferred jobs; no training or distillation framework.",
     "legacy": "Old RPC/SQLite and history readers remain opt-in; modern worker/runtime/benchmark code does not import the old control plane."
   },
   "last_verified_baseline": {
-    "commit": "880826c",
-    "product_version": "0.1.2",
+    "commit": "377d2575f457fe2e57638053384a66162eb697e9",
+    "product_version": "1.0.0",
     "ci": "success",
-    "url": "https://github.com/Titans23/forgecode/actions/runs/43184550682",
-    "scope": "All six CI jobs, minimal SDK and second-environment plugin checks, real installed Windows terminal/resize/cancel smoke. No paid model calls or existing project ACL changes.",
-    "checkpoints": [
-      {
-        "commit": "ac1338d",
-        "ci": "success",
-        "run_id": 43175644310
-      },
-      {
-        "commit": "a60d389",
-        "ci": "success",
-        "run_id": 43177615015
-      },
-      {
-        "commit": "50aedbe",
-        "ci": "success",
-        "run_id": 43181423237
-      },
-      {
-        "commit": "ce8ca05",
-        "ci": "success",
-        "run_id": 43183363266
-      },
-      {
-        "commit": "880826c",
-        "ci": "success",
-        "run_id": 43184550682
-      }
-    ]
+    "url": "https://github.com/Titans23/forgecode/actions/runs/43367836609",
+    "scope": "All six CI jobs passed for operation-local cancellation and public benchmark runtime assembly. Later service, waiting, diagnostics and export changes require their own exact-commit CI. Previous release evidence remains in historical_work. No paid model calls or existing project ACL changes."
   },
   "release_validation": {
-    "status": "local_checks_passed_ci_per_commit",
+    "status": "offline_checks_passed_ci_per_commit",
     "workflow": "https://github.com/Titans23/forgecode/actions/workflows/portable.yml",
-    "local_checks": "Version/provenance, CLI and session regression; quality/contracts; document references and source excerpts; fresh wheel and second-environment SDK/plugin delivery passed.",
+    "local_checks": "Offline cancellation, public benchmark assembly, actual Windows/Linux process ownership and service handoff, long-job waits, caller deadlines, cgroup limits, provider diagnostics, bounded installer recovery and failure/export regressions passed. Logging measured with synthetic streams; no Journal rewrite based on unverified model latency.",
     "scope": "CI acceptance belongs to the exact commit/tag workflow run. Historical baseline checks do not certify new source; local checks do not imply remote CI passed."
   },
   "historical_release_evidence": {
@@ -95,9 +68,10 @@
     "T03": {
       "implementation_status": "implemented",
       "verification": {
-        "baseline_ci": "success_43184550682",
+        "baseline_ci": "success_43367836609",
         "release_checks": "per_commit",
-        "live_models": "not_run_for_this_release"
+        "live_models": "not_run_for_harness_repair",
+        "public_benchmark_rerun": "not_run_for_harness_repair"
       },
       "evidence_ids": [],
       "blocked_reasons": []

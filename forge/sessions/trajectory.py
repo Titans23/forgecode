@@ -253,6 +253,7 @@ def journal_events(path: Path) -> list[dict]:
 def journal_completeness(events, *, truncated_tail=False) -> dict:
     turns, ended, requests, finishes, inputs, tools, tool_ends = set(), set(), {}, {}, {}, set(), set()
     chunks, results = {}, set()
+    jobs, job_ends = set(), {}
     for event in events:
         kind, payload = event['type'], event['payload']
         turn = event.get('turn_id') or payload.get('turn_id')
@@ -266,11 +267,14 @@ def journal_completeness(events, *, truncated_tail=False) -> dict:
             chunks[key] = chunks.get(key, 0) + len(payload.get('text', ''))
         elif kind == 'tool_started': tools.add((turn, payload['tool_call_id']))
         elif kind == 'tool_completed': tool_ends.add((turn, payload['tool_call_id']))
+        elif kind == 'job_started': jobs.add(payload['job_id'])
+        elif kind == 'job_finished': job_ends[payload['job_id']] = payload['state']
         elif kind == 'tool_result_message':
             for block in payload.get('message', {}).get('content', []):
                 if isinstance(block, dict) and block.get('type') == 'tool_result':
                     results.add((turn, block['tool_use_id']))
-    closed = bool(turns) and turns <= ended and requests.keys() <= finishes.keys() and tools <= tool_ends and not truncated_tail
+    closed = (bool(turns) and turns <= ended and requests.keys() <= finishes.keys()
+              and tools <= tool_ends and jobs <= job_ends.keys() and not truncated_tail)
     problems = []
     if not closed: problems.append('open_lifecycle')
     if not requests: problems.append('no_model_requests')
@@ -287,7 +291,9 @@ def journal_completeness(events, *, truncated_tail=False) -> dict:
         if finish.get('text_characters', 0) != chunks.get(key, 0):
             problems.append('missing_response_text')
     return {'record_closed': closed, 'responses_complete': not problems,
-            'problems': sorted(set(problems)), 'model_requests': len(requests)}
+            'problems': sorted(set(problems)), 'model_requests': len(requests),
+            'active_jobs': sorted(jobs - job_ends.keys()),
+            'transferred_jobs': sorted(key for key, state in job_ends.items() if state == 'handed_off')}
 
 
 def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:
@@ -304,6 +310,7 @@ def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:
     completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\n'))
     snapshots, requests, finishes, text, reasoning, partial, results, states = {}, [], {}, {}, {}, {}, {}, {}
     turns, terminals = {}, {}
+    jobs = {}
     for event in events:
         kind, payload, turn = event['type'], event['payload'], event.get('turn_id')
         key = payload.get('request_id')
@@ -317,6 +324,10 @@ def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:
         elif kind == 'model_tool_chunk': partial.setdefault(key, []).append(payload)
         elif kind == 'model_provider_state': states[key] = payload
         elif kind == 'tool_completed': results[(turn, payload['tool_call_id'])] = payload
+        elif kind in {'job_started', 'job_retained', 'job_finished'}:
+            origin = payload.get('origin_turn_id') or turn
+            jobs.setdefault((origin, payload['tool_call_id']), []).append(
+                {'type':kind, 'recorded_turn_id':turn, 'payload':payload})
     rows, represented = [], set()
     digest = sha256(path.read_bytes()).hexdigest()
     for event in requests:
@@ -343,11 +354,13 @@ def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:
             'reasoning': ''.join(reasoning.get(key, [])), 'partial_tools': partial.get(key, []),
             'provider_state': states.get(key), 'turn_outcome': terminals.get(turn),
             'tool_results': [results[(turn, call['id'])] for call in calls if (turn, call['id']) in results],
+            'command_jobs': [job for call in calls for job in jobs.get((turn, call['id']), ())],
             'completeness': completeness}})
     for turn in turns.keys() - represented:
         rows.append({'messages': [{'role': 'user', 'content': turns[turn]['prompt']}], 'tools': [],
             'metadata': {'journal_sha256': digest, 'turn_id': turn, 'request_id': None,
-                         'status': 'no_model_request', 'turn_outcome': terminals.get(turn), 'completeness': completeness}})
+                         'status': 'no_model_request', 'turn_outcome': terminals.get(turn), 'completeness': completeness,
+                         'command_jobs': [job for (origin, _), events in jobs.items() if origin == turn for job in events]}})
     return redact(sanitize(rows), secrets)
 
 
@@ -403,6 +416,8 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
                 value.setdefault('observation', {'results': []})['results'].append({
                     'source_call_id': payload['tool_call_id'],
                     'content': json.dumps(payload.get('result', {}).get('content', block.get('content')), ensure_ascii=False), 'extra': payload})
+        elif kind in {'job_started', 'job_retained', 'job_finished'}:
+            step('system', kind, event, extra={'command_job':payload, 'recorded_turn_id':event.get('turn_id')})
         elif kind in {'context_compacted', 'session_resumed', 'session_forked', 'conversation_rewound', 'turn_error', 'turn_cancelled'}:
             step('system', kind, event, extra={'relationship': payload})
     for key, event in starts.items():

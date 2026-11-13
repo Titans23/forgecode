@@ -244,7 +244,7 @@
   <script id="guide-data" type="application/json">
 {
   "revision": "v1.0.0",
-  "date": "2026-11-12",
+  "date": "2026-11-13",
   "modules": [
     {
       "id": "entry",
@@ -302,16 +302,16 @@
         {
           "path": "forge/api.py",
           "symbol": "HarnessSession.open",
-          "line": 236,
-          "end": 240,
+          "line": 252,
+          "end": 256,
           "code": "    async def open(cls, options: SessionOptions, *, approval_handler=None, model_client_factory=None,\n                   trajectory_recorder: TrajectoryRecorder | None = None, **resume):\n        conversation, journal, _, backend = await open_runtime(options,\n            approval_handler=approval_handler, model_client_factory=model_client_factory, **resume)\n        return cls(conversation, journal, backend, trajectory_recorder)",
           "note": "跟踪 open_runtime 返回的四个对象。"
         },
         {
           "path": "forge/api.py",
           "symbol": "HarnessSession.run",
-          "line": 296,
-          "end": 303,
+          "line": 312,
+          "end": 319,
           "code": "    async def run(self, prompt: UserInput) -> TurnResult:\n        result = None\n        async for event in self.stream(prompt):\n            if isinstance(event, TurnCompleted):\n                result = event.result\n        if result is None:\n            raise RuntimeError('Harness ended without a terminal result')\n        return result",
           "note": "观察缺失终态时如何处理。"
         }
@@ -491,8 +491,8 @@
         {
           "path": "forge/runtime/state.py",
           "symbol": "ModelClient",
-          "line": 57,
-          "end": 69,
+          "line": 58,
+          "end": 70,
           "code": "class ModelClient(Protocol):\n    '''Minimal async interface used by the ForgeCode runtime.'''\n\n    provider: str\n\n    def stream(\n        self,\n        messages: list[dict[str, Any]],\n        tools: list[dict[str, Any]] | None = None,\n        system: str | None = None,\n    ) -> AsyncIterator[ModelStreamEvent]:\n        '''Stream text and exact provider usage updates.'''\n        ...",
           "note": "关注 stream 的输入和事件输出。"
         },
@@ -516,8 +516,8 @@
           "path": "forge/tool_types.py",
           "symbol": "ToolContract",
           "note": "公共工具接口不要求工作区路径。",
-          "line": 17,
-          "end": 38,
+          "line": 19,
+          "end": 40,
           "code": "class ToolContract(Protocol):\n    \"\"\"Registry interface shared by built-ins and rootless trusted plugin tools.\n\n    Filesystem mutation metadata is an optional capability, not part of this\n    interface. Implementations retain their own validation and permission policy.\n    \"\"\"\n    @property\n    def name(self) -> str: ...\n\n    @property\n    def effect(self) -> Literal['read_only', 'workspace_write', 'process']: ...\n\n    @property\n    def definition(self) -> dict[str, Any]: ...\n\n    @property\n    def provenance(self) -> dict[str, Any]: ...\n\n    def permission_request(self, arguments: Mapping[str, Any]) -> Any: ...\n    def audit_arguments(self, arguments: Mapping[str, Any]) -> dict[str, Any]: ...\n    def validate(self, arguments: Mapping[str, Any]) -> ToolResult | None: ...\n    async def run(self, arguments: Mapping[str, Any]) -> ToolResult: ..."
         }
       ],
@@ -600,16 +600,16 @@
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.stream",
-          "line": 452,
-          "end": 475,
+          "line": 455,
+          "end": 478,
           "code": "    async def stream(self, prompt: UserInput, *, input_id=None) -> AsyncIterator[ConversationEvent]:\n        '''Compatibility entry point delegated to the turn runner.'''\n        from forge.messages import normalize_input\n        from forge.runtime.capabilities import capabilities_for\n        prompt = normalize_input(prompt)\n        if self._running or self._close_task is not None:\n            raise RuntimeError('Conversation is closed or already running a turn')\n        if input_id is not None and not any(item['id'] == input_id and item['content'] == prompt\n                                           for item in self.inbox.pending):\n            raise ValueError('Queued input is missing or differs from the submitted content')\n        if isinstance(prompt, list) and any(block['type'] == 'image' for block in prompt):\n            if not capabilities_for(self.client).accepts_images:\n                raise ValueError('Configured model adapter does not support image input')\n        from forge.runtime.runner import TurnRunner\n        from forge.sessions.workspace_lock import workspace_execution\n        runner = TurnRunner(self)\n        ownership = workspace_execution(self.context_root) if self.coding and self.registry is not None else nullcontext()\n        from forge.observability.events import current\n        from forge.observability.recorder import JournalRecorder\n        inherited=current()\n        recorder=(JournalRecorder(self.session_journal,scope=getattr(self.session_journal,'observation_scope',None),\n                  scope_sink=getattr(self.session_journal,'observation_scope_sink',None)) if self.session_journal else inherited)\n        with ownership, recorder.turn(nested=self.session_journal is None) if recorder else nullcontext():\n            self._running = True",
           "note": "观察何时创建 TurnRunner 和发布事件。"
         },
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.runtime_close",
-          "line": 919,
-          "end": 924,
+          "line": 923,
+          "end": 928,
           "code": "    async def runtime_close(self, *, reason: str = 'exit') -> dict | None:\n        \"\"\"Drain the owned resources once; children only close their own clients.\"\"\"\n        import asyncio\n        if self._close_task is None:\n            self._close_task = asyncio.create_task(self._close_runtime(reason=reason))\n        return await asyncio.shield(self._close_task)",
           "note": "看关闭任务如何被复用。"
         },
@@ -696,16 +696,16 @@
         {
           "path": "forge/runtime/runner.py",
           "symbol": "TurnRunner.run",
-          "line": 69,
-          "end": 92,
+          "line": 75,
+          "end": 98,
           "code": "    async def run(self, prompt: str, *, input_id=None):\n        from forge.messages import input_text, normalize_input\n        content = normalize_input(prompt)\n        prompt = input_text(content)\n        c = self.conversation\n        c.turn_state = self.state\n        c._kernel_owns_events = True\n        self.state.goal = prompt\n        self.messages = [*c.messages]\n        try:\n            await self._prepare_turn(prompt, content=content, input_id=input_id)\n            async with aclosing(self._loop()) as stream:\n                async for event in stream:\n                    yield event\n        except (asyncio.CancelledError, GeneratorExit):\n            if c.command_jobs is not None:\n                await c.command_jobs.cancel_owner(self.state)\n            c.inbox.defer_steering()\n            if self.journal is not None and not self.finished:\n                self._commit_messages()\n                self.journal.record_turn_cancelled(\n                    'Turn interrupted. Indeterminate operations require inspection, not replay.',\n                )\n            raise",
           "note": "对照外部取消与执行错误的终态记录。"
         },
         {
           "path": "forge/runtime/runner.py",
           "symbol": "TurnRunner._batch",
-          "line": 496,
-          "end": 519,
+          "line": 524,
+          "end": 547,
           "code": "    async def _batch(self, calls: list[ToolCall]):\n        c = self.conversation\n        executor = c.tool_executor\n        assert executor is not None\n        results: list[tuple[ToolCall, ToolResult]] = []\n        ordered = sorted(calls, key=lambda call: call.index)\n        from forge.runtime.tool_batch import schedule_calls\n        completed = {}\n        mixed_finish = len(calls) > 1 and any(call.name == 'finish_task' for call in calls)\n        interrupted = False\n        self.batch_active = True\n\n        async def prepare(call):\n            if mixed_finish:\n                return executor.record_result(call, ToolResult.fail(\n                    'finish_must_be_alone', 'finish_task must be submitted alone.'), status='cancelled')\n            if call.name == 'verify' and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id')):\n                from forge.runtime.check_contracts import inherit_check_arguments, resolve_stored_check\n                try:\n                    arguments = resolve_stored_check(call.arguments, self.state.evidence.verification)\n                    call = replace(call, arguments=inherit_check_arguments(arguments, self.state.evidence.verification)\n                                   if arguments.get('inherit_checks_from') else arguments)\n                except ValueError as error:\n                    return executor.record_result(call, ToolResult.fail('check_contract_conflict', str(error)), status='rejected')",
           "note": "沿 batch_reason 观察失败如何阻止后续工具。"
         },
@@ -921,7 +921,8 @@
       "concept": "用量是执行事实。单次操作超时、取消、模型容量和外部评测期限是独立控制，计数本身不终止 Harness。",
       "implementation": [
         "TurnState.record_model_request 和 record_usage 累计自身及父回合的实际请求与 token，不再提供 budget_reason。",
-        "ObservedModelClient 按实际请求尝试保存输入、增量、重试和终态；缺少最终用量保持 unknown，不当成零。"
+        "ObservedModelClient 按实际请求尝试保存输入、增量、重试和终态；缺少最终用量保持 unknown，不当成零。",
+        "调用方截止时间进入当前请求上下文并约束 job_output 等待；coding 展示实际 cgroup 配额，CLI 默认无累计预算。"
       ],
       "steps": [
         [
@@ -1009,7 +1010,8 @@
       "concept": "ToolRegistry 保存工具定义与实现。ToolExecutor 承担共同的执行步骤，使内置工具、插件工具和 MCP 调用具有一致的授权与记录入口。",
       "implementation": [
         "执行前校验参数、检查任务范围并请求授权。需要时捕获文件检查点，先持久化执行意图，再分派到后端或工具实现。",
-        "执行后更新工作区版本与环境状态，记录结构化结果和验证证据。参数错误会返回可供模型修正的反馈，调用失败仍保留执行记录。"
+        "执行后更新工作区版本与环境状态，记录结构化结果和验证证据。参数错误会返回可供模型修正的反馈，调用失败仍保留执行记录。",
+        "后台有限命令与会话服务共享 CommandJobs；等待完成不被旧日志打断。lifetime=session 服务可跨回答保留，退出清理；job_kill 只停止所属作业。"
       ],
       "steps": [
         [
@@ -1618,8 +1620,8 @@
         {
           "path": "forge/runtime/agent_loop.py",
           "symbol": "Conversation.run_child",
-          "line": 351,
-          "end": 374,
+          "line": 354,
+          "end": 377,
           "code": "    async def run_child(self, prompt, definition, *, role='worker'):\n        \"\"\"A foreground child shares the active turn usage accounting and cannot add capabilities.\"\"\"\n        from dataclasses import replace\n        from forge.api import HarnessSession\n        from forge.runtime.turn_state import parent_turn\n        from forge.runtime.model_registry import config_for_alias\n        if not self._running or self.turn_state is None:\n            raise RuntimeError('Managed children require an active parent turn')\n        if self.agent_definition.base == 'core' and definition.base != 'core':\n            raise ValueError('A core parent cannot grant coding capabilities')\n        if definition.base == 'coding' and definition.sandbox_provider != self.agent_definition.sandbox_provider:\n            raise ValueError('Child sandbox provider must be inherited from the parent')\n        parent_plugins = {p.source: p for p in self.agent_definition.plugins}\n        if any(parent_plugins.get(p.source) != p for p in definition.plugins):\n            raise ValueError('Child plugins must be inherited from the parent')\n        if self.agent_definition.tools is not None and (definition.tools is None or\n                not set(definition.tools).issubset(self.agent_definition.tools)):\n            raise ValueError('Child tools must be a subset of the parent tools')\n        alias = self.agent_definition.role_models.get(role)\n        config = config_for_alias(self, alias)[0] if alias else self.model_config\n        options = replace(self.session_options, agent=replace(definition, role_models={}), config=config,\n                          approval=self.permission_manager.mode, sandbox=self.permission_manager.execution_mode)\n        if definition.base == 'core':\n            options = replace(options, root=None, read_roots=(), write_roots=None)",
           "note": "先读能力继承检查，再追踪 parent_turn。"
         },
@@ -1627,8 +1629,8 @@
           "path": "forge/subagents/explore.py",
           "symbol": "ExploreRepositoryTool",
           "line": 129,
-          "end": 152,
-          "code": "class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):\n    name = 'explore_repository'\n    description = (\n        'Delegate a broad, read-only repository investigation to an isolated '\n        'Explore Agent. Use it for cross-file discovery, call-path tracing, '\n        'or evidence-based root-cause analysis. The subagent cannot edit files '\n        'or run arbitrary commands; this tool returns only a compact structured '\n        'report, keeping raw exploration out of the main context.'\n    )\n    input_model = ExploreRepositoryInput\n\n    def __init__(\n        self,\n        root: Path,\n        *,\n        client_factory: Callable[[], ModelClient] | None = None,\n        tool_backend: Any | None = None,\n        event_recorder: Any | None = None,\n    ) -> None:\n        super().__init__(root)\n        self._client_factory = client_factory\n        self.tool_backend = tool_backend\n        self.event_recorder = event_recorder\n",
+          "end": 151,
+          "code": "class ExploreRepositoryTool(Tool[ExploreRepositoryInput]):\n    name = 'explore_repository'\n    description = (\n        'Delegate a broad, read-only repository investigation to an isolated '\n        'Explore Agent. Use it for cross-file discovery, call-path tracing, '\n        'or evidence-based root-cause analysis. The subagent cannot edit files '\n        'or run arbitrary commands; this tool returns only a compact structured '\n        'report, keeping raw exploration out of the main context.'\n    )\n    input_model = ExploreRepositoryInput\n\n    def __init__(\n        self,\n        root: Path,\n        *,\n        client_factory: Callable[[], ModelClient] | None = None,\n        tool_backend: Any | None = None,\n        event_recorder: Any | None = None,\n    ) -> None:\n        super().__init__(root)\n        self._client_factory = client_factory\n        self.tool_backend = tool_backend\n        self.event_recorder = event_recorder",
           "note": "查看固定只读探索工具的入口。"
         }
       ],
@@ -1988,8 +1990,8 @@
         {
           "path": "tests/benchmark/test_platform_plan.py",
           "symbol": "test_unknown_request_usage_and_frozen_costs",
-          "line": 120,
-          "end": 120,
+          "line": 129,
+          "end": 129,
           "code": "",
           "note": "未知用量与冻结价格在比较中被保留。"
         }
@@ -2058,8 +2060,8 @@
         {
           "path": "forge/runtime/runner.py",
           "symbol": "TurnRunner._completion_reasons",
-          "line": 654,
-          "end": 667,
+          "line": 682,
+          "end": 695,
           "code": "    async def _completion_reasons(self) -> tuple[str, ...]:\n        import inspect\n        reasons = list(await self._workspace_completion_reasons())\n        for name, callback in self.conversation.completion_checks.items():\n            try:\n                result = callback()\n                if inspect.isawaitable(result):\n                    result = await asyncio.wait_for(result, 120)\n                if not isinstance(result, (list, tuple)) or not all(isinstance(x, str) for x in result):\n                    raise ValueError('Completion check must return a sequence of reasons')\n                reasons.extend(f'{name}: {item}' for item in result)\n            except Exception as error:\n                reasons.append(f'{name}: check failed ({type(error).__name__})')\n        return tuple(reasons)",
           "note": "看内建完成检查如何与附加回调组合。"
         },
@@ -2276,7 +2278,8 @@
       "implementation": [
         "本地 evals.runner 通过 HarnessSession 执行任务与独立验证。公共评测复用 Harbor 和官方任务镜像，容器内仍使用 create_runtime 构造同一 Python 内核。",
         "plan 固定源码、任务版本、模型与组合；run 使用冻结条件；compare 分别比较模型、插件或 Harness 改动。所有尝试、基础设施失败和未知用量都会保留。",
-        "轨迹仅从 Journal 离线投影为 ATIF/OpenAI messages JSONL，失败和取消不丢弃；蒸馏、SFT/DPO 和训练框架已删除。"
+        "轨迹仅从 Journal 离线投影为 ATIF/OpenAI messages JSONL，失败和取消不丢弃；蒸馏、SFT/DPO 和训练框架已删除。",
+        "评测通过公共 open_runtime 装配执行；官方期限与 verifier 保持独立。显式服务可移交环境，阶段错误同时保留。"
       ],
       "steps": [
         [
@@ -2331,26 +2334,26 @@
         {
           "path": "benchmark/harbor/run_forge.py",
           "symbol": "run_turn",
-          "line": 86,
-          "end": 109,
-          "code": "async def run_turn(\n    project: Path,\n    message: str,\n    *,\n    resume: bool,\n    frozen_configuration: dict | None = None,\n    runtime_bindings=None,\n    result_path: Path | None = None,\n    completion_policy: str = 'normal',\n) -> TurnResult:\n    # Absent fields in frozen historical runs retain their original strict gate.\n    selected_policy = frozen_configuration.get('completion_policy', 'strict') if frozen_configuration else completion_policy\n    if selected_policy not in {'normal', 'strict'}:\n        raise ValueError('Completion policy must be normal or strict')\n    policy = BENCHMARK_TASK_POLICY if selected_policy == 'strict' else None\n    bound_plan=None\n    if frozen_configuration:\n        from forge.protocol import validate\n        from forge.config import ForgeConfig\n        from forge.permissions.policy import PermissionManager\n        from forge.runtime.dependencies import RuntimeBindings\n        parameters=validate('model-parameters',frozen_configuration['parameters'])\n        harness=validate('harness-config',frozen_configuration['harness'])\n        if 'plan' in frozen_configuration:",
-          "note": "找到容器内 create_runtime 的装配调用。"
+          "line": 89,
+          "end": 112,
+          "code": "async def run_turn(\n    project: Path,\n    message: str,\n    *,\n    resume: bool,\n    frozen_configuration: dict | None = None,\n    runtime_bindings=None,\n    result_path: Path | None = None,\n    completion_policy: str = 'normal',\n) -> TurnResult:\n    if (frozen_configuration or {}).get('execution', EVALUATION_EXECUTION) != EVALUATION_EXECUTION:\n        raise ValueError('Frozen evaluation execution differs from the supported public runtime policy')\n    # Absent fields in frozen historical runs retain their original strict gate.\n    selected_policy = frozen_configuration.get('completion_policy', 'strict') if frozen_configuration else completion_policy\n    if selected_policy not in {'normal', 'strict'}:\n        raise ValueError('Completion policy must be normal or strict')\n    policy = BENCHMARK_TASK_POLICY if selected_policy == 'strict' else None\n    bound_plan=None\n    if frozen_configuration:\n        from forge.protocol import validate\n        parameters=validate('model-parameters',frozen_configuration['parameters'])\n        harness=validate('harness-config',frozen_configuration['harness'])\n        if 'plan' in frozen_configuration:\n            from benchmark.adapters.harbor import export_runspec",
+          "note": "容器与 CLI/SDK 通过同一 open_runtime 装配权限、工具和插件。"
         },
         {
           "path": "forge/sessions/trajectory.py",
           "symbol": "journal_to_openai",
           "note": "观察成功、失败、取消和未完成尝试的导出。",
-          "line": 293,
-          "end": 316,
-          "code": "def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:\n    \"\"\"OpenAI messages JSONL rows, one per attempt, including partial failures.\n\n    Messages contain the observed input and response. Diagnostics, partial tool\n    arguments and full execution results remain in metadata, never invented as\n    valid assistant tool calls. This is an export, not a replay or training gate.\n    \"\"\"\n    from hashlib import sha256\n    from forge.runtime.chat_stream import chat_messages\n    from forge.observability.export_queue import redact\n    events = journal_events(path)\n    completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\\n'))\n    snapshots, requests, finishes, text, reasoning, partial, results, states = {}, [], {}, {}, {}, {}, {}, {}\n    turns, terminals = {}, {}\n    for event in events:\n        kind, payload, turn = event['type'], event['payload'], event.get('turn_id')\n        key = payload.get('request_id')\n        if kind == 'turn_started': turns[turn] = payload\n        elif kind in {'turn_completed', 'turn_error', 'turn_cancelled'}: terminals[turn] = {'type': kind, **payload}\n        elif kind == 'model_input_snapshot': snapshots[payload['sha256']] = payload['request']\n        elif kind == 'model_request_started': requests.append(event)\n        elif kind == 'model_request_finished': finishes[key] = payload\n        elif kind == 'model_request_chunk': text.setdefault(key, []).append(payload['text'])\n        elif kind == 'model_reasoning_chunk': reasoning.setdefault(key, []).append(payload['text'])"
+          "line": 299,
+          "end": 322,
+          "code": "def journal_to_openai(path: Path, *, secrets=()) -> list[dict]:\n    \"\"\"OpenAI messages JSONL rows, one per attempt, including partial failures.\n\n    Messages contain the observed input and response. Diagnostics, partial tool\n    arguments and full execution results remain in metadata, never invented as\n    valid assistant tool calls. This is an export, not a replay or training gate.\n    \"\"\"\n    from hashlib import sha256\n    from forge.runtime.chat_stream import chat_messages\n    from forge.observability.export_queue import redact\n    events = journal_events(path)\n    completeness = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\\n'))\n    snapshots, requests, finishes, text, reasoning, partial, results, states = {}, [], {}, {}, {}, {}, {}, {}\n    turns, terminals = {}, {}\n    jobs = {}\n    for event in events:\n        kind, payload, turn = event['type'], event['payload'], event.get('turn_id')\n        key = payload.get('request_id')\n        if kind == 'turn_started': turns[turn] = payload\n        elif kind in {'turn_completed', 'turn_error', 'turn_cancelled'}: terminals[turn] = {'type': kind, **payload}\n        elif kind == 'model_input_snapshot': snapshots[payload['sha256']] = payload['request']\n        elif kind == 'model_request_started': requests.append(event)\n        elif kind == 'model_request_finished': finishes[key] = payload\n        elif kind == 'model_request_chunk': text.setdefault(key, []).append(payload['text'])"
         }
       ],
       "tests": [
         {
           "path": "tests/benchmark/test_platform_plan.py",
           "symbol": "test_plan_cannot_silently_override_model_or_source",
-          "line": 80,
-          "end": 80,
+          "line": 79,
+          "end": 79,
           "code": "",
           "note": "冻结后的模型和源码条件不能被静默覆盖。"
         }

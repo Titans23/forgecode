@@ -73,6 +73,8 @@ SessionStore 从 Journal 重建历史，写入使用父记录/序号检查，防
 
 ATIF v1.7 与 OpenAI messages JSONL 均为离线脱敏投影，包含失败、取消、部分响应和未知结果。原 Journal 不修改。新建/恢复事件记录产品版本；ATIF 区分记录版本、mixed/unknown 与当前导出器版本。旧 TrajectoryRecorder 可显式使用。蒸馏、SFT/DPO、tokenizer 和训练执行已移除。
 
+后台作业的启动、跨回合保留、取消及移交也进入导出。OpenAI 元数据按 `origin_turn_id` 关联原始调用，ATIF 保留生命周期事件；有活跃作业时记录未闭合，已移交服务单独列出，不能把移交误记为进程退出。
+
 ### 插件、工具与交付
 
 PluginHost 只加载明确受信任的 Python 插件，按依赖顺序启动，失败撤销，逆序关闭资源。PluginContext 支持工具、服务、模型/执行提供方、Hooks、子任务和完成检查。ToolContract 不要求根路径；文件修改元数据是具体工具的可选能力。插件工具仍走 Executor，可信宿主 Python 不属于原生沙盒覆盖范围。

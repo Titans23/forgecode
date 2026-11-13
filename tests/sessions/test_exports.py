@@ -104,3 +104,31 @@ def test_reused_tool_ids_stay_bound_to_their_own_turn(tmp_path):
     observations = [result for step in export['steps'] for result in (step.get('observation') or {}).get('results', [])]
     assert [json.loads(result['content']) for result in observations] == ['1', '3']
     assert journal_to_openai(path)[0]['metadata']['completeness']['record_closed']
+
+
+def test_failed_request_exports_keep_provider_diagnostics(tmp_path):
+    from forge.runtime.state import ModelCallError
+    from forge.sessions.trajectory import journal_to_atif
+    class Model:
+        model = 'fixture'
+        async def stream(self, **kwargs):
+            yield ModelTextDelta('observed partial')
+            raise ModelCallError('stream_interrupted', 'Provider interrupted', retryable=False,
+                diagnostics={'http_status':503, 'request_id':'provider-fixture', 'message':'busy'})
+    async def run():
+        async with await HarnessSession.open(SessionOptions(agent=AgentDefinition.core(), data_root=tmp_path,
+            config=ForgeConfig(api_key='fixture', model_id='fixture')),
+            model_client_factory=lambda *a, **kw: Model()) as session:
+            result = await session.run('offline diagnostic')
+            assert result.status == 'failed'
+            return session.journal.path
+    path = asyncio.run(run())
+    before = path.read_bytes()
+    row = journal_to_openai(path)[0]
+    assert row['metadata']['status'] == 'failed'
+    assert row['metadata']['request']['error']['request_id'] == 'provider-fixture'
+    atif = journal_to_atif(path)
+    request = next(s['extra']['request'] for s in atif['steps'] if s['source'] == 'agent')
+    assert request['error']['http_status'] == 503
+    assert not atif['extra']['completeness']['responses_complete']
+    assert path.read_bytes() == before
