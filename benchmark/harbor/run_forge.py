@@ -12,13 +12,15 @@ from pathlib import Path
 from typing import Any
 
 from forge.runtime.factory import create_runtime
-from forge.permissions.policy import ApprovalResponse, PermissionRequest
+from forge.api import SessionOptions, RunProfile, open_runtime
+from forge.agents import AgentDefinition
+from forge.config import ForgeConfig
+from forge.runtime.dependencies import RuntimeBindings
 from forge.runtime.completion import (
     TaskPolicy,
     verification_kind,
     verification_quality,
 )
-from forge.runtime.profile import ExecutionProfile
 from forge.runtime.state import (
     ModelTextDelta,
     ToolExecutionCompleted,
@@ -43,6 +45,7 @@ BENCHMARK_TASK_POLICY = TaskPolicy(
 )
 MAX_RESULT_CHANGED_PATHS = 100
 _STATUS_PREFIX = 'FORGECODE_BENCHMARK_STATUS='
+EVALUATION_EXECUTION = {'sandbox': 'full-access', 'approval': 'never', 'profile': 'evaluation'}
 
 
 def result_payload(
@@ -93,6 +96,8 @@ async def run_turn(
     result_path: Path | None = None,
     completion_policy: str = 'normal',
 ) -> TurnResult:
+    if (frozen_configuration or {}).get('execution', EVALUATION_EXECUTION) != EVALUATION_EXECUTION:
+        raise ValueError('Frozen evaluation execution differs from the supported public runtime policy')
     # Absent fields in frozen historical runs retain their original strict gate.
     selected_policy = frozen_configuration.get('completion_policy', 'strict') if frozen_configuration else completion_policy
     if selected_policy not in {'normal', 'strict'}:
@@ -101,9 +106,6 @@ async def run_turn(
     bound_plan=None
     if frozen_configuration:
         from forge.protocol import validate
-        from forge.config import ForgeConfig
-        from forge.permissions.policy import PermissionManager
-        from forge.runtime.dependencies import RuntimeBindings
         parameters=validate('model-parameters',frozen_configuration['parameters'])
         harness=validate('harness-config',frozen_configuration['harness'])
         if 'plan' in frozen_configuration:
@@ -126,8 +128,7 @@ async def run_turn(
                 context_window=harness['max_context_tokens'],reasoning_effort=parameters['reasoning_effort'],
                 **({key: frozen_configuration['model'][key] for key in ('chat_token_field', 'input_modalities')
                     if key in frozen_configuration.get('model', {})} if frozen_configuration.get('composition') else {}))
-            runtime_bindings=RuntimeBindings(config=config,data_root=Path(os.environ['FORGE_DATA_DIR']),trusted_extensions=False,
-                permission_manager=PermissionManager(project,load_stored_rules=False))
+            runtime_bindings=RuntimeBindings(config=config,data_root=Path(os.environ['FORGE_DATA_DIR']),trusted_extensions=False)
         if frozen_configuration.get('model'):
             actual = {key: value for key, value in asdict(runtime_bindings.config).items() if key != 'api_key'}
             if actual != frozen_configuration['model']:
@@ -141,29 +142,28 @@ async def run_turn(
                     parameters['max_output_tokens'],harness['max_context_tokens'],parameters['reasoning_effort']):
                 raise ValueError('Actual model parameters differ from frozen RunSpec')
     composition = (frozen_configuration or {}).get('composition')
-    definition = None
+    runtime_bindings = runtime_bindings or RuntimeBindings(config=ForgeConfig.from_env(environ=os.environ),
+        data_root=Path(os.environ['FORGE_DATA_DIR']) if os.environ.get('FORGE_DATA_DIR') else None,
+        trusted_extensions=False)
+    if runtime_bindings.backend is not None or runtime_bindings.permission_manager is not None:
+        raise ValueError('Evaluation execution must use the public runtime policy, not injected legacy permissions/backends')
+    definition = AgentDefinition()
     if composition:
         from benchmark.harbor.platform import prepare_runtime
         definition, runtime_bindings = await prepare_runtime(composition, runtime_bindings, project)
         if selected_policy == 'normal' and definition.completion == 'strict':
-            await runtime_bindings.plugin_host.close()
             raise ValueError('Normal evaluation cannot disable the selected agent strict completion contract')
-    try:
-        conversation, journal, _ = create_runtime(
-            project, continue_session=resume, task_policy=policy,
-            execution_profile=ExecutionProfile.sandbox(), task_relation='active' if resume else 'new',
-            **({'bindings':runtime_bindings} if runtime_bindings else {}),
-            **({'agent': definition} if definition else {}))
-    except BaseException as error:
-        if composition:
-            error.plugin_cleanup = await runtime_bindings.plugin_host.close()
-        raise
+    def assemble(root, *, bindings, **kwargs):
+        bindings = replace(bindings, recorder=runtime_bindings.recorder)
+        return create_runtime(root, bindings=bindings, task_policy=policy,
+                              task_relation='active' if resume else 'new', **kwargs)
+    options = SessionOptions(project, sandbox=EVALUATION_EXECUTION['sandbox'], approval=EVALUATION_EXECUTION['approval'],
+        data_root=runtime_bindings.data_root, config=runtime_bindings.config, agent=definition,
+        models=runtime_bindings.model_aliases, profile=RunProfile.evaluation())
+    conversation, journal, _, _ = await open_runtime(options,
+        model_client_factory=runtime_bindings.model_client_factory, runtime_factory=assemble,
+        continue_session=resume)
     if composition:
-        runtime_bindings.plugin_host.model_startup.release()
-        from forge.api import SessionOptions, RunProfile
-        conversation.session_options = SessionOptions(project, sandbox='full-access', data_root=runtime_bindings.data_root,
-            config=runtime_bindings.config, agent=definition, models=composition['models'],
-            profile=RunProfile(name='evaluation', intent_routing=False))
         journal.append('evaluation_composition', {'plan_hash': composition['plan_hash'],
             'definition': composition['definition'], 'files': composition['files']})
     if frozen_configuration:
@@ -172,23 +172,12 @@ async def run_turn(
         journal.observation_scope=Scope(trace_id=scope['trace_id'],span_id=scope['span_id'],
             identities={key:scope[key] for key in ('run_id','trial_id')} | {'attempt_id':frozen_configuration['attempt_id']})
 
-    async def approve_isolated_benchmark_operation(
-        request: PermissionRequest,
-    ) -> ApprovalResponse:
-        return ApprovalResponse(
-            choice='allow_once',
-            reason=(
-                'Authorized inside the disposable Harbor benchmark container: '
-                f'{request.capability}.'
-            ),
-        )
-
-    conversation.permission_manager.approval_handler = (
-        approve_isolated_benchmark_operation
-    )
-
     final: TurnResult | None = None
     try:
+        if frozen_configuration and frozen_configuration.get('model'):
+            actual = {key: value for key, value in asdict(conversation.model_config).items() if key != 'api_key'}
+            if actual != frozen_configuration['model']:
+                raise ValueError('Prepared model configuration differs from frozen experiment')
         if bound_plan:
             identity=bound_plan['spec']['harness']
             if (sha256(conversation.system_prompt.encode('utf-8')).hexdigest()!=identity['prompt_sha256']

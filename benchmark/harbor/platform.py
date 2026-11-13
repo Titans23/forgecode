@@ -17,7 +17,7 @@ from benchmark.harbor.snapshot import freeze_source, verify_frozen_source
 from benchmark.adapters.materialize import materialize_dataset, reuse_taskset, resolve_task
 from forge.agents import AgentDefinition
 from forge.delivery import export_agent, import_agent, load_definition, portable
-from forge.runtime.model_registry import ModelSelection, ProviderRegistry
+from forge.runtime.model_registry import ModelSelection
 from forge.validation import digest
 
 
@@ -92,11 +92,12 @@ def make_plan(config_path, destination):
         dependencies = archive.read('requirements.lock').decode()
     references = credential_references([delivered_definition, models, model])
     references.update(credential_name(m) for m in [model, *models.values()])
+    from benchmark.harbor.run_forge import EVALUATION_EXECUTION
     value = {'schema_version': 'forge.evaluation.launch-plan.v1', 'benchmark': spec.key, 'dataset': spec.dataset,
         'taskset': taskset, 'source': source.relative_to(destination).as_posix(),
         'source_manifest': json.loads((source.parent / 'manifest.json').read_text()),
         'model': model, 'models': models, 'harness_budgets': False, 'harness': harness, 'pricing': config.get('pricing'),
-        'completion_policy': definition.completion,
+        'completion_policy': definition.completion, 'execution': dict(EVALUATION_EXECUTION),
         'composition': {'definition': delivered_definition, 'files': bundle_manifest['files'], 'dependencies': dependencies},
         'bundle': 'agent.zip', 'bundle_sha256': sha256(bundle.read_bytes()).hexdigest(),
         'credential_references': sorted(references), 'protocol': {'feedback': 'none', 'attempts': 1, 'task_retries': 0,
@@ -163,8 +164,7 @@ def runtime_bundle(plan_path):
 
 
 async def prepare_runtime(composition, bindings, project):
-    """Install is owned by Harbor; loading here uses the normal PluginHost/registry."""
-    from forge.plugins import PluginHost
+    """Materialize the trusted definition; the public runtime owns plugin loading."""
     from uuid import uuid4
     root = bindings.data_root / ('composition-' + uuid4().hex)
     root.mkdir(parents=True)
@@ -175,21 +175,4 @@ async def prepare_runtime(composition, bindings, project):
     bundle.write_bytes(raw)
     import_agent(bundle, root / 'imported')
     agent = load_definition(root / 'imported/agent.json', trust=True)
-    host = await PluginHost(workspace=project, data_root=bindings.data_root).load(agent.plugins)
-    registry = ProviderRegistry()
-    try:
-        for name, factory in host.providers.items():
-            registry.register(name, factory)
-    except BaseException:
-        await host.close()
-        raise
-    from forge.runtime.startup import ModelStartup
-    startup = ModelStartup(bindings.model_client_factory or registry.create)
-    host.model_startup = startup
-    async def close_startup():
-        failures = await startup.close()
-        if failures:
-            raise RuntimeError('Startup client cleanup: ' + ', '.join(failures))
-    host.cleanups.append(close_startup)
-    return agent, replace(bindings, plugin_host=host, model_aliases=composition['models'],
-        model_environment=dict(os.environ), model_client_factory=startup.create)
+    return agent, replace(bindings, model_aliases=composition['models'], model_environment=dict(os.environ))

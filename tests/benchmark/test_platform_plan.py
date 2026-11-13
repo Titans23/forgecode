@@ -11,7 +11,6 @@ from benchmark.harbor.snapshot import freeze_source
 from benchmark.adapters.protocol import content_hash
 from forge.config import ForgeConfig
 from forge.runtime.dependencies import RuntimeBindings
-from forge.permissions.policy import PermissionManager
 from forge.agents import AgentDefinition, PluginSpec
 from forge.delivery import export_agent
 
@@ -108,12 +107,22 @@ def test_runtime_composition_uses_normal_host_and_provider_registry(tmp_path):
     project.mkdir()
     config = ForgeConfig(api_key='fixture', model_id='fixture')
     async def run():
+        from forge.api import HarnessSession, SessionOptions, RunProfile
+        class NoModel:
+            model = 'fixture'
+            async def aclose(self):
+                pass
         definition, bindings = await platform.prepare_runtime(composition, RuntimeBindings(config=config,
-            data_root=tmp_path / 'data', permission_manager=PermissionManager(project)), project)
+            data_root=tmp_path / 'data'), project)
         assert definition.plugins[0].trusted
-        result = await bindings.plugin_host.tools['summarize_expenses'].run({'csv': 'category,amount\nmeal,25\n'})
-        assert json.loads(result.content)['total'] == '25.00'
-        assert (await bindings.plugin_host.close())['state'] == 'clean'
+        handle = await HarnessSession.open(SessionOptions(project, config=config, data_root=bindings.data_root,
+            agent=definition, profile=RunProfile.evaluation()), model_client_factory=lambda *a, **k: NoModel())
+        try:
+            result = await handle.conversation.registry.implementation('summarize_expenses').run({'csv': 'category,amount\nmeal,25\n'})
+            assert json.loads(result.content)['total'] == '25.00'
+        finally:
+            await handle.close()
+        assert handle.cleanup['state'] == 'clean'
     asyncio.run(run())
 
 
@@ -178,7 +187,7 @@ def test_frozen_composition_flows_through_existing_benchmark_loop(tmp_path, comp
     result = asyncio.run(run_turn(project, 'Apply the fixture tool', resume=False,
          frozen_configuration=frozen, result_path=tmp_path / 'result.json',
         runtime_bindings=RuntimeBindings(config=configuration, model_client_factory=lambda *a, **k: model,
-            data_root=tmp_path / 'data', permission_manager=PermissionManager(project), intent_routing=False, trusted_extensions=False)))
+            data_root=tmp_path / 'data', intent_routing=False, trusted_extensions=False)))
     assert result.tool_calls[0].name == 'summarize_expenses' and model.closed
     assert (result.completion_report.acceptance_status != 'not_configured') == (completion is None)
     assert json.loads((tmp_path / 'result.json').read_text())['cleanup']['state'] == 'clean'

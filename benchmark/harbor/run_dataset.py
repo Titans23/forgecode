@@ -170,11 +170,13 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
     else:
         config = None if args.agent == 'oracle' or args.prepare_only else ForgeConfig.from_env(model_environment(args.env_file, overrides))
     model = {key: value for key, value in asdict(config).items() if key != 'api_key'} if config else None
+    from benchmark.harbor.run_forge import EVALUATION_EXECUTION
     manifest = {'schema_version': 'forge.evaluation.v1', 'dataset': args.dataset,
         'dataset_ref': args.dataset_ref, 'selection': {'tasks': args.task, 'n_tasks': args.n_tasks, 'all': args.all},
         'harbor_version': '0.18.0', 'usage': 'evaluation-only', 'model': model,
         'agent': args.agent, 'concurrency': args.concurrency, 'attempts': 1, 'task_retries': args.max_retries,
         'harness_budgets': False, 'completion_policy': args.completion_policy or 'normal',
+        'execution': dict(EVALUATION_EXECUTION),
         'timeout_multiplier': args.timeout_multiplier or 1,
         'agent_setup_timeout_multiplier': args.agent_setup_timeout_multiplier,
         'grader': {'harbor_version': '0.18.0', 'protocol': 'official-task-verifier',
@@ -187,6 +189,8 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
                     'trusted_extensions_enabled': False} if config else None}
     if launch_plan:
         from benchmark.harbor.platform import runtime_bundle
+        if launch_plan.get('execution', EVALUATION_EXECUTION) != EVALUATION_EXECUTION:
+            raise ValueError('Frozen plan execution policy cannot be overridden')
         if args.dataset != launch_plan['dataset'] or set(args.task) != set(launch_plan['taskset']['tasks']):
             raise ValueError('Launch arguments differ from frozen task conditions')
         if args.max_retries != 0 or args.concurrency != 1 or args.timeout_multiplier not in (None, 1) or args.agent_setup_timeout_multiplier != 12:

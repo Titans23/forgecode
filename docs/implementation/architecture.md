@@ -87,6 +87,8 @@ Hooks 保留匹配规则、JSON 协议和有界输出，外部进程由 LocalPro
 
 公共基准通过 `benchmark.harbor.platform` 冻结任务、源码、模型、插件、完成策略和条件，再走同一 Harbor runner。默认官方预构建镜像、一次尝试、零任务级自动重试、独立官方 grader。缺少镜像/资源保持未验证，不自动构建预热镜像。旧 Aider 反馈修复入口单独兼容，不能与无外部反馈协议混报。
 
+容器中的评测入口也经 `open_runtime` 装配 full-access/never 执行策略和文件提供方，不使用未配置的旧权限路径。evaluation Profile 不加载机器上未冻结的权限规则、目录 Hooks 或 MCP；显式冻结的插件仍由同一 PluginHost 加载和关闭，模型配置在装配前后均与冻结输入核对。
+
 新运行默认 normal，严格完成检查必须显式选择；旧冻结配置缺少字段时保留原 strict 语义。RunSpec 旧预算字段只供归档读取，新计划拒绝它们；有预算的历史实验应使用其原源码，不能在当前版本忽略预算后冒充同条件复测。
 
 `evals.runner` 使用 HarnessSession 和共享模型配置。它的 Agent 与独立 verifier 默认 workspace-write，运行前显式预检原生进程边界；这不同于普通 CLI 的默认宿主执行。setup、公开/隐藏测试和 diff check 属于独立判分，受各自命令期限约束。最终成功以独立结果为准，Agent 的完成声明不等于测试通过。

@@ -133,12 +133,14 @@ async def _open_runtime(options, *, approval_handler=None, model_client_factory=
     backend, policy = execution.backend, execution.policy
     writes = tuple(map(Path, policy['filesystem']['write_roots']))
     permissions = PermissionManager(root, mode=options.approval, approval_handler=approval_handler,
-        execution_mode=options.sandbox, authorized_write_roots=tuple(map(Path, policy['filesystem']['write_roots'])))
+        execution_mode=options.sandbox, authorized_write_roots=tuple(map(Path, policy['filesystem']['write_roots'])),
+        load_stored_rules=options.profile.name != 'evaluation')
     from forge.runtime.factory import create_model_client
     client_factory = model_client_factory or create_model_client
     startup = ModelStartup(client_factory)
     bindings = RuntimeBindings(config=config, data_root=data, model_client_factory=startup.create,
-        permission_manager=permissions, backend=backend, trusted_extensions=options.sandbox == 'full-access',
+        permission_manager=permissions, backend=backend,
+        trusted_extensions=options.sandbox == 'full-access' and options.profile.name != 'evaluation',
         intent_routing=options.profile.intent_routing,
         plugin_host=plugin_host,
         model_aliases=model_catalog(options),
