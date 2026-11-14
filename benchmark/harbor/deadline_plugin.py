@@ -1,5 +1,6 @@
-'''Bind frozen task metrics and forward the pinned Harbor phase deadline.'''
+'''Bind preparation concurrency, metrics and the pinned Harbor phase deadline.'''
 
+import asyncio
 from functools import wraps
 from importlib.metadata import version
 from inspect import signature, Parameter
@@ -26,6 +27,27 @@ class ForgeCodeDeadlinePlugin(BaseJobPlugin):
         ):
             raise RuntimeError('Unsupported Harbor agent phase signature; deadline forwarding is unavailable.')
         self._original = Trial._run_agent_phase
+
+        environment = getattr(job.config, 'environment', None)
+        limit = (environment.kwargs if environment else {}).get('setup_concurrency', 4)
+        if not isinstance(limit, int) or limit < 1:
+            raise ValueError('setup_concurrency must be a positive integer')
+        slots = asyncio.Semaphore(limit)
+        self._original_prepare = Trial._prepare
+
+        @wraps(self._original_prepare)
+        async def prepare(trial):
+            if not isinstance(trial.agent, ForgeCodeHarborAgent):
+                return await self._original_prepare(trial)
+            trial.logger.info('Waiting for an environment preparation slot (limit %s)', limit)
+            # Queue outside Harbor's environment/install clocks; release before
+            # the model phase, including when preparation fails or is cancelled.
+            async with slots:
+                trial.logger.info('Environment preparation slot acquired')
+                return await self._original_prepare(trial)
+
+        self._prepare_wrapper = prepare
+        Trial._prepare = prepare
 
         @wraps(self._original)
         async def bounded_phase(trial, **kwargs):
@@ -69,3 +91,5 @@ class ForgeCodeDeadlinePlugin(BaseJobPlugin):
             Trial._run_agent_phase = self._original
         if getattr(self, '_record_wrapper', None) is Trial._record_exception:
             Trial._record_exception = self._original_record
+        if getattr(self, '_prepare_wrapper', None) is Trial._prepare:
+            Trial._prepare = self._original_prepare

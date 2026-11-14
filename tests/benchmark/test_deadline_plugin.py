@@ -1,10 +1,105 @@
 import asyncio
+import logging
 from types import SimpleNamespace
 
 import pytest
 
 from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
 from benchmark.harbor.deadline_plugin import ForgeCodeDeadlinePlugin
+
+
+def test_preparation_limit_releases_before_twenty_agents_run(tmp_path, monkeypatch):
+    from harbor.trial.trial import Trial
+    async def exercise():
+        active = 0
+        peak = 0
+        entered = []
+        agents = []
+        four_ready, release, twenty_ready, finish = (asyncio.Event() for _ in range(4))
+
+        async def prepare(trial):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            entered.append(trial)
+            if active == 4:
+                four_ready.set()
+            try:
+                await release.wait()
+            finally:
+                active -= 1
+
+        async def agent_phase(trial, **kwargs):
+            agents.append(trial)
+            if len(agents) == 20:
+                twenty_ready.set()
+            await finish.wait()
+
+        monkeypatch.setattr(Trial, '_prepare', prepare)
+        monkeypatch.setattr(Trial, '_run_agent_phase', agent_phase)
+        plugin = ForgeCodeDeadlinePlugin()
+        job = SimpleNamespace(config=SimpleNamespace(tasks=[], environment=SimpleNamespace(
+            kwargs={'setup_concurrency': 4})), _metrics={})
+        await plugin.on_job_start(job)
+        trials = [SimpleNamespace(agent=ForgeCodeHarborAgent(logs_dir=tmp_path/str(i)),
+                                  logger=logging.getLogger(__name__)) for i in range(20)]
+        async def run(trial):
+            await Trial._prepare(trial)
+            await Trial._run_agent_phase(trial, timeout_sec=1200)
+        workers = [asyncio.create_task(run(trial)) for trial in trials]
+        try:
+            await asyncio.wait_for(four_ready.wait(), 2)
+            assert len(entered) == 4 and not agents
+            release.set()
+            await asyncio.wait_for(twenty_ready.wait(), 2)
+            assert peak == 4 and active == 0
+            finish.set()
+            await asyncio.gather(*workers)
+        finally:
+            for worker in workers: worker.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+            await plugin.on_job_end(None)
+        assert Trial._prepare is prepare and Trial._run_agent_phase is agent_phase
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize('cancel_active', [False, True])
+def test_preparation_failure_or_cancellation_releases_slot(tmp_path, monkeypatch, cancel_active):
+    from harbor.trial.trial import Trial
+    async def exercise():
+        entered, release = asyncio.Event(), asyncio.Event()
+        seen = []
+        async def prepare(trial):
+            seen.append(trial.name)
+            if trial.name == 'first':
+                entered.set()
+                await release.wait()
+                raise RuntimeError('setup failed')
+        monkeypatch.setattr(Trial, '_prepare', prepare)
+        plugin = ForgeCodeDeadlinePlugin()
+        job = SimpleNamespace(config=SimpleNamespace(tasks=[], environment=SimpleNamespace(
+            kwargs={'setup_concurrency': 1})), _metrics={})
+        await plugin.on_job_start(job)
+        def trial(name):
+            return SimpleNamespace(name=name, agent=ForgeCodeHarborAgent(logs_dir=tmp_path/name),
+                                   logger=logging.getLogger(__name__))
+        first = asyncio.create_task(Trial._prepare(trial('first')))
+        await entered.wait()
+        queued = asyncio.create_task(Trial._prepare(trial('cancelled_queue')))
+        next_task = asyncio.create_task(Trial._prepare(trial('next')))
+        await asyncio.sleep(0)
+        queued.cancel()
+        if cancel_active: first.cancel()
+        else: release.set()
+        try:
+            results = await asyncio.wait_for(asyncio.gather(first, queued, next_task,
+                                                          return_exceptions=True), 2)
+            assert seen == ['first', 'next']
+            assert isinstance(results[0], asyncio.CancelledError if cancel_active else RuntimeError)
+            assert isinstance(results[1], asyncio.CancelledError) and results[2] is None
+        finally:
+            await plugin.on_job_end(None)
+    asyncio.run(exercise())
 
 
 def test_only_official_deadline_controls_supervisor_and_reserves_cleanup(tmp_path, monkeypatch):

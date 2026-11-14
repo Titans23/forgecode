@@ -710,9 +710,12 @@ def comparison_conditions(run_dir: Path) -> dict:
     environment = {key: sorted(values, key=lambda value: json.dumps(value, sort_keys=True)) for key, values in environment.items()}
     composition = experiment.get('composition') or {}
     definition = composition.get('definition') or {}
+    protocol = {key: experiment.get(key) for key in
+        ('harbor_version', 'attempts', 'task_retries', 'concurrency', 'timeout_multiplier', 'agent_setup_timeout_multiplier')}
+    # Older runs had only Harbor's shared trial cap, with no preparation cap.
+    protocol['setup_concurrency'] = experiment.get('setup_concurrency', experiment.get('concurrency'))
     return {'dataset': {'name': experiment.get('dataset'), 'version': experiment.get('taskset', {}).get('version'), 'tasks': task_identities},
-        'budget': experiment.get('budget'), 'protocol': {key: experiment.get(key) for key in
-            ('harbor_version', 'attempts', 'task_retries', 'concurrency', 'timeout_multiplier', 'agent_setup_timeout_multiplier')},
+        'budget': experiment.get('budget'), 'protocol': protocol,
         'grader': experiment.get('grader'), 'dependencies_and_runner': fixed_files or None,
         'driver': driver_files or None,
         'environment': environment or None,
@@ -736,7 +739,7 @@ def compare_runs(baseline: Path, candidate: Path, *, change: str) -> dict:
     for side, path, condition in zip(('baseline', 'candidate'), (baseline, candidate), conditions, strict=True):
         if not condition['dataset']['tasks'] or not condition['dataset']['version']:
             compared['missing_evidence'].append(f'{side}.frozen_taskset')
-        for key in ('harbor_version', 'attempts', 'task_retries', 'concurrency', 'timeout_multiplier', 'agent_setup_timeout_multiplier'):
+        for key in ('harbor_version', 'attempts', 'task_retries', 'concurrency', 'setup_concurrency', 'timeout_multiplier', 'agent_setup_timeout_multiplier'):
             if condition['protocol'].get(key) is None:
                 compared['missing_evidence'].append(f'{side}.protocol.{key}')
         receipts = path / 'resources.jsonl'

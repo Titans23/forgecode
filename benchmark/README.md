@@ -29,7 +29,7 @@ uv run --no-sync harbor --version
 
 ```bash
 run_dir="$HOME/.local/share/forgecode/evaluation/terminal10-$(date -u +%Y%m%dT%H%M%SZ)"
-eval_args=(--n-tasks 10 --concurrency 10 --max-retries 0 --output-dir "$run_dir")
+eval_args=(--n-tasks 10 --concurrency 10 --setup-concurrency 4 --max-retries 0 --output-dir "$run_dir")
 uv run --no-sync python -m benchmark run terminal-bench-2 "${eval_args[@]}" --dry-run
 # 核对配置、镜像和授权后执行同一参数集：
 uv run --no-sync python -m benchmark run terminal-bench-2 "${eval_args[@]}"
@@ -39,6 +39,10 @@ uv run --no-sync python -m benchmark run terminal-bench-2 "${eval_args[@]}"
 复用同一批任务可加 `--taskset-dir <旧运行目录/tasks>`，重新校验数据集版本和任务摘要；输出目录必须是新目录。`--dry-run` 不调用模型、不下载任务，不能证明模型可连通或任务安装成功。
 
 Harness 没有累计请求、工具、token 或回合总时长预算。官方任务期限、单次操作超时和取消独立保留。`--max-retries` 是任务级重试，模型传输重试另有策略。新运行默认 `--completion-policy normal`，官方 grader 决定成绩；显式 strict 才启用 Forge 完成门禁。旧冻结配置缺少该字段时保留原 strict 语义。
+
+`--concurrency 20 --setup-concurrency 4` 最多接纳 20 道任务，其中同时创建环境、检查健康状态和安装 Agent 的任务最多 4 道。准备完成立即释放准备槽位，其他 Agent 可以继续运行；准备和判分也占用任务槽位，因此实际同时作答数可能少于 20。准备并发默认 4，并受总并发上限约束；两个值均保存到冻结配置。排队在官方阶段计时开始前进行，失败或取消会释放槽位。
+
+Docker 查询完整读取有界输出，单次最多等待 60 秒。查询超时记录为 `DockerQueryError`，保留具体操作；只有官方环境启动期限实际到期，才记录 `EnvironmentStartTimeoutError`。查询失败不自动重试或重跑任务。高并发前应检查 Docker 地址池：每道任务通常需要一个独立网络，内存充足并不代表地址池容量足够。
 
 评测与 CLI/SDK 通过同一公共运行入口装配权限、工具和插件。官方剩余时间进入请求上下文，保留清理与日志导出时间；容器 CPU/内存配额用于提示实际可用资源。有限后台命令需完成或停止，显式会话服务可以移交 verifier，最终由任务容器销毁回收。
 

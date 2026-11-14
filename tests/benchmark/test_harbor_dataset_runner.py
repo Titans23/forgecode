@@ -114,7 +114,7 @@ def test_dry_run_freezes_shared_configuration_without_starting_a_job(tmp_path, m
         '--dry-run'],
         default_dataset=dataset) == 0
     unlimited = json.loads(capsys.readouterr().out)
-    assert unlimited['concurrency'] == 4
+    assert unlimited['concurrency'] == 4 and unlimited['setup_concurrency'] == 4
     assert unlimited['harness_budgets'] is False and 'parent_budget' not in unlimited['harness']
     from forge.application.models import validate
     assert validate('harness-config', unlimited['harness']) == unlimited['harness']
@@ -163,12 +163,15 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
         task_names=[], n_tasks=1, destination=output / 'tasks'))
     assert list(taskset['tasks']) == ['terminal-bench/a']
     assert taskset['usage'] == 'evaluation-only' and taskset['version'] == metadata.version
-    args = runner.build_parser(default_dataset='terminal-bench/terminal-bench-2').parse_args(['--n-tasks', '1'])
+    args = runner.build_parser(default_dataset='terminal-bench/terminal-bench-2').parse_args(
+        ['--n-tasks', '1', '--concurrency', '20', '--setup-concurrency', '4'])
     config, manifest = runner.effective_configuration(args)
     manifest.update(run_id='fixture-run', source_manifest={'fixture': True})
     job = runner.frozen_job(args, manifest, taskset, tmp_path / 'source', output)
     raw = job.model_dump_json(context={'redact_sensitive_env': False})
     restored = JobConfig.model_validate_json(raw)
+    assert restored.n_concurrent_trials == 20
+    assert restored.environment.kwargs['setup_concurrency'] == 4
     assert 'offline-fixture-secret' not in raw and config.api_key == 'offline-fixture-secret'
     assert restored.agents[0].env['FORGECODE_MODEL_MAX_TOKENS'] == '65536'
     assert restored.agents[0].env['FORGECODE_CONTEXT_WINDOW'] == '262144'

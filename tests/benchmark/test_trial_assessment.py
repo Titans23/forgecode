@@ -146,6 +146,9 @@ def test_comparison_lists_uncontrolled_changes_and_preserves_each_task(tmp_path,
     comparison = compare_runs(base, candidate, change='model')
     assert 'budget.max_model_calls' in comparison['unexpected_differences']
     assert 'dependencies_and_runner.uv.lock' in comparison['unexpected_differences']
+    experiment['setup_concurrency'] = 4
+    (candidate / 'experiment.json').write_text(json.dumps(experiment))
+    assert 'protocol.setup_concurrency' in compare_runs(base, candidate, change='model')['unexpected_differences']
     (candidate / 'resources.jsonl').unlink()
     assert 'candidate.environment' in compare_runs(base, candidate, change='model')['missing_evidence']
     assert main(['compare', str(base), str(candidate), '--change', 'model']) == 0

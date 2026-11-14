@@ -87,6 +87,8 @@ def build_parser(
     parser.add_argument('--dataset-ref', default='latest', help='Resolved to an immutable digest before launch.')
     parser.add_argument('--taskset-dir', type=Path, help='Reuse a previously frozen official taskset after verifying its bytes.')
     parser.add_argument('--concurrency', type=int, default=1)
+    parser.add_argument('--setup-concurrency', type=int, default=4,
+                        help='Maximum concurrent environment preparation/install phases within the trial limit.')
     parser.add_argument('--max-retries', type=int, default=0)
     parser.add_argument('--model')
     parser.add_argument('--reasoning-effort')
@@ -174,7 +176,9 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
     manifest = {'schema_version': 'forge.evaluation.v1', 'dataset': args.dataset,
         'dataset_ref': args.dataset_ref, 'selection': {'tasks': args.task, 'n_tasks': args.n_tasks, 'all': args.all},
         'harbor_version': '0.18.0', 'usage': 'evaluation-only', 'model': model,
-        'agent': args.agent, 'concurrency': args.concurrency, 'attempts': 1, 'task_retries': args.max_retries,
+        'agent': args.agent, 'concurrency': args.concurrency,
+        'setup_concurrency': min(args.setup_concurrency, args.concurrency),
+        'attempts': 1, 'task_retries': args.max_retries,
         'harness_budgets': False, 'completion_policy': args.completion_policy or 'normal',
         'execution': dict(EVALUATION_EXECUTION),
         'timeout_multiplier': args.timeout_multiplier or 1,
@@ -240,6 +244,7 @@ def frozen_job(args, manifest, taskset, source, output):
         agent_setup_timeout_multiplier=args.agent_setup_timeout_multiplier,
         environment=EnvironmentConfig(import_path='benchmark.adapters.docker:EvaluationDockerEnvironment',
             kwargs={'receipt_path': str(output / 'resources.jsonl'),
+                    'setup_concurrency': manifest['setup_concurrency'],
                     'prepared_images': manifest.get('prepared_image_mapping', {})},
             force_build=args.force_build, mounts=[] if manifest.get('prepared_image_mapping') else [
                 {'type': 'bind', 'source': str(args.cache_dir.resolve()), 'target': '/opt/forgecode-cache'}]),
@@ -251,7 +256,7 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
          default_output_dir: Path | None = None) -> int:
     parser = build_parser(default_dataset=default_dataset, default_output_dir=default_output_dir)
     args = parser.parse_args(argv)
-    for name in ('concurrency', 'agent_setup_timeout_multiplier'):
+    for name in ('concurrency', 'setup_concurrency', 'agent_setup_timeout_multiplier'):
         if getattr(args, name) < 1:
             parser.error(f'--{name.replace("_", "-")} must be positive')
     if args.n_tasks is not None and args.n_tasks < 1 or args.max_retries < 0:

@@ -9,17 +9,52 @@ from harbor.environments.docker.docker import _sanitize_docker_compose_project_n
 from benchmark.harbor.bounded_docker import BoundedDockerEnvironment
 
 
+DOCKER_QUERY_TIMEOUT_SECONDS = 60
+
+
+class DockerQueryError(RuntimeError):
+    """A Docker CLI failure, distinct from Harbor's overall phase deadline."""
+
+
+async def _read_query_output(stream, limit):
+    chunks, size = [], 0
+    while chunk := await stream.read(16384):
+        size += len(chunk)
+        if size > limit:
+            raise DockerQueryError('Docker query output exceeds its bounded report')
+        chunks.append(chunk)
+    return b''.join(chunks)
+
+
 async def docker_query(*arguments):
-    child=await asyncio.create_subprocess_exec('docker',*arguments,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.DEVNULL)
+    from forge.sessions.trajectory import redact_text
+    operation = ' '.join(arguments[:2])
+    child = await asyncio.create_subprocess_exec(
+        'docker', *arguments, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    readers = [asyncio.create_task(_read_query_output(child.stdout, 1048576)),
+               asyncio.create_task(_read_query_output(child.stderr, 65536)),
+               asyncio.create_task(child.wait())]
     try:
-        async with asyncio.timeout(10):
-            output=await child.stdout.read(1048577)
-            if len(output)>1048576: raise ValueError('Docker inventory exceeds its bounded report')
-            await child.wait()
-            if child.returncode: raise RuntimeError('Docker inventory query failed')
-            return output.decode('utf-8').strip()
+        try:
+            async with asyncio.timeout(DOCKER_QUERY_TIMEOUT_SECONDS):
+                output, errors, _ = await asyncio.gather(*readers)
+        except TimeoutError as error:
+            raise DockerQueryError(
+                f'Docker query timed out after {DOCKER_QUERY_TIMEOUT_SECONDS:g} seconds: {operation}'
+            ) from error
+        if child.returncode:
+            detail = redact_text(errors.decode('utf-8', errors='replace').strip())[:2000]
+            raise DockerQueryError(f'Docker query failed (exit {child.returncode}): {operation}; {detail}')
+        return output.decode('utf-8').strip()
     finally:
-        if child.returncode is None: child.kill();await child.wait()
+        if child.returncode is None:
+            child.kill()
+        for reader in readers:
+            reader.cancel()
+        await asyncio.gather(*readers, return_exceptions=True)
+        # Readers may have been cancelled by a deadline or output limit. Drain
+        # the killed child's pipes as well as reaping it; wait() alone can stall.
+        await child.communicate()
 
 
 async def docker_inventory(project, known_volumes=()):
@@ -65,7 +100,10 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
             command = 'export PATH=/opt/forgecode-verifier/bin:"$PATH"; ' + command
         return await super().exec(command=command, cwd=cwd, env=env, timeout_sec=timeout_sec, user=user)
 
-    def __init__(self,*args,receipt_path,prepared_images=None,**kwargs):
+    def __init__(self,*args,receipt_path,prepared_images=None,setup_concurrency=4,**kwargs):
+        # The job plugin owns this shared limit; do not forward it to Docker.
+        if not isinstance(setup_concurrency, int) or setup_concurrency < 1:
+            raise ValueError('setup_concurrency must be a positive integer')
         if prepared_images:
             config = kwargs['task_env_config']
             if config.docker_image not in prepared_images:
