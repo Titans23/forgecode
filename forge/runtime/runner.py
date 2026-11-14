@@ -622,11 +622,14 @@ class TurnRunner:
                 if c.working_state is not None:
                     c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision)
                 yield ToolExecutionCompleted(effective, outcome.result)
-                cancelled = (outcome.record.status == 'cancelled' and outcome.result.error
-                             and outcome.result.error.code == 'execution_cancelled')
-                if self.interruption is None and (cancelled or outcome.record.status == 'indeterminate'):
+                error = outcome.result.error
+                cancelled = (outcome.record.status == 'cancelled' and error
+                             and error.code == 'execution_cancelled')
+                if (cancelled or outcome.record.status == 'indeterminate') and (
+                    self.interruption is None or self.interruption['error_code'] == 'execution_cancelled'
+                    and error and error.code != 'execution_cancelled'
+                ):
                     from forge.sessions.trajectory import redact_text
-                    error = outcome.result.error
                     self.interruption = {
                         'source': 'tool_execution', 'tool_call_id': effective.id, 'tool_name': effective.name,
                         'execution_status': outcome.record.status, 'error_code': error.code if error else None,
@@ -634,9 +637,9 @@ class TurnRunner:
                         'reason': redact_text(f'{effective.name} ({effective.id}): {outcome.result.summary}')[:1600]
                                   + ' Inspect uncertain effects before retrying.',
                     }
-                if cancelled:
-                    raise asyncio.CancelledError(self.interruption['reason'])
-                if outcome.record.status == 'indeterminate':
+                # Drain ordered results before raising: a cancelled sibling may
+                # precede the tool whose exception actually stopped this batch.
+                if cancelled or outcome.record.status == 'indeterminate':
                     interrupted = True
                 elif not outcome.result.success:
                     self._diagnose(effective, outcome.result)

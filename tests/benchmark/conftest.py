@@ -1,4 +1,4 @@
-'''Linux service handoff belongs to the Linux CI matrix; Windows tests its Job owner.'''
+'''Linux process ownership belongs to the Linux CI matrix; Windows tests its Job owner.'''
 import sys
 
 # These tests require Linux subreapers and /proc. Both Linux CI jobs collect

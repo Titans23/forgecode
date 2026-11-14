@@ -311,6 +311,46 @@ def test_caller_cancellation_records_reason_without_claiming_tool_failure(tmp_pa
     assert 'tool_call_id' not in cancelled
 
 
+def test_parallel_failure_is_the_reason_instead_of_cancelled_sibling(tmp_path, monkeypatch):
+    from forge.sessions.trajectory import journal_events
+    journal = SessionStore(tmp_path, data_root=tmp_path / '.forge-data').create(model='contract-test')
+    client = ScriptedClient(request(
+        ToolCall(0, 'sibling', 'run_command', {'command': 'wait'}),
+        ToolCall(1, 'cause', 'run_command', {'command': 'fail'})))
+    conversation = Conversation(client=client, registry=create_default_registry(tmp_path),
+        context_root=tmp_path, session_journal=journal)
+    # These synthetic operations explicitly permit overlap, like a plugin's
+    # independent processes. The executor and batch cancellation are real.
+    monkeypatch.setattr(conversation.registry, 'is_concurrency_safe', lambda *args: True)
+    async def collect():
+        entered = asyncio.Event()
+        async def execute(name, arguments):
+            if arguments['command'] == 'wait':
+                entered.set()
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError as error:
+                    error.cleanup = {'state': 'clean'}
+                    raise
+            await entered.wait()
+            raise TimeoutError()
+        monkeypatch.setattr(conversation.registry, 'execute', execute)
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                _ = [event async for event in conversation.stream('Run the two independent operations.')]
+        finally:
+            await conversation.runtime_close()
+    asyncio.run(collect())
+    records = journal_events(journal.path)
+    cancelled = next(e['payload'] for e in records if e['type'] == 'turn_cancelled')
+    assert cancelled['tool_call_id'] == 'cause' and cancelled['error_code'] == 'executor_failed'
+    assert cancelled['exception'][0]['type'] == 'TimeoutError'
+    tools = [e['payload'] for e in records if e['type'] == 'tool_completed']
+    assert len(tools) == 2
+    assert {t['tool_call_id']: t['status'] for t in tools} == {'sibling': 'cancelled', 'cause': 'indeterminate'}
+    assert len(client.calls) == 1
+
+
 def test_consumer_close_has_its_own_cancellation_source(tmp_path):
     from contextlib import aclosing
     from forge.sessions.trajectory import journal_events

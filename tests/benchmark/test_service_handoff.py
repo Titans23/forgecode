@@ -1,4 +1,4 @@
-'''Offline actual service handoff; the enclosing owned worker replaces container teardown.'''
+'''Offline Linux process ownership and service handoff; no task containers or models.'''
 import asyncio
 import json
 import os
@@ -9,6 +9,39 @@ import sys
 import pytest
 
 from forge.sandbox.process_owner import LocalProcessOwner
+
+
+def test_patch_timeout_reaps_git_children_and_retains_separate_diagnostic(tmp_path, monkeypatch):
+    import shlex
+    from types import SimpleNamespace
+    from benchmark.harbor import process_supervisor
+    from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
+    git = tmp_path / 'git'
+    child_pid = tmp_path / 'git-child.pid'
+    git.write_text('#!/bin/sh\nsleep 60 &\necho $! > "$CHILD_PID"\nwait\n', newline='\n')
+    git.chmod(0o755)
+    monkeypatch.setattr('benchmark.harbor.forgecode_agent._venv_python', lambda: sys.executable)
+    monkeypatch.setattr('benchmark.harbor.forgecode_agent._PATCH_CAPTURE_SECONDS', 1)
+    agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    agent._patch_baseline = 'a' * 40
+    async def execute(**kwargs):
+        argv = shlex.split(kwargs['command'])
+        assert argv[2:4] == ['-m', 'benchmark.harbor.process_supervisor']
+        # Run the same supervisor file without requiring an installed editable
+        # package in the host's isolated interpreter (task containers install it).
+        argv[2:4] = [str(Path(process_supervisor.__file__).resolve())]
+        process = await asyncio.create_subprocess_exec(*argv,
+            env={**os.environ, 'PATH': str(tmp_path) + os.pathsep + os.environ['PATH'], 'CHILD_PID': str(child_pid)},
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await asyncio.wait_for(process.communicate(), 10)
+        return SimpleNamespace(return_code=process.returncode, stdout=stdout.decode(), stderr=stderr.decode())
+    asyncio.run(agent.capture_patch(SimpleNamespace(exec=execute)))
+    diagnostic = json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())
+    assert diagnostic['status'] == 'timed_out' and diagnostic['return_code'] == 124
+    assert diagnostic['phase'] == 'patch_capture'
+    assert not (tmp_path / 'forgecode-pregrade.patch').exists()
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(child_pid.read_text()), 0)
 
 
 AGENT = '''
