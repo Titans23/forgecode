@@ -263,10 +263,12 @@ class Tool(ABC, Generic[InputT]):
                 details=error.details,
             )
         except Exception as error:
+            from forge.sessions.trajectory import exception_diagnostics
+            diagnostic = exception_diagnostics(error)
             return ToolResult.fail(
                 'tool_execution_failed',
-                f'{self.name} failed: {error}',
-                details={'exception_type': type(error).__name__},
+                f'{self.name} failed: {diagnostic[0]["type"]}: {diagnostic[0]["message"]}',
+                details={'exception_type': type(error).__name__, 'exception': diagnostic},
             )
 
     @abstractmethod

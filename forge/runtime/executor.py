@@ -24,6 +24,7 @@ from forge.runtime.turn_state import (
 )
 from forge.runtime.workspace import WorkspaceChange, WorkspaceTracker, fingerprint_path
 from forge.sessions.checkpoint import CheckpointError, CheckpointStore
+from forge.sessions.trajectory import exception_diagnostics
 from forge.tools.base import ToolRegistry, ToolResult
 
 
@@ -361,6 +362,8 @@ class ToolExecutor:
                      if execution_started else
                      'Workspace execution was refused because its checkpoint could not be created.'),
                     content=str(error),
+                    details={'exception': exception_diagnostics(error), 'stage': 'checkpoint',
+                             'execution_started': execution_started},
                 )
                 return operation_outcome(
                     call,
@@ -372,9 +375,11 @@ class ToolExecutor:
                     epoch,
                 )
             except Exception as error:
+                diagnostic = exception_diagnostics(error)
                 result = ToolResult.fail(
                     getattr(error, 'kind', 'executor_failed'),
-                    f'Tool executor failed before a determinate result: {error}',
+                    f'Tool executor failed before a determinate result: {diagnostic[0]["type"]}: {diagnostic[0]["message"]}',
+                    details={'exception': diagnostic, 'stage': 'execution', 'execution_started': execution_started},
                 )
                 return operation_outcome(
                     call,
@@ -402,6 +407,8 @@ class ToolExecutor:
                 confirmed = report.get('state') in {'clean', 'transferred'}
                 result = ToolResult.fail('execution_cancelled',
                     'Operation cancelled; partial effects may remain. Inspect before retrying.',
+                    details={'exception': exception_diagnostics(cancellation), 'stage': 'execution',
+                             'execution_started': execution_started},
                     metadata={'cleanup': report, 'effects_may_remain': execution_started})
                 return operation_outcome(call, result,
                     'cancelled' if not execution_started or effect == 'read_only' or effect == 'process' and confirmed
@@ -480,7 +487,8 @@ class ToolExecutor:
 
         def failed(error, *, persist=None):
             return self._outcome(call, ToolResult.fail('INDETERMINATE',
-                f'Tool settlement failed after execution: {type(error).__name__}. Inspect before retrying.'),
+                f'Tool settlement failed after execution: {type(error).__name__}. Inspect before retrying.',
+                details={'exception': exception_diagnostics(error), 'stage': 'settlement', 'execution_started': True}),
                 'indeterminate', started, arguments, *self._state(), persist=not background if persist is None else persist)
 
         async def dispatch():

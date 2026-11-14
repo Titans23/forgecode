@@ -3,6 +3,8 @@ import logging
 from types import SimpleNamespace
 
 import pytest
+from harbor.agents.installed.base import NonZeroAgentExitCodeError
+from harbor.trial.errors import AgentTimeoutError
 
 from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
 from benchmark.harbor.deadline_plugin import ForgeCodeDeadlinePlugin
@@ -163,6 +165,72 @@ def test_deadline_adapter_rejects_duplicate_installation(monkeypatch):
             await first.on_job_end(None)
         assert Trial._run_agent_phase is original
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('agent_error', [None, NonZeroAgentExitCodeError('agent exit 1'),
+                                       AgentTimeoutError('official deadline')])
+def test_capture_is_after_agent_clock_and_cannot_replace_agent_result(tmp_path, monkeypatch, agent_error):
+    from contextlib import nullcontext
+    from harbor.trial.trial import Trial
+    import json
+    order = []
+    agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    async def original(trial, **kwargs):
+        async def work():
+            trial.agent._patch_baseline = 'a' * 40
+            order.append('agent')
+        await asyncio.wait_for(work(), kwargs['timeout_sec'])
+        order.append('agent_clock_ended')
+        if agent_error:
+            raise agent_error
+    async def execute(**kwargs):
+        assert order == ['agent', 'agent_clock_ended']
+        # Longer than the entire official phase: only the capture clock owns it.
+        await asyncio.sleep(0.06)
+        order.append('capture')
+        raise TimeoutError('patch transport deadline')
+    monkeypatch.setattr(Trial, '_run_agent_phase', original)
+    trial = SimpleNamespace(agent=agent, agent_environment=SimpleNamespace(
+        exec=execute, with_default_user=lambda user: nullcontext()))
+    async def exercise():
+        plugin = ForgeCodeDeadlinePlugin()
+        await plugin.on_job_start(SimpleNamespace(config=SimpleNamespace(tasks=[]), _metrics={}))
+        try:
+            if agent_error:
+                with pytest.raises(type(agent_error)) as caught:
+                    await Trial._run_agent_phase(trial, timeout_sec=0.03)
+                assert caught.value is agent_error
+            else:
+                await Trial._run_agent_phase(trial, timeout_sec=0.03)
+            order.append('verifier')
+        finally:
+            await plugin.on_job_end(None)
+    asyncio.run(exercise())
+    assert order == ['agent', 'agent_clock_ended', 'capture', 'verifier']
+    diagnostic = json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())
+    assert diagnostic['phase'] == 'patch_capture' and diagnostic['status'] == 'timed_out'
+    assert not (tmp_path / 'forgecode-pregrade.patch').exists()
+
+
+def test_capture_cancellation_remains_cancellation_and_removes_stale_patch(tmp_path):
+    import json
+    agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    agent._patch_baseline = 'a' * 40
+    patch = tmp_path / 'forgecode-pregrade.patch'
+    patch.write_text('previous attempt')
+    async def exercise():
+        started = asyncio.Event()
+        async def execute(**kwargs):
+            started.set()
+            await asyncio.Event().wait()
+        task = asyncio.create_task(agent.capture_patch(SimpleNamespace(exec=execute)))
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    asyncio.run(exercise())
+    assert not patch.exists()
+    assert json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())['status'] == 'cancelled'
 
 
 def test_phase_journal_preserves_both_exceptions_without_changing_harbor_result(tmp_path, monkeypatch):

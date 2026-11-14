@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -23,6 +24,7 @@ _REMOTE_SOURCE_DIR: Final = '/installed-agent/forgecode-src'
 _CACHE_DIR: Final = '/opt/forgecode-cache'
 _INSTRUCTION_PATH: Final = '/tmp/forgecode-benchmark-instruction.txt'
 _MAX_PATCH_BYTES = 100 * 1024 * 1024
+_PATCH_CAPTURE_SECONDS = 30
 
 
 _BENCHMARK_EXECUTION_GUIDANCE: Final = '''
@@ -81,9 +83,11 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         if package is not None and self._frozen_configuration:
             raise ValueError('A bound RunSpec requires its frozen local source, not a package override.')
         self._phase_deadline: float | None = None
+        self._patch_baseline: str | None = None
 
     def set_phase_timeout(self, seconds: float | None) -> None:
         self._phase_deadline = None if seconds is None else monotonic() + _positive_float(seconds, 'phase_timeout')
+        self._patch_baseline = None
 
     def effective_turn_seconds(self) -> float:
         # Official task deadline owns cancellation; leave time for log export.
@@ -192,42 +196,54 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
                 if result.return_code != 0 or not re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', baseline):
                     raise RuntimeError('Pre-agent Git baseline unavailable: ' + str(getattr(result, 'stderr', '') or result.stdout)[-4096:])
                 baseline_file.write_text(baseline + '\n', encoding='utf-8')
-        execution_error = None
-        try:
-            await self.exec_as_agent(environment,
-                command=self._run_command(resume=resume, message_file=_INSTRUCTION_PATH),
-                env={'FORGECODE_DISABLE_GLOBAL_SKILLS': '1'})
-        except Exception as error:
-            execution_error = error
-        if self._frozen_configuration:
-            try:
-                await self._capture_patch(environment, baseline)
-            except Exception as error:
-                if execution_error is not None:
-                    execution_error.add_note(str(error))
-                    raise execution_error from error
-                raise
-        if execution_error is not None:
-            raise execution_error
+            self._patch_baseline = baseline
+        await self.exec_as_agent(environment,
+            command=self._run_command(resume=resume, message_file=_INSTRUCTION_PATH),
+            env={'FORGECODE_DISABLE_GLOBAL_SKILLS': '1'})
 
-    async def _capture_patch(self, environment, baseline):
-        # Include new deliverables even after agent failure, without changing their bytes.
-        result = await environment.exec(command=_patch_capture_command(baseline))
-        patch = (result.stdout or '').encode()
-        omitted = re.fullmatch(rb'FORGECODE_PATCH_BYTES ([0-9]+)\s*', patch) if result.return_code == 0 else None
-        diagnostic = {'baseline':baseline, 'return_code':result.return_code,
-            'patch_bytes':int(omitted[1]) if omitted else len(patch),
-            'status':'failed' if result.return_code else 'omitted_size_limit' if omitted else 'captured',
-            'stderr':(getattr(result, 'stderr', '') or '')[-4096:],
-            'error_output':(result.stdout or '')[-4096:] if result.return_code else ''}
-        (self.logs_dir/'forgecode-patch-capture.json').write_text(json.dumps(diagnostic), encoding='utf-8')
-        if result.return_code != 0:
-            raise RuntimeError('Pre-grader tracked patch capture unavailable: ' + json.dumps(diagnostic))
+    async def capture_patch(self, environment):
+        # Called by the phase adapter AFTER Harbor's agent clock, BEFORE grading.
+        # Archival failure must not replace the agent result or prevent grading.
+        from forge.sessions.trajectory import redact_text
+        baseline, self._patch_baseline = self._patch_baseline, None
+        if baseline is None:
+            return
+        started = monotonic()
+        diagnostic = {'phase': 'patch_capture', 'baseline': baseline,
+                      'timeout_seconds': _PATCH_CAPTURE_SECONDS, 'status': 'failed'}
         patch_path = self.logs_dir/'forgecode-pregrade.patch'
-        if omitted:
+        try:
+            # A failed new capture must never expose a previous attempt's patch.
             patch_path.unlink(missing_ok=True)
-        else:
-            patch_path.write_bytes(patch)
+            command = (f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.process_supervisor '
+                       f'--timeout-seconds {_PATCH_CAPTURE_SECONDS} -- bash -c '
+                       + shlex.quote(_patch_capture_command(baseline)))
+            # The in-container supervisor owns Git descendants; transport gets
+            # an extra ten seconds for cleanup and delivery of the final result.
+            async with asyncio.timeout(_PATCH_CAPTURE_SECONDS + 10):
+                result = await environment.exec(command=command, timeout_sec=_PATCH_CAPTURE_SECONDS + 10)
+            patch = (result.stdout or '').encode()
+            omitted = re.fullmatch(rb'FORGECODE_PATCH_BYTES ([0-9]+)\s*', patch) if result.return_code == 0 else None
+            diagnostic.update(return_code=result.return_code,
+                status=('timed_out' if result.return_code == 124 else 'failed') if result.return_code
+                       else 'omitted_size_limit' if omitted else 'captured',
+                patch_bytes=int(omitted[1]) if omitted else len(patch), patch_bytes_exact=not bool(omitted),
+                stderr=redact_text(getattr(result, 'stderr', '') or '')[-4096:],
+                error_output=redact_text(result.stdout or '')[-4096:] if result.return_code else '')
+            if result.return_code == 0 and not omitted:
+                patch_path.write_bytes(patch)
+        except asyncio.CancelledError:
+            diagnostic['status'] = 'cancelled'
+            raise
+        except Exception as error:
+            diagnostic.update(status='timed_out' if isinstance(error, TimeoutError) else 'failed',
+                              exception_type=type(error).__name__, message=redact_text(str(error))[:2000])
+        finally:
+            diagnostic['duration_seconds'] = round(monotonic() - started, 3)
+            try:
+                (self.logs_dir/'forgecode-patch-capture.json').write_text(json.dumps(diagnostic), encoding='utf-8')
+            except OSError:
+                self.logger.warning('Patch capture diagnostics could not be persisted; agent result is unchanged.')
 
     async def _prepare_install_spec(self, environment: BaseEnvironment) -> str:
         if self._package is not None:
@@ -410,13 +426,17 @@ def _patch_capture_command(baseline: str) -> str:
         'capture_status=0; { git -c core.hooksPath=/dev/null read-tree ' + shlex.quote(baseline) + ' && '
         'git -c core.hooksPath=/dev/null -c core.fsmonitor=false add --intent-to-add -- . && '
         'git --no-pager -c core.fsmonitor=false -c core.hooksPath=/dev/null '
-        'diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline) + ' | ('
-        # Drain the stream so Git errors remain visible, but never send an oversized diff to Harbor.
-        f'head -c {_MAX_PATCH_BYTES} >"$capture_dir/patch" || exit 1; extra=$(wc -c) || exit 1; '
-        f'if [ "$extra" -gt 0 ]; then echo "FORGECODE_PATCH_BYTES $(({_MAX_PATCH_BYTES} + extra))"; '
-        'else cat "$capture_dir/patch"; fi); '
+        'diff --no-ext-diff --no-textconv --binary ' + shlex.quote(baseline) + ' | '
+        # Stop reading at the limit. SIGPIPE from Git is expected only when the
+        # bounded file proves overflow; other Git failures remain failures.
+        f'head -c {_MAX_PATCH_BYTES + 1} >"$capture_dir/patch"; '
         '} 2>"$capture_dir/stderr" || capture_status=$?; '
-        'if [ "$capture_status" -ne 0 ]; then cat "$capture_dir/stderr"; exit "$capture_status"; fi'
+        'patch_bytes=0; if [ -f "$capture_dir/patch" ]; then patch_bytes=$(wc -c <"$capture_dir/patch"); fi; '
+        f'if [ "$patch_bytes" -gt {_MAX_PATCH_BYTES} ] && '
+        '{ [ "$capture_status" -eq 0 ] || [ "$capture_status" -eq 141 ]; }; then '
+        'echo "FORGECODE_PATCH_BYTES $patch_bytes"; '
+        'elif [ "$capture_status" -ne 0 ]; then cat "$capture_dir/stderr"; exit "$capture_status"; '
+        'else cat "$capture_dir/patch"; fi'
     )
 
 

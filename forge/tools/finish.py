@@ -22,7 +22,8 @@ class FinishTaskInput(ToolInput):
     blocked_reasons: list[str] = Field(default_factory=list, max_length=20)
     acceptance_criteria: list[AcceptanceCriterion] = Field(default_factory=list, max_length=20,
         description='For an explicit reconciliation contract, register original requirements without creating a plan. '
-        'Used only if no criteria exist; later completion is read-only. Use task_plan to add distinct clauses; omit for failed.')
+        'Ignored unless the caller requires acceptance reconciliation. Used only if no criteria exist; '
+        'later completion is read-only. Use task_plan to add distinct clauses; omit for failed.')
 
     @model_validator(mode='after')
     def validate_status(self) -> FinishTaskInput:

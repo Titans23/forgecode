@@ -127,8 +127,10 @@ async def schedule_calls(calls, executor, prepare, *, limit, completed):
                     error = slot.task.exception()
                     if error is not None:
                         # An internal failure after dispatch cannot establish absence of effects.
+                        from forge.sessions.trajectory import exception_diagnostics
                         slot.dispatched = executor.record_result(calls[index], ToolResult.fail(
-                            'INDETERMINATE', f'Tool dispatch failed: {type(error).__name__}'), status='indeterminate')
+                            'INDETERMINATE', f'Tool dispatch failed: {type(error).__name__}',
+                            details={'exception': exception_diagnostics(error), 'stage': 'dispatch'}), status='indeterminate')
                     else:
                         slot.dispatched = slot.task.result()
             if slot.dispatched is not None:

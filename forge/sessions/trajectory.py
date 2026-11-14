@@ -241,6 +241,18 @@ def redact_text(value: str) -> str:
     return _SENSITIVE_ASSIGNMENT.sub(r'\1\2[REDACTED]', _BEARER_TOKEN.sub(r'\1[REDACTED]', value))
 
 
+def exception_diagnostics(error: BaseException) -> list[dict[str, str]]:
+    '''Bounded, redacted cause chain; never serialize traceback locals or requests.'''
+    chain, seen = [], set()
+    while error is not None and id(error) not in seen and len(chain) < 4:
+        seen.add(id(error))
+        message = redact_text(str(error))
+        chain.append({'type': type(error).__name__,
+                      'message': ''.join(c if c.isprintable() else ' ' for c in message)[:1024]})
+        error = error.__cause__ or (None if error.__suppress_context__ else error.__context__)
+    return chain
+
+
 def journal_events(path: Path) -> list[dict]:
     """Validate the selected Journal chain and resolve verified external payloads."""
     from forge.sessions.store import SessionStore

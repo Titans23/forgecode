@@ -213,9 +213,9 @@ class SessionJournal:
             },
         )
 
-    def record_turn_cancelled(self, reason: str = '') -> None:
+    def record_turn_cancelled(self, reason: str = '', *, details: dict[str, Any] | None = None) -> None:
         '''Persist cancellation without implying that a side effect completed.'''
-        self.append('turn_cancelled', {'reason': reason})
+        self.append('turn_cancelled', {**(details or {}), 'reason': reason})
 
     def record_context_compacted(
         self,

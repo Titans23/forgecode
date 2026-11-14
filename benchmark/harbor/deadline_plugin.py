@@ -51,9 +51,19 @@ class ForgeCodeDeadlinePlugin(BaseJobPlugin):
 
         @wraps(self._original)
         async def bounded_phase(trial, **kwargs):
-            if isinstance(trial.agent, ForgeCodeHarborAgent):
-                trial.agent.set_phase_timeout(kwargs.get('timeout_sec'))
-            return await self._original(trial, **kwargs)
+            if not isinstance(trial.agent, ForgeCodeHarborAgent):
+                return await self._original(trial, **kwargs)
+            trial.agent.set_phase_timeout(kwargs.get('timeout_sec'))
+            cancelled = False
+            try:
+                return await self._original(trial, **kwargs)
+            except asyncio.CancelledError:
+                cancelled = True
+                raise
+            finally:
+                if not cancelled and trial.agent._patch_baseline is not None:
+                    with trial.agent_environment.with_default_user(kwargs.get('user')):
+                        await trial.agent.capture_patch(trial.agent_environment)
 
         self._wrapper = bounded_phase
         bounded_phase._forge_deadline_adapter = True

@@ -85,6 +85,36 @@ def tool_results(events):
     }
 
 
+@pytest.mark.parametrize('reconcile,quote,status', [
+    (False, 'Produce ... output.', 'completed'),
+    (False, 'Produce output.', 'partial'),
+    (True, 'Produce ... output.', 'completed'),
+    (True, 'Produce output.', 'completed'),
+])
+def test_finish_criteria_only_bind_when_caller_requires_reconciliation(tmp_path, reconcile, quote, status):
+    client = ScriptedClient(request(ToolCall(0, 'finish', 'finish_task', {
+        'task_kind': 'change', 'status': status, 'summary': 'Output produced.',
+        'acceptance_criteria': [{'source_quote': quote, 'condition': 'Output exists.', 'check': 'read output'}],
+    })))
+    conversation = Conversation(client=client, registry=create_default_registry(tmp_path), context_root=tmp_path,
+        task_policy=TaskPolicy(require_acceptance_reconciliation=True) if reconcile else None)
+    conversation.task_manager.start('Produce output.')
+
+    async def collect():
+        return [event async for event in conversation.stream('Produce output.')]
+
+    events = asyncio.run(collect())
+    final = events[-1].result
+    expected = 'partial' if reconcile else status
+    assert final.status == expected
+    assert final.stop_reason == ('acceptance_unmet' if reconcile else status)
+    submitted = tool_results(events)['finish']
+    assert submitted.metadata['status'] == expected
+    assert submitted.summary == f'Submitted change task {expected}.'
+    assert len(client.calls) == 1
+    assert bool(conversation.active_task.acceptance_criteria) == (reconcile and '...' not in quote)
+
+
 def test_reasoning_is_visible_as_an_event_without_becoming_the_answer(tmp_path):
     client = ScriptedClient([ModelUsageUpdate(TokenUsage(10, 3)),
         ModelReasoningDelta('Inspect the two numbers.'), ModelTextDelta('2')])
@@ -203,6 +233,99 @@ def test_kernel_persists_final_statistics_without_event_consumer(tmp_path: Path)
     assert len(completed) == 1
     assert completed[0]['payload']['statistics'] == final.statistics
     assert final.statistics['model_requests'] == 1
+
+
+@pytest.mark.parametrize('empty_message', [False, True])
+def test_executor_error_and_interruption_survive_journal_restore_and_exports(tmp_path, monkeypatch, empty_message):
+    from forge.sessions.trajectory import journal_events, journal_to_atif, journal_to_openai
+    store = SessionStore(tmp_path, data_root=tmp_path / '.forge-data')
+    journal = store.create(model='contract-test')
+    client = ScriptedClient(request(
+        ToolCall(0, 'uncertain', 'run_command', {'command': 'synthetic operation'}),
+        ToolCall(1, 'unstarted', 'list_directory', {'path': '.'})))
+    conversation = Conversation(client=client, registry=create_default_registry(tmp_path), context_root=tmp_path,
+        session_journal=journal, session_store=store)
+    executed = []
+    async def fail(name, arguments):
+        executed.append(name)
+        (tmp_path / 'partial.txt').write_text('partial effect')
+        if empty_message:
+            raise TimeoutError()
+        try:
+            raise ConnectionError('token=private-value ' + 'detail ' * 500)
+        except ConnectionError as cause:
+            raise RuntimeError('worker disconnected') from cause
+    monkeypatch.setattr(conversation.tool_executor.registry, 'execute', fail)
+    async def collect():
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                _ = [event async for event in conversation.stream('Run the operation.')]
+        finally:
+            await conversation.runtime_close()
+    asyncio.run(collect())
+    records = journal_events(journal.path)
+    tools = [e['payload'] for e in records if e['type'] == 'tool_completed']
+    assert [item['status'] for item in tools] == ['indeterminate', 'cancelled']
+    diagnostic = tools[0]['result']['error']['details']
+    assert diagnostic['execution_started'] is True
+    assert diagnostic['exception'][0]['type'] == ('TimeoutError' if empty_message else 'RuntimeError')
+    if not empty_message:
+        assert diagnostic['exception'][1]['type'] == 'ConnectionError'
+        assert len(diagnostic['exception'][1]['message']) <= 1024
+    cancelled = next(e['payload'] for e in records if e['type'] == 'turn_cancelled')
+    assert cancelled['source'] == 'tool_execution'
+    assert cancelled['tool_call_id'] == 'uncertain' and cancelled['error_code'] == 'executor_failed'
+    assert cancelled['exception'] == diagnostic['exception']
+    assert executed == ['run_command'] and len(client.calls) == 1
+    assert (tmp_path / 'partial.txt').read_text() == 'partial effect'
+    assert store.load(journal.session_id).indeterminate_tools[0]['tool_call_id'] == 'uncertain'
+    for exported in (journal_to_atif(journal.path), journal_to_openai(journal.path)):
+        text = json.dumps(exported)
+        assert 'tool_execution' in text and diagnostic['exception'][0]['type'] in text
+        assert 'private-value' not in text
+    assert 'private-value' not in journal.path.read_text()
+
+
+def test_caller_cancellation_records_reason_without_claiming_tool_failure(tmp_path):
+    from forge.sessions.trajectory import journal_events
+    journal = SessionStore(tmp_path, data_root=tmp_path / '.forge-data').create(model='contract-test')
+    async def collect():
+        waiting = asyncio.Event()
+        class Client:
+            async def stream(self, *args, **kwargs):
+                yield ModelUsageUpdate(TokenUsage(1, 0))
+                waiting.set()
+                await asyncio.Event().wait()
+        conversation = Conversation(client=Client(), context_root=tmp_path, session_journal=journal)
+        async def turn():
+            return [event async for event in conversation.stream('Wait for an answer.')]
+        task = asyncio.create_task(turn())
+        await waiting.wait()
+        task.cancel('caller deadline; token=private-value')
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    asyncio.run(collect())
+    cancelled = next(e['payload'] for e in journal_events(journal.path) if e['type'] == 'turn_cancelled')
+    assert cancelled['source'] == 'caller_cancelled'
+    assert 'caller deadline' in cancelled['reason'] and 'private-value' not in cancelled['reason']
+    assert 'tool_call_id' not in cancelled
+
+
+def test_consumer_close_has_its_own_cancellation_source(tmp_path):
+    from contextlib import aclosing
+    from forge.sessions.trajectory import journal_events
+    journal = SessionStore(tmp_path, data_root=tmp_path / '.forge-data').create(model='contract-test')
+    conversation = Conversation(client=ScriptedClient([ModelTextDelta('partial output')]),
+        context_root=tmp_path, session_journal=journal)
+    async def collect():
+        async with aclosing(conversation.stream('Start an answer.')) as stream:
+            async for event in stream:
+                if isinstance(event, ModelTextDelta):
+                    break
+    asyncio.run(collect())
+    cancelled = next(e['payload'] for e in journal_events(journal.path) if e['type'] == 'turn_cancelled')
+    assert cancelled['source'] == 'consumer_closed'
+    assert cancelled['exception'][0]['type'] == 'GeneratorExit'
 
 
 def test_optional_router_contributes_to_usage_without_a_request_quota(tmp_path: Path) -> None:

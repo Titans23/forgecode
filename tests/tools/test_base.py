@@ -7,6 +7,26 @@ from forge.tools import create_default_registry
 from forge.tools.base import ToolResult, _compact_schema
 
 
+def test_unexpected_tool_error_preserves_bounded_redacted_cause_chain(tmp_path):
+    from forge.tools.base import Tool, ToolInput
+    class BrokenTool(Tool[ToolInput]):
+        name = 'broken'
+        description = 'Error fixture'
+        input_model = ToolInput
+        async def execute(self, arguments):
+            try:
+                raise RuntimeError('token=private-value ' + 'detail ' * 500)
+            except RuntimeError as cause:
+                raise TimeoutError() from cause
+    result = asyncio.run(BrokenTool(tmp_path).run({}))
+    assert not result.success and result.error.code == 'tool_execution_failed'
+    assert 'TimeoutError' in result.summary
+    chain = result.error.details['exception']
+    assert chain[0] == {'type': 'TimeoutError', 'message': ''}
+    assert chain[1]['type'] == 'RuntimeError' and len(chain[1]['message']) <= 1024
+    assert 'private-value' not in str(result)
+
+
 def test_path_guard_compatibility_and_concurrent_isolation(tmp_path):
     from forge.tools import base, paths
     from forge.tools.filesystem import ReadFileTool

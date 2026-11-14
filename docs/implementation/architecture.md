@@ -10,6 +10,8 @@ ForgeCode 是轻量、可扩展的 Python Agent Harness。Coding Agent 与终端
 
 coding 的 `features` 可选择 tasks、repository、skills、hooks、mcp、checkpoints；工具在构造前按 `tools` 筛选。仅含支持后台命令的工具时创建 CommandJobs。strict 完成策略需要 tasks/repository；普通回合无强制全盘扫描、自动检查点、独立意图路由或完成门禁。
 
+`finish_task` 的模型自填验收条件仅在调用方启用 `require_acceptance_reconciliation` 时注册和核对；普通模式不会因引用措辞不匹配而把 completed 改成 partial。已显式配置的完成检查、调用方要求和有限命令等待仍生效；模型声明 partial/failed 保持原状，完成声明也不代表官方判分通过。
+
 保留单仓库和单 Python 分发包，模型、CLI、coding、MCP、观测、渠道、验收和 benchmark 依赖按 extra 安装。插件复用唯一 PluginHost，不为每个领域新增循环、日志系统或依赖注入容器。Docker 不参与日常 SDK/CLI 安装和运行。
 
 ## 1. 内核与调用链
@@ -69,6 +71,8 @@ Journal 是默认执行事实源，CLI/SDK 不再自动写第二份 trajectory�
 
 完整工具结果在上下文裁剪前记录，大载荷使用带摘要的外部 payload。会话、回合、请求、调用和后台作业保留各自身份。未知用量保持未知；已取消、失败或不确定的执行不会被“恢复”改写为成功。
 
+工具异常保留脱敏的类型、原因链和执行阶段，原因链最多 4 层、每条文字最多 1024 字符；空消息仍有异常类型。回合中断分别记录工具执行、调用方取消、上游取消或消费者关闭；工具引起的中断关联调用 ID、错误码和执行状态。不确定副作用仍停止批次并要求检查，不自动重放。Journal 与两种轨迹导出保留这些诊断。
+
 SessionStore 从 Journal 重建历史，写入使用父记录/序号检查，防止多个写入者分叉。steering 只在请求边界消费，follow_up 等待下一轮；取消后未消费输入保留。检查点是显式 coding 能力，恢复文件仍检查权限和版本，不自动重放历史工具。
 
 ATIF v1.7 与 OpenAI messages JSONL 均为离线脱敏投影，包含失败、取消、部分响应和未知结果。原 Journal 不修改。新建/恢复事件记录产品版本；ATIF 区分记录版本、mixed/unknown 与当前导出器版本。旧 TrajectoryRecorder 可显式使用。蒸馏、SFT/DPO、tokenizer 和训练执行已移除。
@@ -96,6 +100,8 @@ Hooks 保留匹配规则、JSON 协议和有界输出，外部进程由 LocalPro
 公共基准通过 `benchmark.harbor.platform` 冻结任务、源码、模型、插件、完成策略和条件，再走同一 Harbor runner。默认官方预构建镜像、一次尝试、零任务级自动重试、独立官方 grader。缺少镜像/资源保持未验证，不自动构建预热镜像。旧 Aider 反馈修复入口单独兼容，不能与无外部反馈协议混报。
 
 Harbor 任务并发与环境准备并发分别冻结；准备默认最多 4 道，涵盖建容器、健康检查和 Agent 安装。复用现有 job 插件在准备前排队，排队不消耗官方阶段期限，准备结束或取消立即释放槽位。Agent 与判分仍受 Harbor 总任务并发约束。Docker 查询按完整输出和 60 秒操作期限执行；查询错误独立于官方阶段超时，避免把短查询失败误报为环境运行了 600 秒。
+
+补丁在 Agent 官方计时结束后、grader 开始前采集，独立限时 30 秒，另留最多 10 秒清理和传输余量。复用进程 supervisor 回收 Git 子树；超过 100 MiB 即停止读取，不继续耗时统计完整大小。采集超时/失败只写入 `forgecode-patch-capture.json`，不覆盖 Agent 退出状态、不阻止官方判分；缺失归档不能当成空补丁或完整可重建工作区。
 
 容器中的评测入口也经 `open_runtime` 装配 full-access/never 执行策略和文件提供方，不使用未配置的旧权限路径。evaluation Profile 不加载机器上未冻结的权限规则、目录 Hooks 或 MCP；显式冻结的插件仍由同一 PluginHost 加载和关闭，模型配置在装配前后均与冻结输入核对。
 

@@ -125,11 +125,21 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
                         'commit', '--allow-empty', '-m', 'fixture'], cwd=nested, check=True, capture_output=True)
         (workspace / '.git/index.lock').write_text('checkpoint interrupted')
     async def exec_fixture(*args, **kwargs):
-        result = subprocess.run([str(_bash()), '--noprofile', '--norc', '-c', kwargs['command']],
+        import shlex
+        command = kwargs['command']
+        if 'benchmark.harbor.process_supervisor' in command:
+            command = shlex.split(command)[-1]  # Git script runs on Windows too; Linux supervision is covered below.
+        result = subprocess.run([str(_bash()), '--noprofile', '--norc', '-c', command],
             cwd=workspace, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         return SimpleNamespace(return_code=result.returncode, stdout=result.stdout, stderr=result.stderr)
+    async def run_and_capture(instruction, execute):
+        environment = SimpleNamespace(upload_file=upload, exec=execute)
+        try:
+            await agent.run(instruction, environment, AgentContext())
+        finally:
+            await agent.capture_patch(environment)
     monkeypatch.setattr(agent, 'exec_as_agent', create_deliverable)
-    asyncio.run(agent.run('synthetic task', SimpleNamespace(upload_file=upload, exec=exec_fixture), AgentContext()))
+    asyncio.run(run_and_capture('synthetic task', exec_fixture))
     frozen = json.loads((tmp_path / 'forgecode-harness.json').read_text())
     scope = frozen['scope']
     assert frozen['harbor_trial_id'] == str(agent.context_id or tmp_path.parent.name)
@@ -149,9 +159,10 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
         (workspace / 'weights.bin').write_bytes(bytes(range(256)) * 16)
     monkeypatch.setattr('benchmark.harbor.forgecode_agent._MAX_PATCH_BYTES', 32)
     monkeypatch.setattr(agent, 'exec_as_agent', create_large_deliverable)
-    asyncio.run(agent.run('large output', SimpleNamespace(upload_file=upload, exec=exec_fixture), AgentContext()))
+    asyncio.run(run_and_capture('large output', exec_fixture))
     capture = json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())
     assert capture['status'] == 'omitted_size_limit' and capture['patch_bytes'] > 32
+    assert capture['patch_bytes_exact'] is False
     assert not (tmp_path / 'forgecode-pregrade.patch').exists()
     assert (workspace / 'weights.bin').read_bytes() == bytes(range(256)) * 16
 
@@ -162,24 +173,25 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
             return await exec_fixture(*args, **kwargs)
         return SimpleNamespace(return_code=0, stdout=None)
     monkeypatch.setattr(agent, 'exec_as_agent', upload)
-    asyncio.run(agent.run('unchanged task', SimpleNamespace(upload_file=upload, exec=empty_diff), AgentContext()))
+    asyncio.run(run_and_capture('unchanged task', empty_diff))
     assert (tmp_path / 'forgecode-pregrade.patch').read_bytes() == b''
     async def failed_diff(*args, **kwargs):
         if 'rev-parse HEAD' in kwargs['command']:
             return await exec_fixture(*args, **kwargs)
         return SimpleNamespace(return_code=128, stdout='synthetic missing Git object', stderr='')
-    with pytest.raises(RuntimeError, match='synthetic missing Git object'):
-        asyncio.run(agent.run('failed capture', SimpleNamespace(upload_file=upload, exec=failed_diff), AgentContext()))
+    asyncio.run(run_and_capture('failed capture', failed_diff))
     assert json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())['return_code'] == 128
+    assert not (tmp_path / 'forgecode-pregrade.patch').exists()
     async def agent_failed(*args, **kwargs):
         raise RuntimeError('Internal model failure returned exit 1')
     monkeypatch.setattr(agent, 'exec_as_agent', agent_failed)
     with pytest.raises(RuntimeError, match='Internal model failure'):
-        asyncio.run(agent.run('agent failed', SimpleNamespace(upload_file=upload, exec=empty_diff), AgentContext()))
+        asyncio.run(run_and_capture('agent failed', empty_diff))
     assert (tmp_path / 'forgecode-pregrade.patch').read_bytes() == b''
     with pytest.raises(RuntimeError, match='Internal model failure') as caught:
-        asyncio.run(agent.run('two failures', SimpleNamespace(upload_file=upload, exec=failed_diff), AgentContext()))
-    assert 'synthetic missing Git object' in str(caught.value.__cause__)
+        asyncio.run(run_and_capture('two failures', failed_diff))
+    assert caught.value.__cause__ is None
+    assert 'synthetic missing Git object' in (tmp_path / 'forgecode-patch-capture.json').read_text()
 
 
 def test_prepared_agent_checks_installation_without_download_or_upload(tmp_path, monkeypatch):
@@ -193,6 +205,53 @@ def test_prepared_agent_checks_installation_without_download_or_upload(tmp_path,
     assert len(commands) == 1 and 'a' * 64 in commands[0]
     assert 'import forge.launch' in commands[0]
     assert all(word not in commands[0] for word in ('apt-get', 'https://', ' sync ', ' install '))
+
+
+def test_patch_limit_stops_producer_without_draining_remaining_output(tmp_path, monkeypatch):
+    import subprocess
+    from benchmark.harbor.forgecode_agent import _patch_capture_command
+    git = tmp_path / 'git'
+    git.write_text('#!/bin/sh\ncase "$*" in *" diff "*) exec yes patch-data;; esac\n', newline='\n')
+    git.chmod(0o755)
+    monkeypatch.setattr('benchmark.harbor.forgecode_agent._MAX_PATCH_BYTES', 32)
+    result = subprocess.run([str(_bash()), '-c', 'cd "$FIXTURE_PATH"; export PATH="$PWD:$PATH"; ' + _patch_capture_command('a' * 40)],
+        env={**os.environ, 'FIXTURE_PATH': tmp_path.as_posix()}, capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == 'FORGECODE_PATCH_BYTES 33'
+
+
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Actual benchmark supervisor requires Linux')
+def test_patch_timeout_reaps_git_children_and_retains_separate_diagnostic(tmp_path, monkeypatch):
+    import shlex
+    from types import SimpleNamespace
+    from benchmark.harbor import process_supervisor
+    from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
+    git = tmp_path / 'git'
+    child_pid = tmp_path / 'git-child.pid'
+    git.write_text('#!/bin/sh\nsleep 60 &\necho $! > "$CHILD_PID"\nwait\n', newline='\n')
+    git.chmod(0o755)
+    monkeypatch.setattr('benchmark.harbor.forgecode_agent._venv_python', lambda: sys.executable)
+    monkeypatch.setattr('benchmark.harbor.forgecode_agent._PATCH_CAPTURE_SECONDS', 1)
+    agent = ForgeCodeHarborAgent(logs_dir=tmp_path)
+    agent._patch_baseline = 'a' * 40
+    async def execute(**kwargs):
+        argv = shlex.split(kwargs['command'])
+        assert argv[2:4] == ['-m', 'benchmark.harbor.process_supervisor']
+        # Run the same supervisor file without requiring an installed editable
+        # package in the host's isolated interpreter (task containers install it).
+        argv[2:4] = [str(Path(process_supervisor.__file__).resolve())]
+        process = await asyncio.create_subprocess_exec(*argv,
+            env={**os.environ, 'PATH': str(tmp_path) + os.pathsep + os.environ['PATH'], 'CHILD_PID': str(child_pid)},
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await asyncio.wait_for(process.communicate(), 10)
+        return SimpleNamespace(return_code=process.returncode, stdout=stdout.decode(), stderr=stderr.decode())
+    asyncio.run(agent.capture_patch(SimpleNamespace(exec=execute)))
+    diagnostic = json.loads((tmp_path / 'forgecode-patch-capture.json').read_text())
+    assert diagnostic['status'] == 'timed_out' and diagnostic['return_code'] == 124
+    assert diagnostic['phase'] == 'patch_capture'
+    assert not (tmp_path / 'forgecode-pregrade.patch').exists()
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(child_pid.read_text()), 0)
 
 
 @pytest.mark.parametrize('distribution,release,archived', [

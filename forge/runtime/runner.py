@@ -45,6 +45,7 @@ class TurnRunner:
         self.read_only = False
         self.owns_task = False
         self.terminal: tuple[str, str, str, tuple[str, ...]] | None = None
+        self.interruption: dict | None = None
         self.finished = False
         self.output_continuations = 0
         self.continued_text = ''
@@ -86,14 +87,20 @@ class TurnRunner:
             async with aclosing(self._loop()) as stream:
                 async for event in stream:
                     yield event
-        except (asyncio.CancelledError, GeneratorExit):
+        except (asyncio.CancelledError, GeneratorExit) as error:
             if c.command_jobs is not None:
                 await c.command_jobs.cancel_owner(self.state)
             c.inbox.defer_steering()
             if self.journal is not None and not self.finished:
+                from forge.sessions.trajectory import exception_diagnostics
+                diagnostic = exception_diagnostics(error)
+                source = ('consumer_closed' if isinstance(error, GeneratorExit) else
+                          'caller_cancelled' if asyncio.current_task().cancelling() else 'upstream_cancelled')
+                details = self.interruption or {'source': source, 'exception': diagnostic}
                 self._commit_messages()
                 self.journal.record_turn_cancelled(
-                    'Turn interrupted. Indeterminate operations require inspection, not replay.',
+                    details.get('reason') or diagnostic[0]['message'] or f'Turn interrupted: {source}; no further reason supplied.',
+                    details=details,
                 )
             raise
         except Exception as error:
@@ -615,9 +622,20 @@ class TurnRunner:
                 if c.working_state is not None:
                     c.working_state.observe(effective, outcome.result, outcome.record.workspace_revision)
                 yield ToolExecutionCompleted(effective, outcome.result)
-                if (outcome.record.status == 'cancelled' and outcome.result.error
-                        and outcome.result.error.code == 'execution_cancelled'):
-                    raise asyncio.CancelledError
+                cancelled = (outcome.record.status == 'cancelled' and outcome.result.error
+                             and outcome.result.error.code == 'execution_cancelled')
+                if self.interruption is None and (cancelled or outcome.record.status == 'indeterminate'):
+                    from forge.sessions.trajectory import redact_text
+                    error = outcome.result.error
+                    self.interruption = {
+                        'source': 'tool_execution', 'tool_call_id': effective.id, 'tool_name': effective.name,
+                        'execution_status': outcome.record.status, 'error_code': error.code if error else None,
+                        'exception': error.details.get('exception', []) if error else [],
+                        'reason': redact_text(f'{effective.name} ({effective.id}): {outcome.result.summary}')[:1600]
+                                  + ' Inspect uncertain effects before retrying.',
+                    }
+                if cancelled:
+                    raise asyncio.CancelledError(self.interruption['reason'])
                 if outcome.record.status == 'indeterminate':
                     interrupted = True
                 elif not outcome.result.success:
@@ -644,7 +662,7 @@ class TurnRunner:
                 self._feedback(feedback)
             self.pending_feedback.clear()
         if interrupted:
-            raise asyncio.CancelledError
+            raise asyncio.CancelledError(self.interruption['reason'])
 
     def _scope_error(self, call: ToolCall) -> ToolResult | None:
         from forge.tools.paths import mutation_target_paths
@@ -784,6 +802,7 @@ class TurnRunner:
         self.declared_status = status
         observations: list[str] = []
         task_kind = metadata.get('task_kind')
+        gate = self.conversation.completion_gate
         if (
             status == 'completed'
             and task_kind == 'inspection'
@@ -794,7 +813,8 @@ class TurnRunner:
             observations.extend(reasons)
         if status == 'completed':
             task = self.conversation.active_task
-            if metadata.get('acceptance_criteria') and task is not None and not task.acceptance_criteria:
+            if (gate and gate.policy.require_acceptance_reconciliation
+                    and metadata.get('acceptance_criteria') and task is not None and not task.acceptance_criteria):
                 try:
                     task = self.conversation.task_manager.register_acceptance(metadata['acceptance_criteria'])
                     metadata = {**metadata, 'acceptance_criteria': task.acceptance_criteria}
@@ -809,7 +829,6 @@ class TurnRunner:
               and not self.conversation.working_state.has_external_blocker):
             reasons = ('blocked requires observed external evidence such as permission, credentials, network, or an unavailable dependency. If the attempted task is unsuccessful, use finish_task status=failed; it does not require successful verification.',)
             observations.extend(reasons)
-        gate = self.conversation.completion_gate
         if (status in {'partial', 'failed'} and task_kind == 'change'
                 and gate and gate.policy.require_task_verification
                 and not self.delivery_repair_reasons
@@ -834,7 +853,7 @@ class TurnRunner:
             status, 'acceptance_unmet' if observations else status, str(metadata['summary']),
             tuple(dict.fromkeys((*observations, *metadata.get('blocked_reasons', ())))),
         )
-        return replace(result, metadata=metadata)
+        return replace(result, summary=f'Submitted {task_kind} task {status}.', metadata=metadata)
 
     def _offer_delivery_repair(self, reasons) -> bool:
         gate = self.conversation.completion_gate

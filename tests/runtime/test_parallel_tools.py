@@ -205,6 +205,9 @@ async def test_finalization_failure_is_not_replayed(tmp_path):
     _ = [event async for event in stream]
     assert hooks == ['0']
     assert outcomes['0'].record.status == 'indeterminate'
+    assert outcomes['0'].result.error.details['stage'] == 'settlement'
+    assert outcomes['0'].result.error.details['exception'] == [
+        {'type': 'RuntimeError', 'message': 'post hook failed'}]
     assert probe.started == [0]
 
 
