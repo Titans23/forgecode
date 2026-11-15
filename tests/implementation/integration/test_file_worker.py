@@ -110,6 +110,54 @@ def test_real_helper_requests_overlap_and_keep_their_output(tmp_path):
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('tool', ['run_command', 'verify'])
+def test_host_commands_keep_task_interpreter_and_environment(tmp_path, monkeypatch, tool):
+    import asyncio
+    import os
+    import venv
+    from forge.sandbox.file_client import FileWorkerClient
+
+    _, control, workspace, policy = fixture(tmp_path)
+    policy['execution_mode'] = 'full-access'
+    task_env = tmp_path / 'task-python'
+    venv.EnvBuilder(with_pip=False).create(task_env)
+    binaries = task_env / ('Scripts' if os.name == 'nt' else 'bin')
+    python = binaries / ('python.exe' if os.name == 'nt' else 'python')
+    site = subprocess.check_output([str(python), '-c',
+        'import sysconfig; print(sysconfig.get_path("purelib"))'], text=True).strip()
+    (Path(site) / 'task_dependency.py').write_text('value = "task dependency"\n')
+    task_home = tmp_path / 'task-home'
+    task_temp = tmp_path / 'task-temp'
+    task_home.mkdir()
+    task_temp.mkdir()
+    monkeypatch.setenv('PATH', str(binaries) + os.pathsep + os.environ.get('PATH', ''))
+    monkeypatch.setenv('HOME', str(task_home))
+    monkeypatch.setenv('TMPDIR', str(task_temp))
+    monkeypatch.setenv('FORGE_TASK_SETTING', 'task setting')
+    monkeypatch.setenv('FORGE_TEST_API_KEY', 'synthetic-private-key')
+    script = ('import json, os, sys, task_dependency\n'
+        'print(json.dumps(dict(prefix=sys.prefix, dependency=task_dependency.value, '
+        'path=os.environ["PATH"], home=os.environ["HOME"], temp=os.environ["TMPDIR"], '
+        'setting=os.environ["FORGE_TASK_SETTING"], secret="FORGE_TEST_API_KEY" in os.environ)))')
+
+    async def run():
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        try:
+            reply = await client.request('tool', name=tool,
+                arguments={'command': 'python -', 'stdin': script, 'timeout_seconds': 15})
+            result = reply['result']
+            assert result['success'], result
+            observed = json.loads(result['metadata']['stdout'])
+            assert Path(observed['prefix']) == task_env
+            assert observed['dependency'] == 'task dependency'
+            assert observed['path'] == os.environ['PATH']
+            assert observed['home'] == str(task_home) and observed['temp'] == str(task_temp)
+            assert observed['setting'] == 'task setting' and not observed['secret']
+        finally:
+            assert (await client.close())['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_parent_file_worker_remains_usable_after_explore(tmp_path):
     import asyncio
     from forge.sandbox.file_client import FileWorkerClient

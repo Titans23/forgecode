@@ -8,7 +8,7 @@ import sys
 from uuid import uuid4
 
 from forge.protocol import ContractError, MAX_FRAME_BYTES, canonical_hash, strict_loads, validate
-from forge.sandbox.launcher import ROOT, bridge_environment
+from forge.sandbox.launcher import ROOT
 
 
 def worker_argv():
@@ -110,15 +110,10 @@ class FileWorkerClient:
             # Trusted file-policy operations or explicit full-access mode.
             # Never a native-failure fallback; makes no OS sandbox claim.
             from forge.sandbox.process_owner import LocalProcessOwner
-            import os
-            import shutil
-            environment = bridge_environment(self.local_control)
-            directories = [str(Path(sys.executable).parent)]
-            for name in ('git', 'rg', 'node', 'pwsh'):
-                executable = shutil.which(name)
-                if executable:
-                    directories.append(str(Path(executable).resolve().parent))
-            environment['PATH'] = os.pathsep.join([*dict.fromkeys(directories), os.environ.get('PATH', environment['PATH'])])
+            from forge.release.processes import foreign_environment
+            # The helper already uses an absolute interpreter. Its runtime must
+            # not replace the task's executable search path, home or temp dir.
+            environment = foreign_environment()
             service = request.get('name') == 'run_command' and request['arguments'].get('lifetime') == 'session'
             output_path = input_path = None
             if service:
