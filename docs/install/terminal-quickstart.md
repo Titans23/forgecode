@@ -13,7 +13,7 @@ npm run setup
 forge --version
 ```
 
-`setup` 构建 Python wheel、Node 启动器和原生执行资产，再安装全局 `forge`。已有用户配置和会话保留。构建日志在 `dist/package-build.log`；Windows 日常运行不需要 Docker/WSL。Linux 受限命令还取决于可用的 DSH runner；macOS 尚未接入 Forge 的原生控制进程所有权层。
+`setup` 构建 Python wheel、Node 启动器和原生执行资产，再安装全局 `forge`。npm 包从 `uv.lock` 导出包含 `terminal` extra 的依赖约束，安装时使用与 CI 相同的锁定版本。已有用户配置和会话保留。构建日志在 `dist/package-build.log`；Windows 日常运行不需要 Docker/WSL。Linux 受限命令还取决于可用的 DSH runner；macOS 尚未接入 Forge 的原生控制进程所有权层。
 
 升级标签：`git fetch --tags`、`git checkout <新标签>`、`npm run setup`。跟踪开发版可在 `main` 使用 `git pull --ff-only`。已构建的本平台安装包可直接安装：
 

@@ -29,6 +29,12 @@ def run_logged(command, cwd, log):
         raise ValueError(f'Build command failed with exit code {result.returncode}; see {log}')
 
 
+def export_terminal_constraints(uv, destination):
+    subprocess.run([uv, 'export', '--locked', '--no-dev', '--extra', 'terminal',
+                    '--no-emit-project', '--no-hashes', '--output-file', str(destination)],
+                   cwd=ROOT, stdout=subprocess.DEVNULL, check=True)
+
+
 def check_archive(archive, wheel_name):
     with tarfile.open(archive) as package_archive:
         names = package_archive.getnames()
@@ -91,8 +97,7 @@ def build(output):
         assets.mkdir()
         shutil.copyfile(wheel, assets / wheel.name)
         constraints = assets / 'constraints.txt'
-        subprocess.run([uv, 'export', '--locked', '--no-dev', '--no-emit-project', '--no-hashes',
-                        '--output-file', str(constraints)], cwd=ROOT, stdout=subprocess.DEVNULL, check=True)
+        export_terminal_constraints(uv, constraints)
         runtime = {'python_version': (ROOT / '.python-version').read_text(encoding='utf-8').strip(),
                    'wheel': {'file': wheel.name, 'sha256': digest(wheel)},
                    'constraints_sha256': digest(constraints), 'tools_sha256': digest(package / 'lib/tools.json')}

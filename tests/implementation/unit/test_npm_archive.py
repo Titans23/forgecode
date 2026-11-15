@@ -2,12 +2,38 @@
 import io
 import tarfile
 import json
+import shutil
+import tomllib
 import zipfile
 from hashlib import sha256
 
 import pytest
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
-from scripts.package_cli import check_archive
+from scripts.package_cli import ROOT, check_archive, export_terminal_constraints
+
+
+def test_terminal_install_constraints_include_locked_optional_dependencies(tmp_path, monkeypatch):
+    monkeypatch.setenv('UV_OFFLINE', '1')
+    uv = shutil.which('uv')
+    assert uv is not None, 'The development environment requires uv.'
+    constraints = tmp_path / 'constraints.txt'
+    export_terminal_constraints(uv, constraints)
+    exported = [Requirement(line) for line in constraints.read_text(encoding='utf-8').splitlines()
+                if line.strip() and not line.lstrip().startswith('#')]
+    by_name = {canonicalize_name(requirement.name): requirement for requirement in exported}
+    project = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))['project']
+    extras = project['optional-dependencies']
+    terminal_extras = Requirement(extras['terminal'][0]).extras
+    required = project['dependencies'] + [item for extra in terminal_extras for item in extras[extra]]
+    assert {canonicalize_name(Requirement(item).name) for item in required} <= by_name.keys()
+    locked = tomllib.loads((ROOT / 'uv.lock').read_text(encoding='utf-8'))['package']
+    pins = {(canonicalize_name(package['name']), package['version']) for package in locked}
+    for requirement in exported:
+        specifier, = requirement.specifier
+        assert specifier.operator == '=='
+        assert (canonicalize_name(requirement.name), specifier.version) in pins
 
 
 def archive(tmp_path, additional=()):
