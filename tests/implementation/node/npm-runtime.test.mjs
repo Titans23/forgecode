@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, existsSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, delimiter, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
-import { platformKey, requireNode, runtimeEnvironment, runtimeIdentity, run, verifyFile, installTool } from '../../../packaging/npm/lib/runtime.mjs';
+import { platformKey, requireNode, runtimeEnvironment, runtimeIdentity, run, verifyFile, installTool, prepareRuntime } from '../../../packaging/npm/lib/runtime.mjs';
 
 test('Windows and Linux choose their own package tools; unsupported architectures refuse', () => {
   assert.equal(platformKey('win32', 'x64'), 'win32-x64');
@@ -17,6 +17,8 @@ test('managed tools precede inherited tools without dropping unrelated environme
   const result = runtimeEnvironment(['managed', 'managed'], { PATH: 'old', Path: 'older', KEEP: 'value' });
   assert.equal(result.PATH, ['managed', 'old', 'older'].join(delimiter));
   assert.equal(result.KEEP, 'value');
+  assert.equal(result.FORGE_TASK_PATH, ['old', 'older'].join(delimiter));
+  assert.equal(runtimeEnvironment(['other'], result).FORGE_TASK_PATH, result.FORGE_TASK_PATH);
   assert.ok(!Object.hasOwn(result, 'Path'));
 });
 
@@ -28,6 +30,49 @@ test('existing launcher Node is sufficient; the installer does not download a se
   const host = dirname(process.execPath);
   const environment = runtimeEnvironment([host, 'managed'], { PATH: 'older-node' });
   assert.equal(environment.PATH.split(delimiter)[0], host);
+});
+
+test('cached launch keeps task Python selectable instead of inserting the Harness interpreter', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'forge-npm-task-python-'));
+  const packageRoot = join(root, 'package');
+  mkdirSync(join(packageRoot, 'assets'), { recursive: true });
+  mkdirSync(join(packageRoot, 'lib'));
+  const files = { 'assets/fixture.whl': 'wheel', 'assets/constraints.txt': 'pins', 'lib/tools.json': '{}' };
+  const digest = text => createHash('sha256').update(text).digest('hex');
+  for (const [name, content] of Object.entries(files)) writeFileSync(join(packageRoot, name), content);
+  const manifest = { python_version: 'fixture', wheel: { file: 'fixture.whl', sha256: digest('wheel') },
+    constraints_sha256: digest('pins'), tools_sha256: digest('{}') };
+  writeFileSync(join(packageRoot, 'assets/runtime.json'), JSON.stringify(manifest));
+  const identity = runtimeIdentity(manifest);
+  const windows = process.platform === 'win32';
+  const data = join(root, windows ? 'ForgeCode' : 'forgecode');
+  const cache = join(data, 'npm', identity);
+  const interpreter = join(cache, 'python', windows ? 'Scripts/python.exe' : 'bin/python');
+  mkdirSync(dirname(interpreter), { recursive: true });
+  writeFileSync(interpreter, '#!/bin/sh\necho harness-python\n', { mode: 0o755 });
+  writeFileSync(join(cache, 'ready.json'), JSON.stringify({ identity, tool_directories: [] }));
+  const taskBin = join(root, 'task-bin');
+  mkdirSync(taskBin);
+  const taskPython = join(taskBin, windows ? 'python.cmd' : 'python');
+  writeFileSync(taskPython, windows ? '@echo off\r\necho task-python\r\n' : '#!/bin/sh\necho task-python\n');
+  if (!windows) chmodSync(taskPython, 0o755);
+  const previous = Object.fromEntries(['PATH', 'LOCALAPPDATA', 'XDG_DATA_HOME'].map(key => [key, process.env[key]]));
+  try {
+    process.env.PATH = taskBin;
+    process.env.LOCALAPPDATA = root;
+    process.env.XDG_DATA_HOME = root;
+    const runtime = await prepareRuntime(packageRoot);
+    assert.equal(runtime.python, interpreter);
+    assert.equal(runtime.environment.FORGE_TASK_PATH, taskBin);
+    const shell = windows ? join(process.env.SystemRoot, 'System32/cmd.exe') : '/bin/sh';
+    const result = run(shell, windows ? ['/d', '/c', 'python'] : ['-c', 'python'],
+      { env: runtime.environment, stdio: 'pipe', encoding: 'utf8' });
+    assert.equal(result.stdout.trim(), 'task-python');
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
 });
 
 test('a failed prerequisite command cannot report successful installation', () => {

@@ -33,6 +33,7 @@ export function runtimeEnvironment(directories, source = process.env) {
   const pathNames = Object.keys(environment).filter(name => name.toUpperCase() === 'PATH');
   const inherited = pathNames.map(name => environment[name]).filter(Boolean).join(delimiter);
   for (const name of pathNames) delete environment[name];
+  environment.FORGE_TASK_PATH = source.FORGE_TASK_PATH ?? inherited;
   environment.PATH = [...new Set(directories), inherited].filter(Boolean).join(delimiter);
   if (process.platform === 'win32') environment.NoDefaultCurrentDirectoryInExePath = '1';
   return environment;
@@ -106,7 +107,7 @@ export async function prepareRuntime(root = packageRoot) {
   if (existsSync(ready) && existsSync(python)) {
     const value = JSON.parse(readFileSync(ready, 'utf8'));
     if (value.identity === identity)
-      return { python, environment: runtimeEnvironment([dirname(process.execPath), ...value.tool_directories, dirname(python)]) };
+      return { python, environment: runtimeEnvironment([dirname(process.execPath), ...value.tool_directories]) };
   }
   mkdirSync(cache, { recursive: true });
   const specifications = JSON.parse(readFileSync(join(root, 'lib/tools.json'), 'utf8'))[platform];
@@ -114,7 +115,7 @@ export async function prepareRuntime(root = packageRoot) {
   for (const specification of specifications)
     tools[specification.name] = await installTool(specification, join(data, 'tools'));
   const directories = Object.values(tools).map(dirname);
-  const environment = runtimeEnvironment([dirname(process.execPath), ...directories, dirname(python)]);
+  const environment = runtimeEnvironment([dirname(process.execPath), ...directories]);
   console.error('Preparing the Python Harness...');
   run(tools.uv, ['python', 'install', manifest.python_version, '--no-bin'], { env: environment });
   const venv = join(cache, 'python');

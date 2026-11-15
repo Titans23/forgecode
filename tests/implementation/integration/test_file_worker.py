@@ -111,7 +111,8 @@ def test_real_helper_requests_overlap_and_keep_their_output(tmp_path):
 
 
 @pytest.mark.parametrize('tool', ['run_command', 'verify'])
-def test_host_commands_keep_task_interpreter_and_environment(tmp_path, monkeypatch, tool):
+@pytest.mark.parametrize('launcher', [False, True])
+def test_host_commands_keep_task_interpreter_and_environment(tmp_path, monkeypatch, tool, launcher):
     import asyncio
     import os
     import venv
@@ -131,6 +132,9 @@ def test_host_commands_keep_task_interpreter_and_environment(tmp_path, monkeypat
     task_home.mkdir()
     task_temp.mkdir()
     monkeypatch.setenv('PATH', str(binaries) + os.pathsep + os.environ.get('PATH', ''))
+    if launcher:
+        monkeypatch.setenv('FORGE_TASK_PATH', os.environ['PATH'])
+        monkeypatch.setenv('PATH', str(Path(sys.executable).parent) + os.pathsep + os.environ['PATH'])
     monkeypatch.setenv('HOME', str(task_home))
     monkeypatch.setenv('TMPDIR', str(task_temp))
     monkeypatch.setenv('FORGE_TASK_SETTING', 'task setting')
@@ -138,7 +142,8 @@ def test_host_commands_keep_task_interpreter_and_environment(tmp_path, monkeypat
     script = ('import json, os, sys, task_dependency\n'
         'print(json.dumps(dict(prefix=sys.prefix, dependency=task_dependency.value, '
         'path=os.environ["PATH"], home=os.environ["HOME"], temp=os.environ["TMPDIR"], '
-        'setting=os.environ["FORGE_TASK_SETTING"], secret="FORGE_TEST_API_KEY" in os.environ)))')
+        'setting=os.environ["FORGE_TASK_SETTING"], secret="FORGE_TEST_API_KEY" in os.environ, '
+        'launcher_marker="FORGE_TASK_PATH" in os.environ)))')
 
     async def run():
         client = FileWorkerClient(workspace, policy, local_control=control)
@@ -150,7 +155,8 @@ def test_host_commands_keep_task_interpreter_and_environment(tmp_path, monkeypat
             observed = json.loads(result['metadata']['stdout'])
             assert Path(observed['prefix']) == task_env
             assert observed['dependency'] == 'task dependency'
-            assert observed['path'] == os.environ['PATH']
+            assert observed['path'].split(os.pathsep)[0] == str(binaries)
+            assert not observed['launcher_marker']
             assert observed['home'] == str(task_home) and observed['temp'] == str(task_temp)
             assert observed['setting'] == 'task setting' and not observed['secret']
         finally:

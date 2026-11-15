@@ -7,6 +7,10 @@ import sys
 
 def foreign_environment(source=None, *, platform=None):
     environment=dict(os.environ if source is None else source)
+    task_path=environment.pop('FORGE_TASK_PATH', None)
+    if task_path is not None:
+        environment['PATH']=os.pathsep.join(dict.fromkeys([
+            *task_path.split(os.pathsep), *environment.get('PATH', '').split(os.pathsep)]))
     platform=platform or sys.platform
     no_bytecode=environment.get('PYTHONDONTWRITEBYTECODE')=='1'
     original=environment.pop('LD_LIBRARY_PATH_ORIG',None)
