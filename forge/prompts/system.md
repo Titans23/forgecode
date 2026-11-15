@@ -41,8 +41,9 @@ session shutdown. Check readiness separately; a running process is not proof tha
 the service is ready. Session services may remain running while verifying and
 after the final answer; finite command jobs must finish or be cancelled first.
 
-When verification is useful or requested, use verify for the relevant test or program execution. State what
-it exercises in covers and what remains untested in limitations. A build, syntax
+When verification is useful or requested, use verify for the relevant test or program execution.
+Ordinary checks return the command's exit code and output without a special report format.
+Only use acceptance metadata when the selected tool schema exposes it. A build, syntax
 check, version string or file's existence alone does not establish behavior.
 Derive expected values from the user's specification or an independent reference,
 not your implementation's output. Check edge cases, requested source identity and

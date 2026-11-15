@@ -19,7 +19,14 @@ from forge.tools.shell import has_unquoted_heredoc, process_metadata, render_pro
 from forge.tools.verification_checks import OutputCheck, dormant_python_tests, evaluate_output_checks
 
 
-class VerifyInput(SandboxInput):
+class CheckCommandInput(SandboxInput):
+    command: str = Field(min_length=1, pattern=r'\S')
+    cwd: str = Field(default='.', description='Working directory, resolved and authorized like other command paths.')
+    timeout_seconds: float = Field(default=120.0, gt=0, allow_inf_nan=False)
+    stdin: str | None = Field(default=None, max_length=200_000)
+
+
+class VerifyInput(CheckCommandInput):
     check_id: str | None = Field(default=None, description='Rerun a stored check definition by ID; command and assertions need not be repeated.')
     inherit_checks_from: list[str] = Field(default_factory=list, max_length=20,
         description='Reuse exact output assertions from these verification IDs when repairing a checker. Omit rewritten old output_checks; add only new checks. Without recorded output assertions, command, stdin and cwd must remain unchanged. Requires revision_reason and unchanged cwd. Automatically adds supersedes.')
@@ -34,9 +41,6 @@ class VerifyInput(SandboxInput):
                     'Failed assertions invalidate verification even when the process exits 0.',
     )
     command: str = ''
-    cwd: str = Field(default='.', description='Working directory, resolved and authorized like other command paths.')
-    timeout_seconds: float = Field(default=120.0, gt=0, allow_inf_nan=False)
-    stdin: str | None = Field(default=None, max_length=200_000)
     covers: list[str] = Field(
         default_factory=list, max_length=20,
         description='Concrete user requirements directly exercised, not properties inferred from file existence or exit code alone.',
@@ -53,7 +57,7 @@ class VerifyInput(SandboxInput):
         return self
 
 
-class VerifyTool(Tool[VerifyInput]):
+class VerifyTool(Tool[CheckCommandInput]):
     name = 'verify'
     description = (
         'Run an authorized command and register its actual result as verification '
@@ -73,14 +77,20 @@ class VerifyTool(Tool[VerifyInput]):
     input_model = VerifyInput
     effect = 'process'
 
-    def __init__(self, root: Path, tracker: WorkspaceTracker) -> None:
+    def __init__(self, root: Path, tracker: WorkspaceTracker, *, strict: bool = True) -> None:
         super().__init__(root)
         self.tracker = tracker
+        self.strict = strict
+        if not strict:
+            self.input_model = CheckCommandInput
+            self.description = ('Run an authorized check command and record its exit code, output and duration. '
+                'Use assertions or the test runner exit code for pass/fail. No special output format or check IDs '
+                'are required. A zero exit code describes this command, not completion of the whole task.')
 
-    async def execute(self, arguments: VerifyInput) -> ToolResult:
+    async def execute(self, arguments: CheckCommandInput) -> ToolResult:
         if not arguments.command.strip():
             raise ToolExecutionError('unresolved_check', 'Stored checks must be resolved by the task runtime.')
-        if arguments.inherit_checks_from:
+        if isinstance(arguments, VerifyInput) and arguments.inherit_checks_from:
             raise ToolExecutionError('unresolved_check_reference', 'Recorded checks must be resolved by the turn evidence ledger before execution.')
         cwd = resolve_repository_path(self.root, arguments.cwd)
         if os.name == 'nt' and has_unquoted_heredoc(arguments.command):
@@ -95,6 +105,23 @@ class VerifyTool(Tool[VerifyInput]):
             input_text=arguments.stdin, shell=True,
             artifact_root=self.root,
         )
+        if not self.strict:
+            metadata = {**process_metadata(result), 'verification_id': uuid4().hex,
+                'command': arguments.command, 'cwd': display_path(self.root, cwd),
+                'workspace_revision': self.tracker.revision,
+                'environment_epoch': self.tracker.environment_epoch, 'verification': True,
+                'stdin_characters': len(arguments.stdin or ''),
+                'stdin_sha256': sha256(arguments.stdin.encode()).hexdigest() if arguments.stdin is not None else ''}
+            content = render_process_output(result)
+            if result.timed_out:
+                return ToolResult.fail('verification_timeout', f'Command timed out after {arguments.timeout_seconds:g}s.',
+                                       content=content, metadata=metadata)
+            if result.exit_code != 0:
+                return ToolResult.fail('verification_failed', f'Command exited with code {result.exit_code}.',
+                                       content=content, metadata=metadata)
+            return ToolResult.ok(f'Check command exited 0 in {result.duration_seconds:.3f}s.',
+                                 content=content, metadata=metadata)
+        assert isinstance(arguments, VerifyInput)
         inspection = non_verification_command_reason(arguments.command)
         dormant = dormant_python_tests(arguments.command, cwd, self.root)
         assertion_failures = evaluate_output_checks(result.stdout, arguments.output_checks)

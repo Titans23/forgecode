@@ -40,6 +40,7 @@ def create_default_registry(
     event_recorder=None,
     selected_tools: tuple[str, ...] | None = None,
     skills_enabled: bool = True,
+    strict_verification: bool = True,
 ) -> ToolRegistry:
     '''Create built-in tools sharing one task-local workspace tracker.'''
     # Delayed import prevents runtime.state -> forge.tools package cycles.
@@ -81,7 +82,7 @@ def create_default_registry(
                 execution_profile=execution_profile,
                 allow_container_writes=allow_container_writes,
             )),
-            (VerifyTool, lambda: VerifyTool(root, tracker)),
+            (VerifyTool, lambda: VerifyTool(root, tracker, strict=strict_verification)),
             (GitStatusTool, lambda: GitStatusTool(root)),
             (GitDiffTool, lambda: GitDiffTool(root)),
             (ExploreRepositoryTool, lambda: ExploreRepositoryTool(root, client_factory=model_client_factory,

@@ -8379,6 +8379,12 @@
         "stream_output": {
           "type": "boolean"
         },
+        "verification_mode": {
+          "enum": [
+            "normal",
+            "strict"
+          ]
+        },
         "workspace": {
           "additionalProperties": false,
           "properties": {

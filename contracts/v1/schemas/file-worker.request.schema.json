@@ -19,6 +19,7 @@
     "recursive": {"type": "boolean"},
     "include_content": {"type": "boolean"},
     "stream_output": {"type": "boolean"},
+    "verification_mode": {"enum": ["normal", "strict"]},
     "name": {"type": "string", "minLength": 1, "maxLength": 64},
     "arguments": {"type": "object"},
     "paths": {"type": "array", "maxItems": 1000, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},

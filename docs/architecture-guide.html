@@ -3362,11 +3362,12 @@
       "group": "验收与交付",
       "title": "验证证据与完成策略",
       "symbol": "verify · CompletionGate",
-      "summary": "让完成请求对齐当前代码和环境的证据。",
-      "concept": "模型可以提出完成，系统按选定策略判断是否接受。verify 记录检查的结果以及运行时所处的代码和环境版本。",
+      "summary": "普通模式记录检查事实，严格模式按调用方条件验收。",
+      "concept": "模型可以提出完成，系统按选定策略判断是否接受。普通 CLI/SDK 会话的 verify 执行命令并记录退出码、输出和耗时；不要求特定报告格式，也不推断命令是否证明整个任务完成。",
       "implementation": [
-        "VerifyTool 执行验证命令并产生 VerificationEvidence。WorkspaceTracker 提供代码修订，环境变化通过 environment_epoch 标识，旧证据据此失效。",
-        "普通 coding 没有 CompletionGate；显式 strict/TaskPolicy 才按实际证据验收。插件完成检查可追加，不能撤销调用方条件。修复在同一回合进行，不属于累计预算。"
+        "普通 verify 只暴露 command、cwd、stdin、timeout_seconds 和授权参数。检查脚本可输出普通文本或多行 JSON；失败由实际退出码报告。不同 stdin 程序的检查记录不会因命令同为 python - 而合并。",
+        "VerifyTool 复用同一进程执行和授权路径并产生 VerificationEvidence，记录检查时的工作区修订和 environment_epoch。状态变化不自动要求普通回合重跑。",
+        "普通 coding 没有 CompletionGate；显式 strict/TaskPolicy 才提供检查 ID、断言继承、需求绑定等完整验收接口。插件完成检查可追加，不能撤销调用方条件。修复在同一回合进行，不属于累计预算。"
       ],
       "steps": [
         [

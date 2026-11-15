@@ -282,7 +282,7 @@ class TurnRunner:
         import json
         latest = {}
         for item in self.state.evidence.verification:
-            latest[item.check_id or (item.command, item.cwd, item.check_signature)] = item
+            latest[item.check_id or (item.command, item.cwd, item.stdin_sha256, item.check_signature)] = item
         if not latest:
             return ''
         rows = []
@@ -544,7 +544,8 @@ class TurnRunner:
             if mixed_finish:
                 return executor.record_result(call, ToolResult.fail(
                     'finish_must_be_alone', 'finish_task must be submitted alone.'), status='cancelled')
-            if call.name == 'verify' and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id')):
+            if (call.name == 'verify' and getattr(c.registry.implementation('verify'), 'strict', False)
+                    and (call.arguments.get('inherit_checks_from') or call.arguments.get('check_id'))):
                 from forge.runtime.check_contracts import inherit_check_arguments, resolve_stored_check
                 try:
                     arguments = resolve_stored_check(call.arguments, self.state.evidence.verification)

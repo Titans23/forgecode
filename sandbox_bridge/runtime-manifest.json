@@ -9252,15 +9252,15 @@
     },
     {
       "path": "packages/contracts/dist/generated/schemas.json",
-      "sha256": "76064d9216f28c80ca7b9ffad3c4cfcd91f650fb320f77270c7ab0fa5ac50863"
+      "sha256": "64d179b19ef943deb1cfbacb80ab25a75ac6d28419833bfdddd6b26f4de276dd"
     },
     {
       "path": "packages/contracts/dist/generated/types.d.ts",
-      "sha256": "0d3bed537e32a6a3de025381ba6128b324e351e33db4911e37b040495b5bafc0"
+      "sha256": "158d77b47b5b77b0b251574e97858ecfcfd633399b3ec757475bfc37b00c5899"
     },
     {
       "path": "packages/contracts/dist/generated/types.js",
-      "sha256": "5a2e46d2e241633c8599739551af287ee9bd68a2166e4eaa1f71f13d3aa5bab7"
+      "sha256": "d8d61b994832c067a4254517e078193ecf454d6600bc4d86c57fdce984aae066"
     },
     {
       "path": "packages/contracts/dist/index.d.ts",

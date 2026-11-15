@@ -26,6 +26,42 @@ class Model:
     async def aclose(self): pass
 
 
+@pytest.mark.parametrize('completion', ['normal', 'strict'])
+def test_verification_interface_matches_selected_completion_mode(tmp_path, completion):
+    import sys
+    from forge.agents import AgentDefinition
+    settings = options(tmp_path, agent=AgentDefinition(completion=completion))
+    async def run():
+        async with await HarnessSession.open(settings, model_client_factory=lambda *a, **k: Model()) as session:
+            c = session.conversation
+            definition = next(item for item in c.registry.definitions if item['name'] == 'verify')
+            fields = definition['input_schema']['properties']
+            arguments = {'command': f'"{sys.executable}" -',
+                         'stdin': 'import json\nprint(json.dumps({"answer":42}, indent=2))\n'}
+            if completion == 'normal':
+                assert set(fields) == {'command', 'cwd', 'stdin', 'timeout_seconds', 'sandbox_permissions', 'justification'}
+            else:
+                assert {'check_id', 'inherit_checks_from', 'output_checks', 'requirement_ids'} <= fields.keys()
+                arguments.update(stdin='print(\'{"answer":42}\')',
+                    output_checks=[{'key': 'answer', 'operator': 'eq', 'expected': 43,
+                                    'requirement': 'answer must be 43', 'expected_source': 'fixed fixture requirement'}])
+            outcome = await c.tool_executor.execute(ToolCall(0, 'check', 'verify', arguments))
+            result = outcome.result
+            assert result.metadata['exit_code'] == 0
+            if completion == 'normal':
+                assert result.success and result.metadata['stdout'].splitlines() == ['{', '  "answer": 42', '}']
+                assert not {'check_id', 'check_spec', 'output_checks', 'requirement_ids'} & result.metadata.keys()
+                assert result.metadata['stdin_sha256']
+                failed = (await c.tool_executor.execute(ToolCall(0, 'failed', 'verify',
+                    {'command': f'"{sys.executable}" -c "raise SystemExit(3)"'}))).result
+                assert failed.error.code == 'verification_failed' and failed.metadata['exit_code'] == 3
+            else:
+                assert not result.success and result.error.code == 'verification_not_established'
+                assert result.metadata['check_id'] and result.metadata['check_spec']
+        assert session.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_defaults_are_full_access_without_router_and_keep_explicit_scope(tmp_path):
     settings = options(tmp_path)
     assert settings.sandbox == 'full-access' and settings.approval == 'never'

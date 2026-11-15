@@ -75,8 +75,10 @@ class FileToolBackend:
                         expected[str(target)] = None  # Unobserved targets may only be created, not overwritten.
                 from forge.process_output import process_output
                 output = process_output.get()
+                verification = ({'verification_mode': 'strict' if registry.implementation(call.name).strict else 'normal'}
+                                if call.name == 'verify' else {})
                 reply = await self.observer.request('tool', name=call.name, arguments=call.arguments,
-                    expected_hashes=expected, **({'on_output': output} if output is not None else {}))
+                    expected_hashes=expected, **verification, **({'on_output': output} if output is not None else {}))
                 raw = reply['result']
                 validate('file-worker.tool-result', raw)
                 error = ToolError(**raw['error']) if raw['error'] is not None else None

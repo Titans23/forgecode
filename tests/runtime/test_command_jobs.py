@@ -435,8 +435,7 @@ def test_session_service_survives_answer_and_verification_but_not_session_close(
                             assert output.metadata['state'] in {'queued', 'running'}, output
                             cursor = output.metadata['next_cursor']
                     yield ModelToolCallCompleted(ToolCall(0, 'ready', 'verify', {
-                        'command': command(f"import socket; s=socket.create_connection(('127.0.0.1',{port}),timeout=2); s.close()"),
-                        'covers': ['The fixture service accepts a local connection.']}))
+                        'command': command(f"import socket; s=socket.create_connection(('127.0.0.1',{port}),timeout=2); s.close()")}))
                 elif self.calls == 3 and structured_finish:
                     yield ModelToolCallCompleted(ToolCall(0, 'finish', 'finish_task', {
                         'task_kind': 'answer', 'status': 'completed', 'summary': 'Service is ready.'}))

@@ -20,7 +20,8 @@ def test_verification_guidance_preserves_the_selected_completion_policy(tmp_path
         async def stream(self, messages, **kw):
             self.count += 1
             if self.count == 1:
-                yield ModelToolCallCompleted(ToolCall(0,'check','verify',{'command':'echo checked', 'covers':['fixture output']}))
+                yield ModelToolCallCompleted(ToolCall(0,'check','verify',{'command':'echo checked',
+                    **({'covers':['fixture output']} if strict else {})}))
                 yield ModelResponseCompleted('tool_use')
             else:
                 context = messages[-1]['content']
@@ -41,4 +42,34 @@ def test_verification_guidance_preserves_the_selected_completion_policy(tmp_path
             model_client_factory=lambda *a, **kw: model) as session:
             result = await session.run('Exercise the check guidance.')
             assert result.status == ('failed' if strict else 'completed') and model.count == 2
+    asyncio.run(run())
+
+
+def test_normal_check_context_keeps_distinct_stdin_programs(tmp_path):
+    import sys
+    root = tmp_path / 'project'
+    root.mkdir()
+    class Model:
+        model = 'offline'
+        count = 0
+        async def stream(self, messages, **kwargs):
+            self.count += 1
+            if self.count <= 2:
+                yield ModelToolCallCompleted(ToolCall(0, f'check-{self.count}', 'verify', {
+                    'command': f'"{sys.executable}" -',
+                    'stdin': 'raise SystemExit(1)' if self.count == 1 else 'print("ok")'}))
+                yield ModelResponseCompleted('tool_use')
+            else:
+                context = messages[-1]['content']
+                assert context.count('"observed_success"') == 2
+                assert '"observed_success": false' in context and '"observed_success": true' in context
+                yield ModelTextDelta('Both command results were recorded.')
+                yield ModelResponseCompleted('end_turn')
+        async def aclose(self): pass
+    async def run():
+        async with await HarnessSession.open(SessionOptions(root, data_root=tmp_path / 'data',
+            config=ForgeConfig(api_key='offline', model_id='offline')),
+            model_client_factory=lambda *a, **k: Model()) as session:
+            result = await session.run('Run the two independent diagnostic programs.')
+            assert result.status == 'completed' and result.model_calls == 3
     asyncio.run(run())

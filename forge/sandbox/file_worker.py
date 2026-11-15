@@ -373,7 +373,8 @@ async def execute(request):
         else:
             from forge.tools.verify import VerifyTool
             from forge.runtime.workspace import WorkspaceTracker
-            tools[name] = VerifyTool(access.root, WorkspaceTracker(access.root))
+            tools[name] = VerifyTool(access.root, WorkspaceTracker(access.root),
+                                     strict=request.get('verification_mode', 'strict') == 'strict')
     if name != 'apply_patch' and name not in tools:
         fail('POLICY_DENIED', 'Only fixed file and process tools are available in this helper')
     access.write = name == 'apply_patch' or tools[name].effect == 'workspace_write'

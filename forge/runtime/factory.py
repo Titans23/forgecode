@@ -111,6 +111,7 @@ def create_runtime(
         allow_container_writes=allow_container_writes,
         model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
         selected_tools=agent.tools, skills_enabled='skills' in features,
+        strict_verification=task_policy is not None,
         **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {})) if coding else ToolRegistry()
     if bindings and bindings.plugin_host:
         bindings.plugin_host.bind_registry(registry)
