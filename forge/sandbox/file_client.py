@@ -102,6 +102,7 @@ class FileWorkerClient:
         if len(raw) > 589824:
             raise ContractError('File helper request exceeds task stdin quota', kind='ARTIFACT_LIMIT', code=-32010)
         self._require_open()
+        diagnostics = {}
         if self.native is not None:
             admission['submitted'] = True
             output = await self._native_request(request_id, raw, on_chunk=frames.feed if frames else None,
@@ -126,11 +127,16 @@ class FileWorkerClient:
                     input_path = directory / (request_id + '.request.json')
                     input_path.write_bytes(raw)
             owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
-                environment=environment, output=True, output_path=output_path, input_path=input_path)
+                environment=environment, output=True, capture_stderr=input_path is None,
+                output_path=output_path, input_path=input_path)
             child = owner.process
+            from forge.tools.shell import _read_bounded
+            stderr_task = (asyncio.create_task(_read_bounded(child.stderr, 4096, None,
+                stream_name='stderr', emit_output=False)) if getattr(child, 'stderr', None) is not None else None)
             self._owners.add(owner)
             if service:
                 self._services[owner] = request_id
+            failure = None
             try:
                 if service:
                     self._service_receipt(owner, request_id, 'running')
@@ -166,8 +172,22 @@ class FileWorkerClient:
                             reader.close()
                     output = b''.join(chunks)
                     await child.wait()
+            except Exception as error:
+                failure = error
             finally:
                 admission['cleanup'] = await owner.close()
+                diagnostics = {'worker_exit_code': child.returncode, 'cleanup': admission['cleanup']}
+                if stderr_task is not None:
+                    from forge.sessions.trajectory import exception_diagnostics, redact_text
+                    incomplete = not stderr_task.done()
+                    if incomplete:
+                        stderr_task.cancel()
+                    stderr = (await asyncio.gather(stderr_task, return_exceptions=True))[0]
+                    if isinstance(stderr, BaseException):
+                        diagnostics['stderr_collection_error'] = exception_diagnostics(stderr)
+                    else:
+                        diagnostics.update(worker_stderr=redact_text(stderr[0].decode('utf-8', errors='replace')),
+                                           stderr_truncated=stderr[2], stderr_incomplete=incomplete)
                 if owner.transferred:
                     self._transferred_services.append({'request_id': request_id, 'pid': child.pid,
                                                        'receiver': 'evaluation-environment'})
@@ -177,16 +197,32 @@ class FileWorkerClient:
                         self._service_receipt(owner, request_id, 'closed')
                 self._services.pop(owner, None)
                 self._owners.discard(owner)
+            if failure is not None:
+                if isinstance(failure, ContractError) and failure.kind != 'INVALID_PARAMS':
+                    failure.details = {**diagnostics, **failure.details}
+                    raise failure
+                from forge.sessions.trajectory import exception_diagnostics
+                raise ContractError('File helper transport failed: ' + type(failure).__name__,
+                    kind='INDETERMINATE', code=-32010,
+                    details={**diagnostics, 'exception': exception_diagnostics(failure)}) from failure
             if child.returncode not in (0, 2):
-                raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010)
-        result = strict_loads(frames.finish() if frames is not None else output)
-        validate('file-worker.response', result)
+                raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010,
+                                    details=diagnostics)
+        try:
+            result = strict_loads(frames.finish() if frames is not None else output)
+            validate('file-worker.response', result)
+        except ContractError as error:
+            raise ContractError(str(error), kind='INDETERMINATE', code=-32010, details=diagnostics) from error
         if result.get('schema_version') != 'forge.file-worker.response.v1' or result.get('request_id') != request_id or result.get('policy_hash') != self.policy_hash:
-            raise ContractError('File helper response binding differs', kind='INDETERMINATE', code=-32010)
+            raise ContractError('File helper response binding differs', kind='INDETERMINATE', code=-32010, details=diagnostics)
         if result.get('status') == 'error':
-            raise ContractError(result['error']['message'], kind=result['error']['code'], code=-32010)
+            details = {**diagnostics, **result['error'].get('details', {})}
+            if result['error'].get('exception_type'):
+                details.setdefault('exception', [{'type': result['error']['exception_type'], 'message': result['error']['message']}])
+            raise ContractError(result['error']['message'], kind=result['error']['code'], code=-32010,
+                                details=details)
         if result.get('status') != 'ok' or 'result' not in result or not isinstance(result.get('observations'), dict):
-            raise ContractError('Invalid file helper response', kind='INDETERMINATE', code=-32010)
+            raise ContractError('Invalid file helper response', kind='INDETERMINATE', code=-32010, details=diagnostics)
         return result
 
     def _seconds(self, request):

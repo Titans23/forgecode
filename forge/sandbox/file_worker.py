@@ -425,11 +425,14 @@ def main(argv=None):
             'policy_hash': request['policy_hash'], 'status': 'ok', 'result': result, 'observations': observations}
         code = 0
     except Exception as error:
+        from forge.sessions.trajectory import exception_diagnostics, redact_text, sanitize
         response = {'schema_version': 'forge.file-worker.response.v1', 'request_id': request.get('request_id'),
             'policy_hash': request.get('policy_hash'), 'status': 'error', 'error': {
                 'code': getattr(error, 'kind', getattr(error, 'code', 'INDETERMINATE')),
-                'message': str(error) if isinstance(error, ContractError) else 'File helper operation failed',
-                'exception_type': type(error).__name__}}
+                'message': (redact_text(str(error))[:512] or type(error).__name__) if isinstance(error, ContractError) else 'File helper operation failed',
+                'exception_type': type(error).__name__,
+                'details': sanitize({**getattr(error, 'details', {}),
+                    'exception': exception_diagnostics(error), 'stage': 'file_worker'})}}
         code = 2
     encoded = json.dumps(response, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
     if len(encoded) > MAX_FRAME_BYTES:

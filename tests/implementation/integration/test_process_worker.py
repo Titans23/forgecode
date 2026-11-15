@@ -36,6 +36,59 @@ def test_real_helper_verification_runs_program_with_original_evidence_fields(tmp
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('failure', ['exit', 'exception', 'malformed'])
+def test_helper_failure_preserves_bounded_redacted_diagnostics(tmp_path, monkeypatch, failure):
+    import json
+    root, control, workspace, policy = fixture(tmp_path)
+    policy['execution_mode'] = 'full-access'
+    if failure == 'exit':
+        program = ("import sys,os\nsys.stdin.buffer.read()\n"
+            "sys.stderr.write('token=synthetic-private ' + 'x'*10000)\n"
+            "sys.stderr.flush()\nos._exit(17)\n")
+    elif failure == 'exception':
+        program = ("from forge.sandbox import file_worker as worker\n"
+            "async def broken(request):\n"
+            " try: raise OSError('token=synthetic-private ' + 'detail '*500)\n"
+            " except OSError as cause: raise RuntimeError('operation failed') from cause\n"
+            "worker.execute=broken\nraise SystemExit(worker.main())\n")
+    else:
+        program = "import sys\nsys.stdin.buffer.read()\nsys.stderr.write('broken frame')\nprint('{broken')\n"
+    monkeypatch.setattr('forge.sandbox.file_client.worker_argv',
+                        lambda: [sys.executable, '-I', '-B', '-c', program])
+
+    async def run():
+        from forge.process_output import process_output
+        backend = FileToolBackend(FileWorkerClient(workspace, policy, local_control=control))
+        streamed = []
+        token = process_output.set(lambda stream, chunk: streamed.append(chunk))
+        try:
+            result = await backend.execute(ToolCall(0, 'broken', 'run_command',
+                {'command': 'not executed by the fault-injected helper'}), create_default_registry(root))
+            assert not result.success and result.error.code == 'INDETERMINATE'
+            detail = result.error.details
+            assert detail['cleanup']['state'] == 'clean'
+            if failure == 'exit':
+                assert detail['worker_exit_code'] == 17
+                assert len(detail['worker_stderr']) <= 4096 and detail['stderr_truncated']
+                assert '[REDACTED]' in detail['worker_stderr']
+            elif failure == 'exception':
+                assert detail['worker_exit_code'] == 2 and detail['stage'] == 'file_worker'
+                assert [item['type'] for item in detail['exception']] == ['RuntimeError', 'OSError']
+                assert len(detail['exception'][1]['message']) <= 1024
+            else:
+                # The owner may terminate the worker as soon as the invalid
+                # frame arrives; preserve the actual code, including cleanup.
+                assert isinstance(detail['worker_exit_code'], int)
+                assert detail['worker_stderr'] == 'broken frame'
+                assert detail['exception'][0]['type'] == 'ContractError'
+            assert 'synthetic-private' not in json.dumps(detail)
+            assert not streamed, 'Helper stderr must not bypass diagnostic redaction into model output'
+        finally:
+            process_output.reset(token)
+            assert (await backend.close())['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_flooding_helper_cancel_reclaims_actual_nested_process_and_stops_writes(tmp_path):
     root, control, workspace, policy = fixture(tmp_path)
     (root / 'child.py').write_text("import pathlib,time\np=pathlib.Path('heartbeat')\nwhile True:\n p.write_text(str(time.time())); time.sleep(.02)\n")

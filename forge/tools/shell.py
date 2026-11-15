@@ -232,7 +232,7 @@ async def _read_bounded(
     stream: asyncio.StreamReader | None,
     maximum: int,
     artifact_root: Path,
-    *, stream_name: str = 'stdout',
+    *, stream_name: str = 'stdout', emit_output: bool = True,
 ) -> tuple[bytes, int, bool, str | None]:
     if stream is None:
         return b'', 0, False, None
@@ -258,7 +258,7 @@ async def _read_bounded(
             remaining = maximum - len(kept)
             if remaining > 0:
                 from forge.process_output import process_output
-                sink = process_output.get()
+                sink = process_output.get() if emit_output else None
                 if sink is not None:
                     sink(stream_name, chunk[:remaining])
                 kept.extend(chunk[:remaining])

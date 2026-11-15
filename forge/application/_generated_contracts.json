@@ -8515,6 +8515,9 @@
               "minLength": 1,
               "type": "string"
             },
+            "details": {
+              "type": "object"
+            },
             "exception_type": {
               "maxLength": 128,
               "type": "string"

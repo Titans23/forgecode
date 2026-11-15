@@ -17,10 +17,12 @@ MAX_SAFE_INTEGER = 2**53 - 1
 
 
 class ContractError(ValueError):
-    def __init__(self, message: str, *, kind: str = 'INVALID_PARAMS', code: int = -32602):
+    def __init__(self, message: str, *, kind: str = 'INVALID_PARAMS', code: int = -32602,
+                 details: dict | None = None):
         super().__init__(message)
         self.kind = kind
         self.code = code
+        self.details = details or {}
 
 
 def _pairs(pairs):

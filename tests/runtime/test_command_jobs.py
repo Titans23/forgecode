@@ -171,6 +171,47 @@ def test_job_cancellation_with_unconfirmed_cleanup_remains_indeterminate(tmp_pat
     asyncio.run(run())
 
 
+def test_job_output_keeps_execution_error_details_and_termination_facts():
+    from dataclasses import asdict
+    from types import SimpleNamespace
+    from forge.runtime.jobs import CommandJobs
+    from forge.tool_types import ToolResult
+
+    async def run():
+        jobs = CommandJobs()
+        original = ToolResult.fail('INDETERMINATE', 'Helper exited.',
+            details={'worker_exit_code': 17, 'exception': [{'type': 'OSError', 'message': 'pipe closed'}]},
+            metadata={'timed_out': False, 'cleanup': {'state': 'clean'}, 'output_incomplete': True})
+        async def operation():
+            return SimpleNamespace(result=original, record=SimpleNamespace(status='indeterminate'))
+        identity = jobs.start(ToolCall(0, 'job', 'run_command', {'command': 'fixture'}), operation, owner=None)
+        observed = await jobs.output(identity, wait_for='completion', wait_seconds=1)
+        assert observed.error.code == 'INDETERMINATE'
+        assert observed.error.details == original.error.details
+        assert observed.metadata['execution_result']['error'] == asdict(original.error)
+        assert observed.metadata['timed_out'] is False
+        assert observed.metadata['cleanup'] == {'state': 'clean'}
+        assert observed.metadata['output_incomplete'] is True
+        await jobs.close()
+    asyncio.run(run())
+
+
+def test_job_cannot_report_confirmed_cancellation_without_cleanup_evidence():
+    from forge.runtime.jobs import CommandJobs
+    from forge.tool_types import ToolExecutionCancelled
+    async def run():
+        jobs = CommandJobs()
+        async def uncertain():
+            raise ToolExecutionCancelled({'state': 'unknown'})
+        identity = jobs.start(ToolCall(0, 'job', 'run_command', {'command': 'fixture'}), uncertain, owner=None)
+        result = await jobs.output(identity, wait_for='completion', wait_seconds=1)
+        assert result.metadata['state'] == 'indeterminate'
+        assert result.error.code == 'INDETERMINATE'
+        assert result.error.details['cleanup']['state'] == 'unknown'
+        await jobs.close()
+    asyncio.run(run())
+
+
 def test_immediate_job_cancel_and_close_do_not_leave_queued_state(tmp_path):
     from forge.runtime.jobs import CommandJobs
     async def run():

@@ -92,8 +92,12 @@ class FileToolBackend:
             except ContractError as error:
                 if error.kind == 'SANDBOX_UNAVAILABLE' and self.observer.native is not None:
                     return sandbox_unavailable_result(str(error), self.mode + '-file-worker')
-                return ToolResult.fail(error.kind, str(error),
-                    details={'command_started': False} if error.kind == 'SANDBOX_UNAVAILABLE' else None,
+                from forge.sessions.trajectory import exception_diagnostics, redact_text, sanitize
+                details = {**error.details}
+                details.setdefault('exception', exception_diagnostics(error))
+                if error.kind == 'SANDBOX_UNAVAILABLE':
+                    details['command_started'] = False
+                return ToolResult.fail(error.kind, redact_text(str(error)), details=sanitize(details),
                     metadata={'execution_boundary': self.mode + '-file-worker'})
         # These tools mutate trusted task state or dispatch Explore with this same
         # backend. Hooks/MCP/skill extensions cannot inherit a sandbox label.

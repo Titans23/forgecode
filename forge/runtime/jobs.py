@@ -126,12 +126,16 @@ class CommandJobs:
                              'indeterminate' if outcome.record.status == 'indeterminate' else
                              'cancelled' if outcome.record.status == 'cancelled' else
                              'completed' if job.result.success else 'failed')
-        except asyncio.CancelledError:
-            job.state = 'cancelled'
-            job.result = ToolResult.fail('execution_cancelled', 'Background command cancelled.')
+        except asyncio.CancelledError as error:
+            cleanup = getattr(error, 'cleanup', {'state': 'clean' if job.state == 'queued' else 'unknown'})
+            job.state = 'cancelled' if cleanup.get('state') == 'clean' else 'indeterminate'
+            job.result = ToolResult.fail('execution_cancelled' if job.state == 'cancelled' else 'INDETERMINATE',
+                'Background command interrupted.', details={'stage': 'background_execution', 'cleanup': cleanup})
         except Exception as error:
+            from forge.sessions.trajectory import exception_diagnostics
             job.state = 'indeterminate'
-            job.result = ToolResult.fail('INDETERMINATE', f'Background command failed: {type(error).__name__}')
+            job.result = ToolResult.fail('INDETERMINATE', f'Background command failed: {type(error).__name__}',
+                details={'exception': exception_diagnostics(error), 'stage': 'background_execution'})
         finally:
             process_output.reset(token)
             for stream in job.decoders:
@@ -176,14 +180,19 @@ class CommandJobs:
                     'exit_code': job.result.metadata.get('exit_code') if job.result else None}
         if job.result is not None:
             metadata['execution_result'] = {'success': job.result.success, 'summary': job.result.summary,
-                'error_code': job.result.error.code if job.result.error else None}
+                'error_code': job.result.error.code if job.result.error else None,
+                'error': asdict(job.result.error) if job.result.error else None}
+            for key in ('timed_out', 'cleanup', 'output_incomplete'):
+                if key in job.result.metadata:
+                    metadata[key] = job.result.metadata[key]
             metadata['output_truncated'] |= bool(job.result.metadata.get('stdout_truncated') or job.result.metadata.get('stderr_truncated'))
             if not text and after == 0:
                 text = job.result.content
         if job.state in {'failed', 'cancelled', 'indeterminate'}:
             return ToolResult.fail('INDETERMINATE' if job.state == 'indeterminate' else 'background_command_' + job.state,
                                    f'Background command {job.state}.',
-                                   content=text, metadata=metadata)
+                                   content=text, details=job.result.error.details if job.result and job.result.error else None,
+                                   metadata=metadata)
         return ToolResult.ok(f'Background command {job.state}.', content=text, metadata=metadata)
 
     async def cancel(self, identity):
