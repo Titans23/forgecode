@@ -112,6 +112,10 @@ def seed_demo(directory):
         for call in response.get('tool_calls', []):
             if 'command' in call['arguments']:
                 call['arguments']['command'] = call['arguments']['command'].replace('${PYTHON}', executable)
+            if call['name'] == 'verify':
+                # Adapt the private copy to ordinary command verification;
+                # retain the historical fixture and its actual assertions.
+                call['arguments'].pop('covers', None)
     profile = scripted_profile(value)
     with Store(directory / 'data') as store:
         service = ApplicationServices(store, profile_id='test-profile', credentials=profile.credentials,
