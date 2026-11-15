@@ -363,7 +363,7 @@ def render_process_output(result: ProcessResult) -> str:
 
 class RunCommandInput(SandboxInput):
     run_in_background: bool = Field(default=False,
-        description='Start an owned background job and return its job_id. Pass the program directly; no nohup or shell & is needed. Use job_output to wait/read output and job_kill to cancel. Completion includes owned child processes.')
+        description='Start an owned background job and return its job_id. Use job_output to wait/read output and job_kill to cancel. Dependent commands must wait for completion.')
     command: str = Field(min_length=1)
     cwd: str = '.'
     lifetime: Literal['command', 'session'] = Field(default='command',
