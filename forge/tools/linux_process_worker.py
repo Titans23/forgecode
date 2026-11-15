@@ -1,8 +1,8 @@
 '''Own one Linux command, including detached descendants and inherited pipes.
 
-Standard-library-only entrypoint, run by shell.run_process. Successful commands
-may leave fully redirected services alive; commands with open output remain
-owned until EOF. Cancellation reaps this command's descendants, never peers.
+Standard-library-only entrypoint, run by shell.run_process. A command completes
+when its process tree and output complete, including redirected descendants.
+Cancellation reaps this command's descendants, never peers.
 '''
 from __future__ import annotations
 
@@ -58,7 +58,6 @@ def run(command, shell, *, cleanup_normal=False, ready_fd=None):
         os.write(ready_fd, b'!')
         os.close(ready_fd)
     normal_exit = False
-    # 正常完成的命令可留下已重定向输出的服务；取消时只回收本命令拥有的子树。
     process = None
     try:
         process = subprocess.Popen(command, shell=shell, stdout=subprocess.PIPE,
@@ -74,8 +73,20 @@ def run(command, shell, *, cleanup_normal=False, ready_fd=None):
             while not interrupted:
                 code = process.poll()
                 if code is not None and all(s['eof'] and not s['buffer'] for s in streams):
-                    normal_exit = True
-                    return code if code >= 0 else 128 - code
+                    # The shell may exit before its redirected child. Keep the
+                    # same owner alive, so the command deadline still applies.
+                    # Helper supervisors instead reclaim children on exit.
+                    if not cleanup_normal:
+                        while True:
+                            try:
+                                pid, _ = os.waitpid(-1, os.WNOHANG)
+                            except ChildProcessError:
+                                break
+                            if not pid:
+                                break
+                    if cleanup_normal or not children():
+                        normal_exit = True
+                        return code if code >= 0 else 128 - code
                 for key in list(selector.get_map().values()):
                     selector.unregister(key.fd)
                 for stream in streams:

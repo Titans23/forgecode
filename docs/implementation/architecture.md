@@ -41,6 +41,8 @@ CLI/API 使用 `open_runtime → create_runtime → Conversation.stream → Turn
 
 后台命令复用原工具校验、后端和单次审批。启动结果只表示受理；CommandJobs 保存所属回合、输出游标和终态，超出并发上限时排队。`job_output` 区分等待新输出与等待完成，单次最多 3600 秒并受调用方截止时间约束；旧输出不会让完成等待立即返回。`job_kill` 只能取消当前会话作业。有限命令阻止验证及完成；显式 `lifetime=session` 服务允许验证，并在完成回答后继续由会话持有。两种完成入口采用相同规则，活跃作业仍阻止权限/历史切换。退出清理所属资源，跨进程恢复不重放命令。
 
+命令完成包括其受管子进程结束；shell 退出、子进程重定向输出不会提前结束作业。Windows Job 与 Linux subreaper 使用相同规则，命令超时和取消仍回收整棵子树。使用 `run_in_background` 即可交还控制权，无需再拼接 `nohup` 或 `&`；helper 的外层监督仅承担 helper 异常退出时的最终清理。
+
 会话服务首先支持 Windows/Linux full-access 提供方；`timeout_seconds=null` 仅用于显式会话服务，普通命令仍有操作期限。Linux 评测服务使用文件输出和进程身份回执，由 supervisor 只移交自身接管且身份匹配的服务子树；官方 Agent 到期可保留这些服务供 verifier 使用，用户取消评测则清理。环境销毁负责最终回收，移交不冒充进程已退出。
 
 主动停止一个作业与取消整个回合分别处理。执行提供方返回本次操作的清理证据；确认进程已停止的 `job_kill` 允许回合继续，并提醒可能留下部分文件。清理未知仍为 indeterminate；停止进程不代表回滚文件，写操作中断也不凭进程退出推断写入完整。

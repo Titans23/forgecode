@@ -111,7 +111,7 @@ forge --sandbox danger-full-access --approval supervised
 
 空闲时使用 `/permission <预设>` 或 `await session.set_permissions(name)`；恢复继承保存值，分支继承，清空回到启动默认值。`/sandbox`、`/approval` 和 `full-access` 别名保留兼容。运行中的后台作业会阻止权限和历史切换。
 
-普通命令默认超时 120 秒，可为长任务显式设置更大的正有限时长。后台任务通过 `run_in_background` 启动，`job_output` 按游标读取，`job_kill` 取消；取消/退出仍清理本会话拥有的进程。Harness 无累计请求、工具、token 或回合时长限制。
+普通命令默认超时 120 秒，可为长任务显式设置更大的正有限时长。后台任务通过 `run_in_background` 启动，直接传入程序即可，无需 `nohup` 或 shell `&`。`job_output` 按游标读取，`job_kill` 取消；命令完成会等待所属子进程，输出重定向不会让它提前完成。取消/退出仍清理本会话拥有的进程。Harness 无累计请求、工具、token 或回合时长限制。
 
 长命令使用 `job_output(wait_for="completion", wait_seconds=300)` 等待完成；`wait_for="output", after=next_cursor` 等待新输出。单次等待最多 3600 秒，等待超时不会停止命令。评测会提示官方剩余时间和容器 CPU/内存限制，并将等待裁剪到官方截止时间；CLI 默认没有回合截止时间。POSIX 字符串命令由 `/bin/sh` 执行，需要 Bash 语法时显式调用 `bash`。
 

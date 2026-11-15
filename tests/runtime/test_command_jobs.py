@@ -304,6 +304,53 @@ def test_streamed_output_caps_and_cursor_validation():
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('ending', ['complete', 'timeout', 'cancel'])
+def test_redirected_child_remains_owned_after_launcher_exit(tmp_path, ending):
+    async def run():
+        handle = await session(tmp_path)
+        root = tmp_path / 'project'
+        (root / 'child.py').write_text(
+            "from pathlib import Path\nimport time\n"
+            "Path('started').touch()\n"
+            "while not Path('release').exists(): time.sleep(.02)\n"
+            "Path('done').write_text('finished')\n")
+        (root / 'launch.py').write_text(
+            "import subprocess,sys\n"
+            "subprocess.Popen([sys.executable,'child.py'],start_new_session=True,"
+            "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n")
+        jobs = handle.conversation.command_jobs
+        try:
+            result = await handle.conversation.tool_executor.execute(ToolCall(0, 'launch', 'run_command', {
+                'command': f'"{sys.executable}" launch.py', 'run_in_background': True,
+                'timeout_seconds': 5 if ending == 'timeout' else 20}))
+            identity = result.result.metadata['job_id']
+            async with asyncio.timeout(15):
+                while not (root / 'started').exists():
+                    assert jobs.jobs[identity].state in {'queued', 'running'}
+                    await asyncio.sleep(.01)
+            observed = await jobs.output(identity)
+            assert observed.metadata['state'] == 'running'
+            if ending == 'complete':
+                (root / 'release').touch()
+                finished = await jobs.output(identity, wait_for='completion', wait_seconds=10)
+                assert finished.metadata['state'] == 'completed'
+                assert (root / 'done').read_text() == 'finished'
+            else:
+                if ending == 'cancel':
+                    await jobs.cancel(identity)
+                finished = await jobs.output(identity, wait_for='completion', wait_seconds=10)
+                assert finished.metadata['state'] == ('cancelled' if ending == 'cancel' else 'failed')
+                if ending == 'timeout':
+                    assert jobs.jobs[identity].result.error.code == 'command_timeout'
+                (root / 'release').touch()
+                await asyncio.sleep(.15)
+                assert not (root / 'done').exists()
+        finally:
+            await handle.close()
+        assert handle.cleanup['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_completion_wait_respects_caller_deadline_without_stopping_job():
     from forge.runtime.jobs import CommandJob, CommandJobs
     from time import monotonic

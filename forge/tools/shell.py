@@ -160,6 +160,11 @@ async def _run_process(
                     process.stdin.close()
             await process.wait()
             await asyncio.shield(asyncio.gather(stdout_task, stderr_task))
+            if process_job is not None:
+                # Match the Linux subreaper: a redirected child is still part
+                # of this command, even after the launching shell has exited.
+                while process_job.active_processes():
+                    await asyncio.sleep(0.01)
         timed_out = False
     except TimeoutError:
         output_incomplete = await _stop_and_collect(process, process_job, stdout_task, stderr_task)
@@ -358,7 +363,7 @@ def render_process_output(result: ProcessResult) -> str:
 
 class RunCommandInput(SandboxInput):
     run_in_background: bool = Field(default=False,
-        description='Start an owned background job and return its job_id. Use job_output to wait/read output and job_kill to cancel. Dependent commands must wait for completion.')
+        description='Start an owned background job and return its job_id. Pass the program directly; no nohup or shell & is needed. Use job_output to wait/read output and job_kill to cancel. Completion includes owned child processes.')
     command: str = Field(min_length=1)
     cwd: str = '.'
     lifetime: Literal['command', 'session'] = Field(default='command',
