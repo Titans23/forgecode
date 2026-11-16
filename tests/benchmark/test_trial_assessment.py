@@ -35,6 +35,66 @@ def test_recovered_errors_and_nonzero_tool_exit_do_not_replace_final_success():
     assert classify_result({'verifier_result': {'rewards': {'reward': 1}}}, status)['category'] == 'passed'
 
 
+@pytest.mark.parametrize('reward,category', [(1, 'passed'), (0, 'acceptance_failed'),
+                                           (None, 'cancelled_or_incomplete')])
+@pytest.mark.parametrize('phase_recorded', [False, True])
+def test_declared_partial_preserves_independent_grading_and_exit(tmp_path, reward, category, phase_recorded):
+    from benchmark.adapters.protocol import classify_result, normalize
+    path = trial(tmp_path, reward=reward, reason='partial',
+                 exception={'exception_type': 'NonZeroAgentExitCodeError'})
+    status = {'status': 'partial', 'stop_reason': 'partial'}
+    (path / 'agent/forgecode.txt').write_text('FORGECODE_BENCHMARK_RESULT=' + json.dumps(status))
+    result = json.loads((path / 'result.json').read_text())
+    result.update(finished_at='observed', agent_execution={'started_at': 'before'},
+                  verifier={'started_at': 'after'})
+    (path / 'result.json').write_text(json.dumps(result))
+    phases = [{'phase': 'agent_execution', 'exception_type': 'NonZeroAgentExitCodeError'}] if phase_recorded else []
+    (path / 'forgecode-phase-failures.jsonl').write_text(''.join(json.dumps(p) + '\n' for p in phases))
+    original = (path / 'result.json').read_bytes()
+    actual = classify_result(result, status, phase_failures=phases)
+    assert actual['category'] == category and actual['agent_outcome'] == 'partial'
+    assert actual['termination_reason'] == 'partial' and actual['execution_state'] == 'finished'
+    normalized = normalize(runner_exit=1, result=result, agent_status=status, phase_failures=phases)
+    assert normalized['error_origin'] is None and normalized['runner_exit_code'] == 1
+    assert normalized['exception_type'] == 'NonZeroAgentExitCodeError'
+    assert normalized['termination_reason'] == 'partial' and normalized['agent_outcome'] == 'failed'
+    assert normalize(runner_exit=2, result=result, agent_status=status, phase_failures=phases)['error_origin'] == 'runner_crash'
+    summary = summarize_run(tmp_path)
+    assert summary.infrastructure_failures == summary.agent_timeouts == 0
+    assert summary.internal_statuses == {'partial': 1}
+    assert summary.scored_trials == int(reward is not None)
+    assert summary.pass_at_2 == int(reward == 1)
+    assert (path / 'result.json').read_bytes() == original
+
+
+@pytest.mark.parametrize('exception,phase,reason,category', [
+    ('NonZeroAgentExitCodeError', 'agent_setup', 'partial', 'environment_failure'),
+    ('VerifierTimeoutError', 'verifier', 'partial', 'grader_failure'),
+    ('AgentTimeoutError', 'agent_execution', 'partial', 'budget_exhausted'),
+    ('ToolExecutionError', 'agent_execution', 'partial', 'harness_failure'),
+    ('NonZeroAgentExitCodeError', 'agent_execution', 'tool_execution_failed', 'harness_failure'),
+    ('NonZeroAgentExitCodeError', 'agent_execution', 'stream_interrupted', 'model_failure'),
+    ('CancelledError', 'agent_execution', 'cancelled', 'cancelled_or_incomplete'),
+])
+def test_partial_does_not_hide_execution_failures(exception, phase, reason, category):
+    from benchmark.adapters.protocol import classify_result
+    result = {'exception_info': {'exception_type': exception}, 'verifier_result': {'rewards': {'reward': 1}}}
+    actual = classify_result(result, {'status': 'partial', 'stop_reason': reason},
+                             phase_failures=[{'phase': phase, 'exception_type': exception}])
+    assert actual['category'] == category
+    assert actual['official_rewards'] == {'reward': 1}
+
+
+def test_partial_does_not_hide_a_separately_recorded_tool_failure():
+    from benchmark.adapters.protocol import classify_result
+    phases = [{'phase': 'agent_execution', 'exception_type': kind}
+              for kind in ('ToolExecutionError', 'NonZeroAgentExitCodeError')]
+    result = {'exception_info': {'exception_type': 'NonZeroAgentExitCodeError'}}
+    actual = classify_result(result, {'status': 'partial', 'stop_reason': 'partial'}, phase_failures=phases)
+    assert actual['category'] == 'harness_failure'
+    assert 'ToolExecutionError' in actual['observed_faults']
+
+
 def test_agent_timeout_does_not_relabel_a_successful_verifier_as_broken():
     from benchmark.adapters.protocol import classify_result
     result = {'exception_info':{'exception_type':'AgentTimeoutError'},

@@ -109,7 +109,7 @@ forge eval compare ./baseline ./candidate --change model
 
 结果保留所有尝试、未启动题、未判分题和基础设施错误。缺少终态/用量时完整总量为 unknown，已知小计另列；价格表只能产生估算费用。Ctrl+C 与 cancel 通知所属控制器清理进程组及有所有权凭据的容器，不自动重跑付费任务。
 
-内部未完成/失败结果返回非零退出码，官方 reward 仍独立保存。`forgecode-phase-failures.jsonl` 保留 Harbor 后续错误：Agent 超时和 verifier 故障可以同时出现，汇总分别保留执行与判分状态，不用前一个异常覆盖后一个。
+内部未完成/失败结果返回非零退出码，官方 reward 仍独立保存。明确提交 partial 的非零退出不等于 Harness 崩溃：已有判分时按官方结果归类，无判分时保留未完成；报告仍展示 partial 和原始异常。真实执行故障不会被 partial 声明隐藏。`forgecode-phase-failures.jsonl` 保留 Harbor 后续错误：Agent 超时和 verifier 故障可以同时出现，汇总分别保留执行与判分状态，不用前一个异常覆盖后一个。
 
 Journal 是完整私有事实源；ATIF v1.7 和 OpenAI messages JSONL 是离线脱敏导出，失败、取消和部分响应也会保留。输出目录不可覆盖，原记录保持不变，公共基准输出标记 evaluation-only。产品不提供训练/蒸馏导出。
 

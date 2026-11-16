@@ -96,9 +96,11 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
     error = exception.get('exception_type', '')
     reason = agent_status.get('stop_reason') or ''
     status = agent_status.get('status', 'indeterminate')
+    declared_partial = status == 'partial' and reason == 'partial'
     failure_stage = next((item['phase'] for item in phase_failures if item.get('exception_type') == error), None)
     if failure_stage is None:
-        failure_stage = ('agent_execution' if error == 'AgentTimeoutError' else
+        failure_stage = ('agent_execution' if error == 'AgentTimeoutError' or
+                         (declared_partial and error == 'NonZeroAgentExitCodeError') else
             'agent_setup' if error.startswith('AgentSetup') else 'environment_setup' if error.startswith('Environment') else
             'verifier' if error.startswith(('Verifier', 'RewardFile')) else
             next((phase for phase in ('verifier', 'agent_execution', 'agent_setup', 'environment_setup')
@@ -123,6 +125,12 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
         category, execution, termination = 'model_failure', 'error', reason or error
     elif error.startswith(('Environment', 'AgentSetup', 'Docker', 'ImageBuild')) or failure_stage in {'environment_setup', 'agent_setup'}:
         category, execution, termination = 'environment_failure', 'error', error
+    elif (declared_partial and error in {'', 'NonZeroAgentExitCodeError'}
+          and all(item.get('exception_type') == 'NonZeroAgentExitCodeError' for item in phase_failures)):
+        # A deliberate incomplete submission is not a crashed Harness. Keep
+        # its declaration independent of the authoritative verifier outcome.
+        category = ('passed' if grade == 'pass' else 'acceptance_failed') if reward is not None else 'cancelled_or_incomplete'
+        execution, termination = 'finished', 'partial'
     elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'harness_error'} or failure_stage == 'agent_execution':
         category, execution, termination = 'harness_failure', 'error', reason or error
     elif error:
@@ -152,9 +160,14 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
         origin = 'environment_setup'
     elif grade_state == 'grader_error':
         origin = 'grader_infrastructure'
-    elif runner_exit != 0:
+    elif runner_exit != 0 and not (runner_exit == 1 and classified['termination_reason'] == 'partial'
+                                  and classified['category'] in {'passed', 'acceptance_failed', 'cancelled_or_incomplete'}):
         origin = 'runner_crash'
     agent_outcome = (agent_status or {}).get('status', 'indeterminate')
+    if agent_outcome == 'partial':
+        # The legacy normalized contract has no partial enum; retain the
+        # precise declaration in termination_reason and the source payload.
+        agent_outcome = 'failed'
     if classified['category'] == 'budget_exhausted':
         agent_outcome = 'budget_exhausted'
     if agent_outcome not in {'completed','failed','cancelled','timed_out','indeterminate', 'budget_exhausted'}:
