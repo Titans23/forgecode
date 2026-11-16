@@ -115,7 +115,7 @@ forge --sandbox danger-full-access --approval supervised
 
 普通会话使用 `verify` 执行检查，直接读取退出码、输出与耗时；检查程序可以输出普通文本或多行 JSON，无需填写检查 ID、继承关系或需求绑定。只有显式严格完成模式才提供完整验收参数。检查命令成功不代表整个任务已经完成。
 
-长命令使用 `job_output(wait_for="completion", wait_seconds=300)` 等待完成；`wait_for="output", after=next_cursor` 等待新输出。单次等待最多 3600 秒，等待超时不会停止命令。评测会提示官方剩余时间和容器 CPU/内存限制，并将等待裁剪到官方截止时间；CLI 默认没有回合截止时间。POSIX 字符串命令由 `/bin/sh` 执行，需要 Bash 语法时显式调用 `bash`。
+长命令使用 `job_output(wait_for="completion", wait_seconds=300)` 等待完成；`wait_for="output", after=next_cursor` 等待新输出。单次等待最多 3600 秒，等待超时不会停止命令。调用方显式设置的 `caller_deadline` 到期时，会取消当前请求、前台工具和本轮有限后台命令，保存截止原因及清理事实；显式会话服务仍按会话生命周期管理。评测会提示剩余时间和容器 CPU/内存限制，并预留短暂收尾时间；CLI 默认没有回合截止时间。POSIX 字符串命令由 `/bin/sh` 执行，需要 Bash 语法时显式调用 `bash`。
 
 需要持续运行的开发服务器可使用 `run_in_background=true, lifetime="session"`；明确设置 `timeout_seconds=null` 表示运行到会话退出，也可设置最大运行秒数。服务启动后仍需检查就绪状态，回答结束后保留服务，`/jobs` 可以停止它。退出会话时清理；运行服务期间不能切换权限或历史。该能力目前用于 Windows/Linux 的 full-access 会话，受限提供方不支持时明确报错。
 

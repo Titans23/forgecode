@@ -35,6 +35,16 @@ def test_recovered_errors_and_nonzero_tool_exit_do_not_replace_final_success():
     assert classify_result({'verifier_result': {'rewards': {'reward': 1}}}, status)['category'] == 'passed'
 
 
+def test_cooperative_caller_deadline_keeps_timeout_and_grader_axes():
+    from benchmark.adapters.protocol import classify_result
+    result = {'exception_info': {'exception_type': 'NonZeroAgentExitCodeError'},
+              'verifier_result': {'rewards': {'reward': 1}}}
+    actual = classify_result(result, {'status': 'failed', 'stop_reason': 'caller_deadline_exceeded'})
+    assert actual['category'] == 'budget_exhausted'  # Existing normalized deadline category.
+    assert actual['termination_reason'] == 'caller_deadline_exceeded'
+    assert actual['grade_result'] == 'pass' and actual['official_rewards'] == {'reward': 1}
+
+
 @pytest.mark.parametrize('reward,category', [(1, 'passed'), (0, 'acceptance_failed'),
                                            (None, 'cancelled_or_incomplete')])
 @pytest.mark.parametrize('phase_recorded', [False, True])

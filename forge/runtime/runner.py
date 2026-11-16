@@ -27,6 +27,10 @@ if TYPE_CHECKING:
     from forge.runtime.agent_loop import Conversation
 
 
+class _CallerDeadlineExceeded(TimeoutError):
+    '''Only the caller clock expired, not an operation's own timeout.'''
+
+
 class TurnRunner:
     '''Orchestrate requests, bounded tool batches, evidence and one terminal path.
 
@@ -83,10 +87,35 @@ class TurnRunner:
         self.state.goal = prompt
         self.messages = [*c.messages]
         try:
-            await self._prepare_turn(prompt, content=content, input_id=input_id)
+            if self.journal is not None:
+                self.journal.commit()
+                self.journal.record_turn_started(prompt, c.active_task)
+            user_message = {'role': 'user', 'content': prompt if content is None else content}
+            self.messages.append(user_message)
+            if self.journal is not None:
+                self.journal.record_user_message(user_message, c.active_task, input_id=input_id)
+            if input_id is not None:
+                c.inbox.consumed(input_id)
+            await self._before_deadline(lambda: self._prepare_turn(prompt))
             async with aclosing(self._loop()) as stream:
-                async for event in stream:
+                while not self.finished:
+                    try:
+                        event = await self._before_deadline(lambda: anext(stream))
+                    except StopAsyncIteration:
+                        break
                     yield event
+        except _CallerDeadlineExceeded:
+            if c.command_jobs is not None:
+                c.command_jobs.retain_services(self.state)
+                await c.command_jobs.cancel_owner(self.state)
+            c.inbox.defer_steering()
+            reason = 'Caller deadline reached; active work was cancelled. Partial effects may remain.'
+            if self.journal is not None:
+                self.journal.append('caller_deadline_exceeded', {
+                    'source': 'caller_deadline', 'reason': reason,
+                    'deadline': c.caller_deadline,
+                })
+            yield await self._finish('failed', 'caller_deadline_exceeded', reason, (reason,))
         except (asyncio.CancelledError, GeneratorExit) as error:
             if c.command_jobs is not None:
                 await c.command_jobs.cancel_owner(self.state)
@@ -112,17 +141,25 @@ class TurnRunner:
         finally:
             c._kernel_owns_events = False
 
-    async def _prepare_turn(self, prompt: str, *, content=None, input_id=None) -> None:
+    async def _before_deadline(self, operation):
+        deadline = self.conversation.caller_deadline
+        if deadline is None:
+            return await operation()
+        timer = asyncio.timeout(max(0, deadline - monotonic()))
+        try:
+            async with timer:
+                # Reject already expired work even when the next step would
+                # finish without yielding. Never keep this scope open across
+                # a public event yield: it must not cancel the event consumer.
+                await asyncio.sleep(0)
+                return await operation()
+        except TimeoutError as error:
+            if timer.expired():
+                raise _CallerDeadlineExceeded from error
+            raise
+
+    async def _prepare_turn(self, prompt: str) -> None:
         c = self.conversation
-        if self.journal is not None:
-            self.journal.commit()
-            self.journal.record_turn_started(prompt, c.active_task)
-        user_message = {'role': 'user', 'content': prompt if content is None else content}
-        self.messages.append(user_message)
-        if self.journal is not None:
-            self.journal.record_user_message(user_message, c.active_task, input_id=input_id)
-        if input_id is not None:
-            c.inbox.consumed(input_id)
         from forge.observability.events import current
         recorder=current()
         if self.journal is not None or c.event_recorder is not None or recorder:

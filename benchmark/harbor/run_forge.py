@@ -279,6 +279,8 @@ def main(argv: list[str] | None = None) -> int:
             **({'result_path':args.result_file} if args.result_file else {}),
         )
     )
+    if result.stop_reason == 'caller_deadline_exceeded':
+        return 124
     return 0 if result.status == 'completed' else 1
 
 

@@ -40,6 +40,8 @@ uv run --no-sync python -m benchmark run terminal-bench-2 "${eval_args[@]}"
 
 Harness 没有累计请求、工具、token 或回合总时长预算。官方任务期限、单次操作超时和取消独立保留。`--max-retries` 是任务级重试，模型传输重试另有策略。新运行默认 `--completion-policy normal`，官方 grader 决定成绩；显式 strict 才启用 Forge 完成门禁。旧冻结配置缺少该字段时保留原 strict 语义。
 
+官方期限转为内核调用方截止时间。除既有清理预留外，supervisor 硬截止前最多再留 10 秒协作收尾（短任务最多占一半）：停止模型请求和有限命令，保存工具状态、用量与 `caller_deadline_exceeded` 终态，进程返回 124。显式会话服务保留既有交接规则；不响应取消的进程仍由 supervisor 强制回收。报告使用既有 deadline 分类并保留官方 reward，不将协作超时当成普通失败或成功，也不延长官方期限。
+
 `--concurrency 20 --setup-concurrency 4` 最多接纳 20 道任务，其中同时创建环境、检查健康状态和安装 Agent 的任务最多 4 道。准备完成立即释放准备槽位，其他 Agent 可以继续运行；准备和判分也占用任务槽位，因此实际同时作答数可能少于 20。准备并发默认 4，并受总并发上限约束；两个值均保存到冻结配置。排队在官方阶段计时开始前进行，失败或取消会释放槽位。
 
 Docker 查询完整读取有界输出，单次最多等待 60 秒。查询超时记录为 `DockerQueryError`，保留具体操作；只有官方环境启动期限实际到期，才记录 `EnvironmentStartTimeoutError`。查询失败不自动重试或重跑任务。高并发前应检查 Docker 地址池：每道任务通常需要一个独立网络，内存充足并不代表地址池容量足够。

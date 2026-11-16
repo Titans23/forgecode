@@ -286,7 +286,9 @@ def test_executor_error_and_interruption_survive_journal_restore_and_exports(tmp
     assert 'private-value' not in journal.path.read_text()
 
 
-def test_caller_cancellation_records_reason_without_claiming_tool_failure(tmp_path):
+@pytest.mark.parametrize('with_deadline', [False, True])
+def test_caller_cancellation_records_reason_without_claiming_tool_failure(tmp_path, with_deadline):
+    from time import monotonic
     from forge.sessions.trajectory import journal_events
     journal = SessionStore(tmp_path, data_root=tmp_path / '.forge-data').create(model='contract-test')
     async def collect():
@@ -296,7 +298,8 @@ def test_caller_cancellation_records_reason_without_claiming_tool_failure(tmp_pa
                 yield ModelUsageUpdate(TokenUsage(1, 0))
                 waiting.set()
                 await asyncio.Event().wait()
-        conversation = Conversation(client=Client(), context_root=tmp_path, session_journal=journal)
+        conversation = Conversation(client=Client(), context_root=tmp_path, session_journal=journal,
+                                    caller_deadline=monotonic() + 60 if with_deadline else None)
         async def turn():
             return [event async for event in conversation.stream('Wait for an answer.')]
         task = asyncio.create_task(turn())

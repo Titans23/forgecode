@@ -22,11 +22,13 @@ def _children():
     ).read_text().split()]
 
 
-def supervise(argv, *, preserve_on_success=False, timeout_seconds=None, service_receipts=None):
+def supervise(argv, *, preserve_on_success=False, timeout_seconds=None, service_receipts=None, shutdown_grace_seconds=0):
     if not sys.platform.startswith('linux'):
         raise RuntimeError('Benchmark process supervision requires Linux')
     if timeout_seconds is not None and (not math.isfinite(timeout_seconds) or timeout_seconds <= 0):
         raise ValueError('Timeout must be finite and positive')
+    if not math.isfinite(shutdown_grace_seconds) or shutdown_grace_seconds < 0:
+        raise ValueError('Shutdown grace must be finite and nonnegative')
     libc = ctypes.CDLL(None, use_errno=True)
     if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
         raise OSError(ctypes.get_errno(), 'Cannot enable child subreaper')
@@ -44,7 +46,10 @@ def supervise(argv, *, preserve_on_success=False, timeout_seconds=None, service_
     try:
         environment = dict(os.environ)
         if deadline is not None:
-            environment['FORGE_AGENT_DEADLINE_MONOTONIC'] = str(deadline)
+            # The child cooperatively settles tools/journal before this
+            # supervisor's unchanged hard cutoff. Short tasks keep half their time.
+            grace = min(shutdown_grace_seconds, timeout_seconds / 2)
+            environment['FORGE_AGENT_DEADLINE_MONOTONIC'] = str(deadline - grace)
         else:
             environment.pop('FORGE_AGENT_DEADLINE_MONOTONIC', None)
         process = subprocess.Popen(argv, start_new_session=True, env=environment)
@@ -54,6 +59,7 @@ def supervise(argv, *, preserve_on_success=False, timeout_seconds=None, service_
                 break
             time.sleep(0.02)
         exit_code = 124 if timed_out else 128 + interrupted if interrupted else process.returncode
+        timed_out = timed_out or exit_code == 124
     finally:
         # Killing an adopted parent causes its own children to be adopted by
         # us. Repeat until the owned tree is empty within the cleanup reserve.
@@ -117,6 +123,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--preserve-on-success', action='store_true')
     parser.add_argument('--timeout-seconds', type=float)
+    parser.add_argument('--shutdown-grace-seconds', type=float, default=0)
     parser.add_argument('--service-receipts', type=Path)
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -124,4 +131,5 @@ if __name__ == '__main__':
     if not command:
         raise SystemExit('Missing supervised command')
     raise SystemExit(supervise(command, preserve_on_success=args.preserve_on_success,
-        timeout_seconds=args.timeout_seconds, service_receipts=args.service_receipts))
+        timeout_seconds=args.timeout_seconds, service_receipts=args.service_receipts,
+        shutdown_grace_seconds=args.shutdown_grace_seconds))

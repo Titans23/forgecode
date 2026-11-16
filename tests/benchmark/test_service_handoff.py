@@ -45,7 +45,7 @@ def test_patch_timeout_reaps_git_children_and_retains_separate_diagnostic(tmp_pa
 
 
 AGENT = '''
-import asyncio, json, shlex, sys
+import asyncio, json, os, shlex, sys
 from pathlib import Path
 from forge.api import HarnessSession, RunProfile, SessionOptions
 from forge.config import ForgeConfig
@@ -53,6 +53,9 @@ from forge.runtime.state import ToolCall
 root, mode = Path(sys.argv[1]), sys.argv[2]
 class NoModel:
     async def aclose(self): pass
+    async def stream(self, **kwargs):
+        await asyncio.Event().wait()
+        yield
 async def main():
     session = await HarnessSession.open(SessionOptions(root=root/'project', data_root=root/'private',
         profile=RunProfile.evaluation(), service_handoff_dir=root/'receipts',
@@ -65,10 +68,16 @@ async def main():
     assert outcome.result.success
     while not (root/'project/port').exists(): await asyncio.sleep(.02)
     (root/'ready').touch()
-    if mode == 'success':
+    if mode in {'success', 'cooperative'}:
+        if mode == 'cooperative':
+            session.conversation.caller_deadline = float(os.environ['FORGE_AGENT_DEADLINE_MONOTONIC'])
+            result = await session.run('Wait until the caller deadline.')
+            assert result.stop_reason == 'caller_deadline_exceeded'
+            (root/'terminal.json').write_text(json.dumps({'status':result.status,'reason':result.stop_reason}))
         session.conversation.tool_executor.backend.observer.transfer_services()
         await session.close()
         (root/'cleanup.json').write_text(json.dumps(session.cleanup))
+        if mode == 'cooperative': raise SystemExit(124)
     else: await asyncio.Event().wait()
 asyncio.run(main())
 '''
@@ -78,7 +87,8 @@ import json, signal, subprocess, sys, time
 from pathlib import Path
 root, mode = Path(sys.argv[1]), sys.argv[2]
 child = subprocess.Popen([sys.executable,'-I','-m','benchmark.harbor.process_supervisor',
-    '--timeout-seconds','10' if mode == 'deadline' else '20',
+    '--timeout-seconds','10' if mode in {'deadline', 'cooperative'} else '20',
+    '--shutdown-grace-seconds','5' if mode == 'cooperative' else '0',
     '--service-receipts',str(root/'receipts'),'--',sys.executable,str(root/'agent.py'),str(root),mode],
     stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
 if mode == 'cancel':
@@ -91,7 +101,7 @@ time.sleep(60)
 
 
 @pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux evaluation handoff')
-@pytest.mark.parametrize('mode', ['success', 'deadline', 'cancel'])
+@pytest.mark.parametrize('mode', ['success', 'deadline', 'cancel', 'cooperative'])
 def test_live_service_handoff_and_user_cancellation(tmp_path, mode):
     (tmp_path/'project').mkdir()
     (tmp_path/'agent.py').write_text(AGENT)
@@ -103,18 +113,20 @@ def test_live_service_handoff_and_user_cancellation(tmp_path, mode):
             line = await asyncio.wait_for(owner.process.stdout.readline(), 30)
             assert line, await owner.process.stderr.read()
             outcome = json.loads(line)
-            assert outcome['exit_code'] == {'success':0, 'deadline':124, 'cancel':143}[mode], outcome
+            assert outcome['exit_code'] == {'success':0, 'deadline':124, 'cooperative':124, 'cancel':143}[mode], outcome
             result = json.loads((tmp_path/'receipts/supervisor-result.json').read_text())
             port = int((tmp_path/'project/port').read_text())
             if mode == 'cancel':
                 assert not result['handed_off'] and result['cancelled']
                 with pytest.raises(OSError): socket.create_connection(('127.0.0.1',port),timeout=.2)
             else:
-                assert len(result['handed_off']) == 1 and result['timed_out'] == (mode == 'deadline')
+                assert len(result['handed_off']) == 1 and result['timed_out'] == (mode in {'deadline', 'cooperative'})
                 with socket.create_connection(('127.0.0.1',port),timeout=1): pass
-                if mode == 'success':
+                if mode in {'success', 'cooperative'}:
                     cleanup = json.loads((tmp_path/'cleanup.json').read_text())
                     assert len(cleanup['transferred_services']) == 1
+                if mode == 'cooperative':
+                    assert json.loads((tmp_path/'terminal.json').read_text())['reason'] == 'caller_deadline_exceeded'
         finally:
             cleanup = await owner.close()
         assert cleanup['state'] == 'clean'

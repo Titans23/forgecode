@@ -407,7 +407,8 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             f'export MODEL_MAX_TOKENS="${{FORGECODE_MODEL_MAX_TOKENS:-{DEFAULT_MODEL_MAX_TOKENS}}}"; '
             f'export MODEL_CONTEXT_WINDOW="${{FORGECODE_CONTEXT_WINDOW:-{DEFAULT_MODEL_CONTEXT_WINDOW}}}"; '
             f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.process_supervisor '
-            f'--timeout-seconds {shlex.quote(watchdog_timeout)} --service-receipts /logs/agent/forge-services -- '
+            f'--timeout-seconds {shlex.quote(watchdog_timeout)} --shutdown-grace-seconds 10 '
+            '--service-receipts /logs/agent/forge-services -- '
             f'{shlex.quote(_venv_python())} -I -m benchmark.harbor.run_forge '
             '--project . '
             + ('--frozen-configuration /installed-agent/forgecode-harness.json --result-file /logs/agent/forgecode-result.json ' if self._frozen_configuration else '')

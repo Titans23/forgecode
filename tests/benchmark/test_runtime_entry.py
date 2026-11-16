@@ -57,7 +57,8 @@ def test_entries_share_policy_git_and_outside_file_edits(tmp_path, entry):
 
 
 def test_benchmark_forwards_the_supervisor_deadline(tmp_path, monkeypatch):
-    monkeypatch.setenv('FORGE_AGENT_DEADLINE_MONOTONIC', '123456789')
+    from time import monotonic
+    monkeypatch.setenv('FORGE_AGENT_DEADLINE_MONOTONIC', str(monotonic() + 60))
     (tmp_path/'project').mkdir()
     class Model:
         model = 'offline'
@@ -92,16 +93,38 @@ def test_evaluation_does_not_load_unfrozen_local_permissions(tmp_path):
     asyncio.run(run())
 
 
+def test_deadline_exports_result_after_cleanup_without_another_model_request(tmp_path):
+    import json
+    from time import monotonic
+    project = tmp_path / 'project'
+    project.mkdir()
+    result_path = tmp_path / 'result.json'
+    class Model:
+        async def stream(self, **kwargs):
+            await asyncio.Event().wait()
+            yield
+        async def aclose(self): pass
+    result = asyncio.run(run_turn(project, 'Wait', resume=False, result_path=result_path,
+        runtime_bindings=RuntimeBindings(config=ForgeConfig(api_key='offline', model_id='offline'),
+            caller_deadline=monotonic() + .2, data_root=tmp_path / 'private',
+            model_client_factory=lambda *a, **kw: Model())))
+    saved = json.loads(result_path.read_text())
+    assert saved['stop_reason'] == result.stop_reason == 'caller_deadline_exceeded'
+    assert saved['status'] == 'failed' and saved['cleanup']['state'] == 'clean'
+    assert saved['model_calls'] <= 1
+
+
 def test_frozen_execution_cannot_be_silently_overridden(tmp_path):
     with pytest.raises(ValueError, match='Frozen evaluation execution'):
         asyncio.run(run_turn(tmp_path, 'No model call', resume=False,
             frozen_configuration={'execution': {'sandbox': 'read-only', 'approval': 'never', 'profile': 'evaluation'}}))
 
 
-@pytest.mark.parametrize('status, exit_code', [('completed',0), ('failed',1), ('partial',1), ('blocked',1)])
-def test_benchmark_exit_status_matches_internal_terminal_result(monkeypatch, status, exit_code):
+@pytest.mark.parametrize('status, reason, exit_code', [('completed','completed',0), ('failed','failed',1),
+    ('partial','partial',1), ('blocked','blocked',1), ('failed','caller_deadline_exceeded',124)])
+def test_benchmark_exit_status_matches_internal_terminal_result(monkeypatch, status, reason, exit_code):
     from types import SimpleNamespace
     from benchmark.harbor import run_forge
-    async def run(*a, **kw): return SimpleNamespace(status=status)
+    async def run(*a, **kw): return SimpleNamespace(status=status, stop_reason=reason)
     monkeypatch.setattr(run_forge, 'run_turn', run)
     assert run_forge.main(['--message','offline fixture']) == exit_code

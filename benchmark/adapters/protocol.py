@@ -115,7 +115,7 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
     verdict = grade if grading == 'graded' else 'unknown'
     terminal_faults = list(dict.fromkeys(value for value in
         (reason, error, verifier_fault, *(item.get('exception_type') for item in phase_failures)) if value))
-    if reason.endswith('_budget_exhausted') or 'AgentTimeoutError' in terminal_faults or status in {'timed_out', 'budget_exhausted'}:
+    if reason == 'caller_deadline_exceeded' or reason.endswith('_budget_exhausted') or 'AgentTimeoutError' in terminal_faults or status in {'timed_out', 'budget_exhausted'}:
         category, execution, termination = 'budget_exhausted', 'finished', reason or 'agent_deadline'
     elif cancelled or status == 'cancelled' or reason == 'cancelled':
         category, execution, termination = 'cancelled_or_incomplete', 'cancelled', 'cancelled'

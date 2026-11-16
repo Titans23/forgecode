@@ -832,7 +832,7 @@
               [
                 "调用方截止时间",
                 "SessionOptions.caller_deadline / 官方评测期限",
-                "限制单次等待并提示模型；官方评测所有者负责最终截止与清理预留。"
+                "到期取消模型请求、前台工具和本轮有限后台命令，保存截止原因与用量；显式会话服务保持其生命周期。评测所有者预留收尾时间并负责最终强制清理。"
               ]
             ]
           },
@@ -2227,7 +2227,7 @@
       "implementation": [
         "TurnState.record_model_request 和 record_usage 累计自身及父回合的实际请求与 token，不再提供 budget_reason。",
         "ObservedModelClient 按实际请求尝试保存输入、增量、重试和终态；缺少最终用量保持 unknown，不当成零。",
-        "调用方截止时间进入当前请求上下文并约束 job_output 等待；coding 展示实际 cgroup 配额，CLI 默认无累计预算。"
+        "调用方截止时间进入当前请求上下文，到期复用取消流程收尾并保存 caller_deadline_exceeded；单次操作超时与用户取消保持独立。coding 展示实际 cgroup 配额，CLI 默认不设回合截止时间。"
       ],
       "steps": [
         [
