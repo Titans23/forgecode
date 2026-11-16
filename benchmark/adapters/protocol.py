@@ -160,8 +160,7 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
         origin = 'environment_setup'
     elif grade_state == 'grader_error':
         origin = 'grader_infrastructure'
-    elif runner_exit != 0 and not (runner_exit == 1 and classified['termination_reason'] == 'partial'
-                                  and classified['category'] in {'passed', 'acceptance_failed', 'cancelled_or_incomplete'}):
+    elif runner_exit != 0:
         origin = 'runner_crash'
     agent_outcome = (agent_status or {}).get('status', 'indeterminate')
     if agent_outcome == 'partial':

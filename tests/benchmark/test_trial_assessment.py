@@ -54,11 +54,14 @@ def test_declared_partial_preserves_independent_grading_and_exit(tmp_path, rewar
     actual = classify_result(result, status, phase_failures=phases)
     assert actual['category'] == category and actual['agent_outcome'] == 'partial'
     assert actual['termination_reason'] == 'partial' and actual['execution_state'] == 'finished'
-    normalized = normalize(runner_exit=1, result=result, agent_status=status, phase_failures=phases)
-    assert normalized['error_origin'] is None and normalized['runner_exit_code'] == 1
+    normalized = normalize(runner_exit=0, result=result, agent_status=status, phase_failures=phases)
+    assert normalized['error_origin'] is None and normalized['runner_exit_code'] == 0
     assert normalized['exception_type'] == 'NonZeroAgentExitCodeError'
     assert normalized['termination_reason'] == 'partial' and normalized['agent_outcome'] == 'failed'
-    assert normalize(runner_exit=2, result=result, agent_status=status, phase_failures=phases)['error_origin'] == 'runner_crash'
+    for runner_exit in (1, 2):
+        crashed = normalize(runner_exit=runner_exit, result=result, agent_status=status, phase_failures=phases)
+        assert crashed['error_origin'] == 'runner_crash' and crashed['execution_state'] == 'error'
+        assert crashed['runner_exit_code'] == runner_exit and crashed['official_rewards'] == {'reward': reward}
     summary = summarize_run(tmp_path)
     assert summary.infrastructure_failures == summary.agent_timeouts == 0
     assert summary.internal_statuses == {'partial': 1}
