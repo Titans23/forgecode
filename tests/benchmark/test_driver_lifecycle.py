@@ -194,14 +194,19 @@ def test_frozen_agent_links_harbor_identity_to_valid_journal_scope(tmp_path, mon
     assert 'synthetic missing Git object' in (tmp_path / 'forgecode-patch-capture.json').read_text()
 
 
-def test_prepared_agent_checks_installation_without_download_or_upload(tmp_path, monkeypatch):
+def test_prepared_agent_checks_installation_without_download_or_upload(tmp_path):
     from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
+    from harbor.environments.base import ExecResult
     agent = ForgeCodeHarborAgent(logs_dir=tmp_path, frozen_configuration=json.dumps({
         'prepared_images': True, 'source_manifest': {'content_sha256': 'a' * 64}}))
     commands = []
-    async def execute(environment, *, command): commands.append(command)
-    monkeypatch.setattr(agent, 'exec_as_agent', execute)
-    asyncio.run(agent.install(object()))
+    class Environment:
+        async def exec(self, *, command, user):
+            assert user is None
+            commands.append(command)
+            return ExecResult(return_code=0)
+
+    asyncio.run(agent.install(Environment()))
     assert len(commands) == 1 and 'a' * 64 in commands[0]
     assert 'import forge.launch' in commands[0]
     assert all(word not in commands[0] for word in ('apt-get', 'https://', ' sync ', ' install '))
