@@ -25,6 +25,7 @@ _CACHE_DIR: Final = '/opt/forgecode-cache'
 _INSTRUCTION_PATH: Final = '/tmp/forgecode-benchmark-instruction.txt'
 _MAX_PATCH_BYTES = 100 * 1024 * 1024
 _PATCH_CAPTURE_SECONDS = 30
+_INSTALL_LOG_CHAR_LIMIT = 1024 * 1024
 
 
 _BENCHMARK_EXECUTION_GUIDANCE: Final = '''
@@ -118,12 +119,13 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         if (self._frozen_configuration or {}).get('prepared_images'):
             from benchmark.harbor.prepare import installed_check
             digest = self._frozen_configuration['source_manifest']['content_sha256']
-            await self.exec_as_agent(environment, command=installed_check(digest))
+            await self._exec_install(environment, command=installed_check(digest))
             return
         install_spec = await self._prepare_install_spec(environment)
         user = shlex.quote(str(environment.default_user or 'root'))
-        await self.exec_as_root(
+        await self._exec_install(
             environment,
+            user='root',
             command=(
                 'set -euo pipefail; '
                 + (_prerequisite_install_command() if self._frozen_configuration else '')
@@ -134,7 +136,7 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
                 f'chown {user}:{user} {shlex.quote(_CACHE_DIR)}'
             ),
         )
-        await self.exec_as_agent(
+        await self._exec_install(
             environment,
             command=_locked_install_command(install_spec) if self._frozen_configuration else _install_command(
                 install_spec,
@@ -151,8 +153,37 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             path.write_text(requirements, encoding='utf-8')
             remote = _AGENT_ROOT + '/plugin-requirements.lock'
             await environment.upload_file(path, remote)
-            await self.exec_as_agent(environment, command=f'{shlex.quote(_AGENT_ROOT + "/bin/uv")} pip install '
+            await self._exec_install(environment, command=f'{shlex.quote(_AGENT_ROOT + "/bin/uv")} pip install '
                 f'--python {shlex.quote(_venv_python())} --cache-dir {shlex.quote(_CACHE_DIR)} -r {shlex.quote(remote)}')
+
+    async def _exec_install(self, environment: BaseEnvironment, command: str, *, user: str | int | None = None):
+        """Retain installation output before Harbor truncates its exception text."""
+        from forge.sessions.trajectory import exception_diagnostics, redact_text
+        result = None
+        started = monotonic()
+        self.logger.debug('Running command: %s', redact_text(command), extra={'user': str(user)})
+        try:
+            result = await environment.exec(command=f'set -o pipefail; {command}', user=user)
+            if result.return_code != 0:
+                raise self._classify_exec_error(command, result)
+            return result
+        except BaseException as error:
+            report = {'command': _install_log_text(command), 'user': user,
+                      'duration_seconds': round(monotonic() - started, 3),
+                      'return_code': result.return_code if result is not None else None,
+                      'output_available': result is not None,
+                      'stdout': _install_log_text(result.stdout) if result is not None else None,
+                      'stderr': _install_log_text(result.stderr) if result is not None else None,
+                      'exception': exception_diagnostics(error)}
+            try:
+                directory = self.logs_dir / 'setup'
+                directory.mkdir(parents=True, exist_ok=True)
+                target = directory / f'install-error-{uuid4().hex}.json'
+                target.write_text(json.dumps(report, ensure_ascii=False) + '\n', encoding='utf-8')
+                error.add_note(f'Installation diagnostics: {target}')
+            except OSError as log_error:
+                self.logger.warning('Installation diagnostics could not be saved: %s', redact_text(str(log_error)))
+            raise
 
     @with_prompt_template
     @override
@@ -249,8 +280,9 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         if self._package is not None:
             return self._package
         staged = self._stage_local_source()
-        await self.exec_as_root(
+        await self._exec_install(
             environment,
+            user='root',
             command=(
                 'set -euo pipefail; '
                 f'rm -rf {shlex.quote(_REMOTE_SOURCE_DIR)}; '
@@ -259,8 +291,9 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
         )
         await environment.upload_dir(staged, _REMOTE_SOURCE_DIR)
         user = shlex.quote(str(environment.default_user or 'root'))
-        await self.exec_as_root(
+        await self._exec_install(
             environment,
+            user='root',
             command=(
                 f'chown -R {user}:{user} '
                 f'{shlex.quote(_REMOTE_SOURCE_DIR)}'
@@ -415,6 +448,18 @@ class LegacyBaselineHarborAgent(ForgeCodeHarborAgent):
         supervisor = Path(__file__).with_name('process_supervisor.py')
         shutil.copy2(supervisor, staged / 'benchmark' / 'harbor' / supervisor.name)
         return staged
+
+
+def _install_log_text(value: str | None) -> dict | None:
+    from forge.sessions.trajectory import redact_text
+    if value is None:
+        return None
+    safe = redact_text(value)
+    truncated = len(safe) > _INSTALL_LOG_CHAR_LIMIT
+    text = (safe[:_INSTALL_LOG_CHAR_LIMIT // 2] + '\n[output omitted]\n'
+            + safe[-_INSTALL_LOG_CHAR_LIMIT // 2:]) if truncated else safe
+    return {'text': text, 'characters': len(safe), 'truncated': truncated}
+
 
 def _patch_capture_command(baseline: str) -> str:
     # Runtime checkpoints may leave the working index locked on interruption.

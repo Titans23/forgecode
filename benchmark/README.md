@@ -54,6 +54,8 @@ Docker 查询完整读取有界输出，单次最多等待 60 秒。查询超时
 
 默认安装只对 APT 镜像同步/临时网络失败增加最多两次重试；权限、签名或配置错误直接失败。curl/uv 下载重试同样有上限，均受 Harbor 安装阶段期限约束；不改官方镜像或 verifier。
 
+安装命令失败时，在该次尝试的 `agent/setup/install-error-*.json` 保存脱敏命令、退出码、耗时、stdout/stderr 和异常原因链；不依赖终端中的截短摘要。每段输出最多保留 1 Mi 字符，超限保留头尾并标记 `truncated`。超时或取消而没有返回输出时，`output_available=false`、退出码为空，不冒充完整日志。日志写入失败不会替换原安装异常，也不触发重试。
+
 ```bash
 docker context show
 docker info --format '{{.Name}} | {{.ServerVersion}}'
