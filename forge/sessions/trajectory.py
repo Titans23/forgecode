@@ -385,7 +385,7 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
     if not events:
         raise ValueError('Journal contains no events.')
     complete = journal_completeness(events, truncated_tail=not path.read_bytes().endswith(b'\n'))
-    inputs, starts, texts, partial_tools, steps, tool_steps = {}, {}, {}, {}, [], {}
+    inputs, starts, texts, reasoning, partial_tools, steps, tool_steps = {}, {}, {}, {}, {}, [], {}
     tool_results = {}
     for event in events:
         if event['type'] == 'tool_result_message':
@@ -395,7 +395,8 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
                     tool_results[(event.get('turn_id'), block['tool_use_id'])] = block
     def step(source, message, event, **fields):
         value = {'step_id': len(steps) + 1, 'source': source, 'message': message,
-                 'timestamp': event.get('timestamp'), 'extra': {'journal_event_uuid': event['uuid'], **fields.pop('extra', {})}, **fields}
+                 'timestamp': event.get('timestamp'), 'extra': {'journal_event_uuid': event['uuid'],
+                     'turn_id': event.get('turn_id'), **fields.pop('extra', {})}, **fields}
         steps.append(value)
         return value
     for event in events:
@@ -404,6 +405,7 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
         elif kind == 'turn_started': step('user', payload['prompt'], event)
         elif kind == 'model_request_started': starts[payload['request_id']] = event
         elif kind == 'model_request_chunk': texts.setdefault(payload['request_id'], []).append(payload.get('text', ''))
+        elif kind == 'model_reasoning_chunk': reasoning.setdefault(payload['request_id'], []).append(payload.get('text', ''))
         elif kind == 'model_tool_chunk':
             key = payload['request_id']
             block = partial_tools.setdefault(key, {}).setdefault(str(payload['index']), {'partial_json': ''})
@@ -416,6 +418,7 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
             calls = [{'tool_call_id': block['id'], 'function_name': block['name'], 'arguments': block['arguments']}
                      for block in blocks.values() if block.get('complete') and 'arguments' in block]
             value = step('agent', ''.join(texts.pop(key, [])), event,
+                reasoning_content=''.join(reasoning.pop(key, [])) or None,
                 model_name=payload.get('returned_model') or payload.get('requested_model'), llm_call_count=1,
                 tool_calls=calls or None, extra={'request': payload, 'actual_model_input': snapshot.get('request'),
                     'partial_tools': partial_tools.get(key, {}), 'incomplete': payload.get('response_complete') is not True})
@@ -430,10 +433,11 @@ def journal_to_atif(path: Path, *, secrets=()) -> dict:
                     'content': json.dumps(payload.get('result', {}).get('content', block.get('content')), ensure_ascii=False), 'extra': payload})
         elif kind in {'job_started', 'job_retained', 'job_finished'}:
             step('system', kind, event, extra={'command_job':payload, 'recorded_turn_id':event.get('turn_id')})
-        elif kind in {'context_compacted', 'session_resumed', 'session_forked', 'conversation_rewound', 'turn_error', 'turn_cancelled'}:
+        elif kind in {'context_compacted', 'session_resumed', 'session_forked', 'conversation_rewound', 'turn_completed', 'turn_error', 'turn_cancelled'}:
             step('system', kind, event, extra={'relationship': payload})
     for key, event in starts.items():
         step('agent', ''.join(texts.get(key, [])), event, llm_call_count=1,
+             reasoning_content=''.join(reasoning.get(key, [])) or None,
              extra={'request_id': key, 'incomplete': True, 'partial_tools': partial_tools.get(key, {})})
     if not steps:
         step('system', 'No conversation messages are available.', events[0])

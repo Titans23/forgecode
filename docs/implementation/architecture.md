@@ -81,7 +81,7 @@ helper 的错误响应保留相同原因链，宿主调用还记录 worker 退�
 
 SessionStore 从 Journal 重建历史，写入使用父记录/序号检查，防止多个写入者分叉。steering 只在请求边界消费，follow_up 等待下一轮；取消后未消费输入保留。检查点是显式 coding 能力，恢复文件仍检查权限和版本，不自动重放历史工具。
 
-ATIF v1.7 与 OpenAI messages JSONL 均为离线脱敏投影，包含失败、取消、部分响应和未知结果。原 Journal 不修改。新建/恢复事件记录产品版本；ATIF 区分记录版本、mixed/unknown 与当前导出器版本。旧 TrajectoryRecorder 可显式使用。蒸馏、SFT/DPO、tokenizer 和训练执行已移除。
+ATIF v1.7 与 OpenAI messages JSONL 均为离线脱敏投影，包含失败、取消、部分响应和未知结果。ATIF 将实际收到的思考分片写入 `reasoning_content`，请求未结束时也保留已收到的内容；各步骤保留 `turn_id`，所有回合终态以 system 步骤保存原状态、原因和统计，包括 `caller_deadline_exceeded`。这些字段不推断未收到的思考，也不把请求取消误当作回合结束原因。原 Journal 不修改。新建/恢复事件记录产品版本；ATIF 区分记录版本、mixed/unknown 与当前导出器版本。旧 TrajectoryRecorder 可显式使用。蒸馏、SFT/DPO、tokenizer 和训练执行已移除。
 
 后台作业的启动、跨回合保留、取消及移交也进入导出。OpenAI 元数据按 `origin_turn_id` 关联原始调用，ATIF 保留生命周期事件；有活跃作业时记录未闭合，已移交服务单独列出，不能把移交误记为进程退出。
 

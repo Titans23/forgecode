@@ -1012,7 +1012,7 @@
           "id": "exports",
           "title": "ATIF 与 OpenAI messages 导出保留什么",
           "paragraphs": [
-            "ATIF v1.7 适合跨工具分析轨迹；OpenAI messages JSONL 以每次模型尝试为单位保留输入和观察到的响应，诊断信息放在 metadata。两者都保留失败、取消、部分响应和未知用量，并做脱敏；原 Journal 不修改。[[exports]]",
+            "ATIF v1.7 适合跨工具分析轨迹：reasoning_content 保存模型实际输出的思考，system 步骤保存回合终态和结束原因，extra.turn_id 关联所属回合。OpenAI messages JSONL 以每次模型尝试为单位保留输入和观察到的响应，诊断信息放在 metadata。两者都保留失败、取消、部分响应和未知用量，并做脱敏；原 Journal 不修改。[[exports]]",
             "后台服务可能在下一轮才退出。导出按 origin_turn_id 把生命周期关联回原始启动调用，不把下一轮的事件误认成下一轮启动的服务。有活动作业时 record_closed 为 false；明确移交的服务单列 transferred_jobs，不能写成“已退出”。"
           ],
           "table": {

@@ -183,7 +183,7 @@ forge eval export ./evaluation-run --format openai
 
 运行实际模型或公共基准会产生费用；范围和环境准备须由调用方授权。`evals.runner` 的本地夹具默认原生 workspace-write，与普通 coding 的默认宿主模式不同。
 
-Journal 保存私有完整事实。导出 ATIF / OpenAI messages JSONL 会脱敏，并保留失败、取消、未完成请求和未知用量；SDK 对应 `journal_to_atif(path)`、`journal_to_openai(path)`。新会话/恢复事件记录 Forge 版本；旧记录缺少版本时保持 unknown，跨版本会话标记 mixed。导出器版本与记录版本分开。
+Journal 保存私有完整事实。导出 ATIF / OpenAI messages JSONL 会脱敏，并保留失败、取消、未完成请求和未知用量；SDK 对应 `journal_to_atif(path)`、`journal_to_openai(path)`，ATIF 格式校验需要 `evaluation` extra。ATIF 的 `reasoning_content` 保存模型实际输出的思考，system 步骤保留回合终态及结束原因，各步骤通过 `extra.turn_id` 关联回合。例如请求被取消、回合因调用方截止而结束，这两个事实分别保留。新会话/恢复事件记录 Forge 版本；旧记录缺少版本时保持 unknown，跨版本会话标记 mixed。导出器版本与记录版本分开。
 
 项目不提供蒸馏、SFT/DPO、tokenizer 或训练执行。公开基准输出保持 evaluation-only，轨迹可交给外部分析工具，导出本身不证明适合训练。
 

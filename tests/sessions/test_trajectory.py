@@ -75,9 +75,11 @@ def test_journal_atif_resolves_payloads_and_distinguishes_closure_from_completen
     journal.record_turn_started('interrupted', None)
     journal.append('model_request_started', {'request_id': 'unfinished'})
     journal.append('model_request_chunk', {'request_id': 'unfinished', 'text': 'partial text'})
+    journal.append('model_reasoning_chunk', {'request_id': 'unfinished', 'text': 'observed api_key=fixture-secret'})
     journal.append('model_tool_chunk', {'request_id': 'unfinished', 'index': 0, 'partial_json': '{"path":'})
     partial = journal_to_atif(journal.path)['steps'][-1]
     assert partial['message'] == 'partial text' and partial['extra']['incomplete']
+    assert partial['reasoning_content'].startswith('observed ') and 'fixture-secret' not in partial['reasoning_content']
     assert partial['extra']['partial_tools']['0']['partial_json'] == '{"path":'
 
 
