@@ -275,7 +275,7 @@ def test_official_docker_stop_preserves_unknown_when_upstream_swallows_down_fail
     asyncio.run(environment.stop(delete=True))
     assert calls == [['down', '--rmi', 'local', '--volumes', '--remove-orphans']]
     receipts = [json.loads(row) for row in environment._receipt_path.read_text().splitlines()]
-    assert receipts[-1]['phase'] == 'stop_returned'
+    assert receipts[-1]['phase'] == 'stop_finished'
     assert receipts[-1]['delete_requested'] is True
     assert 'deleted' not in receipts[-1]
     assert cleanup_state(receipts) == 'unknown'

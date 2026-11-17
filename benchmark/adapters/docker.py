@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 from uuid import uuid4
+from time import monotonic
 
 from harbor.environments.docker.docker import _sanitize_docker_compose_project_name
 from benchmark.harbor.bounded_docker import BoundedDockerEnvironment
@@ -92,6 +93,26 @@ async def environment_identity(project):
 
 
 class EvaluationDockerEnvironment(BoundedDockerEnvironment):
+    async def prepare_logs_for_host(self):
+        from harbor.models.trial.paths import EnvironmentPaths
+        from forge.sessions.trajectory import exception_diagnostics
+        paths = EnvironmentPaths.for_os(self.os)
+        outputs = {str(paths.agent_dir), str(paths.verifier_dir), str(paths.artifacts_dir)}
+        started = monotonic()
+        error = None
+        try:
+            # Only per-trial delivery mounts need ownership repair. Shared
+            # caches and caller mounts must not be traversed by each trial.
+            async with asyncio.timeout(min(15, self.cleanup_timeout_seconds / 3)):
+                for target in self._mount_targets(writable_only=True):
+                    if target in outputs:
+                        await self._chown_to_host_user(target, recursive=True)
+        except Exception as exc:
+            error = exception_diagnostics(exc)
+            self.logger.warning('Log ownership preparation failed: %s', type(exc).__name__)
+        finally:
+            self._receipt('log_ownership', seconds=monotonic()-started, error=error)
+
     async def exec(self, command, cwd=None, env=None, timeout_sec=None, user=None):
         if env and env.get('FORGECODE_VERIFIER_CACHE') == '1':
             env = {key: value for key, value in env.items() if key != 'FORGECODE_VERIFIER_CACHE'}
@@ -143,15 +164,30 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
         if baseline:
             try: before=await docker_inventory(baseline['project'])
             except Exception: pass  # No inventory means unknown, even if down succeeds.
-        await super().stop(delete)
-        # Harbor suppresses down failures. Its return alone never establishes absence.
-        self._receipt('stop_returned',delete_requested=delete is True)
+        if before and before['daemon_id'] != baseline['daemon_id']:
+            raise DockerQueryError('Docker engine changed before environment cleanup.')
+        error = None
+        try:
+            await super().stop(delete)
+        except Exception as exc:
+            error = exc
+        from forge.sessions.trajectory import exception_diagnostics
+        self._receipt('stop_finished', delete_requested=delete is True,
+            timings=getattr(self, 'cleanup_details', {}), error=exception_diagnostics(error) if error else None)
+        confirmed = False
         if before and delete is True:
             try:
                 after=await docker_inventory(baseline['project'],before['volumes'])
                 self._receipt('resource_query',before=before,after=after)
-            except Exception as error:
-                self._receipt('query_failed',reason=type(error).__name__)
+                confirmed = (after['daemon_id'] == baseline['daemon_id']
+                    and not any(baseline[key] or after[key] for key in ('containers', 'volumes', 'networks')))
+            except Exception as query_error:
+                self._receipt('query_failed',reason=type(query_error).__name__)
+                raise
+        if error is not None and not confirmed:
+            raise error
+        if before and delete is True and not confirmed:
+            raise DockerQueryError('Environment cleanup left residual resources or changed Docker engine.')
 
 
 def cleanup_state(receipts):
@@ -162,7 +198,7 @@ def cleanup_state(receipts):
         rows=[r for r in receipts if r.get('resource_id')==identity]
         baseline=next((r.get('inventory') for r in rows if r.get('phase')=='baseline'),None)
         query=next((r for r in reversed(rows) if r.get('phase')=='resource_query'),None)
-        if not baseline or not query or rows[-1] is not query or not any(r.get('phase')=='stop_returned' and r.get('delete_requested') is True for r in rows):
+        if not baseline or not query or rows[-1] is not query or not any(r.get('phase') in {'stop_returned','stop_finished'} and r.get('delete_requested') is True for r in rows):
             states.append('unknown');continue
         inventories=[baseline,query.get('before',{}),query.get('after',{})]
         if any(not value.get('daemon_id') or value.get('daemon_id')!=baseline['daemon_id'] or value.get('project')!=baseline['project'] or

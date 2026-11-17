@@ -1,6 +1,7 @@
 '''Bound transport/cleanup waits without changing task or verifier budgets.'''
 
 import asyncio
+from time import monotonic
 
 from harbor.environments.docker.docker import DockerEnvironment
 
@@ -31,19 +32,40 @@ class BoundedDockerEnvironment(DockerEnvironment):
         limit = None
         if command and command[0] == 'cp':
             limit = self.transport_timeout_seconds
-        elif command and command[0] in {'stop', 'down'}:
+        elif command and command[0] in {'stop', 'down'} and not getattr(self, '_stopping', False):
             limit = self.cleanup_timeout_seconds
         if limit is not None:
             timeout_sec = min(timeout_sec, limit) if timeout_sec is not None else limit
-        return await super()._run_docker_compose_command(
-            command, check=check, timeout_sec=timeout_sec,
-            stdin_data=stdin_data, on_output=on_output,
-        )
+        stopping = command and command[0] in {'stop', 'down'} and getattr(self, '_stopping', False)
+        if stopping:
+            command = [*command, '--timeout', '5']
+        started = monotonic()
+        try:
+            return await super()._run_docker_compose_command(
+                command, check=check, timeout_sec=timeout_sec,
+                stdin_data=stdin_data, on_output=on_output,
+            )
+        except BaseException as error:
+            if stopping:
+                from forge.sessions.trajectory import exception_diagnostics
+                self.cleanup_details['compose_error'] = exception_diagnostics(error)
+            raise
+        finally:
+            if stopping:
+                self.cleanup_details['compose_seconds'] = monotonic() - started
 
     async def stop(self, delete):
-        # Includes ownership preparation, not just the final compose down.
-        async with asyncio.timeout(self.cleanup_timeout_seconds):
-            await super().stop(delete=delete)
+        # One deadline covers preparation and down; the nested transport does
+        # not race it with a second identical timer.
+        self._stopping = True
+        self.cleanup_details = {}
+        started = monotonic()
+        try:
+            async with asyncio.timeout(self.cleanup_timeout_seconds):
+                await super().stop(delete=delete)
+        finally:
+            self._stopping = False
+            self.cleanup_details['total_seconds'] = monotonic() - started
 
     @staticmethod
     async def _collect_buffered_output(process, *, timeout_sec, stdin_data=None):
