@@ -335,6 +335,59 @@ def test_verifier_failure_and_model_fault_remain_separate_observations(tmp_path)
     assert 'empty_model_response' in assessment['observed_faults']
 
 
+@pytest.mark.parametrize('reward', [0, 1])
+def test_cleanup_failure_does_not_replace_independent_grade(reward):
+    from benchmark.adapters.protocol import classify_result
+    phases = [{'phase':'cleanup', 'exception_type':'TimeoutError'}]
+    result = {'exception_info':{'exception_type':'TimeoutError'},
+              'verifier_result':{'rewards':{'reward':reward}}}
+    actual = classify_result(result, {'status':'completed'}, phase_failures=phases)
+    assert actual['category'] == ('passed' if reward else 'acceptance_failed')
+    assert actual['grading_state'] == 'graded' and actual['official_rewards'] == {'reward':reward}
+    assert actual['phase_failures'] == phases and 'TimeoutError' in actual['observed_faults']
+
+
+@pytest.mark.parametrize('report', [None, '{broken', {'results':{'summary':{'tests':2}}}])
+def test_structured_verifier_execution_precedes_recovered_bootstrap_output(tmp_path, report):
+    from benchmark.adapters.protocol import normalize, verifier_health
+    path = trial(tmp_path, reward=0)
+    directory = path/'verifier'
+    directory.mkdir()
+    log = 'curl: (35) OpenSSL SSL_connect\nuvx: command not found\n'
+    (directory/'test-stdout.txt').write_text(log)
+    files = {'test-stdout.txt':log}
+    if report is not None:
+        files['ctrf.json'] = report if isinstance(report,str) else json.dumps(report)
+        (directory/'ctrf.json').write_text(files['ctrf.json'])
+    original = (path/'result.json').read_bytes()
+    health = verifier_health(files)
+    observed_tests = isinstance(report,dict)
+    assert health['state'] == ('executed' if observed_tests else 'failed')
+    summary = summarize_run(tmp_path)
+    assessment = summary.trial_assessments[path.name]
+    assert assessment['grader_health'] == health
+    normalized = normalize(runner_exit=0, result=json.loads(original), grader_health=health)
+    assert normalized['grading_state'] == ('graded' if observed_tests else 'grader_error')
+    assert normalized['official_rewards'] == {'reward':0}
+    assert summary.raw_rewards[path.name] == 0 and (path/'result.json').read_bytes() == original
+
+
+def test_absent_optional_report_does_not_imply_bootstrap_failure():
+    from benchmark.adapters.protocol import verifier_health
+    assert verifier_health({'test-stdout.txt':'FileNotFoundError: missing task artifact'})['state'] == 'unknown'
+
+
+def test_partial_and_later_cleanup_failure_keep_the_grade_and_both_facts():
+    from benchmark.adapters.protocol import classify_result
+    phases = [{'phase':'agent_execution','exception_type':'NonZeroAgentExitCodeError'},
+              {'phase':'cleanup','exception_type':'TimeoutError'}]
+    result = {'exception_info':{'exception_type':'NonZeroAgentExitCodeError'},
+              'verifier_result':{'rewards':{'reward':0}}}
+    actual = classify_result(result, {'status':'partial','stop_reason':'partial'}, phase_failures=phases)
+    assert actual['category'] == 'acceptance_failed' and actual['agent_outcome'] == 'partial'
+    assert actual['phase_failures'] == phases and 'TimeoutError' in actual['observed_faults']
+
+
 @pytest.mark.parametrize('reward', [True, float('nan'), float('inf')])
 def test_invalid_rewards_are_not_scored(tmp_path, reward):
     trial(tmp_path, reward=reward)

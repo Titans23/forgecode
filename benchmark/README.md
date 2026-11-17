@@ -119,6 +119,8 @@ forge eval compare ./baseline ./candidate --change model
 
 工具执行或清理不确定时，运行时保存 `tool_execution_indeterminate` 失败终态和原工具诊断，评测入口仍能导出结果文件；它属于执行故障，不冒充用户取消或完成声明。
 
+`grader_health` 独立显示测试执行证据（executed）、明确 bootstrap 失败（failed）、未知（unknown）或未启动（not_run）。有效的非空 CTRF 报告优先于已恢复的安装错误文本；缺少可选报告不自动判失败。原始 reward 始终保留，包括测试未启动但脚本写入的零分。`grader_health_counts` 与 `cleanup_failure_count` 分别汇总，清理错误不覆盖有效判分。
+
 Journal 是完整私有事实源；ATIF v1.7 和 OpenAI messages JSONL 是离线脱敏导出，失败、取消和部分响应也会保留。输出目录不可覆盖，原记录保持不变，公共基准输出标记 evaluation-only。产品不提供训练/蒸馏导出。
 
 补丁在 Agent 官方计时结束后、判分开始前归档。采集独立限时 30 秒，另留最多 10 秒清理和传输余量，超时回收所属 Git 进程。归档上限 100 MiB；超过即停止读取并记录 `omitted_size_limit`，`patch_bytes_exact=false` 表示大小仅为下界。超时记录 `timed_out`，Git/传输错误记录 `failed`，均写入 `forgecode-patch-capture.json`，不覆盖作答结果或阻止官方判分。缺失归档不能冒充空补丁，工作区不能仅凭缺失或超限补丁重建。原始实验记录、独立判分和源码来源应一并保留。

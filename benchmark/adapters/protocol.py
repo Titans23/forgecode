@@ -89,9 +89,10 @@ def reward_result(value):
     return text or '0', 'pass' if reward == 1 else 'fail'
 
 
-def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled=False, phase_failures=()):
+def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled=False, phase_failures=(), grader_health=None):
     """Classify terminal evidence; recovered errors never replace the final outcome."""
     result, agent_status = result or {}, agent_status or {}
+    verifier_fault = verifier_fault or (grader_health or {}).get('failure')
     exception = result.get('exception_info') or {}
     error = exception.get('exception_type', '')
     reason = agent_status.get('stop_reason') or ''
@@ -123,17 +124,18 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
         category, execution, termination = 'grader_failure', 'finished', verifier_fault or error
     elif reason in MODEL_FAILURE_REASONS or reason.startswith('http_') or error.startswith(('Api', 'API', 'Anthropic', 'Provider', 'ModelCall', 'ModelProtocol', 'RateLimit', 'Authentication')):
         category, execution, termination = 'model_failure', 'error', reason or error
-    elif error.startswith(('Environment', 'AgentSetup', 'Docker', 'ImageBuild')) or failure_stage in {'environment_setup', 'agent_setup'}:
+    elif (error.startswith(('Environment', 'AgentSetup', 'Docker', 'ImageBuild')) and failure_stage != 'cleanup') or failure_stage in {'environment_setup', 'agent_setup'}:
         category, execution, termination = 'environment_failure', 'error', error
     elif (declared_partial and error in {'', 'NonZeroAgentExitCodeError'}
-          and all(item.get('exception_type') == 'NonZeroAgentExitCodeError' for item in phase_failures)):
+          and all(item.get('phase') == 'cleanup' or item.get('exception_type') == 'NonZeroAgentExitCodeError'
+                  for item in phase_failures)):
         # A deliberate incomplete submission is not a crashed Harness. Keep
         # its declaration independent of the authoritative verifier outcome.
         category = ('passed' if grade == 'pass' else 'acceptance_failed') if reward is not None else 'cancelled_or_incomplete'
         execution, termination = 'finished', 'partial'
     elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'tool_execution_indeterminate', 'harness_error'} or failure_stage == 'agent_execution':
         category, execution, termination = 'harness_failure', 'error', reason or error
-    elif error:
+    elif error and failure_stage != 'cleanup':
         category, execution, termination = 'unknown', 'error', error
     elif reward is not None:
         category, execution, termination = ('passed' if grade == 'pass' else 'acceptance_failed'), 'finished', reason or 'completed'
@@ -144,12 +146,13 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
     return {'category': category, 'execution_state': execution, 'grading_state': grading,
             'grade_result': verdict, 'termination_reason': termination, 'agent_outcome': status,
             'raw_reward_decimal': reward, 'official_rewards': rewards, 'observed_faults': terminal_faults,
-            'failure_stage': failure_stage, 'phase_failures': list(phase_failures)}
+            'failure_stage': failure_stage, 'phase_failures': list(phase_failures),
+            'grader_health': grader_health or {'state':'unknown'}}
 
 
-def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner', phase_failures=()):
+def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner', phase_failures=(), grader_health=None):
     """Shell exit, internal completion and authoritative verifier reward are separate."""
-    classified = classify_result(result, agent_status, phase_failures=phase_failures)
+    classified = classify_result(result, agent_status, phase_failures=phase_failures, grader_health=grader_health)
     exception = (result or {}).get('exception_info') or {}
     error_type = exception.get('exception_type', '')
     rewards = classified['official_rewards']
@@ -179,7 +182,38 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
         'execution_label':'official-environment','provenance':provenance,
         'official_rewards':rewards, 'category': classified['category'],
         'termination_reason': classified['termination_reason'], 'observed_faults': classified['observed_faults'],
-        'phase_failures': classified['phase_failures']}
+        'phase_failures': classified['phase_failures'], 'grader_health':classified['grader_health']}
+
+
+def verifier_health(files):
+    '''Observed verifier execution, separate from its numeric reward.
+
+    A completed CTRF report takes precedence over recovered bootstrap messages.
+    Other graders need not emit CTRF; absence alone is never an environment failure.
+    '''
+    try:
+        report = json.loads(files.get('ctrf.json', '{}'))
+        tests = report['results']['summary']['tests']
+        if type(tests) is int and tests > 0:
+            return {'state':'executed', 'evidence':'verifier/ctrf.json', 'tests':tests}
+    except (ValueError, KeyError, TypeError):
+        pass
+    text = '\n'.join(value.decode('utf-8', errors='replace') if isinstance(value, bytes) else value
+        for name,value in files.items() if name in {'test-stdout.txt','test-stderr.txt','verifier.log'}).casefold()
+    failure = None
+    if ('failed to download `' in text and 'failed to download distribution due to network timeout' in text
+            and 'short test summary info' not in text):
+        failure = 'dependency_download_timeout'
+    for marker, kind in (
+        ('/root/.local/bin/env: no such file or directory', 'uv_bootstrap'),
+        ('uvx: command not found', 'uv_bootstrap'), ('command not found: uvx', 'uv_bootstrap'),
+        ('curl: (35) openssl ssl_connect', 'network_bootstrap'),
+        ('temporary failure resolving', 'network_bootstrap'), ('network is unreachable', 'network_bootstrap'),
+    ):
+        if failure is None and marker in text:
+            failure = kind
+    return ({'state':'failed', 'failure':'VerifierEnvironment:' + failure, 'evidence':'verifier logs'}
+            if failure else {'state':'unknown', 'reason':'No structured test execution evidence'})
 
 
 def phase_failures_from_jsonl(raw):
@@ -200,7 +234,7 @@ def collect_harbor(root, *, task_name, task_checksum, runner_exit):
     candidates = [name for name in captured if name.count('/')==1 and name.endswith('/result.json')]
     if len(candidates) > 1:
         raise ContractError('Multiple Harbor trials for a single attempt', kind='EVENT_CONFLICT', code=-32010)
-    result, agent_status, phase_failures = None, None, ()
+    result, agent_status, phase_failures, health = None, None, (), {'state':'unknown'}
     if candidates:
         name = candidates[0]
         from harbor.models.trial.result import TrialResult
@@ -214,7 +248,9 @@ def collect_harbor(root, *, task_name, task_checksum, runner_exit):
             agent_status = strict_loads(captured[status_file])
         phase_failures = phase_failures_from_jsonl(captured.get(
             name.rsplit('/',1)[0] + '/forgecode-phase-failures.jsonl', b''))
+        prefix = name.rsplit('/',1)[0] + '/verifier/'
+        health = verifier_health({key[len(prefix):]:value for key,value in captured.items() if key.startswith(prefix)})
     artifact_bytes = {k.split('/',1)[1]:v for k,v in captured.items() if '/artifacts/' in k or k.endswith('/agent/forgecode-pregrade.patch')}
     return {'files':captured,'result':result,'agent_status':agent_status,'runner_exit':runner_exit, 'phase_failures':phase_failures,
         'collection_hash':content_hash(captured),'artifact_hash':content_hash(artifact_bytes),
-        'artifact_present':bool(artifact_bytes)}
+        'artifact_present':bool(artifact_bytes), 'grader_health':health}
