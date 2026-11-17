@@ -407,7 +407,8 @@ class ToolExecutor:
                 confirmed = report.get('state') in {'clean', 'transferred'}
                 result = ToolResult.fail('execution_cancelled',
                     'Operation cancelled; partial effects may remain. Inspect before retrying.',
-                    details={'exception': exception_diagnostics(cancellation), 'stage': 'execution',
+                    details={**getattr(cancellation, 'details', {}),
+                             'exception': exception_diagnostics(cancellation), 'stage': 'execution',
                              'execution_started': execution_started},
                     metadata={'cleanup': report, 'effects_may_remain': execution_started})
                 return operation_outcome(call, result,

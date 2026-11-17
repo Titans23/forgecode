@@ -134,6 +134,46 @@ def test_closed_file_client_cannot_launch_a_new_helper_or_write(tmp_path):
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('interruptions', [1, 2])
+def test_cancellation_during_cleanup_keeps_the_actual_receipt(tmp_path, monkeypatch, interruptions):
+    from forge.sandbox.process_owner import LocalProcessOwner
+    from forge.tool_types import ToolExecutionCancelled
+    root, control, workspace, policy = fixture(tmp_path)
+    original = LocalProcessOwner.close
+
+    async def run():
+        entered, release = asyncio.Event(), asyncio.Event()
+        calls = []
+        async def delayed_close(owner):
+            calls.append(owner)
+            entered.set()
+            await release.wait()
+            return await original(owner)
+        monkeypatch.setattr(LocalProcessOwner, 'close', delayed_close)
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        request = asyncio.create_task(client.request('tool', name='write_file',
+            arguments={'path':'written.txt', 'content':'observed effect'}))
+        try:
+            await asyncio.wait_for(entered.wait(), 10)
+            for _ in range(interruptions):
+                request.cancel()
+                await asyncio.sleep(.01)
+                assert not request.done(), 'Cancellation must settle the already running cleanup.'
+            release.set()
+            with pytest.raises(ToolExecutionCancelled) as stopped:
+                await asyncio.wait_for(request, 5)
+            assert stopped.value.cleanup['state'] == 'clean'
+            assert stopped.value.details['worker_exit_code'] == 0
+            assert len(calls) == 1 and not client._owners and not client._requests
+            assert (root/'written.txt').read_text() == 'observed effect'
+        finally:
+            release.set()
+            if not request.done(): request.cancel()
+            await asyncio.gather(request, return_exceptions=True)
+            assert (await client.close())['state'] == 'clean'
+    asyncio.run(run())
+
+
 def test_close_rejects_queued_write_and_reaps_the_actual_active_helper(tmp_path):
     root, control, workspace, policy = fixture(tmp_path)
     (root / 'heartbeat.py').write_text("import pathlib,time\np=pathlib.Path('heartbeat')\nwhile True:\n p.write_text(str(time.time())); time.sleep(.02)\n")

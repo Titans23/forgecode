@@ -258,8 +258,9 @@ def test_executor_error_and_interruption_survive_journal_restore_and_exports(tmp
     monkeypatch.setattr(conversation.tool_executor.registry, 'execute', fail)
     async def collect():
         try:
-            with pytest.raises(asyncio.CancelledError):
-                _ = [event async for event in conversation.stream('Run the operation.')]
+            events = [event async for event in conversation.stream('Run the operation.')]
+            assert events[-1].result.status == 'failed'
+            assert events[-1].result.stop_reason == 'tool_execution_indeterminate'
         finally:
             await conversation.runtime_close()
     asyncio.run(collect())
@@ -272,10 +273,10 @@ def test_executor_error_and_interruption_survive_journal_restore_and_exports(tmp
     if not empty_message:
         assert diagnostic['exception'][1]['type'] == 'ConnectionError'
         assert len(diagnostic['exception'][1]['message']) <= 1024
-    cancelled = next(e['payload'] for e in records if e['type'] == 'turn_cancelled')
-    assert cancelled['source'] == 'tool_execution'
-    assert cancelled['tool_call_id'] == 'uncertain' and cancelled['error_code'] == 'executor_failed'
-    assert cancelled['exception'] == diagnostic['exception']
+    terminal = next(e['payload'] for e in records if e['type'] == 'turn_completed')
+    assert terminal['stop_reason'] == 'tool_execution_indeterminate'
+    assert 'uncertain' in terminal['text']
+    assert not any(e['type'] == 'turn_cancelled' for e in records)
     assert executed == ['run_command'] and len(client.calls) == 1
     assert (tmp_path / 'partial.txt').read_text() == 'partial effect'
     assert store.load(journal.session_id).indeterminate_tools[0]['tool_call_id'] == 'uncertain'
@@ -339,18 +340,18 @@ def test_parallel_failure_is_the_reason_instead_of_cancelled_sibling(tmp_path, m
             raise TimeoutError()
         monkeypatch.setattr(conversation.registry, 'execute', execute)
         try:
-            with pytest.raises(asyncio.CancelledError):
-                _ = [event async for event in conversation.stream('Run the two independent operations.')]
+            events = [event async for event in conversation.stream('Run the two independent operations.')]
+            assert events[-1].result.stop_reason == 'tool_execution_indeterminate'
         finally:
             await conversation.runtime_close()
     asyncio.run(collect())
     records = journal_events(journal.path)
-    cancelled = next(e['payload'] for e in records if e['type'] == 'turn_cancelled')
-    assert cancelled['tool_call_id'] == 'cause' and cancelled['error_code'] == 'executor_failed'
-    assert cancelled['exception'][0]['type'] == 'TimeoutError'
+    terminal = next(e['payload'] for e in records if e['type'] == 'turn_completed')
+    assert 'cause' in terminal['text']
     tools = [e['payload'] for e in records if e['type'] == 'tool_completed']
     assert len(tools) == 2
     assert {t['tool_call_id']: t['status'] for t in tools} == {'sibling': 'cancelled', 'cause': 'indeterminate'}
+    assert next(t for t in tools if t['tool_call_id'] == 'cause')['result']['error']['details']['exception'][0]['type'] == 'TimeoutError'
     assert len(client.calls) == 1
 
 

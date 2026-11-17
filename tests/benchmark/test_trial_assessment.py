@@ -10,6 +10,7 @@ from benchmark.harbor.summarize import summarize_run
     (None, {'status': 'failed', 'stop_reason': 'acceptance_unmet'}, 0, 'acceptance_failed'),
     (None, {'status': 'failed', 'stop_reason': 'authentication_error'}, 0, 'model_failure'),
     ('ToolExecutionError', {}, None, 'harness_failure'),
+    (None, {'status': 'failed', 'stop_reason': 'tool_execution_indeterminate'}, 0, 'harness_failure'),
     ('AgentSetupTimeoutError', {}, None, 'environment_failure'),
     ('VerifierTimeoutError', {}, 0, 'grader_failure'),
     (None, {'status': 'failed', 'stop_reason': 'model_budget_exhausted'}, 1, 'budget_exhausted'),

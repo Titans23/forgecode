@@ -703,6 +703,10 @@ class TurnRunner:
                 self._feedback(feedback)
             self.pending_feedback.clear()
         if interrupted:
+            if self.interruption['execution_status'] == 'indeterminate':
+                reason = self.interruption['reason']
+                self.terminal = ('failed', 'tool_execution_indeterminate', reason, (reason,))
+                return
             raise asyncio.CancelledError(self.interruption['reason'])
 
     def _scope_error(self, call: ToolCall) -> ToolResult | None:
@@ -987,6 +991,8 @@ class TurnRunner:
         c = self.conversation
         if c.command_jobs is not None and status == 'completed':
             c.command_jobs.retain_services(self.state)
+        elif c.command_jobs is not None and reason == 'tool_execution_indeterminate':
+            await c.command_jobs.cancel_owner(self.state)
         self.state.stop_reason = reason
         if self.owns_task:
             if status == 'completed':

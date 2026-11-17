@@ -113,8 +113,9 @@ class ToolExecutionError(RuntimeError):
 class ToolExecutionCancelled(asyncio.CancelledError):
     """Cancellation with per-operation process cleanup evidence, not rollback."""
 
-    def __init__(self, cleanup: dict[str, Any]) -> None:
+    def __init__(self, cleanup: dict[str, Any], *, details: dict[str, Any] | None = None) -> None:
         super().__init__('Tool execution cancelled')
         self.cleanup = cleanup
+        self.details = details or {}
 
 

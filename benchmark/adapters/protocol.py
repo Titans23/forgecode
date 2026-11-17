@@ -131,7 +131,7 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
         # its declaration independent of the authoritative verifier outcome.
         category = ('passed' if grade == 'pass' else 'acceptance_failed') if reward is not None else 'cancelled_or_incomplete'
         execution, termination = 'finished', 'partial'
-    elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'harness_error'} or failure_stage == 'agent_execution':
+    elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'tool_execution_indeterminate', 'harness_error'} or failure_stage == 'agent_execution':
         category, execution, termination = 'harness_failure', 'error', reason or error
     elif error:
         category, execution, termination = 'unknown', 'error', error

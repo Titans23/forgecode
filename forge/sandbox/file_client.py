@@ -83,7 +83,8 @@ class FileWorkerClient:
                 raise ContractError('File helper session closed before submission',
                                     kind='SANDBOX_UNAVAILABLE', code=-32010) from None
             from forge.tool_types import ToolExecutionCancelled
-            raise ToolExecutionCancelled(admission.get('cleanup', getattr(error, 'cleanup', {'state': 'unknown'}))) from error
+            raise ToolExecutionCancelled(admission.get('cleanup', getattr(error, 'cleanup', {'state': 'unknown'})),
+                details=admission.get('diagnostics', getattr(error, 'details', {}))) from error
         finally:
             self._requests.discard(task)
 
@@ -175,7 +176,19 @@ class FileWorkerClient:
             except Exception as error:
                 failure = error
             finally:
-                admission['cleanup'] = await owner.close()
+                # Cancellation can arrive while timeout cleanup is already in
+                # progress. Settle the same bounded owner before publishing its
+                # receipt; shielding alone would let the waiter exit too early.
+                closing = asyncio.create_task(owner.close())
+                interrupted = None
+                while True:
+                    try:
+                        admission['cleanup'] = await asyncio.shield(closing)
+                        break
+                    except asyncio.CancelledError as error:
+                        if closing.cancelled():
+                            raise
+                        interrupted = error
                 diagnostics = {'worker_exit_code': child.returncode, 'cleanup': admission['cleanup']}
                 if stderr_task is not None:
                     from forge.sessions.trajectory import exception_diagnostics, redact_text
@@ -197,6 +210,9 @@ class FileWorkerClient:
                         self._service_receipt(owner, request_id, 'closed')
                 self._services.pop(owner, None)
                 self._owners.discard(owner)
+                admission['diagnostics'] = diagnostics
+                if interrupted is not None:
+                    raise interrupted
             if failure is not None:
                 if isinstance(failure, ContractError) and failure.kind != 'INVALID_PARAMS':
                     failure.details = {**diagnostics, **failure.details}
