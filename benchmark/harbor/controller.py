@@ -37,7 +37,7 @@ def controller_status(output_dir: Path) -> dict:
         return {'status': 'unknown'}
     try:
         value = json.loads(path.read_text(encoding='utf-8'))
-        if value['status'] == 'running':
+        if value['status'] in {'running', 'draining', 'cancelling'}:
             age = (datetime.now(timezone.utc) - datetime.fromisoformat(value['heartbeat_at'])).total_seconds()
             if age > 60:
                 value = {**value, 'status': 'unresponsive', 'reason': 'controller heartbeat expired; inspect processes before recovery'}
@@ -49,7 +49,7 @@ def controller_status(output_dir: Path) -> dict:
 def cancel_run(output_dir: Path) -> dict:
     """Request cancellation through the owning controller; never signal a saved PID."""
     state = controller_status(output_dir)
-    if state['status'] not in {'starting', 'running'}:
+    if state['status'] not in {'starting', 'running', 'draining'}:
         return {**state, 'cancel_requested': False,
                 'reason': 'No responsive owning controller; inspect resources before recovery.'}
     path = output_dir / 'cancel-request.json'
@@ -62,10 +62,32 @@ def cancel_run(output_dir: Path) -> dict:
     return {**state, 'cancel_requested': True}
 
 
-def _cleanup(output_dir):
-    from benchmark.adapters.docker import reconcile_resources
+def drain_run(output_dir: Path) -> dict:
+    """Stop new admissions; existing trials retain their normal phase deadlines."""
+    state = controller_status(output_dir)
+    if state['status'] not in {'starting', 'running', 'draining'} or not state.get('metadata', {}).get('supports_drain'):
+        return {**state, 'drain_requested': False,
+                'reason': 'No responsive controller with admission control; this run cannot drain.'}
+    path = output_dir / 'drain-request.json'
     try:
-        return asyncio.run(reconcile_resources(output_dir / 'resources.jsonl'))
+        with path.open('x', encoding='utf-8') as stream:
+            json.dump({'requested_at': _now()}, stream)
+            stream.flush(); os.fsync(stream.fileno())
+    except FileExistsError:
+        pass
+    return {**state, 'drain_requested': True}
+
+
+def _cleanup(output_dir, heartbeat, interval):
+    from benchmark.adapters.docker import reconcile_resources
+    async def wait_for_cleanup():
+        task = asyncio.create_task(reconcile_resources(output_dir / 'resources.jsonl'))
+        while not task.done():
+            await asyncio.wait({task}, timeout=interval)
+            heartbeat()
+        return await task
+    try:
+        return asyncio.run(wait_for_cleanup())
     except Exception:
         return 'unknown'
 
@@ -80,14 +102,18 @@ def run_controller(command, *, cwd, env, output_dir: Path, interval=5.0, metadat
     state = {'status': 'starting', 'controller_pid': os.getpid(), 'started_at': _now(),
              'metadata': metadata or {}}
     _write(path, state)
+    def heartbeat():
+        state['heartbeat_at'] = _now()
+        _write(path, state)
     process = None
     try:
         options = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else {'start_new_session': True}
         process = subprocess.Popen(command, cwd=cwd, env=env, **options)
         state.update(status='running', child_pid=process.pid)
         while True:
-            state['heartbeat_at'] = _now()
-            _write(path, state)
+            if state['metadata'].get('supports_drain') and (output_dir / 'drain-request.json').exists():
+                state['status'] = 'draining'
+            heartbeat()
             if (output_dir / 'cancel-request.json').exists():
                 raise KeyboardInterrupt
             try:
@@ -95,11 +121,20 @@ def run_controller(command, *, cwd, env, output_dir: Path, interval=5.0, metadat
                 break
             except subprocess.TimeoutExpired:
                 continue
-        state.update(status='exited', exit_code=code, finished_at=_now())
+        status = 'exited'
+        drain_state = output_dir / 'drain-state.json'
+        if state['metadata'].get('supports_drain') and (output_dir / 'drain-request.json').exists() and drain_state.exists():
+            drain = json.loads(drain_state.read_text(encoding='utf-8'))
+            if drain.get('status') == 'drained' and drain.get('deferred'):
+                status = 'paused'
+                state['deferred_trials'] = drain['deferred']
+        state.update(status=status, exit_code=code, finished_at=_now())
         _write(path, state)
         return code
     except KeyboardInterrupt:
         from benchmark.adapters.process import stop_process_group
+        state.update(status='cancelling', termination_reason='cancelled')
+        heartbeat()
         stopped = False
         if process is not None:
             try:
@@ -107,7 +142,7 @@ def run_controller(command, *, cwd, env, output_dir: Path, interval=5.0, metadat
             except (OSError, subprocess.TimeoutExpired):
                 pass
         state.update(status='cancelled', termination_reason='cancelled', child_stopped=stopped,
-                     cleanup_state=_cleanup(output_dir) if stopped else 'unknown', finished_at=_now())
+                     cleanup_state=_cleanup(output_dir, heartbeat, interval) if stopped else 'unknown', finished_at=_now())
         _write(path, state)
         return 130
     except BaseException as error:

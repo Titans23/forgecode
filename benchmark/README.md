@@ -105,6 +105,7 @@ forge eval run --plan ./frozen-plan --execute --output ./run
 ```sh
 forge eval status ./run
 forge eval cancel ./run
+forge eval drain ./run
 forge eval report ./run
 forge eval export ./run --format atif
 forge eval export ./run --format openai
@@ -114,6 +115,8 @@ forge eval compare ./baseline ./candidate --change model
 `--change` 可为 model、plugin、harness。比较列出任务、模型、源码、依赖、完成策略和环境差异；缺少镜像/资源证据时不称为受控比较。一次比较不提供统计显著性或因果优势结论。
 
 结果保留所有尝试、未启动题、未判分题和基础设施错误。缺少终态/用量时完整总量为 unknown，已知小计另列；价格表只能产生估算费用。Ctrl+C 与 cancel 通知所属控制器清理进程组及有所有权凭据的容器，不自动重跑付费任务。
+
+`drain` 停止接收排队中的新题，让已经接收的题目完成准备、作答、判分和清理；已接收但仍在等待准备槽位的题目也会继续。存在未派发题时控制器最终显示 `paused`，保留真实子进程退出码和未派发列表，不生成虚假的题目结果、不自动恢复。旧版运行不支持此命令。`cancel` 仍立即取消整轮：先显示 `cancelling`，在同一引擎与空基线确认所有权后先停止本轮活动容器，再回收卷和网络；整个清理阶段保持心跳。
 
 内部未完成/失败结果返回非零退出码，官方 reward 仍独立保存。Agent 明确提交 partial 的非零退出不等于 Harness 崩溃：已有判分时按官方结果归类，无判分时保留未完成；报告仍展示 partial 和原始异常。外层评测进程的非零退出仍记为 runner_crash，不被 Agent 声明覆盖。真实执行故障不会被 partial 声明隐藏。`forgecode-phase-failures.jsonl` 保留 Harbor 后续错误：Agent 超时和 verifier 故障可以同时出现，汇总分别保留执行与判分状态，不用前一个异常覆盖后一个。
 

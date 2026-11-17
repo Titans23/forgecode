@@ -330,7 +330,7 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
                 env[name] = values[name]
     print(f'Frozen evaluation: {output}', flush=True)
     return run_controller(command, cwd=output, env=env, output_dir=output,
-                          metadata={'run_id': manifest['run_id'], 'experiment': 'experiment.json'})
+                          metadata={'run_id': manifest['run_id'], 'experiment': 'experiment.json', 'supports_drain': True})
 
 
 if __name__ == '__main__':

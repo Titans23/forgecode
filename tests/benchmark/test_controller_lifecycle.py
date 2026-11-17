@@ -91,3 +91,59 @@ def test_expired_heartbeat_cannot_be_reported_as_running(tmp_path):
         'status': 'running', 'heartbeat_at': '2000-01-01T00:00:00+00:00', 'child_pid': 999999,
     }))
     assert controller_status(tmp_path)['status'] == 'unresponsive'
+
+
+@pytest.mark.parametrize('supported', [False, True])
+def test_drain_requires_compatible_live_controller_and_preserves_child_exit(tmp_path, supported):
+    from benchmark.harbor.controller import drain_run
+    observed = []
+    def request():
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if controller_status(tmp_path)['status'] == 'running':
+                observed.append(drain_run(tmp_path))
+                (tmp_path / 'request-observed').write_text('done')
+                return
+            time.sleep(.01)
+    worker = threading.Thread(target=request)
+    worker.start()
+    script = ('from pathlib import Path; import json,time\n'
+        'while not Path("request-observed").exists(): time.sleep(.01)\n'
+        'if Path("drain-request.json").exists():\n'
+        ' Path("drain-state.json").write_text(json.dumps({"status":"drained","deferred":["later"]}))\n'
+        'raise SystemExit(9)')
+    code = run_controller([sys.executable, '-c', script], cwd=tmp_path, env=os.environ.copy(),
+        output_dir=tmp_path, interval=.01, metadata={'supports_drain':supported})
+    worker.join(timeout=10)
+    assert observed[0]['drain_requested'] is supported
+    assert (tmp_path / 'drain-request.json').exists() is supported
+    state = controller_status(tmp_path)
+    assert code == state['exit_code'] == 9
+    assert state['status'] == ('paused' if supported else 'exited')
+
+
+def test_cancellation_cleanup_keeps_heartbeat_and_cancelling_state(tmp_path, monkeypatch):
+    import asyncio
+    from benchmark.harbor.controller import cancel_run
+    observed = []
+    async def cleanup(path):
+        for _ in range(4):
+            await asyncio.sleep(.04)
+            observed.append(controller_status(tmp_path))
+        return 'clean'
+    monkeypatch.setattr('benchmark.adapters.docker.reconcile_resources', cleanup)
+    def request():
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if controller_status(tmp_path)['status'] == 'running':
+                cancel_run(tmp_path)
+                return
+            time.sleep(.01)
+    worker = threading.Thread(target=request)
+    worker.start()
+    code = run_controller([sys.executable, '-c', 'import time;time.sleep(60)'], cwd=tmp_path,
+        env=os.environ.copy(), output_dir=tmp_path, interval=.01)
+    worker.join(timeout=10)
+    assert code == 130 and all(item['status'] == 'cancelling' for item in observed)
+    assert observed[-1]['heartbeat_at'] > observed[0]['heartbeat_at']
+    assert controller_status(tmp_path)['cleanup_state'] == 'clean'

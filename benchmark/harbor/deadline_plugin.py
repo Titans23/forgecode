@@ -4,6 +4,7 @@ import asyncio
 from functools import wraps
 from importlib.metadata import version
 from inspect import signature, Parameter
+from pathlib import Path
 from harbor.models.job.plugin import BaseJobPlugin
 
 
@@ -95,6 +96,36 @@ class ForgeCodeDeadlinePlugin(BaseJobPlugin):
         self._record_wrapper = record_exception
         Trial._record_exception = record_exception
 
+        # Admission is checked after Harbor's task semaphore, before Trial.create.
+        # A cancelled queued coroutine does not cancel its TaskGroup siblings.
+        receipt = (environment.kwargs if environment else {}).get('receipt_path')
+        queue = getattr(job, '_trial_queue', None)
+        if receipt and queue is not None:
+            from benchmark.harbor.controller import _write
+            directory = Path(receipt).parent
+            active, deferred = set(), set()
+            original = queue._execute_trial_with_retries
+            def publish():
+                if deferred:
+                    _write(directory / 'drain-state.json', {
+                        'status': 'draining' if active else 'drained',
+                        'active': sorted(active), 'deferred': sorted(deferred)})
+            @wraps(original)
+            async def admit(config):
+                name = config.trial_name
+                if (directory / 'drain-request.json').exists():
+                    deferred.add(name)
+                    publish()
+                    raise asyncio.CancelledError('Admission stopped by the owning controller')
+                active.add(name)
+                try:
+                    return await original(config)
+                finally:
+                    active.discard(name)
+                    publish()
+            self._queue, self._original_admit, self._admit_wrapper = queue, original, admit
+            queue._execute_trial_with_retries = admit
+
     async def on_job_end(self, job_result) -> None:
         from harbor.trial.trial import Trial
         if getattr(self, '_wrapper', None) is Trial._run_agent_phase:
@@ -103,3 +134,6 @@ class ForgeCodeDeadlinePlugin(BaseJobPlugin):
             Trial._record_exception = self._original_record
         if getattr(self, '_prepare_wrapper', None) is Trial._prepare:
             Trial._prepare = self._original_prepare
+        queue = getattr(self, '_queue', None)
+        if queue is not None and queue._execute_trial_with_retries is self._admit_wrapper:
+            queue._execute_trial_with_retries = self._original_admit

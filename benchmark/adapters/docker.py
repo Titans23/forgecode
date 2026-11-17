@@ -215,10 +215,31 @@ async def reconcile_resources(receipt_path):
     if not path.exists():
         return 'unknown'
     receipts = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
-    for row in [r for r in receipts if r.get('phase') == 'baseline']:
+    baselines = [r for r in receipts if r.get('phase') == 'baseline']
+    if not baselines:
+        return 'unknown'
+    daemon = await docker_query('info', '--format', '{{.ID}}')
+    if not daemon or any(row['inventory']['daemon_id'] != daemon or any(
+        row['inventory'][key] for key in ('containers', 'volumes', 'networks')) for row in baselines):
+        return 'unknown'
+    # Stop all owned running workloads first, before sequential volume/network
+    # cleanup. Otherwise completed projects can delay stopping live model calls.
+    projects = {row['inventory']['project'] for row in baselines}
+    running = await docker_query('ps', '--no-trunc', '--format', '{{.ID}}\t{{.Label "com.docker.compose.project"}}')
+    owned = [fields[0] for line in running.splitlines()
+             if len(fields := line.split('\t')) == 2 and fields[1] in projects]
+    if owned:
+        error = None
+        try:
+            await docker_query('stop', '--time', '2', *owned)
+        except Exception as exc:
+            from forge.sessions.trajectory import exception_diagnostics
+            error = exception_diagnostics(exc)
+        with path.open('a', encoding='utf-8') as stream:
+            stream.write(json.dumps({'phase': 'reconcile_stop', 'containers': owned, 'error': error}) + '\n')
+            stream.flush(); os.fsync(stream.fileno())
+    for row in baselines:
         baseline = row['inventory']
-        if any(baseline[key] for key in ('containers', 'volumes', 'networks')):
-            return 'unknown'
         known = set()
         for prior in receipts:
             if prior.get('resource_id') == row['resource_id'] and prior.get('phase') == 'resource_query':

@@ -10,6 +10,53 @@ from benchmark.harbor.forgecode_agent import ForgeCodeHarborAgent
 from benchmark.harbor.deadline_plugin import ForgeCodeDeadlinePlugin
 
 
+@pytest.mark.parametrize('drain', [False, True])
+def test_real_queue_drains_before_creation_and_preserves_active_results(tmp_path, monkeypatch, drain):
+    import json
+    from harbor.trial.queue import TrialQueue
+    from harbor.trial.trial import Trial
+    async def exercise():
+        queue = TrialQueue(n_concurrent=2)
+        original = queue._execute_trial_with_retries
+        entered, release = asyncio.Event(), asyncio.Event()
+        created = []
+        async def create(config):
+            created.append(config.trial_name)
+            if len(created) == 2: entered.set()
+            async def run():
+                await release.wait()
+                directory = tmp_path / config.trial_name
+                directory.mkdir()
+                (directory / 'result.json').write_text('{"reward":1}')
+                return SimpleNamespace(exception_info=None, task=config.trial_name)
+            return SimpleNamespace(config=config, run=run)
+        monkeypatch.setattr(Trial, 'create', create)
+        plugin = ForgeCodeDeadlinePlugin()
+        job = SimpleNamespace(config=SimpleNamespace(tasks=[], environment=SimpleNamespace(
+            kwargs={'receipt_path': str(tmp_path / 'resources.jsonl')})), _metrics={}, _trial_queue=queue)
+        await plugin.on_job_start(job)
+        configs = [SimpleNamespace(trial_name=f'task-{i}', agent=SimpleNamespace(n_concurrent=None)) for i in range(5)]
+        try:
+            async with asyncio.TaskGroup() as group:
+                tasks = [group.create_task(coro) for coro in queue.submit_batch(configs)]
+                await asyncio.wait_for(entered.wait(), 2)
+                if drain: (tmp_path / 'drain-request.json').write_text('{}')
+                release.set()
+            assert all(not t.cancelled() and t.result().task == f'task-{i}' for i, t in enumerate(tasks[:2]))
+            assert len(list(tmp_path.glob('*/result.json'))) == (2 if drain else 5)
+            assert created == [f'task-{i}' for i in range(2 if drain else 5)]
+            if drain:
+                assert all(t.cancelled() for t in tasks[2:])
+                state = json.loads((tmp_path / 'drain-state.json').read_text())
+                assert state == {'status':'drained', 'active':[], 'deferred':['task-2','task-3','task-4']}
+            else:
+                assert not (tmp_path / 'drain-state.json').exists()
+        finally:
+            await plugin.on_job_end(None)
+        assert queue._execute_trial_with_retries == original
+    asyncio.run(exercise())
+
+
 def test_preparation_limit_releases_before_twenty_agents_run(tmp_path, monkeypatch):
     from harbor.trial.trial import Trial
     async def exercise():

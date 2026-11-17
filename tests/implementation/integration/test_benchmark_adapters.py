@@ -325,8 +325,12 @@ def test_cancel_cleanup_queries_owned_project_and_refuses_foreign_daemon(tmp_pat
         return next(inventories)
     async def query(*arguments):
         calls.append(arguments)
+        if arguments[0] == 'info': return 'foreign' if foreign else 'fixture'
+        if arguments[0] == 'ps': return 'c\towned\nunrelated\tother-project'
         return ''
     monkeypatch.setattr(docker, 'docker_inventory', inventory)
     monkeypatch.setattr(docker, 'docker_query', query)
     assert asyncio.run(docker.reconcile_resources(receipt)) == ('unknown' if foreign else 'clean')
-    assert calls == ([] if foreign else [('rm', '--force', 'c'), ('volume', 'rm', 'v'), ('network', 'rm', 'n')])
+    mutations = [call for call in calls if call[0] not in {'info', 'ps'}]
+    assert mutations == ([] if foreign else [('stop', '--time', '2', 'c'),
+        ('rm', '--force', 'c'), ('volume', 'rm', 'v'), ('network', 'rm', 'n')])
