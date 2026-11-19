@@ -19,7 +19,7 @@ class HarnessAdapter:
         permissions = PermissionManager(root, mode='supervised', approval_handler=approval_handler,
                                         load_stored_rules=False)
         bindings = RuntimeBindings(config=config, data_root=data_root, backend=backend, recorder=recorder,
-            owns_tool_backend=False,
+            owns_tool_backend=False, legacy_tool_catalog=True,
             model_client_factory=model_client_factory, permission_manager=permissions, trusted_extensions=False,
             task_relation=task_relation,
             turn_baseline_handler=turn_baseline_handler)

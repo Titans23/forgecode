@@ -40,6 +40,7 @@ class RuntimeBindings:
     model_aliases: dict = field(default_factory=dict)
     model_environment: dict = field(default_factory=dict)
     caller_deadline: float | None = None
+    legacy_tool_catalog: bool = False  # Older application RPC clients cannot select a tool composition.
 
     def conversation_options(self):
         options = {'tool_backend': self.backend, 'event_recorder': self.recorder,
