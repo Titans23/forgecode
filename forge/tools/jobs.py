@@ -38,6 +38,7 @@ class JobOutputTool(Tool[JobOutputInput]):
 
 class JobKillTool(Tool[JobInput]):
     name = 'job_kill'
+    effect = 'process'
     description = 'Cancel a background command owned by this session and wait for its process cleanup.'
     input_model = JobInput
 

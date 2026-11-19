@@ -71,6 +71,36 @@ def test_default_coding_tools_complete_a_partial_delivery(tmp_path, monkeypatch)
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('foreground_only', [False, True])
+def test_request_matches_job_permissions_and_controls(tmp_path, foreground_only):
+    root = tmp_path/'project'
+    root.mkdir()
+    class Model:
+        model = 'offline'
+        async def stream(self, messages, tools, system):
+            schemas = {t['name']: t['input_schema'] for t in tools}
+            if foreground_only:
+                assert set(schemas) == {'run_command'}
+                fields = schemas['run_command']['properties']
+                assert 'lifetime' not in fields and 'run_in_background' not in fields
+                assert fields['timeout_seconds']['type'] == 'number'
+            else:
+                assert 'job_output' in schemas
+                assert not {'job_kill', 'run_command', 'verify', 'write_file'} & schemas.keys()
+            yield ModelTextDelta('Checked')
+            yield ModelResponseCompleted('end_turn')
+        async def aclose(self): pass
+    async def run():
+        agent = AgentDefinition(tools=('run_command',)) if foreground_only else AgentDefinition()
+        options = SessionOptions(root, data_root=tmp_path/'data', agent=agent,
+            config=ForgeConfig(api_key='offline', model_id='offline'))
+        async with await HarnessSession.open(options, model_client_factory=lambda *a, **kw: Model()) as session:
+            if not foreground_only:
+                session.conversation.permission_manager.set_mode('plan')
+            assert (await session.run('Inspect available capabilities')).status == 'completed'
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('strict', [False, True])
 def test_verification_guidance_preserves_the_selected_completion_policy(tmp_path, strict):
     root = tmp_path/'project'
