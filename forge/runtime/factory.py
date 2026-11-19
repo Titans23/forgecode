@@ -108,7 +108,8 @@ def create_runtime(
         checkpoint = CheckpointStore.for_session(root, journal.path, journal.session_id)
     from forge.tools.base import ToolRegistry
     ordinary_defaults = coding and agent.tools is None and task_policy is None
-    selected = CODING_TOOLS if ordinary_defaults else agent.tools
+    # Retain the existing SDK chunk writer; ToolRegistry always hides its schema.
+    selected = (*CODING_TOOLS, 'write_file_chunk') if ordinary_defaults else agent.tools
     registry = create_default_registry(root, execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
         model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
