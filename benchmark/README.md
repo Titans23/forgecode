@@ -122,6 +122,8 @@ forge eval compare ./baseline ./candidate --change model
 
 工具执行或清理不确定时，运行时保存 `tool_execution_indeterminate` 失败终态和原工具诊断，评测入口仍能导出结果文件；它属于执行故障，不冒充用户取消或完成声明。
 
+报告优先读取进程监督器的超时和取消回执，早期运行使用 `forgecode-status.json`。进程硬超时统一标记为 `agent_deadline`，已记录的调用方截止原因单独保留。Agent 非零退出后仍可获得官方判分；缺少终态和明确故障证据时，退出原因记为未知。
+
 `grader_health` 独立显示测试执行证据（executed）、明确 bootstrap 失败（failed）、未知（unknown）或未启动（not_run）。有效的非空 CTRF 报告优先于已恢复的安装错误文本；缺少可选报告不自动判失败。原始 reward 始终保留，包括测试未启动但脚本写入的零分。`grader_health_counts` 与 `cleanup_failure_count` 分别汇总，清理错误不覆盖有效判分。
 
 Journal 是完整私有事实源；ATIF v1.7 和 OpenAI messages JSONL 是离线脱敏导出，失败、取消和部分响应也会保留。输出目录不可覆盖，原记录保持不变，公共基准输出标记 evaluation-only。产品不提供训练/蒸馏导出。

@@ -165,7 +165,7 @@ class HarborAdapter:
             artifact_hash=collected['artifact_hash'])
         return {'cache_key':identity,**normalize(runner_exit=collected['runner_exit'],result=collected['result'],
             agent_status=collected['agent_status'], phase_failures=collected.get('phase_failures', ()),
-            grader_health=collected.get('grader_health')) }
+            grader_health=collected.get('grader_health'), supervisor=collected.get('supervisor')) }
 
 
 class HarborExecutor:

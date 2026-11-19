@@ -119,6 +119,15 @@ def test_agent_timeout_does_not_relabel_a_successful_verifier_as_broken():
     assert classified['grading_state'] == 'graded' and classified['grade_result'] == 'pass'
 
 
+def test_unexplained_agent_exit_preserves_later_verdict_and_leaves_cause_unknown():
+    from benchmark.adapters.protocol import classify_result
+    result = {'exception_info': {'exception_type': 'NonZeroAgentExitCodeError'},
+              'agent_execution': {'started_at': 'before'}, 'verifier': {'started_at': 'after'},
+              'verifier_result': {'rewards': {'reward': 1}}}
+    value = classify_result(result)
+    assert (value['failure_stage'], value['category'], value['grade_result']) == ('agent_execution', 'unknown', 'pass')
+
+
 def test_later_verifier_failure_and_earlier_timeout_both_survive_summary(tmp_path):
     path = trial(tmp_path, reward=None, reason='agent_deadline')
     official = json.loads((path/'result.json').read_text())
@@ -316,6 +325,33 @@ def test_agent_timeout_exception_is_not_infrastructure(tmp_path):
     summary = summarize_run(tmp_path)
     assert summary.agent_timeouts == 1
     assert summary.infrastructure_failures == 0
+
+
+@pytest.mark.parametrize('owner, expected', [
+    (None, 'agent_timeout'),
+    ({'exit_code': 124, 'timed_out': True}, 'agent_timeout'),
+    ({'exit_code': 124, 'timed_out': False}, 'agent_failure'),
+    ({'exit_code': 143, 'timed_out': False, 'cancelled': True}, 'unfinished'),
+])
+def test_process_receipts_and_partial_declaration_preserve_official_grade(tmp_path, owner, expected):
+    path = trial(tmp_path, timed_out=True, reward=0)
+    official = json.loads((path/'result.json').read_text())
+    official.update(exception_info={'exception_type':'NonZeroAgentExitCodeError'},
+                    agent_execution={'started_at':'before'}, verifier={'started_at':'after'})
+    original = json.dumps(official).encode()
+    (path/'result.json').write_bytes(original)
+    (path/'agent/forgecode.txt').write_text('FORGECODE_BENCHMARK_RESULT=' +
+        json.dumps({'status':'partial','stop_reason':'partial'}))
+    if owner is not None:
+        directory = path/'agent/forge-services'
+        directory.mkdir()
+        (directory/'supervisor-result.json').write_text(json.dumps(owner))
+    item = summarize_run(tmp_path).trial_assessments[path.name]
+    assert (item['primary_outcome'], item['verifier_state']) == (expected, 'failed')
+    assert 'partial' in item['observed_faults']
+    if expected == 'agent_timeout':
+        assert item['failure_type'] == 'agent_deadline'
+    assert (path/'result.json').read_bytes() == original
 
 
 def test_identical_payload_copies_do_not_double_usage(tmp_path):

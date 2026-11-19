@@ -89,7 +89,21 @@ def reward_result(value):
     return text or '0', 'pass' if reward == 1 else 'fail'
 
 
-def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled=False, phase_failures=(), grader_health=None):
+def supervisor_status(read):
+    """Read the process owner's observations, falling back to the older shell receipt."""
+    for name in ('agent/forge-services/supervisor-result.json', 'agent/forgecode-status.json'):
+        try:
+            raw = read(name)
+            if raw:
+                value = json.loads(raw)
+                if isinstance(value, dict) and (type(value.get('timed_out')) is bool or type(value.get('exit_code')) is int):
+                    return value
+        except (OSError, ValueError):
+            continue
+    return {}
+
+
+def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled=False, phase_failures=(), grader_health=None, supervisor=None):
     """Classify terminal evidence; recovered errors never replace the final outcome."""
     result, agent_status = result or {}, agent_status or {}
     verifier_fault = verifier_fault or (grader_health or {}).get('failure')
@@ -99,9 +113,13 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
     status = agent_status.get('status', 'indeterminate')
     declared_partial = status == 'partial' and reason == 'partial'
     failure_stage = next((item['phase'] for item in phase_failures if item.get('exception_type') == error), None)
-    if failure_stage is None:
-        failure_stage = ('agent_execution' if error == 'AgentTimeoutError' or
-                         (declared_partial and error == 'NonZeroAgentExitCodeError') else
+    if failure_stage is None and error == 'NonZeroAgentExitCodeError':
+        if result.get('agent_execution') or declared_partial:
+            failure_stage = 'agent_execution'
+        elif result.get('agent_setup'):
+            failure_stage = 'agent_setup'
+    elif failure_stage is None:
+        failure_stage = ('agent_execution' if error == 'AgentTimeoutError' else
             'agent_setup' if error.startswith('AgentSetup') else 'environment_setup' if error.startswith('Environment') else
             'verifier' if error.startswith(('Verifier', 'RewardFile')) else
             next((phase for phase in ('verifier', 'agent_execution', 'agent_setup', 'environment_setup')
@@ -114,11 +132,17 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
     grading = 'grader_error' if grader_failure else 'graded' if reward is not None else 'unscored'
     # Raw reward remains evidence even when the grader itself failed.
     verdict = grade if grading == 'graded' else 'unknown'
+    supervisor = supervisor or {}
+    process_stop = ('agent_deadline' if supervisor.get('timed_out') is True else
+                    'cancelled' if supervisor.get('cancelled') is True else None)
     terminal_faults = list(dict.fromkeys(value for value in
-        (reason, error, verifier_fault, *(item.get('exception_type') for item in phase_failures)) if value))
-    if reason == 'caller_deadline_exceeded' or reason.endswith('_budget_exhausted') or 'AgentTimeoutError' in terminal_faults or status in {'timed_out', 'budget_exhausted'}:
-        category, execution, termination = 'budget_exhausted', 'finished', reason or 'agent_deadline'
-    elif cancelled or status == 'cancelled' or reason == 'cancelled':
+        (reason, error, verifier_fault, process_stop, *(item.get('exception_type') for item in phase_failures)) if value))
+    declared_deadline = reason == 'caller_deadline_exceeded' or reason.endswith('_budget_exhausted')
+    if (declared_deadline or 'AgentTimeoutError' in terminal_faults or process_stop == 'agent_deadline'
+            or status in {'timed_out', 'budget_exhausted'}):
+        termination = reason if declared_deadline else 'agent_deadline'
+        category, execution = 'budget_exhausted', 'finished'
+    elif cancelled or process_stop == 'cancelled' or status == 'cancelled' or reason == 'cancelled':
         category, execution, termination = 'cancelled_or_incomplete', 'cancelled', 'cancelled'
     elif grader_failure:
         category, execution, termination = 'grader_failure', 'finished', verifier_fault or error
@@ -133,6 +157,9 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
         # its declaration independent of the authoritative verifier outcome.
         category = ('passed' if grade == 'pass' else 'acceptance_failed') if reward is not None else 'cancelled_or_incomplete'
         execution, termination = 'finished', 'partial'
+    elif (error == 'NonZeroAgentExitCodeError' and not reason and status in {'unknown', 'indeterminate'}
+          and all(item.get('phase') == 'cleanup' or item.get('exception_type') == error for item in phase_failures)):
+        category, execution, termination = 'unknown', 'error', error
     elif error in {'ToolExecutionError', 'HarnessError', 'AgentExecutionError'} or reason in {'tool_execution_failed', 'tool_execution_indeterminate', 'harness_error'} or failure_stage == 'agent_execution':
         category, execution, termination = 'harness_failure', 'error', reason or error
     elif error and failure_stage != 'cleanup':
@@ -150,9 +177,10 @@ def classify_result(result, agent_status=None, *, verifier_fault=None, cancelled
             'grader_health': grader_health or {'state':'unknown'}}
 
 
-def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner', phase_failures=(), grader_health=None):
+def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', provenance='official-runner', phase_failures=(), grader_health=None, supervisor=None):
     """Shell exit, internal completion and authoritative verifier reward are separate."""
-    classified = classify_result(result, agent_status, phase_failures=phase_failures, grader_health=grader_health)
+    classified = classify_result(result, agent_status, phase_failures=phase_failures, grader_health=grader_health,
+                                 supervisor=supervisor)
     exception = (result or {}).get('exception_info') or {}
     error_type = exception.get('exception_type', '')
     rewards = classified['official_rewards']
@@ -172,6 +200,8 @@ def normalize(*, runner_exit, result, agent_status=None, cleanup='unknown', prov
         agent_outcome = 'failed'
     if classified['category'] == 'budget_exhausted':
         agent_outcome = 'budget_exhausted'
+    elif (supervisor or {}).get('cancelled') is True:
+        agent_outcome = 'cancelled'
     if agent_outcome not in {'completed','failed','cancelled','timed_out','indeterminate', 'budget_exhausted'}:
         agent_outcome = 'indeterminate'
     return {'normalization_version':NORMALIZATION_VERSION,'execution_state':'error' if origin else 'finished',
@@ -235,6 +265,7 @@ def collect_harbor(root, *, task_name, task_checksum, runner_exit):
     if len(candidates) > 1:
         raise ContractError('Multiple Harbor trials for a single attempt', kind='EVENT_CONFLICT', code=-32010)
     result, agent_status, phase_failures, health = None, None, (), {'state':'unknown'}
+    supervisor = {}
     if candidates:
         name = candidates[0]
         from harbor.models.trial.result import TrialResult
@@ -243,6 +274,8 @@ def collect_harbor(root, *, task_name, task_checksum, runner_exit):
         if raw['task_name'] != task_name or raw['task_checksum'] != task_checksum:
             raise ContractError('Official result task identity changed', kind='EVENT_CONFLICT', code=-32010)
         result = raw
+        trial_prefix = name.rsplit('/',1)[0] + '/'
+        supervisor = supervisor_status(lambda filename: captured.get(trial_prefix + filename))
         status_file = name.rsplit('/',1)[0] + '/agent/forgecode-result.json'
         if status_file in captured:
             agent_status = strict_loads(captured[status_file])
@@ -253,4 +286,4 @@ def collect_harbor(root, *, task_name, task_checksum, runner_exit):
     artifact_bytes = {k.split('/',1)[1]:v for k,v in captured.items() if '/artifacts/' in k or k.endswith('/agent/forgecode-pregrade.patch')}
     return {'files':captured,'result':result,'agent_status':agent_status,'runner_exit':runner_exit, 'phase_failures':phase_failures,
         'collection_hash':content_hash(captured),'artifact_hash':content_hash(artifact_bytes),
-        'artifact_present':bool(artifact_bytes), 'grader_health':health}
+        'artifact_present':bool(artifact_bytes), 'grader_health':health, 'supervisor':supervisor}

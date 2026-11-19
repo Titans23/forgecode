@@ -146,9 +146,8 @@ def summarize_run(run_dir: Path) -> RunSummary:
             if assessment.primary_outcome == 'model_protocol_failure':
                 infrastructure_failure_types[assessment.failure_type] += 1
             assessments[path.name] = asdict(assessment)
-        elif _missing_result_type(path) == 'AgentTimeout':
-            agent_timeouts += 1
-            assessments[path.name] = asdict(TrialAssessment('agent_timeout', 'unknown', False, 'AgentTimeout'))
+        elif assessment.primary_outcome == 'unfinished' and 'cancelled' in assessment.observed_faults:
+            assessments[path.name] = asdict(assessment)
         else:
             infrastructure_failures += 1
             infrastructure_failure_types[_missing_result_type(path)] += 1
@@ -360,12 +359,11 @@ def _phase_failures(trial_dir):
 
 
 def assess_trial(trial_dir: Path, result: dict[str, Any], payloads: tuple[dict[str, Any], ...]) -> TrialAssessment:
-    from benchmark.adapters.protocol import classify_result
+    from benchmark.adapters.protocol import classify_result, supervisor_status
     terminal = payloads[-1] if payloads else {}
-    if _missing_result_type(trial_dir) == 'AgentTimeout':
-        terminal = {**terminal, 'status': 'timed_out'}
     classified = classify_result(result, terminal, grader_health=_verifier_health(trial_dir),
-                                 phase_failures=_phase_failures(trial_dir))
+                                 phase_failures=_phase_failures(trial_dir),
+                                 supervisor=supervisor_status(lambda name: (trial_dir/name).read_bytes()))
     legacy = {'passed': 'pass', 'acceptance_failed': 'agent_failure',
               'model_failure': 'model_protocol_failure', 'budget_exhausted': 'agent_timeout',
               'grader_failure': 'verifier_environment_failure',
@@ -414,13 +412,10 @@ def _verifier_health(trial_dir: Path) -> dict:
 
 
 def _missing_result_type(trial_dir: Path) -> str:
-    status_path = trial_dir / 'agent' / 'forgecode-status.json'
-    if not status_path.is_file():
-        return 'MissingResult'
-    try:
-        status = _read_object(status_path)
-    except (OSError, ValueError, json.JSONDecodeError):
-        return 'InvalidAgentStatus'
+    from benchmark.adapters.protocol import supervisor_status
+    status = supervisor_status(lambda name: (trial_dir/name).read_bytes())
+    if not status:
+        return 'InvalidAgentStatus' if (trial_dir/'agent/forgecode-status.json').is_file() else 'MissingResult'
     if status.get('timed_out') is True:
         return 'AgentTimeout'
     exit_code = status.get('exit_code')

@@ -60,6 +60,14 @@ def test_collection_refuses_foreign_identity_ambiguous_results_links_and_bad_rew
         str(generated),'pass','a'*64],cwd=Path.cwd(),env=os.environ.copy(),output_dir=tmp_path/'process',timeout_seconds=20))
     with pytest.raises(ContractError,match='identity'):
         collect_harbor(generated,task_name='foreign-public-benchmark',task_checksum='a'*64,runner_exit=0)
+    # A killed agent may leave a valid independently graded candidate with no final agent JSON.
+    trial = generated/'fixture-trial'
+    (trial/'agent/forgecode-result.json').unlink()
+    (trial/'agent/forgecode-status.json').write_text('{"exit_code":124,"timed_out":true}')
+    collected = collect_harbor(generated,task_name='synthetic-process-fixture',task_checksum='a'*64,runner_exit=0)
+    verdict = normalize(runner_exit=0, result=collected['result'], agent_status=collected['agent_status'],
+                        supervisor=collected['supervisor'])
+    assert (verdict['termination_reason'], verdict['grade_result']) == ('agent_deadline', 'pass')
     (generated/'second').mkdir();(generated/'second/result.json').write_text('{}')
     with pytest.raises(ContractError,match='Multiple'):
         collect_harbor(generated,task_name='synthetic-process-fixture',task_checksum='a'*64,runner_exit=process['exit_code'])
