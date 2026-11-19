@@ -58,7 +58,10 @@ def test_minimal_task_tools_are_installed_only_when_missing(tmp_path, present):
 
 
 @pytest.mark.parametrize('error, succeeds, expected_calls', [
-    ('Hash Sum mismatch',True,4), ('503 Service Unavailable',False,3), ('Permission denied',False,1)])
+    ('Hash Sum mismatch',True,4), ('502 Bad Gateway',True,4),
+    ('Err:1 http://archive.ubuntu.com/ubuntu noble InRelease\n  502  Bad Gateway [IP: 127.0.0.1 80]',True,4),
+    ('503\t Service Unavailable',False,3), ('503 Service Unavailable',False,3),
+    ('Permission denied',False,1), ('Unable to locate package example',False,1)])
 def test_prerequisite_retry_is_bounded_and_only_for_transient_failures(tmp_path, error, succeeds, expected_calls):
     import subprocess
     from benchmark.harbor.forgecode_agent import _prerequisite_install_command
@@ -80,6 +83,7 @@ def test_prerequisite_retry_is_bounded_and_only_for_transient_failures(tmp_path,
              'FAILURE':error, 'RECOVER':'yes' if succeeds else 'no'})
     assert result.returncode == (0 if succeeds else 100), result.stderr
     assert int(log.read_text()) == expected_calls
+    assert error.encode() in result.stdout
 
 
 def test_bullseye_security_archive_preserves_transport_and_other_sources(tmp_path):
