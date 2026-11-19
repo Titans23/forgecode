@@ -4,6 +4,7 @@ import asyncio
 import pytest
 
 from forge.api import HarnessSession, RunProfile, SessionOptions
+from forge.agents import AgentDefinition
 from forge.config import ForgeConfig
 from forge.runtime.state import ToolCall
 
@@ -40,7 +41,7 @@ async def write(session, path, content='fixture'):
 
 def test_switch_updates_backend_observer_scope_and_model_context(tmp_path):
     async def run():
-        settings = options(tmp_path)
+        settings = options(tmp_path, agent=AgentDefinition(tools=('write_file', 'explore_repository')))
         async with await HarnessSession.open(settings, model_client_factory=lambda *a, **k: NoRequests()) as session:
             initial = session.backend
             assert session.conversation.permission_manager.mode == 'ask'
