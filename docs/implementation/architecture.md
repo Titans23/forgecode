@@ -14,6 +14,8 @@ coding 的 `features` 可选择 tasks、repository、skills、hooks、mcp、chec
 
 普通 coding 使用固定的基础工具组合，Skills 根据实际目录显示，插件与 MCP 可继续注册工具。专用 Git、目录管理、Explore 和交付审查按组合选择；显式启用任务能力或恢复已有计划时提供计划工具。每个模型请求从同一份经过权限与模型能力过滤的工具定义生成操作指引。后台回执标明运行状态，长输出按字符游标分页。
 
+旧应用 RPC 没有组合选择参数，适配器在同一运行时显式装配历史工具集合，保留 Explore 的子请求与计费投影。终端和 SDK 的普通会话使用新的默认集合。
+
 普通 CLI/SDK 会话的 `verify` 只接收命令、工作目录、stdin、超时和单次授权参数，记录退出码、输出、耗时及执行时的工作区状态，不要求 JSON 报告、检查 ID 或需求绑定，也不分析检查程序是否足以证明任务完成。`AgentDefinition(completion="strict")` 或显式 TaskPolicy 才装配完整验收接口；两种模式复用同一命令执行与授权路径。既有低层 `VerifyTool` / `create_default_registry` 的默认接口为兼容调用方保持不变，可用 `strict=False` / `strict_verification=False` 选择简化接口。
 
 保留单仓库和单 Python 分发包，模型、CLI、coding、MCP、观测、渠道、验收和 benchmark 依赖按 extra 安装。插件复用唯一 PluginHost，不为每个领域新增循环、日志系统或依赖注入容器。Docker 不参与日常 SDK/CLI 安装和运行。

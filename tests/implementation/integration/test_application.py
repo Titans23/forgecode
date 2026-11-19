@@ -101,7 +101,7 @@ def setup(tmp_path, *, backend=None, mode='local-trusted', factory=None, recorde
     return service, store, vault, clients, params, turn
 
 
-def test_cli_and_service_use_same_tools_and_completion(tmp_path, monkeypatch, capsys):
+def test_compatibility_cli_and_rpc_use_same_legacy_catalog_and_completion(tmp_path, monkeypatch, capsys):
     recorder = Recorder()
     service, store, vault, clients, params, turn = setup(tmp_path, recorder=recorder)
     monkeypatch.setattr(builtins, 'input', lambda *a: pytest.fail('Engine requested terminal input'))
@@ -109,7 +109,7 @@ def test_cli_and_service_use_same_tools_and_completion(tmp_path, monkeypatch, ca
     cli_client = ScriptedClient(script())
     bindings = RuntimeBindings(config=ForgeConfig(api_key='test', model_id='scripted-test', max_tokens=1024),
         model_client_factory=lambda config, **kwargs: cli_client, data_root=tmp_path / 'cli-data',
-        trusted_extensions=False, task_relation='new',  )
+        trusted_extensions=False, task_relation='new', legacy_tool_catalog=True)
 
     async def run():
         cli, _, _ = create_session_runtime(tmp_path / 'project', bindings=bindings)
