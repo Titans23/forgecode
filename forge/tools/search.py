@@ -140,11 +140,7 @@ class FindFilesTool(Tool[FindFilesInput]):
     concurrency_safe = True
     name = 'find_files'
     description = (
-        'Find filesystem files (never directories) by a glob pattern. '
-        'A zero result does not mean '
-        'the directory tree is empty; use list_directory for directories. Use '
-        'a narrow path and pattern, and do not vary extensions after a zero '
-        'result when the task is to remove or clear directories.'
+        'Find files by glob under path. Directories are excluded. Narrow the search if the scan limit is reached.'
     )
     input_model = FindFilesInput
 
@@ -217,12 +213,8 @@ class GrepTool(Tool[GrepInput]):
     concurrency_safe = True
     name = 'grep'
     description = (
-        'Search UTF-8 filesystem files and return path, line number, and '
-        'matching text. Use it to locate symbols or unknown occurrences before '
-        'reading focused files. pattern is a regular expression by default; '
-        'set regex=false for literal text containing characters such as '
-        'parentheses or brackets. Do not grep a file already read in full, '
-        'and do not vary patterns merely to re-display known content.'
+        'Search UTF-8 files and return matching paths, line numbers and text. pattern is a regular expression; '
+        'use regex=false for literal text.'
     )
     input_model = GrepInput
 

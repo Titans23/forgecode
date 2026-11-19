@@ -128,18 +128,8 @@ class GitDiffTool(Tool[GitDiffInput]):
     concurrency_safe = True
     name = 'git_diff'
     description = (
-        'Show unstaged or staged Git changes, optionally limited to one '
-        'repository file. Directory paths are rejected; select a concrete '
-        'file from git_status or repository evidence. An unscoped response '
-        'larger than 30000 characters is summarized instead of failing; use '
-        'the returned changed-file summary to select a relevant path. A large '
-        'single-file Diff is returned in ordered pages; continue with the '
-        'returned next_offset and diff_sha256 as expected_sha256. A path-limited '
-        'request also renders an untracked UTF-8 file as a reviewable '
-        'new-file Diff. Prefer a path-limited Diff in a dirty '
-        'repository. Use it to review actual changes, not to rediscover '
-        'unchanged source. For an overview request, a summarized unscoped '
-        'result is complete evidence; do not open every changed file.'
+        'Show staged or unstaged changes. Omit path for an overview, or select one file, including untracked UTF-8 files. '
+        'Large overviews return a changed-file summary. For a paged file diff pass next_offset and its diff_sha256 as expected_sha256.'
     )
     input_model = GitDiffInput
 

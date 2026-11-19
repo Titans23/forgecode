@@ -1114,7 +1114,7 @@ def test_apply_patch_description_allows_large_and_whole_file_edits(
 
     assert '30000' not in description
     assert 'Codex envelope' in description
-    assert 'write_file for whole-file replacement' in description
+    assert 'context mismatch' in description
 
 
 def test_apply_patch_applies_payload_over_30000_characters(

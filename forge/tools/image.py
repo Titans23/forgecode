@@ -17,9 +17,9 @@ class ViewImageInput(ToolInput):
 class ViewImageTool(Tool[ViewImageInput]):
     concurrency_safe = True
     name = 'view_image'
-    description = ('Read a local PNG, JPEG, GIF or WebP image as visual model input. '
-                   'Maximum 512 KiB; use run_command to crop or resize larger images first. '
-                   'Use this for screenshots, diagrams and photographed text instead of ASCII rendering.')
+    description = (
+        'Read a local PNG, JPEG, GIF or WebP image as visual input. Crop or resize images larger than 512 KiB before reading.'
+    )
     input_model = ViewImageInput
 
     async def execute(self, arguments):

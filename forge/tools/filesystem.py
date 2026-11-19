@@ -32,9 +32,7 @@ class ListDirectoryTool(Tool[ListDirectoryInput]):
     concurrency_safe = True
     name = 'list_directory'
     description = (
-        'List direct children of a filesystem directory. path accepts an absolute path or a path relative to the working directory. Use it to '
-        'discover immediate structure, not file contents or recursive trees. '
-        'Do not repeat it unless that directory may have changed.'
+        'List the immediate children of one directory. Paths may be absolute or workspace-relative.'
     )
     input_model = ListDirectoryInput
 
@@ -86,12 +84,7 @@ class CreateDirectoryInput(SandboxInput):
 class CreateDirectoryTool(Tool[CreateDirectoryInput]):
     name = 'create_directory'
     description = (
-        'Create one genuinely empty filesystem directory, including missing '
-        'parents. write_file and apply_patch already create parent directories '
-        'for concrete files, so do not call create_directory before adding a '
-        'file and never use an empty file as a directory marker. Workspace '
-        'tracking records empty directories directly; do not add .gitkeep '
-        'unless the repository explicitly requires one.'
+        'Create an empty directory and any missing parents. Writing a file already creates its parent directories.'
     )
     input_model = CreateDirectoryInput
     effect = 'workspace_write'
@@ -146,14 +139,8 @@ class RemoveDirectoryInput(SandboxInput):
 class RemoveDirectoryTool(Tool[RemoveDirectoryInput]):
     name = 'remove_directory'
     description = (
-        'Delete one filesystem directory after the user explicitly authorizes '
-        'deletion. To empty a directory while keeping that directory, make one '
-        'call on the parent with recursive=true and contents_only=true; do not '
-        'inspect or delete each child separately. Otherwise recursive=true '
-        'removes the directory and all contents. Use apply_patch to delete '
-        'individual files; do not pass a directory to apply_patch. Repository '
-        'root, control-plane paths, and directories containing symbolic links '
-        'are always rejected.'
+        'Delete a directory only with explicit authorization. recursive=true includes descendants; add '
+        'contents_only=true to keep the parent. The repository root, control paths and trees containing symlinks are rejected.'
     )
     input_model = RemoveDirectoryInput
     effect = 'workspace_write'
@@ -278,10 +265,8 @@ class ReadFileTool(Tool[ReadFileInput]):
     concurrency_safe = True
     name = 'read_file'
     description = (
-        'Read at most 400 numbered lines from one UTF-8 filesystem file. path accepts absolute and working-directory-relative paths. '
-        'Requests covering more than 400 lines return the first 400 lines and '
-        'continuation metadata instead of failing. Prefer a focused inclusive '
-        'start_line/end_line range for large files.'
+        'Read numbered lines from a UTF-8 file. Use inclusive start_line/end_line to select a range; '
+        'at most 400 lines are returned per call. Follow continuation metadata for the next page.'
     )
     input_model = ReadFileInput
 
@@ -376,11 +361,8 @@ class WriteFileTool(Tool[WriteFileInput]):
     file_mutation = True
     name = 'write_file'
     description = (
-        'Create or replace one UTF-8 text file atomically, creating missing parent '
-        'directories. Read an existing target before replacing it; a changed '
-        'version requires a fresh read. Exact content replay is idempotent. '
-        'Content is written as supplied, without format validation. Use apply_patch '
-        'or replace_text for focused edits.'
+        'Create or replace a UTF-8 file atomically, including missing parents. Content is written verbatim. '
+        'Read an existing file first; if it changed, read its current contents before replacing it.'
     )
     input_model = WriteFileInput
     effect = 'workspace_write'
@@ -574,12 +556,8 @@ class ReplaceTextTool(Tool[ReplaceTextInput]):
     file_mutation = True
     name = 'replace_text'
     description = (
-        'Replace one exact, unique UTF-8 text fragment in an existing '
-        'filesystem file. Use this for a focused edit after reading the relevant '
-        'source. If old_text is missing, the error returns the closest exact '
-        'current text when it is small enough; copy that text directly into '
-        'the next old_text instead of re-reading or guessing whitespace. Do '
-        'not use it to create files.'
+        'Replace an exact, unique fragment in a previously read UTF-8 file. For multiple matches include more '
+        'surrounding text. On a mismatch use the returned current text or re-read the affected lines.'
     )
     input_model = ReplaceTextInput
     effect = 'workspace_write'

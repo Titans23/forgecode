@@ -54,14 +54,9 @@ class ApplyPatchTool(Tool[ApplyPatchInput]):
     file_mutation = True
     name = 'apply_patch'
     description = (
-        'Create, modify, or delete repository text files with one focused '
-        'patch after validating the complete patch. Accept either a standard '
-        'unified diff (--- a/path, +++ b/path, and numbered @@ hunks) or a '
-        'Codex envelope (*** Begin Patch with *** Update File, *** Add File, '
-        'or *** Delete File sections; Update sections may use bare @@ hunks). '
-        'Use repository-relative paths. On patch_rejected, '
-        'inspect only the smallest relevant current range and retry once with '
-        'its exact content. Use write_file for whole-file replacement after reading the target.'
+        'Apply a unified diff (numbered @@ hunks) or a Codex envelope (*** Begin Patch with Add, Update or Delete File). '
+        'Use repository-relative paths. All hunks are validated before writing. After a context mismatch, read the '
+        'affected range and rebuild that hunk against the current text.'
     )
     input_model = ApplyPatchInput
     effect = 'workspace_write'

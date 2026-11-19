@@ -22,11 +22,8 @@ class LoadSkillInput(ToolInput):
 class LoadSkillTool(Tool[LoadSkillInput]):
     name = 'load_skill'
     description = (
-        'Load the full SKILL.md instructions for one skill from the metadata '
-        'listed in the system context. Call this only when that skill clearly '
-        'matches the current request and was not already explicitly activated '
-        'with $skill-name. The result also lists bundled resources that can be '
-        'read separately with read_skill_resource.'
+        'Load instructions for one skill from the available catalog. The response lists its bundled resources. '
+        'A skill explicitly activated with $skill-name is already in context.'
     )
     input_model = LoadSkillInput
 
