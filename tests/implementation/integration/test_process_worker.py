@@ -13,7 +13,6 @@ from forge.tools import create_default_registry
 from forge.runtime.state import ToolCall
 
 
-@pytest.mark.skipif(sys.platform != 'linux', reason='Linux worker ready pipe')
 @pytest.mark.parametrize('early_exit', [True, False])
 def test_worker_launch_acknowledgement_and_submission(tmp_path, monkeypatch, early_exit):
     from forge.release import processes
@@ -24,6 +23,9 @@ def test_worker_launch_acknowledgement_and_submission(tmp_path, monkeypatch, ear
 
     def wrapped(*args, **kwargs):
         command = original(*args, **kwargs)
+        if sys.platform == 'win32':
+            # Windows gates the suspended worker with a Job rather than a ready pipe.
+            return [str(tmp_path / 'missing-worker.exe')] if early_exit else command
         if kwargs.get('ready_fd') is None:
             return command
         program = ('raise SystemExit(1)' if early_exit else
@@ -46,7 +48,7 @@ def test_worker_launch_acknowledgement_and_submission(tmp_path, monkeypatch, ear
                 assert result.error.details['cleanup']['state'] == 'clean'
                 assert not (root / 'marker').exists()
                 result = await backend.execute(command, registry)
-            assert result.success and (root / 'marker').read_text().splitlines() == ['executed']
+            assert result.success and (root / 'marker').read_text().split() == ['executed']
         finally:
             await backend.close()
     asyncio.run(run())
