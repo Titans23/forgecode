@@ -97,7 +97,7 @@ class FileToolBackend:
                 from forge.sessions.trajectory import exception_diagnostics, redact_text, sanitize
                 details = {**error.details}
                 details.setdefault('exception', exception_diagnostics(error))
-                if error.kind == 'SANDBOX_UNAVAILABLE':
+                if error.kind in {'SANDBOX_UNAVAILABLE', 'HELPER_NOT_STARTED'}:
                     details['command_started'] = False
                 return ToolResult.fail(error.kind, redact_text(str(error)), details=sanitize(details),
                     metadata={'execution_boundary': self.mode + '-file-worker'})

@@ -79,12 +79,15 @@ class FileWorkerClient:
         try:
             return await task
         except asyncio.CancelledError as error:
+            cleanup = admission.get('cleanup', getattr(error, 'cleanup', {'state': 'unknown'}))
             if self._closing is not None and not admission['submitted']:
                 raise ContractError('File helper session closed before submission',
-                                    kind='SANDBOX_UNAVAILABLE', code=-32010) from None
+                                    kind='SANDBOX_UNAVAILABLE' if cleanup['state'] == 'clean' else 'INDETERMINATE',
+                                    code=-32010, details={'cleanup': cleanup}) from error
             from forge.tool_types import ToolExecutionCancelled
-            raise ToolExecutionCancelled(admission.get('cleanup', getattr(error, 'cleanup', {'state': 'unknown'})),
-                details=admission.get('diagnostics', getattr(error, 'details', {}))) from error
+            raise ToolExecutionCancelled(cleanup, details={
+                **admission.get('diagnostics', getattr(error, 'details', {})),
+                'submitted': admission['submitted']}) from error
         finally:
             self._requests.discard(task)
 
@@ -127,9 +130,23 @@ class FileWorkerClient:
                 if sys.platform.startswith('linux'):
                     input_path = directory / (request_id + '.request.json')
                     input_path.write_bytes(raw)
-            owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
-                environment=environment, output=True, capture_stderr=input_path is None,
-                output_path=output_path, input_path=input_path)
+            seconds = self._seconds(request)
+            now = asyncio.get_running_loop().time()
+            deadline = now + seconds + 5 if seconds is not None else None
+            admission['submitted'] = input_path is not None  # A file-backed service inherits its request at spawn.
+            try:
+                owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
+                    environment=environment, output=True, capture_stderr=input_path is None,
+                    output_path=output_path, input_path=input_path,
+                    ready_deadline=min(now + 30, deadline) if deadline is not None else now + 30)
+            except Exception as error:
+                cleanup = getattr(error, 'cleanup', {'state': 'unknown'})
+                self._cleanup_reports.append(cleanup)
+                not_started = not admission['submitted'] and cleanup['state'] == 'clean'
+                raise ContractError('Helper startup failed before command submission.' if not_started else
+                    'Helper startup failed; execution or cleanup is unconfirmed.',
+                    kind='HELPER_NOT_STARTED' if not_started else 'INDETERMINATE', code=-32010,
+                    details={'stage': 'startup', 'submitted': admission['submitted'], 'cleanup': cleanup}) from error
             child = owner.process
             from forge.tools.shell import _read_bounded
             stderr_task = (asyncio.create_task(_read_bounded(child.stderr, 4096, None,
@@ -142,10 +159,9 @@ class FileWorkerClient:
                 if service:
                     self._service_receipt(owner, request_id, 'running')
                 self._require_open()  # Close may have started while the owned process was launching.
-                seconds = self._seconds(request)
-                async with asyncio.timeout(seconds + 5 if seconds is not None else None):
-                    admission['submitted'] = True
+                async with asyncio.timeout_at(deadline):
                     if child.stdin is not None:
+                        admission['submitted'] = True
                         child.stdin.write(raw)
                         await child.stdin.drain()
                         child.stdin.close()

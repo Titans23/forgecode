@@ -405,6 +405,8 @@ class ToolExecutor:
                     return operation_outcome(call, ToolResult.ok('Service ownership transferred; the process has not exited.',
                         metadata={'cleanup': report}), 'executed', started, arguments, *self._state())
                 confirmed = report.get('state') in {'clean', 'transferred'}
+                if confirmed and getattr(cancellation, 'details', {}).get('submitted') is False:
+                    execution_started = False
                 result = ToolResult.fail('execution_cancelled',
                     'Operation cancelled; partial effects may remain. Inspect before retrying.',
                     details={**getattr(cancellation, 'details', {}),
@@ -426,7 +428,7 @@ class ToolExecutor:
             async def finalize():
                 nonlocal result
                 not_started = (result.error is not None
-                    and result.error.code == 'SANDBOX_UNAVAILABLE'
+                    and result.error.code in {'SANDBOX_UNAVAILABLE', 'HELPER_NOT_STARTED'}
                     and result.error.details.get('command_started') is False)
                 if (
                     not not_started and effect == 'process'

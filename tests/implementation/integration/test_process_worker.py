@@ -13,6 +13,45 @@ from forge.tools import create_default_registry
 from forge.runtime.state import ToolCall
 
 
+@pytest.mark.skipif(sys.platform != 'linux', reason='Linux worker ready pipe')
+@pytest.mark.parametrize('early_exit', [True, False])
+def test_worker_launch_acknowledgement_and_submission(tmp_path, monkeypatch, early_exit):
+    from forge.release import processes
+
+    root, control, workspace, policy = fixture(tmp_path)
+    policy['execution_mode'] = 'full-access'
+    original = processes.worker_argv
+
+    def wrapped(*args, **kwargs):
+        command = original(*args, **kwargs)
+        if kwargs.get('ready_fd') is None:
+            return command
+        program = ('raise SystemExit(1)' if early_exit else
+            'import os,sys,time; time.sleep(5.1); os.execv(sys.argv[1], sys.argv[1:])')
+        return [sys.executable, '-c', program, *command]
+
+    async def run():
+        client = FileWorkerClient(workspace, policy, local_control=control)
+        command = ToolCall(0, 'launch', 'run_command', {'command': 'echo executed >> marker'})
+        backend = FileToolBackend(client)
+        registry = create_default_registry(root)
+        try:
+            with monkeypatch.context() as patch:
+                patch.setattr(processes, 'worker_argv', wrapped)
+                async with asyncio.timeout(4 if early_exit else 18):
+                    result = await backend.execute(command, registry)
+            if early_exit:
+                assert result.error.code == 'HELPER_NOT_STARTED'
+                assert result.error.details['command_started'] is False
+                assert result.error.details['cleanup']['state'] == 'clean'
+                assert not (root / 'marker').exists()
+                result = await backend.execute(command, registry)
+            assert result.success and (root / 'marker').read_text().splitlines() == ['executed']
+        finally:
+            await backend.close()
+    asyncio.run(run())
+
+
 def test_real_helper_verification_runs_program_with_original_evidence_fields(tmp_path):
     root, control, workspace, policy = fixture(tmp_path)
     (root / 'check.py').write_text('import json; print(json.dumps({"answer":42}))')

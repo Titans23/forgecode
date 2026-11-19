@@ -46,7 +46,7 @@ class LocalProcessOwner:
 
     @classmethod
     async def start(cls, argv, *, cwd, environment, output=False, capture_stderr=False,
-                    output_path=None, input_path=None):
+                    output_path=None, input_path=None, ready_deadline=None):
         if not isinstance(argv, list) or not argv or not all(isinstance(x, str) for x in argv):
             raise ValueError('Owned launch requires an explicit argument list')
         job = None
@@ -71,6 +71,7 @@ class LocalProcessOwner:
             raise ValueError('Process ownership requires Windows Job or Linux subreaper')
         process = None
         async def launch_child():
+            nonlocal ready_write
             if input_path is not None:
                 if not sys.platform.startswith('linux') or output_path is None:
                     raise ValueError('File-backed service handoff requires Linux')
@@ -78,24 +79,31 @@ class LocalProcessOwner:
                     with Path(input_path).open('rb') as source, Path(output_path).open('wb') as destination:
                         return _DetachedProcess(subprocess.Popen(argv, **{**options,
                             'stdin': source, 'stdout': destination}))
-                return await asyncio.to_thread(spawn)
-            if output_path is not None:
+                child = await asyncio.to_thread(spawn)
+            elif output_path is not None:
                 with Path(output_path).open('wb') as destination:
-                    return await asyncio.create_subprocess_exec(*argv, **{**options, 'stdout': destination})
-            return await asyncio.create_subprocess_exec(*argv, **options)
+                    child = await asyncio.create_subprocess_exec(*argv, **{**options, 'stdout': destination})
+            else:
+                child = await asyncio.create_subprocess_exec(*argv, **options)
+            if ready_write is not None:
+                os.close(ready_write)
+                ready_write = None
+            return child
         launch = asyncio.create_task(launch_child())
         ready = None
+        loop = asyncio.get_running_loop()
+        if ready_deadline is None:
+            ready_deadline = loop.time() + 5
         async def wait_ready():
-            async with asyncio.timeout(5):
-                while True:
-                    try:
-                        value = os.read(ready_read, 1)
-                    except BlockingIOError:
-                        await asyncio.sleep(.01)
-                        continue
-                    if value != b'!':
-                        raise OSError('Owned worker exited before establishing cleanup')
-                    return
+            readable = asyncio.Event()
+            loop.add_reader(ready_read, readable.set)
+            try:
+                async with asyncio.timeout_at(ready_deadline):
+                    await readable.wait()
+                if os.read(ready_read, 1) != b'!':
+                    raise OSError('Owned worker exited before establishing cleanup')
+            finally:
+                loop.remove_reader(ready_read)
         try:
             process = await asyncio.shield(launch)
             if ready_read is not None:
@@ -135,6 +143,8 @@ class LocalProcessOwner:
             if isinstance(error, asyncio.CancelledError):
                 from forge.tool_types import ToolExecutionCancelled
                 raise ToolExecutionCancelled(cleanup) from error
+            if isinstance(error, Exception):
+                error.cleanup = cleanup
             raise
         finally:
             for descriptor in (ready_read, ready_write):
