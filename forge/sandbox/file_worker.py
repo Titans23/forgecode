@@ -131,7 +131,7 @@ class FileAccess:
                 current = self.observation(path)
                 if path in self.expected and current['sha256'] != self.expected[path]:
                     if self.expected[path] is None:
-                        fail('FS_NOT_OBSERVED', 'Read the existing file before replacing or editing it')
+                        fail('FS_NOT_OBSERVED', f'Read the existing file {raw!r} before editing it; no change was applied.')
                     fail('STALE_FILE', 'File changed after the approved observation')
                 previous = self.before.setdefault(path, current)
                 if previous != current:

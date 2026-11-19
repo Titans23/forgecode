@@ -431,7 +431,7 @@ def materialize_unified_file_change(
         if position < 0 or current[position:position + len(old_lines)] != old_lines:
             raise _EnvelopeError(
                 f'Unified hunk context does not match current content in '
-                f'{target_path!r}.',
+                f'{target_path!r}. Read the affected lines and rebuild the hunk against their current text.',
                 code='patch_context_not_found',
                 details={'path': target_path},
             )

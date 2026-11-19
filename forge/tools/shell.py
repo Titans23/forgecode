@@ -345,7 +345,7 @@ def render_process_output(result: ProcessResult) -> str:
     if result.stdout:
         suffix = (
             f'\n[stdout head/tail preview; {result.stdout_bytes} bytes total; '
-            + (f'read_context_artifact artifact_id={result.stdout_artifact}]' if result.stdout_artifact else 'output truncated]')
+            + (f'stored artifact sha256={result.stdout_artifact}]' if result.stdout_artifact else 'output truncated]')
             if result.stdout_truncated
             else ''
         )
@@ -353,7 +353,7 @@ def render_process_output(result: ProcessResult) -> str:
     if result.stderr:
         suffix = (
             f'\n[stderr head/tail preview; {result.stderr_bytes} bytes total; '
-            + (f'read_context_artifact artifact_id={result.stderr_artifact}]' if result.stderr_artifact else 'output truncated]')
+            + (f'stored artifact sha256={result.stderr_artifact}]' if result.stderr_artifact else 'output truncated]')
             if result.stderr_truncated
             else ''
         )
@@ -363,7 +363,7 @@ def render_process_output(result: ProcessResult) -> str:
 
 class RunCommandInput(SandboxInput):
     run_in_background: bool = Field(default=False,
-        description='Start an owned background job and return its job_id. Use job_output to wait/read output and job_kill to cancel. Dependent commands must wait for completion.')
+        description='Return an owned job ID immediately. Wait for successful exit before dependent work.')
     command: str = Field(min_length=1)
     cwd: str = '.'
     lifetime: Literal['command', 'session'] = Field(default='command',
@@ -379,10 +379,7 @@ class RunCommandTool(Tool[RunCommandInput]):
     supports_background = True
     name = 'run_command'
     description = (
-        'Run an executable command for exploration, diagnostics, '
-        'or development under the selected execution policy. '
-        'Use verify instead when the command is '
-        'intended as formal completion evidence. For multiline scripts, pass '
+        'Run a shell command in cwd and return output and exit status. For multiline scripts, pass '
         'command="python -" or command="node" and put the script in stdin; '
         'do not embed a POSIX heredoc in command. '
         + (

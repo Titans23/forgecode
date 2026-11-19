@@ -535,8 +535,17 @@ class ToolExecutor:
             async def run_job():
                 return await self.finish(await operation())
             identity = self.jobs.start(effective_call, run_job, owner=parent_turn.get())
+            hints = [f'job_id: {identity} (queued)']
+            if 'job_output' in self.registry.names:
+                if arguments.get('lifetime') == 'session':
+                    hints.append('Use job_output with after=0 for initial output. Check service readiness separately.')
+                else:
+                    hints.append('Use job_output with wait_for="completion" and wait_seconds=30 to await exit.')
+                hints.append('For new output, pass after=next_cursor from the last response.')
+            if 'job_kill' in self.registry.names:
+                hints.append('Use job_kill to cancel this job.')
             result = ToolResult.ok('Background command accepted; it has not completed.',
-                content=f'job_id: {identity}\nUse job_output to read status/output or job_kill to cancel.',
+                content='\n'.join(hints),
                 metadata={'job_id': identity, 'state': 'queued', 'background': True})
             async def finish_start():
                 await self._hook('PostToolUse', effective_call, arguments, result=result)

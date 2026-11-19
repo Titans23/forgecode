@@ -285,9 +285,11 @@ class ToolRegistry:
         *,
         workspace_tracker: Any | None = None,
         hidden_tools: Iterable[str] = (),
+        include_artifact_reader: bool = False,
     ) -> None:
         self._tools: dict[str, ToolContract] = {}
         self._hidden_tools = frozenset(hidden_tools)
+        self.include_artifact_reader = include_artifact_reader
         self.workspace_tracker = workspace_tracker
         from forge.file_mutations import FileMutationLocks
         self.file_mutations = FileMutationLocks()

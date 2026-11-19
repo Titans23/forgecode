@@ -246,7 +246,7 @@ class Conversation:
         )
         if (
             registry is not None
-            and 'finish_task' in registry.names
+            and registry.include_artifact_reader
             and 'read_context_artifact' not in registry.names
         ):
             registry.register(ReadContextArtifactTool(resolved_context_root, self.context))
@@ -528,8 +528,7 @@ class Conversation:
                 '[Runtime Environment]\n'
                 '- platform: Windows\n'
                 '- process shell for command strings: cmd.exe\n'
-                '- repository inspection: use read_file, list_directory, grep, '
-                'or find_files; do not use ls, POSIX find, cat, or heredocs\n'
+                '- use native Windows command syntax; cmd.exe does not support POSIX heredocs\n'
                 f'- verification: use {verification_hint}'
             )
         else:

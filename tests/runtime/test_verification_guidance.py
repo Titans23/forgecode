@@ -10,6 +10,28 @@ from forge.config import ForgeConfig
 from forge.runtime.state import ModelTextDelta, ModelResponseCompleted, ModelToolCallCompleted, ToolCall
 
 
+def test_custom_tool_request_only_guides_available_actions(tmp_path):
+    class Reader:
+        model = 'offline'
+        async def stream(self, messages, tools, system):
+            assert [tool['name'] for tool in tools] == ['read_context_artifact']
+            assert 'read_context_artifact' in messages[-1]['content']
+            for absent in ('finish_task', 'task_plan', 'review_delivery', 'job_kill', 'job_output'):
+                assert absent not in system and absent not in messages[-1]['content']
+            yield ModelTextDelta('done')
+            yield ModelResponseCompleted('end_turn')
+        async def aclose(self): pass
+
+    async def run():
+        root = tmp_path / 'workspace'
+        root.mkdir()
+        options = SessionOptions(root, data_root=tmp_path/'data', config=ForgeConfig(api_key='offline', model_id='offline'),
+            agent=AgentDefinition(tools=('read_context_artifact',)))
+        async with await HarnessSession.open(options, model_client_factory=lambda *a, **kw: Reader()) as session:
+            assert (await session.run('Inspect this output.')).status == 'completed'
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('strict', [False, True])
 def test_verification_guidance_preserves_the_selected_completion_policy(tmp_path, strict):
     root = tmp_path/'project'

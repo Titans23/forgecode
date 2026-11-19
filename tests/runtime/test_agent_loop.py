@@ -1103,11 +1103,11 @@ def test_system_prompt_defines_forgecode_identity() -> None:
     assert 'You are ForgeCode' in prompt
     assert 'do not claim to be another product' in prompt
     assert 'Use the tools available in this request' in prompt
-    assert 'finish_task is optional structured submission' in prompt
-    assert 'Tool schema errors and repeated reads\nare recoverable' in prompt
+    assert 'finish_task' not in prompt
+    assert 'Tool argument errors and repeated reads are recoverable' in prompt
     assert 'perform destructive actions without authorization' in prompt
-    assert 'use verify for the relevant test' in prompt
-    assert 'Batch\nindependent actions only' in prompt
+    assert 'independent reference' in prompt
+    assert 'Batch independent actions only' in prompt
     assert 'Avoid unrelated optional checks' in prompt
 
 

@@ -1,6 +1,7 @@
 '''Tests for cheap context compaction.'''
 
 from pathlib import Path
+from hashlib import sha256
 import json
 
 from forge.context.compactor import CompactionConfig, cheap_compact
@@ -61,7 +62,8 @@ def test_large_tool_result_preview_keeps_head_and_tail_without_read_path(
     assert 'TAIL_ERROR' in compacted
     assert '[... tool result middle pruned ...]' in compacted
     assert 'path:' not in compacted
-    assert 'read_context_artifact' in compacted
+    assert sha256(content.encode()).hexdigest() in compacted
+    assert 'read_context_artifact' not in compacted
 
 
 def test_small_tool_results_stay_verbatim_regardless_of_age() -> None:

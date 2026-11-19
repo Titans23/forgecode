@@ -270,7 +270,7 @@ def persist_large_tool_results(
         reference = (
             '[ForgeCode stored a large tool result]\n'
             f'sha256: {digest}\ncharacters: {total}\n'
-            'Read complete content with read_context_artifact using this sha256.\n'
+            'Only the head and tail are shown below.\n'
         )
         if isinstance(content, str):
             block['content'] = reference + ''.join(item['text'] for item in preview)

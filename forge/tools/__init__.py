@@ -94,6 +94,7 @@ def create_default_registry(
         # Chunked writes remain an internal compatibility primitive. Normal
         # model calls can use write_file or apply_patch for large text edits.
         hidden_tools={'write_file_chunk'},
+        include_artifact_reader=selected_tools is None or 'read_context_artifact' in selected_tools,
     )
     if 'run_command' in registry.names and getattr(getattr(tool_backend, 'observer', None), 'policy', {}).get('execution_mode') is not None:
         registry.implementation('run_command').description = RunCommandTool.description
