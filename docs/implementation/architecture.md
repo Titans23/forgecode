@@ -12,6 +12,8 @@ coding 的 `features` 可选择 tasks、repository、skills、hooks、mcp、chec
 
 `finish_task` 的模型自填验收条件仅在调用方启用 `require_acceptance_reconciliation` 时注册和核对；普通模式不会因引用措辞不匹配而把 completed 改成 partial。已显式配置的完成检查、调用方要求和有限命令等待仍生效；模型声明 partial/failed 保持原状，完成声明也不代表官方判分通过。
 
+普通 coding 使用固定的基础工具组合，Skills 根据实际目录显示，插件与 MCP 可继续注册工具。专用 Git、目录管理、Explore 和交付审查按组合选择；显式启用任务能力或恢复已有计划时提供计划工具。每个模型请求从同一份经过权限与模型能力过滤的工具定义生成操作指引。后台回执标明运行状态，长输出按字符游标分页。
+
 普通 CLI/SDK 会话的 `verify` 只接收命令、工作目录、stdin、超时和单次授权参数，记录退出码、输出、耗时及执行时的工作区状态，不要求 JSON 报告、检查 ID 或需求绑定，也不分析检查程序是否足以证明任务完成。`AgentDefinition(completion="strict")` 或显式 TaskPolicy 才装配完整验收接口；两种模式复用同一命令执行与授权路径。既有低层 `VerifyTool` / `create_default_registry` 的默认接口为兼容调用方保持不变，可用 `strict=False` / `strict_verification=False` 选择简化接口。
 
 保留单仓库和单 Python 分发包，模型、CLI、coding、MCP、观测、渠道、验收和 benchmark 依赖按 extra 安装。插件复用唯一 PluginHost，不为每个领域新增循环、日志系统或依赖注入容器。Docker 不参与日常 SDK/CLI 安装和运行。

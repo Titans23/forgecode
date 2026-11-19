@@ -98,3 +98,11 @@ def test_integration_environment_expansion_is_workspace_scoped(tmp_path, monkeyp
         'probe': {'type': 'http', 'url': '${FORGE_PROBE_ENDPOINT}'}}}))
     assert load_runtime_mcp_servers(tmp_path)['probe'].url == 'https://offline.invalid/mcp'
     assert 'FORGE_PROBE_ENDPOINT' not in os.environ
+
+
+def test_shell_model_message_carries_output_once_without_mutating_execution_result():
+    result = ToolResult.ok('done', content='stdout:\nunique-output',
+        metadata={'stdout': 'unique-output\n', 'stderr': '', 'exit_code': 0})
+    message = build_tool_result_message([(ToolCall(0, 'shell', 'run_command', {}), result)])
+    assert message['content'][0]['content'].count('unique-output') == 1
+    assert result.metadata['stdout'] == 'unique-output\n'

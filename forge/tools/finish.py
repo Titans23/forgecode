@@ -15,17 +15,14 @@ TaskKind = Literal['answer', 'inspection', 'change']
 FinishStatus = Literal['completed', 'partial', 'blocked', 'failed']
 
 
-class FinishTaskInput(ToolInput):
+class SubmissionInput(ToolInput):
     task_kind: TaskKind
     status: FinishStatus
     summary: str = Field(min_length=1, max_length=20_000)
     blocked_reasons: list[str] = Field(default_factory=list, max_length=20)
-    acceptance_criteria: list[AcceptanceCriterion] = Field(default_factory=list, max_length=20,
-        description='For an explicit reconciliation contract, register original requirements without creating a plan. '
-        'Used only if no criteria exist; later completion is read-only. Use task_plan to add distinct clauses; omit for failed.')
 
     @model_validator(mode='after')
-    def validate_status(self) -> FinishTaskInput:
+    def validate_status(self) -> SubmissionInput:
         if self.status == 'blocked' and not self.blocked_reasons:
             raise ValueError(
                 'blocked_reasons must explain why a blocked task cannot '
@@ -40,6 +37,12 @@ class FinishTaskInput(ToolInput):
         return self
 
 
+class FinishTaskInput(SubmissionInput):
+    acceptance_criteria: list[AcceptanceCriterion] = Field(default_factory=list, max_length=20,
+        description='For an explicit reconciliation contract, register original requirements without creating a plan. '
+        'Used only if no criteria exist; later completion is read-only. Use task_plan to add distinct clauses; omit for failed.')
+
+
 class FinishTaskTool(Tool[FinishTaskInput]):
     name = 'finish_task'
     description = (
@@ -52,8 +55,13 @@ class FinishTaskTool(Tool[FinishTaskInput]):
     )
     input_model = FinishTaskInput
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, ordinary=False) -> None:
         super().__init__(root)
+        if ordinary:
+            self.input_model = SubmissionInput
+            self.description = ('Submit a structured result as the only call in the batch. Use partial for unfinished work, '
+                                'blocked for an observed external dependency, or failed for an unsuccessful attempt. '
+                                'A direct final answer can complete ordinary work.')
 
     async def execute(self, arguments: FinishTaskInput) -> ToolResult:
         return ToolResult.ok(
@@ -64,7 +72,7 @@ class FinishTaskTool(Tool[FinishTaskInput]):
                 'status': arguments.status,
                 'summary': arguments.summary,
                 'blocked_reasons': arguments.blocked_reasons,
-                'acceptance_criteria': [item.model_dump() for item in arguments.acceptance_criteria],
+                'acceptance_criteria': [item.model_dump() for item in getattr(arguments, 'acceptance_criteria', ())],
             },
         )
 

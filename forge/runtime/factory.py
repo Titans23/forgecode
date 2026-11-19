@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Callable, TYPE_CHECKING
 
 from forge.config import ForgeConfig, model_environment
-from forge.agents import AgentDefinition
+from forge.agents import AgentDefinition, CODING_TOOLS
 from forge.hooks import HookManager
 from forge.runtime.agent_loop import Conversation
 from forge.runtime.dependencies import RuntimeBindings
@@ -107,10 +107,12 @@ def create_runtime(
         from forge.sessions.checkpoint import CheckpointStore
         checkpoint = CheckpointStore.for_session(root, journal.path, journal.session_id)
     from forge.tools.base import ToolRegistry
+    ordinary_defaults = coding and agent.tools is None and task_policy is None
+    selected = CODING_TOOLS if ordinary_defaults else agent.tools
     registry = create_default_registry(root, execution_profile=execution_profile,
         allow_container_writes=allow_container_writes,
         model_client_factory=lambda: client_factory(replace(config, model_id=model.model)),
-        selected_tools=agent.tools, skills_enabled='skills' in features,
+        selected_tools=selected, skills_enabled='skills' in features,
         strict_verification=task_policy is not None,
         **({'tool_backend': bindings.backend, 'event_recorder': bindings.recorder} if bindings else {})) if coding else ToolRegistry()
     if bindings and bindings.plugin_host:
@@ -129,7 +131,8 @@ def create_runtime(
         registry=registry, initial_messages=list(state.messages) if state else None,
         active_task=state.active_task if state else None, session_journal=journal,
         checkpoint_store=checkpoint, session_store=store, hook_manager=hooks, mcp_manager=mcp,
-        task_policy=task_policy, context_root=root, include_task_tools=coding,
+        task_policy=task_policy, context_root=root, include_task_tools=coding and (
+            not ordinary_defaults or agent.features is not None or bool(state and state.active_task and state.active_task.steps)),
         coding=coding, features=features,
         system_prompt=agent.system_prompt,
         max_parallel_tools=agent.max_parallel_tools,

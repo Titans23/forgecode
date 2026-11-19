@@ -444,6 +444,15 @@ def build_tool_result_message(
     content: list[dict[str, Any]] = []
     for tool_call, result in tool_results:
         body: str | list[Any]
+        if tool_call.name in {'run_command', 'verify'} and result.content:
+            # The execution record and SDK keep raw streams. The model already
+            # sees their labelled preview in content, including truncation hints.
+            metadata = dict(result.metadata)
+            for stream in ('stdout', 'stderr'):
+                value = metadata.get(stream)
+                if isinstance(value, str) and value.rstrip() and f'{stream}:\n{value.rstrip()}' in result.content:
+                    del metadata[stream]
+            result = replace(result, metadata=metadata)
         blocks = result.metadata.get('content_blocks') or ([result.metadata['image']] if 'image' in result.metadata else [])
         if blocks:
             description = replace(result, metadata={k: v for k, v in result.metadata.items() if k not in {'image', 'content_blocks'}})

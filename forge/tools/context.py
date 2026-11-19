@@ -38,17 +38,20 @@ class ReadContextArtifactTool(Tool[ReadContextArtifactInput]):
     async def execute(self, arguments: ReadContextArtifactInput) -> ToolResult:
         try:
             content = self.manager.read_artifact(
-                arguments.artifact_id, max_characters=arguments.max_characters,
+                arguments.artifact_id, max_characters=arguments.max_characters + 1,
                 offset=arguments.offset,
             )
         except (ValueError, FileNotFoundError) as error:
             raise ToolExecutionError('invalid_context_artifact', str(error)) from error
+        has_more = len(content) > arguments.max_characters
+        content = content[:arguments.max_characters]
         return ToolResult.ok(
             'Read the bounded context artifact.', content=content,
             metadata={
                 'artifact_id': arguments.artifact_id,
                 'offset': arguments.offset,
                 'characters_returned': len(content),
+                'has_more': has_more,
                 'next_offset': arguments.offset + len(content),
             },
         )

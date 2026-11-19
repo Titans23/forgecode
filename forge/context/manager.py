@@ -481,11 +481,19 @@ class ContextManager:
         except ValueError as error:
             raise ValueError('Artifact path is outside the context store.') from error
         try:
+            if offset is not None:
+                # Offsets count decoded characters, including for multibyte UTF-8.
+                with path.open(encoding='utf-8', errors='replace') as stream:
+                    remaining = offset
+                    while remaining:
+                        skipped = stream.read(min(remaining, 65_536))
+                        if not skipped:
+                            return ''
+                        remaining -= len(skipped)
+                    return stream.read(max_characters)
             content = path.read_text(encoding='utf-8', errors='replace')
         except OSError as error:
             raise FileNotFoundError(f'Unknown tool-result artifact: {artifact_id}') from error
-        if offset is not None:
-            return content[offset:offset + max_characters]
         if len(content) <= max_characters:
             return content
         tail = max(1, max_characters // 3)

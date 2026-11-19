@@ -253,6 +253,10 @@ class TurnRunner:
     def _tools(self):
         c = self.conversation
         definitions = c._permission_filtered_tools(c._tool_definitions())
+        agent = getattr(c, 'agent_definition', None)
+        if (definitions and agent is not None and agent.tools is None and c.completion_gate is None
+                and c.skill_manager is not None and not c.skill_manager.skills):
+            definitions = [item for item in definitions if item['name'] not in {'load_skill', 'read_skill_resource'}]
         task = c.active_task
         if definitions is not None and (task is None or not task.acceptance_criteria):
             definitions = [item for item in definitions if item['name'] != 'task_revise_requirement']

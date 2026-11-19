@@ -87,7 +87,7 @@ def create_default_registry(
             (GitDiffTool, lambda: GitDiffTool(root)),
             (ExploreRepositoryTool, lambda: ExploreRepositoryTool(root, client_factory=model_client_factory,
                                   tool_backend=tool_backend, event_recorder=event_recorder)),
-            (FinishTaskTool, lambda: FinishTaskTool(root)),
+            (FinishTaskTool, lambda: FinishTaskTool(root, ordinary=not strict_verification)),
             (ReviewDeliveryTool, lambda: ReviewDeliveryTool(root))
         ) if selected_tools is None or kind.name in selected_tools],
         workspace_tracker=tracker,

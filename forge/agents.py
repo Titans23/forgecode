@@ -5,6 +5,15 @@ import re
 
 CODING_FEATURES = frozenset({'tasks', 'repository', 'skills', 'hooks', 'mcp', 'checkpoints'})
 
+# Built-in tools for ordinary work. Skills contribute their readers when enabled;
+# plugins and MCP still register their own tools into the session.
+CODING_TOOLS = (
+    'list_directory', 'find_files', 'read_file', 'view_image', 'grep',
+    'write_file', 'replace_text', 'apply_patch', 'run_command', 'verify',
+    'finish_task', 'job_output', 'job_kill', 'read_context_artifact',
+    'load_skill', 'read_skill_resource',
+)
+
 
 @dataclass(frozen=True, slots=True)
 class PluginSpec:

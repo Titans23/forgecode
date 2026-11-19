@@ -241,9 +241,7 @@ class SkillManager:
         lines = [
             '[ForgeCode Skills]',
             'Skills are reusable instructions with progressive disclosure.',
-            'Metadata below is always visible. When a skill clearly matches the '
-            'request, call load_skill before acting; use read_skill_resource only '
-            'for a resource named by the loaded skill. A $skill-name mention '
+            'Use matching skill instructions and only their named resources. A $skill-name mention '
             'is explicit activation and its instructions are already included.',
             '',
             'Available skills:',

@@ -67,6 +67,8 @@ forge config
 
 在目标项目目录运行 `forge`。默认 coding Agent；`forge --agent core` 启动通用助手，`forge --agent <已配置名称>` 选择组合。
 
+普通 coding 直接提供目录浏览、文件搜索和读写、精确替换、补丁、命令、后台作业、验证、长输出分页与结构化交付。模型支持图片时可查看图片，有可用 Skill 时显示 Skill 工具。Git 操作可通过命令执行。需要专用 Git、目录管理、计划或 Explore 工具的组合可以用 `agents.<名称>.tools` 指定完整白名单；严格验收会话继续提供验收工具。
+
 | 操作 | 行为 |
 |---|---|
 | `Ctrl+O`、`/details` | 展开思考与工具详情；完成后可滚动、搜索 |
