@@ -577,14 +577,19 @@ def _prerequisite_install_command() -> str:
 
 
 def _locked_install_command(source: str) -> str:
+    from benchmark.harbor.prepare import UV_VERSION
+    # SHA-256 of the uv member of the official static Linux release archives
+    # (x86_64 and aarch64 respectively). No trust is placed in a cache receipt.
+    bootstrap = shlex.join(['bash', '-c', Path(__file__).with_name('install_uv.sh').read_text(encoding='utf-8'),
+        'install-uv', UV_VERSION, _CACHE_DIR, _AGENT_ROOT + '/bin/uv',
+        '6470fe2ab573e01f703fd76cada1952f7755dd0fc7f2f6ac0bee1d5f8ba4413e',
+        '81c5580512517a912bad0057062d689fa74163772d43b013ee670e11fd524380'])
     return ('set -euo pipefail; '
         f'export UV_PROJECT_ENVIRONMENT={shlex.quote(_AGENT_ROOT+"/.venv")}; '
         f'export UV_PYTHON_INSTALL_DIR={shlex.quote(_CACHE_DIR+"/python")}; '
         f'UV_BIN={shlex.quote(_AGENT_ROOT+"/bin/uv")}; '
         'export UV_HTTP_RETRIES=2 UV_HTTP_TIMEOUT=60; '
-        'curl --proto "=https" --tlsv1.2 --retry 2 --retry-delay 2 --retry-connrefused '
-        '--connect-timeout 15 --max-time 60 -LsSf https://astral.sh/uv/0.12.5/install.sh | '
-        f'UV_UNMANAGED_INSTALL={shlex.quote(_AGENT_ROOT+"/bin")} sh; '
+        f'{bootstrap}; '
         '"$UV_BIN" --version | grep -Eq "^uv 0[.]12[.]5( |$)"; '
         '"$UV_BIN" python install 3.12.13; '
         f'"$UV_BIN" sync --frozen --no-dev --no-editable --extra coding --extra anthropic --extra openai --extra gemini --extra validation --python 3.12.13 --project {shlex.quote(source)} '
