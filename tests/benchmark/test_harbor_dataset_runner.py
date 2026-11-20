@@ -133,7 +133,8 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     monkeypatch.setattr(settings.os, 'environ', {'XDG_DATA_HOME': str(tmp_path)})
     monkeypatch.chdir(tmp_path)
     user = tmp_path / 'user.env'
-    user.write_text('FORGE_API_KEY=offline-fixture-secret\nFORGE_MODEL=fixture-model\nFORGE_REASONING_EFFORT=high\n')
+    user.write_text('FORGE_API_KEY=offline-fixture-secret\nFORGE_MODEL=fixture-model\nFORGE_REASONING_EFFORT=high\n'
+                    'FORGECODE_EVALUATION_PROXY=http://host.docker.internal:17897\n')
     monkeypatch.setattr(settings, 'FORGECODE_ENV_PATH', user)
     metadata = SimpleNamespace(version='sha256:' + 'd' * 64, task_ids=[
         PackageTaskId(org='terminal-bench', name=name, ref='sha256:' + 'a' * 64) for name in ('z', 'a')])
@@ -172,6 +173,7 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     restored = JobConfig.model_validate_json(raw)
     assert restored.n_concurrent_trials == 20
     assert restored.environment.kwargs['setup_concurrency'] == 4
+    assert restored.environment.kwargs['evaluation_proxy'] == manifest['evaluation_proxy'] == 'http://host.docker.internal:17897'
     assert 'offline-fixture-secret' not in raw and config.api_key == 'offline-fixture-secret'
     assert restored.agents[0].env['FORGECODE_MODEL_MAX_TOKENS'] == '65536'
     assert restored.agents[0].env['FORGECODE_CONTEXT_WINDOW'] == '262144'

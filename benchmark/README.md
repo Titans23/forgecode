@@ -52,6 +52,8 @@ Docker 查询完整读取有界输出，单次最多等待 60 秒。查询超时
 
 ## Terminal-Bench 2.0：直接使用官方镜像
 
+Docker 评测可在运行器用户的 `~/.forge/.env` 中单独设置 `FORGECODE_EVALUATION_PROXY=http://host.docker.internal:17897`（示例端口，需已有可达代理）。运行器把地址记入实验配置，只在公开联网的 Linux 阶段给命令传入 HTTP(S) 代理。回环、Docker 宿主地址和常用私网 IP 加入 `NO_PROXY`，已有的域名例外继续生效。离线及域名白名单阶段沿用 Harbor 原策略。清除此配置后，新评测恢复 Docker 默认出口。
+
 默认直接使用每道任务 `task.toml` 声明的官方预构建镜像。Harbor 在容器可写层安装 ForgeCode，不提交派生镜像。普通 uv 缓存不等于预热镜像。
 
 不使用 `--prepare-only`、`--prepared-images`、`--force-build`，不运行额外 docker build/commit，除非调用方明确选择该模式。缺少预构建镜像时保持未验证；安装/联网失败应诊断原原因，不能自动换到预热路径。

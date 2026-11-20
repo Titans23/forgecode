@@ -349,6 +349,24 @@ def test_verifier_downloads_verify_before_delivery_and_keep_unrelated_curl_args(
     assert untouched.returncode == 27 and untouched.stdout == b'https://example.org/other'
 
 
+def test_eval_proxy_follows_the_current_network_policy(monkeypatch):
+    from benchmark.adapters.docker import EvaluationDockerEnvironment
+    from harbor.models.task.config import NetworkPolicy
+    calls = []
+    async def receive(self, **kwargs):
+        calls.append(kwargs)
+    monkeypatch.setattr(BoundedDockerEnvironment, 'exec', receive)
+    env = object.__new__(EvaluationDockerEnvironment)
+    env._evaluation_proxy = 'http://host.docker.internal:17897'
+    env._is_windows_container = False
+    for mode in ('public', 'no-network', 'allowlist'):
+        env._network_policy = NetworkPolicy(network_mode=mode, allowed_hosts=['example.org'] if mode == 'allowlist' else [])
+        asyncio.run(env.exec('fixture', env={'NO_PROXY': 'db'}))
+    assert {calls[0]['env'][k] for k in ('http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY')} == {env._evaluation_proxy}
+    assert calls[0]['env']['NO_PROXY'] == 'db' and 'host.docker.internal' in calls[0]['command']
+    assert all(c['env'] == {'NO_PROXY': 'db'} and c['command'] == 'fixture' for c in calls[1:])
+
+
 def test_transport_budget_does_not_shorten_agent_execution(monkeypatch):
     observed = []
 

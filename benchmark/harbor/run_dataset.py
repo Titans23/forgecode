@@ -205,6 +205,15 @@ def effective_configuration(args) -> tuple[ForgeConfig | None, dict]:
             raise ValueError('Completion policy differs from frozen plan')
         manifest['completion_policy'] = completion
         manifest['composition'] = runtime_bundle(args.launch_plan)
+    proxy = model_environment(args.env_file, normalize_aliases=False).get('FORGECODE_EVALUATION_PROXY')
+    if proxy:
+        endpoint = urlsplit(proxy)
+        if (endpoint.scheme not in {'http', 'https'} or not endpoint.hostname or endpoint.username is not None
+                or endpoint.password is not None or endpoint.path not in {'', '/'} or endpoint.query or endpoint.fragment
+                or any(ch.isspace() for ch in proxy)):
+            raise ValueError('FORGECODE_EVALUATION_PROXY requires an HTTP(S) endpoint without credentials, query or path.')
+        _ = endpoint.port  # Validate before storing the endpoint in the public manifest.
+        manifest['evaluation_proxy'] = proxy
     return config, manifest
 
 
@@ -247,6 +256,7 @@ def frozen_job(args, manifest, taskset, source, output):
         environment=EnvironmentConfig(import_path='benchmark.adapters.docker:EvaluationDockerEnvironment',
             kwargs={'receipt_path': str(output / 'resources.jsonl'),
                     'setup_concurrency': manifest['setup_concurrency'],
+                    **({'evaluation_proxy': manifest['evaluation_proxy']} if manifest.get('evaluation_proxy') else {}),
                     'prepared_images': manifest.get('prepared_image_mapping', {})},
             force_build=args.force_build, mounts=mounts),
         agents=[agent], tasks=[TaskConfig(path=resolve_task(output / 'tasks', taskset, name),

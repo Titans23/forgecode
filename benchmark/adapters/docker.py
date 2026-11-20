@@ -93,6 +93,8 @@ async def environment_identity(project):
 
 
 class EvaluationDockerEnvironment(BoundedDockerEnvironment):
+    _evaluation_proxy: str | None = None
+
     async def prepare_logs_for_host(self):
         from harbor.models.trial.paths import EnvironmentPaths
         from forge.sessions.trajectory import exception_diagnostics
@@ -114,6 +116,13 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
             self._receipt('log_ownership', seconds=monotonic()-started, error=error)
 
     async def exec(self, command, cwd=None, env=None, timeout_sec=None, user=None):
+        # Use the effective phase policy, including transitions after agent setup.
+        if self._evaluation_proxy and self._network_is_public and not self._is_windows_container:
+            env = {**dict.fromkeys(('http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY'), self._evaluation_proxy),
+                   **(env or {})}
+            command = ('export no_proxy="localhost,.localhost,127.0.0.0/8,127.0.0.1,::1,host.docker.internal,'
+                       'gateway.docker.internal,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,${no_proxy:-},${NO_PROXY:-}"; '
+                       'export NO_PROXY="$no_proxy"; ' + command)
         if env and env.get('FORGECODE_VERIFIER_BOOTSTRAP') == '1':
             env = {key: value for key, value in env.items() if key != 'FORGECODE_VERIFIER_BOOTSTRAP'}
             command = ('if command -v curl >/dev/null; then export FORGECODE_ORIGINAL_CURL="$(command -v curl)"; '
@@ -125,7 +134,7 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
             command = 'export PATH=/opt/forgecode-verifier/bin:"$PATH"; ' + command
         return await super().exec(command=command, cwd=cwd, env=env, timeout_sec=timeout_sec, user=user)
 
-    def __init__(self,*args,receipt_path,prepared_images=None,setup_concurrency=4,**kwargs):
+    def __init__(self,*args,receipt_path,prepared_images=None,setup_concurrency=4,evaluation_proxy=None,**kwargs):
         # The job plugin owns this shared limit; do not forward it to Docker.
         if not isinstance(setup_concurrency, int) or setup_concurrency < 1:
             raise ValueError('setup_concurrency must be a positive integer')
@@ -135,6 +144,7 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
                 raise ValueError('Task image was not prepared before evaluation')
             kwargs['task_env_config'] = config.model_copy(update={'docker_image': prepared_images[config.docker_image]})
         super().__init__(*args,**kwargs)
+        self._evaluation_proxy=evaluation_proxy
         self._receipt_path=Path(receipt_path)
         self._receipt_id=uuid4().hex
         self._resource_baseline=None
