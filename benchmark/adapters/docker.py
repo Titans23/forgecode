@@ -114,7 +114,11 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
             self._receipt('log_ownership', seconds=monotonic()-started, error=error)
 
     async def exec(self, command, cwd=None, env=None, timeout_sec=None, user=None):
-        if env and env.get('FORGECODE_VERIFIER_CACHE') == '1':
+        if env and env.get('FORGECODE_VERIFIER_BOOTSTRAP') == '1':
+            env = {key: value for key, value in env.items() if key != 'FORGECODE_VERIFIER_BOOTSTRAP'}
+            command = ('if command -v curl >/dev/null; then export FORGECODE_ORIGINAL_CURL="$(command -v curl)"; '
+                       'export PATH=/opt/forgecode-official-bin:"$PATH"; fi; ' + command)
+        elif env and env.get('FORGECODE_VERIFIER_CACHE') == '1':
             env = {key: value for key, value in env.items() if key != 'FORGECODE_VERIFIER_CACHE'}
             env['UV_DOWNLOAD_URL'] = 'file:///opt/forgecode-verifier'
             env['UV_OFFLINE'] = '1'

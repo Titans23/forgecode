@@ -152,7 +152,7 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
             (path / 'instruction.md').write_text('Offline structural fixture, not a benchmark result.')
             (path / 'task.toml').write_text('[agent]\ntimeout_sec=60\n')
             (path / 'environment/Dockerfile').write_text('FROM scratch\n')
-            (path / 'tests/test.sh').write_text('exit 0\n')
+            (path / 'tests/test.sh').write_text('curl -LsSf https://astral.sh/uv/0.9.5/install.sh | sh\n')
             results.append(SimpleNamespace(path=path, content_hash='a' * 64))
         return SimpleNamespace(results=results)
     monkeypatch.setattr(PackageDatasetClient, 'get_dataset_metadata', get_metadata)
@@ -202,6 +202,8 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text('')
+    (source / 'benchmark/harbor/verifier_curl.sh').write_bytes(
+        (runner.PROJECT_ROOT / 'benchmark/harbor/verifier_curl.sh').read_bytes())
     monkeypatch.setattr(runner, 'PROJECT_ROOT', source)
     monkeypatch.setattr(runner, 'preconditions', lambda source: {'offline_fixture': True})
     monkeypatch.setattr(runner, 'harbor_executable', lambda: 'offline-fixture-harbor')
@@ -216,6 +218,11 @@ def test_offline_materialization_and_job_pin_tasks_source_and_model(tmp_path, mo
     assert runner.main(arguments, default_dataset='terminal-bench/terminal-bench-2') == 0
     saved = json.loads((prepared / 'experiment.json').read_text())
     assert saved['source_manifest']['files']['uv.lock']
+    assert saved['grader']['env']['FORGECODE_VERIFIER_BOOTSTRAP'] == '1'
+    assert (prepared / '.official-bin/curl').read_text() == (source / 'benchmark/harbor/verifier_curl.sh').read_text()
+    config = json.loads((prepared / 'harbor.json').read_text())
+    assert config['environment']['mounts'][-1]['read_only'] is True
+    assert 'FORGECODE_VERIFIER_BOOTSTRAP' not in config['agents'][0]['env']
     assert 'offline-fixture-secret' not in (prepared / 'harbor.json').read_text()
     with pytest.raises(FileExistsError):
         runner.main(arguments, default_dataset='terminal-bench/terminal-bench-2')

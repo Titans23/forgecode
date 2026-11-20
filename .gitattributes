@@ -3,6 +3,7 @@
 /uv.lock text eol=lf
 benchmark/harbor/install_uv.sh text eol=lf
 benchmark/harbor/apt_transport.sh text eol=lf
+benchmark/harbor/verifier_curl.sh text eol=lf
 contracts/** text eol=lf
 forge/application/_generated_contracts.json text eol=lf
 forge/engine/migrations/*.sql text eol=lf

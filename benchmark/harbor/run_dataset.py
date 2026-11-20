@@ -237,6 +237,8 @@ def frozen_job(args, manifest, taskset, source, output):
         kwargs={'source_dir': str(source), 'frozen_configuration': json.dumps(frozen)})
     if frozen.get('composition'):
         agent.env.update({name: '${' + name + '}' for name in frozen['composition']['credential_references']})
+    mounts = [] if manifest.get('prepared_image_mapping') else [
+        {'type': 'bind', 'source': str(args.cache_dir.resolve()), 'target': '/opt/forgecode-cache'}]
     return JobConfig(job_name='job', jobs_dir=output, n_attempts=1, n_concurrent_trials=args.concurrency,
         metrics=[MetricConfig()],
         verifier=VerifierConfig(env=manifest['grader']['env']),
@@ -246,8 +248,7 @@ def frozen_job(args, manifest, taskset, source, output):
             kwargs={'receipt_path': str(output / 'resources.jsonl'),
                     'setup_concurrency': manifest['setup_concurrency'],
                     'prepared_images': manifest.get('prepared_image_mapping', {})},
-            force_build=args.force_build, mounts=[] if manifest.get('prepared_image_mapping') else [
-                {'type': 'bind', 'source': str(args.cache_dir.resolve()), 'target': '/opt/forgecode-cache'}]),
+            force_build=args.force_build, mounts=mounts),
         agents=[agent], tasks=[TaskConfig(path=resolve_task(output / 'tasks', taskset, name),
                                           source=args.dataset) for name in taskset['tasks']])
 
@@ -312,6 +313,19 @@ def main(argv: Sequence[str] | None = None, *, default_dataset: str | None = Non
         manifest['prepared_image_mapping'] = validate_prepared(prepared, manifest['source_manifest']['content_sha256'], images)
         manifest['prepared_images'] = prepared
     job = frozen_job(args, manifest, taskset, source, output)
+    if not manifest.get('prepared_images'):
+        from benchmark.harbor.verifier_cache import INSTALLER_URL
+        scripts = (task.path / 'tests/test.sh' for task in job.tasks)
+        if any(path.is_file() and INSTALLER_URL in path.read_text(encoding='utf-8', errors='replace') for path in scripts):
+            directory = output / '.official-bin'
+            directory.mkdir()
+            shim = directory / 'curl'
+            shim.write_text((driver / 'benchmark/harbor/verifier_curl.sh').read_text(encoding='utf-8'), newline='\n')
+            shim.chmod(0o755)
+            manifest['grader']['env']['FORGECODE_VERIFIER_BOOTSTRAP'] = '1'
+            job.verifier.env['FORGECODE_VERIFIER_BOOTSTRAP'] = '1'
+            job.environment.mounts.append({'type': 'bind', 'source': str(directory),
+                                           'target': '/opt/forgecode-official-bin', 'read_only': True})
     (output / 'experiment.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     configuration = output / 'harbor.json'
     # All credentials here are templates. Preserve numeric *_TOKENS settings;

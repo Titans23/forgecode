@@ -307,6 +307,40 @@ def test_verifier_cache_is_scoped_and_keeps_official_script(tmp_path, monkeypatc
     assert calls[0]['command'].endswith('official-test')
     assert calls[1] == {'command': 'agent-command', 'cwd': '/app', 'env': {'PATH': '/original'},
                         'timeout_sec': 7, 'user': 'root'}
+    asyncio.run(env.exec('official-test', env={'FORGECODE_VERIFIER_BOOTSTRAP': '1', 'UV_CACHE_DIR': '/cache'}))
+    assert calls[2]['env'] == {'UV_CACHE_DIR': '/cache'}
+    assert 'command -v curl' in calls[2]['command'] and '/opt/forgecode-official-bin:' in calls[2]['command']
+
+
+def test_verifier_downloads_verify_before_delivery_and_keep_unrelated_curl_args(tmp_path):
+    import subprocess
+    from hashlib import sha256
+    from benchmark.harbor.verifier_cache import INSTALLER_URL
+    script = Path(__file__).resolve().parents[2] / 'benchmark/harbor/verifier_curl.sh'
+    fixture = b'official fixture bytes\n'
+    local = tmp_path / 'wrapper'
+    local.write_text(script.read_text().replace('8402ab80d2ef54d7044a71ea4e4e1e8db3b20c87c7bffbc30bff59f1e80ebbd5',
+                     sha256(fixture).hexdigest()), newline='\n')
+    data = tmp_path / 'data'
+    data.write_bytes(fixture)
+    fake = tmp_path / 'real-curl'
+    fake.write_text('#!/bin/sh\nif [ "$1" = -I ]; then printf "%s" "$2"; exit 27; fi\n'
+                    'while [ "$1" != -o ]; do shift; done\ncp data "$2"; echo 200\n', newline='\n')
+    fake.chmod(0o755)
+    cache = tmp_path / 'cache'
+    cache.mkdir()
+    def call(*args):
+        return subprocess.run([str(_bash()), local.as_posix(), *args], cwd=tmp_path, capture_output=True,
+            env={**os.environ, 'FORGECODE_ORIGINAL_CURL': fake.as_posix(), 'UV_CACHE_DIR': cache.as_posix()})
+    assert call('-LsSf', INSTALLER_URL).stdout == fixture
+    data.write_bytes(b'bad release')
+    assert call('-LsSf', INSTALLER_URL).stdout == fixture
+    cached, = cache.iterdir()
+    cached.write_bytes(b'bad cache')
+    rejected = call('-LsSf', INSTALLER_URL)
+    assert rejected.returncode != 0 and rejected.stdout == b'' and b'SHA-256 mismatch' in rejected.stderr
+    untouched = call('-I', 'https://example.org/other')
+    assert untouched.returncode == 27 and untouched.stdout == b'https://example.org/other'
 
 
 def test_transport_budget_does_not_shorten_agent_execution(monkeypatch):
