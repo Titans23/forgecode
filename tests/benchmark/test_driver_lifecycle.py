@@ -34,6 +34,12 @@ def test_apt_transport_preserves_lists_and_repository_trust(tmp_path):
     assert third_party.read_text() == 'deb [signed-by=/keys/vendor.gpg] http://example.org/vendor stable main\n'
     assert 'Acquire::Retries "2"' in (apt / 'apt.conf.d/05forge-acquire').read_text()
     assert (apt / 'forge-bootstrap-ca.pem').read_bytes() == (tmp_path / 'ca.pem').read_bytes()
+    if Path('/usr/lib/apt/methods/mirror+file').is_file():
+        subprocess.run([str(_bash()), '-c', 'command() { [[ "$*" != "-v git" ]] && builtin command "$@"; }; source "$@"',
+                        'fixture', script.as_posix(), './apt', './ca.pem', './ca.pem'], cwd=tmp_path, check=True)
+        assert 'mirror+file:' in sources.read_text()
+        assert 'Acquire::Retries "0"' in (apt / 'apt.conf.d/05forge-acquire').read_text()
+        assert 'priority:2' in (apt / 'forge-archive.ubuntu.com.mirrors').read_text()
 
 
 def test_locked_installer_resolves_default_coding_dependencies():
