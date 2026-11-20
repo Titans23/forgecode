@@ -123,12 +123,20 @@ class ForgeCodeHarborAgent(BaseInstalledAgent):
             return
         install_spec = await self._prepare_install_spec(environment)
         user = shlex.quote(str(environment.default_user or 'root'))
+        apt_setup = ''
+        if self._frozen_configuration:
+            import certifi
+            ca_file = '/installed-agent/forge-apt-bootstrap-ca.pem'
+            await environment.upload_file(Path(certifi.where()), ca_file)
+            transport = Path(__file__).with_name('apt_transport.sh').read_text(encoding='utf-8')
+            apt_setup = shlex.join(['bash', '-c', transport, 'apt-transport', '/etc/apt',
+                                    '/etc/ssl/certs/ca-certificates.crt', ca_file]) + '; ' + _prerequisite_install_command()
         await self._exec_install(
             environment,
             user='root',
             command=(
                 'set -euo pipefail; '
-                + (_prerequisite_install_command() if self._frozen_configuration else '')
+                + apt_setup
                 + f'mkdir -p {shlex.quote(_AGENT_ROOT)} '
                 f'{shlex.quote(_AGENT_ROOT + "/bin")} '
                 f'{shlex.quote(_CACHE_DIR)}; '

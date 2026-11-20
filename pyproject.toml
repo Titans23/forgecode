@@ -37,7 +37,7 @@ include = ['forge*', 'evals*', 'benchmark*']
 exclude = ['.local*', '.venv*', '.forge*', 'node_modules*', 'build*', 'benchmark.runs*', 'benchmark..cache*', 'benchmark.comparison.node_modules*']
 
 [tool.setuptools.package-data]
-"benchmark.harbor" = ['install_uv.sh']
+"benchmark.harbor" = ['install_uv.sh', 'apt_transport.sh']
 forge = ['prompts/*.md', 'application/_generated_contracts.json', 'engine/migrations/*.sql', '_sandbox/**/*', '_sandbox/**/.*']
 
 [tool.pytest.ini_options]

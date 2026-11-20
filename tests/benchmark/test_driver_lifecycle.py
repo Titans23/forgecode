@@ -17,6 +17,25 @@ def _bash():
             if sys.platform == 'win32' else shutil.which('bash'))
 
 
+def test_apt_transport_preserves_lists_and_repository_trust(tmp_path):
+    import subprocess
+    script = Path(__file__).resolve().parents[2] / 'benchmark/harbor/apt_transport.sh'
+    apt = tmp_path / 'apt'
+    (apt / 'apt.conf.d').mkdir(parents=True)
+    (apt / 'sources.list.d').mkdir()
+    sources = apt / 'sources.list.d/ubuntu.sources'
+    sources.write_text('URIs: http://archive.ubuntu.com/ubuntu/\nSuites: noble\nSigned-By: /keys/ubuntu.gpg\n', newline='\n')
+    third_party = apt / 'sources.list'
+    third_party.write_text('deb [signed-by=/keys/vendor.gpg] http://example.org/vendor stable main\n', newline='\n')
+    (tmp_path / 'ca.pem').write_text('fixture CA')
+    # curl and git already exist: keep the origin/path of the populated indexes.
+    subprocess.run([str(_bash()), script.as_posix(), './apt', './missing-ca', './ca.pem'], cwd=tmp_path, check=True)
+    assert sources.read_text() == 'URIs: https://archive.ubuntu.com/ubuntu\nSuites: noble\nSigned-By: /keys/ubuntu.gpg\n'
+    assert third_party.read_text() == 'deb [signed-by=/keys/vendor.gpg] http://example.org/vendor stable main\n'
+    assert 'Acquire::Retries "2"' in (apt / 'apt.conf.d/05forge-acquire').read_text()
+    assert (apt / 'forge-bootstrap-ca.pem').read_bytes() == (tmp_path / 'ca.pem').read_bytes()
+
+
 def test_locked_installer_resolves_default_coding_dependencies():
     import shlex
     import subprocess
