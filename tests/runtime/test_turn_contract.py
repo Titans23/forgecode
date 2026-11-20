@@ -172,6 +172,71 @@ def test_ordinary_failures_do_not_skip_independent_later_tools(tmp_path, failure
     assert result['second'].success and (tmp_path / 'independent.txt').read_text() == 'ok'
 
 
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux owned file helper')
+@pytest.mark.parametrize('cleanup_confirmed', [True, False])
+def test_lost_command_receipt_requires_clean_reaping_to_continue(tmp_path, monkeypatch, cleanup_confirmed):
+    from forge.execution import ExecutionRequest, open_execution
+    from forge.sandbox.process_owner import LocalProcessOwner
+
+    # Execute the real helper, then withhold the result of just the first command.
+    program = """import subprocess, sys, time
+request = sys.stdin.buffer.read()
+result = subprocess.run([sys.executable, '-I', '-B', '-m', 'forge.workers', 'file-worker'],
+                        input=request, stdout=subprocess.PIPE)
+if b'slow-receipt.txt' in request:
+    time.sleep(60)
+sys.stdout.buffer.write(result.stdout)
+raise SystemExit(result.returncode)
+"""
+    monkeypatch.setattr('forge.sandbox.file_client.worker_argv',
+                        lambda: [sys.executable, '-I', '-B', '-c', program])
+    if not cleanup_confirmed:
+        original_close = LocalProcessOwner.close
+
+        async def withhold_cleanup_receipt(owner):
+            report = await original_close(owner)
+            # The test reaps the real process but withholds proof for the timed-out worker.
+            if owner.process.returncode == 143:
+                return {**report, 'state': 'unknown'}
+            return report
+
+        monkeypatch.setattr(LocalProcessOwner, 'close', withhold_cleanup_receipt)
+    root = tmp_path / 'project'
+    root.mkdir()
+    client = ScriptedClient(request(ToolCall(0, 'lost', 'run_command', {
+        'command': 'echo ran >> slow-receipt.txt', 'timeout_seconds': 1,
+    })), request(ToolCall(0, 'follow-up', 'run_command', {
+        'command': 'echo next > continued.txt',
+    })), [ModelUsageUpdate(TokenUsage(11, 3)), ModelTextDelta('Done.')])
+
+    async def run():
+        setup = await open_execution(ExecutionRequest(root, tmp_path / 'data', 'full-access', (), None), None)
+        try:
+            conversation = Conversation(client=client, registry=create_default_registry(root),
+                                        context_root=root, tool_backend=setup.backend)
+            async with asyncio.timeout(25):
+                events = [event async for event in conversation.stream('Run the receipt recovery probe.')]
+            result = tool_results(events)
+            error = result['lost'].error
+            assert error.details['stage'] == 'response'
+            assert (root / 'slow-receipt.txt').read_text().splitlines() == ['ran']
+            if cleanup_confirmed:
+                assert error.code == 'helper_response_timeout'
+                assert error.details['cleanup']['state'] == 'clean'
+                assert result['lost'].metadata['execution_status'] == 'executed'
+                assert result['follow-up'].success and events[-1].result.status == 'completed'
+                assert (root / 'continued.txt').read_text().strip() == 'next'
+            else:
+                assert error.code == 'INDETERMINATE'
+                assert error.details['cleanup']['state'] == 'unknown'
+                assert events[-1].result.stop_reason == 'tool_execution_indeterminate'
+                assert not (root / 'continued.txt').exists()
+        finally:
+            assert (await setup.backend.close())['state'] == ('clean' if cleanup_confirmed else 'unknown')
+
+    asyncio.run(run())
+
+
 def test_permission_denial_still_stops_the_rest_of_the_batch(tmp_path):
     client = ScriptedClient(request(
         ToolCall(0, 'denied', 'write_file', {'path': 'denied.txt', 'content': 'no'}),

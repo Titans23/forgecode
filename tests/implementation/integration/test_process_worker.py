@@ -19,6 +19,7 @@ def test_worker_launch_acknowledgement_and_submission(tmp_path, monkeypatch, ear
 
     root, control, workspace, policy = fixture(tmp_path)
     policy['execution_mode'] = 'full-access'
+    policy['limits']['wall_time_seconds'] = None
     original = processes.worker_argv
 
     def wrapped(*args, **kwargs):
@@ -29,18 +30,19 @@ def test_worker_launch_acknowledgement_and_submission(tmp_path, monkeypatch, ear
         if kwargs.get('ready_fd') is None:
             return command
         program = ('raise SystemExit(1)' if early_exit else
-            'import os,sys,time; time.sleep(5.1); os.execv(sys.argv[1], sys.argv[1:])')
+            'import os,sys,time; time.sleep(11.25); os.execv(sys.argv[1], sys.argv[1:])')
         return [sys.executable, '-c', program, *command]
 
     async def run():
         client = FileWorkerClient(workspace, policy, local_control=control)
-        command = ToolCall(0, 'launch', 'run_command', {'command': 'echo executed >> marker'})
+        command = ToolCall(0, 'launch', 'run_command', {
+            'command': 'echo executed >> marker', 'timeout_seconds': 1})
         backend = FileToolBackend(client)
         registry = create_default_registry(root)
         try:
             with monkeypatch.context() as patch:
                 patch.setattr(processes, 'worker_argv', wrapped)
-                async with asyncio.timeout(4 if early_exit else 18):
+                async with asyncio.timeout(4 if early_exit else 25):
                     result = await backend.execute(command, registry)
             if early_exit:
                 assert result.error.code == 'HELPER_NOT_STARTED'

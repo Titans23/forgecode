@@ -131,14 +131,20 @@ class FileWorkerClient:
                     input_path = directory / (request_id + '.request.json')
                     input_path.write_bytes(raw)
             seconds = self._seconds(request)
-            now = asyncio.get_running_loop().time()
+            loop = asyncio.get_running_loop()
+            now = loop.time()
             deadline = now + seconds + 5 if seconds is not None else None
+            finite_command = not service and request.get('name') in ('run_command', 'verify')
+            separate_launch = finite_command and self.policy['limits']['wall_time_seconds'] is None
+            ready_deadline = now + 30
+            if not separate_launch and deadline is not None:
+                ready_deadline = min(ready_deadline, deadline)
             admission['submitted'] = input_path is not None  # A file-backed service inherits its request at spawn.
             try:
                 owner = await LocalProcessOwner.start(worker_argv(), cwd=str(ROOT),
                     environment=environment, output=True, capture_stderr=input_path is None,
                     output_path=output_path, input_path=input_path,
-                    ready_deadline=min(now + 30, deadline) if deadline is not None else now + 30)
+                    ready_deadline=ready_deadline)
             except Exception as error:
                 cleanup = getattr(error, 'cleanup', {'state': 'unknown'})
                 self._cleanup_reports.append(cleanup)
@@ -147,6 +153,11 @@ class FileWorkerClient:
                     'Helper startup failed; execution or cleanup is unconfirmed.',
                     kind='HELPER_NOT_STARTED' if not_started else 'INDETERMINATE', code=-32010,
                     details={'stage': 'startup', 'submitted': admission['submitted'], 'cleanup': cleanup}) from error
+            # A command's own timer starts inside the worker. Give it the full
+            # response window after ownership is ready unless a policy caps it.
+            if separate_launch and deadline is not None:
+                deadline += loop.time() - now
+            transport_timeout = asyncio.timeout_at(deadline)
             child = owner.process
             from forge.tools.shell import _read_bounded
             stderr_task = (asyncio.create_task(_read_bounded(child.stderr, 4096, None,
@@ -155,16 +166,18 @@ class FileWorkerClient:
             if service:
                 self._services[owner] = request_id
             failure = None
+            stage = 'submission'
             try:
                 if service:
                     self._service_receipt(owner, request_id, 'running')
                 self._require_open()  # Close may have started while the owned process was launching.
-                async with asyncio.timeout_at(deadline):
+                async with transport_timeout:
                     if child.stdin is not None:
                         admission['submitted'] = True
                         child.stdin.write(raw)
                         await child.stdin.drain()
                         child.stdin.close()
+                    stage = 'response'
                     chunks, size = [], 0
                     reader = output_path.open('rb') if service else None
                     try:
@@ -188,6 +201,7 @@ class FileWorkerClient:
                         if reader is not None:
                             reader.close()
                     output = b''.join(chunks)
+                    stage = 'worker_exit'
                     await child.wait()
             except Exception as error:
                 failure = error
@@ -205,7 +219,8 @@ class FileWorkerClient:
                         if closing.cancelled():
                             raise
                         interrupted = error
-                diagnostics = {'worker_exit_code': child.returncode, 'cleanup': admission['cleanup']}
+                diagnostics = {'worker_exit_code': child.returncode, 'cleanup': admission['cleanup'],
+                               'stage': stage, 'submitted': admission['submitted']}
                 if stderr_task is not None:
                     from forge.sessions.trajectory import exception_diagnostics, redact_text
                     incomplete = not stderr_task.done()
@@ -234,9 +249,14 @@ class FileWorkerClient:
                     failure.details = {**diagnostics, **failure.details}
                     raise failure
                 from forge.sessions.trajectory import exception_diagnostics
+                diagnostics['exception'] = exception_diagnostics(failure)
+                if (finite_command and isinstance(failure, TimeoutError)
+                        and transport_timeout.expired() and admission['cleanup']['state'] == 'clean'):
+                    raise ContractError('Command helper timed out before confirming the result. '
+                        'The owned process tree has stopped. Partial effects may remain. Inspect before retrying.',
+                        kind='helper_response_timeout', code=-32010, details=diagnostics) from failure
                 raise ContractError('File helper transport failed: ' + type(failure).__name__,
-                    kind='INDETERMINATE', code=-32010,
-                    details={**diagnostics, 'exception': exception_diagnostics(failure)}) from failure
+                    kind='INDETERMINATE', code=-32010, details=diagnostics) from failure
             if child.returncode not in (0, 2):
                 raise ContractError('File helper exited without an owned result', kind='INDETERMINATE', code=-32010,
                                     details=diagnostics)
