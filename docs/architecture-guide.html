@@ -522,7 +522,7 @@
           "id": "request-context",
           "title": "2. 准备一条模型请求",
           "paragraphs": [
-            "Conversation 持有跨回合状态，TurnRunner 负责当前回合。用户消息先进入 Journal；本次模型输入还会生成可核验的快照。系统提示承担稳定规则，当前任务、可用工具、权限、仓库相关内容和运行事实放在请求末尾。[[runner]] [[observation]]",
+            "Conversation 持有跨回合状态，TurnRunner 负责当前回合。用户消息先进入 Journal，本次模型输入也会生成可核验的快照。请求前缀列出资源、权限和可用工具。任务原文留在用户消息中。工具执行后，变化的运行状态移到当前消息末尾，未变化的部分留在原位。[[runner]] [[observation]]",
             "这有利于保持前缀稳定，但并不保证提供方一定命中缓存。缓存还取决于模型、服务端规则、消息变化及工具定义变化。判断 token 成本要看实际 usage，不能只凭终端显示的总 token 推断缓存失效。",
             "当前上下文过大时才压缩历史；压缩保留任务目标、近期材料和工具调用/结果关系。大工具输出可在模型上下文中裁剪，但完整结果仍保留在 Journal 或受限 artifact 中。[[context]]"
           ]
@@ -4137,7 +4137,7 @@
             },
             {
               "title": "真正发起请求的位置",
-              "explanation": "prepare 处理历史，append 加入本次运行上下文，然后调用 client.stream。界面需要消费后续事件才能持续更新。",
+              "explanation": "这个历史快照中，prepare 后会追加整段运行上下文。当前实现把稳定说明放在前缀，只把变化的状态移到末尾，然后调用 client.stream。",
               "source": {
                 "path": "forge/runtime/runner.py",
                 "symbol": "TurnRunner._loop",
@@ -4145,7 +4145,7 @@
                 "line": 372,
                 "end": 379,
                 "code": "                client = ObservedModelClient(c.client, self.state)\n                request_messages = c.context.prepare(self.messages)\n                request_messages.append({'role': 'user', 'content': context})\n                async with aclosing(client.stream(request_messages, tools=tools, system=system)) as stream:\n                    async for event in stream:\n                        if isinstance(event, ModelProviderState):\n                            provider_state = {'provider': event.provider, 'data': event.data}\n                            continue",
-                "note": "prepare 处理历史，append 加入本次运行上下文，然后调用 client.stream。界面需要消费后续事件才能持续更新。",
+                "note": "快照中的 append 是旧实现。当前 TurnRunner 在相同的 client.stream 边界之前组装前缀与变化的状态。",
                 "highlights": [
                   373,
                   374,

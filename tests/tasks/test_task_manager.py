@@ -16,6 +16,8 @@ def test_simple_task_stays_in_memory_without_creating_files(
 
     assert task.planned is False
     assert 'Can you see the play directory?' in manager.system_suffix()
+    resumed = manager.system_suffix(visible_directives=('Earlier message', task.goal, 'Continue.'))
+    assert task.goal not in resumed and 'earlier user instruction 2' in resumed
     assert not (tmp_path / '.forge' / 'tasks').exists()
 
 

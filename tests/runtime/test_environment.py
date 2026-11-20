@@ -52,7 +52,7 @@ def test_external_deadline_is_request_context_and_warns_once(tmp_path, monkeypat
     class Model:
         model = 'offline'
         async def stream(self, messages, system, **kwargs):
-            contexts.append(messages[-1]['content'])
+            contexts.append('\n'.join(m['content'] for m in messages if isinstance(m['content'], str)))
             systems.append(system)
             if len(contexts) == 1:
                 yield ModelToolCallCompleted(ToolCall(0, 'inspect', 'list_directory', {'path':'.'}))

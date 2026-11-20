@@ -84,6 +84,7 @@ def test_forced_compaction_preserves_structured_state_and_transcript(
     assert 'fix calculator' in str(messages[0]['content'])
     assert 'do not read hidden tests' in str(messages[0]['content'])
     assert messages[-1]['content'] == 'latest evidence'
+    assert str(messages).count('latest evidence') == 1
     assert client.calls[0]['tools'] is None
 
 

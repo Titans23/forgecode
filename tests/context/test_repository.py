@@ -141,7 +141,7 @@ def test_nested_rules_are_injected_after_read_and_refreshed_next_turn(tmp_path):
 
         async def stream(self, messages, system, **kwargs):
             self.calls += 1
-            context = messages[-1]['content']
+            context = '\n'.join(m['content'] for m in messages if str(m['content']).startswith('[ForgeCode current context]'))
             assert ('Nested project notice.' in context) == (self.calls > 1)
             assert ('Updated root rule.' if self.calls == 4 else 'Root project rule.') in context
             if self.calls == 1:

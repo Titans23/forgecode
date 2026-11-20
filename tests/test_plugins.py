@@ -276,7 +276,8 @@ def activate(ctx, config):
                 yield ModelToolCallCompleted(ToolCall(0, 'child', 'delegate', {}))
                 yield ModelResponseCompleted('tool_use')
             else:
-                assert 'Child sandbox provider must be inherited' in str(kwargs['messages'][-2])
+                assert any('Child sandbox provider must be inherited' in str(m['content'])
+                           for m in kwargs['messages'] if isinstance(m['content'], list))
                 yield ModelTextDelta('blocked')
                 yield ModelResponseCompleted('end_turn')
     async def run():

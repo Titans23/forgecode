@@ -417,11 +417,13 @@ class ContextManager:
                 break
             usage = result.usage if usage is None else add_usage(usage, result.usage)
             compacted = result.messages
-            if instructions:
+            retained = set(original_user_instructions(compacted))
+            missing = [text for text in instructions if text not in retained]
+            if missing:
                 compacted.insert(1, {
                     'role': 'user',
                     'content': '[ForgeCode original user instructions]\n'
-                    + json.dumps(instructions, ensure_ascii=False),
+                    + json.dumps(missing, ensure_ascii=False),
                 })
             after = context_stats(
                 self.prepare(compacted, scope_hints=scope_hints),

@@ -1623,7 +1623,7 @@ def test_runtime_tells_model_that_request_tools_are_available(
     assert len(client.calls) == 1
     assert (
         'Only the following tools are included in this model request:'
-        in client.calls[0]['messages'][-1]['content']
+        in client.calls[0]['messages'][0]['content']
     )
 
 

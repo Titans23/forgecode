@@ -15,9 +15,9 @@ def test_custom_tool_request_only_guides_available_actions(tmp_path):
         model = 'offline'
         async def stream(self, messages, tools, system):
             assert [tool['name'] for tool in tools] == ['read_context_artifact']
-            assert 'read_context_artifact' in messages[-1]['content']
+            assert 'read_context_artifact' in messages[0]['content']
             for absent in ('finish_task', 'task_plan', 'review_delivery', 'job_kill', 'job_output'):
-                assert absent not in system and absent not in messages[-1]['content']
+                assert absent not in system and absent not in str(messages)
             yield ModelTextDelta('done')
             yield ModelResponseCompleted('end_turn')
         async def aclose(self): pass

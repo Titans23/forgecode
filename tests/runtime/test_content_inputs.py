@@ -58,7 +58,7 @@ def test_conversation_accepts_image_only_and_rejects_text_only_adapter(tmp_path)
     class Model:
         provider = 'offline'
         async def stream(self, messages, **kwargs):
-            assert messages[-2]['content'][0]['type'] == 'image'
+            assert any(isinstance(m['content'], list) and m['content'][0]['type'] == 'image' for m in messages)
             yield ModelTextDelta('visible')
             yield ModelResponseCompleted('end_turn')
 

@@ -635,17 +635,33 @@ def test_dynamic_context_preserves_system_and_history_prefix_without_accumulatin
         async for _ in conversation.stream('Summarize it.'): pass
     asyncio.run(run())
     assert len({call['system'] for call in client.calls}) == 1
+    prefix = client.calls[0]['messages'][0]
+    assert '[Runtime request tools]' in prefix['content']
     for call in client.calls:
-        assert call['messages'][:2] == history
-        contexts = [m for m in call['messages'] if str(m.get('content', '')).startswith('[ForgeCode current context]')]
-        assert contexts == [call['messages'][-1]]
-        assert '[Remaining turn budget]' not in contexts[0]['content']
+        assert call['messages'][:3] == [prefix, *history]
+        assert str(call['messages']).count('[Runtime request tools]') == 1
+        assert str(call['messages']).count('Read sample.txt.') == 1
         assert '[Remaining turn budget]' not in call['system']
     assert 'sample.txt' in client.calls[1]['messages'][-1]['content']
     assert client.calls[0]['messages'][-1] != client.calls[1]['messages'][-1]
     assert all(not str(m.get('content', '')).startswith('[ForgeCode current context]') for m in conversation.messages)
     assert original_user_instructions(client.calls[2]['messages']) == [
         'Keep these earlier instructions.', 'Read sample.txt.', 'Summarize it.']
+
+
+def test_state_updates_preserve_unchanged_sections_and_drop_obsolete_context():
+    from forge.runtime.runner import _place_request_context
+    positions = {}
+    goal = {'role': 'user', 'content': 'Inspect the file.'}
+    history = [goal]
+    first = _place_request_context(history, 'read only', ('rule A',), positions)
+    history.extend([{'role': 'assistant', 'content': 'Checking.'}, {'role': 'user', 'content': 'Continue.'}])
+    second = _place_request_context(history, 'read only', ('rule A', 'check passed'), positions, 'one-shot hook')
+    assert second[:len(first)] == first
+    third = _place_request_context(history, 'plan mode', ('rule B',), positions)
+    assert third[1:-1] == history
+    assert 'plan mode' in third[0]['content'] and 'rule B' in third[-1]['content']
+    assert all(old not in str(third) for old in ('rule A', 'read only', 'check passed', 'one-shot hook'))
 
 
 def test_ordinary_continuation_does_not_scan_or_claim_historical_changes(tmp_path):

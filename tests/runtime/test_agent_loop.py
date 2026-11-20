@@ -60,6 +60,10 @@ from forge.tools.search import GrepTool
 from forge.tasks.state import ActiveTask
 
 
+def conversation_messages(call):
+    return [m for m in call['messages'] if not str(m['content']).startswith('[ForgeCode current context]')]
+
+
 class FakeModelClient:
     '''Record requests and emit deterministic model stream events.'''
 
@@ -801,9 +805,9 @@ def test_plan_mode_hides_effectful_tools_and_explains_mode(
     assert 'read_file' in names
     assert 'no_op_write' not in names
     assert 'run_process' not in names
-    assert 'Current mode: plan' in client.calls[0]['messages'][-1]['content']
+    assert 'Current mode: plan' in client.calls[0]['messages'][0]['content']
     expected = 'workspace-write' if execution_mode else 'supervised'
-    assert f'/permission {expected}' in client.calls[0]['messages'][-1]['content']
+    assert f'/permission {expected}' in client.calls[0]['messages'][0]['content']
     assert isinstance(events[-1], TurnCompleted)
     assert events[-1].result.status == 'completed'
     assert conversation.task_manager.active is None
@@ -1090,7 +1094,7 @@ def test_conversation_forwards_stream_and_returns_final_result() -> None:
             )
         ),
     ]
-    assert client.calls[0]['messages'][:-1] == [
+    assert conversation_messages(client.calls[0]) == [
         {'role': 'user', 'content': 'Only reply READY'}
     ]
     assert client.calls[0]['tools'] is None
@@ -1180,7 +1184,7 @@ def test_conversation_executes_tool_and_continues_until_final_text(
     assert client.calls[0]['tools'] == [definition for definition in registry.definitions
         if definition['name'] != 'task_revise_requirement']
     second_request = client.calls[1]
-    assert second_request['messages'][:2] == [
+    assert conversation_messages(second_request)[:2] == [
         {'role': 'user', 'content': 'Read the README'},
         {
             'role': 'assistant',
@@ -1194,7 +1198,7 @@ def test_conversation_executes_tool_and_continues_until_final_text(
             ],
         },
     ]
-    tool_result_message = second_request['messages'][2]
+    tool_result_message = conversation_messages(second_request)[2]
     assert tool_result_message['role'] == 'user'
     assert len(tool_result_message['content']) == 1
     result_block = tool_result_message['content'][0]
@@ -1252,7 +1256,7 @@ def test_conversation_executes_multiple_tool_calls_in_order(
     events = collect_turn(conversation, 'Read both files')
 
     assert tool.calls == ['a.py', 'b.py']
-    result_blocks = client.calls[1]['messages'][2]['content']
+    result_blocks = conversation_messages(client.calls[1])[2]['content']
     assert [
         block['tool_use_id']
         for block in result_blocks
@@ -1284,7 +1288,7 @@ def test_failed_tool_result_is_returned_to_model(
 
     collect_turn(conversation, 'Use a missing tool')
 
-    blocks = client.calls[1]['messages'][2]['content']
+    blocks = conversation_messages(client.calls[1])[2]['content']
     block = blocks[0]
     payload = json.loads(block['content'])
     assert block['is_error'] is True
@@ -1408,7 +1412,7 @@ def test_max_tokens_truncation_retries_with_small_patch_feedback() -> None:
     events = collect_turn(conversation, 'Build a game')
 
     assert events[-1].result.text == 'Retried in smaller steps.'
-    feedback = client.calls[1]['messages'][-2]['content']
+    feedback = next(m['content'] for m in client.calls[1]['messages'] if str(m['content']).startswith('[Runtime feedback]'))
     assert 'reached the max_tokens limit' in feedback
     assert 'Split the operation into smaller tool calls' in feedback
 
@@ -1434,7 +1438,7 @@ def test_plain_text_truncation_preserves_and_continues_response() -> None:
     result = events[-1].result
     assert result.text == 'First half, second half.'
     assert result.usage == TokenUsage(25, 8195)
-    continuation_messages = client.calls[1]['messages'][-3:-1]
+    continuation_messages = conversation_messages(client.calls[1])[-2:]
     assert continuation_messages[0] == {
         'role': 'assistant',
         'content': 'First half, ',
@@ -1510,7 +1514,7 @@ def test_empty_model_response_is_retried_as_protocol_recovery() -> None:
     assert events[-1].result.status == 'completed'
     assert events[-1].result.text == 'Recovered after the empty response.'
     assert len(client.calls) == 2
-    feedback = str(client.calls[1]['messages'][-2]['content'])
+    feedback = next(m['content'] for m in client.calls[1]['messages'] if str(m['content']).startswith('[Runtime feedback]'))
     assert 'stop_reason=end_turn' in feedback
 
 
@@ -1525,7 +1529,7 @@ def test_conversation_sends_previous_turns_as_context() -> None:
     collect_turn(conversation, 'Hello')
     collect_turn(conversation, 'What is my name?')
 
-    assert client.calls[1]['messages'][:-1] == [
+    assert conversation_messages(client.calls[1]) == [
         {'role': 'user', 'content': 'Hello'},
         {'role': 'assistant', 'content': 'Hello'},
         {'role': 'user', 'content': 'What is my name?'},
@@ -1577,7 +1581,7 @@ def test_current_goal_survives_many_tool_calls_and_message_snipping(
     # discard the turn; the explicit read cache may still bound execution.
     assert len(client.calls) > 9
     assert all(
-        'Goal:\nKeep this exact active goal' in call['messages'][-1]['content']
+        str(call['messages']).count('Keep this exact active goal') == 1
         for call in client.calls
     )
 
@@ -1679,7 +1683,7 @@ def test_repeated_invalid_tool_arguments_end_as_stuck() -> None:
     )
     assert result.status == 'failed'
     assert result.stop_reason == 'tool_protocol_exhausted'
-    first_recovery = client.calls[1]['messages'][-2]
+    first_recovery = next(m for m in client.calls[1]['messages'] if str(m['content']).startswith('[Runtime feedback]'))
     assert first_recovery['role'] == 'user'
     assert 'Invalid arguments for tool read_file' in first_recovery['content']
     assert '`unexpected` is not an allowed argument' in (

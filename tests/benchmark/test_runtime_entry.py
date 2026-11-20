@@ -26,7 +26,7 @@ def test_entries_share_policy_git_and_outside_file_edits(tmp_path, entry):
         calls = 0
         closed = 0
         async def stream(self, messages, **kwargs):
-            assert 'Approval policy: never. Sandbox mode: full-access.' in messages[-1]['content']
+            assert 'Approval policy: never. Sandbox mode: full-access.' in messages[0]['content']
             if self.calls < len(requests):
                 name, arguments = requests[self.calls]
                 self.calls += 1

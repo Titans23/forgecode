@@ -193,7 +193,7 @@ def test_resume_rejects_session_without_conversation_history(
 def test_turn_commit_updates_shared_message_and_evidence_lists(tmp_path):
     class InspectingClient(DummyClient):
         async def stream(self, messages, **kwargs):
-            assert messages[0] == {'role': 'user', 'content': 'Assigned history'}
+            assert messages[1] == {'role': 'user', 'content': 'Assigned history'}
             async for event in super().stream(messages, **kwargs):
                 yield event
 

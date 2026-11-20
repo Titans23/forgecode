@@ -473,19 +473,20 @@ class TaskManager:
         self.store.save(self.active)
         return self.active
 
-    def system_suffix(self) -> str:
+    def system_suffix(self, *, visible_directives: tuple[str, ...] = ()) -> str:
         task = self.active
         if task is None:
             return ''
-        lines = [
-            '[Current ForgeCode Task]',
-            '',
-            'Goal:',
-            bounded(task.goal, 20_000),
+        lines = ['[Current ForgeCode Task]']
+        if task.goal not in visible_directives:
+            lines.extend(['', 'Goal:', bounded(task.goal, 20_000)])
+        elif task.goal != visible_directives[-1]:
+            lines.append(f'Goal: see earlier user instruction {visible_directives.index(task.goal) + 1}.')
+        lines.extend([
             '',
             f'Status: {task.status}',
             f'Requires workspace change: {str(task.requires_change).lower()}',
-        ]
+        ])
         if task.current_step is not None:
             lines.extend(
                 ['', 'Current step:', task.current_step.title]
@@ -532,7 +533,7 @@ class TaskManager:
                     f'  Observable condition: {item.get("condition", "")}',
                     f'  Independent check: {item.get("check", "")}',
                 ])
-        if self._latest_directive and self._latest_directive != task.goal:
+        if self._latest_directive and self._latest_directive != task.goal and self._latest_directive not in visible_directives:
             lines.extend(
                 [
                     '',
