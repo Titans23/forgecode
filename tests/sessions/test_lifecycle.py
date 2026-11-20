@@ -33,7 +33,8 @@ class DummyClient:
     async def stream(self, messages, tools=None, system=None):
         del tools
         yield ModelUsageUpdate(usage=TokenUsage(10, 0))
-        yield ModelTextDelta(text=f'模型读取到的当前任务上下文：{messages[-1]["content"]}')
+        visible = '\n'.join(str(message['content']) for message in messages if message['role'] == 'user')
+        yield ModelTextDelta(text=f'模型读取到的当前任务上下文：{visible}')
         yield ModelUsageUpdate(usage=TokenUsage(10, 2))
 
 
@@ -393,7 +394,8 @@ def test_persisted_stuck_task_status_query_survives_multiple_restarts(
         assert isinstance(completed, TurnCompleted)
         assert completed.result.model_calls == 2
         assert completed.result.usage == TokenUsage(15, 4)
-        assert task.goal in completed.result.text
+        assert completed.result.text.count(task.goal) == 1
+        assert 'Status: stuck' in completed.result.text and task.constraints[0] in completed.result.text
         assert conversation.task_manager.active == task
 
         reloaded = store.load(journal.session_id)
