@@ -45,6 +45,19 @@ def invoke(control, workspace, policy, operation='tool', **values):
     return result
 
 
+@pytest.mark.parametrize('timeout,wall_limit', [({}, 1), ({'timeout_seconds': 0.2}, 30)])
+def test_session_service_worker_enforces_policy_and_explicit_timeouts(tmp_path, timeout, wall_limit):
+    _, control, workspace, policy = fixture(tmp_path)
+    policy['execution_mode'] = 'full-access'
+    policy['limits']['wall_time_seconds'] = wall_limit
+    result = invoke(control, workspace, policy, name='run_command', arguments={
+        'command': f'"{sys.executable}" -', 'stdin': 'import time; time.sleep(60)',
+        'lifetime': 'session', **timeout})
+    assert result['status'] == 'ok', result
+    assert result['result']['error']['code'] == 'command_timeout'
+    assert result['result']['metadata']['timed_out']
+
+
 def test_early_worker_bootstrap_never_loads_engine_server_model_or_credentials(tmp_path):
     _, control, workspace, policy = fixture(tmp_path)
     (control / 'config.json').write_text('{"api_key":"synthetic-private-key"}')

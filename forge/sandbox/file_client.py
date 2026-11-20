@@ -260,9 +260,12 @@ class FileWorkerClient:
     def _seconds(self, request):
         seconds = 30
         if request.get('name') in ('run_command', 'verify'):
-            timeout = request['arguments'].get('timeout_seconds', 120)
+            from forge.tools.shell import default_command_timeout
+            arguments = request['arguments']
+            default = default_command_timeout(arguments) if request['name'] == 'run_command' else 120
+            timeout = arguments.get('timeout_seconds', default)
             if timeout is None:
-                if request['arguments'].get('lifetime') != 'session' or self.native is not None:
+                if arguments.get('lifetime') != 'session' or self.native is not None:
                     raise ContractError('Only a managed host service may omit its lifetime limit', kind='CAPABILITY_UNSATISFIED')
                 seconds = None
             else:

@@ -119,7 +119,7 @@ forge --sandbox danger-full-access --approval supervised
 
 长命令使用 `job_output(wait_for="completion", wait_seconds=300)` 等待完成；`wait_for="output", after=next_cursor` 等待新输出。单次等待最多 3600 秒，等待超时不会停止命令。调用方显式设置的 `caller_deadline` 到期时，会取消当前请求、前台工具和本轮有限后台命令，保存截止原因及清理事实；显式会话服务仍按会话生命周期管理。评测会提示剩余时间和容器 CPU/内存限制，并预留短暂收尾时间；CLI 默认没有回合截止时间。POSIX 字符串命令由 `/bin/sh` 执行，需要 Bash 语法时显式调用 `bash`。
 
-需要持续运行的开发服务器可使用 `run_in_background=true, lifetime="session"`；明确设置 `timeout_seconds=null` 表示运行到会话退出，也可设置最大运行秒数。服务启动后仍需检查就绪状态，回答结束后保留服务，`/jobs` 可以停止它。退出会话时清理；运行服务期间不能切换权限或历史。该能力目前用于 Windows/Linux 的 full-access 会话，受限提供方不支持时明确报错。
+需要持续运行的开发服务器可使用 `run_in_background=true, lifetime="session"`。省略 `timeout_seconds` 或设为 `null` 时，服务默认持续运行。需要定时停止时，显式传入正数秒值，调用方的执行时限仍然生效。启动后请检查服务是否就绪。回答结束后服务继续运行，可在 `/jobs` 中停止，退出会话时清理。运行服务期间不能切换权限或历史。该能力目前用于 Windows/Linux 的 full-access 会话。
 
 ## SDK 与能力组合
 

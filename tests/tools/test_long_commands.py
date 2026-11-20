@@ -15,6 +15,22 @@ from forge.tools.shell import RunCommandInput
 from forge.tools.verify import VerifyInput
 
 
+@pytest.mark.parametrize('arguments,timeout', [
+    ({}, 120), ({'run_in_background': True}, 120), ({'lifetime': 'session'}, None),
+    ({'lifetime': 'session', 'timeout_seconds': None}, None),
+    ({'lifetime': 'session', 'timeout_seconds': 17}, 17),
+])
+def test_command_and_worker_agree_on_lifetime(tmp_path, arguments, timeout):
+    from forge.sandbox.file_client import FileWorkerClient
+    arguments = {'command': 'echo ready', **arguments}
+    assert RunCommandInput.model_validate(arguments).timeout_seconds == timeout
+    client = FileWorkerClient({}, {'limits': {'wall_time_seconds': None}}, local_control=tmp_path)
+    request = {'name': 'run_command', 'arguments': arguments}
+    assert client._seconds(request) == (None if timeout is None else timeout + 5)
+    client.policy['limits']['wall_time_seconds'] = 3
+    assert client._seconds(request) == 3
+
+
 @pytest.mark.parametrize('model', [RunCommandInput, VerifyInput])
 @pytest.mark.parametrize('timeout', [0, -1, float('inf'), float('nan')])
 def test_command_timeouts_must_be_positive_and_finite(model, timeout):

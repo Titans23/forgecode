@@ -1,9 +1,9 @@
 {
   "baseline_commit": "e37e09a514f3bfdf7888e45ea25a3dcc10d961b3",
-  "tool_definitions_review": "Reviewed run_command adds optional lifetime=command|session and permits timeout_seconds=null only for an explicitly managed session service. The finite command default remains 120 seconds; required arguments, existing tool names/order and one-call permission fields remain. POSIX shell guidance now names /bin/sh. Actual Windows and WSL POSIX definitions were measured. Live Harness sessions additionally register job_output with output/completion waits and job_kill; those tools are absent from the unbound base registry.",
+  "tool_definitions_review": "run_command defaults to 120 seconds for ordinary commands. Session services accept omitted or null timeout_seconds for no command timeout, and a positive finite timeout for bounded service life. Required arguments, tool order and permissions are unchanged. Hashes cover the actual Windows and Linux base tool definitions.",
   "tool_definitions_sha256_by_os": {
-    "nt": "da0bb85f9e3f6199065fa5c2834c767aad00d24478a55f35a648a8ea91716748",
-    "posix": "743ccff6550f1f68863f11c5296da811b08d8788e3f38fdab5bb20e17890ec6e"
+    "nt": "d06e82306ed1bd53b0eb58d382d3e7377f7e534759fb813a04f6e99b3181a6de",
+    "posix": "8a3dc2eb09ac6d8d25975134f17be56b90405b91f8c481a952554904a799ea77"
   },
   "tools": [
     "list_directory",

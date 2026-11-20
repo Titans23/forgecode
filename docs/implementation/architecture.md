@@ -49,7 +49,7 @@ CLI/API 使用 `open_runtime → create_runtime → Conversation.stream → Turn
 
 命令完成包括其受管子进程结束；shell 退出、子进程重定向输出不会提前结束作业。Windows Job 与 Linux subreaper 使用相同规则，命令超时和取消仍回收整棵子树。使用 `run_in_background` 即可交还控制权，无需再拼接 `nohup` 或 `&`；helper 的外层监督仅承担 helper 异常退出时的最终清理。
 
-会话服务首先支持 Windows/Linux full-access 提供方；`timeout_seconds=null` 仅用于显式会话服务，普通命令仍有操作期限。Linux 评测服务使用文件输出和进程身份回执，由 supervisor 只移交自身接管且身份匹配的服务子树；官方 Agent 到期可保留这些服务供 verifier 使用，用户取消评测则清理。环境销毁负责最终回收，移交不冒充进程已退出。
+会话服务支持 Windows/Linux full-access 提供方。普通前台和后台命令默认限时 120 秒。会话服务省略 `timeout_seconds` 或传入 `null` 时持续运行，显式正数从命令启动时计时。调用方设定的执行策略时限同样适用。Linux 评测服务使用文件输出和进程身份回执，supervisor 只移交自身接管且身份匹配的服务子树。移交后原有的显式时限继续计时。官方 Agent 到期可保留这些服务供 verifier 使用，用户取消评测则清理。环境销毁负责最终回收。
 
 主动停止一个作业与取消整个回合分别处理。执行提供方返回本次操作的清理证据；确认进程已停止的 `job_kill` 允许回合继续，并提醒可能留下部分文件。清理未知仍为 indeterminate；停止进程不代表回滚文件，写操作中断也不凭进程退出推断写入完整。
 

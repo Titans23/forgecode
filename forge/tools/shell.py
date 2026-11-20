@@ -361,6 +361,10 @@ def render_process_output(result: ProcessResult) -> str:
     return '\n\n'.join(sections)
 
 
+def default_command_timeout(arguments: dict) -> float | None:
+    return None if arguments.get('lifetime') == 'session' else 120.0
+
+
 class RunCommandInput(SandboxInput):
     run_in_background: bool = Field(default=False,
         description='Return an owned job ID immediately. Wait for successful exit before dependent work.')
@@ -369,9 +373,9 @@ class RunCommandInput(SandboxInput):
     lifetime: Literal['command', 'session'] = Field(default='command',
         description='Use session only for an explicitly requested persistent service, with run_in_background=true. '
         'It stays owned by this session after a completed answer and is stopped when the session closes.')
-    timeout_seconds: float | None = Field(default=120.0, gt=0, allow_inf_nan=False,
-        description='Total command lifetime, also in background mode. Increase for long commands. '
-        'Only session services may use null to run until session shutdown.')
+    timeout_seconds: float | None = Field(default_factory=default_command_timeout, gt=0, allow_inf_nan=False,
+        description='Total command lifetime in seconds. Ordinary commands default to 120, including background commands. '
+        'Session services default to no command timeout; omit or pass null. A positive value sets a limit in either mode.')
     stdin: str | None = Field(default=None, max_length=8_000)
 
 
@@ -525,7 +529,7 @@ class RunCommandTool(Tool[RunCommandInput]):
         if result.timed_out:
             return ToolResult.fail(
                 'command_timeout',
-                f'Command timed out after {arguments.timeout_seconds:g}s.',
+                f'Command timed out (elapsed {result.duration_seconds:.2f}s).',
                 content=content,
                 metadata=metadata,
             )

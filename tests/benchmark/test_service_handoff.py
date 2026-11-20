@@ -1,5 +1,6 @@
 '''Offline Linux process ownership and service handoff; no task containers or models.'''
 import asyncio
+from http.client import HTTPConnection
 import json
 import os
 from pathlib import Path
@@ -61,10 +62,12 @@ async def main():
         profile=RunProfile.evaluation(), service_handoff_dir=root/'receipts',
         config=ForgeConfig(api_key='offline', model_id='unused')),
         model_client_factory=lambda *a, **kw: NoModel())
-    code = "import socket,time; from pathlib import Path; s=socket.socket(); s.bind(('127.0.0.1',0)); s.listen(); Path('port').write_text(str(s.getsockname()[1])); print('ready',flush=True); time.sleep(60)"
+    code = ("from http.server import HTTPServer, SimpleHTTPRequestHandler; from pathlib import Path; "
+            "server=HTTPServer(('127.0.0.1',0), SimpleHTTPRequestHandler); "
+            "Path('port').write_text(str(server.server_port)); server.serve_forever()")
     outcome = await session.conversation.tool_executor.execute(ToolCall(0,'service','run_command', {
         'command': shlex.join([sys.executable,'-u','-c',code]), 'run_in_background':True,
-        'lifetime':'session', 'timeout_seconds':None}))
+        'lifetime':'session'}))
     assert outcome.result.success
     while not (root/'project/port').exists(): await asyncio.sleep(.02)
     (root/'ready').touch()
@@ -96,7 +99,7 @@ if mode == 'cancel':
     child.send_signal(signal.SIGTERM)
 _, error = child.communicate(timeout=25)
 print(json.dumps({'exit_code':child.returncode,'error':error.decode()}),flush=True)
-time.sleep(60)
+signal.pause()
 '''
 
 
@@ -104,6 +107,7 @@ time.sleep(60)
 @pytest.mark.parametrize('mode', ['success', 'deadline', 'cancel', 'cooperative'])
 def test_live_service_handoff_and_user_cancellation(tmp_path, mode):
     (tmp_path/'project').mkdir()
+    (tmp_path/'project/health').write_text('ready')
     (tmp_path/'agent.py').write_text(AGENT)
     (tmp_path/'parent.py').write_text(PARENT)
     async def run():
@@ -121,7 +125,13 @@ def test_live_service_handoff_and_user_cancellation(tmp_path, mode):
                 with pytest.raises(OSError): socket.create_connection(('127.0.0.1',port),timeout=.2)
             else:
                 assert len(result['handed_off']) == 1 and result['timed_out'] == (mode in {'deadline', 'cooperative'})
-                with socket.create_connection(('127.0.0.1',port),timeout=1): pass
+                client = HTTPConnection('127.0.0.1', port, timeout=2)
+                try:
+                    client.request('GET', '/health')
+                    response = client.getresponse()
+                    assert response.status == 200 and response.read() == b'ready'
+                finally:
+                    client.close()
                 if mode in {'success', 'cooperative'}:
                     cleanup = json.loads((tmp_path/'cleanup.json').read_text())
                     assert len(cleanup['transferred_services']) == 1
