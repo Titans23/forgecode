@@ -172,7 +172,6 @@ def test_ordinary_failures_do_not_skip_independent_later_tools(tmp_path, failure
     assert result['second'].success and (tmp_path / 'independent.txt').read_text() == 'ok'
 
 
-@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux owned file helper')
 @pytest.mark.parametrize('cleanup_confirmed', [True, False])
 def test_lost_command_receipt_requires_clean_reaping_to_continue(tmp_path, monkeypatch, cleanup_confirmed):
     from forge.execution import ExecutionRequest, open_execution
@@ -194,9 +193,10 @@ raise SystemExit(result.returncode)
         original_close = LocalProcessOwner.close
 
         async def withhold_cleanup_receipt(owner):
+            was_running = owner.process.returncode is None
             report = await original_close(owner)
             # The test reaps the real process but withholds proof for the timed-out worker.
-            if owner.process.returncode == 143:
+            if was_running:
                 return {**report, 'state': 'unknown'}
             return report
 
@@ -204,7 +204,7 @@ raise SystemExit(result.returncode)
     root = tmp_path / 'project'
     root.mkdir()
     client = ScriptedClient(request(ToolCall(0, 'lost', 'run_command', {
-        'command': 'echo ran >> slow-receipt.txt', 'timeout_seconds': 1,
+        'command': 'echo ran>>slow-receipt.txt', 'timeout_seconds': 1,
     })), request(ToolCall(0, 'follow-up', 'run_command', {
         'command': 'echo next > continued.txt',
     })), [ModelUsageUpdate(TokenUsage(11, 3)), ModelTextDelta('Done.')])
