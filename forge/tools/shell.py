@@ -361,8 +361,11 @@ def render_process_output(result: ProcessResult) -> str:
     return '\n\n'.join(sections)
 
 
+DEFAULT_COMMAND_TIMEOUT = 120.0
+
+
 def default_command_timeout(arguments: dict) -> float | None:
-    return None if arguments.get('lifetime') == 'session' else 120.0
+    return None if arguments.get('lifetime') == 'session' else DEFAULT_COMMAND_TIMEOUT
 
 
 class RunCommandInput(SandboxInput):

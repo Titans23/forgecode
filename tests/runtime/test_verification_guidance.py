@@ -84,6 +84,7 @@ def test_request_matches_job_permissions_and_controls(tmp_path, foreground_only)
                 fields = schemas['run_command']['properties']
                 assert 'lifetime' not in fields and 'run_in_background' not in fields
                 assert fields['timeout_seconds']['type'] == 'number'
+                assert fields['timeout_seconds']['default'] == 120
             else:
                 assert 'job_output' in schemas
                 assert not {'job_kill', 'run_command', 'verify', 'write_file'} & schemas.keys()

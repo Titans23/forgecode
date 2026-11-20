@@ -414,14 +414,15 @@ class Conversation:
             definitions = [item for item in definitions if item['name'] != 'view_image']
         if self.registry and definitions and not {'job_output', 'job_kill'}.issubset(self.registry.names):
             # The executor requires both controls before admitting background work.
-            from forge.tools.shell import RunCommandTool
+            from forge.tools.shell import DEFAULT_COMMAND_TIMEOUT, RunCommandTool
             for index, item in enumerate(definitions):
                 if item['name'] == 'run_command' and isinstance(self.registry.implementation('run_command'), RunCommandTool):
                     schema = item['input_schema']
                     props = {key: value for key, value in schema['properties'].items()
                              if key not in {'run_in_background', 'lifetime'}}
                     props['timeout_seconds'] = {'type': 'number', 'exclusiveMinimum': 0,
-                        'default': props['timeout_seconds']['default'], 'description': 'Maximum command lifetime in seconds.'}
+                        'default': props['timeout_seconds'].get('default', DEFAULT_COMMAND_TIMEOUT),
+                        'description': 'Maximum command lifetime in seconds.'}
                     definitions[index] = {**item, 'input_schema': {**schema, 'properties': props}}
         return definitions
 
