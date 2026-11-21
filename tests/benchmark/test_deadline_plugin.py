@@ -282,28 +282,49 @@ def test_capture_cancellation_remains_cancellation_and_removes_stale_patch(tmp_p
 
 def test_phase_journal_preserves_both_exceptions_without_changing_harbor_result(tmp_path, monkeypatch):
     import json
+    from datetime import datetime, timezone
+    from unittest.mock import AsyncMock
+    from harbor.models.task.config import VerifierConfig
+    from harbor.trial.errors import VerifierTimeoutError
+    from harbor.trial.single_step import SingleStepTrial
     from harbor.trial.trial import Trial
-    from harbor.trial.errors import AgentTimeoutError
     original_first = []
     def first_only(trial, exc):
         if not original_first: original_first.append(type(exc).__name__)
     monkeypatch.setattr(Trial, '_record_exception', first_only)
-    trial = SimpleNamespace(agent=ForgeCodeHarborAgent(logs_dir=tmp_path/'agent'),
-                            paths=SimpleNamespace(trial_dir=tmp_path))
-    def _run_agent_phase(): raise AgentTimeoutError('fixture agent deadline')
-    def _run_shared_verifier(): raise RuntimeError('fixture verifier dependency; token=private-token')
+    trial = SimpleNamespace(
+        agent=ForgeCodeHarborAgent(logs_dir=tmp_path/'agent'),
+        paths=SimpleNamespace(trial_dir=tmp_path),
+        config=SimpleNamespace(verifier=SimpleNamespace(disable=False)),
+        task=SimpleNamespace(config=SimpleNamespace(verifier=VerifierConfig())),
+        result=SimpleNamespace(verifier_result=None),
+        _now=lambda: datetime.now(timezone.utc),
+        _emit=AsyncMock(),
+        _verifier_timeout_sec=360,
+        _run_shared_verifier=AsyncMock(side_effect=TimeoutError('verifier deadline')),
+    )
+    def _run_agent_phase():
+        raise AgentTimeoutError('fixture agent deadline; token=private-token')
     async def run():
         plugin = ForgeCodeDeadlinePlugin()
         await plugin.on_job_start(SimpleNamespace(config=SimpleNamespace(tasks=[]), _metrics={}))
         try:
-            for phase in (_run_agent_phase, _run_shared_verifier):
-                try: phase()
-                except Exception as error: Trial._record_exception(trial, error)
+            with pytest.raises(AgentTimeoutError) as agent_error:
+                _run_agent_phase()
+            Trial._record_exception(trial, agent_error.value)
+            with pytest.raises(VerifierTimeoutError) as verifier_error:
+                await SingleStepTrial._run_verifier(trial)
+            Trial._record_exception(trial, verifier_error.value)
         finally:
             await plugin.on_job_end(None)
     asyncio.run(run())
+    trial._run_shared_verifier.assert_awaited_once_with(timeout_sec=360, user=None)
+    assert trial.result.verifier_result is None
     assert Trial._record_exception is first_only and original_first == ['AgentTimeoutError']
     content = (tmp_path/'forgecode-phase-failures.jsonl').read_text()
     records = [json.loads(line) for line in content.splitlines()]
-    assert [r['phase'] for r in records] == ['agent_execution','verifier']
+    assert [(r['phase'], r['exception_type']) for r in records] == [
+        ('agent_execution', 'AgentTimeoutError'),
+        ('verifier', 'VerifierTimeoutError'),
+    ]
     assert 'private-token' not in content

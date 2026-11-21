@@ -81,6 +81,7 @@ class ForgeCodeDeadlinePlugin(BaseJobPlugin):
                 from forge.sessions.trajectory import redact_text
                 phases = {'_run_agent_phase':'agent_execution', '_setup_agent':'agent_setup',
                     '_setup_agent_environment':'environment_setup', '_start_agent_environment':'environment_setup',
+                    '_run_verifier':'verifier',
                     '_run_shared_verifier':'verifier', '_run_separate_verifier':'verifier',
                     '_stop_agent_environment':'cleanup'}
                 stage = next((phases[frame.name] for frame in reversed(traceback.extract_tb(exc.__traceback__))
