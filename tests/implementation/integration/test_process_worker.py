@@ -79,6 +79,64 @@ def test_real_helper_verification_runs_program_with_original_evidence_fields(tmp
     asyncio.run(run())
 
 
+def test_command_timeout_returns_result_when_child_exits_at_reap_deadline(tmp_path, monkeypatch):
+    from forge.release import processes
+
+    root, control, workspace, policy = fixture(tmp_path)
+    policy['execution_mode'] = 'full-access'
+    (root / 'slow.py').write_text('import time; time.sleep(60)')
+    if sys.platform.startswith('linux'):
+        # Delay delivery and the final wake in a real worker. The child exits
+        # during that pause but is deliberately left waitable for cleanup.
+        program = """import os, signal, subprocess, sys, time
+from forge.release.processes import main
+from forge.tools import linux_process_worker as worker
+original_cleanup = worker.cleanup
+real_kill, real_sleep = os.kill, time.sleep
+def cleanup():
+    child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    def delay_signal(pid, sig):
+        if pid != child.pid:
+            real_kill(pid, sig)
+    def wake_late(seconds):
+        real_kill(child.pid, signal.SIGKILL)
+        os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+        real_sleep(1.6)
+    try:
+        os.kill, time.sleep = delay_signal, wake_late
+        return original_cleanup()
+    finally:
+        os.kill, time.sleep = real_kill, real_sleep
+        child.wait(timeout=2)
+worker.cleanup = cleanup
+raise SystemExit(main(sys.argv[1:]))
+"""
+        original_argv = processes.worker_argv
+
+        def worker_argv(*args, **kwargs):
+            argv = original_argv(*args, **kwargs)
+            if kwargs.get('ready_fd') is not None:
+                return [sys.executable, '-I', '-B', '-c', program, *argv[6:]]
+            return argv
+
+        monkeypatch.setattr(processes, 'worker_argv', worker_argv)
+
+    async def run():
+        backend = FileToolBackend(FileWorkerClient(workspace, policy, local_control=control))
+        try:
+            async with asyncio.timeout(25):
+                result = await backend.execute(ToolCall(0, 'timeout', 'run_command', {
+                    'command': f'"{sys.executable}" slow.py', 'timeout_seconds': 1,
+                }), create_default_registry(root))
+            assert result.error.code == 'command_timeout', result
+            assert result.metadata['timed_out']
+        finally:
+            assert (await backend.close())['state'] == 'clean'
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('failure', ['exit', 'exception', 'malformed'])
 def test_helper_failure_preserves_bounded_redacted_diagnostics(tmp_path, monkeypatch, failure):
     import json

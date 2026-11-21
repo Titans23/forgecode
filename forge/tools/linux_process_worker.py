@@ -23,23 +23,31 @@ def children():
     ).read_text().split()]
 
 
+def reap_children():
+    """Reap exited children and ask the kernel if any children remain."""
+    while True:
+        try:
+            pid, _ = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return True
+        if not pid:
+            return False
+
+
 def cleanup():
     deadline = time.monotonic() + 1.5
-    while children() and time.monotonic() < deadline:
+    # Reap after the last wake too. An exited child remains visible in /proc
+    # as a zombie until waitpid, even when the cleanup deadline has elapsed.
+    while not reap_children():
+        if time.monotonic() >= deadline:
+            return False
         for pid in children():
             try:
                 os.kill(pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-        while True:
-            try:
-                pid, _ = os.waitpid(-1, os.WNOHANG)
-            except ChildProcessError:
-                break
-            if not pid:
-                break
         time.sleep(0.005)
-    return not children()
+    return True
 
 
 def run(command, shell, *, cleanup_normal=False, ready_fd=None):
@@ -76,15 +84,7 @@ def run(command, shell, *, cleanup_normal=False, ready_fd=None):
                     # The shell may exit before its redirected child. Keep the
                     # same owner alive, so the command deadline still applies.
                     # Helper supervisors instead reclaim children on exit.
-                    if not cleanup_normal:
-                        while True:
-                            try:
-                                pid, _ = os.waitpid(-1, os.WNOHANG)
-                            except ChildProcessError:
-                                break
-                            if not pid:
-                                break
-                    if cleanup_normal or not children():
+                    if cleanup_normal or reap_children():
                         normal_exit = True
                         return code if code >= 0 else 128 - code
                 for key in list(selector.get_map().values()):
