@@ -11,6 +11,7 @@ from benchmark.harbor.bounded_docker import BoundedDockerEnvironment
 
 
 DOCKER_QUERY_TIMEOUT_SECONDS = 60
+RESOURCE_KEYS = ('containers', 'volumes', 'networks')
 
 
 class DockerQueryError(RuntimeError):
@@ -66,14 +67,33 @@ async def docker_inventory(project, known_volumes=()):
     volumes=set((await docker_query('volume','ls','--quiet','--filter',label)).splitlines())
     networks=(await docker_query('network','ls','--quiet','--no-trunc','--filter',label)).splitlines()
     # Anonymous volumes may lack the Compose project label. Capture their exact
-    # names from actual container mounts before stop/down can remove the parent.
+    # names before down removes the parent. Named external mounts are not owned.
+    candidates = set(known_volumes)
     for container in containers:
         mounts=json.loads(await docker_query('inspect','--format','{{json .Mounts}}',container))
-        volumes.update(mount['Name'] for mount in mounts if mount.get('Type')=='volume')
-    if known_volumes:
-        current=set((await docker_query('volume','ls','--quiet')).splitlines())
-        volumes.update(current.intersection(known_volumes))
+        candidates.update(mount['Name'] for mount in mounts if mount.get('Type')=='volume')
+    if candidates:
+        anonymous = await docker_query('volume', 'ls', '--quiet', '--filter', 'label=com.docker.volume.anonymous')
+        volumes.update(candidates.intersection(anonymous.splitlines()))
     return {'daemon_id':daemon,'project':project,'containers':sorted(containers),'volumes':sorted(volumes),'networks':sorted(networks)}
+
+
+async def _remove_owned_resources(inventory):
+    error = None
+    for key, command in (
+        ('containers', ('rm', '--force')), ('volumes', ('volume', 'rm')), ('networks', ('network', 'rm')),
+    ):
+        if not inventory[key]:
+            continue
+        try:
+            await docker_query(*command, *inventory[key])
+        except DockerQueryError as exc:
+            # A Compose removal can complete concurrently. Still attempt the
+            # other owned resource types and leave confirmation to inventory.
+            if error is None:
+                error = exc
+    if error is not None:
+        raise error
 
 
 async def environment_identity(project):
@@ -174,6 +194,7 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
 
     async def stop(self,delete):
         baseline=getattr(self,'_resource_baseline',None)
+        delete_requested = delete is True and not getattr(self, '_keep_containers', False)
         before=None
         if baseline:
             try: before=await docker_inventory(baseline['project'])
@@ -186,21 +207,32 @@ class EvaluationDockerEnvironment(BoundedDockerEnvironment):
         except Exception as exc:
             error = exc
         from forge.sessions.trajectory import exception_diagnostics
-        self._receipt('stop_finished', delete_requested=delete is True,
+        self._receipt('stop_finished', delete_requested=delete_requested,
             timings=getattr(self, 'cleanup_details', {}), error=exception_diagnostics(error) if error else None)
         confirmed = False
-        if before and delete is True:
+        if before and delete_requested:
             try:
                 after=await docker_inventory(baseline['project'],before['volumes'])
                 self._receipt('resource_query',before=before,after=after)
+                if (after['daemon_id'] == baseline['daemon_id'] and not any(baseline[key] for key in RESOURCE_KEYS)
+                        and any(after[key] for key in RESOURCE_KEYS)):
+                    recovery_error = None
+                    try:
+                        async with asyncio.timeout(self.cleanup_timeout_seconds):
+                            await _remove_owned_resources(after)
+                    except Exception as exc:
+                        recovery_error = exception_diagnostics(exc)
+                    self._receipt('reconcile_finished', error=recovery_error)
+                    after = await docker_inventory(baseline['project'], after['volumes'])
+                    self._receipt('resource_query', before=before, after=after)
                 confirmed = (after['daemon_id'] == baseline['daemon_id']
-                    and not any(baseline[key] or after[key] for key in ('containers', 'volumes', 'networks')))
+                    and not any(baseline[key] or after[key] for key in RESOURCE_KEYS))
             except Exception as query_error:
                 self._receipt('query_failed',reason=type(query_error).__name__)
                 raise
         if error is not None and not confirmed:
             raise error
-        if before and delete is True and not confirmed:
+        if before and delete_requested and not confirmed:
             raise DockerQueryError('Environment cleanup left residual resources or changed Docker engine.')
 
 
@@ -261,12 +293,7 @@ async def reconcile_resources(receipt_path):
         before = await docker_inventory(baseline['project'], known)
         if before['daemon_id'] != baseline['daemon_id']:
             return 'unknown'
-        if before['containers']:
-            await docker_query('rm', '--force', *before['containers'])
-        if before['volumes']:
-            await docker_query('volume', 'rm', *before['volumes'])
-        if before['networks']:
-            await docker_query('network', 'rm', *before['networks'])
+        await _remove_owned_resources(before)
         after = await docker_inventory(baseline['project'], before['volumes'])
         with path.open('a', encoding='utf-8') as stream:
             for entry in ({'resource_id': row['resource_id'], 'phase': 'stop_returned', 'delete_requested': True},

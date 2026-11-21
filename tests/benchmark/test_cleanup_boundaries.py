@@ -34,7 +34,7 @@ def test_only_delivery_mounts_receive_recursive_ownership_repair(tmp_path):
     assert record['phase'] == 'log_ownership' and record['error'] is None
 
 
-@pytest.mark.parametrize('after_state', ['clean', 'residual', 'wrong_engine', 'query_failure'])
+@pytest.mark.parametrize('after_state', ['clean', 'recovered', 'residual', 'wrong_engine', 'query_failure'])
 def test_cleanup_timeout_rechecks_resources_without_inventing_success(tmp_path, monkeypatch, after_state):
     env = environment(tmp_path)
     empty = dict(daemon_id='engine', project='owned', containers=[], volumes=[], networks=[])
@@ -42,25 +42,78 @@ def test_cleanup_timeout_rechecks_resources_without_inventing_success(tmp_path, 
     env._receipt('start_intent', project='owned')
     env._receipt('baseline', inventory=empty)
     calls = []
+    mutations = []
+    residual = {**empty, 'containers': ['container'], 'volumes': ['anonymous'], 'networks': ['network']}
+
     async def inventory(project, known_volumes=()):
         calls.append((project, known_volumes))
         if len(calls) == 1:
-            return {**empty, 'containers':['container'], 'volumes':['anonymous']}
+            return residual
         assert known_volumes == ['anonymous']
         if after_state == 'query_failure': raise docker.DockerQueryError('daemon unavailable')
-        return {**empty, **({'containers':['container']} if after_state == 'residual' else
-                           {'daemon_id':'other'} if after_state == 'wrong_engine' else {})}
+        if after_state == 'wrong_engine':
+            return {**residual, 'daemon_id': 'other'}
+        if after_state == 'residual' or (after_state == 'recovered' and not mutations):
+            return residual
+        return empty
+
     async def stop(self, delete): raise TimeoutError('compose timeout')
+
+    async def remove(*args):
+        mutations.append(args)
+        if after_state == 'residual':
+            raise docker.DockerQueryError('fixture still busy')
+
     monkeypatch.setattr(docker, 'docker_inventory', inventory)
+    monkeypatch.setattr(docker, 'docker_query', remove)
     monkeypatch.setattr(BoundedDockerEnvironment, 'stop', stop)
-    if after_state == 'clean': asyncio.run(env.stop(True))
+    if after_state in ('clean', 'recovered'): asyncio.run(env.stop(True))
     else:
         with pytest.raises(docker.DockerQueryError if after_state == 'query_failure' else TimeoutError):
             asyncio.run(env.stop(True))
     receipts = [json.loads(l) for l in env._receipt_path.read_text().splitlines()]
     assert next(r for r in receipts if r['phase']=='stop_finished')['error'][0]['type'] == 'TimeoutError'
-    assert docker.cleanup_state(receipts) == {'clean':'clean','residual':'residual',
+    assert mutations == ([('rm', '--force', 'container'), ('volume', 'rm', 'anonymous'),
+                          ('network', 'rm', 'network')] if after_state in ('recovered', 'residual') else [])
+    assert docker.cleanup_state(receipts) == {'clean':'clean','recovered':'clean','residual':'residual',
                                              'wrong_engine':'unknown','query_failure':'unknown'}[after_state]
+
+
+def test_inventory_does_not_claim_external_named_volume(monkeypatch):
+    async def query(*args):
+        if args[0] == 'info': return 'engine'
+        if args[0] == 'ps': return 'container'
+        if args[0] == 'network': return ''
+        if args[0] == 'inspect':
+            return json.dumps([{'Type': 'volume', 'Name': name}
+                               for name in ('external', 'attached-unnamed')])
+        if args[-1] == 'label=com.docker.volume.anonymous':
+            return 'attached-unnamed\nknown-unnamed\nunrelated-unnamed'
+        return 'project-volume'
+
+    monkeypatch.setattr(docker, 'docker_query', query)
+    inventory = asyncio.run(docker.docker_inventory('owned', ['known-unnamed', 'external']))
+    assert inventory['volumes'] == ['attached-unnamed', 'known-unnamed', 'project-volume']
+
+
+def test_keep_containers_does_not_reconcile(tmp_path, monkeypatch):
+    env = environment(tmp_path)
+    env._keep_containers = True
+    env._resource_baseline = dict(daemon_id='engine', project='owned', containers=[], volumes=[], networks=[])
+    calls = []
+
+    async def inventory(project):
+        calls.append(project)
+        return {**env._resource_baseline, 'containers': ['retained']}
+
+    async def stop(self, delete):
+        assert delete is True
+
+    monkeypatch.setattr(docker, 'docker_inventory', inventory)
+    monkeypatch.setattr(BoundedDockerEnvironment, 'stop', stop)
+    asyncio.run(env.stop(True))
+    assert calls == ['owned']
+    assert json.loads(env._receipt_path.read_text())['delete_requested'] is False
 
 
 def test_stop_has_one_outer_deadline_and_explicit_process_grace(monkeypatch):
