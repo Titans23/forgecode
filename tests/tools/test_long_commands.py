@@ -11,8 +11,18 @@ from forge.api import HarnessSession, SessionOptions, RunProfile
 from forge.config import ForgeConfig
 from forge.runtime.state import ModelResponseCompleted, ModelTextDelta
 from forge.runtime.state import ToolCall
-from forge.tools.shell import RunCommandInput
+from forge.tools.shell import DEFAULT_COMMAND_TIMEOUT, RunCommandInput, RunCommandTool
 from forge.tools.verify import VerifyInput
+
+
+def test_command_definition_guides_long_jobs_and_services(tmp_path):
+    fields = RunCommandTool(tmp_path).definition['input_schema']['properties']
+    timeout = fields['timeout_seconds']['description']
+    assert f'{DEFAULT_COMMAND_TIMEOUT:g} seconds' in timeout
+    assert 'installs and builds' in timeout and 'caller deadline' in timeout
+    lifetime = fields['lifetime']['description']
+    assert 'run_in_background=true' in lifetime
+    assert 'foreground mode' in lifetime and 'readiness' in lifetime
 
 
 @pytest.mark.parametrize('arguments,timeout', [

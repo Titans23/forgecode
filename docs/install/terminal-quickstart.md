@@ -113,13 +113,13 @@ forge --sandbox danger-full-access --approval supervised
 
 空闲时使用 `/permission <预设>` 或 `await session.set_permissions(name)`；恢复继承保存值，分支继承，清空回到启动默认值。`/sandbox`、`/approval` 和 `full-access` 别名保留兼容。运行中的后台作业会阻止权限和历史切换。
 
-普通命令默认超时 120 秒，可为长任务显式设置更大的正有限时长。后台任务通过 `run_in_background` 启动，直接传入程序即可，无需 `nohup` 或 shell `&`。`job_output` 按游标读取，`job_kill` 取消；命令完成会等待所属子进程，输出重定向不会让它提前完成。取消/退出仍清理本会话拥有的进程。Harness 无累计请求、工具、token 或回合时长限制。
+有限命令默认超时 120 秒，放到后台也一样。预计安装或构建会超出默认时长时，按需显式设置 `timeout_seconds`，例如 600 秒，并遵守调用方剩余期限。通过 `run_in_background` 启动后台任务，直接传入程序。`job_output` 按游标读取，`job_kill` 取消。命令完成会等待所属子进程退出，即使输出已重定向。取消或退出会清理会话拥有的进程。Harness 无累计请求、工具、token 或回合时长限制。
 
 普通会话使用 `verify` 执行检查，直接读取退出码、输出与耗时；检查程序可以输出普通文本或多行 JSON，无需填写检查 ID、继承关系或需求绑定。只有显式严格完成模式才提供完整验收参数。检查命令成功不代表整个任务已经完成。
 
 长命令使用 `job_output(wait_for="completion", wait_seconds=300)` 等待完成；`wait_for="output", after=next_cursor` 等待新输出。单次等待最多 3600 秒，等待超时不会停止命令。调用方显式设置的 `caller_deadline` 到期时，会取消当前请求、前台工具和本轮有限后台命令，保存截止原因及清理事实；显式会话服务仍按会话生命周期管理。评测会提示剩余时间和容器 CPU/内存限制，并预留短暂收尾时间；CLI 默认没有回合截止时间。POSIX 字符串命令由 `/bin/sh` 执行，需要 Bash 语法时显式调用 `bash`。
 
-需要持续运行的开发服务器可使用 `run_in_background=true, lifetime="session"`。省略 `timeout_seconds` 或设为 `null` 时，服务默认持续运行。需要定时停止时，显式传入正数秒值，调用方的执行时限仍然生效。启动后请检查服务是否就绪。回答结束后服务继续运行，可在 `/jobs` 中停止，退出会话时清理。运行服务期间不能切换权限或历史。该能力目前用于 Windows/Linux 的 full-access 会话。
+需要持续运行的开发服务器可使用 `run_in_background=true, lifetime="session"`。让服务以前台模式在后台作业里运行，启动后访问实际端口或健康检查地址确认就绪。省略 `timeout_seconds` 或设为 `null` 时，服务默认持续运行。需要定时停止时，显式传入正数秒值，调用方的执行时限仍然生效。回答结束后服务继续运行，可在 `/jobs` 中停止，退出会话时清理。运行服务期间不能切换权限或历史。该能力目前用于 Windows/Linux 的 full-access 会话。
 
 ## SDK 与能力组合
 

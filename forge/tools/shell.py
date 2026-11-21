@@ -374,11 +374,13 @@ class RunCommandInput(SandboxInput):
     command: str = Field(min_length=1)
     cwd: str = '.'
     lifetime: Literal['command', 'session'] = Field(default='command',
-        description='Use session only for an explicitly requested persistent service, with run_in_background=true. '
-        'It stays owned by this session after a completed answer and is stopped when the session closes.')
+        description='Use command for work that should exit. For a service that must stay up, use session with '
+        'run_in_background=true. Run the server in foreground mode inside the job and check readiness at its '
+        'port or endpoint. The session owns the service through close or managed handoff.')
     timeout_seconds: float | None = Field(default_factory=default_command_timeout, gt=0, allow_inf_nan=False,
-        description='Total command lifetime in seconds. Ordinary commands default to 120, including background commands. '
-        'Session services default to no command timeout; omit or pass null. A positive value sets a limit in either mode.')
+        description='Total command lifetime in seconds. Finite commands, including background jobs, default to '
+        f'{DEFAULT_COMMAND_TIMEOUT:g} seconds. Set a longer value for long installs and builds within any caller deadline. '
+        'Session services default to no command timeout (omit or pass null). A positive value limits either mode.')
     stdin: str | None = Field(default=None, max_length=8_000)
 
 
